@@ -38,12 +38,18 @@ interface BinanceOrder {
   notifyPayedExpireMinute?: number;
 }
 
+interface PendingMessage {
+  orderNumber: string;
+  message: string;
+  event: string;
+  rule: AutoReplyRule;
+}
+
 function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {
-  // Priority: verified_name from DB > realName fields from API > nickname > fallback
   if (verifiedName) return verifiedName;
   if (order.buyerRealName) return order.buyerRealName;
   if (order.sellerRealName) return order.sellerRealName;
-  if (order.counterPartNickName && order.counterPartNickName !== "") return order.counterPartNickName;
+  if (order.counterPartNickName && order.counterPartNickName !== "" && order.counterPartNickName !== "undefined") return order.counterPartNickName;
   return "Trader";
 }
 
@@ -64,7 +70,6 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   const events: string[] = [];
   const status = String(order.orderStatus ?? "").toUpperCase();
 
-  // Skip completed/cancelled/expired orders entirely — we can't message them
   if (status.includes("COMPLETED") || status === "4" || status === "5" ||
       status.includes("CANCEL") || status.includes("EXPIRED")) {
     return events;
@@ -94,6 +99,127 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   return events;
 }
 
+/**
+ * Send a chat message via WebSocket relay.
+ * 1. Get chat credentials from Binance (via REST proxy)
+ * 2. Connect to the relay (port 8080) targeting Binance's WSS
+ * 3. Send the message
+ */
+async function sendChatMessage(
+  proxyUrl: string,
+  proxyToken: string,
+  orderNo: string,
+  content: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Step 1: Get chat credentials via generic proxy GET handler
+    const credRes = await fetch(
+      `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatCredential?orderNo=${orderNo}`,
+      {
+        method: "GET",
+        headers: {
+          "x-proxy-token": proxyToken,
+        },
+      }
+    );
+    const credData = await credRes.json();
+    console.log(`retrieveChatCredential for ${orderNo}: code=${credData?.code}, hasData=${!!credData?.data}`);
+
+    if (credData?.code !== "000000" || !credData?.data) {
+      return { success: false, error: `Credential failed: ${JSON.stringify(credData)}` };
+    }
+
+    const chatWssUrl = credData.data.chatWssUrl;
+    const listenKey = credData.data.listenKey;
+    const listenToken = credData.data.listenToken;
+
+    if (!chatWssUrl || !listenKey || !listenToken) {
+      return { success: false, error: `Missing WSS fields: url=${chatWssUrl}, key=${listenKey}` };
+    }
+
+    // Step 2: Connect to relay on port 8080
+    const proxyHost = new URL(proxyUrl).hostname;
+    const targetUrl = `${chatWssUrl}?listenKey=${listenKey}`;
+    const relayUrl = `ws://${proxyHost}:8080?key=${encodeURIComponent(proxyToken)}&target=${encodeURIComponent(targetUrl)}`;
+
+    console.log(`Connecting to relay for order ${orderNo}...`);
+
+    const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+      const ws = new WebSocket(relayUrl);
+      let settled = false;
+
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          try { ws.close(); } catch (_) {}
+          resolve({ success: false, error: "WebSocket timeout (10s)" });
+        }
+      }, 10000);
+
+      ws.onopen = () => {
+        console.log(`WebSocket connected for order ${orderNo}, sending auth...`);
+
+        // Authenticate with token
+        ws.send(JSON.stringify({
+          type: "auth",
+          listenKey: listenKey,
+          token: listenToken,
+        }));
+
+        // Send message after brief auth delay
+        setTimeout(() => {
+          const msgPayload = JSON.stringify({
+            type: "sendMessage",
+            orderNo: orderNo,
+            content: content,
+            contentType: "TEXT",
+            uuid: crypto.randomUUID(),
+          });
+          console.log(`Sending chat message for ${orderNo}: ${content.substring(0, 50)}...`);
+          ws.send(msgPayload);
+
+          // Wait for response/confirmation
+          setTimeout(() => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeout);
+              try { ws.close(); } catch (_) {}
+              resolve({ success: true });
+            }
+          }, 2000);
+        }, 500);
+      };
+
+      ws.onmessage = (event) => {
+        const data = typeof event.data === "string" ? event.data : "";
+        console.log(`WebSocket response for ${orderNo}: ${data.substring(0, 300)}`);
+      };
+
+      ws.onerror = (event) => {
+        console.error(`WebSocket error for ${orderNo}:`, event);
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          resolve({ success: false, error: "WebSocket connection error" });
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log(`WebSocket closed for ${orderNo}: code=${event.code}`);
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          resolve({ success: false, error: `WebSocket closed: code=${event.code}` });
+        }
+      };
+    });
+
+    return result;
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -103,11 +229,11 @@ serve(async (req) => {
     const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
     const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
+    const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
     const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
-    const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
 
-    if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
+    if (!BINANCE_PROXY_URL || !BINANCE_PROXY_TOKEN) {
       throw new Error("Missing Binance configuration secrets");
     }
 
@@ -116,9 +242,9 @@ serve(async (req) => {
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "x-proxy-token": BINANCE_PROXY_TOKEN,
-      "x-api-key": BINANCE_API_KEY,
-      "x-api-secret": BINANCE_API_SECRET,
     };
+    if (BINANCE_API_KEY) proxyHeaders["x-api-key"] = BINANCE_API_KEY;
+    if (BINANCE_API_SECRET) proxyHeaders["x-api-secret"] = BINANCE_API_SECRET;
 
     // 1. Fetch active auto-reply rules
     const { data: rules, error: rulesErr } = await supabase
@@ -149,7 +275,7 @@ serve(async (req) => {
 
     console.log(`Rules: ${rules?.length || 0}, AutoPay: ${autoPayActive ? `ON (${autoPayMinutes}min)` : "OFF"}`);
 
-    // 3. Fetch ONLY active orders — completed orders can't receive messages
+    // 3. Fetch ONLY active orders
     const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
       method: "POST",
       headers: proxyHeaders,
@@ -179,26 +305,20 @@ serve(async (req) => {
         );
       });
 
-      console.log(`Auto-pay: ${buyOrdersPendingPayment.length} BUY orders pending payment`);
-
       for (const order of buyOrdersPendingPayment) {
         try {
           let expiryTimeMs: number | null = null;
-
           if (order.notifyPayEndTime) {
             expiryTimeMs = order.notifyPayEndTime;
           } else if (order.notifyPayedExpireMinute && order.createTime) {
             expiryTimeMs = order.createTime + order.notifyPayedExpireMinute * 60 * 1000;
           }
-
           if (!expiryTimeMs) {
             expiryTimeMs = order.createTime + 15 * 60 * 1000;
           }
 
           const timeRemainingMs = expiryTimeMs - Date.now();
           const minutesRemaining = timeRemainingMs / 60000;
-
-          console.log(`Order ${order.orderNumber}: ${minutesRemaining.toFixed(1)} min remaining, threshold: ${autoPayMinutes} min`);
 
           if (minutesRemaining <= autoPayMinutes && minutesRemaining > 0) {
             const { data: alreadyPaid } = await supabase
@@ -208,13 +328,9 @@ serve(async (req) => {
               .eq("status", "success")
               .maybeSingle();
 
-            if (alreadyPaid) {
-              console.log(`Order ${order.orderNumber}: already auto-paid, skipping`);
-              continue;
-            }
+            if (alreadyPaid) continue;
 
-            console.log(`🤖 Auto-paying order ${order.orderNumber} (${minutesRemaining.toFixed(1)} min remaining)`);
-
+            console.log(`🤖 Auto-paying order ${order.orderNumber}`);
             const markPaidRes = await fetch(
               `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`,
               {
@@ -232,7 +348,6 @@ serve(async (req) => {
                 status: "success",
                 minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
               });
-              console.log(`✅ Auto-paid order ${order.orderNumber}`);
               autoPaidCount++;
             } else {
               await supabase.from("p2p_auto_pay_log").insert({
@@ -242,18 +357,11 @@ serve(async (req) => {
                 minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
                 error_message: JSON.stringify(markPaidResult),
               });
-              console.error(`❌ Auto-pay failed for ${order.orderNumber}: ${JSON.stringify(markPaidResult)}`);
               errors++;
             }
           }
         } catch (apErr) {
           console.error(`Auto-pay error for ${order.orderNumber}:`, apErr);
-          await supabase.from("p2p_auto_pay_log").insert({
-            order_number: order.orderNumber,
-            action: "mark_paid",
-            status: "failed",
-            error_message: String(apErr),
-          });
           errors++;
         }
       }
@@ -261,13 +369,11 @@ serve(async (req) => {
 
     // ===== AUTO-REPLY LOGIC =====
     if (hasRules) {
-      // Fetch auto-reply exclusions
       const { data: exclusionRows } = await supabase
         .from("terminal_auto_reply_exclusions")
         .select("order_number");
       const excludedOrders = new Set((exclusionRows || []).map((r: any) => r.order_number));
 
-      // Fetch small buys and small sales config
       const { data: sbConfig } = await supabase
         .from("small_buys_config")
         .select("is_enabled, min_amount, max_amount")
@@ -282,7 +388,7 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      // Pre-fetch verified names from binance_order_history
+      // Pre-fetch verified names
       const orderNumbers = activeOrders.map((o) => o.orderNumber);
       const verifiedNameMap = new Map<string, string>();
       if (orderNumbers.length > 0) {
@@ -298,17 +404,14 @@ serve(async (req) => {
         }
       }
 
+      // Collect all pending messages first
+      const pendingMessages: PendingMessage[] = [];
+
       for (const order of activeOrders) {
-        if (excludedOrders.has(order.orderNumber)) {
-          console.log(`⏭ Skipping excluded order ${order.orderNumber}`);
-          continue;
-        }
+        if (excludedOrders.has(order.orderNumber)) continue;
+
         const triggerEvents = detectTriggerEvents(order);
         const totalPrice = parseFloat(order.totalPrice || "0");
-
-        // Log counterparty info for debugging
-        const resolvedName = getCounterpartyName(order, verifiedNameMap.get(order.orderNumber) || null);
-        console.log(`Order ${order.orderNumber}: counterPartNickName="${order.counterPartNickName}", buyerRealName="${order.buyerRealName}", sellerRealName="${order.sellerRealName}", dbName="${verifiedNameMap.get(order.orderNumber) || 'N/A'}", resolved="${resolvedName}", triggers=[${triggerEvents.join(',')}]`);
 
         for (const event of triggerEvents) {
           const matchingRules = (rules as AutoReplyRule[]).filter((r) => {
@@ -346,65 +449,48 @@ serve(async (req) => {
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
-            try {
-              // Send via WebSocket bridge on proxy (REST sendMessage endpoint doesn't exist on Binance)
-              const sendRes = await fetch(`${BINANCE_PROXY_URL}/api/chat/send`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "x-proxy-token": BINANCE_PROXY_TOKEN,
-                },
-                body: JSON.stringify({
-                  orderNo: order.orderNumber,
-                  content: message,
-                  contentType: "TEXT",
-                }),
-              });
-              const sendResult = await sendRes.json();
-              console.log(`Chat send response for ${order.orderNumber}:`, JSON.stringify(sendResult));
-
-              if (sendRes.ok && !sendResult?.error) {
-                await supabase.from("p2p_auto_reply_processed").insert({
-                  order_number: order.orderNumber,
-                  trigger_event: event,
-                  rule_id: rule.id,
-                });
-
-                await supabase.from("p2p_auto_reply_log").insert({
-                  rule_id: rule.id,
-                  order_number: order.orderNumber,
-                  trigger_event: event,
-                  message_sent: message,
-                  status: "sent",
-                });
-
-                console.log(`✅ Auto-reply sent: [${event}] ${rule.name} → Order ${order.orderNumber}`);
-                processed++;
-              } else {
-                await supabase.from("p2p_auto_reply_log").insert({
-                  rule_id: rule.id,
-                  order_number: order.orderNumber,
-                  trigger_event: event,
-                  message_sent: message,
-                  status: "failed",
-                  error_message: JSON.stringify(sendResult),
-                });
-                console.error(`❌ Auto-reply failed: ${rule.name} → ${JSON.stringify(sendResult)}`);
-                errors++;
-              }
-            } catch (sendErr) {
-              await supabase.from("p2p_auto_reply_log").insert({
-                rule_id: rule.id,
-                order_number: order.orderNumber,
-                trigger_event: event,
-                message_sent: message,
-                status: "failed",
-                error_message: String(sendErr),
-              });
-              console.error(`❌ Auto-reply error: ${rule.name} → ${sendErr}`);
-              errors++;
-            }
+            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule });
           }
+        }
+      }
+
+      console.log(`${pendingMessages.length} pending auto-reply messages to send`);
+
+      // Send each message via WebSocket relay
+      for (const pm of pendingMessages) {
+        const result = await sendChatMessage(
+          BINANCE_PROXY_URL,
+          BINANCE_PROXY_TOKEN,
+          pm.orderNumber,
+          pm.message,
+        );
+
+        if (result.success) {
+          await supabase.from("p2p_auto_reply_processed").insert({
+            order_number: pm.orderNumber,
+            trigger_event: pm.event,
+            rule_id: pm.rule.id,
+          });
+          await supabase.from("p2p_auto_reply_log").insert({
+            rule_id: pm.rule.id,
+            order_number: pm.orderNumber,
+            trigger_event: pm.event,
+            message_sent: pm.message,
+            status: "sent",
+          });
+          console.log(`✅ Auto-reply sent: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
+          processed++;
+        } else {
+          await supabase.from("p2p_auto_reply_log").insert({
+            rule_id: pm.rule.id,
+            order_number: pm.orderNumber,
+            trigger_event: pm.event,
+            message_sent: pm.message,
+            status: "failed",
+            error_message: result.error || "Unknown error",
+          });
+          console.error(`❌ Auto-reply failed: ${pm.rule.name} → ${result.error}`);
+          errors++;
         }
       }
     }

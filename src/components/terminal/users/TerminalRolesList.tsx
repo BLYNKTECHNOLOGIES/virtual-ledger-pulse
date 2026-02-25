@@ -53,9 +53,32 @@ const PERMISSION_GROUPS: Record<string, { label: string; permissions: { key: Ter
       { key: "terminal_automation_manage", label: "Manage Automation" },
     ],
   },
+  assets: {
+    label: "Assets",
+    permissions: [{ key: "terminal_assets_view", label: "View Assets & Balances" }],
+  },
   analytics: {
     label: "Analytics",
     permissions: [{ key: "terminal_analytics_view", label: "View Analytics" }],
+  },
+  mpi: {
+    label: "MPI (Management Performance)",
+    permissions: [{ key: "terminal_mpi_view", label: "View MPI Dashboard" }],
+  },
+  audit_logs: {
+    label: "Audit Logs",
+    permissions: [{ key: "terminal_audit_logs_view", label: "View Audit Logs" }],
+  },
+  kyc: {
+    label: "KYC Team",
+    permissions: [
+      { key: "terminal_kyc_view", label: "View KYC Module" },
+      { key: "terminal_kyc_manage", label: "Manage KYC Approvals" },
+    ],
+  },
+  logs: {
+    label: "Logs",
+    permissions: [{ key: "terminal_logs_view", label: "View System Logs" }],
   },
   settings: {
     label: "Settings",

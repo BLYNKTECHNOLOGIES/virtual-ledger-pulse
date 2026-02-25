@@ -11709,6 +11709,12 @@ export type Database = {
         | "terminal_users_manage"
         | "terminal_payer_view"
         | "terminal_payer_manage"
+        | "terminal_assets_view"
+        | "terminal_mpi_view"
+        | "terminal_audit_logs_view"
+        | "terminal_kyc_view"
+        | "terminal_kyc_manage"
+        | "terminal_logs_view"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -11935,6 +11941,12 @@ export const Constants = {
         "terminal_users_manage",
         "terminal_payer_view",
         "terminal_payer_manage",
+        "terminal_assets_view",
+        "terminal_mpi_view",
+        "terminal_audit_logs_view",
+        "terminal_kyc_view",
+        "terminal_kyc_manage",
+        "terminal_logs_view",
       ],
     },
   },

@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   RefreshCw, ZoomIn, ZoomOut, Maximize2, Search,
-  ChevronDown, ChevronUp, User, Users, Crown, Briefcase, Shield
+  ChevronDown, ChevronUp, User, Users, Crown, Briefcase, Shield,
+  AlertTriangle, Link2Off
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,6 +21,7 @@ interface OrgNode {
   isActive: boolean;
   children: OrgNode[];
   collapsed: boolean;
+  isOrphan?: boolean; // true if this node should have a supervisor but doesn't
 }
 
 const LEVEL_COLORS: Record<number, { bg: string; border: string; text: string }> = {
@@ -55,14 +57,24 @@ function OrgCardNode({
     <div className="flex flex-col items-center">
       {/* Card */}
       <div
-        className={`relative rounded-lg border-2 ${colors.border} ${colors.bg} px-4 py-3 min-w-[160px] max-w-[200px] text-center transition-all hover:shadow-md ${
+        className={`relative rounded-lg border-2 ${
+          node.isOrphan
+            ? "border-destructive/70 bg-destructive/10 ring-2 ring-destructive/30 ring-offset-1 ring-offset-background"
+            : `${colors.border} ${colors.bg}`
+        } px-4 py-3 min-w-[160px] max-w-[220px] text-center transition-all hover:shadow-md ${
           !node.isActive ? "opacity-50" : ""
         } ${isMatch ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
       >
-        <div className="text-sm font-semibold text-foreground leading-tight truncate">
+        {node.isOrphan && (
+          <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-destructive text-destructive-foreground text-[9px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
+            <Link2Off className="h-2.5 w-2.5" />
+            No Supervisor
+          </div>
+        )}
+        <div className={`text-sm font-semibold text-foreground leading-tight truncate ${node.isOrphan ? "mt-1" : ""}`}>
           {node.displayName}
         </div>
-        <div className={`text-[11px] mt-0.5 ${colors.text} font-medium`}>
+        <div className={`text-[11px] mt-0.5 ${node.isOrphan ? "text-destructive" : colors.text} font-medium`}>
           {node.roleName}
         </div>
         {node.specialization && node.specialization !== "both" && (
@@ -142,6 +154,7 @@ function OrgCardNode({
 
 export function TerminalOrgChart() {
   const [tree, setTree] = useState<OrgNode[]>([]);
+  const [orphanNodes, setOrphanNodes] = useState<OrgNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [zoom, setZoom] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
@@ -209,6 +222,9 @@ export function TerminalOrgChart() {
         supervisorMap.set(m.user_id, list);
       });
 
+      // Find the minimum hierarchy level (the true top)
+      const minLevel = Math.min(...Array.from(nodesMap.values()).map(n => n.hierarchyLevel ?? 99));
+
       const addedToParent = new Set<string>();
       for (const [userId, node] of nodesMap) {
         const supervisors = supervisorMap.get(userId) || [];
@@ -220,6 +236,11 @@ export function TerminalOrgChart() {
           }
         }
         if (!addedToParent.has(userId)) {
+          // Mark as orphan if this is NOT the top-level role but has no supervisor
+          const level = node.hierarchyLevel ?? 99;
+          if (level > minLevel) {
+            node.isOrphan = true;
+          }
           roots.push(node);
         }
       }
@@ -231,6 +252,10 @@ export function TerminalOrgChart() {
       };
       sortNodes(roots);
 
+      // Separate true roots from orphans
+      const trueRoots = roots.filter(n => !n.isOrphan);
+      const orphans = roots.filter(n => n.isOrphan);
+
       // Collect managers (nodes with children)
       const mgrs: { id: string; name: string }[] = [];
       const collectManagers = (nodes: OrgNode[]) => {
@@ -241,7 +266,8 @@ export function TerminalOrgChart() {
       };
       collectManagers(roots);
       setManagers(mgrs);
-      setTree(roots);
+      setTree(trueRoots);
+      setOrphanNodes(orphans);
     } catch (err) {
       console.error("Error building org chart:", err);
     } finally {
@@ -284,6 +310,7 @@ export function TerminalOrgChart() {
     let count = 0;
     const walk = (nodes: OrgNode[]) => { count += nodes.length; nodes.forEach(n => walk(n.children)); };
     walk(filteredTree);
+    walk(orphanNodes);
     return count;
   })();
 
@@ -333,6 +360,30 @@ export function TerminalOrgChart() {
         Terminal organization chart based on supervisor mappings. {totalUsers} user{totalUsers !== 1 ? "s" : ""}.
       </p>
 
+      {/* Orphan Warning Banner */}
+      {orphanNodes.length > 0 && (
+        <div className="flex items-start gap-3 p-3 rounded-lg border border-destructive/40 bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-destructive">
+              Broken Chain Detected — {orphanNodes.length} user{orphanNodes.length !== 1 ? "s" : ""} without a supervisor
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              The following users have no reporting manager assigned and are disconnected from the hierarchy. 
+              Assign a supervisor in Users &amp; Roles to fix.
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {orphanNodes.map(n => (
+                <Badge key={n.userId} variant="destructive" className="text-[10px] gap-1">
+                  <Link2Off className="h-2.5 w-2.5" />
+                  {n.displayName} ({n.roleName})
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chart Container */}
       <div className="relative border border-border rounded-lg bg-muted/5 overflow-hidden" style={{ minHeight: "400px" }}>
         {/* Zoom controls */}
@@ -352,7 +403,7 @@ export function TerminalOrgChart() {
           <div className="flex justify-center items-center py-24">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
           </div>
-        ) : filteredTree.length === 0 ? (
+        ) : filteredTree.length === 0 && orphanNodes.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-muted-foreground gap-2">
             <Users className="h-10 w-10 opacity-20" />
             <p className="text-sm">No hierarchy configured yet.</p>
@@ -372,6 +423,7 @@ export function TerminalOrgChart() {
                 transition: "transform 0.2s ease",
               }}
             >
+              {/* Connected tree */}
               {filteredTree.map(node => (
                 <OrgCardNode
                   key={node.userId}
@@ -380,6 +432,46 @@ export function TerminalOrgChart() {
                   searchQuery={searchQuery}
                 />
               ))}
+
+              {/* Orphan nodes shown separately below with a divider */}
+              {orphanNodes.length > 0 && filteredTree.length > 0 && (
+                <div className="w-full flex flex-col items-center mt-10 pt-6 border-t border-destructive/30">
+                  <div className="flex items-center gap-2 mb-4 text-xs text-destructive font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Disconnected Users (No Supervisor Assigned)
+                  </div>
+                  <div className="flex items-start gap-6 flex-wrap justify-center">
+                    {orphanNodes.map(node => (
+                      <OrgCardNode
+                        key={node.userId}
+                        node={node}
+                        onToggle={toggleNode}
+                        searchQuery={searchQuery}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Only orphans, no connected tree */}
+              {filteredTree.length === 0 && orphanNodes.length > 0 && (
+                <div className="flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-2 text-xs text-destructive font-semibold">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    All users are disconnected — assign supervisors to build the hierarchy
+                  </div>
+                  <div className="flex items-start gap-6 flex-wrap justify-center">
+                    {orphanNodes.map(node => (
+                      <OrgCardNode
+                        key={node.userId}
+                        node={node}
+                        onToggle={toggleNode}
+                        searchQuery={searchQuery}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

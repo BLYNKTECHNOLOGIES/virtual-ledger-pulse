@@ -86,27 +86,32 @@ Deno.serve(async (req) => {
     // === SECURITY: Validate user_id is a valid UUID ===
     const userId = body.user_id;
     if (!userId || !UUID_REGEX.test(userId)) {
+      console.error('Invalid user_id:', userId);
       return errorResponse('Invalid or missing user_id', 400);
     }
 
     // === SECURITY: Rate limiting ===
     if (isRateLimited(userId)) {
+      console.error('Rate limited:', userId);
       await logBiometricEvent(supabase, userId, 'BIOMETRIC_RATE_LIMITED',
         'Rate limit exceeded for biometric operations');
       return errorResponse('Too many requests. Try again later.', 429);
     }
 
     // === SECURITY: Verify user has terminal access ===
-    const { data: hasAccess } = await supabase.rpc('verify_terminal_access', {
+    const { data: hasAccess, error: accessError } = await supabase.rpc('verify_terminal_access', {
       p_user_id: userId,
     });
+    console.log('verify_terminal_access result:', { userId, hasAccess, accessError });
     if (!hasAccess) {
+      console.error('No terminal access for:', userId);
       await logBiometricEvent(supabase, userId, 'BIOMETRIC_ACCESS_DENIED',
         'Attempted biometric operation without terminal access');
       return errorResponse('No terminal access', 403);
     }
 
     // =================== CHALLENGE ===================
+    console.log('Action:', path, 'userId:', userId);
     if (path === 'challenge') {
       const { type, admin_user_id } = body;
       if (!type || !['registration', 'authentication'].includes(type)) {

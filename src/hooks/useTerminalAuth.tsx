@@ -107,18 +107,31 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     fetchTerminalAuth();
   }, [fetchTerminalAuth]);
 
+  const isSuperAdmin = user?.roles?.some(r => r.toLowerCase() === 'super admin') || false;
+
+  const isTerminalAdmin = isSuperAdmin || terminalRoles.some(
+    (r) => r.role_name.toLowerCase() === 'admin' || r.role_name.toLowerCase() === 'super admin'
+  );
+
+  const ALL_TERMINAL_PERMISSIONS: TerminalPermission[] = [
+    'terminal_dashboard_view', 'terminal_ads_view', 'terminal_ads_manage',
+    'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
+    'terminal_automation_view', 'terminal_automation_manage',
+    'terminal_analytics_view', 'terminal_settings_view', 'terminal_settings_manage',
+    'terminal_users_view', 'terminal_users_manage',
+    'terminal_payer_view', 'terminal_payer_manage',
+  ];
+
+  const effectivePermissions = isSuperAdmin ? ALL_TERMINAL_PERMISSIONS : terminalPermissions;
+
   const hasPermission = useCallback(
-    (perm: TerminalPermission) => terminalPermissions.includes(perm),
-    [terminalPermissions]
+    (perm: TerminalPermission) => isSuperAdmin || terminalPermissions.includes(perm),
+    [terminalPermissions, isSuperAdmin]
   );
 
   const hasAnyPermission = useCallback(
-    (perms: TerminalPermission[]) => perms.some((p) => terminalPermissions.includes(p)),
-    [terminalPermissions]
-  );
-
-  const isTerminalAdmin = terminalRoles.some(
-    (r) => r.role_name.toLowerCase() === 'admin'
+    (perms: TerminalPermission[]) => isSuperAdmin || perms.some((p) => terminalPermissions.includes(p)),
+    [terminalPermissions, isSuperAdmin]
   );
 
   const value: TerminalAuthContextType = {
@@ -129,7 +142,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     lastName: user?.lastName || null,
     avatarUrl: user?.avatar_url || null,
     terminalRoles,
-    terminalPermissions,
+    terminalPermissions: effectivePermissions,
     hasPermission,
     hasAnyPermission,
     isTerminalAdmin,

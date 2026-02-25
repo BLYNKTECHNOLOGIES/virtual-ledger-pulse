@@ -36,7 +36,7 @@ interface BinanceOrder {
   notifyPayedExpireMinute?: number;
 }
 
-function renderTemplate(template: string, order: BinanceOrder): string {
+function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string {
   return template
     .replace(/\{\{orderNumber\}\}/g, order.orderNumber)
     .replace(/\{\{amount\}\}/g, order.amount)
@@ -44,7 +44,7 @@ function renderTemplate(template: string, order: BinanceOrder): string {
     .replace(/\{\{unitPrice\}\}/g, order.unitPrice)
     .replace(/\{\{asset\}\}/g, order.asset || "USDT")
     .replace(/\{\{fiat\}\}/g, order.fiatUnit || "INR")
-    .replace(/\{\{counterparty\}\}/g, order.counterPartNickName || "Trader")
+    .replace(/\{\{counterparty\}\}/g, verifiedName || order.counterPartNickName || "Trader")
     .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A");
 }
 
@@ -276,13 +276,58 @@ serve(async (req) => {
 
     // ===== AUTO-REPLY LOGIC (existing) =====
     if (hasRules) {
+      // Fetch small buys and small sales config for range-based filtering
+      const { data: sbConfig } = await supabase
+        .from("small_buys_config")
+        .select("is_enabled, min_amount, max_amount")
+        .eq("id", "default")
+        .maybeSingle();
+
+      const { data: ssConfig } = await supabase
+        .from("small_sales_config")
+        .select("is_enabled, min_amount, max_amount")
+        .eq("id", "default")
+        .maybeSingle();
+
+      // Pre-fetch verified names from binance_order_history for all orders in batch
+      const orderNumbers = allOrders.map((o) => o.orderNumber);
+      const verifiedNameMap = new Map<string, string>();
+      if (orderNumbers.length > 0) {
+        const { data: nameRows } = await supabase
+          .from("binance_order_history")
+          .select("order_number, verified_name")
+          .in("order_number", orderNumbers)
+          .not("verified_name", "is", null);
+        if (nameRows) {
+          for (const row of nameRows) {
+            if (row.verified_name) verifiedNameMap.set(row.order_number, row.verified_name);
+          }
+        }
+      }
+
       for (const order of allOrders) {
         const triggerEvents = detectTriggerEvents(order);
+        const totalPrice = parseFloat(order.totalPrice || "0");
 
         for (const event of triggerEvents) {
           const matchingRules = (rules as AutoReplyRule[]).filter((r) => {
             if (r.trigger_event !== event) return false;
-            if (r.trade_type && r.trade_type !== order.tradeType) return false;
+            if (r.trade_type) {
+              if (r.trade_type === "SMALL_BUY") {
+                // Match BUY orders within small buys range
+                if (order.tradeType !== "BUY") return false;
+                if (!sbConfig?.is_enabled) return false;
+                if (totalPrice < sbConfig.min_amount || totalPrice > sbConfig.max_amount) return false;
+              } else if (r.trade_type === "SMALL_SELL") {
+                // Match SELL orders within small sales range
+                if (order.tradeType !== "SELL") return false;
+                if (!ssConfig?.is_enabled) return false;
+                if (totalPrice < ssConfig.min_amount || totalPrice > ssConfig.max_amount) return false;
+              } else {
+                // Standard BUY/SELL matching
+                if (r.trade_type !== order.tradeType) return false;
+              }
+            }
             return true;
           });
 
@@ -300,7 +345,8 @@ serve(async (req) => {
             const orderAgeSeconds = (Date.now() - order.createTime) / 1000;
             if (orderAgeSeconds < rule.delay_seconds) continue;
 
-            const message = renderTemplate(rule.message_template, order);
+            const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
+            const message = renderTemplate(rule.message_template, order, verifiedName);
 
             try {
               const sendParams = new URLSearchParams({

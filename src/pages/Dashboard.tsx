@@ -23,6 +23,7 @@ import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 import { syncSmallSales } from '@/hooks/useSmallSalesSync';
 import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
+import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from '@/hooks/useSpotTradeSyncStandalone';
 import { useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { toast as sonnerToast } from 'sonner';
 import { DateRange } from "react-day-picker";
@@ -470,7 +471,7 @@ export default function Dashboard() {
     const errors: string[] = [];
 
     try {
-      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult] = await Promise.allSettled([
+      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
         new Promise<string>((resolve, reject) => {
           syncMutation.mutate(
             { fullSync: false },
@@ -487,9 +488,11 @@ export default function Dashboard() {
         supabase.functions.invoke('binance-assets', {
           body: { action: 'syncAssetMovements', force: false },
         }).then(() => 'Asset movements synced'),
+        syncSpotTradesFromBinance().then(r => `Spot Trades: ${r.synced} synced`),
+        syncSpotTradesToConversions().then(r => `Spot Conversions: ${r.inserted} created`).catch(() => 'Spot Conversions: skipped'),
       ]);
 
-      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult]) {
+      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult]) {
         if (r.status === 'fulfilled') results.push(r.value);
         else errors.push(String(r.reason));
       }

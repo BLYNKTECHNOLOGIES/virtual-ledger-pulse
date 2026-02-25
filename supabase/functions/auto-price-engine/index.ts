@@ -493,23 +493,39 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
+  // Use the fetch-usdt-rate edge function (CoinGecko / Binance ticker) for actual market rate
+  // This is the same source used by Hybrid Adjust in Ad Manager
   try {
-    const { data } = await supabase.from("usdt_inr_rate").select("rate").order("updated_at", { ascending: false }).limit(1).single();
-    if (data?.rate) return data.rate;
-  } catch { /* fallback */ }
-
-  try {
-    const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resp = await fetch(`${supabaseUrl}/functions/v1/fetch-usdt-rate`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ asset: "USDT", fiat: "INR", tradeType: "SELL", page: 1, rows: 5 }),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${anonKey}`,
+      },
     });
     const data = await resp.json();
-    if (data?.data?.length > 0) {
-      const prices = data.data.map((d: any) => parseFloat(d.adv?.price || "0")).filter((p: number) => p > 0);
-      return prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
+    if (data?.rate && data.rate > 0) {
+      console.log(`[fetchUsdtInr] Got rate ${data.rate} from ${data.source}`);
+      return data.rate;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] fetch-usdt-rate call failed:", e);
+  }
+
+  // Fallback: CoinGecko direct call
+  try {
+    const cgResp = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
+      { headers: { Accept: "application/json" } }
+    );
+    const cgData = await cgResp.json();
+    if (cgData?.tether?.inr) {
+      console.log(`[fetchUsdtInr] CoinGecko fallback: ${cgData.tether.inr}`);
+      return cgData.tether.inr;
     }
   } catch { /* fallback */ }
 
-  return 90;
+  return 84.5;
 }

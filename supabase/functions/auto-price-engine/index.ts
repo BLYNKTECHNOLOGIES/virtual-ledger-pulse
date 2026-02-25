@@ -188,8 +188,12 @@ async function processAsset(
       const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
       if (advNickName !== normalizedNick) return false;
       // If only_counter_when_online is set, skip merchants that aren't marked online
+      // Note: Binance P2P search with publisherType:"merchant" already filters for merchants.
+      // The online status fields may not be present in search results, so default to true (assume online).
       if (rule.only_counter_when_online) {
-        const isOnline = item.advertiser?.isOnline ?? item.advertiser?.userOnlineStatus === "online" ?? true;
+        const onlineField = item.advertiser?.isOnline;
+        const onlineStatus = item.advertiser?.userOnlineStatus;
+        const isOnline = onlineField === true || onlineStatus === "online" || (onlineField === undefined && onlineStatus === undefined);
         if (!isOnline) return false;
       }
       return true;

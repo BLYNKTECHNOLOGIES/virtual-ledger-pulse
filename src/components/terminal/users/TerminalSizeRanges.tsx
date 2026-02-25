@@ -164,7 +164,7 @@ export function TerminalSizeRanges() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen} modal={false}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Size Range" : "Add Size Range"}</DialogTitle>

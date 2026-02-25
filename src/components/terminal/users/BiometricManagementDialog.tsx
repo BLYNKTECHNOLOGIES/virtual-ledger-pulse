@@ -171,16 +171,30 @@ export function BiometricManagementDialog({
     setCopied(false);
     try {
       const session = localStorage.getItem('userSession');
+      console.log('Bypass: userSession raw:', session);
       const generatedBy = session ? JSON.parse(session).id : null;
+      console.log('Bypass: generatedBy:', generatedBy, 'userId:', userId);
       if (!generatedBy) {
         toast.error('Session not found');
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('terminal-webauthn', {
+      console.log('Bypass: invoking edge function...');
+      const result = await supabase.functions.invoke('terminal-webauthn', {
         body: { action: 'generate_bypass', user_id: userId, generated_by: generatedBy },
       });
-      if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed');
+      console.log('Bypass: invoke result:', result);
+      
+      const { data, error } = result;
+      if (error) {
+        console.error('Bypass: invoke error:', error);
+        // Try to get error message from the response
+        const errorMsg = data?.error || error.message || 'Failed to generate bypass code';
+        throw new Error(errorMsg);
+      }
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       setBypassCode(data.code);
       toast.success('Bypass code generated! Valid for 5 minutes.');

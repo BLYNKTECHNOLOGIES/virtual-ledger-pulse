@@ -396,9 +396,9 @@ async function logAndUpdate(rule: any, supabase: any, logData: any) {
 }
 
 async function searchP2P(asset: string, fiat: string, tradeType: string) {
-  // Fetch up to 100 listings to find merchants placed lower in the order book
+  // Fetch up to 200 listings to find merchants placed lower in the order book
   const allData: any[] = [];
-  for (let page = 1; page <= 5; page++) {
+  for (let page = 1; page <= 10; page++) {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

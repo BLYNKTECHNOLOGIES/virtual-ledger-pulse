@@ -9587,6 +9587,7 @@ export type Database = {
           max_amount: number | null
           min_amount: number
           name: string
+          order_type: string
           updated_at: string
         }
         Insert: {
@@ -9597,6 +9598,7 @@ export type Database = {
           max_amount?: number | null
           min_amount?: number
           name: string
+          order_type?: string
           updated_at?: string
         }
         Update: {
@@ -9607,6 +9609,7 @@ export type Database = {
           max_amount?: number | null
           min_amount?: number
           name?: string
+          order_type?: string
           updated_at?: string
         }
         Relationships: []

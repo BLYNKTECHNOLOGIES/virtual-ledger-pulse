@@ -6,7 +6,10 @@ import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, RefreshCw, Pencil, Ruler } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Plus, RefreshCw, Pencil, Ruler, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
@@ -18,7 +21,14 @@ interface SizeRange {
   max_amount: number | null;
   currency: string;
   is_active: boolean;
+  order_type: string;
 }
+
+const ORDER_TYPE_CONFIG: Record<string, { label: string; icon: typeof ArrowDownCircle; color: string }> = {
+  BUY: { label: "Buy", icon: ArrowDownCircle, color: "text-green-400" },
+  SELL: { label: "Sell", icon: ArrowUpCircle, color: "text-red-400" },
+  BOTH: { label: "Both", icon: ArrowLeftRight, color: "text-blue-400" },
+};
 
 export function TerminalSizeRanges() {
   const { hasPermission } = useTerminalAuth();
@@ -31,6 +41,7 @@ export function TerminalSizeRanges() {
   const [name, setName] = useState("");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
+  const [orderType, setOrderType] = useState("BOTH");
   const [isSaving, setIsSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -39,14 +50,14 @@ export function TerminalSizeRanges() {
       .from("terminal_order_size_ranges")
       .select("*")
       .order("min_amount", { ascending: true });
-    setRanges(data || []);
+    setRanges((data as SizeRange[]) || []);
     setIsLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const openNew = () => {
-    setEditingId(null); setName(""); setMinAmount(""); setMaxAmount("");
+    setEditingId(null); setName(""); setMinAmount(""); setMaxAmount(""); setOrderType("BOTH");
     setDialogOpen(true);
   };
 
@@ -55,6 +66,7 @@ export function TerminalSizeRanges() {
     setName(r.name);
     setMinAmount(String(r.min_amount));
     setMaxAmount(r.max_amount !== null ? String(r.max_amount) : "");
+    setOrderType(r.order_type || "BOTH");
     setDialogOpen(true);
   };
 
@@ -66,6 +78,7 @@ export function TerminalSizeRanges() {
         name: name.trim(),
         min_amount: parseFloat(minAmount) || 0,
         max_amount: maxAmount.trim() ? parseFloat(maxAmount) : null,
+        order_type: orderType,
       };
       if (editingId) {
         const { error } = await supabase.from("terminal_order_size_ranges").update(payload).eq("id", editingId);
@@ -117,29 +130,37 @@ export function TerminalSizeRanges() {
         </div>
       ) : (
         <div className="grid gap-3">
-          {ranges.map(r => (
-            <div key={r.id} className="border border-border rounded-lg p-4 bg-muted/5 hover:bg-muted/10 transition-colors flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className={r.is_active
-                  ? "bg-primary/20 text-primary border-primary/30 text-xs"
-                  : "bg-muted/20 text-muted-foreground border-muted/30 text-xs"
-                }>
-                  {r.name}
-                </Badge>
-                <span className="text-sm text-muted-foreground font-mono">
-                  ₹{r.min_amount.toLocaleString()} – {r.max_amount !== null ? `₹${r.max_amount.toLocaleString()}` : '∞'}
-                </span>
-              </div>
-              {canManage && (
-                <div className="flex items-center gap-2">
-                  <Switch checked={r.is_active} onCheckedChange={() => toggleActive(r.id, r.is_active)} className="scale-75" />
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEdit(r)}>
-                    <Pencil className="h-3 w-3" />
-                  </Button>
+          {ranges.map(r => {
+            const typeConf = ORDER_TYPE_CONFIG[r.order_type] || ORDER_TYPE_CONFIG.BOTH;
+            const TypeIcon = typeConf.icon;
+            return (
+              <div key={r.id} className="border border-border rounded-lg p-4 bg-muted/5 hover:bg-muted/10 transition-colors flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className={r.is_active
+                    ? "bg-primary/20 text-primary border-primary/30 text-xs"
+                    : "bg-muted/20 text-muted-foreground border-muted/30 text-xs"
+                  }>
+                    {r.name}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground font-mono">
+                    ₹{r.min_amount.toLocaleString()} – {r.max_amount !== null ? `₹${r.max_amount.toLocaleString()}` : '∞'}
+                  </span>
+                  <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0.5">
+                    <TypeIcon className={`h-3 w-3 ${typeConf.color}`} />
+                    {typeConf.label}
+                  </Badge>
                 </div>
-              )}
-            </div>
-          ))}
+                {canManage && (
+                  <div className="flex items-center gap-2">
+                    <Switch checked={r.is_active} onCheckedChange={() => toggleActive(r.id, r.is_active)} className="scale-75" />
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEdit(r)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -152,6 +173,19 @@ export function TerminalSizeRanges() {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Name</label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Small Sales" className="h-9 text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Order Type</label>
+              <Select value={orderType} onValueChange={setOrderType}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BUY">Buy</SelectItem>
+                  <SelectItem value="SELL">Sell</SelectItem>
+                  <SelectItem value="BOTH">Both (Buy & Sell)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

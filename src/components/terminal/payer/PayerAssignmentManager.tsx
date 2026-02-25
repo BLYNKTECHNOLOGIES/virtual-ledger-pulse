@@ -173,7 +173,7 @@ export function PayerAssignmentManager() {
                     <SelectContent>
                       {sizeRanges.map((r: any) => (
                         <SelectItem key={r.id} value={r.id} className="text-xs">
-                          {r.name} ({r.min_amount.toLocaleString()} – {r.max_amount.toLocaleString()})
+                          {r.name} ({(r.min_amount ?? 0).toLocaleString()} – {(r.max_amount ?? 0).toLocaleString()})
                         </SelectItem>
                       ))}
                     </SelectContent>

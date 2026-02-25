@@ -233,9 +233,20 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
     u.first_name && u.last_name ? `${u.first_name} ${u.last_name} (@${u.username})` : `@${u.username}`;
 
   // Filter roles: only show roles with hierarchy_level strictly greater than my level (lower rank)
+  // EXCEPT: Super Admin (-1) can assign anything.
+  // Admin (0) can assign anything >= 0.
   const assignableRoles = allRoles.filter(r => {
     if (myHierarchyLevel === null) return false; // can't assign if no hierarchy
-    if (myHierarchyLevel === 0) return true; // Admin can assign all
+    
+    // Super Admin (-1) can assign all roles
+    if (myHierarchyLevel < 0) return true;
+
+    // Admin (0) can assign roles with level >= 0 (cannot assign Super Admin)
+    if (myHierarchyLevel === 0) {
+      if (r.hierarchy_level === null) return true;
+      return r.hierarchy_level >= 0;
+    }
+
     if (r.hierarchy_level === null) return true; // roles without level (like Viewer)
     return r.hierarchy_level > myHierarchyLevel; // can only assign roles below
   });
@@ -251,7 +262,17 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   // Can current user change this user's role?
   const canChangeRole = (() => {
     if (myHierarchyLevel === null) return false;
-    if (myHierarchyLevel === 0) return true; // Admin can change anyone
+    
+    // Super Admin (-1) can change anyone
+    if (myHierarchyLevel < 0) return true;
+
+    // Admin (0) can change anyone with level > 0
+    // Cannot change other Admins (0) or Super Admins (<0)
+    if (myHierarchyLevel === 0) {
+      if (targetHierarchyLevel === null) return true;
+      return targetHierarchyLevel > 0;
+    }
+
     if (targetHierarchyLevel === null) return true; // target has no hierarchy role
     return myHierarchyLevel < targetHierarchyLevel; // can only change users below in hierarchy
   })();

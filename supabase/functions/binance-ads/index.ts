@@ -664,20 +664,27 @@ serve(async (req) => {
 
       case "searchP2PMerchant": {
         // Public Binance P2P search — no proxy auth needed
+        // Fetch up to 100 listings (5 pages of 20) to find merchants placed lower
         const binanceTradeType = payload.tradeType === "BUY" ? "SELL" : "BUY";
-        const searchResp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            asset: payload.asset || "USDT",
-            fiat: payload.fiat || "INR",
-            tradeType: binanceTradeType,
-            page: 1,
-            rows: 20,
-          }),
-        });
-        const searchData = await searchResp.json();
-        const allMerchants = (searchData?.data || []).map((item: any) => ({
+        const allItems: any[] = [];
+        for (let pg = 1; pg <= 5; pg++) {
+          const searchResp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              asset: payload.asset || "USDT",
+              fiat: payload.fiat || "INR",
+              tradeType: binanceTradeType,
+              page: pg,
+              rows: 20,
+            }),
+          });
+          const pgData = await searchResp.json();
+          const items = pgData?.data || [];
+          allItems.push(...items);
+          if (items.length < 20) break;
+        }
+        const allMerchants = allItems.map((item: any) => ({
           nickName: item.advertiser?.nickName,
           price: item.adv?.price,
           surplusAmount: item.adv?.surplusAmount,
@@ -689,7 +696,6 @@ serve(async (req) => {
           isOnline: item.advertiser?.isOnline,
         }));
 
-        // If nickname filter provided, highlight the match
         if (payload.nickname) {
           const target = allMerchants.find((m: any) =>
             m.nickName?.toLowerCase() === payload.nickname.toLowerCase()

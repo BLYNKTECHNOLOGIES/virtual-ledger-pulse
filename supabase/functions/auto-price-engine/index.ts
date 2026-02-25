@@ -396,18 +396,26 @@ async function logAndUpdate(rule: any, supabase: any, logData: any) {
 }
 
 async function searchP2P(asset: string, fiat: string, tradeType: string) {
-  const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      asset,
-      fiat,
-      tradeType,
-      page: 1,
-      rows: 20,
-    }),
-  });
-  return await resp.json();
+  // Fetch up to 100 listings to find merchants placed lower in the order book
+  const allData: any[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        asset,
+        fiat,
+        tradeType,
+        page,
+        rows: 20,
+      }),
+    });
+    const pageData = await resp.json();
+    const items = pageData?.data || [];
+    allData.push(...items);
+    if (items.length < 20) break; // No more pages
+  }
+  return { data: allData };
 }
 
 async function fetchCoinUsdtRate(asset: string): Promise<number> {

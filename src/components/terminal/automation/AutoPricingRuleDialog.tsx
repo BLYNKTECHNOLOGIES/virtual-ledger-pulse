@@ -278,7 +278,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                 {searchResult && !searchResult.target && (
                   <div className="p-3 border rounded-md border-warning bg-warning/10 text-xs flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 text-warning" />
-                    <span>Merchant not found in top 20 listings</span>
+                    <span>Merchant not found in top 100 listings</span>
                   </div>
                 )}
 

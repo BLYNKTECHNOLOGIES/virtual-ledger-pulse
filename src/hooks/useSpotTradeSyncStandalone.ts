@@ -103,16 +103,17 @@ export async function syncSpotTradesToConversions(): Promise<{ inserted: number 
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User session not found");
 
-  // Get first active wallet
-  const { data: wallets } = await supabase
-    .from("wallets")
-    .select("id")
-    .eq("is_active", true)
-    .order("wallet_name")
-    .limit(1);
+  // Get the API-linked wallet from terminal_wallet_links
+  const { data: activeLink } = await supabase
+    .from("terminal_wallet_links")
+    .select("wallet_id")
+    .eq("status", "active")
+    .eq("platform_source", "terminal")
+    .limit(1)
+    .maybeSingle();
 
-  const walletId = wallets?.[0]?.id;
-  if (!walletId) throw new Error("No active wallet found");
+  const walletId = activeLink?.wallet_id;
+  if (!walletId) throw new Error("No API-linked wallet found. Please link a wallet in Stock > Wallets.");
 
   // Fetch unsynced trades
   const cutoffDate = "2026-02-11T18:30:00Z";

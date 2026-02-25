@@ -1,0 +1,1 @@
+UPDATE erp_product_conversions SET wallet_id = '6d9114f1-357b-41ee-8e5a-0dea754d5b4f' WHERE id = '8694187f-0346-42f9-afad-cbc8b8ac8243' AND status = 'PENDING_APPROVAL';

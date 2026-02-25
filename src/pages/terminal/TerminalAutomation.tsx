@@ -58,7 +58,6 @@ const TRIGGER_COLORS: Record<string, string> = {
   order_received: 'bg-primary/20 text-primary',
   payment_marked: 'bg-success/20 text-success',
   payment_pending: 'bg-warning/20 text-warning',
-  order_completed: 'bg-info/20 text-info',
   order_cancelled: 'bg-destructive/20 text-destructive',
   order_appealed: 'bg-destructive/20 text-destructive',
   timer_breach: 'bg-warning/20 text-warning',

@@ -6,7 +6,7 @@ import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 export interface AutoReplyRule {
   id: string;
   name: string;
-  trigger_event: 'order_received' | 'payment_marked' | 'order_completed' | 'timer_breach' | 'order_cancelled' | 'order_appealed' | 'payment_pending';
+  trigger_event: 'order_received' | 'payment_marked' | 'timer_breach' | 'order_cancelled' | 'order_appealed' | 'payment_pending';
   trade_type: 'BUY' | 'SELL' | 'SMALL_BUY' | 'SMALL_SELL' | null;
   message_template: string;
   delay_seconds: number;
@@ -46,7 +46,6 @@ const TRIGGER_LABELS: Record<string, string> = {
   order_received: 'Order Received',
   payment_marked: 'Payment Marked',
   payment_pending: 'Payment Pending (5min+)',
-  order_completed: 'Order Completed',
   order_cancelled: 'Order Cancelled',
   order_appealed: 'Appeal Raised',
   timer_breach: 'Timer Breach (15min+)',

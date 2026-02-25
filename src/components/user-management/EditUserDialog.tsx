@@ -39,7 +39,7 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
-  const initialRoleId = user.role_id || user.role?.id || "no_role";
+  const initialRoleId = user.role?.id || user.role_id || "no_role";
   
   const [formData, setFormData] = useState({
     username: user.username,

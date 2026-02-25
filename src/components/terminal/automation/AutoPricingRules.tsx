@@ -211,7 +211,7 @@ export function AutoPricingRules() {
                             const log = assetLogs.find(l => l.asset === asset);
                             const isError = log?.status === 'error';
                             const isSkipped = log?.status === 'skipped';
-                            const isApplied = log?.status === 'applied';
+                            const isApplied = log?.status === 'applied' || log?.status === 'success';
                             const isIssue = isError || isSkipped;
 
                             let statusClass = 'bg-muted text-muted-foreground border-border'; // unknown/no data

@@ -171,9 +171,8 @@ export function BiometricManagementDialog({
     setCopied(false);
     try {
       const session = localStorage.getItem('userSession');
-      console.log('Bypass: userSession raw:', session);
-      const generatedBy = session ? JSON.parse(session).id : null;
-      console.log('Bypass: generatedBy:', generatedBy, 'userId:', userId);
+      const parsed = session ? JSON.parse(session) : null;
+      const generatedBy = parsed?.user?.id || parsed?.id || null;
       if (!generatedBy) {
         toast.error('Session not found');
         return;

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,7 +19,7 @@ import {
   useSearchMerchant,
   AutoPricingRule,
 } from '@/hooks/useAutoPricingRules';
-import { useBinanceAdsList, BinanceAd } from '@/hooks/useBinanceAds';
+import { useBinanceAdsList, BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useExcludedAds } from '@/hooks/useAdAutomationExclusion';
 
 const ASSETS = ['USDT', 'BTC', 'USDC', 'FDUSD', 'BNB', 'ETH', 'TRX', 'SHIB', 'XRP', 'SOL', 'TON'];
@@ -325,23 +326,47 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                       />
                       <Label className="text-xs">Select All ({filteredAds.length})</Label>
                     </div>
-                    <div className="space-y-1 max-h-[200px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
                       {filteredAds.map(ad => {
                         const isExcluded = excludedAds?.has(ad.advNo);
                         return (
-                          <div key={ad.advNo} className={`flex items-center gap-2 p-1.5 rounded text-xs ${isExcluded ? 'opacity-40' : ''}`}>
+                          <div key={ad.advNo} className={`flex items-start gap-2 p-2 rounded border border-border/50 text-xs ${isExcluded ? 'opacity-40' : ''} ${selectedAdNos.has(ad.advNo) ? 'bg-primary/5 border-primary/30' : 'hover:bg-muted/30'}`}>
                             <Checkbox
                               checked={selectedAdNos.has(ad.advNo)}
                               onCheckedChange={() => toggleAd(ad.advNo)}
                               disabled={isExcluded}
+                              className="mt-0.5"
                             />
-                            <span className="font-mono">…{ad.advNo.slice(-8)}</span>
-                            <Badge variant="outline" className="text-[10px]">{ad.priceType === 1 ? 'Fixed' : 'Float'}</Badge>
-                            <span>₹{Number(ad.price).toLocaleString('en-IN')}</span>
-                            <span className="text-muted-foreground">
-                              ₹{Number(ad.minSingleTransAmount).toLocaleString('en-IN')}–₹{Number(ad.maxSingleTransAmount).toLocaleString('en-IN')}
-                            </span>
-                            {isExcluded && <Badge variant="outline" className="text-[10px] border-destructive text-destructive">Excluded</Badge>}
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-mono font-medium">…{ad.advNo.slice(-8)}</span>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{ad.priceType === 1 ? 'Fixed' : 'Float'}</Badge>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-[10px] px-1.5 py-0 ${
+                                    ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'border-success text-success' 
+                                    : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-amber-500 text-amber-500' 
+                                    : 'border-muted-foreground text-muted-foreground'
+                                  }`}
+                                >
+                                  {getAdStatusLabel(ad.advStatus)}
+                                </Badge>
+                                {isExcluded && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-destructive text-destructive">Excluded</Badge>}
+                              </div>
+                              <div className="flex items-center gap-3 text-muted-foreground">
+                                <span className="font-semibold text-foreground">₹{Number(ad.price).toLocaleString('en-IN')}</span>
+                                {ad.priceType === 2 && ad.priceFloatingRatio && (
+                                  <span>Ratio: {Number(ad.priceFloatingRatio).toFixed(2)}%</span>
+                                )}
+                                <span>Limit: ₹{Number(ad.minSingleTransAmount).toLocaleString('en-IN')}–₹{Number(ad.maxSingleTransAmount).toLocaleString('en-IN')}</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-muted-foreground">
+                                <span>Qty: {Number(ad.surplusAmount || 0).toLocaleString()} / {Number(ad.initAmount || 0).toLocaleString()} {ad.asset}</span>
+                                {ad.tradeMethods?.length > 0 && (
+                                  <span>Pay: {ad.tradeMethods.map(m => m.identifier || m.tradeMethodName || m.payType).join(', ')}</span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

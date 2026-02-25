@@ -1,153 +1,82 @@
 
+# Hybrid Adjust Feature for Ads Manager
 
-# Payer Module -- Implementation Plan
+## Overview
 
-## Key Clarification
-**Payer is at the same hierarchy level (5) as Operator** -- it is a peer role in a different functional department, not a subordinate. Payer handles **BUY order payment execution only**.
+When a mix of fixed-price and floating-price ads are selected in the Ads Manager, a new **"Hybrid Adjust"** button will appear in the bulk action toolbar. This feature calculates a unified pricing strategy: fixed ads get a target USDT price, and floating ads get a calculated floating ratio based on live market rate, with an optional adjustment offset stored in system settings.
 
----
-
-## 1. Database Changes (Single Migration)
-
-### 1a. Create "Payer" Role
-Insert into `p2p_terminal_roles` with `hierarchy_level = 5` (same as Operator), name = `Payer`.
-
-### 1b. New Permissions
-Add two new enum values to `terminal_permission`:
-- `terminal_payer_view`
-- `terminal_payer_manage`
-
-Grant both to the new Payer role.
-
-### 1c. Payer Assignment Table
+## Calculation Logic
 
 ```text
-terminal_payer_assignments
-  id              uuid PK default gen_random_uuid()
-  payer_user_id   uuid FK -> users(id)
-  assignment_type text NOT NULL  ('size_range' | 'ad_id')
-  size_range_id   uuid FK -> terminal_order_size_ranges(id) [nullable]
-  ad_id           text [nullable]
-  assigned_by     uuid FK -> users(id)
-  is_active       boolean default true
-  created_at      timestamptz default now()
+Given:
+  Target USDT Price (user input)     = 96
+  Live USDT/INR Market Rate          = 90.9
+  Hybrid Price Difference Adjuster   = 0.3 (from automation settings)
+
+Steps:
+  1. Difference = Target Price - Market Rate = 96 - 90.9 = 5.1
+  2. Raw Floating % = (Difference / Target Price) * 100 = 5.3125%
+  3. Floating Ratio = 100 + Raw Floating % = 105.3125%
+  4. Final Ratio = Floating Ratio - Adjuster = 105.3125 - 0.3 = 105.0125%
+
+Result:
+  - Fixed ads: price set to 96
+  - Floating ads: ratio set to 105.01%
 ```
 
-### 1d. Auto-Reply Exclusions Table
+## Changes
 
-```text
-terminal_auto_reply_exclusions
-  id            uuid PK default gen_random_uuid()
-  order_number  text NOT NULL UNIQUE
-  excluded_by   uuid FK -> users(id)
-  created_at    timestamptz default now()
-```
+### 1. Hybrid Price Difference Adjuster Setting (Automation Page)
 
-### 1e. Payer Order Log (for load balancing + hiding paid orders)
+**File: New component `src/components/terminal/automation/HybridPriceAdjuster.tsx`**
+- A small card/section in the Automation page under a new or existing tab
+- Input field to set the "Hybrid Price Difference Adjuster" value (e.g., 0.3)
+- Stored in `system_settings` table with key `hybrid_price_difference_adjuster`
+- Default value: 0
 
-```text
-terminal_payer_order_log
-  id            uuid PK default gen_random_uuid()
-  order_number  text NOT NULL
-  payer_id      uuid FK -> users(id)
-  action        text NOT NULL default 'marked_paid'
-  created_at    timestamptz default now()
-```
+**File: `src/pages/terminal/TerminalAutomation.tsx`**
+- Add the HybridPriceAdjuster component to the automation page (likely under the existing tabs or as a new section)
 
-All tables: RLS enabled, policies for `public` role (matching existing terminal tables).
+### 2. Bulk Action Toolbar - New "Hybrid Adjust" Button
 
----
+**File: `src/components/ad-manager/BulkActionToolbar.tsx`**
+- Add a new `onBulkHybridAdjust` callback prop
+- Show "Hybrid Adjust" button when selection contains BOTH fixed (priceType=1) and floating (priceType=2) ads
+- Use a distinctive icon (e.g., `Blend` or `Combine` from lucide)
 
-## 2. Auto-Reply Engine Update
+### 3. New Hybrid Adjust Dialog
 
-Edit `supabase/functions/auto-reply-engine/index.ts`:
-- Before sending auto-reply, query `terminal_auto_reply_exclusions` for the order number.
-- If found, skip the auto-reply for that order.
+**File: New component `src/components/ad-manager/BulkHybridAdjustDialog.tsx`**
+- Multi-step dialog (form -> confirm -> executing -> done), following the same pattern as `BulkFloatingPriceDialog`
+- **Form step**: 
+  - Shows live USDT/INR rate (from `useUSDTRate` hook)
+  - Input for target USDT price (e.g., 96)
+  - Displays the hybrid adjuster value (fetched from `system_settings`)
+  - Auto-calculates and previews the resulting floating ratio
+  - Shows summary: "Fixed ads will be set to X, Floating ads will get Y% ratio"
+- **Confirm step**: Lists all ads with their old and new values
+- **Execution step**: 
+  - For floating ads: calls `useUpdateAd` with `priceType: 2` and calculated `priceFloatingRatio`
+  - For fixed ads: calls `useUpdateAd` with `priceType: 1` and the target price
+- **Done step**: Shows results summary
 
----
+### 4. Hook for Hybrid Adjuster Setting
 
-## 3. Frontend: Auth Updates
+**File: New hook `src/hooks/useHybridPriceAdjuster.ts`**
+- `useHybridPriceAdjuster()`: Fetches `hybrid_price_difference_adjuster` from `system_settings`
+- `useUpdateHybridPriceAdjuster()`: Upserts the value
 
-### 3a. `useTerminalAuth.tsx`
-Add `terminal_payer_view` and `terminal_payer_manage` to the `TerminalPermission` type union.
+### 5. Parent Integration
 
-### 3b. `TerminalSidebar.tsx`
-- Remove `comingSoon: true` from the Payer nav item.
-- Add `requiredPermission: 'terminal_payer_view'`.
+**File: `src/pages/AdManager.tsx`**
+- Add state for `bulkHybridOpen`
+- Add `handleBulkHybridAdjust` callback
+- Pass to `BulkActionToolbar` and render `BulkHybridAdjustDialog`
 
-### 3c. `App.tsx`
-Replace the `TerminalComingSoon` placeholder for `/terminal/payer` with the new `TerminalPayer` component.
+## Technical Details
 
----
-
-## 4. Frontend: Payer Page
-
-### 4a. `src/pages/terminal/TerminalPayer.tsx`
-
-Main page that:
-- Fetches active **BUY** orders only (reuses `useBinanceActiveOrders`, filters `tradeType === 'BUY'`).
-- Filters orders to match the current payer's assignments (by size range or ad ID) using `terminal_payer_assignments`.
-- **Load balancing**: If multiple payers share the same assignment, query `terminal_payer_order_log` to count active orders per payer. Show orders only to the payer with the fewest active (unmarked) orders.
-- Hides orders already marked paid by any payer (via `terminal_payer_order_log`).
-
-**List View columns:**
-| Type/Date | Order No. | Amount | Counterparty | Payment Details | Status | Actions |
-
-### 4b. `src/components/terminal/payer/PayerOrderRow.tsx`
-
-Each row renders:
-
-**Payment Details (inline)**:
-- **UPI**: Verified name, UPI ID, amount
-- **Bank Transfer**: Account number, IFSC code, Verified name, Bank name
-- Data sourced from `useBinanceOrderDetail` -> `payMethods` array in the live detail response.
-
-**Action Buttons (directly on row, no need to open order)**:
-1. **Mark Paid** -- Calls existing `useMarkOrderAsPaid` hook (Binance API). On success, logs to `terminal_payer_order_log` and removes the row from view. Shows confirmation dialog.
-2. **Remove from Auto** -- Inserts `order_number` into `terminal_auto_reply_exclusions`. Button toggles to disabled "Removed" state after click.
-
-**Row click** -> Opens `OrderDetailWorkspace` (existing component) for full chat and order details.
-
-### 4c. `src/hooks/usePayerModule.ts`
-
-Custom hook encapsulating:
-- Fetch payer's assignments from `terminal_payer_assignments`
-- Fetch `terminal_payer_order_log` for load balancing and hiding paid orders
-- Filter and sort logic for BUY orders matching assignments
-- Insert into exclusion/log tables
-
----
-
-## 5. Payer Assignment Management
-
-### 5a. `src/components/terminal/payer/PayerAssignmentManager.tsx`
-
-A management UI accessible from the **Users & Roles** page (new "Payer Assignments" tab):
-- Lists all users with the Payer role and their current assignments
-- Allows supervisors (hierarchy level 4 and above, i.e., Team Lead, AM, Ops Manager, COO, Admin) to:
-  - Assign a payer to a size range (dropdown from `terminal_order_size_ranges` filtered to `order_type = 'BUY'` or `'BOTH'`)
-  - Assign a payer to a specific Binance ad ID
-  - Toggle active/inactive on assignments
-  - View each payer's current active order count
-
-### 5b. Update `src/pages/terminal/TerminalUsers.tsx`
-Add "Payer Assignments" tab that renders `PayerAssignmentManager`.
-
----
-
-## 6. File Summary
-
-| Action | File |
-|--------|------|
-| Create | `supabase/migrations/...payer_module.sql` |
-| Create | `src/pages/terminal/TerminalPayer.tsx` |
-| Create | `src/components/terminal/payer/PayerOrderRow.tsx` |
-| Create | `src/components/terminal/payer/PayerAssignmentManager.tsx` |
-| Create | `src/hooks/usePayerModule.ts` |
-| Edit | `src/App.tsx` (route swap) |
-| Edit | `src/components/terminal/TerminalSidebar.tsx` (remove comingSoon) |
-| Edit | `src/hooks/useTerminalAuth.tsx` (add payer permissions) |
-| Edit | `src/pages/terminal/TerminalUsers.tsx` (add tab) |
-| Edit | `supabase/functions/auto-reply-engine/index.ts` (exclusion check) |
-| Edit | `src/integrations/supabase/types.ts` (new tables) |
-
+- The live USDT/INR rate comes from the existing `useUSDTRate` hook (currently returning ~90.92 from CoinGecko)
+- The adjuster setting uses the existing `system_settings` table (key-value store) -- no migration needed
+- Fixed-price ad updates use `priceType: 1` with explicit `price` field in the Binance update API
+- Floating-price ad updates use `priceType: 2` with `priceFloatingRatio` field
+- Sequential API calls with 300ms delay between each (same pattern as existing bulk operations)

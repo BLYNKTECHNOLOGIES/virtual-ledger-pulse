@@ -362,9 +362,8 @@ serve(async (req) => {
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
             try {
-              // Send via WebSocket HTTP bridge (REST sendMessage doesn't exist in Binance API)
-              const CHAT_SEND_URL = BINANCE_PROXY_URL.replace(':3000', ':8081');
-              const sendRes = await fetch(`${CHAT_SEND_URL}/api/chat/send`, {
+              // Send via WebSocket HTTP bridge on the main proxy (port 3000)
+              const sendRes = await fetch(`${BINANCE_PROXY_URL}/api/chat/send`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",

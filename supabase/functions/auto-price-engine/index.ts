@@ -183,10 +183,15 @@ async function processAsset(
   let competitorPrice: number | null = null;
 
   for (const nickname of merchants) {
+    const normalizedNick = nickname.trim().toLowerCase();
     const found = searchResult.data.find((item: any) => {
-      const advNickName = item.advertiser?.nickName;
-      if (advNickName?.toLowerCase() !== nickname.toLowerCase()) return false;
-      if (rule.only_counter_when_online && item.advertiser?.userType !== "merchant") return false;
+      const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
+      if (advNickName !== normalizedNick) return false;
+      // If only_counter_when_online is set, skip merchants that aren't marked online
+      if (rule.only_counter_when_online) {
+        const isOnline = item.advertiser?.isOnline ?? item.advertiser?.userOnlineStatus === "online" ?? true;
+        if (!isOnline) return false;
+      }
       return true;
     });
     if (found) {
@@ -364,7 +369,7 @@ async function processAsset(
           applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
           was_capped: wasCapped,
           was_rate_limited: wasRateLimited,
-          status: "success",
+          status: "applied",
         });
       } else {
         await supabase.from("ad_pricing_logs").insert({

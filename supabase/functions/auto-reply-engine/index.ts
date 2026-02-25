@@ -276,6 +276,12 @@ serve(async (req) => {
 
     // ===== AUTO-REPLY LOGIC (existing) =====
     if (hasRules) {
+      // Fetch auto-reply exclusions
+      const { data: exclusionRows } = await supabase
+        .from("terminal_auto_reply_exclusions")
+        .select("order_number");
+      const excludedOrders = new Set((exclusionRows || []).map((r: any) => r.order_number));
+
       // Fetch small buys and small sales config for range-based filtering
       const { data: sbConfig } = await supabase
         .from("small_buys_config")
@@ -306,6 +312,11 @@ serve(async (req) => {
       }
 
       for (const order of allOrders) {
+        // Skip excluded orders
+        if (excludedOrders.has(order.orderNumber)) {
+          console.log(`⏭ Skipping excluded order ${order.orderNumber}`);
+          continue;
+        }
         const triggerEvents = detectTriggerEvents(order);
         const totalPrice = parseFloat(order.totalPrice || "0");
 

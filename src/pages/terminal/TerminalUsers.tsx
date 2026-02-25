@@ -6,6 +6,7 @@ import { TerminalRolesList } from "@/components/terminal/users/TerminalRolesList
 import { TerminalHierarchyView } from "@/components/terminal/users/TerminalHierarchyView";
 import { TerminalExchangeAccounts } from "@/components/terminal/users/TerminalExchangeAccounts";
 import { TerminalSizeRanges } from "@/components/terminal/users/TerminalSizeRanges";
+import { PayerAssignmentManager } from "@/components/terminal/payer/PayerAssignmentManager";
 
 export default function TerminalUsers() {
   const [activeTab, setActiveTab] = useState("users");
@@ -25,6 +26,7 @@ export default function TerminalUsers() {
             <TabsTrigger value="hierarchy" className="text-xs">Hierarchy</TabsTrigger>
             <TabsTrigger value="exchanges" className="text-xs">Exchange Accounts</TabsTrigger>
             <TabsTrigger value="ranges" className="text-xs">Size Ranges</TabsTrigger>
+            <TabsTrigger value="payer" className="text-xs">Payer Assignments</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="mt-4">
@@ -45,6 +47,10 @@ export default function TerminalUsers() {
 
           <TabsContent value="ranges" className="mt-4">
             <TerminalSizeRanges />
+          </TabsContent>
+
+          <TabsContent value="payer" className="mt-4">
+            <PayerAssignmentManager />
           </TabsContent>
         </Tabs>
       </div>

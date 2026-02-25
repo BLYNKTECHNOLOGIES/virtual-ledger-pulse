@@ -247,11 +247,11 @@ Deno.serve(async (req) => {
         // Verify admin_user_id is actually a Super Admin (ERP role check)
         const { data: erpRoles } = await supabase
           .from('user_roles')
-          .select('role')
+          .select('roles:role_id(name)')
           .eq('user_id', admin_user_id);
         
         const isSuperAdmin = (erpRoles || []).some(
-          (r: { role: string }) => r.role === 'super_admin'
+          (r: any) => r.roles?.name === 'Super Admin'
         );
         if (!isSuperAdmin) {
           await logBiometricEvent(supabase, userId, 'BIOMETRIC_AUTH_FAILED',
@@ -340,11 +340,11 @@ Deno.serve(async (req) => {
       // Verify generator is a Super Admin (check ERP roles)
       const { data: generatorRoles } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('roles:role_id(name)')
         .eq('user_id', generated_by);
       
       const isSuperAdmin = (generatorRoles || []).some(
-        (r: { role: string }) => r.role === 'super_admin'
+        (r: any) => r.roles?.name === 'Super Admin'
       );
       if (!isSuperAdmin) {
         await logBiometricEvent(supabase, generated_by, 'BYPASS_CODE_DENIED',

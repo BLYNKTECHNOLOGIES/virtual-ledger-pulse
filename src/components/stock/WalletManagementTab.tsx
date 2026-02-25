@@ -275,13 +275,13 @@ export function WalletManagementTab() {
       refetchWallets(); // Force immediate refresh
       setShowTransactionDialog(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const msg = error?.message || "Failed to add transaction";
       toast({ 
-        title: "Error", 
-        description: "Failed to add transaction", 
+        title: "Transaction Error", 
+        description: msg, 
         variant: "destructive" 
       });
-      
     }
   });
 

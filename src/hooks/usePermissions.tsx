@@ -22,7 +22,8 @@ export function usePermissions() {
       }
       
       // Check if user is demo admin (hardcoded permissions)
-      if (user.id === 'demo-admin-id' || user.email === 'blynkvirtualtechnologiespvtld@gmail.com') {
+      if (user.id === 'demo-admin-id' || user.email === 'blynkvirtualtechnologiespvtld@gmail.com' || 
+          user.roles?.some(r => r.toLowerCase() === 'super admin')) {
         const adminPermissions = [
           'dashboard_view',
           'sales_view', 'sales_manage',

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -215,35 +216,111 @@ export function AutoPricingRules() {
                             const isIssue = isError || isSkipped;
 
                             let statusClass = 'bg-muted text-muted-foreground border-border'; // unknown/no data
-                            let tooltipText = `${asset}: No recent data`;
 
                             if (isApplied) {
                               statusClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-                              tooltipText = `${asset}: ✓ Applied${log?.applied_price ? ` @ ₹${Number(log.applied_price).toLocaleString('en-IN')}` : ''}${log?.competitor_merchant ? ` (vs ${log.competitor_merchant})` : ''}`;
                             } else if (isSkipped) {
-                              const reason = log?.reason === 'no_merchant' ? 'Merchant not found' : log?.reason === 'no_listings' ? 'No listings' : log?.reason || 'Skipped';
                               statusClass = 'bg-amber-500/15 text-amber-400 border-amber-500/40 animate-pulse';
-                              tooltipText = `${asset}: ⚠ ${reason}`;
                             } else if (isError) {
                               statusClass = 'bg-destructive/15 text-destructive border-destructive/40 animate-pulse';
-                              tooltipText = `${asset}: ✕ ${log?.error || 'Error'}`;
                             }
 
                             return (
-                              <TooltipProvider key={asset}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border ${statusClass}`}>
-                                      {isIssue && <AlertTriangle className="h-2.5 w-2.5" />}
-                                      {isApplied && <CheckCircle className="h-2.5 w-2.5" />}
-                                      {asset}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom" className="max-w-xs">
-                                    <p className="text-xs">{tooltipText}</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                              <Popover key={asset}>
+                                <PopoverTrigger asChild>
+                                  <button className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border cursor-pointer hover:brightness-125 transition-all ${statusClass}`}>
+                                    {isIssue && <AlertTriangle className="h-2.5 w-2.5" />}
+                                    {isApplied && <CheckCircle className="h-2.5 w-2.5" />}
+                                    {asset}
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent side="bottom" align="start" className="w-72 p-0">
+                                  <div className="p-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-semibold text-sm">{asset}</span>
+                                      <Badge variant="outline" className={`text-[10px] ${isApplied ? 'bg-emerald-500/15 text-emerald-400' : isSkipped ? 'bg-amber-500/15 text-amber-400' : isError ? 'bg-destructive/15 text-destructive' : ''}`}>
+                                        {isApplied ? 'Applied' : isSkipped ? 'Skipped' : isError ? 'Error' : 'No Data'}
+                                      </Badge>
+                                    </div>
+                                    {log ? (
+                                      <div className="space-y-1.5 text-xs">
+                                        {/* Issue Reason */}
+                                        {(isSkipped || isError) && (
+                                          <div className="p-2 rounded bg-destructive/5 border border-destructive/20">
+                                            <span className="font-medium text-destructive">
+                                              {isSkipped
+                                                ? (log.reason === 'no_merchant' ? '⚠ Target merchant not found in top 500 listings'
+                                                  : log.reason === 'no_listings' ? '⚠ No P2P listings available for this asset'
+                                                  : log.reason === 'deviation_exceeded' ? '⚠ Competitor price deviates too far from market reference'
+                                                  : log.reason === 'no_ads' ? '⚠ No ad numbers configured or all excluded'
+                                                  : `⚠ ${log.reason || 'Unknown skip reason'}`)
+                                                : `✕ ${log.error || 'Unknown error'}`
+                                              }
+                                            </span>
+                                          </div>
+                                        )}
+                                        {/* Competitor Info */}
+                                        {log.competitor_merchant && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Competitor</span>
+                                            <span className="font-medium">{log.competitor_merchant}</span>
+                                          </div>
+                                        )}
+                                        {log.competitor_price != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Competitor Price</span>
+                                            <span className="font-medium">₹{Number(log.competitor_price).toLocaleString('en-IN')}</span>
+                                          </div>
+                                        )}
+                                        {/* Market Reference */}
+                                        {log.market_reference_price != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Market Ref</span>
+                                            <span className="font-medium">₹{Number(log.market_reference_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                          </div>
+                                        )}
+                                        {log.deviation_from_market_pct != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Deviation</span>
+                                            <span className={`font-medium ${Number(log.deviation_from_market_pct) > 3 ? 'text-destructive' : 'text-amber-400'}`}>
+                                              {Number(log.deviation_from_market_pct).toFixed(2)}%
+                                            </span>
+                                          </div>
+                                        )}
+                                        {/* Applied Price */}
+                                        {log.applied_price != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Applied Price</span>
+                                            <span className="font-medium text-emerald-400">₹{Number(log.applied_price).toLocaleString('en-IN')}</span>
+                                          </div>
+                                        )}
+                                        {log.applied_ratio != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Applied Ratio</span>
+                                            <span className="font-medium text-emerald-400">{Number(log.applied_ratio).toFixed(4)}%</span>
+                                          </div>
+                                        )}
+                                        {/* Guards */}
+                                        {(log.was_capped || log.was_rate_limited) && (
+                                          <div className="flex gap-1 pt-1">
+                                            {log.was_capped && <Badge variant="outline" className="text-[9px] px-1">Capped</Badge>}
+                                            {log.was_rate_limited && <Badge variant="outline" className="text-[9px] px-1">Rate-Limited</Badge>}
+                                          </div>
+                                        )}
+                                        {/* Timestamp */}
+                                        {log.created_at && (
+                                          <div className="flex justify-between pt-1 border-t border-border/50">
+                                            <span className="text-muted-foreground">Last Check</span>
+                                            <span className="text-muted-foreground">{formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-muted-foreground">No recent data for this asset</p>
+                                    )}
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                             );
                           })}
                         </div>

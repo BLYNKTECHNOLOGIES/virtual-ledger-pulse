@@ -31,6 +31,7 @@ import {
   FileDown,
   Timer,
   Package,
+  Blend,
 } from 'lucide-react';
 import {
   useAutoReplyRules,
@@ -52,6 +53,7 @@ import { CompletedOrdersExport } from '@/components/terminal/automation/Complete
 import { AutoPaySettings } from '@/components/terminal/automation/AutoPaySettings';
 import { SmallSalesConfig } from '@/components/terminal/automation/SmallSalesConfig';
 import { SmallBuysConfig } from '@/components/terminal/automation/SmallBuysConfig';
+import { HybridPriceAdjuster } from '@/components/terminal/automation/HybridPriceAdjuster';
 import { ShoppingCart } from 'lucide-react';
 
 const TRIGGER_COLORS: Record<string, string> = {
@@ -147,6 +149,10 @@ export default function TerminalAutomation() {
           <TabsTrigger value="small-buys" className="gap-1.5">
             <ShoppingCart className="h-3.5 w-3.5" />
             Small Buys
+          </TabsTrigger>
+          <TabsTrigger value="hybrid" className="gap-1.5">
+            <Blend className="h-3.5 w-3.5" />
+            Hybrid Pricing
           </TabsTrigger>
         </TabsList>
 
@@ -390,6 +396,11 @@ export default function TerminalAutomation() {
         {/* ═══ SMALL BUYS CONFIG ═══ */}
         <TabsContent value="small-buys" className="mt-4">
           <SmallBuysConfig />
+        </TabsContent>
+
+        {/* ═══ HYBRID PRICING ═══ */}
+        <TabsContent value="hybrid" className="mt-4">
+          <HybridPriceAdjuster />
         </TabsContent>
       </Tabs>
 

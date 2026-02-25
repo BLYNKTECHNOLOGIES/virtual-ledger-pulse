@@ -9,6 +9,7 @@ import { CreateEditAdDialog } from '@/components/ad-manager/CreateEditAdDialog';
 import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
 import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPriceDialog';
+import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
@@ -23,6 +24,7 @@ export default function AdManager() {
   const [selectedAdvNos, setSelectedAdvNos] = useState<Set<string>>(new Set());
   const [bulkLimitsOpen, setBulkLimitsOpen] = useState(false);
   const [bulkFloatingOpen, setBulkFloatingOpen] = useState(false);
+  const [bulkHybridOpen, setBulkHybridOpen] = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
@@ -110,6 +112,7 @@ export default function AdManager() {
           onClearSelection={() => setSelectedAdvNos(new Set())}
           onBulkEditLimits={() => setBulkLimitsOpen(true)}
           onBulkFloatingPrice={() => setBulkFloatingOpen(true)}
+          onBulkHybridAdjust={() => setBulkHybridOpen(true)}
           onBulkActivate={handleBulkActivate}
           onBulkDeactivate={handleBulkDeactivate}
         />
@@ -168,6 +171,7 @@ export default function AdManager() {
       <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} />
       <BulkEditLimitsDialog open={bulkLimitsOpen} onOpenChange={setBulkLimitsOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
+      <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>
   );

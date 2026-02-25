@@ -15,7 +15,9 @@ export type TerminalPermission =
   | 'terminal_settings_view'
   | 'terminal_settings_manage'
   | 'terminal_users_view'
-  | 'terminal_users_manage';
+  | 'terminal_users_manage'
+  | 'terminal_payer_view'
+  | 'terminal_payer_manage';
 
 export interface TerminalRole {
   role_id: string;

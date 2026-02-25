@@ -9385,6 +9385,35 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_auto_reply_exclusions: {
+        Row: {
+          created_at: string
+          excluded_by: string
+          id: string
+          order_number: string
+        }
+        Insert: {
+          created_at?: string
+          excluded_by: string
+          id?: string
+          order_number: string
+        }
+        Update: {
+          created_at?: string
+          excluded_by?: string
+          id?: string
+          order_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_auto_reply_exclusions_excluded_by_fkey"
+            columns: ["excluded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_biometric_sessions: {
         Row: {
           authenticated_at: string
@@ -9613,6 +9642,93 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      terminal_payer_assignments: {
+        Row: {
+          ad_id: string | null
+          assigned_by: string
+          assignment_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          payer_user_id: string
+          size_range_id: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          assigned_by: string
+          assignment_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payer_user_id: string
+          size_range_id?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          assigned_by?: string
+          assignment_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payer_user_id?: string
+          size_range_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_payer_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_payer_assignments_payer_user_id_fkey"
+            columns: ["payer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_payer_assignments_size_range_id_fkey"
+            columns: ["size_range_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_order_size_ranges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_payer_order_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          order_number: string
+          payer_id: string
+        }
+        Insert: {
+          action?: string
+          created_at?: string
+          id?: string
+          order_number: string
+          payer_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          order_number?: string
+          payer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_payer_order_log_payer_id_fkey"
+            columns: ["payer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       terminal_purchase_sync: {
         Row: {
@@ -11481,6 +11597,8 @@ export type Database = {
         | "terminal_settings_manage"
         | "terminal_users_view"
         | "terminal_users_manage"
+        | "terminal_payer_view"
+        | "terminal_payer_manage"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -11705,6 +11823,8 @@ export const Constants = {
         "terminal_settings_manage",
         "terminal_users_view",
         "terminal_users_manage",
+        "terminal_payer_view",
+        "terminal_payer_manage",
       ],
     },
   },

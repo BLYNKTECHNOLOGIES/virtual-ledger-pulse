@@ -2,6 +2,7 @@
 import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
+import TerminalPayer from './pages/terminal/TerminalPayer';
 import TerminalMPI from './pages/terminal/TerminalMPI';
 import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
@@ -527,11 +528,7 @@ const router = createBrowserRouter([
           <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
-                <TerminalComingSoon
-                  title="Payer Module"
-                  description="Fiat payout handling, bank allocation, settlement confirmation, and payment queue routing."
-                  features={["Fiat payout handling", "Bank allocation & routing", "Settlement confirmation", "Payment queue management"]}
-                />
+                <TerminalPayer />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

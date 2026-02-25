@@ -51,7 +51,7 @@ const navItems: NavItem[] = [
   { title: 'MPI', url: '/terminal/mpi', icon: BarChart3, requiredPermission: 'terminal_analytics_view' },
   { title: 'Audit Logs', url: '/terminal/audit-logs', icon: ScrollText, requiredPermission: 'terminal_orders_view' },
   { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, comingSoon: true },
-  { title: 'Payer', url: '/terminal/payer', icon: CreditCard, comingSoon: true },
+  { title: 'Payer', url: '/terminal/payer', icon: CreditCard, requiredPermission: 'terminal_payer_view' },
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_ads_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, requiredPermission: 'terminal_settings_view' },

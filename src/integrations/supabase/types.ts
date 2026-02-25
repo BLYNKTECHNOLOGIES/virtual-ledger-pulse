@@ -9506,6 +9506,54 @@ export type Database = {
           },
         ]
       }
+      terminal_bypass_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          generated_by: string
+          id: string
+          is_used: boolean
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string
+          generated_by: string
+          id?: string
+          is_used?: boolean
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          generated_by?: string
+          id?: string
+          is_used?: boolean
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_bypass_codes_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_bypass_codes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_exchange_accounts: {
         Row: {
           account_identifier: string
@@ -10998,6 +11046,10 @@ export type Database = {
         Returns: string
       }
       generate_off_market_sales_order_number: { Args: never; Returns: string }
+      generate_terminal_bypass_code: {
+        Args: { p_generated_by: string; p_user_id: string }
+        Returns: string
+      }
       get_active_users: {
         Args: never
         Returns: {
@@ -11535,6 +11587,10 @@ export type Database = {
       validate_terminal_biometric_session: {
         Args: { p_token: string; p_user_id: string }
         Returns: boolean
+      }
+      validate_terminal_bypass_code: {
+        Args: { p_code: string; p_user_id: string }
+        Returns: string
       }
       validate_user_credentials: {
         Args: { input_password: string; input_username: string }

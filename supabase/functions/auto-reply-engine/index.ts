@@ -118,7 +118,7 @@ async function sendChatMessage(
           "x-proxy-token": proxyToken,
         },
         body: JSON.stringify({
-          orderNo,
+          orderNumber: orderNo,
           message: content,
           msgType: "TEXT",
         }),

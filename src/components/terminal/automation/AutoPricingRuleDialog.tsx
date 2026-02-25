@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -13,7 +13,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, User, AlertTriangle, X } from 'lucide-react';
+import { Search, User, AlertTriangle, X, GripVertical, Plus, Trash2 } from 'lucide-react';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   useCreateAutoPricingRule,
   useUpdateAutoPricingRule,
@@ -56,11 +63,8 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [fiat] = useState('INR');
   const [tradeType, setTradeType] = useState('BUY');
   const [priceType, setPriceType] = useState('FIXED');
-  const [targetMerchant, setTargetMerchant] = useState('');
-  const [fallback1, setFallback1] = useState('');
-  const [fallback2, setFallback2] = useState('');
-  const [fallback3, setFallback3] = useState('');
-  const [fallback4, setFallback4] = useState('');
+  const [priorityMerchants, setPriorityMerchants] = useState<string[]>(['']);
+  const [newMerchantInput, setNewMerchantInput] = useState('');
   const [onlyOnline, setOnlyOnline] = useState(false);
   const [pauseNoMerchant, setPauseNoMerchant] = useState(false);
   const [offsetDirection, setOffsetDirection] = useState('UNDERCUT');
@@ -104,6 +108,38 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     });
   };
 
+  // DnD sensors for priority merchants
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleMerchantDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setPriorityMerchants(prev => {
+        const oldIndex = prev.indexOf(active.id as string);
+        const newIndex = prev.indexOf(over.id as string);
+        return arrayMove(prev, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const addMerchant = () => {
+    const name = newMerchantInput.trim();
+    if (!name || priorityMerchants.includes(name)) return;
+    setPriorityMerchants(prev => [...prev, name]);
+    setNewMerchantInput('');
+  };
+
+  const removeMerchant = (nickname: string) => {
+    setPriorityMerchants(prev => prev.filter(m => m !== nickname));
+  };
+
+  const updateMerchantAt = (index: number, value: string) => {
+    setPriorityMerchants(prev => prev.map((m, i) => i === index ? value : m));
+  };
+
   useEffect(() => {
     if (editingRule) {
       setName(editingRule.name);
@@ -113,12 +149,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setAssetConfigs(editingRule.asset_config || {});
       setTradeType(editingRule.trade_type);
       setPriceType(editingRule.price_type);
-      setTargetMerchant(editingRule.target_merchant);
-      const fb = editingRule.fallback_merchants || [];
-      setFallback1(fb[0] || '');
-      setFallback2(fb[1] || '');
-      setFallback3(fb[2] || '');
-      setFallback4(fb[3] || '');
+      // Reconstruct priority list: target_merchant first, then fallbacks
+      const merchants = [editingRule.target_merchant, ...(editingRule.fallback_merchants || [])].filter(Boolean);
+      setPriorityMerchants(merchants.length > 0 ? merchants : ['']);
       setOnlyOnline(editingRule.only_counter_when_online);
       setPauseNoMerchant(editingRule.pause_if_no_merchant_found);
       setOffsetDirection(editingRule.offset_direction);
@@ -135,7 +168,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     } else {
       setName(''); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setTradeType('BUY'); setPriceType('FIXED');
-      setTargetMerchant(''); setFallback1(''); setFallback2(''); setFallback3(''); setFallback4('');
+      setPriorityMerchants(['']);
       setOnlyOnline(false); setPauseNoMerchant(false);
       setOffsetDirection('UNDERCUT');
       setMaxDeviation('5'); setMaxPriceChange(''); setMaxRatioChange('');
@@ -144,6 +177,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setCheckInterval('120');
     }
     setSearchResult(null);
+    setNewMerchantInput('');
   }, [editingRule, open]);
 
   const handleSearchMerchant = (nickname: string) => {
@@ -185,7 +219,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   };
 
   const handleSave = () => {
-    const fallbacks = [fallback1, fallback2, fallback3, fallback4].filter(Boolean);
+    const validMerchants = priorityMerchants.filter(m => m.trim());
+    const primaryMerchant = validMerchants[0] || '';
+    const fallbackMerchants = validMerchants.slice(1);
     
     // Collect all ad_numbers across all assets for backward compat
     const allAdNumbers = selectedAssets.flatMap(a => getConfig(a).ad_numbers);
@@ -213,8 +249,8 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       fiat,
       trade_type: tradeType,
       price_type: priceType,
-      target_merchant: targetMerchant,
-      fallback_merchants: fallbacks,
+      target_merchant: primaryMerchant,
+      fallback_merchants: fallbackMerchants,
       ad_numbers: allAdNumbers,
       offset_direction: offsetDirection,
       offset_amount: 0, // defaults; per-asset overrides in asset_config
@@ -318,17 +354,48 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
               </AccordionContent>
             </AccordionItem>
 
-            {/* Section 2: Merchants */}
+            {/* Section 2: Priority Merchants */}
             <AccordionItem value="merchants">
-              <AccordionTrigger className="text-sm font-semibold">Target Merchants</AccordionTrigger>
+              <AccordionTrigger className="text-sm font-semibold">
+                Merchant Priority ({priorityMerchants.filter(m => m.trim()).length} merchants)
+              </AccordionTrigger>
               <AccordionContent className="space-y-3 px-1">
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <Label>Primary Merchant Nickname</Label>
-                    <Input value={targetMerchant} onChange={e => setTargetMerchant(e.target.value)} placeholder="e.g. CryptoKing" />
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => handleSearchMerchant(targetMerchant)} disabled={searchMerchant.isPending}>
-                    <Search className="h-3.5 w-3.5 mr-1" /> Preview
+                <p className="text-[10px] text-muted-foreground">
+                  Priority 1 is always used first. If it fails thresholds or is offline, Priority 2 takes over, and so on. Drag to reorder.
+                </p>
+
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMerchantDragEnd}>
+                  <SortableContext items={priorityMerchants} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-1.5">
+                      {priorityMerchants.map((merchant, index) => (
+                        <SortableMerchantItem
+                          key={merchant || `empty-${index}`}
+                          id={merchant || `empty-${index}`}
+                          index={index}
+                          value={merchant}
+                          onChange={(val) => updateMerchantAt(index, val)}
+                          onRemove={() => removeMerchant(merchant)}
+                          onPreview={() => handleSearchMerchant(merchant)}
+                          isSearching={searchMerchant.isPending}
+                          canRemove={priorityMerchants.length > 1}
+                          isDraggable={priorityMerchants.length > 1 && merchant.trim() !== ''}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+
+                {/* Add merchant */}
+                <div className="flex gap-2">
+                  <Input
+                    value={newMerchantInput}
+                    onChange={e => setNewMerchantInput(e.target.value)}
+                    placeholder="Add merchant nickname..."
+                    className="h-8 text-xs"
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addMerchant())}
+                  />
+                  <Button variant="outline" size="sm" className="h-8 px-2" onClick={addMerchant} disabled={!newMerchantInput.trim()}>
+                    <Plus className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
@@ -350,25 +417,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     <span>Merchant not found in top 500 listings</span>
                   </div>
                 )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Fallback 1</Label>
-                    <Input value={fallback1} onChange={e => setFallback1(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Fallback 2</Label>
-                    <Input value={fallback2} onChange={e => setFallback2(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Fallback 3</Label>
-                    <Input value={fallback3} onChange={e => setFallback3(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Fallback 4</Label>
-                    <Input value={fallback4} onChange={e => setFallback4(e.target.value)} placeholder="Optional" className="h-8 text-xs" />
-                  </div>
-                </div>
 
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
@@ -630,11 +678,79 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !targetMerchant.trim() || selectedAssets.length === 0 || createRule.isPending || updateRule.isPending}>
+          <Button onClick={handleSave} disabled={!name.trim() || priorityMerchants.filter(m => m.trim()).length === 0 || selectedAssets.length === 0 || createRule.isPending || updateRule.isPending}>
             {editingRule ? 'Update Rule' : 'Create Rule'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// Sortable merchant row component
+function SortableMerchantItem({
+  id, index, value, onChange, onRemove, onPreview, isSearching, canRemove, isDraggable,
+}: {
+  id: string;
+  index: number;
+  value: string;
+  onChange: (val: string) => void;
+  onRemove: () => void;
+  onPreview: () => void;
+  isSearching: boolean;
+  canRemove: boolean;
+  isDraggable: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled: !isDraggable,
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`flex items-center gap-1.5 ${isDragging ? 'z-50' : ''}`}>
+      <div
+        {...attributes}
+        {...listeners}
+        className={`shrink-0 p-1 rounded ${isDraggable ? 'cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground' : 'text-muted-foreground/30 cursor-default'}`}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </div>
+      <Badge variant="secondary" className="shrink-0 text-[10px] px-1.5 py-0.5 font-mono min-w-[18px] text-center">
+        P{index + 1}
+      </Badge>
+      <Input
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={index === 0 ? 'Primary merchant nickname' : 'Merchant nickname'}
+        className="h-8 text-xs flex-1"
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0 shrink-0"
+        onClick={onPreview}
+        disabled={!value.trim() || isSearching}
+        title="Preview merchant"
+      >
+        <Search className="h-3.5 w-3.5" />
+      </Button>
+      {canRemove && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8 p-0 shrink-0 text-destructive hover:text-destructive"
+          onClick={onRemove}
+          title="Remove merchant"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
+    </div>
   );
 }

@@ -94,7 +94,11 @@ export async function registerBiometric(userId: string, username: string, device
   return result;
 }
 
-export async function authenticateBiometric(userId: string, adminUserId?: string): Promise<string> {
+export async function authenticateBiometric(
+  userId: string,
+  adminUserId?: string,
+  attachment?: 'platform' | 'cross-platform'
+): Promise<string> {
   // 1. Get challenge (with admin override if applicable)
   const challengeBody: Record<string, unknown> = {
     user_id: adminUserId || userId,
@@ -111,18 +115,21 @@ export async function authenticateBiometric(userId: string, adminUserId?: string
     (c: { id: string }) => ({
       id: base64urlToBuffer(c.id),
       type: 'public-key' as const,
+      ...(attachment === 'platform' ? { transports: ['internal' as AuthenticatorTransport] } : {}),
     })
   );
 
   // 2. Get assertion via browser API
+  const publicKeyOptions: PublicKeyCredentialRequestOptions = {
+    challenge: base64urlToBuffer(challengeData.challenge),
+    rpId: window.location.hostname,
+    allowCredentials,
+    userVerification: 'required',
+    timeout: 60000,
+  };
+
   const assertion = await navigator.credentials.get({
-    publicKey: {
-      challenge: base64urlToBuffer(challengeData.challenge),
-      rpId: window.location.hostname,
-      allowCredentials,
-      userVerification: 'required',
-      timeout: 60000,
-    },
+    publicKey: publicKeyOptions,
   }) as PublicKeyCredential;
 
   if (!assertion) throw new Error('Authentication cancelled');

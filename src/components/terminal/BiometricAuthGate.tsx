@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Fingerprint, Loader2, ShieldAlert, Smartphone, Shield, KeyRound } from 'lucide-react';
+import { Fingerprint, Loader2, ShieldAlert, Smartphone, Shield, KeyRound, QrCode, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
@@ -44,7 +44,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
     }
   };
 
-  const handleAuthenticate = async () => {
+  const handleAuthenticate = async (attachment?: 'platform' | 'cross-platform') => {
     if (!userId) return;
     setIsAuthenticating(true);
 
@@ -61,7 +61,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
         return;
       }
 
-      const sessionToken = await authenticateBiometric(userId);
+      const sessionToken = await authenticateBiometric(userId, undefined, attachment);
       setSession(sessionToken);
       toast.success('Biometric verification successful');
     } catch (err: any) {
@@ -178,24 +178,45 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
           </p>
         </div>
 
-        <Button
-          size="lg"
-          onClick={handleAuthenticate}
-          disabled={isAuthenticating}
-          className="gap-2 min-w-[200px]"
-        >
-          {isAuthenticating ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Verifying...
-            </>
-          ) : (
-            <>
-              <Fingerprint className="h-4 w-4" />
-              Verify Fingerprint
-            </>
-          )}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+          <Button
+            size="lg"
+            onClick={() => handleAuthenticate('platform')}
+            disabled={isAuthenticating}
+            className="gap-2 flex-1"
+          >
+            {isAuthenticating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              <>
+                <Fingerprint className="h-4 w-4" />
+                Fingerprint / Face ID
+              </>
+            )}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => handleAuthenticate('cross-platform')}
+            disabled={isAuthenticating}
+            className="gap-2 flex-1"
+          >
+            {isAuthenticating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              <>
+                <QrCode className="h-4 w-4" />
+                QR Code / Security Key
+              </>
+            )}
+          </Button>
+        </div>
 
         {isSuperAdmin && (
           <Button

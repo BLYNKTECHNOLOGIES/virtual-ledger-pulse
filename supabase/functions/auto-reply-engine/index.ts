@@ -100,10 +100,7 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
 }
 
 /**
- * Send a chat message via WebSocket relay.
- * 1. Get chat credentials from Binance (via REST proxy)
- * 2. Connect to the relay (port 8080) targeting Binance's WSS
- * 3. Send the message
+ * Send a chat message via REST proxy (POST).
  */
 async function sendChatMessage(
   proxyUrl: string,
@@ -112,111 +109,59 @@ async function sendChatMessage(
   content: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Step 1: Get chat credentials via generic proxy GET handler
-    const credRes = await fetch(
-      `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatCredential?orderNo=${orderNo}`,
+    const res = await fetch(
+      `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage`,
       {
-        method: "GET",
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           "x-proxy-token": proxyToken,
         },
+        body: JSON.stringify({
+          orderNo,
+          message: content,
+          msgType: "TEXT",
+        }),
       }
     );
-    const credData = await credRes.json();
-    console.log(`retrieveChatCredential for ${orderNo}: code=${credData?.code}, hasData=${!!credData?.data}`);
+    const data = await res.json();
+    console.log(`sendMessage REST for ${orderNo}: status=${res.status}, code=${data?.code}, msg=${JSON.stringify(data).substring(0, 200)}`);
 
-    if (credData?.code !== "000000" || !credData?.data) {
-      return { success: false, error: `Credential failed: ${JSON.stringify(credData)}` };
+    if (res.ok && (data?.code === "000000" || data?.success)) {
+      return { success: true };
     }
-
-    const chatWssUrl = credData.data.chatWssUrl;
-    const listenKey = credData.data.listenKey;
-    const listenToken = credData.data.listenToken;
-
-    if (!chatWssUrl || !listenKey || !listenToken) {
-      return { success: false, error: `Missing WSS fields: url=${chatWssUrl}, key=${listenKey}` };
-    }
-
-    // Step 2: Connect to relay on port 8080
-    const proxyHost = new URL(proxyUrl).hostname;
-    const targetUrl = `${chatWssUrl}?listenKey=${listenKey}`;
-    const relayUrl = `ws://${proxyHost}:8080?key=${encodeURIComponent(proxyToken)}&target=${encodeURIComponent(targetUrl)}`;
-
-    console.log(`Connecting to relay for order ${orderNo}...`);
-
-    const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
-      const ws = new WebSocket(relayUrl);
-      let settled = false;
-
-      const timeout = setTimeout(() => {
-        if (!settled) {
-          settled = true;
-          try { ws.close(); } catch (_) {}
-          resolve({ success: false, error: "WebSocket timeout (10s)" });
-        }
-      }, 10000);
-
-      ws.onopen = () => {
-        console.log(`WebSocket connected for order ${orderNo}, sending auth...`);
-
-        // Authenticate with token
-        ws.send(JSON.stringify({
-          type: "auth",
-          listenKey: listenKey,
-          token: listenToken,
-        }));
-
-        // Send message after brief auth delay
-        setTimeout(() => {
-          const msgPayload = JSON.stringify({
-            type: "sendMessage",
-            orderNo: orderNo,
-            content: content,
-            contentType: "TEXT",
-            uuid: crypto.randomUUID(),
-          });
-          console.log(`Sending chat message for ${orderNo}: ${content.substring(0, 50)}...`);
-          ws.send(msgPayload);
-
-          // Wait for response/confirmation
-          setTimeout(() => {
-            if (!settled) {
-              settled = true;
-              clearTimeout(timeout);
-              try { ws.close(); } catch (_) {}
-              resolve({ success: true });
-            }
-          }, 2000);
-        }, 500);
-      };
-
-      ws.onmessage = (event) => {
-        const data = typeof event.data === "string" ? event.data : "";
-        console.log(`WebSocket response for ${orderNo}: ${data.substring(0, 300)}`);
-      };
-
-      ws.onerror = (event) => {
-        console.error(`WebSocket error for ${orderNo}:`, event);
-        if (!settled) {
-          settled = true;
-          clearTimeout(timeout);
-          resolve({ success: false, error: "WebSocket connection error" });
-        }
-      };
-
-      ws.onclose = (event) => {
-        console.log(`WebSocket closed for ${orderNo}: code=${event.code}`);
-        if (!settled) {
-          settled = true;
-          clearTimeout(timeout);
-          resolve({ success: false, error: `WebSocket closed: code=${event.code}` });
-        }
-      };
-    });
-
-    return result;
+    return { success: false, error: JSON.stringify(data) };
   } catch (err) {
     return { success: false, error: String(err) };
+  }
+}
+
+/**
+ * Fetch verified (unmasked) counterparty name from Binance order detail API.
+ */
+async function fetchVerifiedName(
+  proxyUrl: string,
+  proxyHeaders: Record<string, string>,
+  orderNo: string,
+  tradeType: string,
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
+      method: "POST",
+      headers: proxyHeaders,
+      body: JSON.stringify({ orderNo }),
+    });
+    const data = await res.json();
+    const detail = data?.data;
+    if (!detail) return null;
+    // For BUY orders we are the buyer, counterparty is seller
+    // For SELL orders we are the seller, counterparty is buyer
+    const name = tradeType === "BUY" ? detail.sellerRealName : detail.buyerRealName;
+    if (name && !name.includes("*")) return name;
+    // Fallback to nickname
+    return detail.counterPartNickName || null;
+  } catch {
+    return null;
   }
 }
 
@@ -388,7 +333,7 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      // Pre-fetch verified names
+      // Pre-fetch verified names from DB
       const orderNumbers = activeOrders.map((o) => o.orderNumber);
       const verifiedNameMap = new Map<string, string>();
       if (orderNumbers.length > 0) {
@@ -399,7 +344,17 @@ serve(async (req) => {
         if (nameRows) {
           for (const row of nameRows) {
             const name = row.verified_name || row.counter_part_nick_name;
-            if (name) verifiedNameMap.set(row.order_number, name);
+            if (name && !name.includes("*")) verifiedNameMap.set(row.order_number, name);
+          }
+        }
+      }
+
+      // For orders without a clean name, fetch from Binance detail API
+      for (const order of activeOrders) {
+        if (!verifiedNameMap.has(order.orderNumber)) {
+          const detailName = await fetchVerifiedName(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber, order.tradeType);
+          if (detailName && !detailName.includes("*")) {
+            verifiedNameMap.set(order.orderNumber, detailName);
           }
         }
       }

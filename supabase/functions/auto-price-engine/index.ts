@@ -219,10 +219,26 @@ async function processAsset(
   }
 
   // 5. MARKET VALIDATION
+  // Use the P2P median price as market reference for deviation checks.
+  // This is apples-to-apples: comparing competitor P2P price against other P2P prices.
+  // The old approach (coinUsdt × CoinGecko USDT/INR) used a spot/forex rate (~₹84.5)
+  // which is ~10-12% below P2P effective rates (~₹90), causing false deviation alerts.
   let marketReferencePrice: number | null = null;
   let deviationPct: number | null = null;
 
-  if (asset === "USDT") {
+  const allP2PPrices = searchResult.data
+    .map((item: any) => parseFloat(item.adv?.price || "0"))
+    .filter((p: number) => p > 0)
+    .sort((a: number, b: number) => a - b);
+
+  if (allP2PPrices.length >= 3) {
+    // Use median of P2P listings as the market reference
+    const midIdx = Math.floor(allP2PPrices.length / 2);
+    marketReferencePrice = allP2PPrices.length % 2 === 0
+      ? (allP2PPrices[midIdx - 1] + allP2PPrices[midIdx]) / 2
+      : allP2PPrices[midIdx];
+    console.log(`[MarketRef] ${asset}: P2P median ₹${marketReferencePrice.toFixed(2)} from ${allP2PPrices.length} listings`);
+  } else if (asset === "USDT") {
     marketReferencePrice = usdtInr;
   } else {
     const coinUsdt = await fetchCoinUsdtRate(asset);

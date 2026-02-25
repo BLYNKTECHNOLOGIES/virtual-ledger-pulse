@@ -107,10 +107,11 @@ export function TerminalRolesList() {
 
   useEffect(() => { fetchRoles(); fetchMyLevel(); }, [fetchRoles, fetchMyLevel]);
 
-  /** Can the current user edit this role? Only if target role's hierarchy is strictly below (greater number) */
+  /** Can the current user edit this role? Admin (level 0) can edit everything including itself. Others can only edit roles strictly below them. */
   const canEditRole = (role: Role): boolean => {
     if (!canManage) return false;
-    // Admin (level 0) can edit everything except their own level
+    // Admin (level 0) has full rights to edit any role including itself
+    if (myHierarchyLevel === 0) return true;
     const targetLevel = role.hierarchy_level ?? 999;
     return targetLevel > myHierarchyLevel;
   };
@@ -152,8 +153,8 @@ export function TerminalRolesList() {
 
     const parsedLevel = editHierarchy.trim() ? parseInt(editHierarchy.trim(), 10) : null;
 
-    // Enforce: new/edited role must be below current user's level
-    if (parsedLevel !== null && parsedLevel <= myHierarchyLevel) {
+    // Admin (level 0) can set any hierarchy level. Others must set levels below their own.
+    if (parsedLevel !== null && myHierarchyLevel !== 0 && parsedLevel <= myHierarchyLevel) {
       toast.error(`Hierarchy level must be greater than ${myHierarchyLevel} (your level)`);
       return;
     }
@@ -301,7 +302,9 @@ export function TerminalRolesList() {
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">
                   Hierarchy Level
-                  <span className="text-muted-foreground/60 ml-1">(lower number = higher rank, must be &gt; {myHierarchyLevel})</span>
+                  {myHierarchyLevel !== 0 && (
+                    <span className="text-muted-foreground/60 ml-1">(must be &gt; {myHierarchyLevel})</span>
+                  )}
                 </label>
                 <Input
                   type="number"
@@ -309,7 +312,7 @@ export function TerminalRolesList() {
                   onChange={(e) => setEditHierarchy(e.target.value)}
                   placeholder="e.g. 3"
                   className="h-9 text-sm w-32"
-                  min={myHierarchyLevel + 1}
+                  min={myHierarchyLevel === 0 ? 0 : myHierarchyLevel + 1}
                 />
               </div>
               <div className="space-y-2">

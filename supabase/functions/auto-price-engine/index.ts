@@ -409,7 +409,7 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
         tradeType,
         page,
         rows: 20,
-        publisherType: null,
+        publisherType: "merchant",
         payTypes: [],
       }),
     });

@@ -312,7 +312,9 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                       <SelectItem key={r.id} value={r.id}>
                         {r.name}
                         {r.hierarchy_level !== null && (
-                          <span className="text-muted-foreground ml-1">(L{r.hierarchy_level})</span>
+                          <span className="text-muted-foreground ml-1">
+                            (Level {r.hierarchy_level})
+                          </span>
                         )}
                       </SelectItem>
                     ))}

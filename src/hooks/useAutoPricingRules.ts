@@ -371,6 +371,8 @@ export function useDismissRuleAlert() {
     mutationFn: async ({ id, ruleName, alertMessage }: { id: string; ruleName: string; alertMessage: string }) => {
       const { error } = await supabase.from('ad_pricing_rules').update({
         last_error: null,
+        consecutive_deviations: 0,
+        consecutive_errors: 0,
       } as any).eq('id', id);
       if (error) throw error;
       return { id, ruleName, alertMessage };

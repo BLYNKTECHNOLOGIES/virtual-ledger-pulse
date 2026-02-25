@@ -204,6 +204,7 @@ Deno.serve(async (req) => {
     // =================== VERIFY ===================
     if (path === 'verify') {
       const { credential_id, challenge, sign_count, admin_user_id } = body;
+      console.log('Verify params:', { credential_id: credential_id?.substring(0, 10), challenge: challenge?.substring(0, 10), sign_count, admin_user_id, isAdminOverride: !!(admin_user_id && UUID_REGEX.test(admin_user_id)) });
 
       if (!credential_id || !challenge) {
         return errorResponse('Missing required fields', 400);
@@ -212,13 +213,15 @@ Deno.serve(async (req) => {
       // Determine if this is an admin override attempt
       const isAdminOverride = admin_user_id && UUID_REGEX.test(admin_user_id);
       const challengeOwner = isAdminOverride ? admin_user_id : userId;
+      console.log('Challenge owner for verify:', challengeOwner);
 
       // Verify and consume the challenge
-      const { data: challengeValid } = await supabase.rpc('verify_and_consume_challenge', {
+      const { data: challengeValid, error: challengeError } = await supabase.rpc('verify_and_consume_challenge', {
         p_user_id: challengeOwner,
         p_challenge: challenge,
         p_type: 'authentication',
       });
+      console.log('Challenge verification result:', { challengeValid, challengeError });
 
       if (!challengeValid) {
         await logBiometricEvent(supabase, userId, 'BIOMETRIC_AUTH_FAILED',

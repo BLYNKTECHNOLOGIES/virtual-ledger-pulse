@@ -1,0 +1,1 @@
+UPDATE public.users SET password_hash = crypt('Abhishek@0717', gen_salt('bf')) WHERE email = 'abhisheksinghtomar1711@gmail.com';

@@ -76,16 +76,43 @@ function OrgChartNode({
   expandedIds,
   onToggle,
   highlightId,
+  zoom = 1,
 }: {
   node: EmpChartNode;
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
   highlightId: string | null;
+  zoom?: number;
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedIds.has(node.id);
   const isHighlighted = highlightId === node.id;
   const showChildren = hasChildren && isExpanded;
+
+  const childRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const parentRef = useRef<HTMLDivElement>(null);
+  const [barStyle, setBarStyle] = useState<{ left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    if (!showChildren || node.children.length <= 1) {
+      setBarStyle(null);
+      return;
+    }
+    // Calculate horizontal bar from center of first child to center of last child
+    const container = parentRef.current;
+    const firstChild = childRefs.current[0];
+    const lastChild = childRefs.current[node.children.length - 1];
+    if (!container || !firstChild || !lastChild) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const firstRect = firstChild.getBoundingClientRect();
+    const lastRect = lastChild.getBoundingClientRect();
+
+    setBarStyle({
+      left: firstRect.left + firstRect.width / 2 - containerRect.left,
+      width: lastRect.left + lastRect.width / 2 - (firstRect.left + firstRect.width / 2),
+    });
+  }, [showChildren, node.children.length, expandedIds, zoom]);
 
   return (
     <div className="flex flex-col items-center">
@@ -100,7 +127,6 @@ function OrgChartNode({
         <p className="text-sm font-semibold text-foreground leading-tight">{node.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{node.designation || "Not set"}</p>
 
-        {/* Toggle button at bottom — only shows if node has children */}
         {hasChildren && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggle(node.id); }}
@@ -111,28 +137,32 @@ function OrgChartNode({
         )}
       </div>
 
-      {/* Children — only rendered when this node is expanded */}
+      {/* Children */}
       {showChildren && (
         <>
           <div className="w-px h-8 bg-border" />
-          <div className="relative flex items-start">
-            {node.children.length > 1 && (
+          <div ref={parentRef} className="relative flex items-start">
+            {/* Horizontal connector bar */}
+            {barStyle && barStyle.width > 0 && (
               <div
                 className="absolute top-0 h-px bg-border"
-                style={{
-                  left: `calc(${(100 / node.children.length) / 2}%)`,
-                  right: `calc(${(100 / node.children.length) / 2}%)`,
-                }}
+                style={{ left: barStyle.left, width: barStyle.width }}
               />
             )}
-            {node.children.map((child) => (
-              <div key={child.id} className="flex flex-col items-center" style={{ minWidth: 'max-content', padding: '0 8px' }}>
+            {node.children.map((child, idx) => (
+              <div
+                key={child.id}
+                ref={el => { childRefs.current[idx] = el; }}
+                className="flex flex-col items-center"
+                style={{ minWidth: 'max-content', padding: '0 8px' }}
+              >
                 <div className="w-px h-8 bg-border" />
                 <OrgChartNode
                   node={child}
                   expandedIds={expandedIds}
                   onToggle={onToggle}
                   highlightId={highlightId}
+                  zoom={zoom}
                 />
               </div>
             ))}
@@ -386,26 +416,17 @@ export function OrgChartView() {
 
   // Fullscreen toggle
   const toggleFullscreen = useCallback(() => {
-    if (!isFullscreen) {
-      fullscreenRef.current?.requestFullscreen?.().catch(() => {
-        // Fallback: use CSS fullscreen
-        setIsFullscreen(true);
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen?.().catch(() => {});
-      setIsFullscreen(false);
-    }
-  }, [isFullscreen]);
+    setIsFullscreen(prev => !prev);
+  }, []);
 
   // Listen for fullscreen exit via Escape
   useEffect(() => {
-    const handler = () => {
-      if (!document.fullscreenElement) setIsFullscreen(false);
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreen) setIsFullscreen(false);
     };
-    document.addEventListener("fullscreenchange", handler);
-    return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isFullscreen]);
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" /></div>;
 
@@ -537,6 +558,7 @@ export function OrgChartView() {
                         expandedIds={expandedIds}
                         onToggle={toggleExpand}
                         highlightId={highlightId}
+                        zoom={zoom}
                       />
                     ))}
                   </div>

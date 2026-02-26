@@ -46,7 +46,7 @@ export function PayerAssignmentManager() {
       const { data: permissions } = await supabase
         .from('p2p_terminal_role_permissions' as any)
         .select('role_id')
-        .eq('permission_key', 'terminal_payer_view');
+        .eq('permission', 'terminal_payer_view');
       if (!permissions || permissions.length === 0) return [];
 
       const roleIds = [...new Set(permissions.map((p: any) => p.role_id))];

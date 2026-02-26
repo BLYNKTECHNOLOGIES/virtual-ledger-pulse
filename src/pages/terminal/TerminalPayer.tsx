@@ -152,7 +152,6 @@ export default function TerminalPayer() {
                       <TableHead className="text-[10px] text-muted-foreground font-medium">Order No.</TableHead>
                       <TableHead className="text-[10px] text-muted-foreground font-medium">Amount</TableHead>
                       <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
-                      <TableHead className="text-[10px] text-muted-foreground font-medium">Payment Details</TableHead>
                       <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
                       <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Actions</TableHead>
                     </TableRow>

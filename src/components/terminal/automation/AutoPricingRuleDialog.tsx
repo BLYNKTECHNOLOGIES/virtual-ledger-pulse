@@ -702,6 +702,15 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     <Input type="time" value={activeEnd} onChange={e => setActiveEnd(e.target.value)} />
                   </div>
                 </div>
+                {(activeStart || activeEnd) && (
+                  <button
+                    type="button"
+                    className="text-xs text-destructive hover:underline"
+                    onClick={() => { setActiveStart(''); setActiveEnd(''); }}
+                  >
+                    Reset active hours (switch to 24/7)
+                  </button>
+                )}
                 <p className="text-[10px] text-muted-foreground">Leave empty for 24/7 operation</p>
                 <div className="grid grid-cols-2 gap-3">
                   {isFixed ? (

@@ -506,11 +506,19 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
 }
 
 async function fetchCoinUsdtRate(asset: string): Promise<number> {
+  const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
+  const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
+  const baseUrl = BINANCE_PROXY_URL || "https://api.binance.com";
   try {
-    const resp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset}USDT`);
+    const headers: Record<string, string> = {};
+    if (BINANCE_API_KEY) headers["X-MBX-APIKEY"] = BINANCE_API_KEY;
+    const resp = await fetch(`${baseUrl}/api/v3/ticker/price?symbol=${asset}USDT`, { headers });
     const data = await resp.json();
-    return parseFloat(data.price || "0");
-  } catch {
+    const price = parseFloat(data.price || "0");
+    console.log(`[fetchCoinUsdtRate] ${asset}USDT = ${price}`);
+    return price;
+  } catch (e) {
+    console.error(`[fetchCoinUsdtRate] Failed for ${asset}:`, e);
     return 0;
   }
 }

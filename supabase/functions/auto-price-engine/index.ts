@@ -516,7 +516,22 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
-  // Fetch USDT/INR P2P sell-side rate (this is the actual trading rate ~90-91)
+  // Primary: CoinGecko USDT/INR live market rate (matches Google's "USDT INR" rate ~₹90.96)
+  try {
+    const cgResp = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
+      { headers: { Accept: "application/json" } }
+    );
+    const cgData = await cgResp.json();
+    if (cgData?.tether?.inr && cgData.tether.inr > 80) {
+      console.log(`[fetchUsdtInr] CoinGecko: ${cgData.tether.inr}`);
+      return cgData.tether.inr;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] CoinGecko failed:", e);
+  }
+
+  // Fallback: P2P merchant sell-side median
   try {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
       method: "POST",
@@ -527,28 +542,13 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
     if (data?.data?.length > 0) {
       const prices = data.data.map((d: any) => parseFloat(d.adv?.price || "0")).filter((p: number) => p > 0);
       if (prices.length > 0) {
-        // Use median of top merchant SELL prices
         prices.sort((a: number, b: number) => a - b);
         const mid = Math.floor(prices.length / 2);
         const rate = prices.length % 2 === 0 ? (prices[mid - 1] + prices[mid]) / 2 : prices[mid];
-        console.log(`[fetchUsdtInr] P2P merchant median: ${rate.toFixed(2)}`);
+        console.log(`[fetchUsdtInr] P2P fallback: ${rate.toFixed(2)}`);
         return rate;
       }
     }
-  } catch (e) {
-    console.error("[fetchUsdtInr] P2P fetch failed:", e);
-  }
-
-  // Fallback: fetch-usdt-rate edge function
-  try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resp = await fetch(`${supabaseUrl}/functions/v1/fetch-usdt-rate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
-    });
-    const data = await resp.json();
-    if (data?.rate && data.rate > 0) return data.rate;
   } catch { /* fallback */ }
 
   return 90;

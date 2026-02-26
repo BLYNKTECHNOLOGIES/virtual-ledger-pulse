@@ -38,26 +38,27 @@ export function PayerAssignmentManager() {
   const [selectedRange, setSelectedRange] = useState('');
   const [adId, setAdId] = useState('');
 
-  // Fetch payer users (users with Payer role)
+  // Fetch users who have terminal_payer_view permission (any role with payer tab access)
   const { data: payerUsers = [] } = useQuery({
     queryKey: ['payer-users'],
     queryFn: async () => {
-      // Get the Payer role ID
-      const { data: role } = await supabase
-        .from('p2p_terminal_roles')
-        .select('id')
-        .eq('name', 'Payer')
-        .maybeSingle();
-      if (!role) return [];
+      // Get role IDs that have terminal_payer_view permission
+      const { data: permissions } = await supabase
+        .from('p2p_terminal_role_permissions' as any)
+        .select('role_id')
+        .eq('permission_key', 'terminal_payer_view');
+      if (!permissions || permissions.length === 0) return [];
 
-      // Get users with that role
+      const roleIds = [...new Set(permissions.map((p: any) => p.role_id))];
+
+      // Get users assigned to those roles
       const { data: userRoles } = await supabase
         .from('p2p_terminal_user_roles')
         .select('user_id')
-        .eq('role_id', role.id);
+        .in('role_id', roleIds);
       if (!userRoles || userRoles.length === 0) return [];
 
-      const userIds = userRoles.map((ur: any) => ur.user_id);
+      const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
       const { data: users } = await supabase
         .from('users')
         .select('id, username, first_name, last_name')
@@ -146,7 +147,7 @@ export function PayerAssignmentManager() {
                   </SelectContent>
                 </Select>
                 {payerUsers.length === 0 && (
-                  <p className="text-[10px] text-amber-500">No users have the Payer role yet. Assign the role first.</p>
+                  <p className="text-[10px] text-amber-500">No users have access to the Payer tab. Assign a role with Payer permission first.</p>
                 )}
               </div>
 

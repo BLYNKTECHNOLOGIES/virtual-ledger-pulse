@@ -50,7 +50,8 @@ import { AutoReplyRuleDialog } from '@/components/automation/AutoReplyRuleDialog
 import { ScheduleDialog } from '@/components/automation/ScheduleDialog';
 import { format } from 'date-fns';
 import { CompletedOrdersExport } from '@/components/terminal/automation/CompletedOrdersExport';
-import { AutoPayWithLog } from '@/components/terminal/automation/AutoPayWithLog';
+import { AutoPaySettings } from '@/components/terminal/automation/AutoPaySettings';
+import { AutoReplyExecutionLog } from '@/components/terminal/automation/AutoReplyExecutionLog';
 import { SmallOrdersConfig } from '@/components/terminal/automation/SmallOrdersConfig';
 import { HybridPriceAdjuster } from '@/components/terminal/automation/HybridPriceAdjuster';
 import { AutoPricingRules } from '@/components/terminal/automation/AutoPricingRules';
@@ -132,7 +133,7 @@ export default function TerminalAutomation() {
           </TabsTrigger>
           <TabsTrigger value="auto-pay" className="gap-1.5">
             <Timer className="h-3.5 w-3.5" />
-            Auto-Pay & Log
+            Auto-Pay
           </TabsTrigger>
           <TabsTrigger value="export" className="gap-1.5">
             <FileDown className="h-3.5 w-3.5" />
@@ -239,6 +240,9 @@ export default function TerminalAutomation() {
               )}
             </CardContent>
           </Card>
+
+          {/* Execution Log inline */}
+          <AutoReplyExecutionLog />
         </TabsContent>
 
         {/* ═══ MERCHANT SCHEDULES ═══ */}
@@ -314,9 +318,9 @@ export default function TerminalAutomation() {
           </Card>
         </TabsContent>
 
-        {/* ═══ AUTO-PAY & EXECUTION LOG ═══ */}
+        {/* ═══ AUTO-PAY ═══ */}
         <TabsContent value="auto-pay" className="mt-4">
-          <AutoPayWithLog />
+          <AutoPaySettings />
         </TabsContent>
 
         {/* ═══ EXPORT ORDERS ═══ */}

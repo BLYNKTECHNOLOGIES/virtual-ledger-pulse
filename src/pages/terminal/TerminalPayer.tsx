@@ -3,9 +3,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CreditCard, RefreshCw, Search, Copy } from 'lucide-react';
+import { CreditCard, RefreshCw, Search, Clock, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { usePayerOrders } from '@/hooks/usePayerModule';
 import { PayerOrderRow } from '@/components/terminal/payer/PayerOrderRow';
@@ -30,17 +31,20 @@ function mapOrderStatusCode(code: number | string): string {
 
 export default function TerminalPayer() {
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const { orders, isLoading, isFetching, refetch, exclusions } = usePayerOrders();
+  const { orders, completedOrders, isLoading, isFetching, refetch, exclusions } = usePayerOrders();
+
+  const currentOrders = activeTab === 'pending' ? orders : completedOrders;
 
   const filteredOrders = useMemo(() => {
-    if (!search) return orders;
+    if (!search) return currentOrders;
     const q = search.toLowerCase();
-    return orders.filter((o: any) => {
+    return currentOrders.filter((o: any) => {
       const nick = o.sellerNickname || o.counterPartNickName || '';
       return nick.toLowerCase().includes(q) || (o.orderNumber || '').includes(q);
     });
-  }, [orders, search]);
+  }, [currentOrders, search]);
 
   if (selectedOrder) {
     // Build a minimal P2POrderRecord-like shape for OrderDetailWorkspace
@@ -115,8 +119,26 @@ export default function TerminalPayer() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-3">
+        {/* Tabs + Search */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <TabsList className="h-9">
+              <TabsTrigger value="pending" className="gap-1.5 text-xs h-7">
+                <Clock className="h-3.5 w-3.5" />
+                Pending
+                {orders.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">{orders.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="gap-1.5 text-xs h-7">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Completed
+                {completedOrders.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-4 px-1 text-[9px]">{completedOrders.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -138,7 +160,9 @@ export default function TerminalPayer() {
             ) : filteredOrders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16">
                 <CreditCard className="h-10 w-10 text-muted-foreground/20 mb-3" />
-                <p className="text-sm text-muted-foreground">No orders awaiting payment</p>
+                <p className="text-sm text-muted-foreground">
+                  {activeTab === 'pending' ? 'No orders awaiting payment' : 'No completed orders'}
+                </p>
                 <p className="text-[11px] text-muted-foreground/60 mt-1">
                   Orders matching your assignments will appear here
                 </p>
@@ -162,6 +186,7 @@ export default function TerminalPayer() {
                         key={order.orderNumber}
                         order={order}
                         isExcluded={exclusions.has(order.orderNumber)}
+                        isCompleted={activeTab === 'completed'}
                         onOpenOrder={() => setSelectedOrder(order)}
                         onMarkPaidSuccess={() => refetch()}
                       />

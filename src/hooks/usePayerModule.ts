@@ -144,7 +144,7 @@ export function usePayerOrders() {
   }, [orderLog]);
 
   // Filter active BUY orders matching payer assignments
-  const filteredOrders = useMemo(() => {
+  const allMatchedOrders = useMemo(() => {
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const list = Array.isArray(d) ? d : [];
 
@@ -152,7 +152,7 @@ export function usePayerOrders() {
     const buyOrders = list.filter((o: any) => o.tradeType === 'BUY');
 
     // Filter by assignment
-    const matched = buyOrders.filter((o: any) => {
+    return buyOrders.filter((o: any) => {
       const totalPrice = parseFloat(o.totalPrice || '0');
       const advNo = o.advNo || '';
 
@@ -166,19 +166,26 @@ export function usePayerOrders() {
         return false;
       });
     });
+  }, [activeOrdersData, assignments]);
 
-    // Remove orders already marked paid
-    const unpaid = matched.filter((o: any) => !paidOrderNumbers.has(o.orderNumber));
+  // Pending: not marked paid, not completed/cancelled/expired
+  const pendingOrders = useMemo(() => {
+    return allMatchedOrders
+      .filter((o: any) => !paidOrderNumbers.has(o.orderNumber))
+      .filter((o: any) => {
+        const status = String(o.orderStatus ?? '').toUpperCase();
+        return !status.includes('COMPLETED') && !status.includes('CANCEL') && !status.includes('EXPIRED');
+      });
+  }, [allMatchedOrders, paidOrderNumbers]);
 
-    // Filter out completed/cancelled/expired
-    return unpaid.filter((o: any) => {
-      const status = String(o.orderStatus ?? '').toUpperCase();
-      return !status.includes('COMPLETED') && !status.includes('CANCEL') && !status.includes('EXPIRED');
-    });
-  }, [activeOrdersData, assignments, paidOrderNumbers]);
+  // Completed: orders marked paid by this payer (from log)
+  const completedOrders = useMemo(() => {
+    return allMatchedOrders.filter((o: any) => paidOrderNumbers.has(o.orderNumber));
+  }, [allMatchedOrders, paidOrderNumbers]);
 
   return {
-    orders: filteredOrders,
+    orders: pendingOrders,
+    completedOrders,
     isLoading: ordersLoading || assignmentsLoading || logLoading,
     isFetching,
     refetch: refetchOrders,

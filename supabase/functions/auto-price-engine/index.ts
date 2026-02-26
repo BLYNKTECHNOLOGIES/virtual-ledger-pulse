@@ -506,21 +506,42 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
 }
 
 async function fetchCoinUsdtRate(asset: string): Promise<number> {
+  // Try 1: Via proxy
   const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
   const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-  const baseUrl = BINANCE_PROXY_URL || "https://api.binance.com";
+  if (BINANCE_PROXY_URL) {
+    try {
+      const headers: Record<string, string> = {};
+      if (BINANCE_API_KEY) headers["X-MBX-APIKEY"] = BINANCE_API_KEY;
+      const resp = await fetch(`${BINANCE_PROXY_URL}/api/v3/ticker/price?symbol=${asset}USDT`, { headers });
+      const text = await resp.text();
+      console.log(`[fetchCoinUsdtRate] Proxy raw response for ${asset}USDT: ${text.substring(0, 200)}`);
+      const data = JSON.parse(text);
+      const price = parseFloat(data.price || "0");
+      if (price > 0) {
+        console.log(`[fetchCoinUsdtRate] ${asset}USDT = ${price} (proxy)`);
+        return price;
+      }
+    } catch (e) {
+      console.error(`[fetchCoinUsdtRate] Proxy failed for ${asset}:`, e);
+    }
+  }
+
+  // Try 2: Direct Binance public API (no auth needed for ticker)
   try {
-    const headers: Record<string, string> = {};
-    if (BINANCE_API_KEY) headers["X-MBX-APIKEY"] = BINANCE_API_KEY;
-    const resp = await fetch(`${baseUrl}/api/v3/ticker/price?symbol=${asset}USDT`, { headers });
+    const resp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset}USDT`);
     const data = await resp.json();
     const price = parseFloat(data.price || "0");
-    console.log(`[fetchCoinUsdtRate] ${asset}USDT = ${price}`);
-    return price;
+    if (price > 0) {
+      console.log(`[fetchCoinUsdtRate] ${asset}USDT = ${price} (direct)`);
+      return price;
+    }
+    console.warn(`[fetchCoinUsdtRate] Direct API returned no price for ${asset}:`, JSON.stringify(data).substring(0, 200));
   } catch (e) {
-    console.error(`[fetchCoinUsdtRate] Failed for ${asset}:`, e);
-    return 0;
+    console.error(`[fetchCoinUsdtRate] Direct API failed for ${asset}:`, e);
   }
+
+  return 0;
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {

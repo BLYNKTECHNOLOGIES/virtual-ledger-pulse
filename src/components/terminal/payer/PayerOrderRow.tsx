@@ -57,6 +57,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
 
   const statusStr = mapOrderStatusCode(order.orderStatus);
+  const isOrderFinalized = ['COMPLETED', 'PAID', 'CANCELLED', 'EXPIRED'].includes(statusStr.toUpperCase());
 
   // Fetch order detail for payment methods
   const { data: orderDetail } = useQuery({
@@ -164,7 +165,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
         {/* Actions */}
         <TableCell className="py-3 pb-1 text-right">
-          {isCompleted ? (
+          {isCompleted || isOrderFinalized ? (
             <span className="text-[10px] text-muted-foreground italic">—</span>
           ) : (
             <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>

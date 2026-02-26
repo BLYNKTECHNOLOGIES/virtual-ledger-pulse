@@ -23,6 +23,7 @@ import {
 interface PayerOrderRowProps {
   order: any;
   isExcluded: boolean;
+  isCompleted?: boolean;
   onOpenOrder: () => void;
   onMarkPaidSuccess: () => void;
 }
@@ -49,7 +50,7 @@ function getStatusBadgeClass(status: string): string {
   return 'border-muted-foreground/30 text-muted-foreground bg-muted/5';
 }
 
-export function PayerOrderRow({ order, isExcluded, onOpenOrder, onMarkPaidSuccess }: PayerOrderRowProps) {
+export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onMarkPaidSuccess }: PayerOrderRowProps) {
   const markPaid = useMarkOrderAsPaid();
   const excludeFromAuto = useExcludeFromAutoReply();
   const logAction = useLogPayerAction();
@@ -150,54 +151,64 @@ export function PayerOrderRow({ order, isExcluded, onOpenOrder, onMarkPaidSucces
 
         {/* Status */}
         <TableCell className="py-3 pb-1">
-          <Badge variant="outline" className={`text-[10px] ${getStatusBadgeClass(String(order.orderStatus))}`}>
-            {statusStr}
-          </Badge>
+          {isCompleted ? (
+            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
+              Marked Paid
+            </Badge>
+          ) : (
+            <Badge variant="outline" className={`text-[10px] ${getStatusBadgeClass(String(order.orderStatus))}`}>
+              {statusStr}
+            </Badge>
+          )}
         </TableCell>
 
         {/* Actions */}
         <TableCell className="py-3 pb-1 text-right">
-          <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
-            {/* Remove from Auto */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-[10px] gap-1 px-2"
-              onClick={handleExcludeAuto}
-              disabled={isExcluded || excludeFromAuto.isPending}
-            >
-              <BotOff className="h-3 w-3" />
-              {isExcluded ? 'Removed' : 'Remove Auto'}
-            </Button>
+          {isCompleted ? (
+            <span className="text-[10px] text-muted-foreground italic">—</span>
+          ) : (
+            <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+              {/* Remove from Auto */}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] gap-1 px-2"
+                onClick={handleExcludeAuto}
+                disabled={isExcluded || excludeFromAuto.isPending}
+              >
+                <BotOff className="h-3 w-3" />
+                {isExcluded ? 'Removed' : 'Remove Auto'}
+              </Button>
 
-            {/* Mark Paid */}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="h-7 text-[10px] gap-1 px-2 bg-trade-buy hover:bg-trade-buy/90"
-                  disabled={isMarkingPaid}
-                >
-                  {isMarkingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <BanknoteIcon className="h-3 w-3" />}
-                  Mark Paid
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Confirm Mark as Paid</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to mark order <strong>{order.orderNumber}</strong> as paid?
-                    Amount: <strong>{Number(order.totalPrice || 0).toLocaleString('en-IN')} {order.fiat || 'INR'}</strong>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleMarkPaid}>Confirm</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+              {/* Mark Paid */}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-7 text-[10px] gap-1 px-2 bg-trade-buy hover:bg-trade-buy/90"
+                    disabled={isMarkingPaid}
+                  >
+                    {isMarkingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <BanknoteIcon className="h-3 w-3" />}
+                    Mark Paid
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Mark as Paid</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to mark order <strong>{order.orderNumber}</strong> as paid?
+                      Amount: <strong>{Number(order.totalPrice || 0).toLocaleString('en-IN')} {order.fiat || 'INR'}</strong>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleMarkPaid}>Confirm</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
         </TableCell>
       </TableRow>
 

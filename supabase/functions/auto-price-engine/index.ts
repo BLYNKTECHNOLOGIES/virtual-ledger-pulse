@@ -405,8 +405,12 @@ async function processAsset(
           asset,
           competitor_merchant: matchedMerchant,
           competitor_price: competitorPrice,
+          market_reference_price: marketReferencePrice,
+          deviation_from_market_pct: deviationPct,
+          calculated_price: rule.price_type === "FIXED" ? newPrice : null,
+          calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
           status: "error",
-          error_message: respData.error || "Update failed",
+          error_message: respData.error || JSON.stringify(respData).substring(0, 200),
         });
       }
 

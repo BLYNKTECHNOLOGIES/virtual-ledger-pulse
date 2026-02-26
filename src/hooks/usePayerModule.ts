@@ -170,12 +170,11 @@ export function usePayerOrders() {
 
   // Pending: not marked paid, not completed/cancelled/expired
   const pendingOrders = useMemo(() => {
+    // Binance orderStatus is numeric: 4,5=Completed, 6=Cancelled, 8=Expired, 3=Paid
+    const finalizedCodes = new Set(['3', '4', '5', '6', '8']);
     return allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(o.orderNumber))
-      .filter((o: any) => {
-        const status = String(o.orderStatus ?? '').toUpperCase();
-        return !status.includes('COMPLETED') && !status.includes('CANCEL') && !status.includes('EXPIRED');
-      });
+      .filter((o: any) => !finalizedCodes.has(String(o.orderStatus)));
   }, [allMatchedOrders, paidOrderNumbers]);
 
   // Completed: orders marked paid by this payer (from log)

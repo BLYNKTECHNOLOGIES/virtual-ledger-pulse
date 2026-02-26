@@ -47,15 +47,23 @@ export function PayerAssignmentManager() {
         .from('p2p_terminal_role_permissions' as any)
         .select('role_id')
         .eq('permission', 'terminal_payer_view');
-      if (!permissions || permissions.length === 0) return [];
 
-      const roleIds = [...new Set(permissions.map((p: any) => p.role_id))];
+      const payerRoleIds = [...new Set((permissions || []).map((p: any) => p.role_id))];
+
+      // Also get Super Admin roles (hierarchy_level < 0) — they have implicit full access
+      const { data: superAdminRoles } = await supabase
+        .from('p2p_terminal_roles')
+        .select('id')
+        .lt('hierarchy_level', 0);
+
+      const allRoleIds = [...new Set([...payerRoleIds, ...(superAdminRoles || []).map((r: any) => r.id)])];
+      if (allRoleIds.length === 0) return [];
 
       // Get users assigned to those roles
       const { data: userRoles } = await supabase
         .from('p2p_terminal_user_roles')
         .select('user_id')
-        .in('role_id', roleIds);
+        .in('role_id', allRoleIds);
       if (!userRoles || userRoles.length === 0) return [];
 
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];

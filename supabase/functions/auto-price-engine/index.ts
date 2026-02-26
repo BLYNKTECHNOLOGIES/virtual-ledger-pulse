@@ -566,7 +566,7 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
     console.error("[fetchUsdtInr] CoinGecko failed:", e);
   }
 
-  return 86.5;
+  return 91;
 }
 
 /**

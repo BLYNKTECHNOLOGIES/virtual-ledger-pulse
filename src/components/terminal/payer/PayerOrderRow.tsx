@@ -62,7 +62,9 @@ export function PayerOrderRow({ order, isExcluded, onOpenOrder, onMarkPaidSucces
     queryKey: ['binance-order-detail-payer', order.orderNumber],
     queryFn: async () => {
       try {
-        return await callBinanceAds('getOrderDetail', { orderNumber: order.orderNumber });
+        const resp = await callBinanceAds('getOrderDetail', { orderNumber: order.orderNumber });
+        // Unwrap nested data: API may return { data: { ... } } or flat object
+        return resp?.data || resp;
       } catch {
         return null;
       }
@@ -71,7 +73,7 @@ export function PayerOrderRow({ order, isExcluded, onOpenOrder, onMarkPaidSucces
     refetchInterval: 60_000,
   });
 
-  const payMethods = orderDetail?.payMethods || orderDetail?.payMethodList || [];
+  const payMethods = orderDetail?.payMethods || orderDetail?.payMethodList || orderDetail?.sellerPayMethod?.payMethods || [];
 
   const handleMarkPaid = async () => {
     setIsMarkingPaid(true);
@@ -91,117 +93,127 @@ export function PayerOrderRow({ order, isExcluded, onOpenOrder, onMarkPaidSucces
   };
 
   return (
-    <TableRow
-      className="border-border cursor-pointer hover:bg-secondary/50 transition-colors"
-      onClick={onOpenOrder}
-    >
-      {/* Date */}
-      <TableCell className="py-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-medium text-foreground">
-            <span className="text-trade-buy font-semibold">Buy</span> {order.asset || 'USDT'}
+    <>
+      <TableRow
+        className="border-b-0 cursor-pointer hover:bg-secondary/50 transition-colors"
+        onClick={onOpenOrder}
+      >
+        {/* Date */}
+        <TableCell className="py-3 pb-1">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs font-medium text-foreground">
+              <span className="text-trade-buy font-semibold">Buy</span> {order.asset || 'USDT'}
+            </span>
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {order.createTime ? format(new Date(order.createTime), 'yyyy-MM-dd HH:mm') : '—'}
+            </span>
+          </div>
+        </TableCell>
+
+        {/* Order No */}
+        <TableCell className="py-3 pb-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
+              {order.orderNumber}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(order.orderNumber);
+                toast.success('Order number copied');
+              }}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          </div>
+        </TableCell>
+
+        {/* Amount */}
+        <TableCell className="py-3 pb-1">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-foreground tabular-nums font-medium">
+              {Number(order.totalPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat || 'INR'}
+            </span>
+            <span className="text-[10px] text-muted-foreground tabular-nums">
+              {Number(order.amount || 0).toFixed(2)} {order.asset || 'USDT'}
+            </span>
+          </div>
+        </TableCell>
+
+        {/* Counterparty */}
+        <TableCell className="py-3 pb-1">
+          <span className="text-xs text-foreground font-medium truncate max-w-[120px] block">
+            {order.sellerNickname || order.counterPartNickName || '—'}
           </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">
-            {order.createTime ? format(new Date(order.createTime), 'yyyy-MM-dd HH:mm') : '—'}
-          </span>
-        </div>
-      </TableCell>
+        </TableCell>
 
-      {/* Order No */}
-      <TableCell className="py-3">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
-            {order.orderNumber}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(order.orderNumber);
-              toast.success('Order number copied');
-            }}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Copy className="h-3 w-3" />
-          </button>
-        </div>
-      </TableCell>
+        {/* Status */}
+        <TableCell className="py-3 pb-1">
+          <Badge variant="outline" className={`text-[10px] ${getStatusBadgeClass(String(order.orderStatus))}`}>
+            {statusStr}
+          </Badge>
+        </TableCell>
 
-      {/* Amount */}
-      <TableCell className="py-3">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-foreground tabular-nums font-medium">
-            {Number(order.totalPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat || 'INR'}
-          </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums">
-            {Number(order.amount || 0).toFixed(2)} {order.asset || 'USDT'}
-          </span>
-        </div>
-      </TableCell>
+        {/* Actions */}
+        <TableCell className="py-3 pb-1 text-right">
+          <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+            {/* Remove from Auto */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2"
+              onClick={handleExcludeAuto}
+              disabled={isExcluded || excludeFromAuto.isPending}
+            >
+              <BotOff className="h-3 w-3" />
+              {isExcluded ? 'Removed' : 'Remove Auto'}
+            </Button>
 
-      {/* Counterparty */}
-      <TableCell className="py-3">
-        <span className="text-xs text-foreground font-medium truncate max-w-[120px] block">
-          {order.sellerNickname || order.counterPartNickName || '—'}
-        </span>
-      </TableCell>
+            {/* Mark Paid */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-7 text-[10px] gap-1 px-2 bg-trade-buy hover:bg-trade-buy/90"
+                  disabled={isMarkingPaid}
+                >
+                  {isMarkingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <BanknoteIcon className="h-3 w-3" />}
+                  Mark Paid
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Mark as Paid</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to mark order <strong>{order.orderNumber}</strong> as paid?
+                    Amount: <strong>{Number(order.totalPrice || 0).toLocaleString('en-IN')} {order.fiat || 'INR'}</strong>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleMarkPaid}>Confirm</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </TableCell>
+      </TableRow>
 
-      {/* Payment Details */}
-      <TableCell className="py-3">
-        <PaymentDetailsInline payMethods={payMethods} totalPrice={order.totalPrice} fiat={order.fiat || 'INR'} />
-      </TableCell>
-
-      {/* Status */}
-      <TableCell className="py-3">
-        <Badge variant="outline" className={`text-[10px] ${getStatusBadgeClass(String(order.orderStatus))}`}>
-          {statusStr}
-        </Badge>
-      </TableCell>
-
-      {/* Actions */}
-      <TableCell className="py-3 text-right">
-        <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
-          {/* Remove from Auto */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-[10px] gap-1 px-2"
-            onClick={handleExcludeAuto}
-            disabled={isExcluded || excludeFromAuto.isPending}
-          >
-            <BotOff className="h-3 w-3" />
-            {isExcluded ? 'Removed' : 'Remove Auto'}
-          </Button>
-
-          {/* Mark Paid */}
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="default"
-                size="sm"
-                className="h-7 text-[10px] gap-1 px-2 bg-trade-buy hover:bg-trade-buy/90"
-                disabled={isMarkingPaid}
-              >
-                {isMarkingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <BanknoteIcon className="h-3 w-3" />}
-                Mark Paid
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Mark as Paid</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to mark order <strong>{order.orderNumber}</strong> as paid?
-                  Amount: <strong>{Number(order.totalPrice || 0).toLocaleString('en-IN')} {order.fiat || 'INR'}</strong>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleMarkPaid}>Confirm</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </TableCell>
-    </TableRow>
+      {/* Second row: Payment Details */}
+      <TableRow
+        className="border-border cursor-pointer hover:bg-secondary/50 transition-colors"
+        onClick={onOpenOrder}
+      >
+        <TableCell colSpan={6} className="py-1.5 pt-0 pl-6">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground font-medium shrink-0">Payment:</span>
+            <PaymentDetailsInline payMethods={payMethods} totalPrice={order.totalPrice} fiat={order.fiat || 'INR'} />
+          </div>
+        </TableCell>
+      </TableRow>
+    </>
   );
 }
 

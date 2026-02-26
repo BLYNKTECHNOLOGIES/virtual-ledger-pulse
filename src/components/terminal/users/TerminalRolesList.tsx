@@ -193,8 +193,8 @@ export function TerminalRolesList() {
 
     const parsedLevel = editHierarchy.trim() ? parseInt(editHierarchy.trim(), 10) : null;
 
-    // Admin (level 0) can set any hierarchy level. Others must set levels below their own.
-    if (parsedLevel !== null && myHierarchyLevel !== 0 && parsedLevel <= myHierarchyLevel) {
+    // Super Admin (level < 0) and Admin (level 0) can set any hierarchy level. Others must set levels below their own.
+    if (parsedLevel !== null && myHierarchyLevel > 0 && parsedLevel <= myHierarchyLevel) {
       toast.error(`Hierarchy level must be greater than ${myHierarchyLevel} (your level)`);
       return;
     }

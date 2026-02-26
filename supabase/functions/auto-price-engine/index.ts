@@ -297,35 +297,19 @@ async function processAsset(
     if (minFloor && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
-    // FLOATING mode — we need Binance's actual P2P index to compute accurate ratios.
-    // Our marketReferencePrice (coinUsdt × CoinGecko USDT/INR) ≠ Binance's index.
-    // Best approach: infer Binance's index from our own ad's current displayed price & ratio.
-    let binanceIndex = marketReferencePrice || competitorPrice;
+    // FLOATING mode — calculate ratio additively based on competitor's deviation from market reference.
+    // competitorRatio = (competitorPrice / marketReferencePrice) * 100
+    // newRatio = competitorRatio ± offsetPct (additive)
+    const baseRef = marketReferencePrice && marketReferencePrice > 0 ? marketReferencePrice : competitorPrice;
+    const competitorRatio = (competitorPrice / baseRef) * 100;
 
-    // Try to infer the real Binance index from the first ad we'll update
-    const firstAdNo = adNumbers[0];
-    if (firstAdNo) {
-      try {
-        const inferredIndex = await inferBinanceIndex(firstAdNo, supabase);
-        if (inferredIndex && inferredIndex > 0) {
-          console.log(`[FLOATING] Inferred Binance index for ${asset}: ₹${inferredIndex.toFixed(2)} (vs our ref ₹${(marketReferencePrice || 0).toFixed(2)})`);
-          binanceIndex = inferredIndex;
-        }
-      } catch (e) {
-        console.error(`[FLOATING] Failed to infer Binance index for ${asset}:`, e);
-      }
-    }
-
-    // Calculate desired price from competitor + offset
-    let desiredPrice: number;
     if (rule.offset_direction === "OVERCUT") {
-      desiredPrice = competitorPrice * (1 + offsetPct / 100);
+      newRatio = competitorRatio + offsetPct;
     } else {
-      desiredPrice = competitorPrice * (1 - offsetPct / 100);
+      newRatio = competitorRatio - offsetPct;
     }
 
-    // Compute ratio that produces desiredPrice on Binance: ratio = desiredPrice / binanceIndex * 100
-    newRatio = (desiredPrice / binanceIndex) * 100;
+    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, marketRef=₹${baseRef.toFixed(2)}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}%, newRatio=${newRatio.toFixed(4)}%`);
 
     if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio) {
       const delta = Math.abs(newRatio - rule.last_applied_ratio);

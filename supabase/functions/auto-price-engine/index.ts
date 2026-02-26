@@ -524,42 +524,49 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
-  // Primary: CoinGecko USDT/INR live market rate (matches Google's "USDT INR" rate ~₹90.96)
+  // Primary: USD/INR live forex rate (USDT ≈ 1 USD, so USD/INR is the correct market reference)
+  // This avoids inflated CoinGecko USDT/INR rates that include P2P premiums.
+
+  // Source 1: ExchangeRate-API (free, no key needed)
+  try {
+    const resp = await fetch("https://open.er-api.com/v6/latest/USD");
+    const data = await resp.json();
+    if (data?.result === "success" && data?.rates?.INR && data.rates.INR > 70) {
+      console.log(`[fetchUsdtInr] USD/INR forex (er-api): ${data.rates.INR}`);
+      return data.rates.INR;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] er-api failed:", e);
+  }
+
+  // Source 2: frankfurter.app (ECB rates, free, no key)
+  try {
+    const resp = await fetch("https://api.frankfurter.app/latest?from=USD&to=INR");
+    const data = await resp.json();
+    if (data?.rates?.INR && data.rates.INR > 70) {
+      console.log(`[fetchUsdtInr] USD/INR forex (frankfurter): ${data.rates.INR}`);
+      return data.rates.INR;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] frankfurter failed:", e);
+  }
+
+  // Source 3: CoinGecko USDT/INR as last resort
   try {
     const cgResp = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
       { headers: { Accept: "application/json" } }
     );
     const cgData = await cgResp.json();
-    if (cgData?.tether?.inr && cgData.tether.inr > 80) {
-      console.log(`[fetchUsdtInr] CoinGecko: ${cgData.tether.inr}`);
+    if (cgData?.tether?.inr && cgData.tether.inr > 70) {
+      console.log(`[fetchUsdtInr] CoinGecko fallback: ${cgData.tether.inr}`);
       return cgData.tether.inr;
     }
   } catch (e) {
     console.error("[fetchUsdtInr] CoinGecko failed:", e);
   }
 
-  // Fallback: P2P merchant sell-side median
-  try {
-    const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ asset: "USDT", fiat: "INR", tradeType: "SELL", page: 1, rows: 10, publisherType: "merchant" }),
-    });
-    const data = await resp.json();
-    if (data?.data?.length > 0) {
-      const prices = data.data.map((d: any) => parseFloat(d.adv?.price || "0")).filter((p: number) => p > 0);
-      if (prices.length > 0) {
-        prices.sort((a: number, b: number) => a - b);
-        const mid = Math.floor(prices.length / 2);
-        const rate = prices.length % 2 === 0 ? (prices[mid - 1] + prices[mid]) / 2 : prices[mid];
-        console.log(`[fetchUsdtInr] P2P fallback: ${rate.toFixed(2)}`);
-        return rate;
-      }
-    }
-  } catch { /* fallback */ }
-
-  return 90;
+  return 86.5;
 }
 
 /**

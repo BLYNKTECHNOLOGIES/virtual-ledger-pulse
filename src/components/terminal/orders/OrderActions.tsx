@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -154,20 +154,28 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
+  const codeRef = useRef('');
 
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
 
-  const handleRelease = () => {
-    // Send the code in the correct named field per Binance API doc #29
+  // Keep ref in sync so onKeyDown always has the latest value
+  const updateCode = (val: string) => {
+    setCode(val);
+    codeRef.current = val;
+  };
+
+  const doRelease = (overrideCode?: string) => {
+    const finalCode = overrideCode || codeRef.current;
+    if (!finalCode.trim()) return;
     const params: Record<string, any> = {
       orderNumber,
       authType: authMethod === 'YUBIKEY' ? 'FIDO2' : authMethod,
-      [selectedAuth.fieldName]: code,
+      [selectedAuth.fieldName]: finalCode,
     };
     releaseCoin.mutate(params as any, {
       onSuccess: () => {
         setOpen(false);
-        setCode('');
+        updateCode('');
       },
     });
   };
@@ -226,15 +234,14 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               type="text"
               placeholder={selectedAuth.placeholder}
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => updateCode(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
-                  // YubiKey appends Enter after OTP — auto-submit if code present
                   const val = (e.target as HTMLInputElement).value;
                   if (val.trim()) {
-                    setTimeout(() => handleRelease(), 50);
+                    setTimeout(() => doRelease(val), 50);
                   }
                 }
               }}
@@ -248,7 +255,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button
-            onClick={handleRelease}
+            onClick={() => doRelease()}
             disabled={!code.trim() || (authMethod === 'GOOGLE' && code.length < 6) || releaseCoin.isPending}
             className="gap-1.5"
           >

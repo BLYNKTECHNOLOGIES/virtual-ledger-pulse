@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy } from 'lucide-react';
+import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { useMarkOrderAsPaid, callBinanceAds } from '@/hooks/useBinanceActions';
+import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
 import { useExcludeFromAutoReply, useLogPayerAction } from '@/hooks/usePayerModule';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -54,7 +54,10 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const markPaid = useMarkOrderAsPaid();
   const excludeFromAuto = useExcludeFromAutoReply();
   const logAction = useLogPayerAction();
+  const getUploadUrl = useGetChatImageUploadUrl();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const statusStr = mapOrderStatusCode(order.orderStatus);
   const isOrderFinalized = ['COMPLETED', 'PAID', 'CANCELLED', 'EXPIRED'].includes(statusStr.toUpperCase());
@@ -92,6 +95,53 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
   const handleExcludeAuto = () => {
     excludeFromAuto.mutate(order.orderNumber);
+  };
+
+  const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files are allowed');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be under 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // Step 1: Get pre-signed upload URL
+      const imageName = `${order.orderNumber}_${Date.now()}.jpg`;
+      const result = await getUploadUrl.mutateAsync(imageName);
+      const outer = result?.data || result;
+      const inner = outer?.data || outer;
+      const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
+      const imageUrl = inner?.imageUrl || inner?.imageUr1;
+
+      if (!preSignedUrl) throw new Error('Failed to get upload URL');
+      if (!imageUrl) throw new Error('Failed to get image URL');
+
+      // Step 2: Upload to S3
+      const uploadResp = await fetch(preSignedUrl, { method: 'PUT', body: file });
+      if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`);
+
+      // Step 3: Send image to order chat
+      await callBinanceAds('sendChatMessage', { orderNo: order.orderNumber, imageUrl });
+
+      // Step 4: Mark as paid
+      await markPaid.mutateAsync({ orderNumber: order.orderNumber });
+      await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
+
+      toast.success('Screenshot uploaded & marked as paid');
+      onMarkPaidSuccess();
+    } catch (err: any) {
+      toast.error(`Upload failed: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -173,6 +223,15 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
           <span className="text-[10px] text-muted-foreground italic">—</span>
         ) : (
           <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+            {/* Hidden file input for upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleUploadAndMarkPaid}
+            />
+
             {/* Remove from Auto */}
             <Button
               variant="outline"
@@ -185,6 +244,18 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
               {isExcluded ? 'Removed' : 'Remove Auto'}
             </Button>
 
+            {/* Upload & Mark Paid */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isMarkingPaid}
+            >
+              {isUploading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImageIcon className="h-3 w-3" />}
+              {isUploading ? 'Uploading...' : 'Upload'}
+            </Button>
+
             {/* Mark Paid */}
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -192,7 +263,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
                   variant="default"
                   size="sm"
                   className="h-7 text-[10px] gap-1 px-2 bg-trade-buy hover:bg-trade-buy/90"
-                  disabled={isMarkingPaid}
+                  disabled={isMarkingPaid || isUploading}
                 >
                   {isMarkingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <BanknoteIcon className="h-3 w-3" />}
                   Mark Paid

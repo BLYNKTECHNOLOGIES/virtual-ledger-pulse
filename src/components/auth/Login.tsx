@@ -17,15 +17,22 @@ export function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLoginError(null);
     
     try {
-      await onLogin({ email, password });
+      const success = await onLogin({ email, password });
+      if (!success) {
+        setLoginError('Invalid email/username or password. Please check your credentials and try again.');
+      }
+    } catch (err: any) {
+      setLoginError(err?.message || 'Login failed. Please try again later.');
     } finally {
       setIsLoading(false);
     }
@@ -42,6 +49,12 @@ export function Login({ onLogin }: LoginProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {loginError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                <p className="text-sm text-red-700 font-medium">Login Failed</p>
+                <p className="text-xs text-red-600 mt-1">{loginError}</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email or Username</Label>
               <div className="relative">
@@ -51,7 +64,7 @@ export function Login({ onLogin }: LoginProps) {
                   type="text"
                   placeholder="Enter your email or username"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
                   className="pl-10"
                   required
                   autoComplete="off"
@@ -68,7 +81,7 @@ export function Login({ onLogin }: LoginProps) {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setLoginError(null); }}
                   className="pl-10 pr-10"
                   required
                   autoComplete="off"

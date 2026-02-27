@@ -223,10 +223,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           description: `Logged in successfully as ${authenticatedUser.roles?.join(', ') || 'User'}`,
         });
         
-        // Redirect to dashboard after successful login
+        // Navigate using history API to avoid full page reload blink
+        // The AuthProvider will detect the user state change and render children
         setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 500);
+          window.history.pushState({}, '', '/dashboard');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }, 300);
         
         return true;
       } else {

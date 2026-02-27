@@ -228,10 +228,14 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => {
-                // YubiKey appends Enter after OTP — prevent it from closing the dialog
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
+                  // YubiKey appends Enter after OTP — auto-submit if code present
+                  const val = (e.target as HTMLInputElement).value;
+                  if (val.trim()) {
+                    setTimeout(() => handleRelease(), 50);
+                  }
                 }
               }}
               maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 44 : 64}

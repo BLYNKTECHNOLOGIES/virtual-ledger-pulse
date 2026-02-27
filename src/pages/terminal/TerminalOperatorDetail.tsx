@@ -4,16 +4,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import {
   Package, TrendingUp, Timer, Activity, ArrowLeft,
   CheckCircle, XCircle, Clock, Shield, Wallet, CreditCard, Users,
-  BarChart3, Zap, Target,
+  BarChart3, Zap, Target, Banknote, Unlock, CalendarDays,
+  ArrowUpRight, ArrowDownRight, Gauge, Trophy, AlertTriangle,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
 
 const COLORS = ['hsl(231, 81%, 60%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(0, 84%, 60%)'];
 
@@ -25,10 +28,24 @@ interface OperatorMetric {
   ordersCompleted: number;
   ordersCancelled: number;
   totalVolume: number;
-  avgCompletionTime: number;
   activeLoad: number;
   buyCount: number;
   sellCount: number;
+  buyVolume: number;
+  sellVolume: number;
+  // Real timing metrics
+  avgPaymentTimeMin: number | null;
+  avgReleaseTimeMin: number | null;
+  avgTotalHandleTimeMin: number | null;
+  fastestHandleTimeMin: number | null;
+  slowestHandleTimeMin: number | null;
+  // Today's metrics
+  todayHandled: number;
+  todayCompleted: number;
+  todayVolume: number;
+  // Streaks
+  peakHour: number | null;
+  peakHourOrders: number;
 }
 
 interface OperatorProfile {
@@ -39,7 +56,7 @@ interface OperatorProfile {
 }
 
 // Role-specific KPI definitions
-const ROLE_KPIS: Record<string, { label: string; icon: any; compute: (m: OperatorMetric, assignments: any[]) => string | number }[]> = {
+const ROLE_KPIS: Record<string, { label: string; icon: any; compute: (m: OperatorMetric) => string | number }[]> = {
   'Super Admin': [
     { label: 'Team Oversight', icon: Users, compute: () => 'Full Access' },
     { label: 'Escalations Handled', icon: Shield, compute: (m) => Math.floor(m.ordersHandled * 0.1) },
@@ -55,13 +72,13 @@ const ROLE_KPIS: Record<string, { label: string; icon: any; compute: (m: Operato
   'Operator': [
     { label: 'Orders Processed', icon: Package, compute: (m) => m.ordersHandled },
     { label: 'Success Rate', icon: CheckCircle, compute: (m) => m.ordersHandled > 0 ? `${Math.round((m.ordersCompleted / m.ordersHandled) * 100)}%` : '0%' },
-    { label: 'Avg Handle Time', icon: Timer, compute: (m) => `${m.avgCompletionTime}m` },
+    { label: 'Avg Handle Time', icon: Timer, compute: (m) => m.avgTotalHandleTimeMin != null ? `${m.avgTotalHandleTimeMin}m` : 'N/A' },
     { label: 'Active Orders', icon: Activity, compute: (m) => m.activeLoad },
   ],
   'Payer': [
     { label: 'Payments Made', icon: CreditCard, compute: (m) => m.ordersCompleted },
     { label: 'Payment Volume', icon: Wallet, compute: (m) => `₹${(m.totalVolume / 1000).toFixed(0)}K` },
-    { label: 'Avg Payment Time', icon: Timer, compute: (m) => `${m.avgCompletionTime}m` },
+    { label: 'Avg Payment Time', icon: Timer, compute: (m) => m.avgPaymentTimeMin != null ? `${m.avgPaymentTimeMin}m` : 'N/A' },
     { label: 'Pending Payments', icon: Clock, compute: (m) => m.activeLoad },
   ],
 };
@@ -82,6 +99,13 @@ function getRoleBadgeClass(roleName: string) {
   return 'bg-primary/20 text-primary border-primary/30';
 }
 
+function formatDuration(minutes: number | null): string {
+  if (minutes == null || minutes === 0) return 'N/A';
+  if (minutes < 1) return `${Math.round(minutes * 60)}s`;
+  if (minutes >= 60) return `${Math.floor(minutes / 60)}h ${Math.round(minutes % 60)}m`;
+  return `${Math.round(minutes)}m`;
+}
+
 export default function TerminalOperatorDetail() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -98,18 +122,121 @@ export default function TerminalOperatorDetail() {
       const { data: user } = await supabase.from('users').select('id, username, first_name, last_name').eq('id', userId).single();
       if (!user) return;
 
-      // Fetch assignments
+      // Fetch ALL assignments for this user
       const { data: assignments } = await supabase
         .from('terminal_order_assignments')
-        .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number')
+        .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
         .eq('assigned_to', userId);
 
       const userAssignments = assignments || [];
       const active = userAssignments.filter(a => a.is_active);
       const completed = userAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
+      const cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
       const buyOrders = userAssignments.filter(a => a.trade_type === 'BUY');
       const sellOrders = userAssignments.filter(a => a.trade_type === 'SELL');
       const totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      const buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      const sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+
+      // Get order numbers for cross-referencing
+      const orderNumbers = userAssignments.map(a => a.order_number).filter(Boolean);
+
+      // Fetch payment logs for THIS user's assigned orders only
+      const { data: payerLogs } = orderNumbers.length > 0
+        ? await supabase
+            .from('terminal_payer_order_log')
+            .select('order_number, action, created_at, payer_id')
+            .in('order_number', orderNumbers)
+            .eq('action', 'marked_paid')
+        : { data: [] };
+
+      // Fetch system action logs for this user's assigned orders
+      const { data: actionLogs } = orderNumbers.length > 0
+        ? await supabase
+            .from('system_action_logs')
+            .select('entity_id, action_type, recorded_at, user_id')
+            .in('entity_id', orderNumbers)
+            .eq('module', 'terminal')
+        : { data: [] };
+
+      // Fetch binance order history for completion times (only assigned orders)
+      const { data: binanceOrders } = orderNumbers.length > 0
+        ? await supabase
+            .from('binance_order_history')
+            .select('order_number, order_status, create_time')
+            .in('order_number', orderNumbers)
+        : { data: [] };
+
+      // Build lookup maps
+      const payerLogMap = new Map<string, Date>();
+      (payerLogs || []).forEach(l => {
+        const existing = payerLogMap.get(l.order_number);
+        const dt = new Date(l.created_at);
+        if (!existing || dt < existing) payerLogMap.set(l.order_number, dt);
+      });
+
+      const releaseLogMap = new Map<string, Date>();
+      (actionLogs || []).forEach(l => {
+        if (l.action_type === 'release_coin' || l.action_type === 'released' || l.action_type === 'order_released') {
+          const existing = releaseLogMap.get(l.entity_id);
+          const dt = new Date(l.recorded_at);
+          if (!existing || dt < existing) releaseLogMap.set(l.entity_id, dt);
+        }
+      });
+
+      const binanceMap = new Map<string, { status: string; createTime: number }>();
+      (binanceOrders || []).forEach(o => {
+        binanceMap.set(o.order_number, { status: o.order_status || '', createTime: o.create_time });
+      });
+
+      // Calculate REAL timing metrics (only for this user's assigned orders)
+      const paymentTimes: number[] = [];
+      const releaseTimes: number[] = [];
+      const totalHandleTimes: number[] = [];
+
+      for (const assignment of userAssignments) {
+        const assignedAt = new Date(assignment.created_at);
+        const orderNum = assignment.order_number;
+
+        // Payment time: assignment created_at → marked_paid time
+        const paidAt = payerLogMap.get(orderNum);
+        if (paidAt && paidAt > assignedAt) {
+          const diffMin = (paidAt.getTime() - assignedAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) paymentTimes.push(diffMin); // cap at 24h
+        }
+
+        // Release time: marked_paid → release log OR assignment deactivation
+        if (paidAt) {
+          const releasedAt = releaseLogMap.get(orderNum);
+          if (releasedAt && releasedAt > paidAt) {
+            const diffMin = (releasedAt.getTime() - paidAt.getTime()) / 60000;
+            if (diffMin > 0 && diffMin < 1440) releaseTimes.push(diffMin);
+          }
+        }
+
+        // Total handle time: assignment → deactivation (updated_at when is_active = false)
+        if (!assignment.is_active && assignment.updated_at) {
+          const closedAt = new Date(assignment.updated_at);
+          const diffMin = (closedAt.getTime() - assignedAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) totalHandleTimes.push(diffMin);
+        }
+      }
+
+      const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
+
+      // Today's stats
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayAssignments = userAssignments.filter(a => new Date(a.created_at) >= todayStart);
+      const todayCompleted = todayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
+      const todayVol = todayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+
+      // Peak hour
+      const hourCounts = new Array(24).fill(0);
+      userAssignments.forEach(a => { hourCounts[new Date(a.created_at).getHours()]++; });
+      let peakHour: number | null = null;
+      let peakCount = 0;
+      hourCounts.forEach((c, i) => { if (c > peakCount) { peakCount = c; peakHour = i; } });
 
       // Fetch role
       const { data: userRoles } = await supabase.from('p2p_terminal_user_roles').select('role_id').eq('user_id', userId);
@@ -130,12 +257,23 @@ export default function TerminalOperatorDetail() {
         roleName,
         ordersHandled: userAssignments.length,
         ordersCompleted: completed.length,
-        ordersCancelled: userAssignments.filter(a => a.assignment_type === 'cancelled').length,
+        ordersCancelled: cancelled.length,
         totalVolume: totalVol,
-        avgCompletionTime: completed.length > 0 ? Math.round(Math.random() * 15 + 5) : 0,
         activeLoad: active.length,
         buyCount: buyOrders.length,
         sellCount: sellOrders.length,
+        buyVolume: buyVol,
+        sellVolume: sellVol,
+        avgPaymentTimeMin: avg(paymentTimes),
+        avgReleaseTimeMin: avg(releaseTimes),
+        avgTotalHandleTimeMin: avg(totalHandleTimes),
+        fastestHandleTimeMin: totalHandleTimes.length > 0 ? Math.round(Math.min(...totalHandleTimes) * 10) / 10 : null,
+        slowestHandleTimeMin: totalHandleTimes.length > 0 ? Math.round(Math.max(...totalHandleTimes) * 10) / 10 : null,
+        todayHandled: todayAssignments.length,
+        todayCompleted: todayCompleted.length,
+        todayVolume: todayVol,
+        peakHour,
+        peakHourOrders: peakCount,
       });
     } catch (err) {
       console.error('Operator detail fetch error:', err);
@@ -153,7 +291,7 @@ export default function TerminalOperatorDetail() {
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to MPI
         </Button>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="border-border bg-card animate-pulse"><CardContent className="p-4 h-20" /></Card>
           ))}
         </div>
@@ -196,6 +334,8 @@ export default function TerminalOperatorDetail() {
     else if (p < 100000) volumeBuckets[2].count++;
     else volumeBuckets[3].count++;
   });
+
+  const fmtVol = (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}K`;
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -246,7 +386,7 @@ export default function TerminalOperatorDetail() {
                 <span className="text-[10px] text-muted-foreground">{label}</span>
               </div>
               <div className="text-lg font-bold text-foreground">
-                {compute(m, recentAssignments)}
+                {compute(m)}
               </div>
             </CardContent>
           </Card>
@@ -259,8 +399,8 @@ export default function TerminalOperatorDetail() {
           { label: 'Total Handled', value: m.ordersHandled, icon: Package, color: 'text-primary' },
           { label: 'Completed', value: m.ordersCompleted, icon: CheckCircle, color: 'text-green-500' },
           { label: 'Cancelled', value: m.ordersCancelled, icon: XCircle, color: 'text-destructive' },
-          { label: 'Total Volume', value: `₹${(m.totalVolume / 1000).toFixed(0)}K`, icon: TrendingUp, color: 'text-emerald-500' },
-          { label: 'Avg Time', value: `${m.avgCompletionTime}m`, icon: Timer, color: 'text-blue-500' },
+          { label: 'Total Volume', value: fmtVol(m.totalVolume), icon: TrendingUp, color: 'text-emerald-500' },
+          { label: 'Active Now', value: m.activeLoad, icon: Activity, color: 'text-amber-500' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border border-border">
             <Icon className={`h-4 w-4 ${color}`} />
@@ -270,6 +410,119 @@ export default function TerminalOperatorDetail() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Timing Metrics - The Key Addition */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card className="border-border bg-card border-l-2 border-l-blue-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Banknote className="h-3.5 w-3.5 text-blue-500" />
+              <span className="text-[10px] text-muted-foreground">Avg Payment Turnout</span>
+            </div>
+            <div className="text-lg font-bold text-foreground">{formatDuration(m.avgPaymentTimeMin)}</div>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Assignment → Payment marked</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card border-l-2 border-l-emerald-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Unlock className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-[10px] text-muted-foreground">Avg Release Turnout</span>
+            </div>
+            <div className="text-lg font-bold text-foreground">{formatDuration(m.avgReleaseTimeMin)}</div>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Payment → Release completed</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card border-l-2 border-l-amber-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Gauge className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-[10px] text-muted-foreground">Avg Total Handle Time</span>
+            </div>
+            <div className="text-lg font-bold text-foreground">{formatDuration(m.avgTotalHandleTimeMin)}</div>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Assignment → Closure</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card border-l-2 border-l-purple-500">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Trophy className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-[10px] text-muted-foreground">Speed Range</span>
+            </div>
+            <div className="text-sm font-bold text-foreground">
+              {m.fastestHandleTimeMin != null
+                ? `${formatDuration(m.fastestHandleTimeMin)} – ${formatDuration(m.slowestHandleTimeMin)}`
+                : 'N/A'}
+            </div>
+            <p className="text-[9px] text-muted-foreground mt-0.5">Fastest → Slowest closure</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Today's Performance + Volume Split */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border-border bg-card">
+          <CardContent className="p-4">
+            <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+              <CalendarDays className="h-3.5 w-3.5 text-primary" /> Today's Performance
+            </h4>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center p-2 rounded-lg bg-muted/30">
+                <div className="text-lg font-bold text-foreground">{m.todayHandled}</div>
+                <div className="text-[9px] text-muted-foreground">Handled</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-muted/30">
+                <div className="text-lg font-bold text-green-500">{m.todayCompleted}</div>
+                <div className="text-[9px] text-muted-foreground">Completed</div>
+              </div>
+              <div className="text-center p-2 rounded-lg bg-muted/30">
+                <div className="text-lg font-bold text-foreground">{fmtVol(m.todayVolume)}</div>
+                <div className="text-[9px] text-muted-foreground">Volume</div>
+              </div>
+            </div>
+            {m.peakHour != null && (
+              <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground bg-muted/20 rounded p-2">
+                <Zap className="h-3 w-3 text-amber-500" />
+                <span>Peak Hour: <strong className="text-foreground">{m.peakHour}:00 – {m.peakHour + 1}:00</strong> ({m.peakHourOrders} orders)</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card">
+          <CardContent className="p-4">
+            <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5 text-primary" /> Volume Breakdown
+            </h4>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <ArrowDownRight className="h-3.5 w-3.5 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Buy Volume</span>
+                </div>
+                <span className="text-sm font-bold text-foreground">{fmtVol(m.buyVolume)}</span>
+              </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2">
+                  <ArrowUpRight className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-xs text-muted-foreground">Sell Volume</span>
+                </div>
+                <span className="text-sm font-bold text-foreground">{fmtVol(m.sellVolume)}</span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Avg Order Size</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {m.ordersHandled > 0 ? fmtVol(m.totalVolume / m.ordersHandled) : 'N/A'}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Rates */}
@@ -413,8 +666,8 @@ export default function TerminalOperatorDetail() {
                         ₹{Number(a.total_price || 0).toLocaleString()}
                       </td>
                       <td className="py-1.5 px-2">
-                        <Badge variant="outline" className={`text-[9px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : 'text-green-500 border-green-500/30'}`}>
-                          {a.is_active ? 'Active' : 'Done'}
+                        <Badge variant="outline" className={`text-[9px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : a.assignment_type === 'cancelled' ? 'text-destructive border-destructive/30' : 'text-green-500 border-green-500/30'}`}>
+                          {a.is_active ? 'Active' : a.assignment_type === 'cancelled' ? 'Cancelled' : 'Done'}
                         </Badge>
                       </td>
                       <td className="py-1.5 px-2 text-muted-foreground">

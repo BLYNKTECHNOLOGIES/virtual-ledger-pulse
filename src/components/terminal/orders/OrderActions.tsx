@@ -231,23 +231,33 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               {selectedAuth.label} Code
             </Label>
             <Input
+              id="yubikey-release-input"
               type="text"
               placeholder={selectedAuth.placeholder}
               value={code}
-              onChange={(e) => updateCode(e.target.value)}
+              onChange={(e) => {
+                console.log('[ReleaseCrypto] Input onChange:', e.target.value.length, 'chars');
+                updateCode(e.target.value);
+              }}
               onKeyDown={(e) => {
+                console.log('[ReleaseCrypto] Key pressed:', e.key);
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
                   const val = (e.target as HTMLInputElement).value;
+                  console.log('[ReleaseCrypto] Enter with value length:', val.length);
                   if (val.trim()) {
                     setTimeout(() => doRelease(val), 50);
                   }
                 }
               }}
-              maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 44 : 64}
+              onInput={(e) => {
+                console.log('[ReleaseCrypto] onInput event:', (e.target as HTMLInputElement).value.length, 'chars');
+              }}
+              maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
               className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
               autoFocus
+              ref={(el) => { if (el) setTimeout(() => el.focus(), 100); }}
             />
           </div>
         </div>

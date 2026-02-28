@@ -41,6 +41,9 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
   const [rejectionReason, setRejectionReason] = useState('');
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const [gatewayFeeEnabled, setGatewayFeeEnabled] = useState(false);
+  const [gatewayFeeAmount, setGatewayFeeAmount] = useState('');
+  const [gatewayFeeBankId, setGatewayFeeBankId] = useState('');
 
   const assetCode = record?.asset_code || 'USDT';
   const isNonUsdt = assetCode !== 'USDT';
@@ -65,6 +68,9 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
       setRejectionReason('');
       setIsMultiplePayments(false);
       setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+      setGatewayFeeEnabled(false);
+      setGatewayFeeAmount('');
+      setGatewayFeeBankId('');
     }
   }, [open]);
 
@@ -247,6 +253,20 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
           .eq('id', result.purchase_order_id);
       }
 
+      // Record gateway fee as a separate expense transaction
+      if (gatewayFeeEnabled && parseFloat(gatewayFeeAmount) > 0 && gatewayFeeBankId) {
+        const feeAmt = parseFloat(gatewayFeeAmount);
+        await supabase.from('bank_transactions').insert({
+          bank_account_id: gatewayFeeBankId,
+          transaction_type: 'Expense',
+          amount: feeAmt,
+          category: 'Payout Gateway Fee',
+          description: `Payout gateway fee for Small Buys ${record.asset_code} – ${record.order_count} orders (${result?.purchase_order_id || ''})`,
+          transaction_date: settlementDate,
+          created_by: userId,
+        });
+      }
+
       return result;
     },
     onSuccess: () => {
@@ -285,7 +305,8 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
   if (!record) return null;
 
   const isSubmitDisabled = approveMutation.isPending ||
-    (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
+    (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId) ||
+    (gatewayFeeEnabled && (!gatewayFeeAmount || parseFloat(gatewayFeeAmount) <= 0 || !gatewayFeeBankId));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -413,6 +434,65 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
               value={settlementDate}
               onChange={(e) => setSettlementDate(e.target.value)}
             />
+          </div>
+
+          <Separator />
+
+          {/* Payout Gateway Fee */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Payout Gateway Fee</Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="gateway-fee"
+                  checked={gatewayFeeEnabled}
+                  onCheckedChange={(checked) => {
+                    setGatewayFeeEnabled(!!checked);
+                    if (!checked) {
+                      setGatewayFeeAmount('');
+                      setGatewayFeeBankId('');
+                    }
+                  }}
+                />
+                <label htmlFor="gateway-fee" className="text-xs text-muted-foreground cursor-pointer">
+                  Apply Fee
+                </label>
+              </div>
+            </div>
+            {gatewayFeeEnabled && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Fee Amount (₹)</Label>
+                  <Input
+                    type="number"
+                    value={gatewayFeeAmount}
+                    onChange={(e) => setGatewayFeeAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Fee Deducted From</Label>
+                  <Select value={gatewayFeeBankId} onValueChange={setGatewayFeeBankId}>
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Select bank" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map((ba) => (
+                        <SelectItem key={ba.id} value={ba.id} className="text-xs">
+                          {ba.account_name} ({ba.bank_name})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            {gatewayFeeEnabled && (
+              <p className="text-xs text-muted-foreground">
+                This fee will be recorded as a separate expense, not as a purchasing cost.
+              </p>
+            )}
           </div>
 
           <Separator />

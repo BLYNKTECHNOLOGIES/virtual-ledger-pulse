@@ -58,7 +58,7 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
       .from('binance_order_history')
       .select('*')
       .eq('trade_type', 'BUY')
-      .eq('order_status', 'COMPLETED')
+      .in('order_status', ['COMPLETED', 'APPEAL'])
       .gte('create_time', cutoffMs)
       .order('create_time', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);

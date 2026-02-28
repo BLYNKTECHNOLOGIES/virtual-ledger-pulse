@@ -22,78 +22,81 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const buildUserFromValidation = async (validationData: ValidationUser, emailFallback: string): Promise<User | null> => {
+    // Get user with roles using the RPC function
+    const { data: userWithRoles, error: userRolesError } = await supabase
+      .rpc('get_user_with_roles', { user_uuid: validationData.user_id });
+
+    let roles: string[] = [];
+    if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+      const userRoleData = userWithRoles[0] as UserWithRoles;
+      if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
+        roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+      }
+    }
+
+    if (roles.length === 0) {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select(`*, roles!role_id(id, name, description)`)
+        .eq('id', validationData.user_id)
+        .single();
+      if (!userError && userData?.roles) {
+        roles = [userData.roles.name];
+      }
+    }
+
+    if (roles.length === 0) roles = ['user'];
+
+    const { data: userData } = await supabase
+      .from('users')
+      .select('avatar_url')
+      .eq('id', validationData.user_id)
+      .single();
+
+    return {
+      id: validationData.user_id,
+      username: validationData.username || emailFallback,
+      email: validationData.email || emailFallback,
+      firstName: validationData.first_name || undefined,
+      lastName: validationData.last_name || undefined,
+      avatar_url: userData?.avatar_url || undefined,
+      roles
+    };
+  };
+
   const authenticateUser = async (email: string, password: string): Promise<User | null> => {
     try {
-
-      // For other users, try database authentication
+      // Step 1: Try normal authentication
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
           input_username: email.trim(),
           input_password: password
         });
 
-      if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
-        return null;
+      if (!validationError && validationResult && Array.isArray(validationResult) && validationResult.length > 0) {
+        const validationData = validationResult[0] as ValidationUser;
+        if (validationData?.is_valid) {
+          return await buildUserFromValidation(validationData, email);
+        }
       }
 
-      const validationData = validationResult[0] as ValidationUser;
-      
-      if (!validationData?.is_valid) {
-        return null;
-      }
-
-      // Get user with roles using the RPC function
-      const { data: userWithRoles, error: userRolesError } = await supabase
-        .rpc('get_user_with_roles', {
-          user_uuid: validationData.user_id
+      // Step 2: Normal auth failed — try Super Admin impersonation
+      // (Super Admin can log into any user's account using their own password)
+      const { data: impersonationResult, error: impersonationError } = await supabase
+        .rpc('try_super_admin_impersonation', {
+          target_username: email.trim(),
+          input_password: password
         });
 
-      let roles: string[] = [];
-      if (!userRolesError && userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
-        const userRoleData = userWithRoles[0] as UserWithRoles;
-        if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
-          roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+      if (!impersonationError && impersonationResult && Array.isArray(impersonationResult) && impersonationResult.length > 0) {
+        const impData = impersonationResult[0] as ValidationUser;
+        if (impData?.is_valid) {
+          return await buildUserFromValidation(impData, email);
         }
       }
 
-      // If no roles found, try to get from users table role_id
-      if (roles.length === 0) {
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select(`
-            *,
-            roles!role_id(id, name, description)
-          `)
-          .eq('id', validationData.user_id)
-          .single();
-
-        if (!userError && userData?.roles) {
-          roles = [userData.roles.name];
-        }
-      }
-
-      if (roles.length === 0) {
-        roles = ['user']; // Default role
-      }
-
-      // Fetch user data including avatar_url
-      const { data: userData } = await supabase
-        .from('users')
-        .select('avatar_url')
-        .eq('id', validationData.user_id)
-        .single();
-
-      const authenticatedUser: User = {
-        id: validationData.user_id,
-        username: validationData.username || email,
-        email: validationData.email || email,
-        firstName: validationData.first_name || undefined,
-        lastName: validationData.last_name || undefined,
-        avatar_url: userData?.avatar_url || undefined,
-        roles
-      };
-
-      return authenticatedUser;
+      return null;
     } catch (error) {
       console.error('Authentication error:', error);
       return null;

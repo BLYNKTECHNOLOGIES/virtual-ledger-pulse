@@ -86,15 +86,15 @@ function categorizeAds(
     const minTrans = Number(ad.minSingleTransAmount || 0);
 
     if (isBuy) {
-      // An ad is "small" if its order limit range falls within the small config range
-      const isSmall = maxTrans <= smallBuyMax && minTrans >= smallBuyMin;
+      // An ad is "small" if its minimum order limit falls within the small config range
+      const isSmall = minTrans >= smallBuyMin && minTrans <= smallBuyMax;
       if (isSmall) {
         (isFixed ? buckets.smallBuyFixed : buckets.smallBuyFloating).push(ad);
       } else {
         (isFixed ? buckets.bigBuyFixed : buckets.bigBuyFloating).push(ad);
       }
     } else {
-      const isSmall = maxTrans <= smallSellMax && minTrans >= smallSellMin;
+      const isSmall = minTrans >= smallSellMin && minTrans <= smallSellMax;
       if (isSmall) {
         (isFixed ? buckets.smallSellFixed : buckets.smallSellFloating).push(ad);
       } else {

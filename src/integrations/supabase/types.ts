@@ -11662,6 +11662,18 @@ export type Database = {
         Returns: Json
       }
       sync_usdt_stock: { Args: never; Returns: undefined }
+      try_super_admin_impersonation: {
+        Args: { input_password: string; target_username: string }
+        Returns: {
+          email: string
+          first_name: string
+          is_valid: boolean
+          last_name: string
+          status: string
+          user_id: string
+          username: string
+        }[]
+      }
       unassign_terminal_order: {
         Args: { p_order_number: string; p_performed_by: string }
         Returns: undefined

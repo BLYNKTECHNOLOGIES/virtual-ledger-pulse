@@ -83,27 +83,43 @@ export function LoginPage() {
         .single();
 
       if (userCheckError || !existingUser) {
-        console.log('User not found in database');
-        setError('Incorrect credentials. Please check your email and password.');
-        return;
+        // User not found by direct lookup — but Super Admin might be impersonating.
+        // Fall through to impersonation check below.
       }
 
+      // Step 1: Try normal credential validation
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
           input_username: email.trim(),
           input_password: password
         });
 
-      if (validationError || !validationResult || !Array.isArray(validationResult) || validationResult.length === 0) {
-        console.log('Invalid credentials');
-        setError('Incorrect credentials. Please check your email and password.');
-        return;
+      let validationData: any = null;
+
+      if (!validationError && validationResult && Array.isArray(validationResult) && validationResult.length > 0) {
+        const vd = validationResult[0];
+        if (vd?.is_valid) {
+          validationData = vd;
+        }
       }
 
-      const validationData = validationResult[0];
-      
-      if (!validationData?.is_valid) {
-        console.log('Credentials are invalid');
+      // Step 2: If normal auth failed, try Super Admin impersonation
+      if (!validationData) {
+        const { data: impResult, error: impError } = await supabase
+          .rpc('try_super_admin_impersonation', {
+            target_username: email.trim(),
+            input_password: password
+          });
+
+        if (!impError && impResult && Array.isArray(impResult) && impResult.length > 0) {
+          const impData = impResult[0];
+          if (impData?.is_valid) {
+            validationData = impData;
+          }
+        }
+      }
+
+      if (!validationData) {
         setError('Incorrect credentials. Please check your email and password.');
         return;
       }

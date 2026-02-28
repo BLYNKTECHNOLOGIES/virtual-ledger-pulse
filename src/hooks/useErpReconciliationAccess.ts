@@ -29,18 +29,37 @@ export function useErpReconciliationAccess() {
       }
 
       try {
+        // Check erp_reconciliation function permission
         const { data, error } = await supabase
           .rpc('get_user_role_functions', { p_user_id: user.id });
 
         if (error) {
           console.error('Error checking erp_reconciliation access:', error);
-          setHasAccess(false);
+        }
+
+        const functionKeys = (data || []).map((f: any) => f.function_key);
+        if (functionKeys.includes('erp_reconciliation')) {
+          setHasAccess(true);
           setIsLoading(false);
           return;
         }
 
-        const functionKeys = (data || []).map((f: any) => f.function_key);
-        setHasAccess(functionKeys.includes('erp_reconciliation'));
+        // Also grant access to Admin and Super Admin roles
+        const { data: userRoles, error: roleErr } = await supabase
+          .from('user_roles')
+          .select('role_id, roles:role_id(name)')
+          .eq('user_id', user.id);
+
+        if (!roleErr && userRoles) {
+          const roleNames = userRoles.map((ur: any) => (ur.roles as any)?.name?.toLowerCase()).filter(Boolean);
+          if (roleNames.includes('admin') || roleNames.includes('super admin')) {
+            setHasAccess(true);
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        setHasAccess(false);
       } catch (err) {
         console.error('Error in useErpReconciliationAccess:', err);
         setHasAccess(false);

@@ -289,13 +289,17 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       return base;
     });
 
+    // Map our synthetic Private status (2) back to Binance's online (1) for the API call.
+    // Private = online + visibility restriction, handled separately by the edge function.
+    const binanceAdvStatus = form.advStatus === BINANCE_AD_STATUS.PRIVATE ? BINANCE_AD_STATUS.ONLINE : form.advStatus;
+
     const adData: Record<string, any> = {
       initAmount: Number(form.initAmount),
       minSingleTransAmount: Number(form.minSingleTransAmount),
       maxSingleTransAmount: Number(form.maxSingleTransAmount),
       tradeMethods,
       payTimeLimit: form.payTimeLimit,
-      advStatus: form.advStatus,
+      advStatus: binanceAdvStatus,
       buyerKycLimit: 1,
       buyerRegDaysLimit: form.buyerRegDaysLimit,
       buyerBtcPositionLimit: form.buyerBtcPositionLimit,

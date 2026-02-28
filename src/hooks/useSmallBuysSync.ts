@@ -48,7 +48,7 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   const LOOKBACK_DAYS = 7;
   const cutoffMs = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
 
-  // Fetch ALL completed BUY orders in the lookback window with pagination
+  // Fetch ALL completed/appeal BUY orders in the lookback window with pagination
   const PAGE_SIZE = 1000;
   let allOrders: any[] = [];
   let from = 0;
@@ -96,10 +96,21 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
     .eq('sync_status', 'rejected');
   const rejectedSyncIds = new Set((rejectedSyncs || []).map((s: any) => s.id));
 
-  // Check for already-synced order numbers (batch the IN query to avoid limits)
-  // Exclude orders belonging to rejected batches — they should be re-synced
+  // Also get order_numbers from all non-rejected small_buys_sync records (belt-and-suspenders dedup)
+  const { data: existingSyncRecords } = await supabase
+    .from('small_buys_sync' as any)
+    .select('order_numbers, sync_status')
+    .neq('sync_status', 'rejected');
+  const syncLevelExistingOrders = new Set<string>();
+  for (const sr of (existingSyncRecords || [])) {
+    for (const on of ((sr as any).order_numbers || [])) {
+      syncLevelExistingOrders.add(on);
+    }
+  }
+
+  // Check for already-synced order numbers via order_map (batch the IN query)
   const orderNumbers = smallOrders.map(o => o.order_number);
-  const existingSet = new Set<string>();
+  const existingSet = new Set<string>(syncLevelExistingOrders);
 
   for (let i = 0; i < orderNumbers.length; i += 500) {
     const batch = orderNumbers.slice(i, i + 500);
@@ -148,8 +159,6 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
 
   const batchId = `SB-${Date.now()}`;
   const userId = getCurrentUserId();
-  const windowStart = new Date(cutoffMs).toISOString();
-  const windowEnd = now.toISOString();
 
   let entriesCreated = 0;
 
@@ -158,6 +167,13 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
     const totalAmount = group.reduce((s, o) => s + parseFloat(o.total_price || '0'), 0);
     const totalFee = group.reduce((s, o) => s + parseFloat(o.commission || '0'), 0);
     const avgPrice = totalQty > 0 ? totalAmount / totalQty : 0;
+
+    // Use actual order date range instead of lookback window
+    const orderTimes = group.map(o => Number(o.create_time)).filter(t => t > 0);
+    const minTime = Math.min(...orderTimes);
+    const maxTime = Math.max(...orderTimes);
+    const windowStart = new Date(minTime).toISOString();
+    const windowEnd = new Date(maxTime).toISOString();
 
     const { data: syncRecord, error: insertErr } = await supabase
       .from('small_buys_sync' as any)
@@ -207,12 +223,14 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   }
 
   // Log the sync execution
+  const windowStartLog = new Date(cutoffMs).toISOString();
+  const windowEndLog = now.toISOString();
   await supabase.from('small_buys_sync_log' as any).insert({
     sync_batch_id: batchId,
     sync_started_at: now.toISOString(),
     sync_completed_at: new Date().toISOString(),
-    time_window_start: windowStart,
-    time_window_end: windowEnd,
+    time_window_start: windowStartLog,
+    time_window_end: windowEndLog,
     total_orders_processed: newOrders.length,
     entries_created: entriesCreated,
     synced_by: userId || null,

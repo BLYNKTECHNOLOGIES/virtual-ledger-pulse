@@ -253,18 +253,24 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
           .eq('id', result.purchase_order_id);
       }
 
-      // Record gateway fee as a separate expense transaction
+      // Record gateway fee as a separate expense (Finance, Banking & Compliance > Processing fees)
+      // This is NOT a purchase cost — it's tracked as an operational expense only.
+      // The trg_update_bank_account_balance trigger auto-deducts from the selected bank balance.
       if (gatewayFeeEnabled && parseFloat(gatewayFeeAmount) > 0 && gatewayFeeBankId) {
         const feeAmt = parseFloat(gatewayFeeAmount);
-        await supabase.from('bank_transactions').insert({
+        const { error: feeError } = await supabase.from('bank_transactions').insert({
           bank_account_id: gatewayFeeBankId,
           transaction_type: 'Expense',
           amount: feeAmt,
-          category: 'Payout Gateway Fee',
-          description: `Payout gateway fee for Small Buys ${record.asset_code} – ${record.order_count} orders (${result?.purchase_order_id || ''})`,
+          category: 'finance_banking_compliance',
+          description: `Processing fee – Payout gateway fee for Small Buys ${record.asset_code} (${record.order_count} orders, PO: ${result?.purchase_order_id || 'N/A'})`,
           transaction_date: settlementDate,
           created_by: userId,
         });
+        if (feeError) {
+          console.error('Gateway fee expense creation failed:', feeError);
+          throw new Error(`Purchase approved but gateway fee recording failed: ${feeError.message}`);
+        }
       }
 
       return result;

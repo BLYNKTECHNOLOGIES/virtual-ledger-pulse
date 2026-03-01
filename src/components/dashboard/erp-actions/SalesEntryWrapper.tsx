@@ -247,10 +247,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         const settlementStatus = paymentMethod?.payment_gateway ? 'PENDING' : 'DIRECT';
         await supabase.from('sales_orders').update({ settlement_status: settlementStatus }).eq('id', result.id);
 
-        if (paymentMethod?.payment_gateway) {
-          const newUsage = (paymentMethod.current_usage || 0) + (parseFloat(formData.total_amount) || 0);
-          await supabase.from('sales_payment_methods').update({ current_usage: newUsage }).eq('id', formData.sales_payment_method_id);
-        }
+        // Payment method usage is computed live — no manual current_usage write needed
       }
 
       // Process wallet deduction

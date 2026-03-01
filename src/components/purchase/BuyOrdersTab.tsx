@@ -20,6 +20,7 @@ import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient } from "@/utils/clientIdGenerator";
+import { batchComputePurchaseUsage } from "@/lib/payment-method-usage";
 
 interface BuyOrdersTabProps {
   searchTerm?: string;
@@ -92,7 +93,24 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return (data || []) as BuyOrder[];
+      const orders = (data || []) as BuyOrder[];
+
+      // Compute live usage for all payment methods referenced by these orders
+      const uniqueMethods = new Map<string, { id: string; last_reset: string | null }>();
+      orders.forEach((o: any) => {
+        if (o.purchase_payment_method?.id) {
+          uniqueMethods.set(o.purchase_payment_method.id, { id: o.purchase_payment_method.id, last_reset: null });
+        }
+      });
+      const usageMap = await batchComputePurchaseUsage(Array.from(uniqueMethods.values()));
+
+      // Override current_usage in nested relation
+      return orders.map((o: any) => {
+        if (o.purchase_payment_method?.id && usageMap.has(o.purchase_payment_method.id)) {
+          return { ...o, purchase_payment_method: { ...o.purchase_payment_method, current_usage: usageMap.get(o.purchase_payment_method.id) || 0 } };
+        }
+        return o;
+      }) as BuyOrder[];
     },
     staleTime: 10000,
   });

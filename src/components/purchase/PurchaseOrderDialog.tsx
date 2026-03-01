@@ -40,9 +40,9 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
     { product_id: "", quantity: undefined as any, unit_price: undefined as any }
   ]);
 
-  // Fetch purchase payment methods with bank account details
+  // Fetch purchase payment methods with computed usage
   const { data: purchasePaymentMethods } = useQuery({
-    queryKey: ['purchase_payment_methods'],
+    queryKey: ['purchase_payment_methods_with_usage'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_payment_methods')
@@ -55,8 +55,14 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
         .order('created_at');
       
       if (error) throw error;
-      // Filter out methods with inactive bank accounts
-      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
+      const active = (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
+
+      // Compute live usage from actual orders
+      const { batchComputePurchaseUsage } = await import("@/lib/payment-method-usage");
+      const usageMap = await batchComputePurchaseUsage(
+        active.map((m: any) => ({ id: m.id, last_reset: m.last_reset }))
+      );
+      return active.map((m: any) => ({ ...m, current_usage: usageMap.get(m.id) || 0 }));
     },
   });
 
@@ -148,24 +154,10 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
           });
       }
 
-      // Update payment method usage if provided
-      if (purchaseData.purchase_payment_method_id) {
-        const { data: paymentMethod } = await supabase
-          .from('purchase_payment_methods')
-          .select('current_usage')
-          .eq('id', purchaseData.purchase_payment_method_id)
-          .single();
-          
-        if (paymentMethod) {
-          await supabase
-            .from('purchase_payment_methods')
-            .update({ 
-              current_usage: paymentMethod.current_usage + totalAmount 
-            })
-            .eq('id', purchaseData.purchase_payment_method_id);
-        }
+      // Payment method usage is computed live — no manual current_usage update needed
 
-        // Create bank EXPENSE transaction so balance updates via triggers
+      // Create bank EXPENSE transaction so balance updates via triggers
+      if (purchaseData.purchase_payment_method_id) {
         const { data: pm } = await supabase
           .from('purchase_payment_methods')
           .select('bank_account_name')
@@ -195,7 +187,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
               description: `Stock Purchase - ${purchaseData.supplier_name} - Order #${purchaseData.order_number}`,
               reference_number: purchaseData.order_number,
               related_account_name: purchaseData.supplier_name,
-              created_by: user?.id || null, // Persist user ID for audit trail
+              created_by: user?.id || null,
             });
         }
       }

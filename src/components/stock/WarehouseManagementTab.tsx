@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 export function WalletManagementTab() {
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
@@ -33,15 +34,9 @@ export function WalletManagementTab() {
   const queryClient = useQueryClient();
 
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets_with_ledger_usdt_warehouse_tab'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data;
+      return fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, current_balance, is_active');
     },
   });
 

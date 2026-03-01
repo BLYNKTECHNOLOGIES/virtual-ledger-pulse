@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PaymentMethodSelectionDialog } from "./PaymentMethodSelectionDialog";
 import { UserPayingStatusDialog } from "./UserPayingStatusDialog";
+import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 interface StepBySalesFlowProps {
   open: boolean;
@@ -89,18 +90,11 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     },
   });
 
-  // Fetch wallets
+  // Fetch wallets with ledger-backed USDT balances
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets_with_ledger_usdt_step_flow'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-      
-      if (error) throw error;
-      return data;
+      return fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, is_active, current_balance, fee_percentage, is_fee_enabled');
     },
   });
 
@@ -219,25 +213,16 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
       // Validate wallet balance for USDT transactions
       if (walletId && usdtAmount > 0) {
-        const { data: wallet, error: walletError } = await supabase
-          .from('wallets')
-          .select('current_balance, wallet_name')
-          .eq('id', walletId)
-          .single();
-
-        if (walletError) throw walletError;
-
-        if (!wallet) {
-          throw new Error('Wallet not found');
-        }
+        const walletName = wallets?.find((w) => w.id === walletId)?.wallet_name || 'Selected wallet';
+        const walletBalance = await fetchWalletLedgerUsdtBalance(walletId);
 
         const netQuantity = finalOrderData.quantity;
         const platformFees = finalOrderData.platform_fees || 0;
         const totalUsdtNeeded = netQuantity + platformFees;
 
-        if (wallet.current_balance < totalUsdtNeeded) {
+        if (walletBalance < totalUsdtNeeded) {
           throw new Error(
-            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${totalUsdtNeeded} (${netQuantity} + ${platformFees} fees) in wallet: ${wallet.wallet_name}`
+            `Insufficient wallet balance. Available: ${walletBalance}, Required: ${totalUsdtNeeded} (${netQuantity} + ${platformFees} fees) in wallet: ${walletName}`
           );
         }
       }
@@ -336,7 +321,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             
             // Update the sales order with fee details
             const selectedWallet = wallets?.find(w => w.id === walletId);
-            const feePercentage = selectedWallet?.fee_percentage || 0;
+            const feePercentage = Number(selectedWallet?.fee_percentage || 0);
             
             await supabase
               .from('sales_orders')

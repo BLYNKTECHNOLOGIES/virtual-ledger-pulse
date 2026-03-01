@@ -29,6 +29,7 @@ import { toast as sonnerToast } from 'sonner';
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 interface Widget {
   id: string;
@@ -264,15 +265,8 @@ export default function Dashboard() {
     queryFn: async () => {
       // ERP balances are source of truth - no auto-sync from Binance
 
-      const { data: wallets, error: walletsError } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
+      const wallets = await fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, current_balance');
 
-      if (walletsError) {
-        console.error('Error fetching wallets:', walletsError);
-      }
 
       // Build asset inventory directly from wallets
       const assetMap = new Map();

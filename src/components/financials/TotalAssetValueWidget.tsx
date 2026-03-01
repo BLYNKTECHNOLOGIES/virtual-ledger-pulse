@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -62,16 +63,13 @@ export function useTotalAssetValue() {
         .sort((a, b) => b.total - a.total);
       const totalGateway = gatewayGroups.reduce((s, g) => s + g.total, 0);
 
-      // 3. Stock valuation — multi-asset (USDT from wallets, others from wallet_asset_balances)
-      // 3a. USDT balances from wallets table
-      const { data: wallets } = await supabase
-        .from("wallets")
-        .select("wallet_name, current_balance")
-        .eq("is_active", true)
-        .order("wallet_name");
+      // 3. Stock valuation — multi-asset (wallet_asset_balances ledger source of truth)
+      // 3a. USDT balances from ledger-backed wallet utility
+      const wallets = await fetchActiveWalletsWithLedgerUsdtBalance("wallet_name, current_balance");
 
-      const walletDetails: WalletDetail[] = (wallets || []).map(w => ({
-        wallet_name: w.wallet_name, current_balance: Number(w.current_balance || 0),
+      const walletDetails: WalletDetail[] = (wallets || []).map((w) => ({
+        wallet_name: String(w.wallet_name),
+        current_balance: Number(w.current_balance || 0),
       }));
       const totalUsdtUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
 

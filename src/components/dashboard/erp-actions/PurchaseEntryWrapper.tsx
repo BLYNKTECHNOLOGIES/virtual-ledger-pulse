@@ -240,7 +240,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
 
       if (isMultiplePayments && paymentSplits.length > 0) {
         const splitPaymentsJson = paymentSplits.map(s => ({ bank_account_id: s.bank_account_id, amount: parseFloat(s.amount) }));
-        const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments', {
+        const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments_rpc', {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
           p_order_date: formData.order_date,
@@ -261,7 +261,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
         result = data as Record<string, unknown>;
         functionError = error;
       } else {
-        const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2', {
+        const { data, error } = await supabase.rpc('create_manual_purchase_complete_rpc', {
           p_order_number: orderNumber,
           p_supplier_name: formData.supplier_name,
           p_order_date: formData.order_date,

@@ -338,3 +338,115 @@ html {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE TEXT OVERFLOW & LAYOUT FIXES
+   Global rules that prevent text merging, overflow, and
+   layout breakage on small screens. Desktop is untouched.
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* --- Page-level padding & overflow --- */
+  .min-h-screen.p-6,
+  .min-h-screen > .p-6,
+  div[class*="space-y"] > .p-6 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* --- Large headings: cap size, prevent wrapping overflow --- */
+  h1 {
+    font-size: 1.375rem !important;   /* 22px */
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+  }
+  h2 {
+    font-size: 1.125rem !important;   /* 18px */
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+  }
+  h3 {
+    font-size: 1rem !important;       /* 16px */
+    line-height: 1.3 !important;
+  }
+
+  /* --- Tabs: make scrollable, prevent text merging --- */
+  [role="tablist"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+    gap: 0.125rem !important;
+  }
+  [role="tablist"]::-webkit-scrollbar {
+    display: none;
+  }
+  [role="tab"] {
+    font-size: 0.75rem !important;    /* 12px */
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: max-content !important;
+  }
+
+  /* --- Cards: tighter padding --- */
+  .rounded-xl[class*="shadow"] > div:first-child,
+  [class*="CardHeader"] {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* --- Tables: enable horizontal scroll, prevent cell text merging --- */
+  table {
+    font-size: 0.8125rem !important;  /* 13px */
+  }
+  th, td {
+    padding: 0.5rem 0.625rem !important;
+    white-space: nowrap !important;
+  }
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* --- Metric / stat values: prevent giant numbers overflowing --- */
+  .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  .text-3xl, .xl\:text-3xl {
+    font-size: 1.375rem !important;
+  }
+  .text-4xl {
+    font-size: 1.5rem !important;
+  }
+
+  /* --- Badge / pill text --- */
+  [class*="Badge"], [class*="badge"] {
+    font-size: 0.6875rem !important;  /* 11px */
+    white-space: nowrap !important;
+  }
+
+  /* --- Description / subtitle text: prevent long text overlapping --- */
+  p[class*="text-muted"],
+  p[class*="text-gray"],
+  p[class*="text-slate"] {
+    font-size: 0.8125rem !important;
+    line-height: 1.4 !important;
+    word-break: break-word !important;
+  }
+
+  /* --- Flex rows that should stack on mobile --- */
+  .flex.items-center.gap-3 > .p-3 + div > h1 {
+    font-size: 1.25rem !important;
+  }
+
+  /* --- Popover / dropdown positioning --- */
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 2rem) !important;
+  }
+
+  /* --- Icon containers: slightly smaller on mobile --- */
+  .p-3.rounded-xl > svg.h-8 {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+  }
+}

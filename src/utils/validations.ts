@@ -11,11 +11,14 @@ export class ValidationError extends Error {
 export async function validateBankAccountBalance(bankAccountId: string, debitAmount: number): Promise<void> {
   const { data: bankAccount, error } = await supabase
     .from('bank_accounts')
-    .select('balance, account_name')
+    .select('balance, account_name, account_type')
     .eq('id', bankAccountId)
     .single();
 
   if (error) throw error;
+
+  // Credit accounts are allowed to go negative — skip balance check
+  if (bankAccount.account_type === 'CREDIT') return;
 
   if (bankAccount.balance < debitAmount) {
     throw new ValidationError(`Bank account balance cannot be negative. Available: ₹${bankAccount.balance.toFixed(2)}, Required: ₹${debitAmount.toFixed(2)} in account: ${bankAccount.account_name}`);

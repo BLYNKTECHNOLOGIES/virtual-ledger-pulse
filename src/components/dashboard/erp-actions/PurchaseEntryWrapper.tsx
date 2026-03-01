@@ -194,6 +194,48 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
     });
   };
 
+  const extractRpcFailureMessage = (payload: unknown): string | null => {
+    if (!payload) return null;
+
+    if (typeof payload === 'string') {
+      const text = payload.trim();
+      if (!text) return null;
+      if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+        try {
+          return extractRpcFailureMessage(JSON.parse(text));
+        } catch {
+          return text;
+        }
+      }
+      return text;
+    }
+
+    if (Array.isArray(payload)) {
+      for (const row of payload) {
+        const nested = extractRpcFailureMessage(row);
+        if (nested) return nested;
+      }
+      return null;
+    }
+
+    if (typeof payload === 'object') {
+      const p = payload as Record<string, unknown>;
+      const success = p.success;
+      const possible = [p.error, p.message, p.details, p.hint];
+      const message = possible.find((v) => typeof v === 'string' && String(v).trim()) as string | undefined;
+
+      if (success === false) {
+        return message || 'Purchase could not be created.';
+      }
+
+      if (!('success' in p) && message) {
+        return message;
+      }
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -284,8 +326,10 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
       }
 
       if (functionError) throw functionError;
-      if (result && typeof result === 'object' && 'success' in result && !result.success) {
-        throw new Error(String(result.error || 'Unknown error'));
+
+      const rpcFailureMessage = extractRpcFailureMessage(result);
+      if (rpcFailureMessage) {
+        throw new Error(rpcFailureMessage);
       }
 
       toast({ title: "Purchase Entry Created", description: `Order ${orderNumber} created.` });

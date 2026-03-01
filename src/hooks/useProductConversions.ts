@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { toast } from "@/hooks/use-toast";
+import { parseApprovalError } from "@/utils/approvalErrorParser";
 
 export interface ConversionDraft {
   wallet_id: string;
@@ -160,7 +161,8 @@ export function useApproveConversion() {
       toast({ title: "Approved", description: "Conversion approved and posted." });
     },
     onError: (error: any) => {
-      toast({ title: "Approval failed", description: error.message, variant: "destructive" });
+      const { title, description } = parseApprovalError(error, 'Conversion');
+      toast({ title, description, variant: "destructive" });
     },
   });
 }

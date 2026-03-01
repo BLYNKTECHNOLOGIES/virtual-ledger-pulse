@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { parseApprovalError } from '@/utils/approvalErrorParser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -138,7 +139,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       onOpenChange(false);
     },
     onError: (err: any) => {
-      toast({ title: 'Error', description: err.message || 'Approval failed', variant: 'destructive' });
+      const { title, description } = parseApprovalError(err, 'Small Sales');
+      toast({ title, description, variant: 'destructive' });
     },
   });
 

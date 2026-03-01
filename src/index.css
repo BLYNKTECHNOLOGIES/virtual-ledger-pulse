@@ -371,21 +371,27 @@ html {
 
   /* --- Tabs: make scrollable, prevent text merging --- */
   [role="tablist"] {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
     overflow-x: auto !important;
+    overflow-y: hidden !important;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     flex-wrap: nowrap !important;
-    gap: 0.125rem !important;
+    gap: 0.25rem !important;
+    padding-bottom: 0.125rem !important;
   }
   [role="tablist"]::-webkit-scrollbar {
     display: none;
   }
   [role="tab"] {
     font-size: 0.75rem !important;    /* 12px */
+    line-height: 1.2 !important;
     padding-left: 0.625rem !important;
     padding-right: 0.625rem !important;
     white-space: nowrap !important;
-    flex-shrink: 0 !important;
+    flex: 0 0 auto !important;
     min-width: max-content !important;
   }
 

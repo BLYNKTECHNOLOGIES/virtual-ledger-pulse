@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart3, TrendingUp, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -334,6 +335,56 @@ export function GrossProfitHistoryTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Tabular Data */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {viewMode === "day" ? "Daily" : "Monthly"} Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Total Sales Qty (USDT equiv.)</TableHead>
+                    <TableHead className="text-right">Margin (₹/unit)</TableHead>
+                    <TableHead className="text-right">Gross Profit</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(viewMode === "day" ? mergedData || [] : []).map((item: any) => {
+                    const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
+                    return (
+                      <TableRow key={item.snapshot_date}>
+                        <TableCell className="text-sm">{format(new Date(item.snapshot_date), "dd MMM yyyy")}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">{Number(item.total_sales_qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-mono text-sm">₹{npm.toFixed(2)}</TableCell>
+                        <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₹{Number(item.gross_profit).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {viewMode === "month" && chartData.map((item: any) => (
+                    <TableRow key={item.date}>
+                      <TableCell className="text-sm">{item.date}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">—</TableCell>
+                      <TableCell className="text-right font-mono text-sm">₹{Number(item.npm).toFixed(2)}</TableCell>
+                      <TableCell className={`text-right font-mono text-sm font-semibold ${item.value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        ₹{Number(item.value).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

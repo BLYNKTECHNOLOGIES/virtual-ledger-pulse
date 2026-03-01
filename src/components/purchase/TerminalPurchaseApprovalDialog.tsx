@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -415,7 +416,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       onSuccess();
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      const { title, description } = parseApprovalError(err, 'Purchase');
+      toast({ title, description, variant: "destructive" });
     },
   });
 

@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { fetchActiveWalletsWithLedgerAssetBalance, fetchWalletLedgerAssetBalance } from "@/lib/wallet-ledger-balance";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -359,18 +360,17 @@ export function StockTransactionsTab() {
     },
   });
 
-  // Fetch wallets for transfer options
+  // Fetch wallets with live asset-specific balances for manual adjustments
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets_with_asset_balance', adjustmentData.assetCode],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data;
+      return fetchActiveWalletsWithLedgerAssetBalance(
+        adjustmentData.assetCode,
+        'id, wallet_name, wallet_type, chain_name, current_balance, fee_percentage, is_fee_enabled'
+      );
     },
+    staleTime: 0,
+    refetchInterval: 10000,
   });
 
   const { data: assetCodes } = useAssetCodes();
@@ -390,16 +390,15 @@ export function StockTransactionsTab() {
       const transferRefId = globalThis.crypto?.randomUUID?.() ?? null;
       
       if (adjustmentData.transactionType === 'TRANSFER') {
-        // Validate balance before proceeding
+        // Validate balance before proceeding using ledger balance for selected asset
         const totalDeduction = amount + transferFee;
-        const { data: sourceWallet } = await supabase
-          .from('wallets')
-          .select('current_balance, wallet_name')
-          .eq('id', adjustmentData.fromWallet)
-          .single();
-        
-        if (!sourceWallet || sourceWallet.current_balance < totalDeduction) {
-          throw new Error(`Insufficient balance in ${sourceWallet?.wallet_name || 'source wallet'}. Required: ${totalDeduction.toFixed(4)} USDT, Available: ${(sourceWallet?.current_balance || 0).toFixed(4)} USDT`);
+        const sourceWalletName = wallets?.find((wallet) => wallet.id === adjustmentData.fromWallet)?.wallet_name || 'source wallet';
+        const sourceWalletBalance = await fetchWalletLedgerAssetBalance(adjustmentData.fromWallet, adjustmentData.assetCode);
+
+        if (sourceWalletBalance < totalDeduction) {
+          throw new Error(
+            `Insufficient balance in ${sourceWalletName}. Required: ${totalDeduction.toFixed(4)} ${adjustmentData.assetCode}, Available: ${sourceWalletBalance.toFixed(4)} ${adjustmentData.assetCode}`
+          );
         }
         
         // Create debit transaction for source wallet
@@ -1018,7 +1017,7 @@ export function StockTransactionsTab() {
                 <SelectContent>
                   {wallets?.map((wallet) => (
                     <SelectItem key={wallet.id} value={wallet.id}>
-                       {wallet.wallet_name} - ₹{wallet.current_balance}
+                       {wallet.wallet_name} - {Number(wallet.current_balance || 0).toFixed(4)} {adjustmentData.assetCode}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1038,7 +1037,7 @@ export function StockTransactionsTab() {
                   <SelectContent>
                     {wallets?.filter(w => w.id !== adjustmentData.fromWallet).map((wallet) => (
                       <SelectItem key={wallet.id} value={wallet.id}>
-                        {wallet.wallet_name} - ₹{wallet.current_balance}
+                        {wallet.wallet_name} - {Number(wallet.current_balance || 0).toFixed(4)} {adjustmentData.assetCode}
                       </SelectItem>
                     ))}
                   </SelectContent>

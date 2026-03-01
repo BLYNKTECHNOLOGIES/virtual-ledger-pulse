@@ -54,10 +54,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   });
 
   const getAssetBalance = (walletId: string) => {
-    if (item.asset === 'USDT') {
-      // USDT source of truth is wallets.current_balance
-      return Number(wallets?.find(w => w.id === walletId)?.current_balance ?? 0);
-    }
+    // Always use ledger balance from wallet_asset_balances (single source of truth)
     return Number(assetBalances?.find(b => b.wallet_id === walletId)?.balance ?? 0);
   };
 
@@ -81,6 +78,9 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
       if (!fromWalletId || !toWalletId) throw new Error("Wallet not mapped");
       if (feeAmount < 0) throw new Error("Fee cannot be negative");
       if (feeAmount >= transferAmount) throw new Error("Fee cannot exceed transfer amount");
+      if (sourceBalance < totalRequired) {
+        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(4)}, Required: ${totalRequired.toFixed(4)}`);
+      }
 
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
 
@@ -253,7 +253,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           <div className="flex gap-2 pt-2">
             <Button
               onClick={() => transferMutation.mutate()}
-              disabled={transferMutation.isPending || !selectedWalletId || hasInsufficientBalance}
+              disabled={transferMutation.isPending}
               className="flex-1"
             >
               {transferMutation.isPending ? "Processing..." : "Confirm Transfer"}

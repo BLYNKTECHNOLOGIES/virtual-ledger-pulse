@@ -7,8 +7,46 @@ export interface ApprovalErrorInfo {
   description: string;
 }
 
+function extractErrorMessage(error: any): string {
+  if (!error) return 'Unknown error';
+
+  if (typeof error === 'string') {
+    const trimmed = error.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        return extractErrorMessage(JSON.parse(trimmed));
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
+
+  const candidates = [
+    error?.message,
+    error?.error,
+    error?.details,
+    error?.hint,
+    error?.cause?.message,
+    error?.response?.data?.error,
+    error?.response?.data?.message,
+    error?.data?.error,
+    error?.data?.message,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+  }
+
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 export function parseApprovalError(error: any, context?: string): ApprovalErrorInfo {
-  const msg: string = error?.message || error?.toString() || 'Unknown error';
+  const msg: string = extractErrorMessage(error);
   const lowerMsg = msg.toLowerCase();
 
   // ── Balance / Negative checks ──
@@ -18,6 +56,19 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
       description: msg.includes('₹')
         ? msg
         : 'The transaction would result in a negative balance. Please check bank account or wallet balances before approving.',
+    };
+  }
+
+  if (lowerMsg.includes('insufficient bank balance')) {
+    const available = msg.match(/available:\s*₹?\s*([\d,]+(?:\.\d+)?)/i)?.[1];
+    const required = msg.match(/required:\s*₹?\s*([\d,]+(?:\.\d+)?)/i)?.[1];
+
+    return {
+      title: 'Insufficient Bank Balance',
+      description:
+        available && required
+          ? `Bank balance is too low (Available: ₹${available}, Required: ₹${required}).`
+          : 'Bank balance is too low for this purchase.',
     };
   }
 

@@ -233,7 +233,7 @@ export function ProductCardListingTab() {
                                     </TooltipTrigger>
                                     <TooltipContent>
                                       <p className="text-xs">Binance Balance: {bBal.toFixed(8)}</p>
-                                      <p className="text-xs">ERP Balance: {wallet.balance.toFixed(4)}</p>
+                                      <p className="text-xs">ERP Balance: {(Number(wallet.balance) || 0).toFixed(4)}</p>
                                       <p className="text-xs text-orange-400">Difference from Binance API</p>
                                     </TooltipContent>
                                   </Tooltip>

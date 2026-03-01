@@ -193,7 +193,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
               <SelectContent>
                 {bankAccounts?.filter(a => a.account_name !== ADJUSTMENT_ACCOUNT_NAME).map((account) => (
                   <SelectItem key={account.id} value={account.id}>
-                    {account.account_name} - ₹{account.balance.toFixed(2)}
+                    {account.account_name} - ₹{(Number(account.balance) || 0).toFixed(2)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -204,7 +204,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
             <div className="bg-muted p-3 rounded-md text-sm">
               <div className="flex justify-between">
                 <span>Current Balance:</span>
-                <span className="font-medium">₹{selectedAccount.balance.toFixed(2)}</span>
+                <span className="font-medium">₹{(Number(selectedAccount.balance) || 0).toFixed(2)}</span>
               </div>
             </div>
           )}

@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useWalletStock } from "@/hooks/useWalletStock";
+
 import { Percent } from "lucide-react";
 
 interface WalletWithFees {
@@ -54,11 +54,28 @@ export function WalletSelector({
     }
   });
 
-  const { data: walletStock } = useWalletStock();
+  // Use wallet_asset_balances for accurate ledger balance
+  const { data: assetBalances } = useQuery({
+    queryKey: ['wallet_asset_balances_for_selector'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallet_asset_balances')
+        .select('wallet_id, asset_code, balance');
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 10000,
+    staleTime: 0,
+  });
 
   const getWalletBalance = (walletId: string): number | null => {
-    const wallet = walletStock?.find(w => w.wallet_id === walletId);
-    return wallet ? wallet.current_balance : null;
+    // Sum all asset balances for this wallet (or show USDT specifically)
+    const walletAssets = assetBalances?.filter(ab => ab.wallet_id === walletId);
+    if (!walletAssets || walletAssets.length === 0) return null;
+    // Show USDT balance if available, otherwise sum all
+    const usdtBalance = walletAssets.find(ab => ab.asset_code === 'USDT');
+    if (usdtBalance) return usdtBalance.balance;
+    return walletAssets.reduce((sum, ab) => sum + ab.balance, 0);
   };
 
   const handleValueChange = (walletId: string) => {

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { batchComputePurchaseUsage } from "@/lib/payment-method-usage";
 import { useToast } from "@/hooks/use-toast";
 import { PurchaseOrderCard } from "./PurchaseOrderCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,7 +63,23 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data;
+      const orders = data || [];
+
+      // Compute live usage for nested payment methods
+      const uniqueMethods = new Map<string, { id: string; last_reset: string | null }>();
+      orders.forEach((o: any) => {
+        if (o.purchase_payment_method?.id) {
+          uniqueMethods.set(o.purchase_payment_method.id, { id: o.purchase_payment_method.id, last_reset: null });
+        }
+      });
+      const usageMap = await batchComputePurchaseUsage(Array.from(uniqueMethods.values()));
+
+      return orders.map((o: any) => {
+        if (o.purchase_payment_method?.id && usageMap.has(o.purchase_payment_method.id)) {
+          return { ...o, purchase_payment_method: { ...o.purchase_payment_method, current_usage: usageMap.get(o.purchase_payment_method.id) || 0 } };
+        }
+        return o;
+      });
     },
     staleTime: 30000, // 30 seconds
   });
@@ -252,26 +269,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
       // Stock syncing is handled by database triggers automatically
       console.log('✅ Order completed - stock updates handled by database triggers');
 
-      // Update payment method current usage
-      const { data: currentMethod, error: fetchMethodError } = await supabase
-        .from('purchase_payment_methods')
-        .select('current_usage')
-        .eq('id', paymentMethodId)
-        .single();
-
-      if (fetchMethodError) throw fetchMethodError;
-
-      const newUsage = (currentMethod.current_usage || 0) + amountToDeduct;
-
-      const { error: updateMethodError } = await supabase
-        .from('purchase_payment_methods')
-        .update({ 
-          current_usage: newUsage,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', paymentMethodId);
-
-      if (updateMethodError) throw updateMethodError;
+      // Payment method usage is computed live — no manual current_usage update needed
     },
     onSuccess: () => {
       toast({

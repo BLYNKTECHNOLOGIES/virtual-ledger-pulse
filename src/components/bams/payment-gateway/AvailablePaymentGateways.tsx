@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { batchComputeSalesUsage } from "@/lib/payment-method-usage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -61,23 +62,14 @@ export function AvailablePaymentGateways() {
 
       if (error) throw error;
 
-      // Fetch pending settlements to calculate real current usage per gateway
-      const { data: pendingSettlements } = await supabase
-        .from('pending_settlements')
-        .select('payment_method_id, settlement_amount')
-        .eq('status', 'PENDING');
+      // Compute live usage from shared helper
+      const usageMap = await batchComputeSalesUsage(
+        (data || []).map(gw => ({ id: gw.id, last_reset: null, payment_gateway: true }))
+      );
 
-      const pendingByMethod: Record<string, number> = {};
-      (pendingSettlements || []).forEach((ps: any) => {
-        if (ps.payment_method_id) {
-          pendingByMethod[ps.payment_method_id] = (pendingByMethod[ps.payment_method_id] || 0) + Number(ps.settlement_amount || 0);
-        }
-      });
-
-      // Override current_usage with actual pending settlement totals
       const enrichedGateways = (data || []).map(gw => ({
         ...gw,
-        current_usage: pendingByMethod[gw.id] || 0,
+        current_usage: usageMap.get(gw.id) || 0,
       }));
 
       setGateways(enrichedGateways);

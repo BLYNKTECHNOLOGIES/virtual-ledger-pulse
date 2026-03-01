@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/PermissionGate";
+import { batchComputeSalesUsage } from "@/lib/payment-method-usage";
 
 interface SalesPaymentMethod {
   id: string;
@@ -95,11 +96,17 @@ export function PaymentMethodManagement() {
             status
           )
         `)
-        .eq('is_active', true)  // Only fetch active payment methods
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as SalesPaymentMethod[];
+      const methods = (data || []) as SalesPaymentMethod[];
+
+      // Compute live usage from orders/settlements instead of stale current_usage column
+      const usageMap = await batchComputeSalesUsage(
+        methods.map(m => ({ id: m.id, last_reset: null, payment_gateway: m.payment_gateway }))
+      );
+      return methods.map(m => ({ ...m, current_usage: usageMap.get(m.id) || 0 }));
     },
   });
 

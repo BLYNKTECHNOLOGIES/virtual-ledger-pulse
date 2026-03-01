@@ -220,14 +220,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           .update({ settlement_status: settlementStatus })
           .eq('id', result.id);
 
-        // Update payment method usage if it's a payment gateway
-        if (paymentMethod?.payment_gateway) {
-          const newUsage = (paymentMethod.current_usage || 0) + data.total_amount;
-          await supabase
-            .from('sales_payment_methods')
-            .update({ current_usage: newUsage })
-            .eq('id', data.sales_payment_method_id);
-        }
+        // Payment method usage is computed live — no manual current_usage write needed
 
         console.log('Sales order created - bank transaction will be handled by triggers if applicable');
       }

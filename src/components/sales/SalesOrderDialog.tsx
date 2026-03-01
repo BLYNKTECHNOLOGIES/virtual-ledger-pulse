@@ -79,9 +79,9 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
     },
   });
 
-  // Fetch sales payment methods
+  // Fetch sales payment methods with computed usage
   const { data: salesPaymentMethods } = useQuery({
-    queryKey: ['sales_payment_methods'],
+    queryKey: ['sales_payment_methods_with_usage'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales_payment_methods')
@@ -94,7 +94,13 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         .order('created_at');
       
       if (error) throw error;
-      return data;
+
+      // Compute live usage
+      const { batchComputeSalesUsage } = await import("@/lib/payment-method-usage");
+      const usageMap = await batchComputeSalesUsage(
+        (data || []).map((m: any) => ({ id: m.id, last_reset: m.last_reset, payment_gateway: m.payment_gateway }))
+      );
+      return (data || []).map((m: any) => ({ ...m, current_usage: usageMap.get(m.id) || 0 }));
     },
   });
 
@@ -276,23 +282,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         }
       }
 
-      // Update payment method usage if provided
-      if (orderData.sales_payment_method_id) {
-        const { data: paymentMethod } = await supabase
-          .from('sales_payment_methods')
-          .select('current_usage')
-          .eq('id', orderData.sales_payment_method_id)
-          .single();
-          
-        if (paymentMethod) {
-          await supabase
-            .from('sales_payment_methods')
-            .update({ 
-              current_usage: paymentMethod.current_usage + orderData.amount 
-            })
-            .eq('id', orderData.sales_payment_method_id);
-        }
-      }
+      // Usage is computed live from orders — no manual current_usage update needed
 
       return data;
     },

@@ -376,14 +376,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
       }
 
-      // Handle bank transaction / payment gateway usage
-      if (selectedMethod?.payment_gateway) {
-        const newUsage = (selectedMethod.current_usage || 0) + totalAmount;
-        await supabase
-          .from('sales_payment_methods')
-          .update({ current_usage: newUsage })
-          .eq('id', paymentMethodId);
-      }
+      // Payment method usage is computed live — no manual current_usage update needed
 
       console.log('[SalesApproval] Sales order created - bank transaction handled by triggers if applicable');
 

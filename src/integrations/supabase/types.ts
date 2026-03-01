@@ -10507,6 +10507,7 @@ export type Database = {
           timezone: string | null
           updated_at: string | null
           user_id: string
+          widget_settings: Json | null
         }
         Insert: {
           created_at?: string | null
@@ -10518,6 +10519,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string | null
           user_id: string
+          widget_settings?: Json | null
         }
         Update: {
           created_at?: string | null
@@ -10529,6 +10531,7 @@ export type Database = {
           timezone?: string | null
           updated_at?: string | null
           user_id?: string
+          widget_settings?: Json | null
         }
         Relationships: [
           {

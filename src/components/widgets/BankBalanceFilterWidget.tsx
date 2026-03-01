@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Building, ChevronDown, ChevronUp, Wallet } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,11 +23,74 @@ interface BankBalanceFilterWidgetProps {
   className?: string;
 }
 
+const WIDGET_KEY = "selected_bank_ids";
+
 export function BankBalanceFilterWidget({ compact = false, className = "" }: BankBalanceFilterWidgetProps) {
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const queryClient = useQueryClient();
 
-  // Fetch active bank accounts (excluding dormant)
+  // Get current user
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id || null);
+    });
+  }, []);
+
+  // Load saved selection from user_preferences
+  const { data: savedSelection } = useQuery({
+    queryKey: ['user_bank_selection', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('widget_settings')
+        .eq('user_id', userId)
+        .maybeSingle();
+      return (data?.widget_settings as Record<string, unknown>)?.[WIDGET_KEY] as string[] | undefined;
+    },
+    enabled: !!userId,
+    staleTime: Infinity,
+  });
+
+  // Apply saved selection once on load
+  useEffect(() => {
+    if (!loaded && savedSelection !== undefined) {
+      if (Array.isArray(savedSelection)) {
+        setSelectedBankIds(savedSelection);
+      }
+      setLoaded(true);
+    }
+  }, [savedSelection, loaded]);
+
+  // Persist selection to DB (debounced via effect)
+  const persistSelection = useCallback(async (ids: string[]) => {
+    if (!userId) return;
+    // Upsert user_preferences with widget_settings
+    const { data: existing } = await supabase
+      .from('user_preferences')
+      .select('id, widget_settings')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const currentSettings = (existing?.widget_settings as Record<string, unknown>) || {};
+    const newSettings = { ...currentSettings, [WIDGET_KEY]: ids };
+
+    if (existing) {
+      await supabase
+        .from('user_preferences')
+        .update({ widget_settings: newSettings, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+    } else {
+      await supabase
+        .from('user_preferences')
+        .insert({ user_id: userId, widget_settings: newSettings });
+    }
+  }, [userId]);
+
+  // Fetch active bank accounts
   const { data: bankAccounts = [], isLoading } = useQuery({
     queryKey: ['active_bank_accounts_widget'],
     queryFn: async () => {
@@ -35,9 +98,8 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
         .from('bank_accounts')
         .select('id, bank_name, account_name, account_number, balance, lien_amount')
         .eq('status', 'ACTIVE')
-        .is('dormant_at', null) // Exclude dormant accounts
+        .is('dormant_at', null)
         .order('bank_name');
-
       if (error) throw error;
       return data as BankAccount[];
     },
@@ -45,7 +107,6 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
     staleTime: 10000,
   });
 
-  // Calculate total balance of selected banks
   const selectedBalance = bankAccounts
     .filter(account => selectedBankIds.includes(account.id))
     .reduce((sum, account) => {
@@ -54,19 +115,21 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
     }, 0);
 
   const handleToggleBank = (bankId: string) => {
-    setSelectedBankIds(prev => 
-      prev.includes(bankId) 
+    setSelectedBankIds(prev => {
+      const next = prev.includes(bankId)
         ? prev.filter(id => id !== bankId)
-        : [...prev, bankId]
-    );
+        : [...prev, bankId];
+      persistSelection(next);
+      return next;
+    });
   };
 
   const handleSelectAll = () => {
-    if (selectedBankIds.length === bankAccounts.length) {
-      setSelectedBankIds([]);
-    } else {
-      setSelectedBankIds(bankAccounts.map(b => b.id));
-    }
+    const next = selectedBankIds.length === bankAccounts.length
+      ? []
+      : bankAccounts.map(b => b.id);
+    setSelectedBankIds(next);
+    persistSelection(next);
   };
 
   const formatCurrency = (amount: number) => {
@@ -114,7 +177,6 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
         </div>
       </CardHeader>
       <CardContent className={compact ? "pt-0 pb-4 px-4" : "pt-0"}>
-        {/* Balance Display */}
         <div className="mb-4">
           {selectedBankIds.length === 0 ? (
             <div className="text-center py-2">
@@ -133,18 +195,17 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
           )}
         </div>
 
-        {/* Bank Selector */}
         <Popover open={isOpen} onOpenChange={setIsOpen}>
           <PopoverTrigger asChild>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-between bg-white hover:bg-emerald-50 border-emerald-200"
               size={compact ? "sm" : "default"}
             >
               <span className="flex items-center gap-2 text-sm">
                 <Wallet className="h-4 w-4 text-emerald-600" />
-                {selectedBankIds.length === 0 
-                  ? "Select bank accounts" 
+                {selectedBankIds.length === 0
+                  ? "Select bank accounts"
                   : `${selectedBankIds.length} account${selectedBankIds.length > 1 ? 's' : ''} selected`
                 }
               </span>
@@ -159,9 +220,9 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
             <div className="p-3 border-b border-border">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Active Bank Accounts</span>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleSelectAll}
                   className="text-xs h-7 px-2"
                 >
@@ -179,18 +240,18 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                   bankAccounts.map((account) => {
                     const availableBalance = Number(account.balance) - Number(account.lien_amount || 0);
                     const isSelected = selectedBankIds.includes(account.id);
-                    
+
                     return (
                       <div
                         key={account.id}
                         className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
-                          isSelected 
-                            ? 'bg-emerald-50 border border-emerald-200' 
+                          isSelected
+                            ? 'bg-emerald-50 border border-emerald-200'
                             : 'hover:bg-muted/50 border border-transparent'
                         }`}
                         onClick={() => handleToggleBank(account.id)}
                       >
-                        <Checkbox 
+                        <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => handleToggleBank(account.id)}
                           className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
@@ -226,7 +287,6 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
           </PopoverContent>
         </Popover>
 
-        {/* Selected Banks Summary */}
         {selectedBankIds.length > 0 && (
           <div className="mt-3 pt-3 border-t border-emerald-200/50">
             <div className="flex flex-wrap gap-1.5">
@@ -234,9 +294,9 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                 .filter(account => selectedBankIds.includes(account.id))
                 .slice(0, 3)
                 .map(account => (
-                  <Badge 
-                    key={account.id} 
-                    variant="outline" 
+                  <Badge
+                    key={account.id}
+                    variant="outline"
                     className="text-[10px] bg-white border-emerald-200 text-emerald-700"
                   >
                     {account.bank_name}

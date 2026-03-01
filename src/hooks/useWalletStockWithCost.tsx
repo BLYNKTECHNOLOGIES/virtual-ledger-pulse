@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAverageCost } from "./useAverageCost";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 export interface WalletStockWithCost {
   wallet_id: string;
@@ -34,29 +35,21 @@ export function useWalletStockWithCost() {
   return useQuery({
     queryKey: ['wallet_stock_with_cost', averageCosts],
     queryFn: async () => {
-      const { data: wallets, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-
-      if (error) {
-        throw error;
-      }
+      const wallets = await fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, chain_name, current_balance');
 
       // Use USDT average cost for all wallets (default asset)
       const usdtCost = averageCosts?.find(cost => cost.product_code === 'USDT')?.average_cost || 0;
 
-      const result: WalletStockWithCost[] = wallets?.map(wallet => {
+      const result: WalletStockWithCost[] = wallets.map(wallet => {
         return {
-          wallet_id: wallet.id,
-          wallet_name: wallet.wallet_name,
-          current_balance: wallet.current_balance || 0,
-          chain_name: wallet.chain_name || '',
+          wallet_id: String(wallet.id),
+          wallet_name: String(wallet.wallet_name),
+          current_balance: Number(wallet.current_balance || 0),
+          chain_name: String(wallet.chain_name || ''),
           average_cost: usdtCost,
-          total_value: (wallet.current_balance || 0) * usdtCost
+          total_value: Number(wallet.current_balance || 0) * usdtCost
         };
-      }) || [];
+      });
       
       return result;
     },
@@ -79,36 +72,33 @@ export function useProductStockWithCost() {
         .order('name');
       if (pErr) throw pErr;
 
-      // 2. Fetch wallets with current_balance (source of truth for USDT)
+      // 2. Wallet names from active wallets
       const { data: wallets, error: wErr } = await supabase
         .from('wallets')
-        .select('id, wallet_name, current_balance')
+        .select('id, wallet_name')
         .eq('is_active', true);
       if (wErr) throw wErr;
 
       const walletNameMap = new Map<string, string>();
-      const walletBalanceMap = new Map<string, number>();
       wallets?.forEach(w => {
         walletNameMap.set(w.id, w.wallet_name);
-        walletBalanceMap.set(w.id, w.current_balance || 0);
       });
 
-      // 3. For non-USDT assets, use wallet_asset_balances (source of truth)
+      // 3. Use wallet_asset_balances as source of truth for all assets (including USDT)
       const { data: assetBalances, error: abErr } = await supabase
         .from('wallet_asset_balances')
-        .select('wallet_id, asset_code, balance')
-        .neq('asset_code', 'USDT');
+        .select('wallet_id, asset_code, balance');
       if (abErr) throw abErr;
 
-      const nonUsdtBalanceMap = new Map<string, Map<string, number>>(); // asset -> walletId -> balance
+      const balanceMapByAsset = new Map<string, Map<string, number>>(); // asset -> walletId -> balance
 
       assetBalances?.forEach(ab => {
         const asset = ab.asset_code;
         const walletId = ab.wallet_id;
         const balance = Number(ab.balance) || 0;
 
-        if (!nonUsdtBalanceMap.has(asset)) nonUsdtBalanceMap.set(asset, new Map());
-        nonUsdtBalanceMap.get(asset)!.set(walletId, balance);
+        if (!balanceMapByAsset.has(asset)) balanceMapByAsset.set(asset, new Map());
+        balanceMapByAsset.get(asset)!.set(walletId, balance);
       });
 
       // 4. Build product summaries
@@ -120,35 +110,21 @@ export function useProductStockWithCost() {
         const walletStocks: ProductStockWithCost['wallet_stocks'] = [];
         let totalStock = 0;
 
-        if (product.code === 'USDT') {
-          // Use wallets.current_balance as source of truth for USDT
-          wallets?.forEach(w => {
-            const balance = w.current_balance || 0;
-            walletStocks.push({
-              wallet_id: w.id,
-              wallet_name: w.wallet_name,
-              balance,
-              value: balance * avgCost,
-            });
-            totalStock += balance;
+        // Use wallet_asset_balances for all assets (including USDT)
+        const assetBalancesForCode = balanceMapByAsset.get(product.code);
+        if (assetBalancesForCode) {
+          assetBalancesForCode.forEach((balance, walletId) => {
+            const name = walletNameMap.get(walletId);
+            if (name) {
+              walletStocks.push({
+                wallet_id: walletId,
+                wallet_name: name,
+                balance,
+                value: balance * avgCost,
+              });
+              totalStock += balance;
+            }
           });
-        } else {
-          // Use wallet_transactions for non-USDT assets
-          const assetBalances = nonUsdtBalanceMap.get(product.code);
-          if (assetBalances) {
-            assetBalances.forEach((balance, walletId) => {
-              const name = walletNameMap.get(walletId);
-              if (name) {
-                walletStocks.push({
-                  wallet_id: walletId,
-                  wallet_name: name,
-                  balance,
-                  value: balance * avgCost,
-                });
-                totalStock += balance;
-              }
-            });
-          }
         }
 
         // Sort wallets by balance descending

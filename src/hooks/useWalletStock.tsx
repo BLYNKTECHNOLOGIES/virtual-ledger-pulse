@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 export interface WalletStockItem {
   wallet_id: string;
@@ -26,21 +27,15 @@ export function useWalletStock() {
   return useQuery({
     queryKey: ['wallet_stock_summary'],
     queryFn: async () => {
-      const { data: wallets, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
+      const wallets = await fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, chain_name, current_balance');
 
-      if (error) throw error;
+      const result: WalletStockItem[] = wallets.map(wallet => ({
+        wallet_id: String(wallet.id),
+        wallet_name: String(wallet.wallet_name),
+        current_balance: Number(wallet.current_balance || 0),
+        chain_name: String(wallet.chain_name || ''),
+      }));
 
-      const result: WalletStockItem[] = wallets?.map(wallet => ({
-        wallet_id: wallet.id,
-        wallet_name: wallet.wallet_name,
-        current_balance: wallet.current_balance || 0,
-        chain_name: wallet.chain_name || ''
-      })) || [];
-      
       return result;
     },
     refetchInterval: 10000,
@@ -59,8 +54,7 @@ export function useProductStockSummary() {
         .from('wallet_asset_balances')
         .select('wallet_id, asset_code, balance')
         .order('asset_code');
-      if (error) throw error;
-      return data;
+      return (data || []) as { wallet_id: string; asset_code: string; balance: number }[];
     },
     refetchInterval: 10000,
     staleTime: 0,
@@ -74,7 +68,7 @@ export function useProductStockSummary() {
         .select('id, wallet_name, is_active')
         .eq('is_active', true);
       if (error) throw error;
-      return data;
+      return (data || []) as { id: string; wallet_name: string; is_active: boolean }[];
     },
     staleTime: 30000,
   });
@@ -109,7 +103,7 @@ export function useProductStockSummary() {
   }, {} as Record<string, ProductStockSummary>);
 
   return {
-    data: productSummaries ? Object.values(productSummaries) : undefined,
+    data: productSummaries ? (Object.values(productSummaries) as ProductStockSummary[]) : undefined,
     isLoading,
     error
   };

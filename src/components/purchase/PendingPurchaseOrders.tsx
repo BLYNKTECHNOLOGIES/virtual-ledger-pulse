@@ -354,7 +354,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
     if (hasInsufficientFunds) {
       toast({
         title: "Insufficient Funds",
-        description: `Bank balance (₹${bankAccountBalance?.balance.toFixed(2)}) is less than required amount (₹${amountToPay.toFixed(2)})`,
+        description: `Bank balance (₹${(Number(bankAccountBalance?.balance) || 0).toFixed(2)}) is less than required amount (₹${amountToPay.toFixed(2)})`,
         variant: "destructive",
       });
       return;
@@ -527,7 +527,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
                   {isCreditAccount ? ' (CREDIT)' : ''}
                 </p>
                 <p className={`text-sm font-medium ${hasInsufficientFunds ? 'text-red-800' : 'text-yellow-800'}`}>
-                  Available: ₹{bankAccountBalance.balance.toFixed(2)}
+                  Available: ₹{(Number(bankAccountBalance?.balance) || 0).toFixed(2)}
                 </p>
                 {hasInsufficientFunds && (
                   <p className="text-sm text-red-600 font-medium mt-1">

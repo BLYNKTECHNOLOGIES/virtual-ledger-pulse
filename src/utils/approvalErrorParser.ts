@@ -84,10 +84,18 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
     };
   }
 
+  // ── RPC overload ambiguity ──
+  if (lowerMsg.includes('could not choose the best candidate function') || lowerMsg.includes('is not unique')) {
+    return {
+      title: 'Purchase Approval Failed',
+      description: 'Could not process this approval right now. Please try again.',
+    };
+  }
+
   // ── Fallback ──
-  const contextLabel = context ? ` ${context}` : '';
+  const contextLabel = context ? `${context} Failed` : 'Action Failed';
   return {
-    title: `${contextLabel} Approval Failed`.trim(),
-    description: msg || 'An unexpected error occurred. Please try again or contact support.',
+    title: contextLabel,
+    description: 'Something went wrong while processing this request. Please try again.',
   };
 }

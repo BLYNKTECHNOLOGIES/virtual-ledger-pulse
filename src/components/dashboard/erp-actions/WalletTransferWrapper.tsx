@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
+import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 
@@ -131,7 +132,8 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
       onOpenChange(false);
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      const { title, description } = parseApprovalError(err, 'Wallet Transfer');
+      toast({ title, description, variant: "destructive" });
     },
   });
 

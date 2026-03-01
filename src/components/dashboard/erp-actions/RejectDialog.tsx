@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useRejectQueueItem, ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { useToast } from "@/hooks/use-toast";
+import { parseApprovalError } from "@/utils/approvalErrorParser";
 
 interface RejectDialogProps {
   item: ErpActionQueueItem | null;
@@ -28,7 +29,8 @@ export function RejectDialog({ item, open, onOpenChange }: RejectDialogProps) {
           onOpenChange(false);
         },
         onError: (err: any) => {
-          toast({ title: "Error", description: err.message, variant: "destructive" });
+          const { title, description } = parseApprovalError(err, 'Rejection');
+          toast({ title, description, variant: "destructive" });
         },
       }
     );

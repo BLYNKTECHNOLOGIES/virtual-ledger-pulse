@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarChart3, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -172,6 +173,39 @@ export function AssetValueHistoryTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Tabular Data */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {viewMode === "day" ? "Daily" : "Monthly"} Asset Value Breakdown
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Total Asset Value</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {chartData.map((item) => (
+                    <TableRow key={item.date}>
+                      <TableCell className="text-sm">{item.date}</TableCell>
+                      <TableCell className="text-right font-mono text-sm font-semibold">
+                        {formatCurrency(item.value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { useAssetCodes } from "@/hooks/useAssetCodes";
+import { fetchActiveWalletsWithLedgerAssetBalance, fetchWalletLedgerAssetBalance } from "@/lib/wallet-ledger-balance";
 
 interface ManualWalletAdjustmentDialogProps {
   open: boolean;
@@ -42,17 +43,14 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
     asset_code: "USDT"
   });
 
-  // Fetch wallets
+  // Fetch wallets with live asset-specific ledger balances
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets_with_asset_balance_manual_adjustment', formData.asset_code],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-      if (error) throw error;
-      return data;
+      return fetchActiveWalletsWithLedgerAssetBalance(
+        formData.asset_code,
+        'id, wallet_name, current_balance, is_active'
+      );
     }
   });
 
@@ -100,26 +98,19 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
       // Ensure adjustment wallet exists
       const adjustmentWalletId = await ensureAdjustmentWallet();
 
-      // Fetch fresh balances from DB (don't rely on cached list)
-      const [{ data: mainWallet, error: mainErr }, { data: adjWallet, error: adjErr }] = await Promise.all([
+      // Fetch fresh balances from ledger source of truth (don't rely on cached list)
+      const [{ data: mainWallet, error: mainErr }, mainBefore, adjBefore] = await Promise.all([
         supabase
           .from('wallets')
-          .select('id, wallet_name, current_balance')
+          .select('id, wallet_name')
           .eq('id', wallet_id)
           .single(),
-        supabase
-          .from('wallets')
-          .select('id, current_balance')
-          .eq('id', adjustmentWalletId)
-          .single(),
+        fetchWalletLedgerAssetBalance(wallet_id, formData.asset_code),
+        fetchWalletLedgerAssetBalance(adjustmentWalletId, formData.asset_code),
       ]);
 
       if (mainErr) throw mainErr;
-      if (adjErr) throw adjErr;
       if (!mainWallet) throw new Error('Wallet not found');
-
-      const mainBefore = Number(mainWallet.current_balance ?? 0);
-      const adjBefore = Number(adjWallet?.current_balance ?? 0);
       const isCredit = adjustment_type === "CREDIT";
       // wallet_transactions.reference_id is a UUID column, so we must store a valid UUID
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
@@ -159,20 +150,6 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
 
       if (txError) throw txError;
 
-      // Update wallets table so UI reflects balances immediately
-      const [{ error: updMainErr }, { error: updAdjErr }] = await Promise.all([
-        supabase
-          .from('wallets')
-          .update({ current_balance: mainAfter })
-          .eq('id', wallet_id),
-        supabase
-          .from('wallets')
-          .update({ current_balance: adjAfter })
-          .eq('id', adjustmentWalletId),
-      ]);
-
-      if (updMainErr) throw updMainErr;
-      if (updAdjErr) throw updAdjErr;
     },
     onSuccess: () => {
       // Log the action
@@ -189,6 +166,7 @@ export function ManualWalletAdjustmentDialog({ open, onOpenChange }: ManualWalle
         description: "Wallet balance adjustment has been recorded with a contra entry in the adjustment wallet."
       });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallets_with_asset_balance_manual_adjustment'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions_live'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });

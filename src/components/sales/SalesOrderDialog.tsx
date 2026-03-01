@@ -22,6 +22,7 @@ import { useAverageCost } from "@/hooks/useAverageCost";
 import { AlertTriangle, Info, TrendingUp } from "lucide-react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
+import { fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 interface SalesOrderDialogProps {
   open: boolean;
@@ -189,24 +190,15 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
 
       // Validate wallet balance for USDT transactions (quantity + fee)
       if (orderData.wallet_id && orderData.quantity) {
-        const { data: wallet, error: walletError } = await supabase
-          .from('wallets')
-          .select('current_balance, wallet_name')
-          .eq('id', orderData.wallet_id)
-          .single();
-
-        if (walletError) throw walletError;
-
-        if (!wallet) {
-          throw new Error('Wallet not found');
-        }
+        const walletName = wallets?.find((w) => w.id === orderData.wallet_id)?.wallet_name || 'Selected wallet';
+        const walletBalance = await fetchWalletLedgerUsdtBalance(orderData.wallet_id);
 
         // Total required = net quantity + fee in USDT
         const totalRequired = netQuantity + feeUSDT;
-        
-        if (wallet.current_balance < totalRequired) {
+
+        if (walletBalance < totalRequired) {
           throw new Error(
-            `Insufficient wallet balance. Available: ${wallet.current_balance.toFixed(6)} USDT, Required: ${totalRequired.toFixed(6)} USDT (${netQuantity.toFixed(6)} quantity + ${feeUSDT.toFixed(6)} fee) in wallet: ${wallet.wallet_name}`
+            `Insufficient wallet balance. Available: ${walletBalance.toFixed(6)} USDT, Required: ${totalRequired.toFixed(6)} USDT (${netQuantity.toFixed(6)} quantity + ${feeUSDT.toFixed(6)} fee) in wallet: ${walletName}`
           );
         }
       }

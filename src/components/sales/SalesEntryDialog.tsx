@@ -20,6 +20,7 @@ import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -73,16 +74,11 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
-  // Fetch wallets
+  // Fetch wallets with ledger-backed USDT balances
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets_with_ledger_usdt_sales_entry'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*, fee_percentage, is_fee_enabled')
-        .eq('is_active', true);
-      if (error) throw error;
-      return data;
+      return fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, current_balance, fee_percentage, is_fee_enabled');
     },
   });
 
@@ -91,15 +87,15 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     queryKey: ['wallet_balance', formData.wallet_id],
     queryFn: async () => {
       if (!formData.wallet_id) return null;
-      
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('current_balance, wallet_name, fee_percentage, is_fee_enabled')
-        .eq('id', formData.wallet_id)
-        .single();
-      
-      if (error) throw error;
-      return data;
+      const selectedWallet = wallets?.find((w) => w.id === formData.wallet_id);
+      const liveBalance = await fetchWalletLedgerUsdtBalance(formData.wallet_id);
+
+      return {
+        current_balance: liveBalance,
+        wallet_name: selectedWallet?.wallet_name || 'Selected wallet',
+        fee_percentage: Number(selectedWallet?.fee_percentage || 0),
+        is_fee_enabled: Boolean(selectedWallet?.is_fee_enabled),
+      };
     },
     enabled: !!formData.wallet_id,
   });

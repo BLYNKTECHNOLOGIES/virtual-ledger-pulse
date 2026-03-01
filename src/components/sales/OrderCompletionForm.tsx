@@ -11,6 +11,7 @@ import { CheckCircle, Wallet, Package, DollarSign } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 interface OrderCompletionFormProps {
   open: boolean;
@@ -61,18 +62,11 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
     staleTime: 0,
   });
 
-  // Fetch wallets
+  // Fetch wallets with ledger-backed USDT balances
   const { data: wallets } = useQuery({
-    queryKey: ['wallets'],
+    queryKey: ['wallets_with_ledger_usdt_for_order_completion'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('*')
-        .eq('is_active', true)
-        .order('wallet_name');
-      
-      if (error) throw error;
-      return data;
+      return fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, wallet_address, is_active, current_balance');
     },
   });
 
@@ -111,21 +105,12 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
 
       // Validate wallet balance for USDT transactions
       if (walletId && usdtAmount > 0) {
-        const { data: wallet, error: walletError } = await supabase
-          .from('wallets')
-          .select('current_balance, wallet_name')
-          .eq('id', walletId)
-          .single();
+        const walletName = wallets?.find((w) => w.id === walletId)?.wallet_name || 'Selected wallet';
+        const walletBalance = await fetchWalletLedgerUsdtBalance(walletId);
 
-        if (walletError) throw walletError;
-
-        if (!wallet) {
-          throw new Error('Wallet not found');
-        }
-
-        if (wallet.current_balance < usdtAmount) {
+        if (walletBalance < usdtAmount) {
           throw new Error(
-            `Insufficient wallet balance. Available: ${wallet.current_balance}, Required: ${usdtAmount} in wallet: ${wallet.wallet_name}`
+            `Insufficient wallet balance. Available: ${walletBalance}, Required: ${usdtAmount} in wallet: ${walletName}`
           );
         }
       }
@@ -324,7 +309,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   <div className="text-sm space-y-1">
                     <div>Name: {selectedWallet.wallet_name}</div>
                     <div>Balance: {selectedWallet.current_balance?.toLocaleString()} USDT</div>
-                    <div>Address: {selectedWallet.wallet_address?.substring(0, 10)}...{selectedWallet.wallet_address?.substring(selectedWallet.wallet_address.length - 6)}</div>
+                    <div>Address: {typeof selectedWallet.wallet_address === 'string' && selectedWallet.wallet_address.length > 16 ? `${selectedWallet.wallet_address.substring(0, 10)}...${selectedWallet.wallet_address.substring(selectedWallet.wallet_address.length - 6)}` : 'N/A'}</div>
                   </div>
                 </div>
               )}

@@ -261,18 +261,6 @@ function useApplyReconciliation() {
           }
         }
 
-        // 6. Update wallet current_balance
-        const { data: wallet } = await supabase
-          .from("wallets")
-          .select("current_balance")
-          .eq("id", walletId)
-          .single();
-        if (wallet) {
-          await supabase
-            .from("wallets")
-            .update({ current_balance: Number(wallet.current_balance) + delta })
-            .eq("id", walletId);
-        }
       }
 
       return { delta, booked, actualUsdt, newPrice };

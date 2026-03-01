@@ -35,7 +35,7 @@ interface BankAccount {
   status: "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL" | "DORMANT";
   account_status: "ACTIVE" | "CLOSED";
   bank_account_holder_name?: string;
-  account_type: "SAVINGS" | "CURRENT";
+  account_type: "SAVINGS" | "CURRENT" | "CREDIT";
   subsidiary_id?: string;
   created_at: string;
   updated_at: string;
@@ -81,7 +81,7 @@ export function BankAccountManagement() {
     lien_amount: "",
     status: "PENDING_APPROVAL" as "ACTIVE" | "INACTIVE" | "PENDING_APPROVAL" | "DORMANT",
     bank_account_holder_name: "",
-    account_type: "SAVINGS" as "SAVINGS" | "CURRENT",
+    account_type: "SAVINGS" as "SAVINGS" | "CURRENT" | "CREDIT",
     subsidiary_id: ""
   });
   const [showDormantConfirmDialog, setShowDormantConfirmDialog] = useState(false);
@@ -614,7 +614,7 @@ export function BankAccountManagement() {
                   <Input 
                     id="balance" 
                     type="number" 
-                    min="0" 
+                    min={formData.account_type === "CREDIT" ? "-10000000" : "0"} 
                     step="0.01" 
                     value={formData.balance} 
                     onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))} 
@@ -622,6 +622,7 @@ export function BankAccountManagement() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Total Balance = Lien Amount + Available Balance
+                    {formData.account_type === "CREDIT" ? " (negative allowed for CREDIT accounts)" : ""}
                   </p>
                 </div>
                 <div>
@@ -665,7 +666,7 @@ export function BankAccountManagement() {
                   <Label htmlFor="account_type">Account Type *</Label>
                   <Select 
                     value={formData.account_type} 
-                    onValueChange={(value: "SAVINGS" | "CURRENT") => setFormData(prev => ({ ...prev, account_type: value }))}
+                    onValueChange={(value: "SAVINGS" | "CURRENT" | "CREDIT") => setFormData(prev => ({ ...prev, account_type: value }))}
                   >
                     <SelectTrigger className="bg-background">
                       <SelectValue />
@@ -673,6 +674,7 @@ export function BankAccountManagement() {
                     <SelectContent className="bg-background border shadow-lg z-50">
                       <SelectItem value="SAVINGS">Savings</SelectItem>
                       <SelectItem value="CURRENT">Current</SelectItem>
+                      <SelectItem value="CREDIT">Credit</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -780,8 +782,18 @@ export function BankAccountManagement() {
                           <TableCell>{account.bank_account_holder_name || "-"}</TableCell>
                           <TableCell>{account.bank_name}</TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={account.account_type === "SAVINGS" ? "bg-blue-50 text-blue-700" : "bg-green-50 text-green-700"}>
-                              {account.account_type === "SAVINGS" ? "Savings" : "Current"}
+                            <Badge variant="outline" className={
+                              account.account_type === "SAVINGS"
+                                ? "bg-blue-50 text-blue-700"
+                                : account.account_type === "CREDIT"
+                                  ? "bg-red-50 text-red-700"
+                                  : "bg-green-50 text-green-700"
+                            }>
+                              {account.account_type === "SAVINGS"
+                                ? "Savings"
+                                : account.account_type === "CREDIT"
+                                  ? "Credit"
+                                  : "Current"}
                             </Badge>
                           </TableCell>
                           <TableCell>{account.account_number}</TableCell>

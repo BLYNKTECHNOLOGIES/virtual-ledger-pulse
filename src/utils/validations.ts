@@ -18,7 +18,8 @@ export async function validateBankAccountBalance(bankAccountId: string, debitAmo
   if (error) throw error;
 
   // Credit accounts are allowed to go negative — skip balance check
-  if (bankAccount.account_type === 'CREDIT') return;
+  const accountType = String(bankAccount.account_type || '').trim().toUpperCase();
+  if (accountType === 'CREDIT') return;
 
   if (bankAccount.balance < debitAmount) {
     throw new ValidationError(`Bank account balance cannot be negative. Available: ₹${bankAccount.balance.toFixed(2)}, Required: ₹${debitAmount.toFixed(2)} in account: ${bankAccount.account_name}`);

@@ -12,6 +12,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
+import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { CustomerAutocomplete } from "@/components/sales/CustomerAutocomplete";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { AlertTriangle } from "lucide-react";
@@ -322,7 +323,8 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
       onOpenChange(false);
     },
     onError: (err: any) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      const { title, description } = parseApprovalError(err, 'Sales');
+      toast({ title, description, variant: "destructive" });
     },
   });
 

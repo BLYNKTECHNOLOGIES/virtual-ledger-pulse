@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
+import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { SupplierAutocomplete } from "@/components/purchase/SupplierAutocomplete";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
@@ -295,7 +296,8 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
       onSuccess(orderNumber || undefined);
       onOpenChange(false);
     } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      const { title, description } = parseApprovalError(err, 'Purchase');
+      toast({ title, description, variant: "destructive" });
     } finally {
       setLoading(false);
     }

@@ -129,7 +129,7 @@ export default function Financials() {
   });
 
   const formatCurrency = (amount: number) => {
-    return `₹${Math.abs(amount).toLocaleString()}`;
+    return `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString()}`;
   };
 
   return (

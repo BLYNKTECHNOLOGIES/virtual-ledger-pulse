@@ -165,7 +165,7 @@ export function TotalAssetValueWidget() {
   const total = data?.total || 0;
 
   const fmt = (amount: number) =>
-    `₹${Math.abs(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
   const fmtUnits = (units: number) =>
     units.toLocaleString(undefined, { maximumFractionDigits: 4 });
@@ -206,7 +206,8 @@ export function TotalAssetValueWidget() {
               label="Bank Balances (Active + Dormant)"
               total={fmt(data?.totalBank || 0)}
               count={data?.bankDetails?.length || 0}
-              positive
+              positive={(data?.totalBank || 0) >= 0}
+              negative={(data?.totalBank || 0) < 0}
             >
               {data?.bankDetails?.map((b, i) => (
                 <div key={i} className="flex justify-between items-center py-1.5 px-3 rounded bg-muted/50">
@@ -215,7 +216,7 @@ export function TotalAssetValueWidget() {
                     <span className="text-xs text-muted-foreground ml-2">({b.bank_name})</span>
                     {b.dormant_at && <span className="text-xs text-orange-500 ml-1">[Dormant]</span>}
                   </div>
-                  <span className="font-semibold text-green-600">{fmt(b.balance)}</span>
+                  <span className={`font-semibold ${b.balance < 0 ? 'text-destructive' : 'text-green-600'}`}>{fmt(b.balance)}</span>
                 </div>
               ))}
             </ExpandableCategory>

@@ -126,7 +126,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
       // Find bank account by name since purchase_payment_methods doesn't have bank_account_id
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('balance, account_name, id')
+        .select('balance, account_name, id, account_type')
         .eq('account_name', selectedMethod.bank_account_name)
         .single();
       
@@ -350,21 +350,16 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
   const handleCompleteOrder = () => {
     if (!selectedOrder || !selectedPaymentMethod) return;
-    
-    // Check bank balance before proceeding
-    const amountToPay = selectedOrder.tds_applied && selectedOrder.net_payable_amount 
-      ? selectedOrder.net_payable_amount 
-      : selectedOrder.total_amount;
-    
-    if (bankAccountBalance && bankAccountBalance.balance < amountToPay) {
+
+    if (hasInsufficientFunds) {
       toast({
         title: "Insufficient Funds",
-        description: `Bank balance (₹${bankAccountBalance.balance.toFixed(2)}) is less than required amount (₹${amountToPay.toFixed(2)})`,
+        description: `Bank balance (₹${bankAccountBalance?.balance.toFixed(2)}) is less than required amount (₹${amountToPay.toFixed(2)})`,
         variant: "destructive",
       });
       return;
     }
-    
+
     completeOrderMutation.mutate({
       orderId: selectedOrder.id,
       paymentMethodId: selectedPaymentMethod,
@@ -374,12 +369,19 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
   const handleReviewNeeded = () => {
     if (!selectedOrder || !failureReason.trim()) return;
-    
+
     reviewNeededMutation.mutate({
       orderId: selectedOrder.id,
       reason: failureReason
     });
   };
+
+  const amountToPay = selectedOrder?.tds_applied && selectedOrder?.net_payable_amount
+    ? selectedOrder.net_payable_amount
+    : selectedOrder?.total_amount || 0;
+
+  const isCreditAccount = bankAccountBalance?.account_type === 'CREDIT';
+  const hasInsufficientFunds = !!bankAccountBalance && !isCreditAccount && bankAccountBalance.balance < amountToPay;
 
   // Optimized loading skeleton
   const LoadingSkeleton = useMemo(() => (
@@ -516,41 +518,25 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
 
             {/* Bank Balance Display */}
             {bankAccountBalance && selectedPaymentMethod && (
-              <div className={`p-4 rounded-lg ${
-                bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
-                  ? selectedOrder.net_payable_amount 
-                  : selectedOrder?.total_amount) 
-                  ? 'bg-red-50' : 'bg-yellow-50'
-              }`}>
-                <h4 className={`font-medium ${
-                  bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
-                    ? selectedOrder.net_payable_amount 
-                    : selectedOrder?.total_amount) 
-                    ? 'text-red-800' : 'text-yellow-800'
-                }`}>
+              <div className={`p-4 rounded-lg ${hasInsufficientFunds ? 'bg-red-50' : 'bg-yellow-50'}`}>
+                <h4 className={`font-medium ${hasInsufficientFunds ? 'text-red-800' : 'text-yellow-800'}`}>
                   Available Bank Balance
                 </h4>
-                <p className={`text-sm ${
-                  bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
-                    ? selectedOrder.net_payable_amount 
-                    : selectedOrder?.total_amount) 
-                    ? 'text-red-600' : 'text-yellow-600'
-                }`}>
+                <p className={`text-sm ${hasInsufficientFunds ? 'text-red-600' : 'text-yellow-600'}`}>
                   Account: {bankAccountBalance.account_name}
+                  {isCreditAccount ? ' (CREDIT)' : ''}
                 </p>
-                <p className={`text-sm font-medium ${
-                  bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
-                    ? selectedOrder.net_payable_amount 
-                    : selectedOrder?.total_amount) 
-                    ? 'text-red-800' : 'text-yellow-800'
-                }`}>
+                <p className={`text-sm font-medium ${hasInsufficientFunds ? 'text-red-800' : 'text-yellow-800'}`}>
                   Available: ₹{bankAccountBalance.balance.toFixed(2)}
                 </p>
-                {bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
-                  ? selectedOrder.net_payable_amount 
-                  : selectedOrder?.total_amount) && (
+                {hasInsufficientFunds && (
                   <p className="text-sm text-red-600 font-medium mt-1">
                     ⚠️ Insufficient funds! Cannot proceed with payment.
+                  </p>
+                )}
+                {isCreditAccount && (
+                  <p className="text-sm text-yellow-700 font-medium mt-1">
+                    CREDIT account selected — negative balance is allowed.
                   </p>
                 )}
               </div>
@@ -571,11 +557,9 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
               <Button 
                 onClick={handleCompleteOrder}
                 disabled={
-                  !selectedPaymentMethod || 
+                  !selectedPaymentMethod ||
                   completeOrderMutation.isPending ||
-                  (bankAccountBalance && bankAccountBalance.balance < (selectedOrder?.tds_applied && selectedOrder?.net_payable_amount 
-                    ? selectedOrder.net_payable_amount 
-                    : selectedOrder?.total_amount))
+                  hasInsufficientFunds
                 }
               >
                 {completeOrderMutation.isPending ? "Processing..." : "Complete Payment"}

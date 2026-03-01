@@ -85,6 +85,7 @@ import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
+import { Toaster } from '@/components/ui/toaster';
 
 const router = createBrowserRouter([
   // Login — the only public route
@@ -681,6 +682,7 @@ function App() {
   return (
     <React.StrictMode>
       <RouterProvider router={router} />
+      <Toaster />
     </React.StrictMode>
   );
 }

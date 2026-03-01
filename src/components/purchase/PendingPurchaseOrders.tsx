@@ -380,7 +380,7 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
     ? selectedOrder.net_payable_amount
     : selectedOrder?.total_amount || 0;
 
-  const isCreditAccount = bankAccountBalance?.account_type === 'CREDIT';
+  const isCreditAccount = (bankAccountBalance?.account_type || '').trim().toUpperCase() === 'CREDIT';
   const hasInsufficientFunds = !!bankAccountBalance && !isCreditAccount && bankAccountBalance.balance < amountToPay;
 
   // Optimized loading skeleton

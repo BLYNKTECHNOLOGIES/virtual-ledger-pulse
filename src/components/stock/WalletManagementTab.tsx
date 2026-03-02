@@ -20,6 +20,7 @@ import { ImportWalletsDialog } from "./ImportWalletsDialog";
 import { EditWalletDialog } from "./EditWalletDialog";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
+import { PermissionGate } from "@/components/PermissionGate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -770,14 +771,16 @@ export function WalletManagementTab() {
                         >
                           <Pencil className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleDeleteWallet(wallet)}
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDeleteWallet(wallet)}
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -856,15 +859,17 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>
                       {isDeletable(transaction.reference_type) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeleteTransaction(transaction)}
-                          disabled={deleteTransactionMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteTransaction(transaction)}
+                            disabled={deleteTransactionMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </PermissionGate>
                       )}
                     </TableCell>
                   </TableRow>

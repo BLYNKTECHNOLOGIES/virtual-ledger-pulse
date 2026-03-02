@@ -255,14 +255,16 @@ export function ExpensesIncomesTab() {
                        >
                          <Pencil className="h-4 w-4" />
                        </Button>
-                       <Button
-                         variant="ghost"
-                         size="icon"
-                         className="h-8 w-8 text-destructive hover:text-destructive"
-                         onClick={() => handleDeleteClick(transaction)}
-                       >
-                         <Trash2 className="h-4 w-4" />
-                       </Button>
+                       <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           className="h-8 w-8 text-destructive hover:text-destructive"
+                           onClick={() => handleDeleteClick(transaction)}
+                         >
+                           <Trash2 className="h-4 w-4" />
+                         </Button>
+                       </PermissionGate>
                      </PermissionGate>
                      <div className="text-right">
                     <div className={`font-semibold text-lg ${getTransactionColor(transaction.transaction_type)}`}>

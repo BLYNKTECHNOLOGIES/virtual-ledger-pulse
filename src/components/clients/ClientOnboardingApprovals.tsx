@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { 
   CheckCircle, 
   XCircle, 
@@ -69,6 +70,7 @@ export function ClientOnboardingApprovals() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   // Fetch approvals - all pending, and all reviewed (history)
   const { data: approvals, isLoading } = useQuery({
@@ -449,14 +451,16 @@ export function ClientOnboardingApprovals() {
                           <Eye className="h-3 w-3 mr-1" />
                           Review
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleReject(approval.id, 'Insufficient documentation')}
-                        >
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Reject
-                        </Button>
+                        {hasPermission('clients_destructive') && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleReject(approval.id, 'Insufficient documentation')}
+                          >
+                            <XCircle className="h-3 w-3 mr-1" />
+                            Reject
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

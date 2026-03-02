@@ -13,6 +13,7 @@ import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { PurchaseOrderDetailsDialog } from "./PurchaseOrderDetailsDialog";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { useNavigateToClient } from "@/hooks/useNavigateToClient";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,6 +94,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
   const { toast } = useToast();
   const navigateToClient = useNavigateToClient();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
   const [selectedOrderForEdit, setSelectedOrderForEdit] = useState<any>(null);
   const [orderToDelete, setOrderToDelete] = useState<any>(null);
@@ -268,15 +270,17 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
             <Edit className="h-4 w-4 mr-1" />
             Edit
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setOrderToDelete(order)}
-            disabled={deleteMutation.isPending}
-            className="text-red-600"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          {hasPermission('erp_destructive') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOrderToDelete(order)}
+              disabled={deleteMutation.isPending}
+              className="text-red-600"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -383,20 +387,22 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                               <Edit className="h-4 w-4 mr-1" />
                               Edit
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setOrderToDelete(order);
-                                toast({
-                                  title: "Delete requested",
-                                  description: `Confirm deletion for order ${order.order_number}.`,
-                                });
-                              }}
-                              disabled={deleteMutation.isPending}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                            {hasPermission('erp_destructive') && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setOrderToDelete(order);
+                                  toast({
+                                    title: "Delete requested",
+                                    description: `Confirm deletion for order ${order.order_number}.`,
+                                  });
+                                }}
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

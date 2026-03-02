@@ -12019,6 +12019,11 @@ export type Database = {
         | "ems_manage"
         | "stock_conversion_create"
         | "stock_conversion_approve"
+        | "erp_destructive"
+        | "terminal_destructive"
+        | "bams_destructive"
+        | "clients_destructive"
+        | "stock_destructive"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
       terminal_permission:
@@ -12251,6 +12256,11 @@ export const Constants = {
         "ems_manage",
         "stock_conversion_create",
         "stock_conversion_approve",
+        "erp_destructive",
+        "terminal_destructive",
+        "bams_destructive",
+        "clients_destructive",
+        "stock_destructive",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

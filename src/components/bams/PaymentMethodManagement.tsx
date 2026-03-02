@@ -1017,15 +1017,17 @@ export function PaymentMethodManagement() {
                             <Edit className="h-3 w-3" />
                             Edit
                           </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => setDeletingMethod(method)}
-                            className="flex items-center gap-1"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            Delete
-                          </Button>
+                          <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setDeletingMethod(method)}
+                              className="flex items-center gap-1"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Delete
+                            </Button>
+                          </PermissionGate>
                         </div>
                       </PermissionGate>
                     </TableCell>

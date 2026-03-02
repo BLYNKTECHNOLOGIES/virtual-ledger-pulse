@@ -16,6 +16,7 @@ import { TerminalSalesApprovalDialog } from "./TerminalSalesApprovalDialog";
 import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
 import { getCurrentUserId } from "@/lib/system-action-logger";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   synced_pending_approval: { label: "Pending Approval", variant: "default" },
@@ -28,6 +29,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 export function TerminalSalesSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   const [statusFilter, setStatusFilter] = useState("all");
   const [approvalRecord, setApprovalRecord] = useState<any>(null);
   const [rejectRecord, setRejectRecord] = useState<any>(null);
@@ -316,15 +318,17 @@ export function TerminalSalesSyncTab() {
                               Approve
                             </Button>
                           )}
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="h-7 text-[10px] gap-1"
-                            onClick={() => setRejectRecord(record)}
-                          >
-                            <XCircle className="h-3 w-3" />
-                            Reject
-                          </Button>
+                          {hasPermission('terminal_destructive') && (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="h-7 text-[10px] gap-1"
+                              onClick={() => setRejectRecord(record)}
+                            >
+                              <XCircle className="h-3 w-3" />
+                              Reject
+                            </Button>
+                          )}
                         </div>
                       )}
                     </TableCell>

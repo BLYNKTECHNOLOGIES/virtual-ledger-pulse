@@ -527,10 +527,12 @@ export function BankAccountManagement() {
         </div>
         <div className="flex gap-2">
           <ViewOnlyWrapper isViewOnly={isViewOnly}>
-            <Button variant="outline" onClick={() => setShowAdjustmentDialog(true)}>
-              <Settings className="h-4 w-4 mr-2" />
-              Adjust Balance
-            </Button>
+            <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
+              <Button variant="outline" onClick={() => setShowAdjustmentDialog(true)}>
+                <Settings className="h-4 w-4 mr-2" />
+                Adjust Balance
+              </Button>
+            </PermissionGate>
           </ViewOnlyWrapper>
           <ViewOnlyWrapper isViewOnly={isViewOnly}>
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
@@ -829,15 +831,17 @@ export function BankAccountManagement() {
                                   <Edit className="h-3 w-3" />
                                   Edit
                                 </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  size="sm" 
-                                  onClick={() => handleCloseAccount(account)}
-                                  className="flex items-center gap-1"
-                                >
-                                  <X className="h-3 w-3" />
-                                  Close
-                                </Button>
+                                <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm" 
+                                    onClick={() => handleCloseAccount(account)}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <X className="h-3 w-3" />
+                                    Close
+                                  </Button>
+                                </PermissionGate>
                               </div>
                             </PermissionGate>
                           </TableCell>

@@ -178,7 +178,6 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     if (authMethod === 'YUBIKEY') {
       params.authType = 'FIDO2';
       params.code = finalCode;
-      params.confirmPaidType = 'FIDO2';
     } else {
       params.authType = authMethod;
       params.code = finalCode;

@@ -2373,6 +2373,96 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_daily: {
+        Row: {
+          attendance_date: string
+          created_at: string | null
+          early_by_minutes: number | null
+          early_departure: boolean | null
+          employee_id: string
+          first_in: string | null
+          id: string
+          is_late: boolean | null
+          last_out: string | null
+          late_by_minutes: number | null
+          punch_count: number | null
+          status: string | null
+          total_hours: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string | null
+          early_by_minutes?: number | null
+          early_departure?: boolean | null
+          employee_id: string
+          first_in?: string | null
+          id?: string
+          is_late?: boolean | null
+          last_out?: string | null
+          late_by_minutes?: number | null
+          punch_count?: number | null
+          status?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string | null
+          early_by_minutes?: number | null
+          early_departure?: boolean | null
+          employee_id?: string
+          first_in?: string | null
+          id?: string
+          is_late?: boolean | null
+          last_out?: string | null
+          late_by_minutes?: number | null
+          punch_count?: number | null
+          status?: string | null
+          total_hours?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      hr_attendance_punches: {
+        Row: {
+          badge_id: string
+          created_at: string | null
+          device_name: string | null
+          device_serial: string | null
+          employee_id: string | null
+          id: string
+          punch_time: string
+          punch_type: string | null
+          raw_status: number | null
+          verified: boolean | null
+        }
+        Insert: {
+          badge_id: string
+          created_at?: string | null
+          device_name?: string | null
+          device_serial?: string | null
+          employee_id?: string | null
+          id?: string
+          punch_time: string
+          punch_type?: string | null
+          raw_status?: number | null
+          verified?: boolean | null
+        }
+        Update: {
+          badge_id?: string
+          created_at?: string | null
+          device_name?: string | null
+          device_serial?: string | null
+          employee_id?: string | null
+          id?: string
+          punch_time?: string
+          punch_type?: string | null
+          raw_status?: number | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
       hr_biometric_devices: {
         Row: {
           company: string | null

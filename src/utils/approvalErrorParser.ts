@@ -139,14 +139,14 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
   if (lowerMsg.includes('could not choose the best candidate function') || lowerMsg.includes('is not unique')) {
     return {
       title: 'Purchase Approval Failed',
-      description: 'Could not process this approval right now. Please try again.',
+      description: msg,
     };
   }
 
-  // ── Fallback ──
+  // ── Fallback ── always show the real error
   const contextLabel = context ? `${context} Failed` : 'Action Failed';
   return {
     title: contextLabel,
-    description: 'Something went wrong while processing this request. Please try again.',
+    description: msg || 'Something went wrong while processing this request. Please try again.',
   };
 }

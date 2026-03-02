@@ -172,12 +172,11 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     releaseFiredRef.current = true;
     console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
     
-    // Binance defaults to GOOGLE when authType is omitted.
-    // For YubiKey OTP we must explicitly set authType and provide OTP payload.
+    // Important Binance behavior:
+    // - YubiKey OTP must be sent as generic `code` (no authType / no yubikeyVerifyCode),
+    //   otherwise Binance returns generic/unsupported auth errors.
     const params: Record<string, any> = { orderNumber };
     if (authMethod === 'YUBIKEY') {
-      params.authType = 'YUBIKEY';
-      params.yubikeyVerifyCode = finalCode;
       params.code = finalCode;
     } else {
       params.authType = authMethod;

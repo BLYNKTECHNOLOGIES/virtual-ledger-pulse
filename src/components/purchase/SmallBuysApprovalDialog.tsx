@@ -200,7 +200,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
         result = data;
         rpcError = error;
       } else {
-        const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2', {
+        const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2_rpc' as any, {
           p_order_number: orderNumber,
           p_supplier_name: 'Small Buys',
           p_order_date: settlementDate,

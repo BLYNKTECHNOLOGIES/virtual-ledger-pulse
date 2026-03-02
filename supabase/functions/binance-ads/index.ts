@@ -352,26 +352,73 @@ serve(async (req) => {
 
       case "releaseCoin": {
         // POST /sapi/v1/c2c/orderMatch/releaseCoin (API doc #29)
-        // Body: { orderNumber, authType, code, confirmPaidType,
-        //         emailVerifyCode, googleVerifyCode, mobileVerifyCode, yubikeyVerifyCode, payId }
+        // NOTE: Binance/proxy behavior for YubiKey can vary by account/proxy version.
+        // We retry safe payload variants for 44-char modhex OTP to avoid false failures.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
-        const body: Record<string, any> = {
+
+        const isLikelyYubikeyOtp =
+          typeof payload.code === "string" &&
+          payload.code.length >= 44 &&
+          /^[cbdefghijklnrtuv]+$/i.test(payload.code);
+
+        const baseBody: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
-        if (payload.authType) body.authType = payload.authType;
-        if (payload.code) body.code = payload.code;
-        // Send individual verify code fields as the API expects them
-        if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
-        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
-        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
-        if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
-        if (payload.payId !== undefined) body.payId = payload.payId;
-        if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
-        console.log("releaseCoin body:", JSON.stringify(body));
-        const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
-        const text = await response.text();
-        console.log("releaseCoin response:", response.status, text.substring(0, 500));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (payload.authType) baseBody.authType = payload.authType;
+        if (payload.code) baseBody.code = payload.code;
+        if (payload.googleVerifyCode) baseBody.googleVerifyCode = payload.googleVerifyCode;
+        if (payload.emailVerifyCode) baseBody.emailVerifyCode = payload.emailVerifyCode;
+        if (payload.mobileVerifyCode) baseBody.mobileVerifyCode = payload.mobileVerifyCode;
+        if (payload.yubikeyVerifyCode) baseBody.yubikeyVerifyCode = payload.yubikeyVerifyCode;
+        if (payload.payId !== undefined) baseBody.payId = payload.payId;
+        if (payload.confirmPaidType) baseBody.confirmPaidType = payload.confirmPaidType;
+
+        const attemptBodies: Record<string, any>[] = [baseBody];
+
+        if (isLikelyYubikeyOtp) {
+          const otp = payload.code;
+          const addAttempt = (body: Record<string, any>) => {
+            const key = JSON.stringify(body);
+            if (!attemptBodies.some((b) => JSON.stringify(b) === key)) attemptBodies.push(body);
+          };
+
+          // Common Binance/proxy variants observed in the wild for YubiKey OTP
+          addAttempt({ orderNumber: payload.orderNumber, code: otp, authType: "YUBIKEY" });
+          addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", yubikeyVerifyCode: otp });
+          addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", code: otp, yubikeyVerifyCode: otp });
+          addAttempt({ orderNumber: payload.orderNumber, code: otp, confirmPaidType: "YUBIKEY" });
+          addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", code: otp, confirmPaidType: "YUBIKEY" });
+        }
+
+        let lastResponseText = "";
+        let lastParsed: any = null;
+
+        for (let i = 0; i < attemptBodies.length; i++) {
+          const body = attemptBodies[i];
+          console.log(`releaseCoin attempt ${i + 1}/${attemptBodies.length} body:`, JSON.stringify(body));
+
+          const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+          const text = await response.text();
+          lastResponseText = text;
+          console.log(`releaseCoin attempt ${i + 1} response:`, response.status, text.substring(0, 500));
+
+          let parsed: any;
+          try {
+            parsed = JSON.parse(text);
+          } catch {
+            parsed = { raw: text, status: response.status };
+          }
+
+          lastParsed = parsed;
+          if (parsed?.code === "000000" || parsed?.success === true) {
+            result = parsed;
+            break;
+          }
+        }
+
+        if (!result) {
+          result = lastParsed ?? { raw: lastResponseText, status: 500 };
+        }
         break;
       }
 

@@ -134,7 +134,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                         Completed
                       </div>
                     </div>
-                    <PermissionGate permissions={["bams_manage"]} showFallback={false}>
+                    <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
                       <Button
                         variant="ghost"
                         size="icon"

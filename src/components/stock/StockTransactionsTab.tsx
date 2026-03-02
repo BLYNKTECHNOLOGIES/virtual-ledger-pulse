@@ -19,6 +19,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { fetchActiveWalletsWithLedgerAssetBalance, fetchWalletLedgerAssetBalance } from "@/lib/wallet-ledger-balance";
+import { PermissionGate } from "@/components/PermissionGate";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -936,15 +937,17 @@ export function StockTransactionsTab() {
                       </td>
                       <td className="py-3 px-4">
                         {isDeletableEntry(entry) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteTransaction(entry)}
-                            disabled={deleteTransactionMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteTransaction(entry)}
+                              disabled={deleteTransactionMutation.isPending}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </PermissionGate>
                         )}
                       </td>
                     </tr>

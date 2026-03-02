@@ -29,12 +29,14 @@ import { SmallSalesSyncTab } from "@/components/sales/SmallSalesSyncTab";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useNavigateToClient } from "@/hooks/useNavigateToClient";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Sales() {
   const navigate = useNavigate();
   const navigateToClient = useNavigateToClient();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
   const [showManualSalesEntry, setShowManualSalesEntry] = useState(false);
   
@@ -330,15 +332,17 @@ export default function Sales() {
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleDeleteOrder(order.id)}
-                  disabled={deleteSalesOrderMutation.isPending}
-                  className="text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {hasPermission('erp_destructive') && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => handleDeleteOrder(order.id)}
+                    disabled={deleteSalesOrderMutation.isPending}
+                    className="text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </PermissionGate>
             </>
           )}
@@ -449,14 +453,16 @@ export default function Sales() {
                             <Edit className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleDeleteOrder(order.id)}
-                            disabled={deleteSalesOrderMutation.isPending}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {hasPermission('erp_destructive') && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteOrder(order.id)}
+                              disabled={deleteSalesOrderMutation.isPending}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </PermissionGate>
                       </>
                     )}

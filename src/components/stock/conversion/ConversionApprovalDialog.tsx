@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useRejectConversion, ConversionRecord } from "@/hooks/useProductConversions";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Props {
   record: ConversionRecord | null;
@@ -14,6 +15,19 @@ interface Props {
 export function ConversionApprovalDialog({ record, onClose }: Props) {
   const [reason, setReason] = useState("");
   const rejectMutation = useRejectConversion();
+  const { hasPermission } = usePermissions();
+
+  if (!hasPermission('stock_destructive')) {
+    return (
+      <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Permission Denied</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">You do not have permission to reject conversions.</p>
+          <DialogFooter><Button variant="outline" onClick={onClose}>Close</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const handleReject = () => {
     if (!record) return;

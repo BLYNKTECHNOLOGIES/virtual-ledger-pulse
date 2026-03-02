@@ -66,6 +66,11 @@ const availablePermissions = [
   { id: "statistics_manage", name: "Statistics Manage", description: "Manage statistics" },
   { id: "ems_view", name: "EMS View", description: "View Employee Management System" },
   { id: "ems_manage", name: "EMS Manage", description: "Manage Employee Management System" },
+  { id: "erp_destructive", name: "ERP Destructive", description: "Reject/delete ERP actions and conversions" },
+  { id: "terminal_destructive", name: "Terminal Destructive", description: "Reject/delete terminal syncs and orders" },
+  { id: "bams_destructive", name: "BAMS Destructive", description: "Delete/close/reverse BAMS entries and accounts" },
+  { id: "clients_destructive", name: "Clients Destructive", description: "Delete/reject clients" },
+  { id: "stock_destructive", name: "Stock Destructive", description: "Delete stock/wallet transactions and conversions" },
 ];
 
 // Map old permission format to new format (for backwards compatibility)

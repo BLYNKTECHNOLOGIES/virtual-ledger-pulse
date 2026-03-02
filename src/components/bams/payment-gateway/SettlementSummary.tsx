@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SettlementReviewDialog } from "./SettlementReviewDialog";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Settlement {
   id: string;
@@ -68,6 +69,7 @@ export function SettlementSummary() {
   const [isReversing, setIsReversing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     fetchSettlements();
@@ -428,7 +430,7 @@ export function SettlementSummary() {
                           <Eye className="h-4 w-4" />
                           Review
                         </Button>
-                        {settlement.status !== 'REVERSED' && (
+                        {settlement.status !== 'REVERSED' && hasPermission('bams_destructive') && (
                           <Button 
                             size="sm" 
                             variant="outline"

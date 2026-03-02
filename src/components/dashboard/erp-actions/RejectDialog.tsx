@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useRejectQueueItem, ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { useToast } from "@/hooks/use-toast";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface RejectDialogProps {
   item: ErpActionQueueItem | null;
@@ -17,6 +18,21 @@ export function RejectDialog({ item, open, onOpenChange }: RejectDialogProps) {
   const [reason, setReason] = useState("");
   const rejectMutation = useRejectQueueItem();
   const { toast } = useToast();
+  const { hasPermission } = usePermissions();
+
+  if (!hasPermission('erp_destructive')) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Permission Denied</DialogTitle>
+            <DialogDescription>You do not have permission to reject ERP actions.</DialogDescription>
+          </DialogHeader>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const handleReject = () => {
     if (!item) return;

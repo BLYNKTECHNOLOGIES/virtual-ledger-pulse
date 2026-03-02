@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 import { 
   Search, 
   CheckCircle, 
@@ -36,6 +37,7 @@ export function SellerOnboardingApprovals() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { hasPermission } = usePermissions();
 
   // Fetch pending seller approvals (sellers without KYC documents with PENDING status)
   const { data: pendingSellers, isLoading } = useQuery({
@@ -298,15 +300,17 @@ export function SellerOnboardingApprovals() {
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Approve
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRejectClick(seller)}
-                              disabled={rejectMutation.isPending}
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Reject
-                            </Button>
+                            {hasPermission('clients_destructive') && (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleRejectClick(seller)}
+                                disabled={rejectMutation.isPending}
+                              >
+                                <XCircle className="h-3 w-3 mr-1" />
+                                Reject
+                              </Button>
+                            )}
                           </div>
                         </td>
                       </tr>

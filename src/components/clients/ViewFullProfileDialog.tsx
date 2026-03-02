@@ -10,6 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { PermissionGate } from "@/components/PermissionGate";
  import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface ViewFullProfileDialogProps {
@@ -353,6 +354,7 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
           )}
 
           {/* Delete Client */}
+          <PermissionGate permissions={["clients_destructive"]} showFallback={false}>
           <div className="border-t pt-4">
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -398,6 +400,7 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
               </AlertDialogContent>
             </AlertDialog>
           </div>
+          </PermissionGate>
         </div>
       </DialogContent>
     </Dialog>

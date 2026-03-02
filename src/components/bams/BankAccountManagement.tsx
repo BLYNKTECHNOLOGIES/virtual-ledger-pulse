@@ -520,12 +520,12 @@ export function BankAccountManagement() {
 
   return (
     <div className="space-y-6 px-[15px]">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Bank Account Management</h2>
-          <p className="text-gray-600">Manage centralized bank accounts for receiving sales and purchase payments</p>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Bank Account Management</h2>
+          <p className="text-xs sm:text-sm text-gray-600">Manage centralized bank accounts for receiving sales and purchase payments</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <ViewOnlyWrapper isViewOnly={isViewOnly}>
             <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
               <Button variant="outline" onClick={() => setShowAdjustmentDialog(true)}>

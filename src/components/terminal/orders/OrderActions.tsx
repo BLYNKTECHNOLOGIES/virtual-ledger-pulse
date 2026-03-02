@@ -158,6 +158,8 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
 
+  const releaseFiredRef = useRef(false);
+
   // Keep ref in sync so onKeyDown always has the latest value
   const updateCode = (val: string) => {
     setCode(val);
@@ -166,7 +168,9 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 
   const doRelease = (overrideCode?: string) => {
     const finalCode = overrideCode || codeRef.current;
-    if (!finalCode.trim()) return;
+    if (!finalCode.trim() || releaseFiredRef.current || releaseCoin.isPending) return;
+    releaseFiredRef.current = true;
+    console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
     const params: Record<string, any> = {
       orderNumber,
       authType: authMethod === 'YUBIKEY' ? 'FIDO2' : authMethod,
@@ -176,12 +180,25 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
       onSuccess: () => {
         setOpen(false);
         updateCode('');
+        releaseFiredRef.current = false;
+      },
+      onError: () => {
+        releaseFiredRef.current = false;
       },
     });
   };
 
+  // Auto-submit for YubiKey when OTP reaches 44 chars (standard Yubico OTP length)
+  const handleCodeChange = (val: string) => {
+    updateCode(val);
+    if (authMethod === 'YUBIKEY' && val.length >= 44 && !releaseFiredRef.current) {
+      console.log('[ReleaseCrypto] YubiKey auto-submit at', val.length, 'chars');
+      setTimeout(() => doRelease(val), 100);
+    }
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setCode(''); }}>
+    <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCode(''); releaseFiredRef.current = false; } }}>
       <AlertDialogTrigger asChild>
         <Button
           size="sm"
@@ -237,7 +254,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               value={code}
               onChange={(e) => {
                 console.log('[ReleaseCrypto] Input onChange:', e.target.value.length, 'chars');
-                updateCode(e.target.value);
+                handleCodeChange(e.target.value);
               }}
               onKeyDown={(e) => {
                 console.log('[ReleaseCrypto] Key pressed:', e.key);

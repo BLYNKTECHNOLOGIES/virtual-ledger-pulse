@@ -352,78 +352,36 @@ serve(async (req) => {
 
       case "releaseCoin": {
         // POST /sapi/v1/c2c/orderMatch/releaseCoin (API doc #29)
-        // NOTE: Binance/proxy behavior for YubiKey can vary by account/proxy version.
-        // We retry safe payload variants for 44-char modhex OTP to avoid false failures.
+        // IMPORTANT: OTP codes (especially YubiKey/FIDO2) are one-time; never retry with alternate payloads.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
 
-        const isLikelyYubikeyOtp =
-          typeof payload.code === "string" &&
-          payload.code.length >= 44 &&
-          /^[cbdefghijklnrtuv]+$/i.test(payload.code);
-
-        const baseBody: Record<string, any> = {
-          orderNumber: payload.orderNumber,
-        };
         const normalizedAuthType = payload.authType === "YUBIKEY" ? "FIDO2" : payload.authType;
 
-        if (normalizedAuthType) baseBody.authType = normalizedAuthType;
-        if (payload.code) baseBody.code = payload.code;
-        if (payload.googleVerifyCode) baseBody.googleVerifyCode = payload.googleVerifyCode;
-        if (payload.emailVerifyCode) baseBody.emailVerifyCode = payload.emailVerifyCode;
-        if (payload.mobileVerifyCode) baseBody.mobileVerifyCode = payload.mobileVerifyCode;
-        if (payload.yubikeyVerifyCode) baseBody.yubikeyVerifyCode = payload.yubikeyVerifyCode;
-        if (payload.payId !== undefined) baseBody.payId = payload.payId;
-        if (payload.confirmPaidType) baseBody.confirmPaidType = payload.confirmPaidType;
+        const body: Record<string, any> = {
+          orderNumber: payload.orderNumber,
+        };
+        if (normalizedAuthType) body.authType = normalizedAuthType;
+        if (payload.code) body.code = payload.code;
+        if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
+        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
+        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
+        if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
+        if (payload.payId !== undefined) body.payId = payload.payId;
+        if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
 
-        const attemptBodies: Record<string, any>[] = [baseBody];
+        console.log("releaseCoin body:", JSON.stringify(body));
+        const response = await fetchWithRetry(url, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify(body),
+        });
+        const text = await response.text();
+        console.log("releaseCoin response:", response.status, text.substring(0, 1000));
 
-        if (isLikelyYubikeyOtp) {
-          const otp = payload.code;
-          const addAttempt = (body: Record<string, any>) => {
-            const key = JSON.stringify(body);
-            if (!attemptBodies.some((b) => JSON.stringify(b) === key)) attemptBodies.push(body);
-          };
-
-          // API doc v7.4 shows FIDO2 + code for releaseCoin; try these first.
-          addAttempt({ orderNumber: payload.orderNumber, authType: "FIDO2", code: otp });
-          addAttempt({ orderNumber: payload.orderNumber, authType: "FIDO2", code: otp, confirmPaidType: "FIDO2" });
-
-          // Backward-compatible proxy variants.
-          addAttempt({ orderNumber: payload.orderNumber, code: otp, authType: "YUBIKEY" });
-          addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", yubikeyVerifyCode: otp });
-          addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", code: otp, yubikeyVerifyCode: otp });
-          addAttempt({ orderNumber: payload.orderNumber, code: otp, confirmPaidType: "YUBIKEY" });
-          addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", code: otp, confirmPaidType: "YUBIKEY" });
-        }
-
-        let lastResponseText = "";
-        let lastParsed: any = null;
-
-        for (let i = 0; i < attemptBodies.length; i++) {
-          const body = attemptBodies[i];
-          console.log(`releaseCoin attempt ${i + 1}/${attemptBodies.length} body:`, JSON.stringify(body));
-
-          const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
-          const text = await response.text();
-          lastResponseText = text;
-          console.log(`releaseCoin attempt ${i + 1} response:`, response.status, text.substring(0, 500));
-
-          let parsed: any;
-          try {
-            parsed = JSON.parse(text);
-          } catch {
-            parsed = { raw: text, status: response.status };
-          }
-
-          lastParsed = parsed;
-          if (parsed?.code === "000000" || parsed?.success === true) {
-            result = parsed;
-            break;
-          }
-        }
-
-        if (!result) {
-          result = lastParsed ?? { raw: lastResponseText, status: 500 };
+        try {
+          result = JSON.parse(text);
+        } catch {
+          result = { raw: text, status: response.status };
         }
         break;
       }

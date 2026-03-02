@@ -97,18 +97,24 @@ export default function ProfitLoss() {
   const handleDatePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset);
     localStorage.setItem('pnl_date_preset', preset);
-    // CRITICAL: also update dateRange so the query re-runs with fresh dates.
-    // Without this, switching to "today" keeps the stale previous range.
-    const newRange = getDateRangeFromPreset(preset);
-    setDateRange(newRange);
+    // For named presets, recompute the range so the query re-runs with fresh dates.
+    // For "custom", do NOT overwrite — the range was already set by onDateRangeChange.
+    if (preset !== 'custom') {
+      const newRange = getDateRangeFromPreset(preset);
+      setDateRange(newRange);
+    }
   };
   const [selectedAsset, setSelectedAsset] = useState<string>('all');
 
   const getDateRange = () => {
+    // "allTime" → widest possible range
+    if (datePreset === 'allTime') {
+      return { startDate: new Date(2020, 0, 1), endDate: new Date() };
+    }
     // For time-sensitive presets (today, yesterday, last7days etc.), always recompute
     // a fresh date range so that if the page was loaded before midnight the dates
     // don't become stale. Only for "custom" do we rely on the dateRange state.
-    if (datePreset && datePreset !== 'custom' && datePreset !== 'allTime') {
+    if (datePreset && datePreset !== 'custom') {
       const freshRange = getDateRangeFromPreset(datePreset);
       if (freshRange?.from && freshRange?.to) {
         return { startDate: freshRange.from, endDate: freshRange.to };

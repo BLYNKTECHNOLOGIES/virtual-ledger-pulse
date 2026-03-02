@@ -6,6 +6,11 @@ import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { useToast } from '@/hooks/use-toast';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
+interface AdStatusSnapshot {
+  advNo: string;
+  advStatus: number; // 1=Online, 2=Private
+}
+
 interface RestTimer {
   id: string;
   started_at: string;
@@ -13,6 +18,7 @@ interface RestTimer {
   started_by: string | null;
   is_active: boolean;
   deactivated_ad_nos: string[];
+  deactivated_ad_statuses: AdStatusSnapshot[] | null;
 }
 
 export function useAdRestTimer() {
@@ -31,7 +37,7 @@ export function useAdRestTimer() {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data as RestTimer | null;
+      return data as unknown as RestTimer | null;
     },
     refetchInterval: 30_000,
   });
@@ -55,21 +61,23 @@ export function useAdRestTimer() {
     }
   }, [activeTimer, timerState.isResting]);
 
-  // Start rest — call API directly, no nested mutations
+  // Start rest — deactivate all active ads (Online + Private) and store their statuses
   const startRest = useMutation({
-    mutationFn: async ({ onlineAds, userName }: { onlineAds: BinanceAd[]; userName?: string }) => {
-      const advNos = onlineAds.map(a => a.advNo);
+    mutationFn: async ({ activeAds, userName }: { activeAds: BinanceAd[]; userName?: string }) => {
+      const advNos = activeAds.map(a => a.advNo);
+      const adStatuses: AdStatusSnapshot[] = activeAds.map(a => ({ advNo: a.advNo, advStatus: a.advStatus }));
 
-      // Deactivate all online ads via Binance API directly
+      // Deactivate all active ads via Binance API
       if (advNos.length > 0) {
         await callBinanceAds('updateAdStatus', { advNos, advStatus: BINANCE_AD_STATUS.OFFLINE });
       }
 
-      // Store timer in DB
+      // Store timer in DB with per-ad status snapshots
       const { error } = await supabase.from('ad_rest_timer').insert({
         started_by: userName || 'Operator',
         duration_minutes: 60,
         deactivated_ad_nos: advNos,
+        deactivated_ad_statuses: adStatuses as any,
         is_active: true,
       });
       if (error) throw error;
@@ -80,7 +88,7 @@ export function useAdRestTimer() {
       toast({ title: 'Rest Mode Activated', description: 'All ads deactivated. 1-hour timer started.' });
       logAdAction({
         actionType: AdActionTypes.AD_REST_STARTED,
-        metadata: { deactivatedCount: vars.onlineAds.length, advNos: vars.onlineAds.map(a => a.advNo) },
+        metadata: { deactivatedCount: vars.activeAds.length, advNos: vars.activeAds.map(a => a.advNo) },
       });
     },
     onError: (e: Error) => {
@@ -88,7 +96,7 @@ export function useAdRestTimer() {
     },
   });
 
-  // End rest — call API directly, no nested mutations
+  // End rest — restore ads to their original statuses (Online or Private→Online via API)
   const endRest = useMutation({
     mutationFn: async () => {
       if (!activeTimer) throw new Error('No active timer found');
@@ -100,7 +108,8 @@ export function useAdRestTimer() {
         .eq('id', activeTimer.id);
       if (dbError) throw dbError;
 
-      // Re-activate previously deactivated ads via Binance API directly
+      // Re-activate previously deactivated ads via Binance API
+      // All ads go back to ONLINE (Binance API only supports 1=Online, 3=Offline)
       const advNos = activeTimer.deactivated_ad_nos || [];
       if (advNos.length > 0) {
         try {

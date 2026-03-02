@@ -17,6 +17,7 @@ import {
 
 interface Props {
   onlineAds: BinanceAd[];
+  activeAds: BinanceAd[];
 }
 
 function formatCountdown(ms: number): string {
@@ -27,7 +28,7 @@ function formatCountdown(ms: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function RestTimerBanner({ onlineAds }: Props) {
+export function RestTimerBanner({ onlineAds, activeAds }: Props) {
   const { isResting, remainingMs, activeTimer, startRest, endRest } = useAdRestTimer();
   const [countdown, setCountdown] = useState(remainingMs);
   const [confirmStart, setConfirmStart] = useState(false);
@@ -45,7 +46,7 @@ export function RestTimerBanner({ onlineAds }: Props) {
 
   const handleStartRest = () => {
     setConfirmStart(false);
-    startRest.mutate({ onlineAds });
+    startRest.mutate({ activeAds });
   };
 
   const handleEndRest = () => {
@@ -107,8 +108,8 @@ export function RestTimerBanner({ onlineAds }: Props) {
         variant="outline"
         size="sm"
         onClick={() => setConfirmStart(true)}
-        disabled={startRest.isPending || onlineAds.length === 0}
-        title={onlineAds.length === 0 ? 'No online ads to pause' : 'Pause all ads for 1 hour'}
+        disabled={startRest.isPending || activeAds.length === 0}
+        title={activeAds.length === 0 ? 'No active ads to pause' : 'Pause all ads for 1 hour'}
       >
         {startRest.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Coffee className="h-4 w-4 mr-1.5" />}
         Take Rest
@@ -119,7 +120,7 @@ export function RestTimerBanner({ onlineAds }: Props) {
           <AlertDialogHeader>
             <AlertDialogTitle>Take Rest?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will deactivate <strong>{onlineAds.length}</strong> online ad{onlineAds.length !== 1 ? 's' : ''} and start a 1-hour rest timer visible to all operators.
+              This will deactivate <strong>{activeAds.length}</strong> active ad{activeAds.length !== 1 ? 's' : ''} (including Private) and start a 1-hour rest timer visible to all operators.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

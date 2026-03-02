@@ -180,8 +180,13 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
         if (field === 'quantity') {
           if (existingPrice > 0 && newValue > 0) updated.total_amount = (newValue * existingPrice).toFixed(2);
         } else if (field === 'price_per_unit') {
-          if (existingTotal > 0 && newValue > 0) updated.quantity = (existingTotal / newValue).toFixed(8);
-          else if (existingQty > 0 && newValue > 0) updated.total_amount = (existingQty * newValue).toFixed(2);
+          // Quantity is typically pre-filled; recalculate total from qty × price.
+          // Only back-calculate quantity if the user manually typed a total AND quantity is empty/zero.
+          if (existingQty > 0 && newValue > 0) {
+            updated.total_amount = (existingQty * newValue).toFixed(2);
+          } else if (existingTotal > 0 && newValue > 0) {
+            updated.quantity = (existingTotal / newValue).toFixed(8);
+          }
         } else if (field === 'total_amount') {
           if (existingPrice > 0 && newValue > 0) updated.quantity = (newValue / existingPrice).toFixed(8);
         }

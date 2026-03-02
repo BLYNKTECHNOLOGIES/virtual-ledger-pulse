@@ -171,18 +171,27 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     if (!finalCode.trim() || releaseFiredRef.current || releaseCoin.isPending) return;
     releaseFiredRef.current = true;
     console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
-    const params: Record<string, any> = {
-      orderNumber,
-      authType: authMethod === 'YUBIKEY' ? 'FIDO2' : authMethod,
-      [selectedAuth.fieldName]: finalCode,
-    };
+    
+    // For YubiKey OTP: send yubikeyVerifyCode without authType (Binance infers from field)
+    // FIDO2 is for WebAuthn passkeys, NOT for Yubico OTP
+    const params: Record<string, any> = { orderNumber };
+    if (authMethod === 'YUBIKEY') {
+      params.yubikeyVerifyCode = finalCode;
+    } else {
+      params.authType = authMethod;
+      params[selectedAuth.fieldName] = finalCode;
+    }
+    
+    console.log('[ReleaseCrypto] Sending params:', JSON.stringify(params));
     releaseCoin.mutate(params as any, {
       onSuccess: () => {
+        console.log('[ReleaseCrypto] Release succeeded!');
         setOpen(false);
         updateCode('');
         releaseFiredRef.current = false;
       },
-      onError: () => {
+      onError: (err) => {
+        console.error('[ReleaseCrypto] Release failed:', err);
         releaseFiredRef.current = false;
       },
     });

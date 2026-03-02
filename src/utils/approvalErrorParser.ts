@@ -139,7 +139,7 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
   if (lowerMsg.includes('could not choose the best candidate function') || lowerMsg.includes('is not unique')) {
     return {
       title: 'Purchase Approval Failed',
-      description: msg,
+      description: 'A temporary system configuration issue occurred. Please try again or contact support if it persists.',
     };
   }
 

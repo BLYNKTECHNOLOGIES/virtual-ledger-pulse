@@ -406,7 +406,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         console.log('📡 Calling RPC create_manual_purchase_complete_v2 with params:', rpcParams);
 
         const { data, error } = await supabase.rpc(
-          'create_manual_purchase_complete_v2',
+          'create_manual_purchase_complete_v2_rpc' as any,
           rpcParams
         );
         result = data as Record<string, unknown>;

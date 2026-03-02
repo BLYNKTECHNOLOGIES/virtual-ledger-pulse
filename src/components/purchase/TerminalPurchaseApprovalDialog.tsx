@@ -285,7 +285,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_contact_number: null,
         };
 
-        const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2', rpcParams);
+        const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2_rpc' as any, rpcParams);
         result = data;
         rpcError = error;
       }

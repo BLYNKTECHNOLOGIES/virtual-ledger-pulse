@@ -57,31 +57,36 @@ export function SellerOnboardingApprovals() {
     },
   });
 
-  // Fetch first order info for each seller
+  // Fetch first order info for all sellers in one batch query
+  const sellerNames = pendingSellers?.map(s => s.name) || [];
   const { data: sellerOrders } = useQuery({
-    queryKey: ['seller-first-orders', pendingSellers?.map(s => s.name)],
+    queryKey: ['seller-first-orders', sellerNames.sort().join(',')],
     queryFn: async () => {
-      if (!pendingSellers || pendingSellers.length === 0) return {};
+      if (sellerNames.length === 0) return {};
+      
+      // Use a single RPC-style query: fetch earliest order per supplier using distinct on
+      // Supabase doesn't support DISTINCT ON via JS SDK, so we fetch all first orders at once
+      // by querying with .in() and then picking the earliest per supplier client-side
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('supplier_name, order_date, total_amount, order_number')
+        .in('supplier_name', sellerNames)
+        .order('order_date', { ascending: true });
+      
+      if (error) throw error;
       
       const ordersBySupplier: Record<string, any> = {};
-      
-      for (const seller of pendingSellers) {
-        const { data } = await supabase
-          .from('purchase_orders')
-          .select('order_date, total_amount, order_number')
-          .eq('supplier_name', seller.name)
-          .order('order_date', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        
-        if (data) {
-          ordersBySupplier[seller.name] = data;
+      for (const row of (data || [])) {
+        // Keep only the first (earliest) order per supplier
+        if (!ordersBySupplier[row.supplier_name]) {
+          ordersBySupplier[row.supplier_name] = row;
         }
       }
-      
       return ordersBySupplier;
     },
-    enabled: !!pendingSellers && pendingSellers.length > 0,
+    enabled: sellerNames.length > 0,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000,
   });
 
   // Approve seller mutation
@@ -98,12 +103,15 @@ export function SellerOnboardingApprovals() {
       
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_data, sellerId) => {
       toast({
         title: "Seller Approved",
         description: "The seller has been approved successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
+      // Remove approved seller from the pending list cache without refetching
+      queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
+        old ? old.filter(s => s.id !== sellerId) : []
+      );
       queryClient.invalidateQueries({ queryKey: ['clients'] });
     },
     onError: (error: any) => {
@@ -133,7 +141,10 @@ export function SellerOnboardingApprovals() {
         title: "Seller Rejected",
         description: "The seller has been rejected.",
       });
-      queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
+      // Remove rejected seller from cache without refetching
+      queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
+        old ? old.filter(s => s.id !== sellerToReject?.id) : []
+      );
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       setShowRejectDialog(false);
       setRejectReason("");

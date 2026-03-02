@@ -1,0 +1,1 @@
+ALTER TABLE ad_rest_timer ADD COLUMN IF NOT EXISTS deactivated_ad_statuses jsonb DEFAULT NULL;

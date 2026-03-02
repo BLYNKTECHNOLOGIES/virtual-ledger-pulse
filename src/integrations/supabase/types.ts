@@ -373,6 +373,7 @@ export type Database = {
         Row: {
           created_at: string
           deactivated_ad_nos: string[] | null
+          deactivated_ad_statuses: Json | null
           duration_minutes: number
           id: string
           is_active: boolean
@@ -382,6 +383,7 @@ export type Database = {
         Insert: {
           created_at?: string
           deactivated_ad_nos?: string[] | null
+          deactivated_ad_statuses?: Json | null
           duration_minutes?: number
           id?: string
           is_active?: boolean
@@ -391,6 +393,7 @@ export type Database = {
         Update: {
           created_at?: string
           deactivated_ad_nos?: string[] | null
+          deactivated_ad_statuses?: Json | null
           duration_minutes?: number
           id?: string
           is_active?: boolean

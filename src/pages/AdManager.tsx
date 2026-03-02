@@ -42,6 +42,7 @@ export default function AdManager() {
   const ads: BinanceAd[] = data?.data || data?.list || [];
   const total = data?.total || ads.length;
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
+  const activeAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [ads]);
 
   const selectedAds = useMemo(() => ads.filter(ad => selectedAdvNos.has(ad.advNo)), [ads, selectedAdvNos]);
 
@@ -67,7 +68,7 @@ export default function AdManager() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Rest Timer Banner — visible to all when active */}
-      <RestTimerBanner onlineAds={onlineAds} />
+      <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
 
       {/* Header */}
       <div className="flex items-center justify-between">

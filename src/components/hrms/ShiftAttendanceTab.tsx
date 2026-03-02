@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Calendar, Users, AlertCircle, Edit, Trash2 } from "lucide-react";
+import { Clock, Calendar, Users, AlertCircle, Edit, Trash2, Fingerprint } from "lucide-react";
 import { ShiftManagementDialog } from "./ShiftManagementDialog";
 import { OvertimeRecordDialog } from "./OvertimeRecordDialog";
+import { LiveAttendanceDashboard } from "./attendance/LiveAttendanceDashboard";
+import { BiometricDeviceStatus } from "./attendance/BiometricDeviceStatus";
 
 interface Shift {
   id: string;
@@ -48,13 +50,23 @@ export function ShiftAttendanceTab() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="shifts" className="space-y-4">
+      <Tabs defaultValue="live" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="live">Live Attendance</TabsTrigger>
+          <TabsTrigger value="biometric">Biometric Devices</TabsTrigger>
           <TabsTrigger value="shifts">Shift Scheduling</TabsTrigger>
           <TabsTrigger value="attendance">Attendance Tracking</TabsTrigger>
           <TabsTrigger value="overtime">Overtime Management</TabsTrigger>
           <TabsTrigger value="absence">Absence Management</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="live">
+          <LiveAttendanceDashboard />
+        </TabsContent>
+
+        <TabsContent value="biometric">
+          <BiometricDeviceStatus />
+        </TabsContent>
 
         <TabsContent value="shifts">
           <Card>

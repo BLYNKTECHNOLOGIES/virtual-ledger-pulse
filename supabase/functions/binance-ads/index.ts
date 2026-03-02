@@ -364,7 +364,9 @@ serve(async (req) => {
         const baseBody: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
-        if (payload.authType) baseBody.authType = payload.authType;
+        const normalizedAuthType = payload.authType === "YUBIKEY" ? "FIDO2" : payload.authType;
+
+        if (normalizedAuthType) baseBody.authType = normalizedAuthType;
         if (payload.code) baseBody.code = payload.code;
         if (payload.googleVerifyCode) baseBody.googleVerifyCode = payload.googleVerifyCode;
         if (payload.emailVerifyCode) baseBody.emailVerifyCode = payload.emailVerifyCode;
@@ -382,7 +384,11 @@ serve(async (req) => {
             if (!attemptBodies.some((b) => JSON.stringify(b) === key)) attemptBodies.push(body);
           };
 
-          // Common Binance/proxy variants observed in the wild for YubiKey OTP
+          // API doc v7.4 shows FIDO2 + code for releaseCoin; try these first.
+          addAttempt({ orderNumber: payload.orderNumber, authType: "FIDO2", code: otp });
+          addAttempt({ orderNumber: payload.orderNumber, authType: "FIDO2", code: otp, confirmPaidType: "FIDO2" });
+
+          // Backward-compatible proxy variants.
           addAttempt({ orderNumber: payload.orderNumber, code: otp, authType: "YUBIKEY" });
           addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", yubikeyVerifyCode: otp });
           addAttempt({ orderNumber: payload.orderNumber, authType: "YUBIKEY", code: otp, yubikeyVerifyCode: otp });

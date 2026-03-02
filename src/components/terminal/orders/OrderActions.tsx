@@ -172,14 +172,16 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     releaseFiredRef.current = true;
     console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
     
-    // Important Binance behavior:
-    // - YubiKey OTP must be sent as generic `code` (no authType / no yubikeyVerifyCode),
-    //   otherwise Binance returns generic/unsupported auth errors.
+    // API doc #29 expects authType + code for releaseCoin.
+    // For YubiKey OTP, Binance identifies this as FIDO2 in v7.4 docs.
     const params: Record<string, any> = { orderNumber };
     if (authMethod === 'YUBIKEY') {
+      params.authType = 'FIDO2';
       params.code = finalCode;
+      params.confirmPaidType = 'FIDO2';
     } else {
       params.authType = authMethod;
+      params.code = finalCode;
       params[selectedAuth.fieldName] = finalCode;
     }
     

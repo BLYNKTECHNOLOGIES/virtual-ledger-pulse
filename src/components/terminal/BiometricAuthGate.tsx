@@ -212,7 +212,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
           )}
         </Button>
 
-        {showHiddenOptions && isSuperAdmin && (
+        {showHiddenOptions && (
           <Button
             variant="outline"
             size="sm"

@@ -173,11 +173,12 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
     
     // API doc #29 expects authType + code for releaseCoin.
-    // For YubiKey OTP, Binance identifies this as FIDO2 in v7.4 docs.
+    // For YubiKey, Binance expects FIDO2 authType and code value.
     const params: Record<string, any> = { orderNumber };
     if (authMethod === 'YUBIKEY') {
-      // Send YubiKey in Binance-native shape; edge function normalizes authType to FIDO2
-      params.authType = 'YUBIKEY';
+      params.authType = 'FIDO2';
+      params.code = finalCode;
+      // Keep explicit field for proxy/backward compatibility
       params.yubikeyVerifyCode = finalCode;
     } else {
       params.authType = authMethod;

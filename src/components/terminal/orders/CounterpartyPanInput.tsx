@@ -59,19 +59,9 @@ export function CounterpartyPanInput({ counterpartyNickname }: Props) {
         }, { onConflict: 'counterparty_nickname' });
       if (error) throw error;
 
-      // Also sync to client master if a client is linked by name
-      const { data: clients } = await supabase
-        .from('clients')
-        .select('id')
-        .ilike('name', counterpartyNickname)
-        .limit(1);
-
-      if (clients && clients.length > 0) {
-        await supabase
-          .from('clients')
-          .update({ pan_card_number: trimmed })
-          .eq('id', clients[0].id);
-      }
+      // NOTE: PAN is NOT auto-synced to clients table here.
+      // PAN flows to clients only through explicit client mapping during purchase/sales approval.
+      // Using name-based matching (ilike) is unsafe and can assign PAN to the wrong client.
     },
     onSuccess: () => {
       toast.success("PAN saved successfully");

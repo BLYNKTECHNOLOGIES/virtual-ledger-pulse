@@ -19,25 +19,19 @@ export async function updateClientFromOrder({
   panNumber?: string | null;
 }) {
   try {
-    // Find the client - by ID first, then by exact name match
-    let client: any = null;
-
-    if (clientId) {
-      const { data } = await supabase
-        .from('clients')
-        .select('id, phone, state, pan_card_number')
-        .eq('id', clientId)
-        .single();
-      client = data;
-    } else if (clientName) {
-      const { data } = await supabase
-        .from('clients')
-        .select('id, phone, state, pan_card_number')
-        .ilike('name', clientName)
-        .limit(1)
-        .maybeSingle();
-      client = data;
+    // Find the client - ONLY by explicit ID to prevent cross-contamination
+    // Name-based matching (ilike) is unsafe: different clients can have similar names,
+    // and Binance nicknames/verified names don't reliably match client master names.
+    if (!clientId) {
+      console.warn('[updateClientFromOrder] No clientId provided — skipping update to prevent wrong-client assignment');
+      return;
     }
+
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id, phone, state, pan_card_number')
+      .eq('id', clientId)
+      .single();
 
     if (!client) return;
 

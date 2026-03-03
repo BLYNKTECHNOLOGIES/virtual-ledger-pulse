@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, Search, Download, Filter, Eye, X, ShoppingCart, ShoppingBag, Building2 } from "lucide-react";
+import { History, Search, Download, Filter, Eye, ShoppingCart, ShoppingBag, Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
@@ -23,25 +23,37 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
   getStatusBadge: (status: string, paymentStatus?: string) => JSX.Element;
   onClose: () => void;
 }) {
-  // Fetch bank account for sales (buy) orders
+  // Fetch bank account for sales (buy) orders via sales_payment_method_id
   const { data: bankAccountData } = useQuery({
-    queryKey: ['client-order-bank', selectedOrder?.sales_payment_method_id],
+    queryKey: ['client-order-bank', selectedOrder?.sales_payment_method_id, selectedOrder?.bank_account_id, selectedOrder?.isBuyOrder],
     queryFn: async () => {
-      if (!selectedOrder?.sales_payment_method_id) return null;
-      const { data: pm } = await supabase
-        .from('sales_payment_methods')
-        .select('bank_account_id')
-        .eq('id', selectedOrder.sales_payment_method_id)
-        .single();
-      if (!pm?.bank_account_id) return null;
-      const { data: bank } = await supabase
-        .from('bank_accounts')
-        .select('account_name, bank_name, account_number')
-        .eq('id', pm.bank_account_id)
-        .single();
-      return bank;
+      // For sell (purchase) orders — bank_account_id is directly on the order
+      if (!selectedOrder?.isBuyOrder && selectedOrder?.bank_account_id) {
+        const { data: bank } = await supabase
+          .from('bank_accounts')
+          .select('account_name, bank_name, account_number')
+          .eq('id', selectedOrder.bank_account_id)
+          .single();
+        return bank;
+      }
+      // For buy (sales) orders — look up via sales_payment_method_id
+      if (selectedOrder?.isBuyOrder && selectedOrder?.sales_payment_method_id) {
+        const { data: pm } = await supabase
+          .from('sales_payment_methods')
+          .select('bank_account_id')
+          .eq('id', selectedOrder.sales_payment_method_id)
+          .single();
+        if (!pm?.bank_account_id) return null;
+        const { data: bank } = await supabase
+          .from('bank_accounts')
+          .select('account_name, bank_name, account_number')
+          .eq('id', pm.bank_account_id)
+          .single();
+        return bank;
+      }
+      return null;
     },
-    enabled: !!selectedOrder?.sales_payment_method_id && !!selectedOrder?.isBuyOrder,
+    enabled: !!(selectedOrder?.sales_payment_method_id || selectedOrder?.bank_account_id),
   });
 
   return (
@@ -105,12 +117,12 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
         </div>
       </div>
 
-      {/* Bank Account Info for Sales Orders */}
-      {selectedOrder.isBuyOrder && bankAccountData && (
+      {/* Bank Account Info */}
+      {bankAccountData && (
         <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
           <h3 className="text-sm font-semibold text-blue-900 dark:text-blue-400 mb-3 flex items-center gap-2">
             <Building2 className="h-4 w-4" />
-            Payment Received In
+            {selectedOrder.isBuyOrder ? 'Payment Received In' : 'Payment Made From'}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -455,12 +467,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span>Order Details</span>
-              <Button variant="ghost" size="sm" onClick={() => setIsViewDialogOpen(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </DialogTitle>
+            <DialogTitle>Order Details</DialogTitle>
           </DialogHeader>
           {selectedOrder && (
             <OrderDetailsContent

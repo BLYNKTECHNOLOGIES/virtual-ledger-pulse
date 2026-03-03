@@ -356,12 +356,17 @@ serve(async (req) => {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
 
         const normalizedAuthType = payload.authType === "YUBIKEY" ? "FIDO2" : payload.authType;
+        const isYubiFlow = normalizedAuthType === "FIDO2" || !!payload.yubikeyVerifyCode;
 
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
         if (normalizedAuthType) body.authType = normalizedAuthType;
-        if (payload.code) body.code = payload.code;
+
+        // Critical: Binance releaseCoin rejects YubiKey flow when generic `code` is sent.
+        // Keep `code` only for non-FIDO2 auth methods.
+        if (!isYubiFlow && payload.code) body.code = payload.code;
+
         if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
         if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
         if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;

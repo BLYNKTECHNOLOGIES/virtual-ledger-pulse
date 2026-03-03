@@ -620,26 +620,26 @@ export function WalletManagementTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Wallet Management</h2>
-          <p className="text-gray-600">Manage cryptocurrency wallets</p>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold truncate">Wallet Management</h2>
+          <p className="text-muted-foreground text-sm">Manage cryptocurrency wallets</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => refetchWallets()} variant="outline" disabled={walletsLoading}>
-            <RefreshCw className="h-4 w-4 mr-2" />
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => refetchWallets()} variant="outline" size="sm" disabled={walletsLoading}>
+            <RefreshCw className="h-4 w-4 mr-1" />
             Refresh Wallets
           </Button>
-          <Button onClick={() => setShowImportDialog(true)} variant="outline">
-            <Upload className="h-4 w-4 mr-2" />
+          <Button onClick={() => setShowImportDialog(true)} variant="outline" size="sm">
+            <Upload className="h-4 w-4 mr-1" />
             Import
           </Button>
-          <Button onClick={() => setShowTransactionDialog(true)} variant="outline">
-            <TrendingUp className="h-4 w-4 mr-2" />
+          <Button onClick={() => setShowTransactionDialog(true)} variant="outline" size="sm">
+            <TrendingUp className="h-4 w-4 mr-1" />
             Add Transaction
           </Button>
-          <Button onClick={() => setShowAddWalletDialog(true)}>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button onClick={() => setShowAddWalletDialog(true)} size="sm">
+            <Plus className="h-4 w-4 mr-1" />
             Add Wallet
           </Button>
         </div>

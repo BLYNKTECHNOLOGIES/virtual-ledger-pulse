@@ -88,7 +88,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         price_per_unit: order.price_per_unit || 0,
         total_amount: order.total_amount || 0,
         payment_status: order.payment_status || 'COMPLETED',
-        order_date: order.order_date || '',
+        order_date: order.order_date ? order.order_date.slice(0, 16) : '',
         description: order.description || '',
         risk_level: order.risk_level || 'HIGH',
         sales_payment_method_id: order.sales_payment_method_id || '',
@@ -295,13 +295,17 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             </div>
 
             <div>
-              <Label>Order Date *</Label>
+              <Label>Order Date & Time *</Label>
               <Input
-                type="date"
+                type="datetime-local"
                 value={formData.order_date}
                 onChange={(e) => handleInputChange('order_date', e.target.value)}
                 required
+                disabled={order?.order_number?.startsWith('SO-TRM')}
               />
+              {order?.order_number?.startsWith('SO-TRM') && (
+                <p className="text-xs text-muted-foreground mt-1">Terminal-synced orders use actual Binance order time (not editable)</p>
+              )}
             </div>
 
             <div>

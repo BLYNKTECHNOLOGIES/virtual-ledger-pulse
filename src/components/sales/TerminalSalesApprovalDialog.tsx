@@ -37,7 +37,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const displayName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
-  const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
+  const [settlementDate, setSettlementDate] = useState(
+    od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
+  );
   const [remarks, setRemarks] = useState('');
   const [contactNumber, setContactNumber] = useState(syncRecord?.contact_number || '');
   const [clientState, setClientState] = useState(syncRecord?.state || '');
@@ -322,8 +324,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       const orderNumber = `SO-TRM-${od.order_number?.slice(-8) || Date.now()}`;
       const orderDate = od.create_time
-        ? new Date(od.create_time).toISOString().split('T')[0]
-        : settlementDate;
+        ? new Date(od.create_time).toISOString()
+        : new Date(settlementDate).toISOString();
 
       // Fetch CoinUSDT market rate at approval time
       const asset = (od.asset || 'USDT').toUpperCase();
@@ -765,13 +767,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             </div>
 
             <div>
-              <Label className="text-xs">Settlement Date</Label>
+              <Label className="text-xs">Order Date & Time</Label>
               <Input
-                type="date"
-                value={settlementDate}
-                onChange={(e) => setSettlementDate(e.target.value)}
-                className="mt-1 h-9 text-sm"
+                type="datetime-local"
+                value={settlementDate.slice(0, 16)}
+                disabled
+                className="mt-1 h-9 text-sm bg-muted"
               />
+              <p className="text-xs text-muted-foreground mt-1">Actual Binance order time (not editable)</p>
             </div>
 
             <div>

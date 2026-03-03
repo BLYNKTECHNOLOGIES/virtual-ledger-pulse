@@ -11,15 +11,30 @@ async function fetchWithRetry(
   url: string,
   options: RequestInit,
   maxRetries = 2,
-  delayMs = 500
+  delayMs = 500,
+  timeoutMs = 15000
 ): Promise<Response> {
   let lastError: Error | null = null;
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
-      const response = await fetch(url, options);
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
       return response;
     } catch (err) {
+      clearTimeout(timeoutId);
       lastError = err as Error;
+
+      if ((err as Error).name === "AbortError") {
+        throw new Error(`Request timed out after ${timeoutMs}ms`);
+      }
+
       const msg = (err as Error).message || "";
       // Only retry on transient network errors
       if (
@@ -34,9 +49,11 @@ async function fetchWithRetry(
           continue;
         }
       }
+
       throw err; // Non-transient error, throw immediately
     }
   }
+
   throw lastError;
 }
 
@@ -375,13 +392,17 @@ serve(async (req) => {
         if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
 
         console.log("releaseCoin body:", JSON.stringify(body));
+
+        // One-time verification codes must not be retried on network failures;
+        // retries can burn the OTP and lead to false "verification failed" errors.
+        const startedAt = Date.now();
         const response = await fetchWithRetry(url, {
           method: "POST",
           headers: proxyHeaders,
           body: JSON.stringify(body),
-        });
+        }, 0, 500, 12000);
         const text = await response.text();
-        console.log("releaseCoin response:", response.status, text.substring(0, 1000));
+        console.log("releaseCoin response:", response.status, `in ${Date.now() - startedAt}ms`, text.substring(0, 1000));
 
         try {
           result = JSON.parse(text);

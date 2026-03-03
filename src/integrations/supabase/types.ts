@@ -9943,6 +9943,63 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_internal_chat_reads: {
+        Row: {
+          id: string
+          last_read_at: string
+          order_number: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_read_at?: string
+          order_number: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_read_at?: string
+          order_number?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      terminal_internal_messages: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          message_text: string | null
+          message_type: string
+          order_number: string
+          sender_id: string
+          sender_name: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          message_text?: string | null
+          message_type?: string
+          order_number: string
+          sender_id: string
+          sender_name: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          message_text?: string | null
+          message_type?: string
+          order_number?: string
+          sender_id?: string
+          sender_name?: string
+        }
+        Relationships: []
+      }
       terminal_mpi_snapshots: {
         Row: {
           avg_completion_time_minutes: number | null

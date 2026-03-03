@@ -3,14 +3,14 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, History, User, BarChart3, ArrowLeft, CheckCircle2, Calendar, Shield, FileText } from 'lucide-react';
+import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText } from 'lucide-react';
+import { InternalChatPanel } from './InternalChatPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
 import { CounterpartyContactInput } from './CounterpartyContactInput';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
-import { PastInteractionsPanel } from './PastInteractionsPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
 import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages } from '@/hooks/useBinanceActions';
 
@@ -20,8 +20,8 @@ interface Props {
 }
 
 export function OrderDetailWorkspace({ order, onClose }: Props) {
-  const [rightPanel, setRightPanel] = useState<'profile' | 'history'>('profile');
-  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'profile'>('chat');
+  const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
+  const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('internal');
   const isMobile = useIsMobile();
   const { data: counterpartyById } = useP2PCounterparty(order.counterparty_id);
   const { data: counterpartyByNick } = useP2PCounterpartyByNickname(!order.counterparty_id ? order.counterparty_nickname : null);
@@ -147,26 +147,28 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
     />
   );
 
-  const profileContent = (
+  const rightPanelContent = (
     <>
       <div className="px-2 py-2 border-b border-border">
         <Tabs value={rightPanel} onValueChange={(v) => setRightPanel(v as any)}>
           <TabsList className="w-full h-8 bg-secondary">
+            <TabsTrigger value="internal" className="text-[10px] h-6 flex-1 gap-1">
+              <Users className="h-3 w-3" />
+              Internal
+            </TabsTrigger>
             <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
               <User className="h-3 w-3" />
               Profile
             </TabsTrigger>
-            <TabsTrigger value="history" className="text-[10px] h-6 flex-1 gap-1">
-              <History className="h-3 w-3" />
-              History
-            </TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
-      {rightPanel === 'profile' ? (
-        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
+      {rightPanel === 'internal' ? (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <InternalChatPanel orderNumber={order.binance_order_number} />
+        </div>
       ) : (
-        <PastInteractionsPanel counterpartyId={order.counterparty_id} currentOrderId={order.id} />
+        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
       )}
     </>
   );
@@ -187,6 +189,10 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
                 <MessageSquare className="h-3 w-3" />
                 Chat
               </TabsTrigger>
+              <TabsTrigger value="internal" className="text-[10px] h-6 flex-1 gap-1">
+                <Users className="h-3 w-3" />
+                Internal
+              </TabsTrigger>
               <TabsTrigger value="profile" className="text-[10px] h-6 flex-1 gap-1">
                 <User className="h-3 w-3" />
                 Profile
@@ -205,9 +211,14 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
               {chatContent}
             </div>
           )}
+          {mobileTab === 'internal' && (
+            <div className="h-full flex flex-col min-w-0 bg-background">
+              <InternalChatPanel orderNumber={order.binance_order_number} />
+            </div>
+          )}
           {mobileTab === 'profile' && (
             <div className="h-full overflow-hidden flex flex-col bg-card">
-              {profileContent}
+              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
             </div>
           )}
         </div>
@@ -227,7 +238,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           {chatContent}
         </div>
         <div className="w-[280px] border-l border-border overflow-hidden bg-card shrink-0 flex flex-col">
-          {profileContent}
+          {rightPanelContent}
         </div>
       </div>
     </div>

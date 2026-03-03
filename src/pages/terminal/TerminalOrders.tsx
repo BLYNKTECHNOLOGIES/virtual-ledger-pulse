@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -25,6 +25,7 @@ import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
+import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
 
 
 /** Convert numeric orderStatus to string */
@@ -357,6 +358,8 @@ export default function TerminalOrders() {
   const totalUnread = useMemo(() =>
     Array.from(unreadMap.values()).reduce((s, v) => s + v, 0), [unreadMap]);
 
+  // Internal chat unread counts
+
   // Background sync to local DB (fire-and-forget)
   useEffect(() => {
     if (rawOrders.length > 0 && !syncOrders.isPending) {
@@ -495,6 +498,10 @@ export default function TerminalOrders() {
   }, [visibleCount, displayOrders.length]);
 
   const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
+
+  // Internal chat unread counts
+  const internalChatOrderNumbers = useMemo(() => visibleOrders.map(o => o.binance_order_number), [visibleOrders]);
+  const { data: internalUnreadMap = {} } = useInternalUnreadCounts(internalChatOrderNumbers);
 
   // Helper: open chat for an order row directly — opens the full workspace
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
@@ -797,17 +804,31 @@ export default function TerminalOrders() {
 
                         {/* Chat */}
                         <TableCell className="py-3 text-right">
-                          <button
-                            onClick={(e) => openChatForOrder(order, e)}
-                            className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"
-                          >
-                            <MessageSquare className="h-3 w-3" />
-                            {unread > 0 && (
-                              <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
-                                <span className="text-[8px] font-bold text-destructive-foreground">{unread}</span>
-                              </span>
-                            )}
-                          </button>
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              onClick={(e) => openChatForOrder(order, e)}
+                              className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"
+                            >
+                              <MessageSquare className="h-3 w-3" />
+                              {unread > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
+                                  <span className="text-[8px] font-bold text-destructive-foreground">{unread}</span>
+                                </span>
+                              )}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedOrder(order); }}
+                              className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"
+                              title="Internal Chat"
+                            >
+                              <Users className="h-3 w-3" />
+                              {(internalUnreadMap[order.binance_order_number] || 0) > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-[14px] rounded-full bg-destructive flex items-center justify-center px-0.5">
+                                  <span className="text-[8px] font-bold text-destructive-foreground">{internalUnreadMap[order.binance_order_number]}</span>
+                                </span>
+                              )}
+                            </button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

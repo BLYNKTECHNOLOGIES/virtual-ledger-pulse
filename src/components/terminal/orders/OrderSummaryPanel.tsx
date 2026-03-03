@@ -1,13 +1,16 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Clock, CreditCard, Hash, Timer, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { User, Clock, CreditCard, Hash, Timer, AlertTriangle, RefreshCw } from 'lucide-react';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { CounterpartyBadge } from './CounterpartyBadge';
 import { PaymentDetailsCard } from './PaymentDetailsCard';
 import { OrderActions } from './OrderActions';
+import { UpdatePaymentMethodDialog } from './UpdatePaymentMethodDialog';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { useState, useEffect } from 'react';
+import { useAlternateUpiRequest } from '@/hooks/usePayerModule';
 
 interface Props {
   order: P2POrderRecord;
@@ -20,10 +23,12 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
   const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
-  // Use Binance's notifyPayEndTime for the full payment window countdown
-  // notifyPayEndTime = createTime + notifyPayedExpireMinute (the actual deadline shown on Binance UI)
-  // expectedPayTime is a shorter intermediate deadline, NOT the full payment window
+  // Alternate UPI request
+  const { data: altUpiRequest } = useAlternateUpiRequest(order.binance_order_number);
+  const hasPendingAltUpi = altUpiRequest?.status === 'pending';
+
   const notifyPayEndTimeMs = liveDetail?.notifyPayEndTime;
   const notifyPayedExpireMinute = liveDetail?.notifyPayedExpireMinute;
   const createTimeMs = order.binance_create_time
@@ -83,6 +88,24 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
           <ElapsedTimer createTime={createTimeMs} />
         )}
 
+        {/* Alternate UPI Request Alert */}
+        {hasPendingAltUpi && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 text-amber-500" />
+              <span className="text-xs font-medium text-amber-500">Alternate UPI Requested</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">Payer has requested an alternate UPI for this order.</p>
+            <Button
+              size="sm"
+              className="h-7 text-[10px] w-full"
+              onClick={() => setShowUpdateDialog(true)}
+            >
+              Update Payment Method
+            </Button>
+          </div>
+        )}
+
         {/* Payment details for BUY orders — shows seller's bank/UPI details */}
         {order.trade_type === 'BUY' && liveDetail?.payMethods && (
           <PaymentDetailsCard
@@ -129,6 +152,16 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
           additionalKycVerify={order.additional_kyc_verify}
         />
       </div>
+
+      {/* Update Payment Method Dialog */}
+      {altUpiRequest && (
+        <UpdatePaymentMethodDialog
+          open={showUpdateDialog}
+          onOpenChange={setShowUpdateDialog}
+          requestId={altUpiRequest.id}
+          orderNumber={order.binance_order_number}
+        />
+      )}
     </div>
   );
 }

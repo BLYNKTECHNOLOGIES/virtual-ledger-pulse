@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -22,7 +22,7 @@ import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
-
+import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 
 
 /** Convert numeric orderStatus to string */
@@ -115,6 +115,12 @@ export default function TerminalOrders() {
   } = useBinanceOrderHistory();
 
   const syncOrders = useSyncOrders();
+
+  // Fetch pending alternate UPI requests for highlighting
+  const { data: pendingAltUpiRequests = [] } = useAlternateUpiRequests('pending');
+  const pendingAltUpiOrderNumbers = useMemo(() => {
+    return new Set(pendingAltUpiRequests.map((r: any) => r.order_number));
+  }, [pendingAltUpiRequests]);
 
   // Derive a minimal time window from ACTIVE orders.
   // Reason: Binance can keep returning an order in listOrders with numeric status=4
@@ -552,13 +558,14 @@ export default function TerminalOrders() {
                       ? { label: 'Verification Pending', badgeClass: 'border-purple-500/30 text-purple-500 bg-purple-500/5', dotColor: 'bg-purple-500' }
                       : getStatusStyle(opStatus);
                     const unread = unreadMap.get(order.binance_order_number) || 0;
+                    const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
 
                     return (
                       <TableRow
                         key={order.id}
-                        className="border-border cursor-pointer hover:bg-secondary/50 transition-colors"
-                        onClick={() => setSelectedOrder(order)}
-                      >
+                        className={`border-border cursor-pointer hover:bg-secondary/50 transition-colors ${hasAltUpiRequest ? 'bg-amber-500/5 border-l-2 border-l-amber-500' : ''}`}
+                        onClick={() => setSelectedOrder(order)}>
+
                         {/* Type/Date */}
                         <TableCell className="py-3">
                           <div className="flex flex-col gap-0.5">
@@ -599,6 +606,12 @@ export default function TerminalOrders() {
                               <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-500 bg-amber-500/5 gap-0.5">
                                 <ShieldAlert className="h-2.5 w-2.5" />
                                 Requires Verification
+                              </Badge>
+                            )}
+                            {hasAltUpiRequest && (
+                              <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-600 bg-amber-500/10 gap-0.5 animate-pulse">
+                                <ArrowLeftRight className="h-2.5 w-2.5" />
+                                Alternate UPI Requested
                               </Badge>
                             )}
                           </div>

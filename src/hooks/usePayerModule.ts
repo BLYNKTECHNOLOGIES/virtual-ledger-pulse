@@ -299,3 +299,101 @@ export function useDeletePayerAssignment() {
     onError: (err: Error) => toast.error(`Failed: ${err.message}`),
   });
 }
+
+// ===================== Alternate UPI Request Hooks =====================
+
+/** Query a single alternate UPI request by order number (latest) */
+export function useAlternateUpiRequest(orderNumber: string) {
+  return useQuery({
+    queryKey: ['alternate-upi-request', orderNumber],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_alternate_upi_requests' as any)
+        .select('*')
+        .eq('order_number', orderNumber)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!orderNumber,
+  });
+}
+
+/** Query all alternate UPI requests, optionally filtered by status */
+export function useAlternateUpiRequests(status?: string) {
+  return useQuery({
+    queryKey: ['alternate-upi-requests', status],
+    queryFn: async () => {
+      let query = supabase
+        .from('terminal_alternate_upi_requests' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (status) {
+        query = query.eq('status', status);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+}
+
+/** Mutation: payer requests an alternate UPI */
+export function useRequestAlternateUpi() {
+  const queryClient = useQueryClient();
+  const { userId } = useTerminalAuth();
+
+  return useMutation({
+    mutationFn: async (orderNumber: string) => {
+      if (!userId) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('terminal_alternate_upi_requests' as any)
+        .insert({ order_number: orderNumber, requested_by: userId, status: 'pending' });
+      if (error) throw error;
+    },
+    onSuccess: (_d, orderNumber) => {
+      toast.success('Alternate UPI requested');
+      queryClient.invalidateQueries({ queryKey: ['alternate-upi-request', orderNumber] });
+      queryClient.invalidateQueries({ queryKey: ['alternate-upi-requests'] });
+    },
+    onError: (err: Error) => toast.error(`Request failed: ${err.message}`),
+  });
+}
+
+/** Mutation: operator resolves an alternate UPI request with new details */
+export function useResolveAlternateUpi() {
+  const queryClient = useQueryClient();
+  const { userId } = useTerminalAuth();
+
+  return useMutation({
+    mutationFn: async (params: {
+      requestId: string;
+      orderNumber: string;
+      updatedUpiId: string;
+      updatedUpiName: string;
+      updatedPayMethod: string;
+    }) => {
+      if (!userId) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('terminal_alternate_upi_requests' as any)
+        .update({
+          status: 'resolved',
+          updated_upi_id: params.updatedUpiId,
+          updated_upi_name: params.updatedUpiName,
+          updated_pay_method: params.updatedPayMethod,
+          resolved_by: userId,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('id', params.requestId);
+      if (error) throw error;
+    },
+    onSuccess: (_d, params) => {
+      toast.success('Payment method updated');
+      queryClient.invalidateQueries({ queryKey: ['alternate-upi-request', params.orderNumber] });
+      queryClient.invalidateQueries({ queryKey: ['alternate-upi-requests'] });
+    },
+    onError: (err: Error) => toast.error(`Update failed: ${err.message}`),
+  });
+}

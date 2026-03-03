@@ -25,8 +25,6 @@ const moreNavItems = [
   { title: "Video KYC", url: "/video-kyc", icon: Package },
   { title: "KYC Approvals", url: "/kyc-approvals", icon: Package },
   { title: "HRMS", url: "/hrms", icon: Users },
-  { title: "Payroll", url: "/payroll", icon: Package },
-  { title: "EMS", url: "/ems", icon: Users },
   { title: "Accounting", url: "/accounting", icon: Package },
   { title: "P&L", url: "/profit-loss", icon: TrendingUp },
   { title: "Financials", url: "/financials", icon: Package },

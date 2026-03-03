@@ -588,9 +588,9 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2 flex-shrink-0" size="sm">
           <ShoppingCart className="w-4 h-4" />
-          Manual Purchase Entry
+          <span className="whitespace-nowrap">Manual Entry</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">

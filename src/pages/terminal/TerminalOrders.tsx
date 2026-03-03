@@ -122,6 +122,9 @@ export default function TerminalOrders() {
         .eq('payer_user_id', userId)
         .eq('assignment_type', 'size_range')
         .eq('is_active', true);
+      
+      console.log('[SizeRangeFilter] userId:', userId, 'assignments:', assignments, 'error:', aErr);
+      
       if (aErr || !assignments || assignments.length === 0) return null;
 
       const rangeIds = assignments.map(a => a.size_range_id).filter(Boolean) as string[];
@@ -131,6 +134,8 @@ export default function TerminalOrders() {
         .from('terminal_order_size_ranges')
         .select('id, name, min_amount, max_amount')
         .in('id', rangeIds);
+      
+      console.log('[SizeRangeFilter] resolved ranges:', ranges);
       return ranges || null;
     },
     enabled: !!userId,
@@ -391,6 +396,7 @@ export default function TerminalOrders() {
 
     // Filter by user's assigned size ranges (non-admins only)
     // If user has size range assignments, only show orders within those ranges
+    console.log('[SizeRangeFilter] isTerminalAdmin:', isTerminalAdmin, 'userSizeRanges:', userSizeRanges, 'total orders before filter:', filtered.length);
     if (!isTerminalAdmin && userSizeRanges && userSizeRanges.length > 0) {
       filtered = filtered.filter(r => {
         const price = r.total_price || 0;
@@ -401,6 +407,7 @@ export default function TerminalOrders() {
           return price >= min && (max === null || max === undefined || price <= max);
         });
       });
+      console.log('[SizeRangeFilter] orders after filter:', filtered.length);
     }
 
     // Apply jurisdiction + assignment filter

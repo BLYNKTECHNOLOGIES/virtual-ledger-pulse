@@ -58,7 +58,24 @@ export function useReleaseCoin() {
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
     },
-    onError: (err: Error) => toast.error(`Release failed: ${err.message}`),
+    onError: (err: Error, variables) => {
+      const isYubiKeyFlow =
+        variables?.authType === 'YUBIKEY' ||
+        variables?.authType === 'FIDO2' ||
+        !!variables?.yubikeyVerifyCode;
+
+      if (isYubiKeyFlow && /verification failed/i.test(err.message)) {
+        toast.error('Release failed: YubiKey code is invalid, expired, or already used. Tap YubiKey again and submit a fresh code.');
+        return;
+      }
+
+      if (isYubiKeyFlow && /unsupported authentication type/i.test(err.message)) {
+        toast.error('Release failed: Authentication mode mismatch. Please retry with a fresh YubiKey code.');
+        return;
+      }
+
+      toast.error(`Release failed: ${err.message}`);
+    },
   });
 }
 

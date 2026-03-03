@@ -257,7 +257,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_payment_splits: splitPaymentsJson,
         };
 
-        const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments', rpcParams);
+        const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments_rpc' as any, rpcParams);
         result = data;
         rpcError = error;
       } else {

@@ -233,13 +233,7 @@ export function TerminalSyncTab() {
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">
-                      {record.pan_number ? (
-                        <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
-                          {record.pan_number}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      <span className="text-muted-foreground">—</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">

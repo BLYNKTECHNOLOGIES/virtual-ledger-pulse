@@ -43,7 +43,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [tdsOption, setTdsOption] = useState<'none' | '1%' | '20%'>('none');
   const [panNumber, setPanNumber] = useState(syncRecord?.pan_number || '');
   const [bankAccountId, setBankAccountId] = useState('');
-  const [settlementDate, setSettlementDate] = useState(new Date().toISOString().split('T')[0]);
+  const [settlementDate, setSettlementDate] = useState(
+    od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
+  );
   const [remarks, setRemarks] = useState('');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
   const [creatingClient, setCreatingClient] = useState(false);
@@ -632,13 +634,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             </div>
 
             <div>
-              <Label className="text-xs">Settlement Date</Label>
+              <Label className="text-xs">Order Date & Time</Label>
               <Input
-                type="date"
-                value={settlementDate}
-                onChange={(e) => setSettlementDate(e.target.value)}
-                className="mt-1 h-9 text-sm"
+                type="datetime-local"
+                value={settlementDate.slice(0, 16)}
+                disabled
+                className="mt-1 h-9 text-sm bg-muted"
               />
+              <p className="text-xs text-muted-foreground mt-1">Actual Binance order time (not editable)</p>
             </div>
           </div>
 

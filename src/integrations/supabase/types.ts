@@ -11488,6 +11488,12 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
+      get_super_admin_ids: {
+        Args: never
+        Returns: {
+          user_id: string
+        }[]
+      }
       get_terminal_operator_workloads: {
         Args: never
         Returns: {

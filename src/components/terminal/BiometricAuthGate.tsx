@@ -101,32 +101,39 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
         return;
       }
 
-      const session = localStorage.getItem('userSession');
-      if (!session) {
-        toast.error('No ERP session found');
+      // Find any Super Admin who has registered biometric credentials
+      const { data: superAdmins, error: saError } = await supabase
+        .rpc('get_super_admin_ids' as any);
+
+      if (saError || !superAdmins || !Array.isArray(superAdmins) || superAdmins.length === 0) {
+        toast.error('No Super Admin accounts found');
         return;
       }
-      const erpUser = JSON.parse(session);
-      const adminId = erpUser.id;
+
+      // Find a Super Admin with registered biometric credentials
+      let adminId: string | null = null;
+      for (const sa of superAdmins) {
+        const saId = sa.user_id || sa.id;
+        const hasCreds = await checkCredentials(saId);
+        if (hasCreds) {
+          adminId = saId;
+          break;
+        }
+      }
 
       if (!adminId) {
-        toast.error('Admin user ID not found');
+        toast.error('No Super Admin has registered biometric credentials. A Super Admin must register their fingerprint first.');
         return;
       }
 
-      const adminHasCreds = await checkCredentials(adminId);
-      if (!adminHasCreds) {
-        toast.error('Admin fingerprint not registered. Please register your fingerprint first via your own terminal session.');
-        return;
-      }
-
+      // Authenticate using the Super Admin's registered fingerprint, but unlock for the current user
       const sessionToken = await authenticateBiometric(userId, adminId);
       setSession(sessionToken);
       toast.success('Admin override: Terminal unlocked');
     } catch (err: any) {
       console.error('Admin override error:', err);
       if (err.name === 'NotAllowedError') {
-        toast.error('Admin biometric verification was cancelled or timed out. Ensure your fingerprint is registered.');
+        toast.error('Admin biometric verification was cancelled or timed out.');
       } else {
         toast.error(err.message || 'Admin override failed');
       }

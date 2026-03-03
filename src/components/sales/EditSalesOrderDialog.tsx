@@ -88,7 +88,9 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         price_per_unit: order.price_per_unit || 0,
         total_amount: order.total_amount || 0,
         payment_status: order.payment_status || 'COMPLETED',
-        order_date: order.order_date ? order.order_date.slice(0, 16) : '',
+        order_date: order.order_date 
+          ? (order.order_date.length <= 10 ? `${order.order_date}T00:00` : order.order_date.slice(0, 16))
+          : '',
         description: order.description || '',
         risk_level: order.risk_level || 'HIGH',
         sales_payment_method_id: order.sales_payment_method_id || '',

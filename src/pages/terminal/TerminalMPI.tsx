@@ -14,6 +14,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 // Detail dialog removed — now navigates to full page
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
@@ -38,10 +39,13 @@ interface OperatorMetric {
 
 export default function TerminalMPI() {
   const navigate = useNavigate();
-  const { isTerminalAdmin, terminalRoles } = useTerminalAuth();
+  const { isTerminalAdmin, terminalRoles, userId } = useTerminalAuth();
   const { visibleUserIds } = useTerminalJurisdiction();
-  const [timeRange, setTimeRange] = useState('today');
-  const [viewLevel, setViewLevel] = useState('operators');
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'mpi', { timeRange: 'today' as string, viewLevel: 'operators' as string });
+  const timeRange = prefs.timeRange;
+  const viewLevel = prefs.viewLevel;
+  const setTimeRange = (v: string) => setPref('timeRange', v);
+  const setViewLevel = (v: string) => setPref('viewLevel', v);
   const [metrics, setMetrics] = useState<OperatorMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOperator, setSelectedOperator] = useState<string | null>(null);

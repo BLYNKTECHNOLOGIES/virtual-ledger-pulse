@@ -1,16 +1,19 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TerminalPermissionGate } from "@/components/terminal/TerminalPermissionGate";
 import { TerminalUsersList } from "@/components/terminal/users/TerminalUsersList";
 import { TerminalRolesList } from "@/components/terminal/users/TerminalRolesList";
-
 import { TerminalExchangeAccounts } from "@/components/terminal/users/TerminalExchangeAccounts";
 import { TerminalSizeRanges } from "@/components/terminal/users/TerminalSizeRanges";
 import { PayerAssignmentManager } from "@/components/terminal/payer/PayerAssignmentManager";
 import { TerminalOrgChart } from "@/components/terminal/users/TerminalOrgChart";
+import { useTerminalAuth } from "@/hooks/useTerminalAuth";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
 
 export default function TerminalUsers() {
-  const [activeTab, setActiveTab] = useState("users");
+  const { userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'users', { activeTab: 'users' as string });
+  const activeTab = prefs.activeTab;
+  const setActiveTab = (v: string) => setPref('activeTab', v);
 
   return (
     <TerminalPermissionGate permissions={["terminal_users_view"]}>

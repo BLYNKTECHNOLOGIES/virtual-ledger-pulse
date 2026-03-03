@@ -266,9 +266,9 @@ export default function Purchase() {
               </div>
             </div>
             
-            {/* Action buttons - scrollable on mobile */}
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap md:justify-end">
-              <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0">
+            {/* Action buttons - always visible on mobile */}
+            <div className="flex flex-wrap gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:justify-end">
+              <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0 whitespace-nowrap">
                 <Download className="h-4 w-4 mr-1 md:mr-2" />
                 <span className="hidden sm:inline">Export CSV</span>
               </Button>
@@ -277,7 +277,7 @@ export default function Purchase() {
                 {canCreateOrders && (
                   <>
                     <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-                    <Button onClick={() => setShowPurchaseOrderDialog(true)} size="sm" className="flex-shrink-0">
+                    <Button onClick={() => setShowPurchaseOrderDialog(true)} size="sm" className="flex-shrink-0 whitespace-nowrap">
                       <Plus className="h-4 w-4 mr-1" />
                       <span className="whitespace-nowrap">New Purchase Stock</span>
                     </Button>

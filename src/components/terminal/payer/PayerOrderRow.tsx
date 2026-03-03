@@ -2,11 +2,11 @@ import { useState, useRef } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon } from 'lucide-react';
+import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
-import { useExcludeFromAutoReply, useLogPayerAction } from '@/hooks/usePayerModule';
+import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertDialog,
@@ -55,9 +55,15 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const excludeFromAuto = useExcludeFromAutoReply();
   const logAction = useLogPayerAction();
   const getUploadUrl = useGetChatImageUploadUrl();
+  const requestAltUpi = useRequestAlternateUpi();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Fetch alternate UPI request for this order
+  const { data: altUpiRequest } = useAlternateUpiRequest(order.orderNumber);
+  const hasPendingRequest = altUpiRequest?.status === 'pending';
+  const hasResolvedOverride = altUpiRequest?.status === 'resolved' && altUpiRequest?.updated_upi_id;
 
   const statusStr = mapOrderStatusCode(order.orderStatus);
   const isOrderFinalized = ['COMPLETED', 'PAID', 'CANCELLED', 'EXPIRED'].includes(statusStr.toUpperCase());
@@ -68,7 +74,6 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
     queryFn: async () => {
       try {
         const resp = await callBinanceAds('getOrderDetail', { orderNumber: order.orderNumber });
-        // Unwrap nested data: API may return { data: { ... } } or flat object
         return resp?.data || resp;
       } catch {
         return null;
@@ -97,6 +102,11 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
     excludeFromAuto.mutate(order.orderNumber);
   };
 
+  const handleRequestAltUpi = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    requestAltUpi.mutate(order.orderNumber);
+  };
+
   const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -112,7 +122,6 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
     setIsUploading(true);
     try {
-      // Step 1: Get pre-signed upload URL
       const imageName = `${order.orderNumber}_${Date.now()}.jpg`;
       const result = await getUploadUrl.mutateAsync(imageName);
       const outer = result?.data || result;
@@ -123,14 +132,10 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       if (!preSignedUrl) throw new Error('Failed to get upload URL');
       if (!imageUrl) throw new Error('Failed to get image URL');
 
-      // Step 2: Upload to S3
       const uploadResp = await fetch(preSignedUrl, { method: 'PUT', body: file });
       if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`);
 
-      // Step 3: Send image to order chat
       await callBinanceAds('sendChatMessage', { orderNo: order.orderNumber, imageUrl });
-
-      // Step 4: Mark as paid
       await markPaid.mutateAsync({ orderNumber: order.orderNumber });
       await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
 
@@ -199,9 +204,17 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
         </span>
       </TableCell>
 
-      {/* Payment Details - inline */}
+      {/* Payment Details - with override support */}
       <TableCell className="py-3">
-        <PaymentDetailsInline payMethods={payMethods} />
+        {hasResolvedOverride ? (
+          <OverrideUpiDisplay
+            upiId={altUpiRequest.updated_upi_id}
+            upiName={altUpiRequest.updated_upi_name}
+            payMethod={altUpiRequest.updated_pay_method}
+          />
+        ) : (
+          <PaymentDetailsInline payMethods={payMethods} />
+        )}
       </TableCell>
 
       {/* Status */}
@@ -231,6 +244,18 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
               className="hidden"
               onChange={handleUploadAndMarkPaid}
             />
+
+            {/* Request Another UPI */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2"
+              onClick={handleRequestAltUpi}
+              disabled={hasPendingRequest || requestAltUpi.isPending}
+            >
+              {requestAltUpi.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              {hasPendingRequest ? 'Requested' : 'Alt UPI'}
+            </Button>
 
             {/* Remove from Auto */}
             <Button
@@ -287,6 +312,30 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
         )}
       </TableCell>
     </TableRow>
+  );
+}
+
+/** Shows the operator-provided override UPI details */
+function OverrideUpiDisplay({ upiId, upiName, payMethod }: { upiId: string; upiName?: string; payMethod?: string }) {
+  const copyText = `${payMethod || 'UPI'}: ${upiName || ''} | ${upiId}`;
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <Badge variant="outline" className="text-[8px] px-1 py-0 border-primary/30 text-primary shrink-0">
+        {payMethod || 'UPI'} <span className="ml-0.5 text-[7px] opacity-70">Updated</span>
+      </Badge>
+      {upiName && <span className="text-foreground font-medium truncate">{upiName}</span>}
+      <span className="text-muted-foreground truncate">{upiId}</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(copyText);
+          toast.success('Payment details copied');
+        }}
+        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+      >
+        <ClipboardCopy className="h-3 w-3" />
+      </button>
+    </div>
   );
 }
 

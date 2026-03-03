@@ -9627,6 +9627,45 @@ export type Database = {
           },
         ]
       }
+      terminal_alternate_upi_requests: {
+        Row: {
+          created_at: string
+          id: string
+          order_number: string
+          requested_by: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_pay_method: string | null
+          updated_upi_id: string | null
+          updated_upi_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_number: string
+          requested_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_pay_method?: string | null
+          updated_upi_id?: string | null
+          updated_upi_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_number?: string
+          requested_by?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_pay_method?: string | null
+          updated_upi_id?: string | null
+          updated_upi_name?: string | null
+        }
+        Relationships: []
+      }
       terminal_assignment_audit_logs: {
         Row: {
           action_type: string

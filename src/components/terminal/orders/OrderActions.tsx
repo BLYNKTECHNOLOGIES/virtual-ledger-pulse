@@ -172,13 +172,12 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     releaseFiredRef.current = true;
     console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
     
-    // API doc #29 expects authType + code for releaseCoin.
-    // For YubiKey, Binance expects FIDO2 authType and code value.
+    // API doc #29 expects authType + method-specific verification fields.
+    // For YubiKey release on this endpoint, sending generic `code` causes
+    // "Unsupported authentication type"; send only yubikeyVerifyCode.
     const params: Record<string, any> = { orderNumber };
     if (authMethod === 'YUBIKEY') {
       params.authType = 'FIDO2';
-      params.code = finalCode;
-      // Keep explicit field for proxy/backward compatibility
       params.yubikeyVerifyCode = finalCode;
     } else {
       params.authType = authMethod;

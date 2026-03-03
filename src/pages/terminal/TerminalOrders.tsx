@@ -23,6 +23,7 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
+import { supabase } from '@/integrations/supabase/client';
 
 
 /** Convert numeric orderStatus to string */
@@ -93,12 +94,39 @@ export default function TerminalOrders() {
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
-  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
   const canManageOrders = hasPermission('terminal_orders_manage') || isTerminalAdmin;
   const {
     canViewOrder, getOrderVisibility, getOrderAssignment, orderAssignments,
     refetch: refetchJurisdiction,
   } = useTerminalJurisdiction();
+
+  // Fetch user's assigned size ranges for order filtering
+  const { data: userSizeRanges } = useQuery({
+    queryKey: ['user-assigned-size-ranges', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      // Get active payer assignments of type size_range for this user
+      const { data: assignments, error: aErr } = await supabase
+        .from('terminal_payer_assignments')
+        .select('size_range_id')
+        .eq('payer_user_id', userId)
+        .eq('assignment_type', 'size_range')
+        .eq('is_active', true);
+      if (aErr || !assignments || assignments.length === 0) return null;
+
+      const rangeIds = assignments.map(a => a.size_range_id).filter(Boolean) as string[];
+      if (rangeIds.length === 0) return null;
+
+      const { data: ranges } = await supabase
+        .from('terminal_order_size_ranges')
+        .select('id, name, min_amount, max_amount')
+        .in('id', rangeIds);
+      return ranges || null;
+    },
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+  });
 
   const {
     data: activeOrdersData,
@@ -350,8 +378,23 @@ export default function TerminalOrders() {
       return record;
     });
 
-    // Apply jurisdiction + assignment filter
     let filtered = allRecords;
+
+    // Filter by user's assigned size ranges (non-admins only)
+    // If user has size range assignments, only show orders within those ranges
+    if (!isTerminalAdmin && userSizeRanges && userSizeRanges.length > 0) {
+      filtered = filtered.filter(r => {
+        const price = r.total_price || 0;
+        return userSizeRanges.some(range => {
+          const min = range.min_amount ?? 0;
+          const max = range.max_amount;
+          // max_amount null means unlimited (∞)
+          return price >= min && (max === null || max === undefined || price <= max);
+        });
+      });
+    }
+
+    // Apply jurisdiction + assignment filter
     if (assignmentFilter !== 'all') {
       filtered = filtered.filter(r => {
         const vis = getOrderVisibility(r.binance_order_number);
@@ -369,12 +412,12 @@ export default function TerminalOrders() {
         const bIsAppeal = (b.order_status || '').toUpperCase().includes('APPEAL') || (b.order_status || '').toUpperCase().includes('DISPUTE');
         if (aIsAppeal && !bIsAppeal) return 1;
         if (!aIsAppeal && bIsAppeal) return -1;
-        return 0; // preserve existing chronological order within each group
+        return 0;
       });
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, getOrderVisibility]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);

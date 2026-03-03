@@ -42,6 +42,40 @@ async function fetchOrderDetail(orderNumber: string): Promise<{ status: string |
 }
 
 /**
+ * Fetch Binance orders for a trade type + statuses with pagination.
+ * Required because Supabase REST defaults to 1000 rows per request.
+ */
+async function fetchOrdersByStatus(
+  tradeType: 'BUY' | 'SELL',
+  statuses: string[],
+  cutoffTime: number,
+): Promise<any[]> {
+  const PAGE_SIZE = 1000;
+  const rows: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('binance_order_history')
+      .select('*')
+      .eq('trade_type', tradeType)
+      .in('order_status', statuses)
+      .gte('create_time', cutoffTime)
+      .order('create_time', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw new Error(`Failed to fetch ${tradeType} orders: ${error.message}`);
+    if (!data || data.length === 0) break;
+
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+/**
  * Syncs completed BUY orders from binance_order_history to terminal_purchase_sync.
  * Also resolves IN_APPEAL orders by checking their live status from Binance API.
  * Called after the order sync completes or manually via "Sync Now" button.
@@ -75,25 +109,11 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   const cutoffTime = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
   console.log('[PurchaseSync] Cutoff (7-day lookback):', new Date(cutoffTime).toISOString());
 
-  // 2a. Fetch COMPLETED BUY orders
-  const { data: completedBuys, error: fetchErr } = await supabase
-    .from('binance_order_history')
-    .select('*')
-    .eq('trade_type', 'BUY')
-    .in('order_status', ['COMPLETED', '4'])
-    .gte('create_time', cutoffTime);
+  // 2a. Fetch COMPLETED BUY orders (paginated)
+  const completedBuys = await fetchOrdersByStatus('BUY', ['COMPLETED', '4'], cutoffTime);
 
-  if (fetchErr) {
-    throw new Error(`Failed to fetch completed orders: ${fetchErr.message}`);
-  }
-
-  // 2b. Fetch IN_APPEAL BUY orders — these may have been resolved since last sync
-  const { data: appealBuys } = await supabase
-    .from('binance_order_history')
-    .select('*')
-    .eq('trade_type', 'BUY')
-    .in('order_status', ['IN_APPEAL', '7'])
-    .gte('create_time', cutoffTime);
+  // 2b. Fetch IN_APPEAL BUY orders — these may have been resolved since last sync (paginated)
+  const appealBuys = await fetchOrdersByStatus('BUY', ['IN_APPEAL', '7'], cutoffTime);
 
   console.log(`[PurchaseSync] COMPLETED: ${completedBuys?.length || 0}, IN_APPEAL to recheck: ${appealBuys?.length || 0}`);
 

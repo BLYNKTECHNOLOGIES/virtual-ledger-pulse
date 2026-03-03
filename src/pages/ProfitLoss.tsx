@@ -152,7 +152,8 @@ export default function ProfitLoss() {
           order_date,
           quantity,
           price_per_unit,
-          client_name
+          client_name,
+          products:product_id(code)
         `)
         .eq('status', 'COMPLETED')
         .gte('order_date', startStr)
@@ -362,17 +363,32 @@ export default function ProfitLoss() {
       // Create trade entries for table
       const tradeEntries: TradeEntry[] = [];
       
-      // Add buy orders
+      // Add buy orders - show actual asset and USDT-equivalent quantity
       purchaseItems.forEach(item => {
         const order = purchaseOrders?.find(po => po.id === item.purchase_order_id);
+        const assetCode = item.products?.code || 'USDT';
+        const rawQty = item.quantity;
+
+        // Calculate USDT-equivalent quantity for non-USDT assets
+        let usdtEquivQty = rawQty;
+        if (assetCode !== 'USDT') {
+          const storedMarketRate = order?.market_rate_usdt ? Number(order.market_rate_usdt) : null;
+          const convRate = (storedMarketRate && storedMarketRate > 0)
+            ? storedMarketRate
+            : assetUsdtRates[assetCode];
+          if (convRate && convRate > 0) {
+            usdtEquivQty = rawQty * convRate;
+          }
+        }
+
         tradeEntries.push({
           id: item.purchase_order_id,
           date: order?.order_date || '',
-          asset: 'USDT',
+          asset: assetCode,
           type: 'Buy',
-          quantity: item.quantity,
+          quantity: usdtEquivQty,
           rate: item.unit_price,
-          total: item.quantity * item.unit_price
+          total: rawQty * item.unit_price
         });
       });
 
@@ -382,7 +398,7 @@ export default function ProfitLoss() {
         tradeEntries.push({
           id: item.sales_order_id,
           date: order?.order_date || '',
-          asset: 'USDT',
+          asset: (order as any)?.products?.code || 'USDT',
           type: 'Sell',
           quantity: item.quantity,
           rate: item.unit_price,
@@ -766,7 +782,7 @@ export default function ProfitLoss() {
                     <TableHead>Date</TableHead>
                     <TableHead>Asset</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Qty (USDT eq.)</TableHead>
                     <TableHead className="text-right">Rate (₹)</TableHead>
                     <TableHead className="text-right">Total (₹)</TableHead>
                   </TableRow>

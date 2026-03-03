@@ -393,9 +393,11 @@ export default function TerminalOrders() {
       const terminalIsTerminal =
         terminalCandidate && TERMINAL_STATUSES.some(t => String(terminalCandidate).includes(t));
 
+      // For active orders, live status is authoritative unless history
+      // reveals a terminal state the active API hasn't caught yet.
       const resolvedStatus = terminalIsTerminal
         ? (terminalCandidate as string)
-        : (recentStatus || historyStatus || liveStatus);
+        : liveStatus;
 
       return { ...o, orderNumber, _resolvedStatus: resolvedStatus };
     });

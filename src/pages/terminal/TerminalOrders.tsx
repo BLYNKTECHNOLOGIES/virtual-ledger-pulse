@@ -110,8 +110,8 @@ export default function TerminalOrders() {
     refetch: refetchJurisdiction,
   } = useTerminalJurisdiction();
 
-  // Fetch user's assigned size ranges for order filtering
-  // Check BOTH terminal_user_size_range_mappings (from User Config) AND terminal_payer_assignments
+  // Fetch user's assigned size ranges & ad IDs for order filtering
+  // Check terminal_user_size_range_mappings, terminal_payer_assignments, AND terminal_operator_assignments
   const { data: userSizeRanges } = useQuery({
     queryKey: ['user-assigned-size-ranges', userId],
     queryFn: async () => {
@@ -131,9 +131,18 @@ export default function TerminalOrders() {
         .eq('assignment_type', 'size_range')
         .eq('is_active', true);
 
+      // Source 3: terminal_operator_assignments (set via Operator Assignment manager)
+      const { data: operatorAssignments } = await supabase
+        .from('terminal_operator_assignments' as any)
+        .select('size_range_id')
+        .eq('operator_user_id', userId)
+        .eq('assignment_type', 'size_range')
+        .eq('is_active', true);
+
       const rangeIdSet = new Set<string>();
       (directMappings || []).forEach(m => { if (m.size_range_id) rangeIdSet.add(m.size_range_id); });
       (payerAssignments || []).forEach(a => { if (a.size_range_id) rangeIdSet.add(a.size_range_id); });
+      ((operatorAssignments as any[]) || []).forEach(a => { if (a.size_range_id) rangeIdSet.add(a.size_range_id); });
 
       if (rangeIdSet.size === 0) return null;
 
@@ -143,6 +152,24 @@ export default function TerminalOrders() {
         .in('id', Array.from(rangeIdSet));
 
       return ranges && ranges.length > 0 ? ranges : null;
+    },
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+  });
+
+  // Fetch user's ad ID assignments from operator assignments
+  const { data: userAdIdAssignments } = useQuery({
+    queryKey: ['user-operator-ad-assignments', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from('terminal_operator_assignments' as any)
+        .select('ad_id')
+        .eq('operator_user_id', userId)
+        .eq('assignment_type', 'ad_id')
+        .eq('is_active', true);
+      const adIds = ((data as any[]) || []).map((a: any) => a.ad_id).filter(Boolean) as string[];
+      return adIds.length > 0 ? adIds : null;
     },
     enabled: !!userId,
     staleTime: 60 * 1000,
@@ -400,17 +427,25 @@ export default function TerminalOrders() {
 
     let filtered = allRecords;
 
-    // Filter by user's assigned size ranges (non-admins only)
-    // If user has size range assignments, only show orders within those ranges
-    if (!isTerminalAdmin && userSizeRanges && userSizeRanges.length > 0) {
+    // Filter by user's assigned size ranges and/or ad IDs (non-admins only)
+    if (!isTerminalAdmin && (userSizeRanges?.length || userAdIdAssignments?.length)) {
       filtered = filtered.filter(r => {
-        const price = r.total_price || 0;
-        return userSizeRanges.some(range => {
-          const min = range.min_amount ?? 0;
-          const max = range.max_amount;
-          // max_amount null means unlimited (∞)
-          return price >= min && (max === null || max === undefined || price <= max);
-        });
+        // Check size range match
+        if (userSizeRanges && userSizeRanges.length > 0) {
+          const price = r.total_price || 0;
+          const rangeMatch = userSizeRanges.some(range => {
+            const min = range.min_amount ?? 0;
+            const max = range.max_amount;
+            return price >= min && (max === null || max === undefined || price <= max);
+          });
+          if (rangeMatch) return true;
+        }
+        // Check ad ID match
+        if (userAdIdAssignments && userAdIdAssignments.length > 0) {
+          const advNo = r.binance_adv_no || '';
+          if (userAdIdAssignments.includes(advNo)) return true;
+        }
+        return false;
       });
     }
 
@@ -437,7 +472,7 @@ export default function TerminalOrders() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);

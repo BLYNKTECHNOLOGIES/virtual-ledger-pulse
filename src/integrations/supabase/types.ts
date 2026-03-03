@@ -9988,6 +9988,61 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_operator_assignments: {
+        Row: {
+          ad_id: string | null
+          assigned_by: string | null
+          assignment_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          operator_user_id: string
+          size_range_id: string | null
+        }
+        Insert: {
+          ad_id?: string | null
+          assigned_by?: string | null
+          assignment_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          operator_user_id: string
+          size_range_id?: string | null
+        }
+        Update: {
+          ad_id?: string | null
+          assigned_by?: string | null
+          assignment_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          operator_user_id?: string
+          size_range_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_operator_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_operator_assignments_operator_user_id_fkey"
+            columns: ["operator_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_operator_assignments_size_range_id_fkey"
+            columns: ["size_range_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_order_size_ranges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_order_assignments: {
         Row: {
           asset: string | null

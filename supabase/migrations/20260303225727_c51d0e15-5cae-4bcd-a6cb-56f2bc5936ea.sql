@@ -1,0 +1,1 @@
+UPDATE small_buys_sync SET sync_status = 'rejected', reviewed_at = now(), rejection_reason = 'Bulk rejected — manual entries were used prior to enabling Small Buys sync' WHERE sync_status = 'pending_approval'

@@ -80,7 +80,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     .from('binance_order_history')
     .select('*')
     .eq('trade_type', 'BUY')
-    .eq('order_status', 'COMPLETED')
+    .in('order_status', ['COMPLETED', '4'])
     .gte('create_time', cutoffTime);
 
   if (fetchErr) {
@@ -92,7 +92,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     .from('binance_order_history')
     .select('*')
     .eq('trade_type', 'BUY')
-    .eq('order_status', 'IN_APPEAL')
+    .in('order_status', ['IN_APPEAL', '7'])
     .gte('create_time', cutoffTime);
 
   console.log(`[PurchaseSync] COMPLETED: ${completedBuys?.length || 0}, IN_APPEAL to recheck: ${appealBuys?.length || 0}`);

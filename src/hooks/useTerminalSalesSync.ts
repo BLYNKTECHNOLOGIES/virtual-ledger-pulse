@@ -60,7 +60,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       .from('binance_order_history')
       .select('*')
       .eq('trade_type', 'SELL')
-      .eq('order_status', 'COMPLETED')
+      .in('order_status', ['COMPLETED', '4'])
       .gte('create_time', cutoffTime);
 
     if (fetchErr || !completedSells || completedSells.length === 0) {

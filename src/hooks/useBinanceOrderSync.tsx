@@ -272,6 +272,22 @@ export function useAutoSyncOrders() {
   return { isSyncing: syncMutation.isPending, syncMutation, isStale, metadata };
 }
 
+// ---- Status mapping: Binance numeric → string ----
+const BINANCE_STATUS_MAP: Record<number, string> = {
+  0: 'PENDING', 1: 'TRADING', 2: 'BUYER_PAYED',
+  3: 'DISTRIBUTING', 4: 'COMPLETED', 5: 'CANCELLED',
+  6: 'CANCELLED_BY_SYSTEM', 7: 'IN_APPEAL',
+};
+
+function mapOrderStatus(raw: any): string {
+  if (raw === null || raw === undefined || raw === '') return '';
+  const num = Number(raw);
+  if (!isNaN(num) && BINANCE_STATUS_MAP[num]) {
+    return BINANCE_STATUS_MAP[num];
+  }
+  return String(raw);
+}
+
 // ---- Mapping helpers ----
 function orderToDbRow(o: any) {
   return {
@@ -280,7 +296,7 @@ function orderToDbRow(o: any) {
     trade_type: o.tradeType || '',
     asset: o.asset || 'USDT',
     fiat_unit: o.fiat || o.fiatUnit || 'INR',
-    order_status: String(o.orderStatus || ''),
+    order_status: mapOrderStatus(o.orderStatus),
     amount: String(o.amount || '0'),
     total_price: String(o.totalPrice || '0'),
     unit_price: String(o.unitPrice || '0'),

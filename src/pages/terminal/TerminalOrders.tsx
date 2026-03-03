@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 
 
 /** Convert numeric orderStatus to string */
@@ -84,9 +85,6 @@ function toSyncItem(o: any): C2COrderHistoryItem {
 }
 
 export default function TerminalOrders() {
-  const [tradeFilter, setTradeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [assignmentFilter, setAssignmentFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
@@ -95,6 +93,17 @@ export default function TerminalOrders() {
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+
+  // Persisted per-user filter preferences
+  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'all' as string, assignmentFilter: 'all' as string };
+  const [orderPrefs, setOrderPref] = useTerminalUserPrefs(userId, 'orders', ORDER_PREF_DEFAULTS);
+  const tradeFilter = orderPrefs.tradeFilter;
+  const statusFilter = orderPrefs.statusFilter;
+  const assignmentFilter = orderPrefs.assignmentFilter;
+  const setTradeFilter = (v: string) => setOrderPref('tradeFilter', v);
+  const setStatusFilter = (v: string) => setOrderPref('statusFilter', v);
+  const setAssignmentFilter = (v: string) => setOrderPref('assignmentFilter', v);
+
   const canManageOrders = hasPermission('terminal_orders_manage') || isTerminalAdmin;
   const {
     canViewOrder, getOrderVisibility, getOrderAssignment, orderAssignments,

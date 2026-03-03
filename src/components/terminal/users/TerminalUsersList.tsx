@@ -11,7 +11,7 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2, Fingerprint } from "lucide-react";
+import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2, Fingerprint, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
@@ -25,6 +25,15 @@ interface TerminalRole {
   hierarchy_level: number | null;
 }
 
+interface PayerAssignmentInfo {
+  type: string; // 'size_range' | 'ad_id'
+  rangeName?: string;
+  rangeMin?: number;
+  rangeMax?: number | null;
+  adId?: string;
+  isActive: boolean;
+}
+
 interface UserAssignment {
   userId: string;
   username: string;
@@ -36,6 +45,7 @@ interface UserAssignment {
   specialization: string | null;
   shift: string | null;
   isActive: boolean;
+  payerAssignments: PayerAssignmentInfo[];
 }
 
 export function TerminalUsersList() {
@@ -62,11 +72,13 @@ export function TerminalUsersList() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const [rolesRes, usersRes, profilesRes, supervisorMapsRes] = await Promise.all([
+      const [rolesRes, usersRes, profilesRes, supervisorMapsRes, payerAssignmentsRes, sizeRangesRes] = await Promise.all([
         supabase.rpc("list_terminal_roles"),
         supabase.from("users").select("id, username, first_name, last_name, email").eq("status", "ACTIVE"),
         supabase.from("terminal_user_profiles").select("user_id, specialization, shift, is_active"),
         supabase.from("terminal_user_supervisor_mappings").select("user_id, supervisor_id"),
+        supabase.from("terminal_payer_assignments").select("payer_user_id, assignment_type, size_range_id, ad_id, is_active"),
+        supabase.from("terminal_order_size_ranges").select("id, name, min_amount, max_amount"),
       ]);
 
       const roles: TerminalRole[] = (rolesRes.data || []).map((r: any) => ({
@@ -101,6 +113,33 @@ export function TerminalUsersList() {
         userSupervisorsMap.set(m.user_id, list);
       });
 
+      // Build size range lookup
+      const sizeRangeMap = new Map<string, any>();
+      (sizeRangesRes.data || []).forEach((r: any) => sizeRangeMap.set(r.id, r));
+
+      // Build payer assignments per user
+      const userPayerMap = new Map<string, PayerAssignmentInfo[]>();
+      (payerAssignmentsRes.data || []).forEach((a: any) => {
+        const list = userPayerMap.get(a.payer_user_id) || [];
+        const info: PayerAssignmentInfo = {
+          type: a.assignment_type,
+          isActive: a.is_active,
+        };
+        if (a.assignment_type === 'size_range' && a.size_range_id) {
+          const range = sizeRangeMap.get(a.size_range_id);
+          if (range) {
+            info.rangeName = range.name;
+            info.rangeMin = range.min_amount;
+            info.rangeMax = range.max_amount;
+          }
+        }
+        if (a.assignment_type === 'ad_id') {
+          info.adId = a.ad_id;
+        }
+        list.push(info);
+        userPayerMap.set(a.payer_user_id, list);
+      });
+
       const result: UserAssignment[] = [];
       for (const [userId, roleIds] of userRoleMap) {
         const user = usersMap.get(userId);
@@ -123,6 +162,7 @@ export function TerminalUsersList() {
           specialization: profile?.specialization || null,
           shift: profile?.shift || null,
           isActive: profile?.is_active !== false,
+          payerAssignments: userPayerMap.get(userId) || [],
         });
       }
 
@@ -338,6 +378,20 @@ export function TerminalUsersList() {
                       {a.shift && (
                         <Badge variant="secondary" className="text-[10px] bg-muted/30">{a.shift}</Badge>
                       )}
+                      {a.payerAssignments.length > 0 && a.payerAssignments.map((pa, i) => (
+                        <Badge
+                          key={i}
+                          variant="outline"
+                          className={`text-[10px] gap-1 ${pa.isActive ? 'border-primary/30 text-primary' : 'border-muted-foreground/30 text-muted-foreground line-through'}`}
+                        >
+                          <Ruler className="h-2.5 w-2.5" />
+                          {pa.type === 'size_range' && pa.rangeName
+                            ? `${pa.rangeName} (₹${(pa.rangeMin ?? 0).toLocaleString()}–${pa.rangeMax !== null ? `₹${(pa.rangeMax ?? 0).toLocaleString()}` : '∞'})`
+                            : pa.type === 'ad_id' && pa.adId
+                              ? `Ad: ${pa.adId.slice(0, 8)}…`
+                              : 'Unknown'}
+                        </Badge>
+                      ))}
                       {!a.isActive && (
                         <Badge variant="outline" className="text-[10px] text-destructive border-destructive/30">Inactive</Badge>
                       )}

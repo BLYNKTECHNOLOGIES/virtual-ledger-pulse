@@ -83,10 +83,7 @@ export function StatisticsTab() {
         .gte('order_date', startStr)
         .lte('order_date', endStr);
 
-      // Fetch purchase order items
-      const { data: purchaseOrderItems } = await supabase
-        .from('purchase_order_items')
-        .select('purchase_order_id, quantity, unit_price');
+      // (purchase_order_items no longer needed — profit comes from daily_gross_profit_history)
 
       // Fetch ALL clients to track new additions
       const { data: allClients } = await supabase
@@ -175,28 +172,27 @@ export function StatisticsTab() {
 
       const totalExpenses = expenses?.reduce((sum, e) => sum + Number(e.amount || 0), 0) || 0;
 
-      // Calculate profit metrics
-      const purchaseOrderIds = purchaseOrders?.map(po => po.id) || [];
-      const relevantPurchaseItems = purchaseOrderItems?.filter(item => 
-        purchaseOrderIds.includes(item.purchase_order_id)
-      ) || [];
-      
-      const totalPurchasedQuantity = relevantPurchaseItems.reduce((sum, item) => 
-        sum + Number(item.quantity || 0), 0);
-      const totalPurchaseCost = relevantPurchaseItems.reduce((sum, item) => 
-        sum + (Number(item.quantity || 0) * Number(item.unit_price || 0)), 0);
-      
-      const avgPurchaseCostPerUnit = totalPurchasedQuantity > 0 
-        ? totalPurchaseCost / totalPurchasedQuantity 
-        : 0;
+      // Calculate profit metrics from daily_gross_profit_history (source of truth for P&L)
+      const { data: grossProfitData } = await supabase
+        .from('daily_gross_profit_history')
+        .select('gross_profit, effective_purchase_rate, total_sales_qty')
+        .gte('snapshot_date', startStr)
+        .lte('snapshot_date', endStr);
 
-      const totalSoldQuantity = salesOrders?.reduce((sum, o) => sum + Number(o.quantity || 0), 0) || 0;
-      const avgSalesPricePerUnit = totalSoldQuantity > 0 
-        ? currentRevenue / totalSoldQuantity 
-        : 0;
+      const totalGrossProfit = grossProfitData?.reduce((sum, d) => sum + Number(d.gross_profit || 0), 0) || 0;
 
-      const netProfitMarginPerUnit = avgSalesPricePerUnit - avgPurchaseCostPerUnit;
-      const netProfit = netProfitMarginPerUnit * totalSoldQuantity;
+      // Calculate avg purchase rate (weighted by sales qty) for USDT fee INR conversion
+      const totalSalesQtyPnl = grossProfitData?.reduce((sum, d) => sum + Number(d.total_sales_qty || 0), 0) || 0;
+      const weightedPurchaseRateSum = grossProfitData?.reduce((sum, d) => 
+        sum + (Number(d.effective_purchase_rate || 0) * Number(d.total_sales_qty || 0)), 0) || 0;
+      const avgPurchaseRate = totalSalesQtyPnl > 0 ? weightedPurchaseRateSum / totalSalesQtyPnl : 0;
+
+      // USDT fees in INR = total USDT fees × avg purchase rate
+      const totalUsdtFeesRaw = usdtFees?.reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+      const usdtFeesInr = totalUsdtFeesRaw * avgPurchaseRate;
+
+      // Net Profit = Gross Profit - Operating Expenses - USDT Fees (in INR)
+      const netProfit = totalGrossProfit - totalExpenses - usdtFeesInr;
 
       // ===== KYC & CLIENT STATISTICS (period-aware) =====
       // All-time totals (for verification rate denominator)

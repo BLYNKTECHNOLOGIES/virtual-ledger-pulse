@@ -20,6 +20,7 @@ import { format } from "date-fns";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";
+import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 
 interface Props {
   open: boolean;
@@ -45,6 +46,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const [showClientDropdown, setShowClientDropdown] = useState(false);
   const [hoveredClientId, setHoveredClientId] = useState<string | null>(null);
   const [clientAutoMatched, setClientAutoMatched] = useState(false);
+  const [counterpartyPhone, setCounterpartyPhone] = useState('');
+  const [counterpartyState, setCounterpartyState] = useState('');
+  const [clientMasterPhone, setClientMasterPhone] = useState('');
+  const [clientMasterState, setClientMasterState] = useState('');
 
   // Fetch all clients for matching
   const { data: allClients = [] } = useQuery({
@@ -116,6 +121,42 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setContactNumber('');
     }
   }, [open, displayName, allClients]);
+
+  // Track counterparty data for conflict detection
+  useEffect(() => {
+    if (!open) return;
+    const nickname = (syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name || '').trim();
+    if (!nickname || nickname.includes('*')) return;
+
+    supabase.from('counterparty_contact_records')
+      .select('contact_number, state')
+      .eq('counterparty_nickname', nickname)
+      .maybeSingle()
+      .then(({ data }) => {
+        setCounterpartyPhone(data?.contact_number || '');
+        setCounterpartyState(data?.state || '');
+      });
+  }, [open, syncRecord]);
+
+  // Track client master data for conflict detection
+  useEffect(() => {
+    if (!linkedClientId) { setClientMasterPhone(''); setClientMasterState(''); return; }
+    const client = allClients.find(c => c.id === linkedClientId);
+    setClientMasterPhone(client?.phone || '');
+    setClientMasterState(client?.state || '');
+  }, [linkedClientId, allClients]);
+
+  // Build conflict items
+  const salesConflicts = useMemo(() => {
+    const items: { field: string; clientValue: string; counterpartyValue: string; onChoose: (v: string) => void }[] = [];
+    if (clientMasterPhone && counterpartyPhone && clientMasterPhone !== counterpartyPhone) {
+      items.push({ field: 'Phone', clientValue: clientMasterPhone, counterpartyValue: counterpartyPhone, onChoose: setContactNumber });
+    }
+    if (clientMasterState && counterpartyState && clientMasterState !== counterpartyState) {
+      items.push({ field: 'State', clientValue: clientMasterState, counterpartyValue: counterpartyState, onChoose: setClientState });
+    }
+    return items;
+  }, [clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Helper: lookup contact records by nickname(s) and pre-fill
   // ONLY fills contact number (never state — state must come from actual client record)
@@ -701,6 +742,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               )}
             </CardContent>
           </Card>
+
+          {/* Data Conflict Banner */}
+          <DataConflictBanner conflicts={salesConflicts} />
 
           {/* Editable Fields */}
           <div className="grid grid-cols-2 gap-4">

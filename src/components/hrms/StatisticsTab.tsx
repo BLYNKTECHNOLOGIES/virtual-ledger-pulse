@@ -16,7 +16,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
-import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 
@@ -198,29 +198,31 @@ export function StatisticsTab() {
       const netProfitMarginPerUnit = avgSalesPricePerUnit - avgPurchaseCostPerUnit;
       const netProfit = netProfitMarginPerUnit * totalSoldQuantity;
 
-      // ===== KYC & CLIENT STATISTICS =====
-      const kycVerified = allClients?.filter(c => c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED')?.length || 0;
-      const kycPending = allClients?.filter(c => c.kyc_status === 'PENDING')?.length || 0;
-      const kycRejected = allClients?.filter(c => c.kyc_status === 'REJECTED')?.length || 0;
+      // ===== KYC & CLIENT STATISTICS (period-aware) =====
+      // All-time totals (for verification rate denominator)
+      const kycVerifiedAllTime = allClients?.filter(c => c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED')?.length || 0;
+      
+      // Period-specific KYC counts (clients created in period by status)
+      const kycVerified = newClientsInPeriod.filter(c => c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED').length;
+      const kycPending = newClientsInPeriod.filter(c => c.kyc_status === 'PENDING').length;
+      const kycRejected = newClientsInPeriod.filter(c => c.kyc_status === 'REJECTED').length;
       
       // New KYC verified in period
-      const newKycVerifiedInPeriod = newClientsInPeriod.filter(c => 
-        c.kyc_status === 'VERIFIED' || c.kyc_status === 'APPROVED'
-      ).length;
+      const newKycVerifiedInPeriod = kycVerified;
 
-      // Buyer/Seller stats
-      const buyersTotal = allClients?.filter(c => c.is_buyer)?.length || 0;
-      const sellersTotal = allClients?.filter(c => c.is_seller)?.length || 0;
-      const newBuyers = newClientsInPeriod.filter(c => c.is_buyer).length;
-      const newSellers = newClientsInPeriod.filter(c => c.is_seller).length;
+      // Buyer/Seller stats (period-specific)
+      const buyersTotal = newClientsInPeriod.filter(c => c.is_buyer).length;
+      const sellersTotal = newClientsInPeriod.filter(c => c.is_seller).length;
+      const newBuyers = buyersTotal;
+      const newSellers = sellersTotal;
 
-      // ===== LEAD STATISTICS =====
+      // ===== LEAD STATISTICS (period-aware) =====
       const newLeads = leadsInPeriod.length;
       const prevNewLeads = leadsInPrevPeriod.length;
       const leadsChange = prevNewLeads > 0 ? ((newLeads - prevNewLeads) / prevNewLeads) * 100 : 0;
 
       const convertedLeads = leadsInPeriod.filter(l => l.status === 'CONVERTED').length;
-      const openLeads = leads?.filter(l => l.status === 'NEW' || l.status === 'CONTACTED' || l.status === 'FOLLOW_UP').length || 0;
+      const openLeads = leadsInPeriod.filter(l => l.status === 'NEW' || l.status === 'CONTACTED' || l.status === 'FOLLOW_UP').length;
       const lostLeads = leadsInPeriod.filter(l => l.status === 'LOST').length;
       
       const conversionRate = newLeads > 0 ? (convertedLeads / newLeads) * 100 : 0;
@@ -279,43 +281,61 @@ export function StatisticsTab() {
         }))
         .sort((a, b) => b.revenue - a.revenue);
 
-      // ===== MONTHLY TRENDS =====
-      const monthlyData = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthStart = startOfMonth(subMonths(new Date(), i));
-        const monthEnd = endOfMonth(subMonths(new Date(), i));
-        const monthStartStr = format(monthStart, 'yyyy-MM-dd');
-        const monthEndStr = format(monthEnd, 'yyyy-MM-dd');
-        
-        const monthSales = salesOrders?.filter(o => 
-          o.order_date >= monthStartStr && o.order_date <= monthEndStr
-        ) || [];
-        const monthPurchases = purchaseOrders?.filter(o => 
-          o.order_date >= monthStartStr && o.order_date <= monthEndStr
-        ) || [];
+      // ===== PERIOD-AWARE TREND DATA =====
+      const trendData: any[] = [];
+      const totalDays = differenceInDays(endDate, startDate);
 
-        const monthNewClients = allClients?.filter(c => {
-          const created = format(new Date(c.created_at), 'yyyy-MM-dd');
-          return created >= monthStartStr && created <= monthEndStr;
-        }) || [];
+      if (totalDays <= 31) {
+        // Daily granularity for short periods
+        let cursor = new Date(startDate);
+        while (cursor <= endDate) {
+          const dayStr = format(cursor, 'yyyy-MM-dd');
+          const daySales = salesOrders?.filter(o => o.order_date?.startsWith(dayStr)) || [];
+          const dayPurchases = purchaseOrders?.filter(o => o.order_date?.startsWith(dayStr)) || [];
+          const dayNewClients = allClients?.filter(c => format(new Date(c.created_at), 'yyyy-MM-dd') === dayStr) || [];
+          const dayLeads = leads?.filter(l => format(new Date(l.created_at), 'yyyy-MM-dd') === dayStr) || [];
+          const dayRevenue = daySales.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
-        const monthLeads = leads?.filter(l => {
-          const created = format(new Date(l.created_at), 'yyyy-MM-dd');
-          return created >= monthStartStr && created <= monthEndStr;
-        }) || [];
+          trendData.push({
+            month: format(cursor, 'dd MMM'),
+            trades: daySales.length + dayPurchases.length,
+            revenue: dayRevenue,
+            newClients: dayNewClients.length,
+            newLeads: dayLeads.length,
+            convertedLeads: dayLeads.filter(l => l.status === 'CONVERTED').length
+          });
+          cursor = addDays(cursor, 1);
+        }
+      } else {
+        // Monthly granularity for longer periods
+        let current = startOfMonth(startDate);
+        const lastMonth = startOfMonth(endDate);
+        while (current <= lastMonth) {
+          const mStart = format(current, 'yyyy-MM-dd');
+          const mEnd = format(endOfMonth(current), 'yyyy-MM-dd');
+          
+          const monthSales = salesOrders?.filter(o => o.order_date >= mStart && o.order_date <= mEnd) || [];
+          const monthPurchases = purchaseOrders?.filter(o => o.order_date >= mStart && o.order_date <= mEnd) || [];
+          const monthNewClients = allClients?.filter(c => {
+            const created = format(new Date(c.created_at), 'yyyy-MM-dd');
+            return created >= mStart && created <= mEnd;
+          }) || [];
+          const monthLeads = leads?.filter(l => {
+            const created = format(new Date(l.created_at), 'yyyy-MM-dd');
+            return created >= mStart && created <= mEnd;
+          }) || [];
+          const monthRevenue = monthSales.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
 
-        const monthConvertedLeads = monthLeads.filter(l => l.status === 'CONVERTED').length;
-
-        const monthRevenue = monthSales.reduce((sum, o) => sum + Number(o.total_amount || 0), 0);
-
-        monthlyData.push({
-          month: format(monthStart, 'MMM'),
-          trades: monthSales.length + monthPurchases.length,
-          revenue: monthRevenue,
-          newClients: monthNewClients.length,
-          newLeads: monthLeads.length,
-          convertedLeads: monthConvertedLeads
-        });
+          trendData.push({
+            month: format(current, 'MMM yyyy'),
+            trades: monthSales.length + monthPurchases.length,
+            revenue: monthRevenue,
+            newClients: monthNewClients.length,
+            newLeads: monthLeads.length,
+            convertedLeads: monthLeads.filter(l => l.status === 'CONVERTED').length
+          });
+          current = addMonths(current, 1);
+        }
       }
 
       // Department distribution
@@ -373,7 +393,7 @@ export function StatisticsTab() {
         kpi: {
           revenue: currentRevenue,
           revenueChange,
-          clients: totalClients,
+          clients: newClientsInPeriod.length,
           trades: totalTrades,
           employees: totalEmployees,
           profit: netProfit
@@ -392,7 +412,9 @@ export function StatisticsTab() {
           pending: kycPending,
           rejected: kycRejected,
           newVerifiedInPeriod: newKycVerifiedInPeriod,
-          verificationRate: totalClients > 0 ? Math.round((kycVerified / totalClients) * 100) : 0
+          verificationRate: newClientsInPeriod.length > 0 ? Math.round((kycVerified / newClientsInPeriod.length) * 100) : 0,
+          verifiedAllTime: kycVerifiedAllTime,
+          totalAllTime: allClients?.length || 0
         },
         leadStats: {
           total: leads?.length || 0,
@@ -411,7 +433,7 @@ export function StatisticsTab() {
           totalValue: totalOnboardingValue
         },
         employeePerformance: employeePerformanceData,
-        monthlyData,
+        trendData,
         departmentData,
         expenseBreakdown,
         topClients,
@@ -464,16 +486,16 @@ export function StatisticsTab() {
 
   const { 
     kpi, clientStats, kycStats, leadStats, onboardingStats, 
-    employeePerformance, monthlyData, departmentData, expenseBreakdown, 
+    employeePerformance, trendData, departmentData, expenseBreakdown, 
     topClients, totalExpenses, totalSalary, usdtFees
   } = statsData || {
     kpi: { revenue: 0, revenueChange: 0, clients: 0, trades: 0, employees: 0, profit: 0 },
     clientStats: { total: 0, newInPeriod: 0, newInPrevPeriod: 0, buyers: 0, sellers: 0, newBuyers: 0, newSellers: 0 },
-    kycStats: { verified: 0, pending: 0, rejected: 0, newVerifiedInPeriod: 0, verificationRate: 0 },
+    kycStats: { verified: 0, pending: 0, rejected: 0, newVerifiedInPeriod: 0, verificationRate: 0, verifiedAllTime: 0, totalAllTime: 0 },
     leadStats: { total: 0, newInPeriod: 0, converted: 0, open: 0, lost: 0, conversionRate: 0, leadsChange: 0, leadSourceData: [] },
     onboardingStats: { pending: 0, approved: 0, rejected: 0, totalValue: 0 },
     employeePerformance: [],
-    monthlyData: [],
+    trendData: [],
     departmentData: [],
     expenseBreakdown: [],
     topClients: [],
@@ -643,12 +665,12 @@ export function StatisticsTab() {
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  Growth Trends (6 Months)
+                  Growth Trends
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={monthlyData}>
+                  <LineChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                     <YAxis stroke="hsl(var(--muted-foreground))" />
@@ -672,7 +694,7 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={monthlyData}>
+                  <AreaChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                     <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(v) => formatCurrency(v)} />
@@ -689,8 +711,8 @@ export function StatisticsTab() {
             <Card className="shadow-md">
               <CardContent className="p-4 text-center">
                 <Users className="h-6 w-6 mx-auto text-primary mb-2" />
-                <p className="text-2xl font-bold">{clientStats.total}</p>
-                <p className="text-xs text-muted-foreground">Total Clients</p>
+                <p className="text-2xl font-bold">{clientStats.newInPeriod}</p>
+                <p className="text-xs text-muted-foreground">New Clients</p>
               </CardContent>
             </Card>
             <Card className="shadow-md">
@@ -753,7 +775,7 @@ export function StatisticsTab() {
                   <div>
                     <p className="text-sm text-green-600 dark:text-green-400 font-medium">KYC Verified</p>
                     <p className="text-3xl font-bold text-green-700 dark:text-green-300">{kycStats.verified}</p>
-                    <p className="text-xs text-green-500 mt-1">{kycStats.newVerifiedInPeriod} new this period</p>
+                    <p className="text-xs text-green-500 mt-1">In selected period ({kycStats.verifiedAllTime} all-time)</p>
                   </div>
                   <CheckCircle className="h-10 w-10 text-green-400" />
                 </div>
@@ -764,9 +786,9 @@ export function StatisticsTab() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">Unverified KYC</p>
+                    <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">KYC Pending</p>
                     <p className="text-3xl font-bold text-amber-700 dark:text-amber-300">{kycStats.pending}</p>
-                    <p className="text-xs text-amber-500 mt-1">Clients without verified KYC</p>
+                    <p className="text-xs text-amber-500 mt-1">In selected period</p>
                   </div>
                   <AlertCircle className="h-10 w-10 text-amber-400" />
                 </div>
@@ -777,9 +799,9 @@ export function StatisticsTab() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">Rejected</p>
+                    <p className="text-sm text-red-600 dark:text-red-400 font-medium">KYC Rejected</p>
                     <p className="text-3xl font-bold text-red-700 dark:text-red-300">{kycStats.rejected}</p>
-                    <p className="text-xs text-red-500 mt-1">Failed verification</p>
+                    <p className="text-xs text-red-500 mt-1">In selected period</p>
                   </div>
                   <XCircle className="h-10 w-10 text-red-400" />
                 </div>
@@ -832,14 +854,14 @@ export function StatisticsTab() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Buyers</p>
+                    <p className="text-sm text-muted-foreground">New Buyers</p>
                     <p className="text-2xl font-bold text-blue-600">{clientStats.buyers}</p>
-                    <Badge variant="secondary" className="mt-2">+{clientStats.newBuyers} new</Badge>
+                    <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
                   <div className="p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Sellers</p>
+                    <p className="text-sm text-muted-foreground">New Sellers</p>
                     <p className="text-2xl font-bold text-purple-600">{clientStats.sellers}</p>
-                    <Badge variant="secondary" className="mt-2">+{clientStats.newSellers} new</Badge>
+                    <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
                 </div>
                 <div className="p-4 bg-muted/50 rounded-lg">
@@ -972,7 +994,7 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={monthlyData}>
+                  <BarChart data={trendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" />
                     <YAxis stroke="hsl(var(--muted-foreground))" />

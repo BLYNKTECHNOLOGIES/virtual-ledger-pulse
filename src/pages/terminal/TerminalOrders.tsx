@@ -362,6 +362,17 @@ export default function TerminalOrders() {
       });
     }
 
+    // Sort: appeal/dispute orders go to the bottom; rest stay chronological (newest first)
+    if (statusFilter === 'active' || statusFilter === 'all') {
+      filtered.sort((a, b) => {
+        const aIsAppeal = (a.order_status || '').toUpperCase().includes('APPEAL') || (a.order_status || '').toUpperCase().includes('DISPUTE');
+        const bIsAppeal = (b.order_status || '').toUpperCase().includes('APPEAL') || (b.order_status || '').toUpperCase().includes('DISPUTE');
+        if (aIsAppeal && !bIsAppeal) return 1;
+        if (!aIsAppeal && bIsAppeal) return -1;
+        return 0; // preserve existing chronological order within each group
+      });
+    }
+
     return filtered;
   }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, getOrderVisibility]);
 

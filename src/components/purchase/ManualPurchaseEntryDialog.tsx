@@ -377,7 +377,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         console.log('📡 Calling RPC create_manual_purchase_with_split_payments with params:', rpcParams);
 
         const { data, error } = await supabase.rpc(
-          'create_manual_purchase_with_split_payments',
+          'create_manual_purchase_with_split_payments_rpc' as any,
           rpcParams
         );
         result = data as Record<string, unknown>;

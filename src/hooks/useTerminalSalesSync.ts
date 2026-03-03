@@ -24,6 +24,36 @@ async function fetchVerifiedBuyerName(orderNumber: string): Promise<string | nul
 }
 
 /**
+ * Fetch Binance orders for a trade type + statuses with pagination.
+ * Required because Supabase REST defaults to 1000 rows per request.
+ */
+async function fetchSalesOrdersByStatus(statuses: string[], cutoffTime: number): Promise<any[]> {
+  const PAGE_SIZE = 1000;
+  const rows: any[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('binance_order_history')
+      .select('*')
+      .eq('trade_type', 'SELL')
+      .in('order_status', statuses)
+      .gte('create_time', cutoffTime)
+      .order('create_time', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    rows.push(...data);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return rows;
+}
+
+/**
  * Syncs completed SELL orders from binance_order_history to terminal_sales_sync.
  * Called after the order sync completes (alongside purchase sync).
  */
@@ -56,14 +86,9 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
     // 2. Get completed SELL orders from binance_order_history — last 7 days to catch cross-day orders
     // (orders created yesterday but completed/appeal-resolved today)
     const cutoffTime = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days ago in epoch ms
-    const { data: completedSells, error: fetchErr } = await supabase
-      .from('binance_order_history')
-      .select('*')
-      .eq('trade_type', 'SELL')
-      .in('order_status', ['COMPLETED', '4'])
-      .gte('create_time', cutoffTime);
+    const completedSells = await fetchSalesOrdersByStatus(['COMPLETED', '4'], cutoffTime);
 
-    if (fetchErr || !completedSells || completedSells.length === 0) {
+    if (!completedSells || completedSells.length === 0) {
       console.log('[SalesSync] No recent completed SELL orders found.');
       return { synced: 0, duplicates: 0 };
     }

@@ -616,11 +616,11 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                     <div className="text-sm bg-muted/50 p-2 rounded border">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Fee Amount:</span>
-                        <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} USDT</span>
+                        <span className="font-medium text-orange-600">{feeCalculation.feeAmount.toFixed(4)} {item.asset}</span>
                       </div>
                       <div className="flex justify-between mt-1">
                         <span className="text-muted-foreground">Net Credit to Wallet:</span>
-                        <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} USDT</span>
+                        <span className="font-semibold text-green-600">{feeCalculation.netCredit.toFixed(4)} {item.asset}</span>
                       </div>
                     </div>
                   )}

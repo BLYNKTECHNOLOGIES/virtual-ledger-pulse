@@ -46,7 +46,7 @@ export function TerminalSyncTab() {
 
       let query = supabase
         .from('terminal_purchase_sync')
-        .select('*')
+        .select('*, clients:client_id(pan_card_number)')
         .order('synced_at', { ascending: false })
         .limit(500);
 
@@ -233,7 +233,14 @@ export function TerminalSyncTab() {
                     <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">
-                      <span className="text-muted-foreground">—</span>
+                      {(() => {
+                        const pan = record.pan_number || (record.clients as any)?.pan_card_number;
+                        return pan ? (
+                          <span className="font-mono">{pan}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">

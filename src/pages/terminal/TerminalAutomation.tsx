@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -80,7 +82,10 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export default function TerminalAutomation() {
-  const [activeTab, setActiveTab] = useState('auto-reply');
+  const { userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'automation', { activeTab: 'auto-reply' as string });
+  const activeTab = prefs.activeTab;
+  const setActiveTab = (v: string) => setPref('activeTab', v);
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AutoReplyRule | null>(null);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);

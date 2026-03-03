@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -125,8 +127,12 @@ function formatDetails(entry: AdActionLogEntry): string[] {
 
 export default function TerminalLogs() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [actionFilter, setActionFilter] = useState<string>('all');
+  const { userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'logs', { categoryFilter: 'all' as string, actionFilter: 'all' as string });
+  const categoryFilter = prefs.categoryFilter;
+  const actionFilter = prefs.actionFilter;
+  const setCategoryFilter = (v: string) => setPref('categoryFilter', v);
+  const setActionFilter = (v: string) => setPref('actionFilter', v);
   const { data: logs, isLoading } = useAdActionLogs({ limit: 500 });
 
   // Available actions based on selected category

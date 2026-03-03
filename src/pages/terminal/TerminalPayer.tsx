@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +33,10 @@ function mapOrderStatusCode(code: number | string): string {
 
 export default function TerminalPayer() {
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
+  const { userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'payer', { activeTab: 'pending' as string });
+  const activeTab = prefs.activeTab as 'pending' | 'completed';
+  const setActiveTab = (v: string) => setPref('activeTab', v);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const { orders, completedOrders, isLoading, isFetching, refetch, exclusions } = usePayerOrders();
 

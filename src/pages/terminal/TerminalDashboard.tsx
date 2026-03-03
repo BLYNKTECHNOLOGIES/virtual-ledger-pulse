@@ -18,13 +18,18 @@ import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
 import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from '@/hooks/useSpotTradeSyncStandalone';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 
 export default function TerminalDashboard() {
   const { data: cachedOrders = [], isLoading: dbLoading, refetch: refetchDb } = useCachedOrderHistory();
   const { isSyncing, metadata } = useAutoSyncOrders();
   const syncMutation = useSyncOrderHistory();
   const { data: syncMeta } = useSyncMetadata();
-  const [period, setPeriod] = useState<TimePeriod>('30d');
+  const { userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'dashboard', { period: '30d' as string });
+  const period = prefs.period as any;
+  const setPeriod = (v: any) => setPref('period', v);
   const [universalSyncing, setUniversalSyncing] = useState(false);
 
   // Universal sync: triggers all terminal sync operations in parallel

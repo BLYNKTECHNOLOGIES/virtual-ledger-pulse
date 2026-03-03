@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 
 interface AuditLog {
   id: string;
@@ -31,8 +32,10 @@ export default function TerminalAuditLogs() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [actionFilter, setActionFilter] = useState('all');
-  const { isTerminalAdmin } = useTerminalAuth();
+  const { isTerminalAdmin, userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'audit-logs', { actionFilter: 'all' as string });
+  const actionFilter = prefs.actionFilter;
+  const setActionFilter = (v: string) => setPref('actionFilter', v);
   const { visibleUserIds } = useTerminalJurisdiction();
 
   const fetchLogs = useCallback(async () => {

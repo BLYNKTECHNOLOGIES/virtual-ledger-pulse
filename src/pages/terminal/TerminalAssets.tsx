@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AssetOverview } from "@/components/terminal/assets/AssetOverview";
 import { SpotTradingPanel } from "@/components/terminal/assets/SpotTradingPanel";
@@ -6,10 +5,13 @@ import { TradeHistory } from "@/components/terminal/assets/TradeHistory";
 import { AssetMovementHistory } from "@/components/terminal/assets/AssetMovementHistory";
 import { Wallet, ArrowLeftRight, History, ScrollText, Lock } from "lucide-react";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
 
 export default function TerminalAssets() {
-  const [activeTab, setActiveTab] = useState("overview");
-  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'assets', { activeTab: 'overview' as string });
+  const activeTab = prefs.activeTab;
+  const setActiveTab = (v: string) => setPref('activeTab', v);
   const canManageAssets = isTerminalAdmin || hasPermission("terminal_assets_manage");
 
   return (

@@ -58,48 +58,55 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     }
   }, [open, assetCode, isNonUsdt]);
 
-  // Fetch PAN and contact from counterparty records when dialog opens
+  // Resolve PAN from safe sources when dialog opens or client mapping changes
   useEffect(() => {
     if (!open || !syncRecord?.counterparty_name) return;
 
-    const nickname = syncRecord.order_data?.counterparty_nickname || syncRecord.counterparty_name;
+    const nicknameRaw = syncRecord.order_data?.counterparty_nickname || syncRecord.counterparty_name;
+    const nickname = (nicknameRaw || '').trim();
+    const isMaskedNickname = nickname.includes('*');
 
-    // Fetch PAN from counterparty_pan_records if not already on sync record
-    const fetchCounterpartyData = async () => {
-      let resolvedPan = syncRecord?.pan_number || '';
-      let resolvedContact = '';
+    const fetchResolvedData = async () => {
+      let resolvedPan = '';
 
-      if (!resolvedPan) {
+      const selectedClientId = linkedClientId || syncRecord?.client_id || '';
+
+      // 1) Highest trust: selected client master PAN
+      if (selectedClientId) {
+        const { data: clientRec } = await supabase
+          .from('clients')
+          .select('pan_card_number')
+          .eq('id', selectedClientId)
+          .maybeSingle();
+
+        if (clientRec?.pan_card_number) {
+          resolvedPan = clientRec.pan_card_number;
+        }
+      }
+
+      // 2) Fallback: counterparty PAN only when nickname is unmasked/reliable
+      if (!resolvedPan && nickname && !isMaskedNickname) {
         const { data: panRec } = await supabase
           .from('counterparty_pan_records')
           .select('pan_number')
           .eq('counterparty_nickname', nickname)
           .maybeSingle();
+
         if (panRec?.pan_number) resolvedPan = panRec.pan_number;
       }
 
-      // Fetch contact from counterparty_contact_records
-      const { data: contactRec } = await supabase
-        .from('counterparty_contact_records')
-        .select('contact_number, state')
-        .eq('counterparty_nickname', nickname)
-        .maybeSingle();
-      if (contactRec?.contact_number) resolvedContact = contactRec.contact_number;
+      // Never trust stale syncRecord.pan_number for masked nicknames.
+      setPanNumber(resolvedPan);
+      setTdsOption(resolvedPan ? '1%' : '20%');
 
-      // Set PAN and TDS
-      if (resolvedPan) {
-        setPanNumber(resolvedPan);
-        setTdsOption('1%');
-      } else {
-        setTdsOption('20%');
+      // Keep selected/linked client from sync record as baseline
+      if (!linkedClientId) {
+        setLinkedClientId(syncRecord?.client_id || '');
       }
-
-      // Set linked client from sync record (no auto-creation)
-      setLinkedClientId(syncRecord?.client_id || '');
     };
 
-    fetchCounterpartyData();
-  }, [open, syncRecord]);
+    fetchResolvedData();
+  }, [open, syncRecord, linkedClientId]);
 
   // Fetch bank accounts
   const { data: bankAccounts = [] } = useQuery({

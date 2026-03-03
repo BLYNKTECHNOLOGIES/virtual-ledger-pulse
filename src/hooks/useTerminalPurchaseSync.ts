@@ -182,24 +182,39 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
 
   const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
-  // 4. Get PAN records
-  const nicknames = [...new Set(allEligible.map(o => o.counter_part_nick_name).filter(Boolean))];
+  // 4. Get PAN records (only for unmasked, reliable counterparty nicknames)
+  const getSafeCounterpartyKey = (value?: string | null) => {
+    const normalized = (value || '').trim();
+    if (!normalized || normalized.includes('*')) return null;
+    return normalized;
+  };
+
+  const safeNicknames = [
+    ...new Set(
+      allEligible
+        .map(o => getSafeCounterpartyKey(o.counter_part_nick_name))
+        .filter((v): v is string => Boolean(v))
+    ),
+  ];
+
   const { data: panRecords } = await supabase
     .from('counterparty_pan_records')
     .select('counterparty_nickname, pan_number')
-    .in('counterparty_nickname', nicknames.length > 0 ? nicknames : ['__none__']);
+    .in('counterparty_nickname', safeNicknames.length > 0 ? safeNicknames : ['__none__']);
 
   const panMap = new Map((panRecords || []).map(p => [p.counterparty_nickname, p.pan_number]));
 
-  // 5. Cross-reference existing client mappings from sales sync
+  // 5. Cross-reference explicit client mappings from sales sync
   const { data: existingSalesMappings } = await supabase
     .from('terminal_sales_sync')
     .select('counterparty_name, client_id')
-    .in('counterparty_name', nicknames.length > 0 ? nicknames : ['__none__'])
+    .in('counterparty_name', safeNicknames.length > 0 ? safeNicknames : ['__none__'])
     .not('client_id', 'is', null);
 
   const salesClientMap = new Map(
-    (existingSalesMappings || []).map(s => [s.counterparty_name?.toLowerCase(), s.client_id])
+    (existingSalesMappings || [])
+      .filter(s => s.counterparty_name && s.client_id)
+      .map(s => [s.counterparty_name!.toLowerCase().trim(), s.client_id!])
   );
 
   const userId = getCurrentUserId();
@@ -232,24 +247,17 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     }
 
     const counterpartyName = verifiedName || order.counter_part_nick_name || 'Unknown';
-    const pan = panMap.get(order.counter_part_nick_name || '') || null;
+    const safeNickname = getSafeCounterpartyKey(order.counter_part_nick_name);
+    const pan = safeNickname ? (panMap.get(safeNickname) || null) : null;
 
-    // Try to match client
+    // Try to match client only from explicit previously mapped counterparty keys.
+    // Never use fuzzy/exact name lookup in clients during sync (prevents wrong-client assignment).
     let clientId: string | null = null;
     if (verifiedName) {
-      const { data: clientMatch } = await supabase
-        .from('clients')
-        .select('id')
-        .ilike('name', verifiedName)
-        .limit(1)
-        .maybeSingle();
-      if (clientMatch) clientId = clientMatch.id;
+      clientId = salesClientMap.get(verifiedName.toLowerCase().trim()) || null;
     }
-    if (!clientId && verifiedName) {
-      clientId = salesClientMap.get(verifiedName.toLowerCase()) || null;
-    }
-    if (!clientId) {
-      clientId = salesClientMap.get((order.counter_part_nick_name || '').toLowerCase()) || null;
+    if (!clientId && safeNickname) {
+      clientId = salesClientMap.get(safeNickname.toLowerCase().trim()) || null;
     }
 
     const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';

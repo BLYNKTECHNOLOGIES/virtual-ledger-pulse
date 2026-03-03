@@ -138,12 +138,12 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
   // ── RPC overload ambiguity ──
   if (lowerMsg.includes('could not choose the best candidate function') || lowerMsg.includes('is not unique')) {
     return {
-      title: 'Purchase Approval Failed',
-      description: 'A temporary system configuration issue occurred. Please try again or contact support if it persists.',
+      title: 'System Configuration Issue',
+      description: 'Multiple versions of the same operation exist in the system, causing a conflict. Please refresh the page and try again. If it persists, contact support.',
     };
   }
 
-  // ── Fallback ── always show the real error
+  // ── Fallback ── always show the real error in plain language
   const contextLabel = context ? `${context} Failed` : 'Action Failed';
   return {
     title: contextLabel,

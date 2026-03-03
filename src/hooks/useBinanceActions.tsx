@@ -69,6 +69,11 @@ export function useReleaseCoin() {
         return;
       }
 
+      if (/timed out/i.test(err.message)) {
+        toast.error('Release request timed out. Check order status once, then retry with a fresh YubiKey code only if still pending release.');
+        return;
+      }
+
       if (isYubiKeyFlow && /unsupported authentication type/i.test(err.message)) {
         toast.error('Release failed: Authentication mode mismatch. Please retry with a fresh YubiKey code.');
         return;

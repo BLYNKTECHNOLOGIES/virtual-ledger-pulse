@@ -111,32 +111,38 @@ export default function TerminalOrders() {
   } = useTerminalJurisdiction();
 
   // Fetch user's assigned size ranges for order filtering
+  // Check BOTH terminal_user_size_range_mappings (from User Config) AND terminal_payer_assignments
   const { data: userSizeRanges } = useQuery({
     queryKey: ['user-assigned-size-ranges', userId],
     queryFn: async () => {
       if (!userId) return null;
-      // Get active payer assignments of type size_range for this user
-      const { data: assignments, error: aErr } = await supabase
+
+      // Source 1: terminal_user_size_range_mappings (set via User Config dialog)
+      const { data: directMappings } = await supabase
+        .from('terminal_user_size_range_mappings')
+        .select('size_range_id')
+        .eq('user_id', userId);
+
+      // Source 2: terminal_payer_assignments (set via Payer Assignment manager)
+      const { data: payerAssignments } = await supabase
         .from('terminal_payer_assignments')
         .select('size_range_id')
         .eq('payer_user_id', userId)
         .eq('assignment_type', 'size_range')
         .eq('is_active', true);
-      
-      console.log('[SizeRangeFilter] userId:', userId, 'assignments:', assignments, 'error:', aErr);
-      
-      if (aErr || !assignments || assignments.length === 0) return null;
 
-      const rangeIds = assignments.map(a => a.size_range_id).filter(Boolean) as string[];
-      if (rangeIds.length === 0) return null;
+      const rangeIdSet = new Set<string>();
+      (directMappings || []).forEach(m => { if (m.size_range_id) rangeIdSet.add(m.size_range_id); });
+      (payerAssignments || []).forEach(a => { if (a.size_range_id) rangeIdSet.add(a.size_range_id); });
+
+      if (rangeIdSet.size === 0) return null;
 
       const { data: ranges } = await supabase
         .from('terminal_order_size_ranges')
         .select('id, name, min_amount, max_amount')
-        .in('id', rangeIds);
-      
-      console.log('[SizeRangeFilter] resolved ranges:', ranges);
-      return ranges || null;
+        .in('id', Array.from(rangeIdSet));
+
+      return ranges && ranges.length > 0 ? ranges : null;
     },
     enabled: !!userId,
     staleTime: 60 * 1000,
@@ -396,7 +402,6 @@ export default function TerminalOrders() {
 
     // Filter by user's assigned size ranges (non-admins only)
     // If user has size range assignments, only show orders within those ranges
-    console.log('[SizeRangeFilter] isTerminalAdmin:', isTerminalAdmin, 'userSizeRanges:', userSizeRanges, 'total orders before filter:', filtered.length);
     if (!isTerminalAdmin && userSizeRanges && userSizeRanges.length > 0) {
       filtered = filtered.filter(r => {
         const price = r.total_price || 0;
@@ -407,7 +412,6 @@ export default function TerminalOrders() {
           return price >= min && (max === null || max === undefined || price <= max);
         });
       });
-      console.log('[SizeRangeFilter] orders after filter:', filtered.length);
     }
 
     // Apply jurisdiction + assignment filter

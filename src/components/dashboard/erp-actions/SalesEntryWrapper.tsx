@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,6 +37,42 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
   const [isOffMarket, setIsOffMarket] = useState(true); // Default off-market for ERP actions
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
+  const [binanceCommission, setBinanceCommission] = useState<number>(0);
+
+  // Auto-detect Binance commission from matching P2P sell order
+  const { data: matchedSellCommission } = useQuery({
+    queryKey: ['matched-sell-commission', item.movement_id, item.asset, item.amount],
+    queryFn: async () => {
+      const movementTimeMs = item.movement_time * (item.movement_time < 1e12 ? 1000 : 1);
+      const windowMs = 10 * 60 * 1000;
+      const { data } = await supabase
+        .from('binance_order_history')
+        .select('commission, amount, order_number')
+        .eq('trade_type', 'SELL')
+        .eq('asset', item.asset.toUpperCase())
+        .eq('order_status', 'COMPLETED')
+        .gte('create_time', movementTimeMs - windowMs)
+        .lte('create_time', movementTimeMs + windowMs)
+        .limit(5);
+      if (!data?.length) return 0;
+      const target = item.amount;
+      let best = data[0];
+      let bestDiff = Math.abs(parseFloat(best.amount || '0') - target);
+      for (const o of data) {
+        const diff = Math.abs(parseFloat(o.amount || '0') - target);
+        if (diff < bestDiff) { best = o; bestDiff = diff; }
+      }
+      if (bestDiff / target > 0.05) return 0;
+      return parseFloat(best.commission || '0') || 0;
+    },
+    enabled: open,
+  });
+
+  useEffect(() => {
+    if (matchedSellCommission && matchedSellCommission > 0 && binanceCommission === 0) {
+      setBinanceCommission(matchedSellCommission);
+    }
+  }, [matchedSellCommission]);
 
   // For on-chain withdrawals, pre-fill quantity as amount + Binance network fee
   // so that the fee is absorbed into the sales quantity (charged to counterparty)
@@ -277,6 +314,29 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             fee_percentage: selectedWalletFee,
           }).eq('id', result.id);
         }
+
+        // Deduct Binance commission as separate SALES_ORDER_FEE transaction
+        if (binanceCommission > 0) {
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: formData.wallet_id,
+              transaction_type: 'DEBIT',
+              amount: binanceCommission,
+              reference_type: 'SALES_ORDER_FEE',
+              reference_id: result.id,
+              description: `Binance commission for sales order #${orderNumber}`,
+              balance_before: 0,
+              balance_after: 0,
+              asset_code: (item.asset || 'USDT').toUpperCase(),
+            });
+
+          // Update fee_amount on the sales order to include commission
+          const existingFee = parseFloat(formData.platform_fees) || 0;
+          await supabase.from('sales_orders').update({
+            fee_amount: existingFee + binanceCommission,
+          }).eq('id', result.id);
+        }
       }
 
       // Handle client onboarding
@@ -500,6 +560,35 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               </Badge>
             )}
           </div>
+
+          {/* Binance Commission */}
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">Binance Commission</Label>
+                <Badge variant="outline" className="text-xs">Auto-detected</Badge>
+              </div>
+              <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={binanceCommission || ''}
+                onChange={(e) => setBinanceCommission(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+              />
+              {binanceCommission > 0 && (
+                <div className="text-sm bg-background p-2 rounded border">
+                  <div className="flex justify-between text-orange-600">
+                    <span>Binance Commission:</span>
+                    <span>-{binanceCommission.toFixed(4)} {item.asset}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Will be debited from wallet as SALES_ORDER_FEE
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Payment Method + Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

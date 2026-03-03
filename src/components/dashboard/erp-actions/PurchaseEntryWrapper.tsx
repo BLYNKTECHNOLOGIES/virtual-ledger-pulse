@@ -42,6 +42,47 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
   const [selectedClientBankDetails, setSelectedClientBankDetails] = useState<{
     pan_card_number?: string | null;
   } | null>(null);
+  const [binanceCommission, setBinanceCommission] = useState<number>(0);
+
+  // Auto-detect Binance commission from matching P2P buy order
+  const { data: matchedCommission } = useQuery({
+    queryKey: ['matched-buy-commission', item.movement_id, item.asset, item.amount],
+    queryFn: async () => {
+      // Try to find a matching BUY order in binance_order_history
+      // Match by asset + approximate amount + close timestamp (within 10 min)
+      const movementTimeMs = item.movement_time * (item.movement_time < 1e12 ? 1000 : 1);
+      const windowMs = 10 * 60 * 1000; // 10 min window
+      const { data } = await supabase
+        .from('binance_order_history')
+        .select('commission, amount, order_number')
+        .eq('trade_type', 'BUY')
+        .eq('asset', item.asset.toUpperCase())
+        .eq('order_status', 'COMPLETED')
+        .gte('create_time', movementTimeMs - windowMs)
+        .lte('create_time', movementTimeMs + windowMs)
+        .limit(5);
+      if (!data?.length) return 0;
+      // Find the order whose amount is closest to item.amount
+      const target = item.amount;
+      let best = data[0];
+      let bestDiff = Math.abs(parseFloat(best.amount || '0') - target);
+      for (const o of data) {
+        const diff = Math.abs(parseFloat(o.amount || '0') - target);
+        if (diff < bestDiff) { best = o; bestDiff = diff; }
+      }
+      // Only use if amount is within 5% of deposit amount (allowing for commission difference)
+      if (bestDiff / target > 0.05) return 0;
+      return parseFloat(best.commission || '0') || 0;
+    },
+    enabled: open,
+  });
+
+  // Auto-fill commission when detected
+  useEffect(() => {
+    if (matchedCommission && matchedCommission > 0 && binanceCommission === 0) {
+      setBinanceCommission(matchedCommission);
+    }
+  }, [matchedCommission]);
 
   const [formData, setFormData] = useState({
     order_number: '',
@@ -127,14 +168,14 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
     return { tdsRate, tdsAmount, netPayable };
   }, [formData.total_amount, formData.tds_option]);
 
-  // Fee calculation
+  // Fee calculation (includes Binance commission)
   const feeCalculation = useMemo(() => {
     const quantity = parseFloat(formData.quantity) || 0;
     const feePercentage = parseFloat(formData.fee_percentage) || 0;
-    if (formData.is_off_market || feePercentage <= 0) return { feeAmount: 0, netCredit: quantity };
-    const feeAmount = quantity * (feePercentage / 100);
-    return { feeAmount, netCredit: quantity - feeAmount };
-  }, [formData.quantity, formData.fee_percentage, formData.is_off_market]);
+    const platformFee = (!formData.is_off_market && feePercentage > 0) ? quantity * (feePercentage / 100) : 0;
+    const totalFee = platformFee + binanceCommission;
+    return { feeAmount: totalFee, platformFee, binanceCommission, netCredit: quantity - totalFee };
+  }, [formData.quantity, formData.fee_percentage, formData.is_off_market, binanceCommission]);
 
   // Split allocation
   const splitAllocation = useMemo(() => {
@@ -285,6 +326,8 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
       let result: Record<string, unknown>;
       let functionError: Error | null = null;
 
+      const netCreditQty = feeCalculation.netCredit;
+
       if (isMultiplePayments && paymentSplits.length > 0) {
         const splitPaymentsJson = paymentSplits.map(s => ({ bank_account_id: s.bank_account_id, amount: parseFloat(s.amount) }));
         const { data, error } = await supabase.rpc('create_manual_purchase_with_split_payments_rpc', {
@@ -293,9 +336,9 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
           p_order_date: formData.order_date,
           p_total_amount: totalAmount,
           p_product_id: formData.product_id,
-          p_quantity: parseFloat(formData.quantity),
+          p_quantity: netCreditQty,
           p_unit_price: parseFloat(formData.price_per_unit),
-          p_description: formData.description || '',
+          p_description: formData.description + (binanceCommission > 0 ? ` | Gross: ${formData.quantity}, Binance Fee: ${binanceCommission}` : ''),
           p_contact_number: formData.contact_number || undefined,
           p_credit_wallet_id: formData.credit_wallet_id || undefined,
           p_tds_option: formData.tds_option,
@@ -314,10 +357,10 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
           p_order_date: formData.order_date,
           p_total_amount: totalAmount,
           p_product_id: formData.product_id,
-          p_quantity: parseFloat(formData.quantity),
+          p_quantity: netCreditQty,
           p_unit_price: parseFloat(formData.price_per_unit),
           p_bank_account_id: formData.deduction_bank_account_id,
-          p_description: formData.description || '',
+          p_description: formData.description + (binanceCommission > 0 ? ` | Gross: ${formData.quantity}, Binance Fee: ${binanceCommission}` : ''),
           p_contact_number: formData.contact_number || undefined,
           p_credit_wallet_id: formData.credit_wallet_id || undefined,
           p_tds_option: formData.tds_option,
@@ -631,6 +674,43 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                   <Info className="w-3 h-3" /> Off Market: No platform fees will be applied
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Binance Commission */}
+          <Card className="border-blue-200 bg-blue-50/30">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Label className="font-medium">Binance Commission</Label>
+                <Badge variant="outline" className="text-xs">Auto-detected</Badge>
+              </div>
+              <Input
+                type="number"
+                step="0.0001"
+                min="0"
+                value={binanceCommission || ''}
+                onChange={(e) => setBinanceCommission(parseFloat(e.target.value) || 0)}
+                placeholder="0.00"
+              />
+              {binanceCommission > 0 && (
+                <div className="text-sm bg-background p-2 rounded border">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Gross Quantity:</span>
+                    <span>{parseFloat(formData.quantity).toFixed(4)} {item.asset}</span>
+                  </div>
+                  <div className="flex justify-between text-orange-600">
+                    <span>Binance Commission:</span>
+                    <span>-{binanceCommission.toFixed(4)} {item.asset}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold border-t pt-1 mt-1 text-green-600">
+                    <span>Net Wallet Credit:</span>
+                    <span>{feeCalculation.netCredit.toFixed(4)} {item.asset}</span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Binance deducts commission from received crypto. Net amount will be credited to wallet.
+              </p>
             </CardContent>
           </Card>
 

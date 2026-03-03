@@ -176,8 +176,8 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     // For YubiKey OTP, Binance identifies this as FIDO2 in v7.4 docs.
     const params: Record<string, any> = { orderNumber };
     if (authMethod === 'YUBIKEY') {
-      params.authType = 'FIDO2';
-      params.code = finalCode;
+      // YubiKey OTP goes in the yubikeyVerifyCode field — no authType needed
+      params.yubikeyVerifyCode = finalCode;
     } else {
       params.authType = authMethod;
       params.code = finalCode;

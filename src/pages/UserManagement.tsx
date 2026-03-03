@@ -484,6 +484,7 @@ export default function UserManagement() {
                                 <p><strong>Username:</strong> {user.username}</p>
                                 <p><strong>Email:</strong> {user.email}</p>
                                 {user.phone && <p><strong>Phone:</strong> {user.phone}</p>}
+                                {user.badge_id && <p><strong>Badge ID:</strong> {user.badge_id}</p>}
                                 <p><strong>Created:</strong> {formatDate(user.created_at)}</p>
                               </div>
                               
@@ -748,6 +749,7 @@ export default function UserManagement() {
       {/* Dialogs */}
       {editingUser && (
         <EditUserDialog
+          key={editingUser.id}
           user={editingUser}
           onSave={updateUser}
           onClose={() => setEditingUser(null)}

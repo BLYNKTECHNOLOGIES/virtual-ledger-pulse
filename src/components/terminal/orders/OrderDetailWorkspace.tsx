@@ -43,16 +43,36 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       return [];
     };
 
+    const PAYMENT_SIGNALS = ['seller_payed', 'buyer_payed', 'buyer_paid'];
     const items = extractItems(chatMessages);
+    console.log('[PaymentSignal] Chat items count:', items.length);
     return items.some((m: any) => {
-      if (m?.type !== 'system' || !m?.content) return false;
-      try {
-        const parsed = JSON.parse(m.content);
-        const t = String(parsed?.type || '').toLowerCase();
-        return t === 'seller_payed' || t === 'buyer_payed' || t === 'buyer_paid';
-      } catch {
-        return false;
+      const msgType = String(m?.type || m?.chatMessageType || '').toLowerCase();
+      const isSystem = msgType === 'system' || msgType === 'sys' || msgType === 'order_system';
+      const content = m?.content || m?.message || '';
+
+      // Check JSON-parsed content
+      if (isSystem && content) {
+        try {
+          const parsed = JSON.parse(content);
+          const t = String(parsed?.type || '').toLowerCase();
+          if (PAYMENT_SIGNALS.includes(t)) return true;
+        } catch {
+          // Not JSON — check raw string
+        }
       }
+
+      // Check raw text content for payment confirmation keywords
+      const lower = String(content).toLowerCase();
+      if (lower.includes('buyer has marked payment') || lower.includes('marked payment as completed')) {
+        return true;
+      }
+
+      // Check chatMessageType directly (some Binance versions use this)
+      const directType = String(m?.chatMessageType || '').toLowerCase();
+      if (PAYMENT_SIGNALS.includes(directType)) return true;
+
+      return false;
     });
   }, [chatMessages]);
 

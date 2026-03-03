@@ -12,7 +12,7 @@ import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { PastInteractionsPanel } from './PastInteractionsPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages } from '@/hooks/useBinanceActions';
 
 interface Props {
   order: P2POrderRecord;
@@ -29,6 +29,32 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
+  const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number);
+
+  const hasPaymentMarkedSignal = useMemo(() => {
+    const extractItems = (response: unknown): any[] => {
+      if (!response || typeof response !== 'object') return [];
+      if (Array.isArray(response)) return response;
+      const r = response as Record<string, any>;
+      if (Array.isArray(r.data)) return r.data;
+      if (r.data && typeof r.data === 'object' && Array.isArray((r.data as Record<string, any>).data)) {
+        return (r.data as Record<string, any>).data;
+      }
+      return [];
+    };
+
+    const items = extractItems(chatMessages);
+    return items.some((m: any) => {
+      if (m?.type !== 'system' || !m?.content) return false;
+      try {
+        const parsed = JSON.parse(m.content);
+        const t = String(parsed?.type || '').toLowerCase();
+        return t === 'seller_payed' || t === 'buyer_payed' || t === 'buyer_paid';
+      } catch {
+        return false;
+      }
+    });
+  }, [chatMessages]);
 
   const liveOrder = useMemo(() => {
     const numStatusMap: Record<number, string> = {
@@ -47,12 +73,26 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
         liveStatus = raw.toUpperCase();
       }
     }
+
+    const normalized = String(liveStatus || '').toUpperCase();
+    const isStuckInPrePaidState =
+      normalized.includes('PENDING') ||
+      normalized.includes('TRADING') ||
+      normalized.includes('EXPIRED') ||
+      normalized.includes('TIMEOUT');
+
+    // Binance occasionally lags on orderStatus while chat already has payment confirmation.
+    // In that mismatch case, surface as BUYER_PAYED so SELL-side Release action is available.
+    if (hasPaymentMarkedSignal && isStuckInPrePaidState) {
+      liveStatus = 'BUYER_PAYED';
+    }
+
     let unitPrice = order.unit_price;
     if (historyOrder?.unitPrice) {
       unitPrice = parseFloat(historyOrder.unitPrice) || unitPrice;
     }
     return { ...order, order_status: liveStatus, unit_price: unitPrice };
-  }, [order, liveDetail, historyOrder]);
+  }, [order, liveDetail, historyOrder, hasPaymentMarkedSignal]);
 
   const counterpartyVerifiedName = useMemo(() => {
     const detail = liveDetail?.data;

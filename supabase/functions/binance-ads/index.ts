@@ -739,10 +739,18 @@ serve(async (req) => {
     const isBinanceError = result?.code && result.code !== "000000" && result.code !== 200;
     const isError = isProxyError || isStatusError || isBinanceError;
 
+    const yubiFlow = action === "releaseCoin" && ((payload?.authType === "FIDO2") || (payload?.authType === "YUBIKEY") || !!payload?.yubikeyVerifyCode);
+
     const errorMessage = isProxyError 
       ? `Proxy returned HTTP ${result.status || 'error'} (CloudFront/WAF block)` 
-      : isBinanceError 
-        ? (result.message || result.msg || result.messageDetail || `Binance API error (code: ${result.code})`)
+      : isBinanceError
+        ? (
+            yubiFlow && /verification failed/i.test(String(result.message || result.msg || ""))
+              ? "YubiKey verification failed. The OTP is invalid, expired, or already used. Tap your registered YubiKey and use a fresh one-time code."
+              : yubiFlow && /unsupported authentication type/i.test(String(result.message || result.msg || ""))
+                ? "YubiKey authentication mode is not accepted for this release request."
+                : (result.message || result.msg || result.messageDetail || `Binance API error (code: ${result.code})`)
+          )
         : isStatusError
           ? `Proxy returned HTTP ${result.status}`
           : undefined;

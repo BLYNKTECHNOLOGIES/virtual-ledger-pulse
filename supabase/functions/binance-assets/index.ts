@@ -745,6 +745,9 @@ serve(async (req) => {
         let movements: any[] = (allMovements || []).filter((m: any) => {
           // Skip already queued movement IDs
           if (existingIds.has(m.id)) return false;
+          // Skip internal P2P payment releases (pay- prefix) — these are already
+          // handled by terminal_sales_sync and would cause double-debiting if queued
+          if (typeof m.id === "string" && m.id.startsWith("pay-")) return false;
           // Deposit statuses from Binance: 1=success, 6=credited but cannot withdraw
           const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
           // Withdrawal status from Binance: 6=completed

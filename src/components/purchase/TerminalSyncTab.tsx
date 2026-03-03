@@ -234,7 +234,13 @@ export function TerminalSyncTab() {
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">
                       {(() => {
-                        const pan = record.pan_number || (record.clients as any)?.pan_card_number;
+                        const mappedClientPan = (record.clients as any)?.pan_card_number?.trim?.() || null;
+                        const terminalPan = record.pan_number?.trim?.() || null;
+
+                        // If client is mapped, show ONLY client master PAN to avoid cross-client PAN bleed.
+                        // Use terminal PAN only for unmapped rows.
+                        const pan = record.client_id ? mappedClientPan : terminalPan;
+
                         return pan ? (
                           <span className="font-mono">{pan}</span>
                         ) : (

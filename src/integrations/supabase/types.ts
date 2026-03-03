@@ -11574,6 +11574,10 @@ export type Database = {
         Args: { p_token: string; p_user_id: string }
         Returns: boolean
       }
+      extract_client_bank_number: {
+        Args: { account_entry: Json }
+        Returns: string
+      }
       generate_employee_id: {
         Args: { dept: string; designation: string }
         Returns: string

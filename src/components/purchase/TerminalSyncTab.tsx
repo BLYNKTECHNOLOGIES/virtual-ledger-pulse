@@ -98,83 +98,82 @@ export function TerminalSyncTab() {
   const syncRecords = syncData.records;
   const userMap = syncData.userMap;
 
-  // Enrich missing verified names from DB first, then API fallback
-  const enrichMutation = useMutation({
-    mutationFn: async () => {
-      const pendingRecords = syncRecords.filter((r: any) => {
-        const od = r.order_data as any;
-        return !od?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending');
-      });
-      let enriched = 0;
-      for (const record of pendingRecords) {
-        const orderNumber = record.binance_order_number;
-        if (!orderNumber) continue;
-        try {
-          // Step 1: Check binance_order_history table first (already enriched by background job)
-          const { data: dbOrder } = await supabase
-            .from('binance_order_history')
-            .select('verified_name')
-            .eq('order_number', orderNumber)
-            .maybeSingle();
+  // Enrich missing verified names (called as part of Sync Now)
+  async function enrichMissingNames() {
+    const { data: freshRecords } = await supabase
+      .from('terminal_purchase_sync')
+      .select('id, binance_order_number, order_data, sync_status, counterparty_name')
+      .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']);
 
-          let sellerName = dbOrder?.verified_name || null;
+    const pendingRecords = (freshRecords || []).filter((r: any) => {
+      const od = r.order_data as any;
+      return !od?.verified_name;
+    });
 
-          // Step 2: If not in DB, fetch from Binance API
-          if (!sellerName) {
-            const { data } = await supabase.functions.invoke('binance-ads', {
-              body: { action: 'getOrderDetail', orderNumber },
-            });
-            const apiResult = data?.data;
-            const detail = apiResult?.data || apiResult;
-            sellerName = detail?.sellerRealName || detail?.sellerName || null;
+    let enriched = 0;
+    for (const record of pendingRecords) {
+      const orderNumber = record.binance_order_number;
+      if (!orderNumber) continue;
+      try {
+        const { data: dbOrder } = await supabase
+          .from('binance_order_history')
+          .select('verified_name')
+          .eq('order_number', orderNumber)
+          .maybeSingle();
 
-            // Also update binance_order_history for future lookups
-            if (sellerName) {
-              await supabase
-                .from('binance_order_history')
-                .update({ verified_name: sellerName })
-                .eq('order_number', orderNumber);
-            }
-          }
+        let sellerName = dbOrder?.verified_name || null;
+
+        if (!sellerName) {
+          const { data } = await supabase.functions.invoke('binance-ads', {
+            body: { action: 'getOrderDetail', orderNumber },
+          });
+          const apiResult = data?.data;
+          const detail = apiResult?.data || apiResult;
+          sellerName = detail?.sellerRealName || detail?.sellerName || null;
 
           if (sellerName) {
-            const od = record.order_data as any;
             await supabase
-              .from('terminal_purchase_sync')
-              .update({
-                counterparty_name: sellerName,
-                order_data: { ...od, verified_name: sellerName },
-              })
-              .eq('id', record.id);
-            enriched++;
+              .from('binance_order_history')
+              .update({ verified_name: sellerName })
+              .eq('order_number', orderNumber);
           }
-          await new Promise(r => setTimeout(r, 300));
-        } catch { /* skip */ }
-      }
-      return enriched;
-    },
-    onSuccess: (enriched) => {
-      toast({
-        title: "Name Enrichment Complete",
-        description: `${enriched} seller names verified`,
-      });
-      queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
-    },
-  });
+        }
 
-  // Manual sync trigger
+        if (sellerName) {
+          const od = record.order_data as any;
+          await supabase
+            .from('terminal_purchase_sync')
+            .update({
+              counterparty_name: sellerName,
+              order_data: { ...od, verified_name: sellerName },
+            })
+            .eq('id', record.id);
+          enriched++;
+        }
+        await new Promise(r => setTimeout(r, 300));
+      } catch { /* skip */ }
+    }
+    return enriched;
+  }
+
+  // Manual sync trigger — includes name enrichment
   const syncMutation = useMutation({
     mutationFn: async () => {
       toast({ title: "Syncing...", description: "Fetching latest orders from Binance, then syncing purchases..." });
       // Step 1: Pull fresh orders from Binance API into binance_order_history
       await orderSyncMutation.mutateAsync({ fullSync: false });
       // Step 2: Sync completed BUY orders from history to terminal_purchase_sync
-      return syncCompletedBuyOrders();
+      const result = await syncCompletedBuyOrders();
+      // Step 3: Enrich any missing verified names
+      const enriched = await enrichMissingNames();
+      return { ...result, enriched };
     },
-    onSuccess: ({ synced, duplicates }) => {
+    onSuccess: ({ synced, duplicates, enriched }) => {
+      const parts = [`${synced} new orders synced`, `${duplicates} duplicates skipped`];
+      if (enriched > 0) parts.push(`${enriched} names verified`);
       toast({
         title: "Sync Complete",
-        description: `${synced} new orders synced, ${duplicates} duplicates skipped`,
+        description: parts.join(', '),
       });
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
     },
@@ -240,12 +239,6 @@ export function TerminalSyncTab() {
             {syncMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
             Sync Now
           </Button>
-          {syncRecords.some((r: any) => !(r.order_data as any)?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending')) && (
-            <Button size="sm" variant="outline" onClick={() => enrichMutation.mutate()} disabled={enrichMutation.isPending} className="gap-1">
-              {enrichMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <User className="h-3.5 w-3.5" />}
-              Enrich Names
-            </Button>
-          )}
         </div>
       </div>
 

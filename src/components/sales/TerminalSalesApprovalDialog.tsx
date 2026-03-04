@@ -462,12 +462,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           .maybeSingle();
 
         const updates: any = {};
-        // Update phone if client has none OR if a different number is provided (operator correction)
-        if (contactNumber && (!existingClient?.phone || existingClient.phone !== contactNumber)) {
+        // Always overwrite phone/state if operator provides a value (operator correction or enrichment)
+        if (contactNumber && existingClient?.phone !== contactNumber) {
           updates.phone = contactNumber;
         }
-        // Update state only if client has no state yet (never overwrite an existing state)
-        if (clientState && !existingClient?.state) {
+        if (clientState && existingClient?.state !== clientState) {
           updates.state = clientState;
         }
         if (Object.keys(updates).length > 0) {

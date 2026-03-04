@@ -388,8 +388,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         const resolvedPhone = contactRec?.contact_number || null;
         const resolvedState = contactRec?.state || null;
 
-        if (resolvedPhone && !existingClient?.phone) updates.phone = resolvedPhone;
-        if (resolvedState && !existingClient?.state) updates.state = resolvedState;
+        if (resolvedPhone && existingClient?.phone !== resolvedPhone) updates.phone = resolvedPhone;
+        if (resolvedState && existingClient?.state !== resolvedState) updates.state = resolvedState;
 
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);

@@ -365,10 +365,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (soErr) throw soErr;
 
       // Process wallet deduction
-      if (od.wallet_id && quantity > 0) {
+      // Debit net quantity (gross - commission) here; commission is debited separately below
+      // This prevents double-debiting since Binance commission is taken FROM the gross amount
+      const netDeductionQty = commission > 0 ? quantity - commission : quantity;
+      if (od.wallet_id && netDeductionQty > 0) {
         const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: salesOrder.id,
-          usdt_amount: quantity,
+          usdt_amount: netDeductionQty,
           wallet_id: od.wallet_id,
           p_asset_code: (od.asset || 'USDT').toUpperCase(),
         });

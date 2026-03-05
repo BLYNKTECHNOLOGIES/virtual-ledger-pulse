@@ -146,19 +146,61 @@ export function ShiftReconciliationWidget() {
         "Operator Balance": "",
       }));
 
-      const allRows = [...bankRows, ...stockRows, ...posRows];
+      const allDataRows = [...bankRows, ...stockRows, ...posRows];
 
-      if (allRows.length === 0) {
+      if (allDataRows.length === 0) {
         toast({ title: "No Data", description: "No active banks, wallets, or gateways found.", variant: "destructive" });
         return;
       }
 
+      // Build sheet with section headers & blank separator rows
+      const sheetData: Record<string, string>[] = [];
+      const sectionHeaderRows: number[] = []; // 0-indexed row numbers for section headers
+      const sections = [
+        { label: "BANK ACCOUNTS", rows: bankRows },
+        { label: "STOCK / WALLETS", rows: stockRows },
+        { label: "POS / PAYMENT GATEWAYS", rows: posRows },
+      ];
+
+      // Row 0 = header row (added by json_to_sheet), so we track data rows
+      for (const section of sections) {
+        if (section.rows.length === 0) continue;
+        // Add a section header row (merged across columns visually)
+        sectionHeaderRows.push(sheetData.length);
+        sheetData.push({
+          Category: `── ${section.label} ──`,
+          ID: "",
+          Name: "",
+          Identifier: "",
+          "Operator Balance": "",
+        });
+        // Add actual data rows
+        sheetData.push(...section.rows);
+        // Add a blank separator row
+        sheetData.push({ Category: "", ID: "", Name: "", Identifier: "", "Operator Balance": "" });
+      }
+
+      // Remove trailing blank row
+      if (sheetData.length > 0 && sheetData[sheetData.length - 1].Category === "") {
+        sheetData.pop();
+      }
+
       // Create workbook
-      const ws = XLSX.utils.json_to_sheet(allRows);
+      const ws = XLSX.utils.json_to_sheet(sheetData);
+
       // Set column widths
       ws["!cols"] = [
-        { wch: 10 }, { wch: 38 }, { wch: 30 }, { wch: 40 }, { wch: 20 }
+        { wch: 30 }, // Category / section label
+        { wch: 40 }, // ID
+        { wch: 32 }, // Name
+        { wch: 50 }, // Identifier
+        { wch: 22 }, // Operator Balance
       ];
+
+      // Bold section header rows & the header row
+      // xlsx community edition doesn't support styles natively, but we make the
+      // section labels clearly distinguishable via the text prefix ── already added above.
+
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Shift Reconciliation");
       XLSX.writeFile(wb, `Shift_Reconciliation_Template_${format(new Date(), "yyyy-MM-dd_HHmm")}.xlsx`);

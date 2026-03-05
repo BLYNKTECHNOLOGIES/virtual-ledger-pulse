@@ -134,7 +134,10 @@ export function useLogPayerAction() {
 export function usePayerOrders() {
   const { userId } = useTerminalAuth();
   const { data: activeOrdersData, isLoading: ordersLoading, refetch: refetchOrders, isFetching } = useBinanceActiveOrders();
-  const { data: assignments = [], isLoading: assignmentsLoading } = usePayerAssignments(userId);
+  // Fetch MY assignments
+  const { data: myAssignments = [], isLoading: assignmentsLoading } = usePayerAssignments(userId);
+  // Fetch ALL active payer assignments (for deduplication across payers)
+  const { data: allAssignments = [], isLoading: allAssignmentsLoading } = usePayerAssignments(null);
   const { data: orderLog = [], isLoading: logLoading } = usePayerOrderLog();
   const { data: exclusions = new Set<string>() } = useAutoReplyExclusions();
 
@@ -143,34 +146,85 @@ export function usePayerOrders() {
     return new Set(orderLog.filter(l => l.action === 'marked_paid').map(l => l.order_number));
   }, [orderLog]);
 
-  // Filter active BUY orders matching payer assignments
+  // Count how many orders each payer already has marked paid (for workload balancing)
+  const payerWorkloadMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const log of orderLog) {
+      if (log.action === 'marked_paid') {
+        map[log.payer_id] = (map[log.payer_id] || 0) + 1;
+      }
+    }
+    return map;
+  }, [orderLog]);
+
+  // Helper: find all payer user IDs that match a given order
+  const getMatchingPayers = useCallback((order: any): string[] => {
+    const totalPrice = parseFloat(order.totalPrice || '0');
+    const advNo = order.advNo || '';
+    const matchedPayers = new Set<string>();
+
+    for (const a of allAssignments) {
+      if (!a.is_active) continue;
+      if (a.assignment_type === 'ad_id' && a.ad_id && advNo === a.ad_id) {
+        matchedPayers.add(a.payer_user_id);
+      }
+      if (a.assignment_type === 'size_range' && a.size_range) {
+        if (totalPrice >= a.size_range.min_amount && totalPrice <= a.size_range.max_amount) {
+          matchedPayers.add(a.payer_user_id);
+        }
+      }
+    }
+    return Array.from(matchedPayers);
+  }, [allAssignments]);
+
+  // Filter and deduplicate: each order goes to exactly one payer (least workload)
   const allMatchedOrders = useMemo(() => {
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const list = Array.isArray(d) ? d : [];
-
-    // Only BUY orders
     const buyOrders = list.filter((o: any) => o.tradeType === 'BUY');
 
-    // Filter by assignment
-    return buyOrders.filter((o: any) => {
-      const totalPrice = parseFloat(o.totalPrice || '0');
-      const advNo = o.advNo || '';
+    // Track running workload for fair distribution within this batch
+    const runningWorkload: Record<string, number> = { ...payerWorkloadMap };
 
-      return assignments.some((a) => {
-        if (a.assignment_type === 'ad_id' && a.ad_id) {
-          return advNo === a.ad_id;
+    // First check if this user even has assignments
+    if (myAssignments.length === 0) return [];
+
+    const myOrders: any[] = [];
+
+    // Sort orders deterministically (by orderNumber) so all payers compute the same assignment
+    const sorted = [...buyOrders].sort((a: any, b: any) =>
+      (a.orderNumber || '').localeCompare(b.orderNumber || '')
+    );
+
+    for (const order of sorted) {
+      const matchingPayers = getMatchingPayers(order);
+      if (matchingPayers.length === 0) continue;
+
+      // Pick the payer with least workload
+      let bestPayer = matchingPayers[0];
+      let bestLoad = runningWorkload[bestPayer] || 0;
+      for (let i = 1; i < matchingPayers.length; i++) {
+        const load = runningWorkload[matchingPayers[i]] || 0;
+        if (load < bestLoad) {
+          bestLoad = load;
+          bestPayer = matchingPayers[i];
         }
-        if (a.assignment_type === 'size_range' && a.size_range) {
-          return totalPrice >= a.size_range.min_amount && totalPrice <= a.size_range.max_amount;
-        }
-        return false;
-      });
-    });
-  }, [activeOrdersData, assignments]);
+      }
+
+      // Increment running workload for the assigned payer
+      runningWorkload[bestPayer] = (runningWorkload[bestPayer] || 0) + 1;
+
+      // Only include if this order was assigned to the current user
+      if (bestPayer === userId) {
+        myOrders.push(order);
+      }
+    }
+
+    return myOrders;
+  }, [activeOrdersData, myAssignments, getMatchingPayers, payerWorkloadMap, userId]);
 
   // Pending: not marked paid, not completed/cancelled/expired
   const pendingOrders = useMemo(() => {
-    // Binance orderStatus is numeric: 4,5=Completed, 6=Cancelled, 8=Expired, 3=Paid
     const finalizedCodes = new Set(['3', '4', '5', '6', '8']);
     return allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(o.orderNumber))
@@ -185,7 +239,7 @@ export function usePayerOrders() {
   return {
     orders: pendingOrders,
     completedOrders,
-    isLoading: ordersLoading || assignmentsLoading || logLoading,
+    isLoading: ordersLoading || assignmentsLoading || allAssignmentsLoading || logLoading,
     isFetching,
     refetch: refetchOrders,
     exclusions,

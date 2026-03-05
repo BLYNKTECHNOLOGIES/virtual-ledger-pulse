@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ExchangeChart } from "./ExchangeChart";
 import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
+import { ShiftReconciliationWidget } from "./ShiftReconciliationWidget";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 

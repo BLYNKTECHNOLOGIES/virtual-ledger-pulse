@@ -99,6 +99,7 @@ const iconMap: Record<string, any> = {
   'compliance-alerts': Bell,
   'kyc-overview': UserCheck,
   'payroll-summary': CreditCard,
+  'shift-reconciliation': FileText,
 };
 
 function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = false }: DashboardWidgetProps) {

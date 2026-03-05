@@ -577,6 +577,7 @@ export default function Dashboard() {
                   onAddWidget={handleAddWidget}
                   existingWidgets={dashboardWidgets.map(w => w.id)}
                 />
+                <ShiftReconciliationWidget />
                 <Button
                   variant="outline"
                   size="sm"

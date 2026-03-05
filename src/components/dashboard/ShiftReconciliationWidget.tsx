@@ -223,7 +223,12 @@ export function ShiftReconciliationWidget() {
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws);
+      const rawRows: any[] = XLSX.utils.sheet_to_json(ws);
+      // Filter out section header rows (start with ──) and blank separator rows
+      const rows = rawRows.filter(r => {
+        const cat = String(r.Category || "").trim();
+        return cat && !cat.startsWith("──") && ["BANK", "STOCK", "POS"].includes(cat);
+      });
 
       if (!rows.length) {
         toast({ title: "Empty File", description: "The uploaded file has no data.", variant: "destructive" });

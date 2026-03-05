@@ -8857,6 +8857,71 @@ export type Database = {
           },
         ]
       }
+      shift_reconciliations: {
+        Row: {
+          comparison_result: Json
+          created_at: string
+          erp_snapshot: Json
+          has_mismatches: boolean
+          id: string
+          mismatch_count: number
+          parent_reconciliation_id: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          shift_label: string | null
+          status: string
+          submitted_at: string
+          submitted_by: string
+          submitted_data: Json
+          updated_at: string
+        }
+        Insert: {
+          comparison_result?: Json
+          created_at?: string
+          erp_snapshot?: Json
+          has_mismatches?: boolean
+          id?: string
+          mismatch_count?: number
+          parent_reconciliation_id?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shift_label?: string | null
+          status?: string
+          submitted_at?: string
+          submitted_by: string
+          submitted_data?: Json
+          updated_at?: string
+        }
+        Update: {
+          comparison_result?: Json
+          created_at?: string
+          erp_snapshot?: Json
+          has_mismatches?: boolean
+          id?: string
+          mismatch_count?: number
+          parent_reconciliation_id?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          shift_label?: string | null
+          status?: string
+          submitted_at?: string
+          submitted_by?: string
+          submitted_data?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_reconciliations_parent_reconciliation_id_fkey"
+            columns: ["parent_reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "shift_reconciliations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       small_buys_config: {
         Row: {
           created_at: string

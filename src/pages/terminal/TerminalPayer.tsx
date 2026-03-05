@@ -14,6 +14,7 @@ import { usePayerOrders } from '@/hooks/usePayerModule';
 import { PayerOrderRow } from '@/components/terminal/payer/PayerOrderRow';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import { PayerMyAssignments } from '@/components/terminal/payer/PayerMyAssignments';
 import { format } from 'date-fns';
 
 function mapOrderStatusCode(code: number | string): string {

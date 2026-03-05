@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ExchangeChart } from "./ExchangeChart";
 import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
+import { ShiftReconciliationWidget } from "./ShiftReconciliationWidget";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -99,6 +100,7 @@ const iconMap: Record<string, any> = {
   'compliance-alerts': Bell,
   'kyc-overview': UserCheck,
   'payroll-summary': CreditCard,
+  'shift-reconciliation': FileText,
 };
 
 function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = false }: DashboardWidgetProps) {
@@ -559,6 +561,9 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
             </div>
           </div>
         );
+
+      case 'shift-reconciliation':
+        return <ShiftReconciliationWidget />;
       
       default:
         return (

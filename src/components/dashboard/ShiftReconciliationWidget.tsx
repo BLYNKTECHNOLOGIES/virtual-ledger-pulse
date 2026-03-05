@@ -81,7 +81,7 @@ export function ShiftReconciliationWidget() {
         .order("submitted_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data || []) as ReconciliationRecord[];
+      return (data || []) as unknown as ReconciliationRecord[];
     },
   });
 

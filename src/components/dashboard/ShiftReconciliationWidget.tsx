@@ -93,8 +93,9 @@ export function ShiftReconciliationWidget() {
       const { data: banks } = await supabase
         .from("bank_accounts")
         .select("id, account_name, account_number, bank_name, balance")
-        .eq("status", "active")
-        .neq("account_status", "dormant");
+        .eq("status", "ACTIVE")
+        .eq("account_status", "ACTIVE")
+        .is("dormant_at", null);
 
       // Fetch active wallets with USDT balances
       const { data: wallets } = await supabase

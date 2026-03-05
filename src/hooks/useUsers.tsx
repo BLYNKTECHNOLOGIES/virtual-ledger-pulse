@@ -310,6 +310,15 @@ export function useUsers() {
         throw new Error('You do not have permission to update users');
       }
 
+      // Check if username is being changed — need to force re-login so new session picks up the new username
+      let usernameChanged = false;
+      if (userData.username) {
+        const existingUser = users.find(u => u.id === userId);
+        if (existingUser && existingUser.username !== userData.username) {
+          usernameChanged = true;
+        }
+      }
+
       // Update user basic info
       const updatePayload: any = {
           username: userData.username,
@@ -325,6 +334,10 @@ export function useUsers() {
         };
       if (userData.badge_id !== undefined) {
         updatePayload.badge_id = userData.badge_id || null;
+      }
+      // Force re-login when username changes so new sessions use the updated username
+      if (usernameChanged) {
+        updatePayload.force_logout_at = new Date().toISOString();
       }
       const { error: userError } = await supabase
         .from('users')

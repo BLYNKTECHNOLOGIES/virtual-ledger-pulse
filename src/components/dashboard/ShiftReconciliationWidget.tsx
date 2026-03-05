@@ -449,7 +449,7 @@ export function ShiftReconciliationWidget() {
                   {catMismatches > 0 && (
                     <Badge className="bg-red-100 text-red-700 text-xs">{catMismatches} mismatch(es)</Badge>
                   )}
-                  <span className="text-xs text-muted-foreground">Tolerance: {getToleranceLabel(cat)}</span>
+                  
                 </div>
                 {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>

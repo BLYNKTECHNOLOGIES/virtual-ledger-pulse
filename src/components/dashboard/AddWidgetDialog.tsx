@@ -334,16 +334,6 @@ const availableWidgets: WidgetType[] = [
     requiredPermissions: ['payroll_view'],
   },
 
-  // ── Shift Reconciliation Widget ──
-  {
-    id: 'shift-reconciliation',
-    name: 'Shift Reconciliation',
-    description: 'Download template, upload operator balances, compare against ERP for shift handover',
-    icon: Scale,
-    category: 'Banking',
-    size: 'small',
-    requiredPermissions: ['bams_view', 'dashboard_view'],
-  },
 ];
 
 // Export for use in DashboardWidget

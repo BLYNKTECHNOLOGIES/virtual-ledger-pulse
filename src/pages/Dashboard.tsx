@@ -12,6 +12,7 @@ import { MetricCard } from "@/components/dashboard/MetricCard";
 import { ExchangeChart } from "@/components/dashboard/ExchangeChart";
 import { AddWidgetDialog } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
+import { ShiftReconciliationWidget } from "@/components/dashboard/ShiftReconciliationWidget";
 import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
 import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
@@ -577,6 +578,7 @@ export default function Dashboard() {
                   onAddWidget={handleAddWidget}
                   existingWidgets={dashboardWidgets.map(w => w.id)}
                 />
+                <ShiftReconciliationWidget />
                 <Button
                   variant="outline"
                   size="sm"

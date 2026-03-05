@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -495,34 +495,25 @@ export function ShiftReconciliationWidget() {
     );
   };
 
+  const pendingCount = history?.filter(h => h.status === "pending_review").length || 0;
+
   return (
     <>
-      {/* Dashboard Widget Card */}
-      <Card
-        className="bg-white border-2 border-indigo-100 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:-translate-y-1"
+      {/* Shift Reconciliation Button */}
+      <Button
+        variant="outline"
+        size="sm"
         onClick={() => { setMainDialogOpen(true); setActiveView("actions"); }}
+        className="bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm flex-shrink-0 relative"
       >
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-slate-600 text-sm font-medium">Shift Reconciliation</p>
-              <p className="text-lg font-bold mt-1 text-slate-800">
-                {history?.filter(h => h.status === "pending_review").length || 0} Pending
-              </p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="secondary" className="text-xs">
-                  {history?.filter(h => 
-                    h.submitted_at && new Date(h.submitted_at).toDateString() === new Date().toDateString()
-                  ).length || 0} Today
-                </Badge>
-              </div>
-            </div>
-            <div className="bg-indigo-50 p-3 rounded-xl shadow-sm flex-shrink-0">
-              <FileSpreadsheet className="h-8 w-8 text-indigo-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        <FileSpreadsheet className="h-4 w-4" />
+        <span className="hidden sm:inline ml-2">Shift Reconciliation</span>
+        {pendingCount > 0 && (
+          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+            {pendingCount}
+          </span>
+        )}
+      </Button>
 
       {/* Main Dialog */}
       <Dialog open={mainDialogOpen} onOpenChange={setMainDialogOpen}>

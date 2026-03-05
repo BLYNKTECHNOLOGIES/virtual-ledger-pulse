@@ -125,6 +125,9 @@ export default function TerminalPayer() {
           </div>
         </div>
 
+        {/* My Assignments Banner */}
+        <PayerMyAssignments />
+
         {/* Tabs + Search */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>

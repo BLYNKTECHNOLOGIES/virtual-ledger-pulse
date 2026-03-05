@@ -565,7 +565,7 @@ export function ShiftReconciliationWidget() {
 
       {/* Main Dialog */}
       <Dialog open={mainDialogOpen} onOpenChange={setMainDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <FileSpreadsheet className="h-5 w-5 text-indigo-600" />

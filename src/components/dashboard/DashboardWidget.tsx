@@ -560,6 +560,9 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
             </div>
           </div>
         );
+
+      case 'shift-reconciliation':
+        return <ShiftReconciliationContent />;
       
       default:
         return (

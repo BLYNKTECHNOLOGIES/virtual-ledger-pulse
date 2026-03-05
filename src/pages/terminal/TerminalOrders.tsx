@@ -381,6 +381,25 @@ export default function TerminalOrders() {
   // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
     const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'APPEAL', 'EXPIRED'];
+    // Define status progression order — higher index = more advanced
+    const STATUS_RANK: Record<string, number> = {
+      'PENDING': 0,
+      'TRADING': 1,
+      'BUYER_PAYED': 2,
+      'BUYER_PAID': 2,
+      'COMPLETED': 3,
+      'CANCELLED': 3,
+      'APPEAL': 3,
+      'EXPIRED': 3,
+    };
+    const getRank = (s: string): number => {
+      const upper = (s || '').toUpperCase();
+      for (const [key, rank] of Object.entries(STATUS_RANK)) {
+        if (upper.includes(key)) return rank;
+      }
+      return 0;
+    };
+
     let enriched = rawOrders.map(o => {
       const orderNumber = o?.orderNumber === undefined || o?.orderNumber === null ? '' : String(o.orderNumber);
 
@@ -388,16 +407,15 @@ export default function TerminalOrders() {
       const recentStatus = orderNumber ? recentStatusMap.get(orderNumber) : undefined;
       const historyStatus = orderNumber ? historyStatusMap.get(orderNumber) : undefined;
 
-      // Prefer terminal status from recent history first, then bulk history
-      const terminalCandidate = recentStatus || historyStatus;
-      const terminalIsTerminal =
-        terminalCandidate && TERMINAL_STATUSES.some(t => String(terminalCandidate).includes(t));
-
-      // For active orders, live status is authoritative unless history
-      // reveals a terminal state the active API hasn't caught yet.
-      const resolvedStatus = terminalIsTerminal
-        ? (terminalCandidate as string)
-        : liveStatus;
+      // Prefer the most advanced status from any source
+      const candidates = [
+        { status: liveStatus, rank: getRank(liveStatus) },
+        ...(recentStatus ? [{ status: recentStatus, rank: getRank(recentStatus) }] : []),
+        ...(historyStatus ? [{ status: historyStatus, rank: getRank(historyStatus) }] : []),
+      ];
+      // Pick the candidate with the highest rank (most progressed in lifecycle)
+      const best = candidates.reduce((a, b) => b.rank > a.rank ? b : a, candidates[0]);
+      const resolvedStatus = best.status;
 
       return { ...o, orderNumber, _resolvedStatus: resolvedStatus };
     });

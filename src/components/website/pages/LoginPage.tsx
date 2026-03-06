@@ -120,7 +120,13 @@ export function LoginPage() {
       }
 
       if (!validationData) {
-        setError('Incorrect credentials. Please check your email and password.');
+        setError('Incorrect credentials. Please check your email/username and password.');
+        return;
+      }
+
+      // Check if the user account is active
+      if (validationData.status && validationData.status.toLowerCase() !== 'active') {
+        setError('Your account is ' + validationData.status.toLowerCase() + '. Please contact your administrator.');
         return;
       }
 

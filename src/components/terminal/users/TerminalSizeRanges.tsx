@@ -9,7 +9,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, RefreshCw, Pencil, Ruler, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight } from "lucide-react";
+import { Plus, RefreshCw, Pencil, Trash2, Ruler, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
@@ -103,6 +103,14 @@ export function TerminalSizeRanges() {
     fetchData();
   };
 
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete size range "${name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("terminal_order_size_ranges").delete().eq("id", id);
+    if (error) { toast.error(error.message || "Failed to delete"); return; }
+    toast.success("Size range deleted");
+    fetchData();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -155,6 +163,9 @@ export function TerminalSizeRanges() {
                     <Switch checked={r.is_active} onCheckedChange={() => toggleActive(r.id, r.is_active)} className="scale-75" />
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEdit(r)}>
                       <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => handleDelete(r.id, r.name)}>
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 )}

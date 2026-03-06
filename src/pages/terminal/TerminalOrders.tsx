@@ -544,12 +544,14 @@ export default function TerminalOrders() {
       const liveStatus = mapOrderStatusCode(o.orderStatus);
       const recentStatus = orderNumber ? recentStatusMap.get(orderNumber) : undefined;
       const historyStatus = orderNumber ? historyStatusMap.get(orderNumber) : undefined;
+      const staleDetailStatus = orderNumber ? staleDetailStatusMap[orderNumber] : undefined;
 
       // Prefer the most advanced status from any source
       const candidates = [
         { status: liveStatus, rank: getRank(liveStatus) },
         ...(recentStatus ? [{ status: recentStatus, rank: getRank(recentStatus) }] : []),
         ...(historyStatus ? [{ status: historyStatus, rank: getRank(historyStatus) }] : []),
+        ...(staleDetailStatus ? [{ status: staleDetailStatus, rank: getRank(staleDetailStatus) }] : []),
       ];
       // Pick the candidate with the highest rank (most progressed in lifecycle)
       const best = candidates.reduce((a, b) => b.rank > a.rank ? b : a, candidates[0]);

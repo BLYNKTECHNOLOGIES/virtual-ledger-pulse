@@ -214,7 +214,8 @@ export default function Purchase() {
         : '',
       order.order_date ? format(new Date(order.order_date), 'MMM dd, yyyy') : '',
       order.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm') : ''
-    ]);
+    ];
+    });
 
     const csvContent = [csvHeaders, ...csvData]
       .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))

@@ -298,6 +298,76 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         }
       }
 
+      // ── TDS CASCADING UPDATES ──
+      // When TDS details change, update all dependent records
+      const oldTdsApplied = !!order.tds_applied;
+      const oldPanNumber = order.pan_number || '';
+      const oldTdsAmount = order.tds_amount || 0;
+      const tdsChanged = (tdsApplied !== oldTdsApplied) || 
+                          (data.pan_number !== oldPanNumber) || 
+                          (Math.abs(tdsAmount - oldTdsAmount) > 0.01);
+
+      if (tdsChanged) {
+        const supplierName = data.supplier_name.trim();
+
+        // 1. Update counterparty_pan_records
+        if (tdsApplied && data.pan_number && formData.tds_option === 'TDS_1_PERCENT') {
+          // Upsert PAN for this counterparty
+          const { data: existingPan } = await supabase
+            .from('counterparty_pan_records')
+            .select('id')
+            .eq('counterparty_nickname', supplierName)
+            .maybeSingle();
+
+          if (existingPan) {
+            await supabase
+              .from('counterparty_pan_records')
+              .update({ pan_number: data.pan_number, updated_at: new Date().toISOString() })
+              .eq('id', existingPan.id);
+          } else {
+            await supabase
+              .from('counterparty_pan_records')
+              .insert({ counterparty_nickname: supplierName, pan_number: data.pan_number });
+          }
+        } else if (!tdsApplied || formData.tds_option === 'TDS_20_PERCENT') {
+          // If switching to NO_TDS or 20% (no PAN), don't delete the PAN record 
+          // (it may be used by other orders), but clear PAN from this order
+        }
+
+        // 2. Update client record's PAN if a matching client exists
+        const { data: matchingClients } = await supabase
+          .from('clients')
+          .select('id, pan_card_number')
+          .ilike('name', supplierName)
+          .limit(1);
+
+        if (matchingClients && matchingClients.length > 0) {
+          const client = matchingClients[0];
+          if (tdsApplied && data.pan_number && formData.tds_option === 'TDS_1_PERCENT') {
+            // Update client PAN if it changed
+            if (client.pan_card_number !== data.pan_number) {
+              await supabase
+                .from('clients')
+                .update({ pan_card_number: data.pan_number, updated_at: new Date().toISOString() })
+                .eq('id', client.id);
+            }
+          }
+          // Note: We don't clear client PAN when switching to NO_TDS/20%
+          // because the PAN is a master record that may be used across orders
+        }
+
+        // 3. Update all other purchase orders for the same supplier with same old PAN
+        // to ensure consistency (only if PAN actually changed and new PAN is valid)
+        if (oldPanNumber && data.pan_number && oldPanNumber !== data.pan_number && formData.tds_option === 'TDS_1_PERCENT') {
+          await supabase
+            .from('purchase_orders')
+            .update({ pan_number: data.pan_number })
+            .eq('supplier_name', supplierName)
+            .eq('pan_number', oldPanNumber)
+            .neq('id', order.id);
+        }
+      }
+
       return result;
     },
     onSuccess: () => {

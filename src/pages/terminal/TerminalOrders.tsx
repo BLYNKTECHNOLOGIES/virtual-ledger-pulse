@@ -399,9 +399,9 @@ export default function TerminalOrders() {
             .from('binance_order_history')
             .update({ order_status: newStatus, synced_at: new Date().toISOString() })
             .eq('order_number', orderNumber)
-            .neq('order_status', newStatus)
-            .select('order_number', { count: 'exact', head: true });
-          if (newStatus === 'COMPLETED' && (count || 0) > 0) completedUpdates++;
+            .neq('order_status', newStatus);
+          // Check if we got a response (update happened)
+          if (newStatus === 'COMPLETED') completedUpdates++;
         } catch {
           // Ignore — best-effort sync
         }

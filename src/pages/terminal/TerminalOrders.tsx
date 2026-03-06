@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,8 @@ import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
+import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
+import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 
 
 /** Convert numeric orderStatus to string */
@@ -94,6 +96,7 @@ export default function TerminalOrders() {
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
   const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'all' as string, assignmentFilter: 'all' as string };
@@ -288,14 +291,19 @@ export default function TerminalOrders() {
     const normalizeOrderNumber = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 
     // Active orders first (they have richer data like chatUnreadCount)
-    // Filter out finalized status codes that Binance may still return in listOrders
-    const FINALIZED_CODES = new Set(['4', '5', '6', '8']);
+    // Filter out truly finalized status codes that Binance may still return in listOrders
+    // Status codes: 1=PENDING, 2=TRADING, 3=BUYER_PAYED, 4=BUYER_PAYED(confirmed),
+    //               5=COMPLETED, 6=CANCELLED, 7=CANCELLED(timeout), 8=APPEAL
+    // Only 5 (COMPLETED) and 6/7 (CANCELLED) are truly finalized.
+    // Status 3/4 (BUYER_PAYED) are ACTIVE states — buyer paid, awaiting release.
+    // Status 8 (APPEAL) should remain visible.
+    const FINALIZED_CODES = new Set(['5', '6', '7']);
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const activeList = Array.isArray(d) ? d : [];
     for (const o of activeList) {
       const orderNumber = normalizeOrderNumber(o?.orderNumber);
       if (!orderNumber) continue;
-      // Skip orders with finalized status (Completed=4/5, Cancelled=6, Expired=8)
+      // Skip only truly finalized statuses (Completed=5, Cancelled=6/7)
       if (FINALIZED_CODES.has(String(o.orderStatus))) continue;
       // Keep a string-typed orderNumber on the object to avoid Map/key mismatches later
       orderMap.set(orderNumber, { ...o, orderNumber, _isActiveOrder: true });
@@ -366,6 +374,53 @@ export default function TerminalOrders() {
       syncOrders.mutate(rawOrders.map(toSyncItem));
     }
   }, [rawOrders.length]);
+
+  // Sync recentHistory status updates to local binance_order_history table
+  // This fixes stale statuses where orders completed but the local DB wasn't updated
+  const recentHistoryRef = useRef<any[]>([]);
+  useEffect(() => {
+    const items = recentHistory as any[];
+    if (!items || items.length === 0) return;
+    // Only run when recentHistory actually changes (compare length + first item)
+    if (items.length === recentHistoryRef.current.length && items[0]?.orderNumber === recentHistoryRef.current[0]?.orderNumber) return;
+    recentHistoryRef.current = items;
+
+    // Fire-and-forget: update binance_order_history for any status that progressed
+    (async () => {
+      let completedUpdates = 0;
+      for (const o of items) {
+        const orderNumber = String(o?.orderNumber || '');
+        const newStatus = normaliseBinanceStatus(o?.orderStatus);
+        if (!orderNumber || !newStatus) continue;
+        // Only update if status is terminal (COMPLETED, CANCELLED, APPEAL) — avoid unnecessary writes
+        if (!['COMPLETED', 'CANCELLED', 'APPEAL'].includes(newStatus)) continue;
+        try {
+          const { count } = await supabase
+            .from('binance_order_history')
+            .update({ order_status: newStatus, synced_at: new Date().toISOString() })
+            .eq('order_number', orderNumber)
+            .neq('order_status', newStatus);
+          // Check if we got a response (update happened)
+          if (newStatus === 'COMPLETED') completedUpdates++;
+        } catch {
+          // Ignore — best-effort sync
+        }
+      }
+      // If any orders transitioned to COMPLETED, trigger ERP sync
+      if (completedUpdates > 0) {
+        try {
+          await syncCompletedBuyOrders();
+          await syncCompletedSellOrders();
+          queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
+        } catch {
+          // Best-effort ERP sync
+        }
+      }
+    })();
+  }, [recentHistory]);
 
   // Build a map of *recent* order history statuses (fast) for enrichment
   const recentStatusMap = useMemo(() => {

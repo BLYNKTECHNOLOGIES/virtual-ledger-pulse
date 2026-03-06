@@ -96,6 +96,7 @@ export default function TerminalOrders() {
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
   const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'all' as string, assignmentFilter: 'all' as string };

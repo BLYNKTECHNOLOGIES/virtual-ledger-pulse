@@ -156,6 +156,21 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         }
 
         console.log('✅ Sales order reconciliation completed:', result);
+
+        // If payment method also changed alongside financial fields,
+        // handle the payment method switch separately (pending settlements, bank tx transfer)
+        if (paymentMethodChanged) {
+          console.log('🔄 Payment method also changed during financial reconciliation, processing...');
+          const { data: pmResult, error: pmError } = await supabase.rpc('handle_sales_order_payment_method_change', {
+            p_order_id: order.id,
+            p_old_payment_method_id: originalPaymentMethodId,
+            p_new_payment_method_id: data.sales_payment_method_id || null,
+            p_total_amount: data.total_amount
+          });
+          if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
+          if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
+          console.log('✅ Payment method change processed alongside reconciliation', pmResult);
+        }
       } else if (isCompleted) {
         // Handle payment method change only (no financial field change)
         if (paymentMethodChanged) {

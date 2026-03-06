@@ -132,5 +132,6 @@ export default function HRMS() {
         </TabsContent>
       </Tabs>
     </div>
+    </PermissionGate>
   );
 }

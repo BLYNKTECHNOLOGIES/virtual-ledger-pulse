@@ -372,6 +372,37 @@ export default function TerminalOrders() {
     }
   }, [rawOrders.length]);
 
+  // Sync recentHistory status updates to local binance_order_history table
+  // This fixes stale statuses where orders completed but the local DB wasn't updated
+  const recentHistoryRef = useRef<any[]>([]);
+  useEffect(() => {
+    const items = recentHistory as any[];
+    if (!items || items.length === 0) return;
+    // Only run when recentHistory actually changes (compare length + first item)
+    if (items.length === recentHistoryRef.current.length && items[0]?.orderNumber === recentHistoryRef.current[0]?.orderNumber) return;
+    recentHistoryRef.current = items;
+
+    // Fire-and-forget: update binance_order_history for any status that progressed
+    (async () => {
+      for (const o of items) {
+        const orderNumber = String(o?.orderNumber || '');
+        const newStatus = normaliseBinanceStatus(o?.orderStatus);
+        if (!orderNumber || !newStatus) continue;
+        // Only update if status is terminal (COMPLETED, CANCELLED, APPEAL) — avoid unnecessary writes
+        if (!['COMPLETED', 'CANCELLED', 'APPEAL'].includes(newStatus)) continue;
+        try {
+          await supabase
+            .from('binance_order_history')
+            .update({ order_status: newStatus, synced_at: new Date().toISOString() })
+            .eq('order_number', orderNumber)
+            .neq('order_status', newStatus); // Only if status actually changed
+        } catch {
+          // Ignore — best-effort sync
+        }
+      }
+    })();
+  }, [recentHistory]);
+
   // Build a map of *recent* order history statuses (fast) for enrichment
   const recentStatusMap = useMemo(() => {
     const map = new Map<string, string>();

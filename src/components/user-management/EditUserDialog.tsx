@@ -87,9 +87,22 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       }
     };
 
+    // Fetch badge_id directly from DB to ensure it's always up-to-date
+    const fetchBadgeId = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('badge_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!error && data && data.badge_id) {
+        setFormData(prev => ({ ...prev, badge_id: data.badge_id || "" }));
+      }
+    };
+
     fetchRoles();
     fetchTerminalAccess();
     fetchTerminalRoles();
+    fetchBadgeId();
   }, [user.id]);
 
   // Look up linked employee whenever badge_id changes
@@ -138,6 +151,13 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       
       if (result?.success !== false) {
         // If badge matches an hr_employee, update user_id on hr_employees
+        // First, clear any old hr_employee links for this user
+        await (supabase as any)
+          .from('hr_employees')
+          .update({ user_id: null })
+          .eq('user_id', user.id);
+
+        // Then set the new link if a matching employee was found
         if (linkedEmployee) {
           await (supabase as any)
             .from('hr_employees')

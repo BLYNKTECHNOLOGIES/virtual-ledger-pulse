@@ -87,15 +87,32 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       }
     };
 
-    // Fetch badge_id directly from DB to ensure it's always up-to-date
+    // Resolve badge from users table, fallback to linked HR employee badge
     const fetchBadgeId = async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('badge_id')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (!error && data && data.badge_id) {
-        setFormData(prev => ({ ...prev, badge_id: data.badge_id || "" }));
+      const [{ data: userRow, error: userErr }, { data: employeeRow, error: employeeErr }] = await Promise.all([
+        supabase
+          .from('users')
+          .select('badge_id')
+          .eq('id', user.id)
+          .maybeSingle(),
+        (supabase as any)
+          .from('hr_employees')
+          .select('id, first_name, last_name, badge_id')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]);
+
+      if (!employeeErr && employeeRow) {
+        setLinkedEmployee(employeeRow);
+      }
+
+      if (!userErr && userRow?.badge_id) {
+        setFormData((prev) => ({ ...prev, badge_id: userRow.badge_id }));
+        return;
+      }
+
+      if (!employeeErr && employeeRow?.badge_id) {
+        setFormData((prev) => ({ ...prev, badge_id: employeeRow.badge_id }));
       }
     };
 

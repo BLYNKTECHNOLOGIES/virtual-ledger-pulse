@@ -87,9 +87,22 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       }
     };
 
+    // Fetch badge_id directly from DB to ensure it's always up-to-date
+    const fetchBadgeId = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('badge_id')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!error && data && data.badge_id) {
+        setFormData(prev => ({ ...prev, badge_id: data.badge_id || "" }));
+      }
+    };
+
     fetchRoles();
     fetchTerminalAccess();
     fetchTerminalRoles();
+    fetchBadgeId();
   }, [user.id]);
 
   // Look up linked employee whenever badge_id changes

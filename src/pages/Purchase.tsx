@@ -160,15 +160,32 @@ export default function Purchase() {
       'Created At'
     ];
 
-    const csvData = allPurchaseOrders.map(order => [
+    const csvData = allPurchaseOrders.map(order => {
+      const pricePerUnit = order.price_per_unit || 0;
+      const marketRate = order.market_rate_usdt || 0;
+      const productCategory = (order.product_category || '').toUpperCase();
+      
+      // Determine asset type from product_category or product_name
+      const assetType = productCategory || (order.product_name || 'USDT').toUpperCase();
+      
+      // For USDT, effective price = price_per_unit; for other coins, price_per_unit / market_rate_usdt
+      let effectivePriceUsdt = pricePerUnit;
+      if (assetType !== 'USDT' && marketRate > 0) {
+        effectivePriceUsdt = pricePerUnit / marketRate;
+      }
+
+      return [
       order.order_number || '',
       order.supplier_name || '',
       order.contact_number || '',
       order.client_state || '',
+      assetType,
       order.product_name || '',
       order.product_category || '',
       order.quantity || 0,
-      order.price_per_unit || 0,
+      pricePerUnit,
+      effectivePriceUsdt.toFixed(6),
+      order.total_amount || 0,
       order.total_amount || 0,
       order.tds_applied ? 'Yes' : 'No',
       order.tds_amount || 0,

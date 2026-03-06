@@ -254,6 +254,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['pending_settlements'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

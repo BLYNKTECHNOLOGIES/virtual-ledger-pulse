@@ -67,17 +67,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const authenticateUser = async (email: string, password: string): Promise<User | null> => {
     try {
+      const inputIdentifier = email.trim();
+      const normalizedInput = inputIdentifier.toLowerCase();
+      const isEmailLogin = normalizedInput.includes('@');
+
+      const pickValidatedUser = (rows: ValidationUser[]): ValidationUser | null => {
+        const validRows = rows.filter((row) => row?.is_valid);
+        if (validRows.length === 0) return null;
+
+        if (isEmailLogin) {
+          // Security: when login input is an email, ONLY accept exact email matches.
+          return validRows.find((row) => row.email?.toLowerCase() === normalizedInput) ?? null;
+        }
+
+        return (
+          validRows.find((row) => row.username?.toLowerCase() === normalizedInput) ??
+          validRows.find((row) => row.email?.toLowerCase() === normalizedInput) ??
+          validRows[0]
+        );
+      };
+
       // Step 1: Try normal authentication
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
-          input_username: email.trim(),
+          input_username: inputIdentifier,
           input_password: password
         });
 
-      if (!validationError && validationResult && Array.isArray(validationResult) && validationResult.length > 0) {
-        const validationData = validationResult[0] as ValidationUser;
-        if (validationData?.is_valid) {
-          return await buildUserFromValidation(validationData, email);
+      if (!validationError && Array.isArray(validationResult) && validationResult.length > 0) {
+        const matchedUser = pickValidatedUser(validationResult as ValidationUser[]);
+        if (matchedUser) {
+          return await buildUserFromValidation(matchedUser, inputIdentifier);
         }
       }
 
@@ -85,14 +105,27 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // (Super Admin can log into any user's account using their own password)
       const { data: impersonationResult, error: impersonationError } = await supabase
         .rpc('try_super_admin_impersonation', {
-          target_username: email.trim(),
+          target_username: inputIdentifier,
           input_password: password
         });
 
-      if (!impersonationError && impersonationResult && Array.isArray(impersonationResult) && impersonationResult.length > 0) {
+      if (!impersonationError && Array.isArray(impersonationResult) && impersonationResult.length > 0) {
         const impData = impersonationResult[0] as ValidationUser;
+
+        if (isEmailLogin && impData?.email?.toLowerCase() !== normalizedInput) {
+          return null;
+        }
+
+        if (!isEmailLogin) {
+          const impUsername = impData?.username?.toLowerCase();
+          const impEmail = impData?.email?.toLowerCase();
+          if (impUsername !== normalizedInput && impEmail !== normalizedInput) {
+            return null;
+          }
+        }
+
         if (impData?.is_valid) {
-          return await buildUserFromValidation(impData, email);
+          return await buildUserFromValidation(impData, inputIdentifier);
         }
       }
 

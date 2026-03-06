@@ -1,46 +1,67 @@
 import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { usePermissions } from "@/hooks/usePermissions";
 
-const mainNavItems = [
-  { title: "Home", url: "/dashboard", icon: Home },
-  { title: "Stock", url: "/stock", icon: Package },
-  { title: "Sales", url: "/sales", icon: TrendingUp },
-  { title: "Purchase", url: "/purchase", icon: ShoppingCart },
+interface MobileNavItem {
+  title: string;
+  url: string;
+  icon: typeof Home;
+  permissions: string[];
+}
+
+const mainNavItems: MobileNavItem[] = [
+  { title: "Home", url: "/dashboard", icon: Home, permissions: ["dashboard_view"] },
+  { title: "Stock", url: "/stock", icon: Package, permissions: ["stock_view", "stock_manage"] },
+  { title: "Sales", url: "/sales", icon: TrendingUp, permissions: ["sales_view", "sales_manage"] },
+  { title: "Purchase", url: "/purchase", icon: ShoppingCart, permissions: ["purchase_view", "purchase_manage"] },
 ];
 
-const moreNavItems = [
-  { title: "Dashboard", url: "/dashboard", icon: Home },
-  { title: "Stock Management", url: "/stock", icon: Package },
-  { title: "Sales", url: "/sales", icon: TrendingUp },
-  { title: "Purchase", url: "/purchase", icon: ShoppingCart },
-  { title: "BAMS", url: "/bams", icon: Package },
-  { title: "Clients", url: "/clients", icon: Users },
-  { title: "Leads", url: "/leads", icon: Users },
-  { title: "User Management", url: "/user-management", icon: Users },
-  { title: "Compliance", url: "/compliance", icon: Package },
-  { title: "Risk Management", url: "/risk-management", icon: Package },
-  { title: "Video KYC", url: "/video-kyc", icon: Package },
-  { title: "KYC Approvals", url: "/kyc-approvals", icon: Package },
-  { title: "HRMS", url: "/hrms", icon: Users },
-  { title: "Accounting", url: "/accounting", icon: Package },
-  { title: "P&L", url: "/profit-loss", icon: TrendingUp },
-  { title: "Financials", url: "/financials", icon: Package },
-  { title: "Statistics", url: "/statistics", icon: TrendingUp },
+const moreNavItems: MobileNavItem[] = [
+  { title: "Dashboard", url: "/dashboard", icon: Home, permissions: ["dashboard_view"] },
+  { title: "Stock Management", url: "/stock", icon: Package, permissions: ["stock_view", "stock_manage"] },
+  { title: "Sales", url: "/sales", icon: TrendingUp, permissions: ["sales_view", "sales_manage"] },
+  { title: "Purchase", url: "/purchase", icon: ShoppingCart, permissions: ["purchase_view", "purchase_manage"] },
+  { title: "BAMS", url: "/bams", icon: Package, permissions: ["bams_view", "bams_manage"] },
+  { title: "Clients", url: "/clients", icon: Users, permissions: ["clients_view", "clients_manage"] },
+  { title: "Leads", url: "/leads", icon: Users, permissions: ["leads_view", "leads_manage"] },
+  { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage"] },
+  { title: "Compliance", url: "/compliance", icon: Package, permissions: ["compliance_view", "compliance_manage"] },
+  { title: "Risk Management", url: "/risk-management", icon: Package, permissions: ["risk_management_view", "risk_management_manage"] },
+  { title: "Video KYC", url: "/video-kyc", icon: Package, permissions: ["video_kyc_view", "video_kyc_manage"] },
+  { title: "KYC Approvals", url: "/kyc-approvals", icon: Package, permissions: ["kyc_approvals_view", "kyc_approvals_manage"] },
+  { title: "HRMS", url: "/hrms", icon: Users, permissions: ["hrms_view", "hrms_manage"] },
+  { title: "Accounting", url: "/accounting", icon: Package, permissions: ["accounting_view", "accounting_manage"] },
+  { title: "P&L", url: "/profit-loss", icon: TrendingUp, permissions: ["accounting_view", "accounting_manage"] },
+  { title: "Financials", url: "/financials", icon: Package, permissions: ["accounting_view", "accounting_manage"] },
+  { title: "Statistics", url: "/statistics", icon: TrendingUp, permissions: ["statistics_view", "statistics_manage"] },
 ];
 
 export function MobileBottomNav() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
+  const { hasAnyPermission, isLoading } = usePermissions();
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
+
+  const visibleMainNavItems = useMemo(
+    () => mainNavItems.filter((item) => hasAnyPermission(item.permissions)),
+    [hasAnyPermission]
+  );
+
+  const visibleMoreNavItems = useMemo(
+    () => moreNavItems.filter((item) => hasAnyPermission(item.permissions)),
+    [hasAnyPermission]
+  );
+
+  if (isLoading) return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white border-t-2 border-gray-200 shadow-lg">
       <div className="flex items-center justify-around h-16 px-2">
-        {mainNavItems.map((item) => {
+        {visibleMainNavItems.map((item) => {
           const isActive = location.pathname === item.url;
           return (
             <Link
@@ -74,7 +95,7 @@ export function MobileBottomNav() {
             </SheetHeader>
             <ScrollArea className="h-full pb-8">
               <div className="grid grid-cols-3 gap-3 py-4">
-                {moreNavItems.map((item) => {
+                {visibleMoreNavItems.map((item) => {
                   const isActive = location.pathname === item.url;
                   return (
                     <Link

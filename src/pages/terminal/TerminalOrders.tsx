@@ -435,6 +435,87 @@ export default function TerminalOrders() {
     return map;
   }, [recentHistory]);
 
+  // Some Binance "active" rows can remain stale for older orders.
+  // Revalidate older active-like orders via getOrderDetail (authoritative single-order status).
+  const staleRecheckOrderNumbers = useMemo(() => {
+    const now = Date.now();
+    const maxOrders = 25;
+    const minAgeMs = 6 * 60 * 60 * 1000;
+
+    const activeLike = rawOrders.filter((o: any) => {
+      const status = mapOrderStatusCode(o?.orderStatus);
+      const upper = (status || '').toUpperCase();
+      const isActiveLike =
+        upper.includes('PENDING') ||
+        upper.includes('TRADING') ||
+        upper.includes('BUYER_PAYED') ||
+        upper.includes('BUYER_PAID');
+      if (!isActiveLike) return false;
+      const created = typeof o?.createTime === 'number' ? o.createTime : Number(o?.createTime || 0);
+      return Number.isFinite(created) && created > 0 && now - created >= minAgeMs;
+    });
+
+    return activeLike
+      .sort((a: any, b: any) => (a?.createTime || 0) - (b?.createTime || 0))
+      .slice(0, maxOrders)
+      .map((o: any) => String(o.orderNumber));
+  }, [rawOrders]);
+
+  const { data: staleDetailStatusMap = {} } = useQuery({
+    queryKey: ['binance-stale-active-status-recheck', staleRecheckOrderNumbers.join(',')],
+    queryFn: async () => {
+      const next: Record<string, string> = {};
+
+      for (const orderNumber of staleRecheckOrderNumbers) {
+        try {
+          const response = await callBinanceAds('getOrderDetail', { orderNumber });
+          const detail = response?.data || response;
+          const rawStatus = detail?.orderStatus ?? detail?.status;
+          if (rawStatus === undefined || rawStatus === null) continue;
+          next[orderNumber] = normaliseBinanceStatus(rawStatus);
+        } catch {
+          // Best-effort recheck only
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+
+      return next;
+    },
+    enabled: staleRecheckOrderNumbers.length > 0,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  // Persist authoritative terminal statuses discovered by stale recheck.
+  useEffect(() => {
+    const entries = Object.entries(staleDetailStatusMap || {}).filter(([, status]) => {
+      const upper = (status || '').toUpperCase();
+      return upper.includes('COMPLETED') || upper.includes('CANCEL') || upper.includes('APPEAL') || upper.includes('EXPIRED');
+    });
+    if (entries.length === 0) return;
+
+    (async () => {
+      for (const [orderNumber, status] of entries) {
+        try {
+          await supabase
+            .from('binance_order_history')
+            .update({ order_status: status, synced_at: new Date().toISOString() })
+            .eq('order_number', orderNumber)
+            .neq('order_status', status);
+
+          await supabase
+            .from('p2p_order_records')
+            .update({ order_status: status, synced_at: new Date().toISOString() })
+            .eq('binance_order_number', orderNumber)
+            .neq('order_status', status);
+        } catch {
+          // Best-effort persistence
+        }
+      }
+    })();
+  }, [staleDetailStatusMap]);
+
   // Convert to display records, enrich with history status, and apply filters
   const displayOrders: P2POrderRecord[] = useMemo(() => {
     const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'APPEAL', 'EXPIRED'];

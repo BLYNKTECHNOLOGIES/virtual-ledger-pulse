@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,8 @@ import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
+import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
+import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 
 
 /** Convert numeric orderStatus to string */

@@ -217,9 +217,11 @@ export default function TerminalOrders() {
 
   const recentHistoryWindowStart = useMemo(() => {
     // pull a small buffer before the oldest active order so we always catch it in history
+    // IMPORTANT: keep this window as tight as possible; too-broad windows can push relevant rows
+    // out of paginated history fetches and leave stale statuses unresolved.
     const fallback = Date.now() - 7 * 24 * 60 * 60 * 1000;
     if (!activeOldestCreateTime) return fallback;
-    return Math.min(activeOldestCreateTime - 6 * 60 * 60 * 1000, fallback);
+    return Math.max(activeOldestCreateTime - 6 * 60 * 60 * 1000, fallback);
   }, [activeOldestCreateTime]);
 
   // Lightweight history fetch (multi-page) to catch terminal statuses for the currently active window.

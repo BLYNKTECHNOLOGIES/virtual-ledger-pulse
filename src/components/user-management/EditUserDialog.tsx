@@ -151,6 +151,13 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
       
       if (result?.success !== false) {
         // If badge matches an hr_employee, update user_id on hr_employees
+        // First, clear any old hr_employee links for this user
+        await (supabase as any)
+          .from('hr_employees')
+          .update({ user_id: null })
+          .eq('user_id', user.id);
+
+        // Then set the new link if a matching employee was found
         if (linkedEmployee) {
           await (supabase as any)
             .from('hr_employees')

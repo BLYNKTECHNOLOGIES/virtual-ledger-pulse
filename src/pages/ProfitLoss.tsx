@@ -86,6 +86,9 @@ interface ExpenseIncomeEntry {
 }
 
 export default function ProfitLoss() {
+  const { hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
+  const canViewProfitLoss = hasAnyPermission(["accounting_view", "accounting_manage"]);
+
   const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
     const saved = localStorage.getItem('pnl_date_preset');
     return (saved as DateRangePreset) || 'today';
@@ -433,6 +436,7 @@ export default function ProfitLoss() {
         expenseIncomeEntries: expenseIncomeEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       };
     },
+    enabled: canViewProfitLoss && !permissionsLoading,
   });
 
   const formatCurrency = (amount: number) => {
@@ -452,6 +456,30 @@ export default function ProfitLoss() {
     }
     return 'All Time';
   };
+
+  if (permissionsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-muted-foreground">Loading permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canViewProfitLoss) {
+    return (
+      <div className="min-h-screen bg-background p-6 flex items-center justify-center">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6 text-center">
+            <h2 className="text-xl font-semibold">Access Denied</h2>
+            <p className="text-muted-foreground mt-2">You don't have permission to access P&L.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

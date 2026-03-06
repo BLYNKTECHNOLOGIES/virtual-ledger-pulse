@@ -288,14 +288,19 @@ export default function TerminalOrders() {
     const normalizeOrderNumber = (v: unknown) => (v === undefined || v === null ? '' : String(v));
 
     // Active orders first (they have richer data like chatUnreadCount)
-    // Filter out finalized status codes that Binance may still return in listOrders
-    const FINALIZED_CODES = new Set(['4', '5', '6', '8']);
+    // Filter out truly finalized status codes that Binance may still return in listOrders
+    // Status codes: 1=PENDING, 2=TRADING, 3=BUYER_PAYED, 4=BUYER_PAYED(confirmed),
+    //               5=COMPLETED, 6=CANCELLED, 7=CANCELLED(timeout), 8=APPEAL
+    // Only 5 (COMPLETED) and 6/7 (CANCELLED) are truly finalized.
+    // Status 3/4 (BUYER_PAYED) are ACTIVE states — buyer paid, awaiting release.
+    // Status 8 (APPEAL) should remain visible.
+    const FINALIZED_CODES = new Set(['5', '6', '7']);
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const activeList = Array.isArray(d) ? d : [];
     for (const o of activeList) {
       const orderNumber = normalizeOrderNumber(o?.orderNumber);
       if (!orderNumber) continue;
-      // Skip orders with finalized status (Completed=4/5, Cancelled=6, Expired=8)
+      // Skip only truly finalized statuses (Completed=5, Cancelled=6/7)
       if (FINALIZED_CODES.has(String(o.orderStatus))) continue;
       // Keep a string-typed orderNumber on the object to avoid Map/key mismatches later
       orderMap.set(orderNumber, { ...o, orderNumber, _isActiveOrder: true });

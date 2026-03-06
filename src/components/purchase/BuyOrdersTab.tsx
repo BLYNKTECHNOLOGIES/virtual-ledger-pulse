@@ -62,12 +62,14 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
         .from('purchase_orders')
         .select(`
           *,
+          wallet:wallets!wallet_id(id, wallet_name),
           purchase_order_items (
             id,
             product_id,
             quantity,
             unit_price,
             total_price,
+            warehouse_id,
             products (name, code)
           ),
           purchase_payment_method:purchase_payment_method_id (

@@ -310,12 +310,19 @@ export function useUsers() {
         throw new Error('You do not have permission to update users');
       }
 
-      // Check if username is being changed — need to force re-login so new session picks up the new username
-      let usernameChanged = false;
-      if (userData.username) {
-        const existingUser = users.find(u => u.id === userId);
-        if (existingUser && existingUser.username !== userData.username) {
-          usernameChanged = true;
+      // Check if username or email is being changed — need to force re-login so new session picks up the new details
+      let credentialsChanged = false;
+      const existingUser = users.find(u => u.id === userId);
+      if (existingUser) {
+        if (userData.username && existingUser.username !== userData.username) {
+          credentialsChanged = true;
+        }
+        if (userData.email && existingUser.email !== userData.email) {
+          credentialsChanged = true;
+        }
+        if (userData.status && existingUser.status !== userData.status && 
+            (userData.status === 'INACTIVE' || userData.status === 'SUSPENDED')) {
+          credentialsChanged = true; // Force logout when account is deactivated/suspended
         }
       }
 
@@ -335,8 +342,8 @@ export function useUsers() {
       if (userData.badge_id !== undefined) {
         updatePayload.badge_id = userData.badge_id || null;
       }
-      // Force re-login when username changes so new sessions use the updated username
-      if (usernameChanged) {
+      // Force re-login when credentials change so old sessions become invalid
+      if (credentialsChanged) {
         updatePayload.force_logout_at = new Date().toISOString();
       }
       const { error: userError } = await supabase

@@ -387,6 +387,7 @@ export default function TerminalOrders() {
 
     // Fire-and-forget: update binance_order_history for any status that progressed
     (async () => {
+      let completedUpdates = 0;
       for (const o of items) {
         const orderNumber = String(o?.orderNumber || '');
         const newStatus = normaliseBinanceStatus(o?.orderStatus);
@@ -394,13 +395,28 @@ export default function TerminalOrders() {
         // Only update if status is terminal (COMPLETED, CANCELLED, APPEAL) — avoid unnecessary writes
         if (!['COMPLETED', 'CANCELLED', 'APPEAL'].includes(newStatus)) continue;
         try {
-          await supabase
+          const { count } = await supabase
             .from('binance_order_history')
             .update({ order_status: newStatus, synced_at: new Date().toISOString() })
             .eq('order_number', orderNumber)
-            .neq('order_status', newStatus); // Only if status actually changed
+            .neq('order_status', newStatus)
+            .select('order_number', { count: 'exact', head: true });
+          if (newStatus === 'COMPLETED' && (count || 0) > 0) completedUpdates++;
         } catch {
           // Ignore — best-effort sync
+        }
+      }
+      // If any orders transitioned to COMPLETED, trigger ERP sync
+      if (completedUpdates > 0) {
+        try {
+          await syncCompletedBuyOrders();
+          await syncCompletedSellOrders();
+          queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
+        } catch {
+          // Best-effort ERP sync
         }
       }
     })();

@@ -381,6 +381,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['counterparty-pan-records'] });
+      queryClient.invalidateQueries({ queryKey: ['tds-records'] });
+      queryClient.invalidateQueries({ queryKey: ['client-tds-records'] });
+      queryClient.invalidateQueries({ queryKey: ['tax-management'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

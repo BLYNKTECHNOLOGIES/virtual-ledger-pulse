@@ -221,7 +221,7 @@ export function LiveAttendanceDashboard() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-2 font-medium text-muted-foreground">Employee</th>

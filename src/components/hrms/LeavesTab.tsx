@@ -171,7 +171,7 @@ export function LeavesTab() {
                 <CardContent>
                   <div className="space-y-3">
                     {leaveRequests.slice(0, 5).map((r: any) => (
-                      <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-2">
                         <div>
                           <p className="font-medium text-sm">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>
                           <p className="text-xs text-gray-500">
@@ -220,8 +220,8 @@ export function LeavesTab() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     {["Employee", "Leave Type", "Start", "End", "Days", "Status", "Actions"].map((h) => (

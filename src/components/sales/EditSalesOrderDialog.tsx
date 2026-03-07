@@ -391,7 +391,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               <WalletSelector
                 value={formData.warehouse_id}
                 onValueChange={(value) => handleInputChange('warehouse_id', value)}
-                label="Wallet/Platform"
+                label="Wallet"
                 placeholder="Select wallet..."
                 filterByType="USDT"
               />
@@ -488,8 +488,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               <Label>Platform</Label>
               <Input
                 value={formData.platform}
-                onChange={(e) => handleInputChange('platform', e.target.value)}
-                placeholder="e.g., Binance P2P"
+                readOnly
+                className="bg-muted"
               />
             </div>
 

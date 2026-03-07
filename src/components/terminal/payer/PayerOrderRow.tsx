@@ -188,9 +188,22 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       {/* Amount */}
       <TableCell className="py-3">
         <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-foreground tabular-nums font-medium">
-            {Number(order.totalPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat || 'INR'}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-foreground tabular-nums font-medium">
+              {Number(order.totalPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat || 'INR'}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const intAmount = Math.floor(Number(order.totalPrice || 0)).toString();
+                navigator.clipboard.writeText(intAmount);
+                toast.success(`Amount ₹${intAmount} copied`);
+              }}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Copy className="h-3 w-3" />
+            </button>
+          </div>
           <span className="text-[10px] text-muted-foreground tabular-nums">
             {Number(order.amount || 0).toFixed(2)} {order.asset || 'USDT'}
           </span>

@@ -140,7 +140,7 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="employee_id">Employee *</Label>
               <Select onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}>
@@ -169,7 +169,7 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="review_date">Review Date</Label>
               <Input
@@ -194,7 +194,7 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
             <Label>Performance Criteria (Rate 1-5)</Label>
             <div className="space-y-3 mt-2">
               {formData.criteria.map((criterion, index) => (
-                <div key={index} className="flex items-center justify-between p-3 border rounded">
+                <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded gap-2">
                   <div className="flex-1">
                     <p className="font-medium">{criterion.category}</p>
                     <p className="text-sm text-gray-600">{criterion.criteria}</p>

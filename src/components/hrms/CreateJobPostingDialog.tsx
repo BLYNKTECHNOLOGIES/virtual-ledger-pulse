@@ -84,7 +84,7 @@ export function CreateJobPostingDialog({ open, onOpenChange }: CreateJobPostingD
           <DialogTitle>Create Job Posting</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="title">Job Title</Label>
               <Input
@@ -132,7 +132,7 @@ export function CreateJobPostingDialog({ open, onOpenChange }: CreateJobPostingD
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="experience">Experience Required</Label>
               <Input
@@ -153,7 +153,7 @@ export function CreateJobPostingDialog({ open, onOpenChange }: CreateJobPostingD
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="salary_min">Salary Range Min</Label>
               <Input

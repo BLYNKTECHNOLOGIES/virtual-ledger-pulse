@@ -47,7 +47,10 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
                   {fiatSymbol}{Number(totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
                 <button
-                  onClick={() => copyToClipboard(totalPrice, 'Amount')}
+                  onClick={() => {
+                    const intAmount = Math.floor(Number(totalPrice)).toString();
+                    copyToClipboard(intAmount, 'Amount');
+                  }}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Copy className="h-3 w-3" />
@@ -57,24 +60,29 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
           </div>
 
           {/* Payment fields */}
-          {method.fields?.filter(f => f.fieldValue).map((field, fIdx) => (
-            <div key={fIdx} className="flex items-start justify-between py-1.5 border-b border-border/50 last:border-0">
-              <span className="text-[10px] text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[11px] text-foreground font-medium text-right break-all">
-                  {field.fieldValue}
-                </span>
-                {field.isCopyable && (
-                  <button
-                    onClick={() => copyToClipboard(field.fieldValue, field.fieldName)}
-                    className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </button>
-                )}
+          {method.fields?.filter(f => f.fieldValue).map((field, fIdx) => {
+            const fieldNameLower = (field.fieldName || '').toLowerCase();
+            const isNameField = fieldNameLower.includes('name') || fieldNameLower.includes('holder');
+            const shouldShowCopy = field.isCopyable || isNameField;
+            return (
+              <div key={fIdx} className="flex items-start justify-between py-1.5 border-b border-border/50 last:border-0">
+                <span className="text-[10px] text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-[11px] text-foreground font-medium text-right break-all">
+                    {field.fieldValue}
+                  </span>
+                  {shouldShowCopy && (
+                    <button
+                      onClick={() => copyToClipboard(field.fieldValue, field.fieldName)}
+                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ))}
     </div>

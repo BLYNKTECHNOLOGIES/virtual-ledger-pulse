@@ -23,14 +23,36 @@ export default function AttendanceActivityPage() {
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ["hr_attendance_activity", dateFilter],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_attendance_activity")
-        .select("*, hr_employees!hr_attendance_activity_employee_id_fkey(id, badge_id, first_name, last_name)")
-        .eq("activity_date", dateFilter)
-        .order("clock_in", { ascending: false });
-      if (error) throw error;
-      return (data as any[]) || [];
+      const selectClause = "*, hr_employees!hr_attendance_activity_employee_id_fkey(id, badge_id, first_name, last_name)";
+      const nextDate = format(
+        new Date(new Date(`${dateFilter}T00:00:00`).getTime() + 24 * 60 * 60 * 1000),
+        "yyyy-MM-dd"
+      );
+
+      const [{ data: byActivityDate, error: byActivityDateError }, { data: byClockInDate, error: byClockInDateError }] = await Promise.all([
+        (supabase as any)
+          .from("hr_attendance_activity")
+          .select(selectClause)
+          .eq("activity_date", dateFilter),
+        (supabase as any)
+          .from("hr_attendance_activity")
+          .select(selectClause)
+          .gte("clock_in", `${dateFilter}T00:00:00`)
+          .lt("clock_in", `${nextDate}T00:00:00`),
+      ]);
+
+      if (byActivityDateError) throw byActivityDateError;
+      if (byClockInDateError) throw byClockInDateError;
+
+      const merged = [...((byActivityDate as any[]) || []), ...((byClockInDate as any[]) || [])];
+      const uniqueActivities = Array.from(new Map(merged.map((row: any) => [row.id, row])).values());
+      uniqueActivities.sort(
+        (a: any, b: any) => new Date(b.clock_in || 0).getTime() - new Date(a.clock_in || 0).getTime()
+      );
+
+      return uniqueActivities;
     },
+    refetchInterval: 30000,
   });
 
   const { data: employees = [] } = useQuery({

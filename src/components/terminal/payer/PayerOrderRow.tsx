@@ -331,21 +331,36 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
 /** Shows the operator-provided override UPI details */
 function OverrideUpiDisplay({ upiId, upiName, payMethod }: { upiId: string; upiName?: string; payMethod?: string }) {
-  const copyText = `${payMethod || 'UPI'}: ${upiName || ''} | ${upiId}`;
   return (
     <div className="flex items-center gap-2 text-[10px]">
       <Badge variant="outline" className="text-[8px] px-1 py-0 border-primary/30 text-primary shrink-0">
         {payMethod || 'UPI'} <span className="ml-0.5 text-[7px] opacity-70">Updated</span>
       </Badge>
-      {upiName && <span className="text-foreground font-medium truncate">{upiName}</span>}
+      {upiName && (
+        <>
+          <span className="text-foreground font-medium truncate">{upiName}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(upiName);
+              toast.success('Name copied');
+            }}
+            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            title="Copy name"
+          >
+            <Copy className="h-3 w-3" />
+          </button>
+        </>
+      )}
       <span className="text-muted-foreground truncate">{upiId}</span>
       <button
         onClick={(e) => {
           e.stopPropagation();
-          navigator.clipboard.writeText(copyText);
-          toast.success('Payment details copied');
+          navigator.clipboard.writeText(upiId);
+          toast.success('UPI ID copied');
         }}
         className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+        title="Copy UPI ID"
       >
         <ClipboardCopy className="h-3 w-3" />
       </button>

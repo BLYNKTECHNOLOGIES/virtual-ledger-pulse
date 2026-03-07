@@ -252,10 +252,18 @@ export function TerminalUsersList() {
       (a.lastName && a.lastName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // For non-admin users, restrict the Grant Access dropdown to only visible (subordinate) users
+  const visibleUserIds = new Set(assignments.map(a => a.userId));
   const filteredUsers = allUsers.filter(
-    (u) =>
-      u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+    (u) => {
+      const matchesSearch = u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+        u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
+      // Non-admins can only grant access to users within their jurisdiction
+      if (!isSuperAdmin && !isTerminalAdmin) {
+        return matchesSearch && visibleUserIds.has(u.id);
+      }
+      return matchesSearch;
+    }
   );
 
   const roleBadgeClass = (name: string, level: number | null) => {

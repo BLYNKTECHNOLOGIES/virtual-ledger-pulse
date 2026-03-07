@@ -141,7 +141,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   }, [existingSplits, order]);
 
   // Calculate amounts based on TDS option
-  const totalAmount = formData.quantity * formData.price_per_unit;
+  // Use formData.total_amount (preserves original value, only recalculated when user changes qty/price)
+  const totalAmount = formData.total_amount;
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
   const tdsAmount = totalAmount * tdsRate;
   const netPayableAmount = totalAmount - tdsAmount;
@@ -425,7 +426,14 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   };
 
   const handleInputChange = (field: keyof typeof formData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Auto-recalculate total_amount only when user explicitly changes quantity or price_per_unit
+      if (field === 'quantity' || field === 'price_per_unit') {
+        updated.total_amount = updated.quantity * updated.price_per_unit;
+      }
+      return updated;
+    });
   };
 
   if (!order) return null;

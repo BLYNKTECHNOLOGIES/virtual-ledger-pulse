@@ -1,10 +1,21 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, Users, Clock, 
-  CalendarDays, Wallet, Laptop, BarChart3, LogOut,
-  HelpCircle, ChevronDown, Building2, FileText, Megaphone,
-  ChevronLeft, ChevronRight, AlertTriangle
+import {
+  LayoutDashboard,
+  Users,
+  Clock,
+  CalendarDays,
+  Wallet,
+  Laptop,
+  BarChart3,
+  LogOut,
+  HelpCircle,
+  ChevronDown,
+  Building2,
+  FileText,
+  Megaphone,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,15 +34,15 @@ interface NavGroup {
 const navGroups: NavGroup[] = [
   {
     title: "MAIN",
-    items: [
-      { label: "Dashboard", icon: LayoutDashboard, path: "/hrms" },
-    ],
+    items: [{ label: "Dashboard", icon: LayoutDashboard, path: "/hrms" }],
   },
   {
     title: "WORKFORCE",
     items: [
       {
-        label: "Employees", icon: Users, path: "/hrms/employee",
+        label: "Employees",
+        icon: Users,
+        path: "/hrms/employee",
         children: [
           { label: "Employee List", path: "/hrms/employee" },
           { label: "Departments", path: "/hrms/employee/departments" },
@@ -44,7 +55,9 @@ const navGroups: NavGroup[] = [
     title: "TIME & ATTENDANCE",
     items: [
       {
-        label: "Attendance", icon: Clock, path: "/hrms/attendance",
+        label: "Attendance",
+        icon: Clock,
+        path: "/hrms/attendance",
         children: [
           { label: "Overview", path: "/hrms/attendance" },
           { label: "Biometric Devices", path: "/hrms/attendance/biometric-devices" },
@@ -56,7 +69,9 @@ const navGroups: NavGroup[] = [
         ],
       },
       {
-        label: "Leave", icon: CalendarDays, path: "/hrms/leave",
+        label: "Leave",
+        icon: CalendarDays,
+        path: "/hrms/leave",
         children: [
           { label: "Dashboard", path: "/hrms/leave" },
           { label: "Requests", path: "/hrms/leave/requests" },
@@ -72,7 +87,9 @@ const navGroups: NavGroup[] = [
     title: "FINANCE",
     items: [
       {
-        label: "Payroll", icon: Wallet, path: "/hrms/payroll",
+        label: "Payroll",
+        icon: Wallet,
+        path: "/hrms/payroll",
         children: [
           { label: "Dashboard", path: "/hrms/payroll" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
@@ -89,7 +106,9 @@ const navGroups: NavGroup[] = [
     title: "MANAGEMENT",
     items: [
       {
-        label: "Assets", icon: Laptop, path: "/hrms/asset",
+        label: "Assets",
+        icon: Laptop,
+        path: "/hrms/asset",
         children: [
           { label: "Dashboard", path: "/hrms/asset" },
           { label: "All Assets", path: "/hrms/asset/list" },
@@ -97,7 +116,9 @@ const navGroups: NavGroup[] = [
         ],
       },
       {
-        label: "Performance", icon: BarChart3, path: "/hrms/pms",
+        label: "Performance",
+        icon: BarChart3,
+        path: "/hrms/pms",
         children: [
           { label: "Dashboard", path: "/hrms/pms" },
           { label: "Objectives", path: "/hrms/pms/objectives" },
@@ -105,7 +126,9 @@ const navGroups: NavGroup[] = [
         ],
       },
       {
-        label: "Helpdesk", icon: HelpCircle, path: "/hrms/helpdesk",
+        label: "Helpdesk",
+        icon: HelpCircle,
+        path: "/hrms/helpdesk",
         children: [
           { label: "Tickets", path: "/hrms/helpdesk" },
           { label: "FAQ", path: "/hrms/helpdesk/faq" },
@@ -118,24 +141,29 @@ const navGroups: NavGroup[] = [
   },
   {
     title: "ANALYTICS",
-    items: [
-      { label: "Reports", icon: BarChart3, path: "/hrms/reports" },
-    ],
+    items: [{ label: "Reports", icon: BarChart3, path: "/hrms/reports" }],
   },
   {
     title: "SYSTEM",
-    items: [
-      { label: "Offboarding", icon: LogOut, path: "/hrms/offboarding" },
-    ],
+    items: [{ label: "Offboarding", icon: LogOut, path: "/hrms/offboarding" }],
   },
 ];
 
 interface HorillaSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobile?: boolean;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
+export function HorillaSidebar({
+  collapsed,
+  onToggle,
+  isMobile = false,
+  mobileOpen = false,
+  onCloseMobile,
+}: HorillaSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -147,19 +175,37 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
   };
 
   const toggleExpand = (label: string) => {
-    setExpandedItems(prev =>
-      prev.includes(label) ? prev.filter(i => i !== label) : [...prev, label]
+    setExpandedItems((prev) =>
+      prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label]
     );
+  };
+
+  const handleNavigate = (path: string) => {
+    if (path.startsWith("http")) {
+      window.open(path, "_blank");
+    } else {
+      navigate(path);
+    }
+
+    if (isMobile) {
+      onCloseMobile?.();
+    }
   };
 
   return (
     <aside
       className={cn(
         "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 transition-all duration-300 shrink-0",
-        collapsed ? "w-[68px]" : "w-[240px]"
+        isMobile
+          ? cn(
+              "fixed inset-y-0 left-0 z-50 w-[240px]",
+              mobileOpen ? "translate-x-0" : "-translate-x-full"
+            )
+          : collapsed
+          ? "w-[68px]"
+          : "w-[240px]"
       )}
     >
-      {/* Logo */}
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 bg-[#6C63FF] rounded-lg flex items-center justify-center shrink-0">
@@ -174,7 +220,6 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 scrollbar-thin scrollbar-thumb-[#2a2a40]">
         {navGroups.map((group) => (
           <div key={group.title}>
@@ -193,17 +238,15 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                   <div
                     key={item.label}
                     className="relative"
-                    onMouseEnter={() => collapsed && setHoveredItem(item.label)}
-                    onMouseLeave={() => collapsed && setHoveredItem(null)}
+                    onMouseEnter={() => !isMobile && collapsed && setHoveredItem(item.label)}
+                    onMouseLeave={() => !isMobile && collapsed && setHoveredItem(null)}
                   >
                     <button
                       onClick={() => {
-                        if (item.path.startsWith("http")) {
-                          window.open(item.path, "_blank");
-                        } else if (hasChildren && !collapsed) {
+                        if (hasChildren && !collapsed) {
                           toggleExpand(item.label);
                         } else {
-                          navigate(item.path);
+                          handleNavigate(item.path);
                         }
                       }}
                       className={cn(
@@ -230,7 +273,6 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                       )}
                     </button>
 
-                    {/* Children expanded */}
                     {!collapsed && hasChildren && expanded && (
                       <div className="mt-0.5 ml-6 space-y-0.5 border-l border-[#2a2a40] pl-3">
                         {item.children!.map((child) => {
@@ -238,12 +280,10 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                           return (
                             <button
                               key={child.path}
-                              onClick={() => navigate(child.path)}
+                              onClick={() => handleNavigate(child.path)}
                               className={cn(
                                 "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
-                                childActive
-                                  ? "text-[#6C63FF] font-medium"
-                                  : "text-gray-500 hover:text-gray-300"
+                                childActive ? "text-[#6C63FF] font-medium" : "text-gray-500 hover:text-gray-300"
                               )}
                             >
                               {child.label}
@@ -253,8 +293,7 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                       </div>
                     )}
 
-                    {/* Flyout on collapsed */}
-                    {collapsed && hoveredItem === item.label && hasChildren && (
+                    {!isMobile && collapsed && hoveredItem === item.label && hasChildren && (
                       <div className="absolute left-full top-0 ml-2 bg-[#1a1a2e] border border-[#2a2a40] rounded-lg shadow-2xl py-2 min-w-[180px] z-50">
                         <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
                           {item.label}
@@ -262,7 +301,7 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                         {item.children!.map((child) => (
                           <button
                             key={child.path}
-                            onClick={() => navigate(child.path)}
+                            onClick={() => handleNavigate(child.path)}
                             className={cn(
                               "w-full text-left text-sm py-2 px-3 transition-colors",
                               location.pathname === child.path
@@ -275,23 +314,31 @@ export function HorillaSidebar({ collapsed, onToggle }: HorillaSidebarProps) {
                         ))}
                       </div>
                     )}
-                </div>
-              );
-            })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
-    </nav>
+        ))}
+      </nav>
 
-    {/* Collapse Toggle */}
-    <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#252540] transition-colors text-[13px]"
-      >
-        {collapsed ? <ChevronRight className="h-4 w-4" /> : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>}
-      </button>
-    </div>
-  </aside>
+      {!isMobile && (
+        <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
+          <button
+            onClick={onToggle}
+            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#252540] transition-colors text-[13px]"
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4" />
+                <span>Collapse</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+    </aside>
   );
 }

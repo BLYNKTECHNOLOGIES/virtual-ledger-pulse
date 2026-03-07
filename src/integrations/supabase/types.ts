@@ -2468,12 +2468,15 @@ export type Database = {
           company: string | null
           created_at: string
           device_direction: string
+          device_serial: string | null
           device_type: string
           employees_count: number | null
           id: string
           is_connected: boolean
           is_live_capture: boolean
           is_scheduled: boolean
+          last_push_count: number | null
+          last_stamp: string | null
           last_sync_at: string | null
           machine_ip: string | null
           name: string
@@ -2485,12 +2488,15 @@ export type Database = {
           company?: string | null
           created_at?: string
           device_direction?: string
+          device_serial?: string | null
           device_type?: string
           employees_count?: number | null
           id?: string
           is_connected?: boolean
           is_live_capture?: boolean
           is_scheduled?: boolean
+          last_push_count?: number | null
+          last_stamp?: string | null
           last_sync_at?: string | null
           machine_ip?: string | null
           name: string
@@ -2502,12 +2508,15 @@ export type Database = {
           company?: string | null
           created_at?: string
           device_direction?: string
+          device_serial?: string | null
           device_type?: string
           employees_count?: number | null
           id?: string
           is_connected?: boolean
           is_live_capture?: boolean
           is_scheduled?: boolean
+          last_push_count?: number | null
+          last_stamp?: string | null
           last_sync_at?: string | null
           machine_ip?: string | null
           name?: string

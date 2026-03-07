@@ -51,13 +51,13 @@ export function ShiftAttendanceTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="live" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="live">Live Attendance</TabsTrigger>
-          <TabsTrigger value="biometric">Biometric Devices</TabsTrigger>
-          <TabsTrigger value="shifts">Shift Scheduling</TabsTrigger>
-          <TabsTrigger value="attendance">Attendance Tracking</TabsTrigger>
-          <TabsTrigger value="overtime">Overtime Management</TabsTrigger>
-          <TabsTrigger value="absence">Absence Management</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="live" className="text-xs md:text-sm">Live Attendance</TabsTrigger>
+          <TabsTrigger value="biometric" className="text-xs md:text-sm">Biometric</TabsTrigger>
+          <TabsTrigger value="shifts" className="text-xs md:text-sm">Shifts</TabsTrigger>
+          <TabsTrigger value="attendance" className="text-xs md:text-sm">Attendance</TabsTrigger>
+          <TabsTrigger value="overtime" className="text-xs md:text-sm">Overtime</TabsTrigger>
+          <TabsTrigger value="absence" className="text-xs md:text-sm">Absence</TabsTrigger>
         </TabsList>
 
         <TabsContent value="live">
@@ -71,12 +71,12 @@ export function ShiftAttendanceTab() {
         <TabsContent value="shifts">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                   <Clock className="h-5 w-5" />
                   Shift Scheduling
                 </CardTitle>
-                <Button onClick={handleCreateShift}>
+                <Button onClick={handleCreateShift} size="sm" className="w-full sm:w-auto">
                   <Calendar className="h-4 w-4 mr-2" />
                   Create Schedule
                 </Button>
@@ -124,16 +124,16 @@ export function ShiftAttendanceTab() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">Today's Attendance</h3>
-                    <p className="text-sm text-gray-600">June 16, 2025</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600">18/20</div>
-                    <div className="text-sm text-gray-600">Present</div>
-                  </div>
-                </div>
+                 <div className="flex justify-between items-center p-3 md:p-4 border rounded-lg">
+                   <div>
+                     <h3 className="font-semibold text-sm md:text-base">Today's Attendance</h3>
+                     <p className="text-xs md:text-sm text-gray-600">June 16, 2025</p>
+                   </div>
+                   <div className="text-right">
+                     <div className="text-xl md:text-2xl font-bold text-green-600">18/20</div>
+                     <div className="text-xs md:text-sm text-gray-600">Present</div>
+                   </div>
+                 </div>
               </div>
             </CardContent>
           </Card>
@@ -169,13 +169,13 @@ export function ShiftAttendanceTab() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 border rounded-lg">
-                  <div>
-                    <h3 className="font-semibold">Absent Today</h3>
-                    <p className="text-sm text-gray-600">2 employees</p>
-                  </div>
-                  <Badge variant="secondary">2 Absences</Badge>
-                </div>
+                 <div className="flex justify-between items-center p-3 md:p-4 border rounded-lg">
+                   <div>
+                     <h3 className="font-semibold text-sm md:text-base">Absent Today</h3>
+                     <p className="text-xs md:text-sm text-gray-600">2 employees</p>
+                   </div>
+                   <Badge variant="secondary">2 Absences</Badge>
+                 </div>
               </div>
             </CardContent>
           </Card>

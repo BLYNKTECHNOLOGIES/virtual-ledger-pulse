@@ -162,22 +162,22 @@ export function RecruitmentTab() {
   return (
     <div className="space-y-6">
       {/* Quick Actions */}
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={() => setShowJobDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Job Posting
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setShowJobDialog(true)} size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          Job Posting
         </Button>
-        <Button onClick={() => setShowApplicantDialog(true)} variant="outline">
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add Applicant
+        <Button onClick={() => setShowApplicantDialog(true)} variant="outline" size="sm">
+          <UserPlus className="h-4 w-4 mr-1" />
+          Applicant
         </Button>
-        <Button onClick={() => setShowInterviewDialog(true)} variant="outline">
-          <Calendar className="h-4 w-4 mr-2" />
-          Schedule Interview
+        <Button onClick={() => setShowInterviewDialog(true)} variant="outline" size="sm">
+          <Calendar className="h-4 w-4 mr-1" />
+          Interview
         </Button>
-        <Button onClick={() => setShowOfferDialog(true)} variant="outline">
-          <FileText className="h-4 w-4 mr-2" />
-          Add Offer Document
+        <Button onClick={() => setShowOfferDialog(true)} variant="outline" size="sm">
+          <FileText className="h-4 w-4 mr-1" />
+          Offer Doc
         </Button>
       </div>
 
@@ -193,15 +193,15 @@ export function RecruitmentTab() {
       {/* Job Postings */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Job Postings</CardTitle>
-            <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+            <CardTitle className="text-base md:text-lg">Job Postings</CardTitle>
+            <div className="flex items-center space-x-2 w-full sm:w-auto">
               <Search className="h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search job postings..."
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="w-full sm:max-w-sm"
               />
             </div>
           </div>

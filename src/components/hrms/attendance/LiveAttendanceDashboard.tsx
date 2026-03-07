@@ -150,10 +150,10 @@ export function LiveAttendanceDashboard() {
       {/* Employee Status Grid */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Activity className="h-5 w-5" />
-            Live Employee Status — {format(new Date(), "dd MMM yyyy")}
-          </CardTitle>
+         <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+           <Activity className="h-5 w-5 shrink-0" />
+           <span className="truncate">Live Employee Status — {format(new Date(), "dd MMM yyyy")}</span>
+         </CardTitle>
         </CardHeader>
         <CardContent>
           {!employees?.length ? (
@@ -209,10 +209,10 @@ export function LiveAttendanceDashboard() {
       {/* Today's Punch Log */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Clock className="h-5 w-5" />
-            Today's Punch Logs
-          </CardTitle>
+         <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+           <Clock className="h-5 w-5 shrink-0" />
+           <span className="truncate">Today's Punch Logs</span>
+         </CardTitle>
         </CardHeader>
         <CardContent>
           {!todayActivity?.length ? (
@@ -221,7 +221,7 @@ export function LiveAttendanceDashboard() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm min-w-[500px]">
                 <thead>
                   <tr className="border-b text-left">
                     <th className="pb-2 font-medium text-muted-foreground">Employee</th>

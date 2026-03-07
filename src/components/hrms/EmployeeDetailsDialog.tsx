@@ -149,7 +149,7 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="employee_id">Employee ID</Label>
               <Input
@@ -171,7 +171,7 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="email">Email *</Label>
               <Input
@@ -194,7 +194,7 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="department">Department *</Label>
               <Select 
@@ -235,7 +235,7 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="salary">Salary (₹) *</Label>
               <Input

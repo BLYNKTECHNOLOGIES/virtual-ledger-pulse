@@ -41,24 +41,24 @@ export function PerformanceTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="reviews" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>
-          <TabsTrigger value="goals">Goal Setting</TabsTrigger>
-          <TabsTrigger value="feedback">Feedback Management</TabsTrigger>
-          <TabsTrigger value="appraisal">Appraisal & Salary</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="reviews" className="text-xs md:text-sm">Reviews</TabsTrigger>
+          <TabsTrigger value="goals" className="text-xs md:text-sm">Goals</TabsTrigger>
+          <TabsTrigger value="feedback" className="text-xs md:text-sm">Feedback</TabsTrigger>
+          <TabsTrigger value="appraisal" className="text-xs md:text-sm">Appraisal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="reviews">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                   <Trophy className="h-5 w-5" />
                   Performance Reviews
                 </CardTitle>
-                <Button onClick={() => setShowReviewDialog(true)}>
+                <Button onClick={() => setShowReviewDialog(true)} size="sm" className="w-full sm:w-auto">
                   <Trophy className="h-4 w-4 mr-2" />
-                  Start Review Cycle
+                  Start Review
                 </Button>
               </div>
             </CardHeader>

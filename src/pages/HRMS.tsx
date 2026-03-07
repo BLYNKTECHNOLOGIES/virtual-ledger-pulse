@@ -41,32 +41,28 @@ export default function HRMS() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
-        <div className="px-6 py-8">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-orange-50 rounded-xl shadow-sm">
-                  <Users className="h-8 w-8 text-orange-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-800">
-                    Human Resource Management
-                  </h1>
-                  <p className="text-slate-600 text-lg">
-                    Comprehensive HR and employee management system
-                  </p>
-                </div>
-              </div>
+      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+        <div className="px-4 py-5 md:px-6 md:py-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 md:p-3 bg-orange-50 rounded-xl shadow-sm shrink-0">
+              <Users className="h-6 w-6 md:h-8 md:w-8 text-orange-600" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">
+                Human Resource Management
+              </h1>
+              <p className="text-slate-600 text-sm md:text-lg truncate">
+                Comprehensive HR & employee management
+              </p>
             </div>
           </div>
+        </div>
       </div>
-    </div>
 
-      <Tabs defaultValue="recruitment" className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-7">
+      <Tabs defaultValue="recruitment" className="space-y-4 md:space-y-6">
+        <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-7 whitespace-nowrap">
           <TabsTrigger value="recruitment" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Recruitment</span>

@@ -181,7 +181,7 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="name">Full Name *</Label>
               <Input
@@ -204,7 +204,7 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="phone">Phone Number</Label>
               <Input
@@ -231,7 +231,7 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="designation">Designation *</Label>
               <Input
@@ -254,7 +254,7 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="shift">Shift</Label>
               <Select value={formData.shift} onValueChange={(value) => setFormData({...formData, shift: value})}>

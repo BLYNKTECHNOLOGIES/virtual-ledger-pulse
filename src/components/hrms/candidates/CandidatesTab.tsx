@@ -138,7 +138,7 @@ export function CandidatesTab() {
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
       {/* Filters */}
       <aside className="lg:col-span-3">
         <Card className="p-4">
@@ -233,33 +233,33 @@ export function CandidatesTab() {
       {/* Main content */}
       <main className="lg:col-span-9">
         <header className="mb-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm">
-              All candidates <Badge className="ml-2">{counts.all}</Badge>
+              All <Badge className="ml-1">{counts.all}</Badge>
             </Button>
             <Button variant="ghost" size="sm">
-              Applied <Badge className="ml-2">{counts.applied}</Badge>
+              Applied <Badge className="ml-1">{counts.applied}</Badge>
             </Button>
             <Button variant="ghost" size="sm">
-              Contacted <Badge className="ml-2">{counts.contacted}</Badge>
+              Contacted <Badge className="ml-1">{counts.contacted}</Badge>
             </Button>
             <Button variant="ghost" size="sm">
-              Suggested <Badge className="ml-2">{counts.suggested}</Badge>
+              Suggested <Badge className="ml-1">{counts.suggested}</Badge>
             </Button>
+          </div>
 
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Sort by</span>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-40 bg-background z-50">
-                  <SelectValue placeholder="Sort" />
-                </SelectTrigger>
-                <SelectContent className="z-50 bg-popover">
-                  <SelectItem value="recent">Recent Activity</SelectItem>
-                  <SelectItem value="applied">Recently Applied</SelectItem>
-                  <SelectItem value="name">Name A-Z</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex items-center gap-2 mt-2 lg:mt-0">
+            <span className="text-sm text-muted-foreground">Sort</span>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-36 bg-background z-50">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent className="z-50 bg-popover">
+                <SelectItem value="recent">Recent Activity</SelectItem>
+                <SelectItem value="applied">Recently Applied</SelectItem>
+                <SelectItem value="name">Name A-Z</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </header>
 

@@ -109,12 +109,12 @@ export function LeavesTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="requests">
-            Leave Requests {pendingCount > 0 && <Badge variant="destructive" className="ml-2 text-[10px] px-1.5">{pendingCount}</Badge>}
+        <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="requests" className="text-xs md:text-sm">
+            Requests {pendingCount > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="balances">Leave Balances</TabsTrigger>
+          <TabsTrigger value="balances" className="text-xs md:text-sm">Balances</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -171,7 +171,7 @@ export function LeavesTab() {
                 <CardContent>
                   <div className="space-y-3">
                     {leaveRequests.slice(0, 5).map((r: any) => (
-                      <div key={r.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={r.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg gap-2">
                         <div>
                           <p className="font-medium text-sm">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>
                           <p className="text-xs text-gray-500">
@@ -197,18 +197,18 @@ export function LeavesTab() {
         <TabsContent value="requests">
           <Card>
             <CardHeader>
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                <CardTitle className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                   <Calendar className="h-5 w-5" />
                   All Leave Requests
                 </CardTitle>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input placeholder="Search employee..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-8 w-48" />
+                    <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-8 w-full sm:w-48" />
                   </div>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="Requested">Pending</SelectItem>
@@ -220,8 +220,8 @@ export function LeavesTab() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <table className="w-full text-sm">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead className="bg-gray-50 border-b">
                   <tr>
                     {["Employee", "Leave Type", "Start", "End", "Days", "Status", "Actions"].map((h) => (

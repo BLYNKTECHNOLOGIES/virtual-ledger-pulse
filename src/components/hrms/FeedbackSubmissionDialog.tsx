@@ -72,7 +72,7 @@ export function FeedbackSubmissionDialog({ open, onOpenChange }: FeedbackSubmiss
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="employee_id">Employee *</Label>
               <Select onValueChange={(value) => setFormData(prev => ({ ...prev, employee_id: value }))}>

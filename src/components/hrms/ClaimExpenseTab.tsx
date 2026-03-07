@@ -16,22 +16,22 @@ export function ClaimExpenseTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="submissions" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="submissions">Expense Submissions</TabsTrigger>
-          <TabsTrigger value="approval">Approval Process</TabsTrigger>
-          <TabsTrigger value="reimbursement">Reimbursement</TabsTrigger>
-          <TabsTrigger value="reports">Expense Reports</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="submissions" className="text-xs md:text-sm">Submissions</TabsTrigger>
+          <TabsTrigger value="approval" className="text-xs md:text-sm">Approval</TabsTrigger>
+          <TabsTrigger value="reimbursement" className="text-xs md:text-sm">Reimbursement</TabsTrigger>
+          <TabsTrigger value="reports" className="text-xs md:text-sm">Reports</TabsTrigger>
         </TabsList>
 
         <TabsContent value="submissions">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                   <Receipt className="h-5 w-5" />
                   Expense Submissions
                 </CardTitle>
-                <Button>
+                <Button size="sm" className="w-full sm:w-auto">
                   <Upload className="h-4 w-4 mr-2" />
                   Submit Expense
                 </Button>
@@ -40,13 +40,13 @@ export function ClaimExpenseTab() {
             <CardContent>
               <div className="space-y-4">
                 {expenses.map((expense) => (
-                  <div key={expense.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h3 className="font-semibold">{expense.employee}</h3>
-                      <p className="text-sm text-gray-600">{expense.type} - ₹{expense.amount}</p>
-                      <p className="text-sm text-gray-500">{expense.date}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
+                  <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 md:p-4 border rounded-lg gap-2">
+                     <div>
+                       <h3 className="font-semibold text-sm md:text-base">{expense.employee}</h3>
+                       <p className="text-xs md:text-sm text-gray-600">{expense.type} - ₹{expense.amount}</p>
+                       <p className="text-xs md:text-sm text-gray-500">{expense.date}</p>
+                     </div>
+                     <div className="flex items-center gap-2">
                       <Badge variant={
                         expense.status === "Approved" ? "default" : 
                         expense.status === "Rejected" ? "destructive" : "secondary"

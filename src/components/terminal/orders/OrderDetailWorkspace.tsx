@@ -165,7 +165,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       </div>
       {rightPanel === 'internal' ? (
         <div className="flex-1 overflow-hidden flex flex-col">
-          <InternalChatPanel orderNumber={order.binance_order_number} />
+          <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
         </div>
       ) : (
         <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
@@ -213,7 +213,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           )}
           {mobileTab === 'internal' && (
             <div className="h-full flex flex-col min-w-0 bg-background">
-              <InternalChatPanel orderNumber={order.binance_order_number} />
+              <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
             </div>
           )}
           {mobileTab === 'profile' && (

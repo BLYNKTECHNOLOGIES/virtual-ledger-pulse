@@ -154,6 +154,30 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
         <span className="text-[10px] text-muted-foreground">— Order #{orderNumber.slice(-8)}</span>
       </div>
 
+      {/* Assignment Info Banner */}
+      {assignmentInfo && (assignmentInfo.payers.length > 0 || assignmentInfo.operators.length > 0) && (
+        <div className="px-3 py-2 border-b border-border bg-muted/30 flex flex-wrap gap-x-4 gap-y-1">
+          {assignmentInfo.payers.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Wallet className="h-3 w-3 text-chart-4" />
+              <span className="text-[10px] text-muted-foreground">Payer:</span>
+              <span className="text-[10px] font-medium text-foreground">
+                {assignmentInfo.payers.join(', ')}
+              </span>
+            </div>
+          )}
+          {assignmentInfo.operators.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <UserCheck className="h-3 w-3 text-chart-2" />
+              <span className="text-[10px] text-muted-foreground">Operator:</span>
+              <span className="text-[10px] font-medium text-foreground">
+                {assignmentInfo.operators.join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Messages area */}
       <ScrollArea className="flex-1 px-3 py-2">
         {isLoading ? (

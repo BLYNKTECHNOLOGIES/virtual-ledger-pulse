@@ -312,6 +312,14 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       if (field === 'quantity' || field === 'price_per_unit') {
         updated.total_amount = updated.quantity * updated.price_per_unit;
       }
+
+      // Auto-set platform from wallet selection
+      if (field === 'warehouse_id' && wallets) {
+        const selectedWallet = wallets.find(w => w.id === value);
+        if (selectedWallet) {
+          updated.platform = selectedWallet.wallet_name.split(' ')[0];
+        }
+      }
       
       return updated;
     });

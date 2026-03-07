@@ -67,6 +67,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
   const statusStr = mapOrderStatusCode(order.orderStatus);
   const isOrderFinalized = ['COMPLETED', 'PAID', 'CANCELLED', 'EXPIRED'].includes(statusStr.toUpperCase());
+  const isAlreadyPaidOrPaying = ['PAYING', 'PAID'].includes(statusStr.toUpperCase());
 
   // Fetch order detail for payment methods
   const { data: orderDetail } = useQuery({
@@ -301,7 +302,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
                   variant="default"
                   size="sm"
                   className="h-7 text-[10px] gap-1 px-2 bg-trade-buy hover:bg-trade-buy/90"
-                  disabled={isMarkingPaid || isUploading}
+                  disabled={isMarkingPaid || isUploading || isAlreadyPaidOrPaying}
                 >
                   {isMarkingPaid ? <Loader2 className="h-3 w-3 animate-spin" /> : <BanknoteIcon className="h-3 w-3" />}
                   Mark Paid
@@ -379,13 +380,15 @@ function PaymentDetailsInline({ payMethods }: { payMethods: any[] }) {
         if (isUPI) {
           const upiId = fieldMap['upi id'] || fieldMap['upi_id'] || fieldMap['upiid'] || fieldMap['id'] || '';
           const verifiedName = fieldMap['verified name'] || fieldMap['name'] || fieldMap['account holder'] || '';
-          const copyText = `UPI: ${verifiedName} | ${upiId}`;
           return (
             <div key={idx} className="flex items-center gap-2 text-[10px]">
               <Badge variant="outline" className="text-[8px] px-1 py-0 border-primary/30 text-primary shrink-0">UPI</Badge>
               <span className="text-foreground font-medium truncate">{verifiedName || '—'}</span>
+              <button onClick={(e) => copyPaymentDetails(e, verifiedName)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Copy name">
+                <Copy className="h-3 w-3" />
+              </button>
               <span className="text-muted-foreground truncate">{upiId || '—'}</span>
-              <button onClick={(e) => copyPaymentDetails(e, copyText)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <button onClick={(e) => copyPaymentDetails(e, upiId)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Copy UPI ID">
                 <ClipboardCopy className="h-3 w-3" />
               </button>
             </div>

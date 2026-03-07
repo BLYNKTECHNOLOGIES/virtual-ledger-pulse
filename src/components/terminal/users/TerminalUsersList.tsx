@@ -432,47 +432,53 @@ export function TerminalUsersList() {
                       )}
                     </div>
                   </TableCell>
-                  {canManage && (
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            setBioUserId(a.userId);
-                            setBioUsername(a.username);
-                            setBioDisplayName(displayName(a.firstName, a.lastName, a.username));
-                          }}
-                        >
-                          <Fingerprint className="h-3 w-3 mr-1" /> Bio
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => {
-                            setConfigUserId(a.userId);
-                            setConfigUsername(a.username);
-                            setConfigDisplayName(displayName(a.firstName, a.lastName, a.username));
-                          }}
-                        >
-                          <Settings2 className="h-3 w-3 mr-1" /> Config
-                        </Button>
-                        {a.roles.map((r) => (
+                  {canManage && (() => {
+                    // Non-admin users cannot config/modify themselves — only superiors can
+                    const isSelf = a.userId === currentUserId;
+                    const canModifyThisUser = isSuperAdmin || isTerminalAdmin || !isSelf;
+                    if (!canModifyThisUser) return <TableCell />;
+                    return (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
                           <Button
-                            key={r.id}
                             variant="ghost"
                             size="sm"
-                            className="h-7 text-xs text-destructive hover:text-destructive"
-                            onClick={() => handleRemove(a.userId, r.id, r.name, a.username)}
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setBioUserId(a.userId);
+                              setBioUsername(a.username);
+                              setBioDisplayName(displayName(a.firstName, a.lastName, a.username));
+                            }}
                           >
-                            <Trash2 className="h-3 w-3 mr-1" /> {r.name}
+                            <Fingerprint className="h-3 w-3 mr-1" /> Bio
                           </Button>
-                        ))}
-                      </div>
-                    </TableCell>
-                  )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => {
+                              setConfigUserId(a.userId);
+                              setConfigUsername(a.username);
+                              setConfigDisplayName(displayName(a.firstName, a.lastName, a.username));
+                            }}
+                          >
+                            <Settings2 className="h-3 w-3 mr-1" /> Config
+                          </Button>
+                          {a.roles.map((r) => (
+                            <Button
+                              key={r.id}
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-destructive hover:text-destructive"
+                              onClick={() => handleRemove(a.userId, r.id, r.name, a.username)}
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" /> {r.name}
+                            </Button>
+                          ))}
+                        </div>
+                      </TableCell>
+                    );
+                  })()}
                 </TableRow>
               ))}
             </TableBody>

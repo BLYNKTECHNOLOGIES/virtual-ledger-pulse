@@ -89,6 +89,20 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       const walletId = order.wallet_id || order.wallet?.id || '';
       setOriginalWalletId(walletId);
       setOriginalPaymentMethodId(order.sales_payment_method_id || null);
+
+      // Auto-match product_id: if order has product_id use it, otherwise match by product code from description/platform
+      let productId = order.product_id || '';
+      if (!productId && products?.length) {
+        // Try to match product by asset code (e.g. USDT) from description or platform
+        const desc = (order.description || '').toUpperCase();
+        const platform = (order.platform || '').toUpperCase();
+        const matchedProduct = products.find(p => {
+          const code = (p.code || '').toUpperCase();
+          return desc.includes(code) || platform.includes(code) || code === 'USDT';
+        });
+        if (matchedProduct) productId = matchedProduct.id;
+      }
+
       setFormData({
         order_number: order.order_number || '',
         client_name: order.client_name || '',
@@ -105,11 +119,11 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         description: order.description || '',
         risk_level: order.risk_level || 'HIGH',
         sales_payment_method_id: order.sales_payment_method_id || '',
-        product_id: order.product_id || '',
+        product_id: productId,
         warehouse_id: walletId,
       });
     }
-  }, [order]);
+  }, [order, products]);
 
   const updateSalesOrderMutation = useMutation({
     mutationFn: async (data: typeof formData) => {

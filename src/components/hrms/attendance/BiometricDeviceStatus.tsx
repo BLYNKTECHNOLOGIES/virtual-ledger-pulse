@@ -35,31 +35,31 @@ export function BiometricDeviceStatus() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Fingerprint className="h-5 w-5" />
-          Biometric Devices
+        <CardTitle className="flex items-center gap-2 text-sm md:text-base">
+          <Fingerprint className="h-5 w-5 shrink-0" />
+          <span className="truncate">Biometric Devices</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
           {devices.map((device) => (
-            <div
-              key={device.id}
-              className="flex items-center justify-between p-3 rounded-lg border bg-card"
-            >
-              <div className="flex items-center gap-3">
-                {device.is_connected ? (
-                  <Wifi className="h-4 w-4 text-green-600" />
-                ) : (
-                  <WifiOff className="h-4 w-4 text-destructive" />
-                )}
-                <div>
-                  <p className="text-sm font-medium">{device.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {device.machine_ip}:{device.port_no} · {device.employees_count ?? 0} employees
-                  </p>
-                </div>
-              </div>
+             <div
+               key={device.id}
+               className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border bg-card gap-2"
+             >
+               <div className="flex items-center gap-3 min-w-0">
+                 {device.is_connected ? (
+                   <Wifi className="h-4 w-4 text-green-600 shrink-0" />
+                 ) : (
+                   <WifiOff className="h-4 w-4 text-destructive shrink-0" />
+                 )}
+                 <div className="min-w-0">
+                   <p className="text-sm font-medium truncate">{device.name}</p>
+                   <p className="text-xs text-muted-foreground truncate">
+                     {device.machine_ip}:{device.port_no} · {device.employees_count ?? 0} employees
+                   </p>
+                 </div>
+               </div>
               <div className="text-right">
                 <Badge variant={device.is_connected ? "default" : "destructive"} className="text-xs">
                   {device.is_connected ? "Online" : "Offline"}

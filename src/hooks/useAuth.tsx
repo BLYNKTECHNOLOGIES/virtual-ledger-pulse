@@ -83,7 +83,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         return (
           validRows.find((row) => row.username?.toLowerCase() === normalizedInput) ??
           validRows.find((row) => row.email?.toLowerCase() === normalizedInput) ??
-          validRows[0]
+          null
         );
       };
 

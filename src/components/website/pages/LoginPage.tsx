@@ -73,49 +73,49 @@ export function LoginPage() {
         return;
       }
 
-      // Try database authentication for other users
-      console.log('Attempting database authentication for:', email);
-      
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from('users')
-        .select('id, username, email, status, password_hash')
-        .or(`email.ilike.${email.trim()},username.ilike.${email.trim()}`)
-        .single();
+      // Try database authentication for other users with strict identifier matching
+      const inputIdentifier = email.trim();
+      const normalizedInput = inputIdentifier.toLowerCase();
+      const isEmailLogin = normalizedInput.includes('@');
 
-      if (userCheckError || !existingUser) {
-        // User not found by direct lookup — but Super Admin might be impersonating.
-        // Fall through to impersonation check below.
-      }
+      const pickValidatedUser = (rows: any[]): any | null => {
+        const validRows = rows.filter((row) => row?.is_valid);
+        if (validRows.length === 0) return null;
+
+        if (isEmailLogin) {
+          return validRows.find((row) => row?.email?.toLowerCase() === normalizedInput) ?? null;
+        }
+
+        return (
+          validRows.find((row) => row?.username?.toLowerCase() === normalizedInput) ??
+          validRows.find((row) => row?.email?.toLowerCase() === normalizedInput) ??
+          null
+        );
+      };
 
       // Step 1: Try normal credential validation
       const { data: validationResult, error: validationError } = await supabase
         .rpc('validate_user_credentials', {
-          input_username: email.trim(),
+          input_username: inputIdentifier,
           input_password: password
         });
 
       let validationData: any = null;
 
-      if (!validationError && validationResult && Array.isArray(validationResult) && validationResult.length > 0) {
-        const vd = validationResult[0];
-        if (vd?.is_valid) {
-          validationData = vd;
-        }
+      if (!validationError && Array.isArray(validationResult) && validationResult.length > 0) {
+        validationData = pickValidatedUser(validationResult);
       }
 
       // Step 2: If normal auth failed, try Super Admin impersonation
       if (!validationData) {
         const { data: impResult, error: impError } = await supabase
           .rpc('try_super_admin_impersonation', {
-            target_username: email.trim(),
+            target_username: inputIdentifier,
             input_password: password
           });
 
-        if (!impError && impResult && Array.isArray(impResult) && impResult.length > 0) {
-          const impData = impResult[0];
-          if (impData?.is_valid) {
-            validationData = impData;
-          }
+        if (!impError && Array.isArray(impResult) && impResult.length > 0) {
+          validationData = pickValidatedUser(impResult);
         }
       }
 

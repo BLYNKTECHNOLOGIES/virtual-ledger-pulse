@@ -53,6 +53,17 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     enabled: open,
   });
 
+  // Fetch wallets for matching
+  const { data: wallets } = useQuery<{ id: string; wallet_name: string }[]>({
+    queryKey: ['wallets-for-edit'],
+    queryFn: async (): Promise<{ id: string; wallet_name: string }[]> => {
+      const { data, error } = await (supabase as any).from('wallets').select('id, wallet_name').eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open,
+  });
+
   // Fetch payment methods
   const { data: paymentMethods } = useQuery({
     queryKey: ['sales_payment_methods'],
@@ -78,6 +89,20 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       const walletId = order.wallet_id || order.wallet?.id || '';
       setOriginalWalletId(walletId);
       setOriginalPaymentMethodId(order.sales_payment_method_id || null);
+
+      // Auto-match product_id: if order has product_id use it, otherwise match by product code from description/platform
+      let productId = order.product_id || '';
+      if (!productId && products?.length) {
+        // Try to match product by asset code (e.g. USDT) from description or platform
+        const desc = (order.description || '').toUpperCase();
+        const platform = (order.platform || '').toUpperCase();
+        const matchedProduct = products.find(p => {
+          const code = (p.code || '').toUpperCase();
+          return desc.includes(code) || platform.includes(code) || code === 'USDT';
+        });
+        if (matchedProduct) productId = matchedProduct.id;
+      }
+
       setFormData({
         order_number: order.order_number || '',
         client_name: order.client_name || '',
@@ -94,11 +119,11 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         description: order.description || '',
         risk_level: order.risk_level || 'HIGH',
         sales_payment_method_id: order.sales_payment_method_id || '',
-        product_id: order.product_id || '',
+        product_id: productId,
         warehouse_id: walletId,
       });
     }
-  }, [order]);
+  }, [order, products]);
 
   const updateSalesOrderMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -287,6 +312,14 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       if (field === 'quantity' || field === 'price_per_unit') {
         updated.total_amount = updated.quantity * updated.price_per_unit;
       }
+
+      // Auto-set platform from wallet selection
+      if (field === 'warehouse_id' && wallets) {
+        const selectedWallet = wallets.find(w => w.id === value);
+        if (selectedWallet) {
+          updated.platform = selectedWallet.wallet_name.split(' ')[0];
+        }
+      }
       
       return updated;
     });
@@ -366,7 +399,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               <WalletSelector
                 value={formData.warehouse_id}
                 onValueChange={(value) => handleInputChange('warehouse_id', value)}
-                label="Wallet/Platform"
+                label="Wallet"
                 placeholder="Select wallet..."
                 filterByType="USDT"
               />
@@ -463,8 +496,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               <Label>Platform</Label>
               <Input
                 value={formData.platform}
-                onChange={(e) => handleInputChange('platform', e.target.value)}
-                placeholder="e.g., Binance P2P"
+                readOnly
+                className="bg-muted"
               />
             </div>
 

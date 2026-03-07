@@ -106,11 +106,18 @@ export function TerminalUsersList() {
       });
 
       // Build supervisor lookup
+      // Build supervisor lookup: userId -> supervisorIds[]
       const userSupervisorsMap = new Map<string, string[]>();
+      // Also build reverse: supervisorId -> subordinateIds[]
+      const subordinatesMap = new Map<string, string[]>();
       (supervisorMapsRes.data || []).forEach(m => {
         const list = userSupervisorsMap.get(m.user_id) || [];
         list.push(m.supervisor_id);
         userSupervisorsMap.set(m.user_id, list);
+
+        const subList = subordinatesMap.get(m.supervisor_id) || [];
+        subList.push(m.user_id);
+        subordinatesMap.set(m.supervisor_id, subList);
       });
 
       // Build size range lookup

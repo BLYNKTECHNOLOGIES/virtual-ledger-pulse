@@ -49,7 +49,7 @@ interface UserAssignment {
 }
 
 export function TerminalUsersList() {
-  const { hasPermission } = useTerminalAuth();
+  const { hasPermission, userId: currentUserId, isSuperAdmin, isTerminalAdmin } = useTerminalAuth();
   const canManage = hasPermission("terminal_users_manage");
 
   const [assignments, setAssignments] = useState<UserAssignment[]>([]);

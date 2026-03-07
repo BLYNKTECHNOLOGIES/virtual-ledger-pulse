@@ -43,14 +43,23 @@ Deno.serve(async (req) => {
       // 1. Initial handshake: GET ?SN=xxx&options=all
       if (options === "all" || options === "all&") {
         console.log(`ICLOCK handshake from device: ${serialNumber}`);
-        // Return configuration the device expects
+
+        // Fetch the last stamp from the device record
+        const { data: device } = await supabase
+          .from("hr_biometric_devices")
+          .select("last_stamp")
+          .eq("device_serial", serialNumber)
+          .maybeSingle();
+
+        const lastStamp = device?.last_stamp || "0";
+
         const config = [
           "GET OPTION FROM: " + serialNumber,
-          "Stamp=9999",
+          `Stamp=${lastStamp}`,
           "OpStamp=9999",
           "PhotoStamp=9999",
           "ErrorDelay=60",
-          "Delay=10",
+          "Delay=30",
           "TransTimes=00:00;14:05",
           "TransInterval=1",
           "TransFlag=TransData AttLog\tOpLog\tAttPhoto\tEnrollUser\tChgUser\tEnrollFP\tChgFP\tFPImag",
@@ -67,7 +76,6 @@ Deno.serve(async (req) => {
 
       // 2. Device polling for commands: GET ?SN=xxx&type=getrequest
       if (requestType === "getrequest") {
-        // Check if we have pending commands for this device
         const { data: commands } = await supabase
           .from("hr_biometric_device_commands")
           .select("*")
@@ -78,7 +86,6 @@ Deno.serve(async (req) => {
 
         if (commands && commands.length > 0) {
           const cmd = commands[0];
-          // Mark command as sent
           await supabase
             .from("hr_biometric_device_commands")
             .update({ status: "sent", sent_at: new Date().toISOString() })
@@ -95,7 +102,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Generic GET — just OK
       return new Response("OK", {
         status: 200,
         headers: { "Content-Type": "text/plain", ...corsHeaders },
@@ -111,12 +117,15 @@ Deno.serve(async (req) => {
 
       if (table === "ATTLOG" && bodyText.trim()) {
         const lines = bodyText.trim().split("\n");
-        const results = { inserted: 0, errors: [] as string[] };
+        const results = { inserted: 0, skipped: 0, errors: [] as string[] };
+        let maxStamp = "0";
+
+        // Cutoff: only process punches from the last 7 days
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 7);
 
         for (const line of lines) {
           try {
-            // ATTLOG format: badge_id\ttimestamp\tstatus\tverify\tworkcode\treserved
-            // Example: 1\t2024-01-15 09:30:00\t0\t1\t0\t0
             const parts = line.trim().split("\t");
             if (parts.length < 2) {
               results.errors.push(`Invalid ATTLOG line: ${line}`);
@@ -129,12 +138,24 @@ Deno.serve(async (req) => {
             const verify_type = parts.length > 3 ? parseInt(parts[3]) : null;
             const work_code = parts.length > 4 ? parts[4].trim() : null;
 
-            // Parse punch time — ESSL sends in local time (IST)
+            // Parse punch time
             const punchISO = parseESSLTimestamp(punch_time_str);
+            const punchDateObj = new Date(punchISO);
+            
+            // Track max stamp for this batch
+            if (punch_time_str > maxStamp) {
+              maxStamp = punch_time_str;
+            }
+
+            // Skip old punches beyond cutoff
+            if (punchDateObj < cutoffDate) {
+              results.skipped++;
+              continue;
+            }
+
             const punchDate = punchISO.split("T")[0];
 
-            // Determine punch type from status:
-            // 0 = Check-In, 1 = Check-Out, 2 = Break-Out, 3 = Break-In, 4 = OT-In, 5 = OT-Out
+            // Determine punch type
             const punch_type = raw_status === 1 || raw_status === 2 || raw_status === 5
               ? "out" : "in";
 
@@ -150,8 +171,7 @@ Deno.serve(async (req) => {
             });
 
             if (punchError) {
-              // Likely duplicate — skip silently
-              if (punchError.code === "23505") continue;
+              if (punchError.code === "23505") continue; // duplicate
               results.errors.push(`Punch insert error: ${punchError.message}`);
               continue;
             }
@@ -165,12 +185,11 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Update device heartbeat
-        await updateDeviceHeartbeat(supabase, serialNumber, results.inserted);
+        // Update device heartbeat and stamp
+        await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, maxStamp);
 
-        console.log(`Processed ${results.inserted}/${lines.length} punches from ${serialNumber}`);
+        console.log(`Processed ${results.inserted} new, ${results.skipped} skipped (old) out of ${lines.length} from ${serialNumber}`);
 
-        // ESSL expects "OK" response
         return new Response("OK", {
           status: 200,
           headers: { "Content-Type": "text/plain", ...corsHeaders },
@@ -194,7 +213,6 @@ Deno.serve(async (req) => {
 
     // ─── JSON PROTOCOL: POST with application/json ───
     if (req.method === "POST") {
-      // Validate webhook secret for JSON mode
       const webhookSecret = Deno.env.get("BIOMETRIC_WEBHOOK_SECRET");
       const providedSecret = req.headers.get("x-webhook-secret");
 
@@ -233,7 +251,6 @@ Deno.serve(async (req) => {
         const punchISO = new Date(punch_time).toISOString();
         const punchDate = punchISO.split("T")[0];
 
-        // Store raw punch
         await supabase.from("hr_attendance_punches").insert({
           badge_id: String(badge_id),
           employee_id: String(badge_id),
@@ -244,14 +261,12 @@ Deno.serve(async (req) => {
           raw_status: typeof raw_status === "number" ? raw_status : null,
         });
 
-        // Process attendance
         await processAttendance(supabase, String(badge_id), punchISO, punchDate, punch_type || "auto");
 
         results.inserted++;
 
-        // Update device heartbeat
-        if (device_name || device_serial) {
-          await updateDeviceHeartbeat(supabase, device_serial || device_name, results.inserted);
+        if (device_serial) {
+          await updateDeviceHeartbeat(supabase, device_serial, results.inserted);
         }
       }
 
@@ -278,8 +293,6 @@ Deno.serve(async (req) => {
 
 // ─── Helper: Parse ESSL timestamp (local time, usually IST) to ISO ───
 function parseESSLTimestamp(timeStr: string): string {
-  // ESSL sends: "2024-01-15 09:30:00" in device timezone (IST = +05:30)
-  // We store as UTC
   const cleaned = timeStr.replace(/\s+/g, " ").trim();
   const date = new Date(cleaned + "+05:30"); // Assume IST
   return date.toISOString();
@@ -300,7 +313,6 @@ async function processAttendance(
     .eq("badge_id", badge_id)
     .maybeSingle();
 
-  // Update hr_attendance_activity and hr_attendance if employee found
   if (employee) {
     const { data: existingActivity } = await supabase
       .from("hr_attendance_activity")
@@ -401,19 +413,26 @@ async function processAttendance(
 }
 
 // ─── Helper: Update device heartbeat ───
-async function updateDeviceHeartbeat(supabase: any, serialOrName: string, punchCount?: number) {
+// Uses correct columns: name, is_connected, last_sync_at, device_serial
+async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchCount?: number, lastStamp?: string) {
+  const now = new Date().toISOString();
+  
+  // Try to find device by device_serial first
   const { data: existing } = await supabase
     .from("hr_biometric_devices")
     .select("id")
-    .or(`device_serial.eq.${serialOrName},device_name.eq.${serialOrName}`)
+    .eq("device_serial", serialNumber)
     .maybeSingle();
 
   const updateData: any = {
-    status: "online",
-    last_heartbeat: new Date().toISOString(),
+    is_connected: true,
+    last_sync_at: now,
   };
   if (punchCount !== undefined) {
     updateData.last_push_count = punchCount;
+  }
+  if (lastStamp) {
+    updateData.last_stamp = lastStamp;
   }
 
   if (existing) {
@@ -421,10 +440,29 @@ async function updateDeviceHeartbeat(supabase: any, serialOrName: string, punchC
       .update(updateData)
       .eq("id", existing.id);
   } else {
-    await supabase.from("hr_biometric_devices").insert({
-      device_name: "eSSL Device",
-      device_serial: serialOrName,
-      ...updateData,
-    });
+    // Try matching by name as fallback, and set device_serial
+    const { data: byName } = await supabase
+      .from("hr_biometric_devices")
+      .select("id")
+      .is("device_serial", null)
+      .limit(1)
+      .maybeSingle();
+
+    if (byName) {
+      await supabase.from("hr_biometric_devices")
+        .update({ ...updateData, device_serial: serialNumber })
+        .eq("id", byName.id);
+    } else {
+      // Create new device record
+      await supabase.from("hr_biometric_devices").insert({
+        name: `eSSL Device (${serialNumber})`,
+        device_type: "ZKTeco / eSSL Biometric",
+        machine_ip: "unknown",
+        port_no: "4370",
+        password: "",
+        device_serial: serialNumber,
+        ...updateData,
+      });
+    }
   }
 }

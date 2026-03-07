@@ -54,12 +54,12 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
   });
 
   // Fetch wallets for matching
-  const { data: wallets } = useQuery({
+  const { data: wallets } = useQuery<{ id: string; wallet_name: string }[]>({
     queryKey: ['wallets-for-edit'],
-    queryFn: async () => {
-      const res: any = await supabase.from('wallets').select('id, wallet_name').eq('status', 'ACTIVE');
-      if (res.error) throw res.error;
-      return res.data as { id: string; wallet_name: string }[];
+    queryFn: async (): Promise<{ id: string; wallet_name: string }[]> => {
+      const { data, error } = await (supabase as any).from('wallets').select('id, wallet_name').eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data || [];
     },
     enabled: open,
   });

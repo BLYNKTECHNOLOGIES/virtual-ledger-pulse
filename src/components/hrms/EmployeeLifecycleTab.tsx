@@ -38,25 +38,26 @@ export function EmployeeLifecycleTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="onboarding" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="onboarding">Onboarding</TabsTrigger>
-          <TabsTrigger value="employee-info">Employee Information</TabsTrigger>
-          <TabsTrigger value="status">Employee Status</TabsTrigger>
-          <TabsTrigger value="offboarding">Offboarding</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="onboarding" className="text-xs md:text-sm">Onboarding</TabsTrigger>
+          <TabsTrigger value="employee-info" className="text-xs md:text-sm">Employee Info</TabsTrigger>
+          <TabsTrigger value="status" className="text-xs md:text-sm">Status</TabsTrigger>
+          <TabsTrigger value="offboarding" className="text-xs md:text-sm">Offboarding</TabsTrigger>
         </TabsList>
 
         <TabsContent value="onboarding">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                   <UserCheck className="h-5 w-5" />
                   Employee Onboarding
                 </CardTitle>
                 <Button 
                   onClick={() => setShowOnboardingDialog(true)}
                   disabled={!allChecked}
-                  className={!allChecked ? "opacity-50 cursor-not-allowed" : ""}
+                  className={`w-full sm:w-auto ${!allChecked ? "opacity-50 cursor-not-allowed" : ""}`}
+                  size="sm"
                 >
                   <UserCheck className="h-4 w-4 mr-2" />
                   Start Onboarding

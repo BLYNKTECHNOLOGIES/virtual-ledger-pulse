@@ -109,12 +109,12 @@ export function LeavesTab() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="requests">
-            Leave Requests {pendingCount > 0 && <Badge variant="destructive" className="ml-2 text-[10px] px-1.5">{pendingCount}</Badge>}
+        <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
+          <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="requests" className="text-xs md:text-sm">
+            Requests {pendingCount > 0 && <Badge variant="destructive" className="ml-1 text-[10px] px-1.5">{pendingCount}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="balances">Leave Balances</TabsTrigger>
+          <TabsTrigger value="balances" className="text-xs md:text-sm">Balances</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">

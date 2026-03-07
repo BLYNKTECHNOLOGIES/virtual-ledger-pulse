@@ -180,14 +180,34 @@ export function TerminalUsersList() {
         return aLevel - bLevel;
       });
 
-      setAssignments(result);
+      // --- Hierarchical visibility filtering ---
+      // Super Admins and Admins see everyone; others see only themselves + subordinates
+      if (currentUserId && !isSuperAdmin && !isTerminalAdmin) {
+        // BFS to find all subordinates of current user
+        const visibleUserIds = new Set<string>([currentUserId]);
+        const queue = [currentUserId];
+        while (queue.length > 0) {
+          const id = queue.shift()!;
+          const subs = subordinatesMap.get(id) || [];
+          for (const subId of subs) {
+            if (!visibleUserIds.has(subId)) {
+              visibleUserIds.add(subId);
+              queue.push(subId);
+            }
+          }
+        }
+        const filtered = result.filter(a => visibleUserIds.has(a.userId));
+        setAssignments(filtered);
+      } else {
+        setAssignments(result);
+      }
     } catch (err) {
       console.error("Error fetching terminal users:", err);
       toast.error("Failed to load terminal users");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUserId, isSuperAdmin, isTerminalAdmin]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

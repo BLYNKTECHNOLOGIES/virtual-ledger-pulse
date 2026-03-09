@@ -8708,6 +8708,7 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          client_id: string | null
           client_name: string
           client_phone: string | null
           client_state: string | null
@@ -8744,6 +8745,7 @@ export type Database = {
           warehouse_id: string | null
         }
         Insert: {
+          client_id?: string | null
           client_name: string
           client_phone?: string | null
           client_state?: string | null
@@ -8780,6 +8782,7 @@ export type Database = {
           warehouse_id?: string | null
         }
         Update: {
+          client_id?: string | null
           client_name?: string
           client_phone?: string | null
           client_state?: string | null
@@ -8816,6 +8819,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_orders_created_by_fkey"
             columns: ["created_by"]

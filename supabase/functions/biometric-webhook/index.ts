@@ -201,7 +201,8 @@ Deno.serve(async (req) => {
         }
 
         // Update device heartbeat and stamp
-        await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, maxStamp);
+        const newStamp = maxPunchDate ? formatESSLStamp(maxPunchDate) : undefined;
+        await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, newStamp);
 
         console.log(`Processed ${results.inserted} new, ${results.skipped} skipped (old) out of ${lines.length} from ${serialNumber}`);
 

@@ -12008,6 +12008,20 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
+      get_my_terminal_notifications: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_read: boolean
+          message: string
+          notification_type: string
+          related_user_id: string
+          title: string
+          updated_at: string
+        }[]
+      }
       get_super_admin_ids: {
         Args: never
         Returns: {

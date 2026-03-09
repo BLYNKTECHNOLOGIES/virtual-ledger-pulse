@@ -395,15 +395,6 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               </Select>
             </div>
 
-            <div>
-              <WalletSelector
-                value={formData.warehouse_id}
-                onValueChange={(value) => handleInputChange('warehouse_id', value)}
-                label="Wallet"
-                placeholder="Select wallet..."
-                filterByType="USDT"
-              />
-            </div>
 
             <div>
               <Label>Quantity *</Label>

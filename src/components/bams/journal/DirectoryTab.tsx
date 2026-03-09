@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function DirectoryTab() {
@@ -109,14 +109,15 @@ export function DirectoryTab() {
       const combinedTransactions = [
         ...(bankData || []).map(t => ({
           ...t,
-          source: 'BANK',
+          source: t.category === 'ADJUSTMENT' ? 'ADJUSTMENT' : 'BANK',
           display_amount: t.amount,
           display_date: t.transaction_date,
-          display_type: t.transaction_type,
+          display_type: t.category === 'ADJUSTMENT' ? 'ADJUSTMENT' : t.transaction_type,
           display_description: t.description || '',
           display_reference: t.reference_number || '',
           display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name,
           bank_account_id: t.bank_accounts?.id,
+          adjustment_direction: t.category === 'ADJUSTMENT' ? t.transaction_type : null,
           display_created_by: (t as any).created_by_user 
             ? ((t as any).created_by_user.first_name || (t as any).created_by_user.username)
             : null
@@ -179,7 +180,8 @@ export function DirectoryTab() {
         'expense': ['EXPENSE'],
         'income': ['INCOME'],
         'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
-        'purchase': ['PURCHASE_ORDER']
+        'purchase': ['PURCHASE_ORDER'],
+        'adjustment': ['ADJUSTMENT']
       };
       
       const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];
@@ -217,16 +219,18 @@ export function DirectoryTab() {
       case 'EXPENSE':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       case 'PURCHASE_ORDER':
-        return <TrendingDown className="h-4 w-4 text-blue-600" />; // Purchase is blue, not red
+        return <TrendingDown className="h-4 w-4 text-blue-600" />;
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return <ArrowRightLeft className="h-4 w-4 text-blue-600" />;
+      case 'ADJUSTMENT':
+        return <Settings className="h-4 w-4 text-amber-600" />;
       default:
         return null;
     }
   };
 
-  const getTransactionColor = (type: string) => {
+  const getTransactionColor = (type: string, transaction?: any) => {
     switch (type) {
       case 'INCOME':
       case 'SALES_ORDER':
@@ -234,10 +238,12 @@ export function DirectoryTab() {
       case 'EXPENSE':
         return 'text-red-700';
       case 'PURCHASE_ORDER':
-        return 'text-red-700'; // Purchase still shows as debit (red amount)
+        return 'text-red-700';
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return 'text-blue-700';
+      case 'ADJUSTMENT':
+        return transaction?.adjustment_direction === 'DEPOSIT' ? 'text-green-700' : 'text-red-700';
       default:
         return 'text-gray-700';
     }
@@ -251,10 +257,12 @@ export function DirectoryTab() {
       case 'EXPENSE':
         return 'destructive';
       case 'PURCHASE_ORDER':
-        return 'secondary'; // Purchase is secondary (blue/gray), not destructive (red)
+        return 'secondary';
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return 'secondary';
+      case 'ADJUSTMENT':
+        return 'outline';
       default:
         return 'outline';
     }
@@ -511,6 +519,7 @@ export function DirectoryTab() {
                     <SelectItem value="income">Income</SelectItem>
                     <SelectItem value="transfer">Transfer</SelectItem>
                     <SelectItem value="purchase">Purchase</SelectItem>
+                    <SelectItem value="adjustment">Manual Adjustment</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -661,8 +670,8 @@ export function DirectoryTab() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`font-semibold text-lg ${getTransactionColor(transaction.display_type)}`}>
-                      {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' ? '-' : '+'}
+                    <div className={`font-semibold text-lg ${getTransactionColor(transaction.display_type, transaction)}`}>
+                      {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' || (transaction.display_type === 'ADJUSTMENT' && (transaction as any).adjustment_direction === 'WITHDRAWAL') ? '-' : '+'}
                       ₹{parseFloat(transaction.display_amount.toString()).toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-500">

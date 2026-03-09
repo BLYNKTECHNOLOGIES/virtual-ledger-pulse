@@ -2023,6 +2023,59 @@ export type Database = {
         }
         Relationships: []
       }
+      erp_drift_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          calculated_balance: number | null
+          created_at: string | null
+          drift: number
+          entity_id: string
+          entity_name: string | null
+          entity_type: string
+          id: string
+          severity: string
+          snapshot_id: string | null
+          tracked_balance: number | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          calculated_balance?: number | null
+          created_at?: string | null
+          drift: number
+          entity_id: string
+          entity_name?: string | null
+          entity_type: string
+          id?: string
+          severity?: string
+          snapshot_id?: string | null
+          tracked_balance?: number | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          calculated_balance?: number | null
+          created_at?: string | null
+          drift?: number
+          entity_id?: string
+          entity_name?: string | null
+          entity_type?: string
+          id?: string
+          severity?: string
+          snapshot_id?: string | null
+          tracked_balance?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_drift_alerts_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "erp_balance_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_product_conversions: {
         Row: {
           actual_execution_rate: number | null
@@ -8708,6 +8761,7 @@ export type Database = {
       }
       sales_orders: {
         Row: {
+          client_id: string | null
           client_name: string
           client_phone: string | null
           client_state: string | null
@@ -8744,6 +8798,7 @@ export type Database = {
           warehouse_id: string | null
         }
         Insert: {
+          client_id?: string | null
           client_name: string
           client_phone?: string | null
           client_state?: string | null
@@ -8780,6 +8835,7 @@ export type Database = {
           warehouse_id?: string | null
         }
         Update: {
+          client_id?: string | null
           client_name?: string
           client_phone?: string | null
           client_state?: string | null
@@ -8816,6 +8872,13 @@ export type Database = {
           warehouse_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_orders_created_by_fkey"
             columns: ["created_by"]
@@ -11474,6 +11537,15 @@ export type Database = {
       calculate_user_risk_score: {
         Args: { user_uuid: string }
         Returns: number
+      }
+      check_snapshot_drift: {
+        Args: { p_critical_threshold?: number; p_warning_threshold?: number }
+        Returns: {
+          drift: number
+          entity_name: string
+          entity_type: string
+          severity: string
+        }[]
       }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       compare_snapshots: {

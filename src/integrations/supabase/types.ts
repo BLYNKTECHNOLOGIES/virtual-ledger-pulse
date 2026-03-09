@@ -11578,6 +11578,15 @@ export type Database = {
         }
         Returns: string
       }
+      create_inactive_assignee_notification: {
+        Args: {
+          p_message: string
+          p_related_user_id: string
+          p_title: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       create_manual_purchase_bypass: {
         Args: {
           p_bank_account_id: string
@@ -12173,6 +12182,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_terminal_user_offline: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }
         Returns: undefined
@@ -12280,6 +12293,10 @@ export type Database = {
       }
       remove_terminal_role: {
         Args: { p_role_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      resolve_inactive_assignee_notifications: {
+        Args: { p_related_user_id: string }
         Returns: undefined
       }
       reverse_payment_gateway_settlement: {

@@ -11,7 +11,7 @@ export function useTerminalPresence() {
 
   const sendHeartbeat = useCallback(async () => {
     if (!userId) return;
-    await supabase
+    const { error } = await supabase
       .from('terminal_user_presence' as any)
       .upsert(
         {
@@ -22,11 +22,14 @@ export function useTerminalPresence() {
         },
         { onConflict: 'user_id' }
       );
+    if (error) {
+      console.error('[Presence] Heartbeat failed:', error.message);
+    }
   }, [userId]);
 
   const markOffline = useCallback(async () => {
     if (!userId) return;
-    await supabase
+    const { error } = await supabase
       .from('terminal_user_presence' as any)
       .upsert(
         {
@@ -36,6 +39,9 @@ export function useTerminalPresence() {
         },
         { onConflict: 'user_id' }
       );
+    if (error) {
+      console.error('[Presence] Mark offline failed:', error.message);
+    }
   }, [userId]);
 
   useEffect(() => {
@@ -57,12 +63,14 @@ export function useTerminalPresence() {
     // Before unload handler
     const handleBeforeUnload = () => {
       // Use sendBeacon for reliability on tab close
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/terminal_user_presence?user_id=eq.${userId}`;
-      const body = JSON.stringify({
-        is_online: false,
-        updated_at: new Date().toISOString(),
-      });
-      navigator.sendBeacon?.(url); // Best effort; RLS may block sendBeacon
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (supabaseUrl && navigator.sendBeacon) {
+        const url = `${supabaseUrl}/rest/v1/rpc/mark_terminal_user_offline`;
+        const body = JSON.stringify({ p_user_id: userId });
+        const blob = new Blob([body], { type: 'application/json' });
+        navigator.sendBeacon(url, blob);
+      }
+      // Also try async as fallback
       markOffline();
     };
 

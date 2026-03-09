@@ -63,13 +63,14 @@ Deno.serve(async (req) => {
       (wallets || []).map((w: any) => [w.id, w.wallet_name])
     );
 
-    // Get calculated balances from wallet_transactions SUM
+    // Get calculated USDT balances from wallet_transactions SUM
     const { data: walletCalcRows } = await supabase.rpc("get_wallet_calculated_balances");
 
+    // Map by wallet_id for USDT summary comparison
     const walletCalcMap = new Map<string, number>();
     if (walletCalcRows) {
       for (const r of walletCalcRows as any[]) {
-        walletCalcMap.set(`${r.wallet_id}::${r.asset_code}`, Number(r.calculated_balance));
+        walletCalcMap.set(r.wallet_id, Number(r.calculated_balance));
       }
     }
 

@@ -790,64 +790,70 @@ export function ShiftReconciliationWidget() {
                       <AlertTriangle className="h-5 w-5" />
                       <span className="font-semibold">Mismatches detected — Action required</span>
                     </div>
-                    <Textarea
-                      placeholder="Add review notes (optional)..."
-                      value={reviewNotes}
-                      onChange={e => setReviewNotes(e.target.value)}
-                      className="bg-white"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase
-                              .from("shift_reconciliations")
-                              .update({
-                                status: "approved",
-                                reviewed_by: user?.email || user?.id || "unknown",
-                                reviewed_at: new Date().toISOString(),
-                                review_notes: reviewNotes || null,
-                              })
-                              .eq("id", detailRecord.id);
-                            if (error) throw error;
-                            toast({ title: "✅ Approved", description: "Shift reconciliation approved." });
-                            setReviewNotes("");
-                            setDetailRecord({ ...detailRecord, status: "approved", reviewed_by: user?.email || user?.id || "unknown", reviewed_at: new Date().toISOString(), review_notes: reviewNotes || null });
-                            queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
-                          } catch (err: any) {
-                            toast({ title: "Error", description: err.message, variant: "destructive" });
-                          }
-                        }}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase
-                              .from("shift_reconciliations")
-                              .update({
-                                status: "rejected",
-                                reviewed_by: user?.email || user?.id || "unknown",
-                                reviewed_at: new Date().toISOString(),
-                                review_notes: reviewNotes || null,
-                              })
-                              .eq("id", detailRecord.id);
-                            if (error) throw error;
-                            toast({ title: "❌ Rejected", description: "Shift reconciliation rejected." });
-                            setReviewNotes("");
-                            setDetailRecord({ ...detailRecord, status: "rejected", reviewed_by: user?.email || user?.id || "unknown", reviewed_at: new Date().toISOString(), review_notes: reviewNotes || null });
-                            queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
-                          } catch (err: any) {
-                            toast({ title: "Error", description: err.message, variant: "destructive" });
-                          }
-                        }}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" /> Reject
-                      </Button>
-                    </div>
+                    {canApprove ? (
+                      <>
+                        <Textarea
+                          placeholder="Add review notes (optional)..."
+                          value={reviewNotes}
+                          onChange={e => setReviewNotes(e.target.value)}
+                          className="bg-white"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={async () => {
+                              try {
+                                const { error } = await supabase
+                                  .from("shift_reconciliations")
+                                  .update({
+                                    status: "approved",
+                                    reviewed_by: user?.email || user?.id || "unknown",
+                                    reviewed_at: new Date().toISOString(),
+                                    review_notes: reviewNotes || null,
+                                  })
+                                  .eq("id", detailRecord.id);
+                                if (error) throw error;
+                                toast({ title: "✅ Approved", description: "Shift reconciliation approved." });
+                                setReviewNotes("");
+                                setDetailRecord({ ...detailRecord, status: "approved", reviewed_by: user?.email || user?.id || "unknown", reviewed_at: new Date().toISOString(), review_notes: reviewNotes || null });
+                                queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
+                              } catch (err: any) {
+                                toast({ title: "Error", description: err.message, variant: "destructive" });
+                              }
+                            }}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={async () => {
+                              try {
+                                const { error } = await supabase
+                                  .from("shift_reconciliations")
+                                  .update({
+                                    status: "rejected",
+                                    reviewed_by: user?.email || user?.id || "unknown",
+                                    reviewed_at: new Date().toISOString(),
+                                    review_notes: reviewNotes || null,
+                                  })
+                                  .eq("id", detailRecord.id);
+                                if (error) throw error;
+                                toast({ title: "❌ Rejected", description: "Shift reconciliation rejected." });
+                                setReviewNotes("");
+                                setDetailRecord({ ...detailRecord, status: "rejected", reviewed_by: user?.email || user?.id || "unknown", reviewed_at: new Date().toISOString(), review_notes: reviewNotes || null });
+                                queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
+                              } catch (err: any) {
+                                toast({ title: "Error", description: err.message, variant: "destructive" });
+                              }
+                            }}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" /> Reject
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">You don't have permission to approve or reject. Please contact an authorized reviewer.</p>
+                    )}
                   </div>
                 )}
 

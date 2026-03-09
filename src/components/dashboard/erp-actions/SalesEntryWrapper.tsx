@@ -339,6 +339,26 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             fee_amount: existingFee + binanceCommission,
           }).eq('id', result.id);
         }
+
+        // Record withdrawal network fee as a separate DEBIT transaction
+        // This ensures the ERP wallet balance exactly matches the Binance wallet
+        if (binanceNetworkFee > 0) {
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: formData.wallet_id,
+              transaction_type: 'DEBIT',
+              amount: binanceNetworkFee,
+              reference_type: 'WITHDRAWAL_FEE',
+              reference_id: result.id,
+              description: `Withdrawal network fee (${item.network || 'on-chain'}) for order #${orderNumber} | tx: ${item.tx_id || item.movement_id}`,
+              balance_before: 0,
+              balance_after: 0,
+              asset_code: (item.asset || 'USDT').toUpperCase(),
+            });
+
+          console.log(`✅ Withdrawal fee DEBIT recorded: ${binanceNetworkFee} ${item.asset} for ${item.tx_id || item.movement_id}`);
+        }
       }
 
       // Handle client onboarding

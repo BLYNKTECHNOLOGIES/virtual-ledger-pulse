@@ -634,6 +634,16 @@ export function ClientOnboardingApprovals() {
                   </Select>
                 </div>
 
+                <div>
+                  <Label htmlFor="client_state">State</Label>
+                  <Input
+                    id="client_state"
+                    value={formData.client_state}
+                    onChange={(e) => setFormData(prev => ({ ...prev, client_state: e.target.value }))}
+                    placeholder={selectedApproval?.client_state || "Enter client state"}
+                  />
+                </div>
+
                 <div className="col-span-2">
                   <Label htmlFor="compliance_notes">Compliance Notes</Label>
                   <Textarea

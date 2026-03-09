@@ -51,7 +51,22 @@ Deno.serve(async (req) => {
           .eq("device_serial", serialNumber)
           .maybeSingle();
 
-        const lastStamp = device?.last_stamp || "0";
+        let lastStamp = device?.last_stamp || "0";
+
+        // Fallback: if stamp was never initialized, derive from latest punch for this device
+        if (!lastStamp || lastStamp === "0") {
+          const { data: latestPunch } = await supabase
+            .from("hr_attendance_punches")
+            .select("punch_time")
+            .eq("device_serial", serialNumber)
+            .order("punch_time", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestPunch?.punch_time) {
+            lastStamp = formatESSLStamp(new Date(latestPunch.punch_time));
+          }
+        }
 
         const config = [
           "GET OPTION FROM: " + serialNumber,
@@ -118,7 +133,7 @@ Deno.serve(async (req) => {
       if (table === "ATTLOG" && bodyText.trim()) {
         const lines = bodyText.trim().split("\n");
         const results = { inserted: 0, skipped: 0, errors: [] as string[] };
-        let maxStamp = "0";
+        let maxPunchDate: Date | null = null;
 
         // Cutoff: only process punches from the last 7 days
         const cutoffDate = new Date();
@@ -141,10 +156,11 @@ Deno.serve(async (req) => {
             // Parse punch time
             const punchISO = parseESSLTimestamp(punch_time_str);
             const punchDateObj = new Date(punchISO);
-            
-            // Track max stamp for this batch
-            if (punch_time_str > maxStamp) {
-              maxStamp = punch_time_str;
+            const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
+
+            // Track max punch time for stamp sync
+            if (!maxPunchDate || punchDateObj > maxPunchDate) {
+              maxPunchDate = punchDateObj;
             }
 
             // Skip old punches beyond cutoff
@@ -153,11 +169,10 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            const punchDate = punchISO.split("T")[0];
-
             // Determine punch type
             const punch_type = raw_status === 1 || raw_status === 2 || raw_status === 5
               ? "out" : "in";
+
 
             // 1. Store raw punch
             const { error: punchError } = await supabase.from("hr_attendance_punches").insert({
@@ -186,7 +201,8 @@ Deno.serve(async (req) => {
         }
 
         // Update device heartbeat and stamp
-        await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, maxStamp);
+        const newStamp = maxPunchDate ? formatESSLStamp(maxPunchDate) : undefined;
+        await updateDeviceHeartbeat(supabase, serialNumber, results.inserted, newStamp);
 
         console.log(`Processed ${results.inserted} new, ${results.skipped} skipped (old) out of ${lines.length} from ${serialNumber}`);
 
@@ -296,6 +312,25 @@ function parseESSLTimestamp(timeStr: string): string {
   const cleaned = timeStr.replace(/\s+/g, " ").trim();
   const date = new Date(cleaned + "+05:30"); // Assume IST
   return date.toISOString();
+}
+
+// Keep attendance date aligned to device-local date (prevents UTC date shift issues)
+function getPunchDateFromESSLTimestamp(timeStr: string): string {
+  const iso = parseESSLTimestamp(timeStr);
+  const utc = new Date(iso);
+  const ist = new Date(utc.getTime() + 330 * 60 * 1000);
+
+  const yyyy = ist.getUTCFullYear();
+  const mm = String(ist.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ist.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatESSLStamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const ist = new Date(date.getTime() + 330 * 60 * 1000);
+
+  return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}:${pad(ist.getUTCSeconds())}`;
 }
 
 // ─── Helper: Process attendance records ───
@@ -440,7 +475,7 @@ async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchC
       .update(updateData)
       .eq("id", existing.id);
   } else {
-    // Try matching by name as fallback, and set device_serial
+    // Try matching rows with empty serial as fallback, then any existing ESSL row
     const { data: byName } = await supabase
       .from("hr_biometric_devices")
       .select("id")
@@ -453,16 +488,29 @@ async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchC
         .update({ ...updateData, device_serial: serialNumber })
         .eq("id", byName.id);
     } else {
-      // Create new device record
-      await supabase.from("hr_biometric_devices").insert({
-        name: `eSSL Device (${serialNumber})`,
-        device_type: "ZKTeco / eSSL Biometric",
-        machine_ip: "unknown",
-        port_no: "4370",
-        password: "",
-        device_serial: serialNumber,
-        ...updateData,
-      });
+      const { data: esslRow } = await supabase
+        .from("hr_biometric_devices")
+        .select("id")
+        .ilike("name", "%essl%")
+        .limit(1)
+        .maybeSingle();
+
+      if (esslRow) {
+        await supabase.from("hr_biometric_devices")
+          .update({ ...updateData, device_serial: serialNumber })
+          .eq("id", esslRow.id);
+      } else {
+        // Create new device record
+        await supabase.from("hr_biometric_devices").insert({
+          name: `eSSL Device (${serialNumber})`,
+          device_type: "ZKTeco / eSSL Biometric",
+          machine_ip: "unknown",
+          port_no: "4370",
+          password: "",
+          device_serial: serialNumber,
+          ...updateData,
+        });
+      }
     }
   }
 }

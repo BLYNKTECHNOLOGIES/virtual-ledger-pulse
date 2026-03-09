@@ -74,13 +74,15 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
     }
   }, [matchedSellCommission]);
 
-  // For on-chain withdrawals, pre-fill quantity as amount + Binance network fee
-  // so that the fee is absorbed into the sales quantity (charged to counterparty)
+  // For on-chain withdrawals, extract the Binance network fee from raw_data.
+  // The fee is tracked as a separate WITHDRAWAL_FEE DEBIT (not absorbed into quantity)
+  // so the sales quantity matches the actual amount sent to the counterparty.
   const binanceNetworkFee =
     item.movement_type === 'withdrawal'
-      ? parseFloat(item.raw_data?.transactionFee ?? item.raw_data?.fee ?? 0) || 0
+      ? parseFloat(item.raw_data?.transactionFee ?? item.raw_data?.fee ?? item.raw_data?.networkFee ?? 0) || 0
       : 0;
-  const prefillQuantity = item.amount + binanceNetworkFee;
+  // Pre-fill quantity as the withdrawal amount only (fee tracked separately)
+  const prefillQuantity = item.amount;
 
   const [formData, setFormData] = useState({
     order_number: '',
@@ -337,6 +339,26 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             fee_amount: existingFee + binanceCommission,
           }).eq('id', result.id);
         }
+
+        // Record withdrawal network fee as a separate DEBIT transaction
+        // This ensures the ERP wallet balance exactly matches the Binance wallet
+        if (binanceNetworkFee > 0) {
+          await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: formData.wallet_id,
+              transaction_type: 'DEBIT',
+              amount: binanceNetworkFee,
+              reference_type: 'WITHDRAWAL_FEE',
+              reference_id: result.id,
+              description: `Withdrawal network fee (${item.network || 'on-chain'}) for order #${orderNumber} | tx: ${item.tx_id || item.movement_id}`,
+              balance_before: 0,
+              balance_after: 0,
+              asset_code: (item.asset || 'USDT').toUpperCase(),
+            });
+
+          console.log(`✅ Withdrawal fee DEBIT recorded: ${binanceNetworkFee} ${item.asset} for ${item.tx_id || item.movement_id}`);
+        }
       }
 
       // Handle client onboarding
@@ -501,7 +523,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               />
               {binanceNetworkFee > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {item.amount} + {binanceNetworkFee} network fee = {prefillQuantity} {item.asset}
+                  Qty: {item.amount} {item.asset} | Network fee: {binanceNetworkFee} {item.asset} (auto-debited separately)
                 </p>
               )}
             </div>

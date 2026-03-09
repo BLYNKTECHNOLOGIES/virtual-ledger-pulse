@@ -393,7 +393,10 @@ export function ClientOnboardingApprovals() {
                     <TableCell>
                       <div className="text-sm">
                         <div>{approval.client_email}</div>
-                        <div className="text-gray-500">{approval.client_phone}</div>
+                        <div className="text-muted-foreground">{approval.client_phone}</div>
+                        {approval.client_state && (
+                          <div className="text-muted-foreground">{approval.client_state}</div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>

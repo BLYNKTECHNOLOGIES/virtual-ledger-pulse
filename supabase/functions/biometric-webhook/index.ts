@@ -470,7 +470,7 @@ async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchC
       .update(updateData)
       .eq("id", existing.id);
   } else {
-    // Try matching by name as fallback, and set device_serial
+    // Try matching rows with empty serial as fallback, then any existing ESSL row
     const { data: byName } = await supabase
       .from("hr_biometric_devices")
       .select("id")
@@ -483,16 +483,29 @@ async function updateDeviceHeartbeat(supabase: any, serialNumber: string, punchC
         .update({ ...updateData, device_serial: serialNumber })
         .eq("id", byName.id);
     } else {
-      // Create new device record
-      await supabase.from("hr_biometric_devices").insert({
-        name: `eSSL Device (${serialNumber})`,
-        device_type: "ZKTeco / eSSL Biometric",
-        machine_ip: "unknown",
-        port_no: "4370",
-        password: "",
-        device_serial: serialNumber,
-        ...updateData,
-      });
+      const { data: esslRow } = await supabase
+        .from("hr_biometric_devices")
+        .select("id")
+        .ilike("name", "%essl%")
+        .limit(1)
+        .maybeSingle();
+
+      if (esslRow) {
+        await supabase.from("hr_biometric_devices")
+          .update({ ...updateData, device_serial: serialNumber })
+          .eq("id", esslRow.id);
+      } else {
+        // Create new device record
+        await supabase.from("hr_biometric_devices").insert({
+          name: `eSSL Device (${serialNumber})`,
+          device_type: "ZKTeco / eSSL Biometric",
+          machine_ip: "unknown",
+          port_no: "4370",
+          password: "",
+          device_serial: serialNumber,
+          ...updateData,
+        });
+      }
     }
   }
 }

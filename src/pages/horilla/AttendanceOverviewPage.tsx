@@ -32,15 +32,47 @@ export default function AttendanceOverviewPage() {
   const { data: attendance = [], isLoading } = useQuery({
     queryKey: ["hr_attendance", dateFilter, statusFilter],
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("hr_attendance")
-        .select("*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)")
-        .eq("attendance_date", dateFilter)
-        .order("created_at", { ascending: false });
-      if (statusFilter !== "all") query = query.eq("attendance_status", statusFilter);
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data as any[]) || [];
+      const selectClause = "*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)";
+      const nextDate = format(
+        new Date(new Date(`${dateFilter}T00:00:00`).getTime() + 24 * 60 * 60 * 1000),
+        "yyyy-MM-dd"
+      );
+
+      const [byAttendanceDateRes, byCheckInDateRes] = await Promise.all([
+        (supabase as any)
+          .from("hr_attendance")
+          .select(selectClause)
+          .eq("attendance_date", dateFilter)
+          .order("created_at", { ascending: false }),
+        (supabase as any)
+          .from("hr_attendance")
+          .select(selectClause)
+          .gte("check_in", `${dateFilter}T00:00:00`)
+          .lt("check_in", `${nextDate}T00:00:00`)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (byAttendanceDateRes.error) throw byAttendanceDateRes.error;
+      if (byCheckInDateRes.error) throw byCheckInDateRes.error;
+
+      const merged = [
+        ...((byAttendanceDateRes.data as any[]) || []),
+        ...((byCheckInDateRes.data as any[]) || []),
+      ];
+
+      let deduped = Array.from(new Map(merged.map((row: any) => [row.id, row])).values());
+
+      if (statusFilter !== "all") {
+        deduped = deduped.filter((row: any) => row.attendance_status === statusFilter);
+      }
+
+      deduped.sort(
+        (a: any, b: any) =>
+          new Date(b.check_in || b.created_at || 0).getTime() -
+          new Date(a.check_in || a.created_at || 0).getTime()
+      );
+
+      return deduped;
     },
   });
 

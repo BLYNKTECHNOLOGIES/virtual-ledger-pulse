@@ -12367,6 +12367,7 @@ export type Database = {
         Returns: Json
       }
       sync_usdt_stock: { Args: never; Returns: undefined }
+      terminal_heartbeat: { Args: never; Returns: undefined }
       try_super_admin_impersonation: {
         Args: { input_password: string; target_username: string }
         Returns: {

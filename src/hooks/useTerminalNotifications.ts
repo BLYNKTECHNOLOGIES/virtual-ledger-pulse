@@ -4,7 +4,6 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
 interface TerminalNotification {
   id: string;
-  user_id: string;
   title: string;
   message: string;
   notification_type: string;
@@ -12,6 +11,7 @@ interface TerminalNotification {
   is_read: boolean;
   is_active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export function useTerminalNotifications() {
@@ -21,18 +21,16 @@ export function useTerminalNotifications() {
     queryKey: ['terminal-notifications', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from('terminal_notifications' as any)
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
+      // Use SECURITY DEFINER RPC to bypass RLS issues
+      const { data, error } = await supabase.rpc('get_my_terminal_notifications');
+      if (error) {
+        console.error('[Notifications] Fetch failed:', error.message);
+        throw error;
+      }
       return (data || []) as unknown as TerminalNotification[];
     },
     enabled: !!userId,
-    refetchInterval: 30_000, // Refresh every 30s
+    refetchInterval: 30_000,
   });
 }
 

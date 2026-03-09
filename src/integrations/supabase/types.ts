@@ -11855,6 +11855,26 @@ export type Database = {
         }
         Returns: string
       }
+      debug_erp_health_check: {
+        Args: never
+        Returns: {
+          check_name: string
+          count: number
+          details: string
+          status: string
+        }[]
+      }
+      debug_trace_order: {
+        Args: { p_order_number: string }
+        Returns: {
+          amount: number
+          created_at: string
+          details: Json
+          layer: string
+          record_id: string
+          record_type: string
+        }[]
+      }
       delete_all_user_webauthn_credentials: {
         Args: { p_user_id: string }
         Returns: undefined

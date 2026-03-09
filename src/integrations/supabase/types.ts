@@ -11846,6 +11846,13 @@ export type Database = {
           username: string
         }[]
       }
+      get_bank_calculated_balances: {
+        Args: never
+        Returns: {
+          bank_account_id: string
+          calculated_balance: number
+        }[]
+      }
       get_default_risk_level: { Args: never; Returns: string }
       get_super_admin_ids: {
         Args: never
@@ -11948,6 +11955,14 @@ export type Database = {
           status: string
           user_id: string
           username: string
+        }[]
+      }
+      get_wallet_calculated_balances: {
+        Args: never
+        Returns: {
+          asset_code: string
+          calculated_balance: number
+          wallet_id: string
         }[]
       }
       get_webauthn_credentials: {

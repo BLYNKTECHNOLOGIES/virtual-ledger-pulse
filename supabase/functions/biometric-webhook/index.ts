@@ -314,6 +314,20 @@ function parseESSLTimestamp(timeStr: string): string {
   return date.toISOString();
 }
 
+// Keep attendance date aligned to device-local date (prevents UTC date shift issues)
+function getPunchDateFromESSLTimestamp(timeStr: string): string {
+  const cleaned = timeStr.replace(/\s+/g, " ").trim();
+  const datePart = cleaned.split(" ")[0];
+
+  // Supports YYYY-MM-DD and YYYY/MM/DD inputs from device payloads
+  return datePart.replace(/\//g, "-");
+}
+
+function formatESSLStamp(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+}
+
 // ─── Helper: Process attendance records ───
 async function processAttendance(
   supabase: any,

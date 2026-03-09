@@ -29,7 +29,7 @@ export function useTerminalNotifications() {
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data || []) as TerminalNotification[];
+      return (data || []) as unknown as TerminalNotification[];
     },
     enabled: !!userId,
     refetchInterval: 30_000, // Refresh every 30s

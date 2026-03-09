@@ -65,7 +65,8 @@ export function ClientOnboardingApprovals() {
     purpose_of_buying: '',
     proposed_monthly_limit: '',
     risk_assessment: 'HIGH',
-    compliance_notes: ''
+    compliance_notes: '',
+    client_state: ''
   });
   
   const { toast } = useToast();
@@ -139,7 +140,7 @@ export function ClientOnboardingApprovals() {
             monthly_limit: parseFloat(clientData.proposed_monthly_limit),
             buying_purpose: clientData.purpose_of_buying,
             risk_appetite: clientData.risk_assessment,
-            state: approval.client_state || undefined // Only update if state provided
+            state: clientData.client_state || approval.client_state || undefined
           })
           .eq('id', existingClient.id);
 
@@ -169,7 +170,7 @@ export function ClientOnboardingApprovals() {
             buyer_approved_at: new Date().toISOString(),
             aadhar_front_url: approval.aadhar_front_url,
            aadhar_back_url: approval.aadhar_back_url,
-           state: approval.client_state || null
+           state: clientData.client_state || approval.client_state || null
           });
 
         if (clientError) throw clientError;
@@ -274,7 +275,8 @@ export function ClientOnboardingApprovals() {
       purpose_of_buying: approval.purpose_of_buying || '',
       proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
       risk_assessment: approval.risk_assessment || 'HIGH',
-      compliance_notes: approval.compliance_notes || ''
+      compliance_notes: approval.compliance_notes || '',
+      client_state: approval.client_state || ''
     });
     setDialogOpen(true);
   };
@@ -323,7 +325,8 @@ export function ClientOnboardingApprovals() {
       purpose_of_buying: '',
       proposed_monthly_limit: '',
       risk_assessment: 'HIGH',
-      compliance_notes: ''
+      compliance_notes: '',
+      client_state: ''
     });
     setSelectedApproval(null);
   };
@@ -392,7 +395,10 @@ export function ClientOnboardingApprovals() {
                     <TableCell>
                       <div className="text-sm">
                         <div>{approval.client_email}</div>
-                        <div className="text-gray-500">{approval.client_phone}</div>
+                        <div className="text-muted-foreground">{approval.client_phone}</div>
+                        {approval.client_state && (
+                          <div className="text-muted-foreground">{approval.client_state}</div>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -562,6 +568,11 @@ export function ClientOnboardingApprovals() {
                   <div>
                     <span className="font-medium">Phone:</span> {selectedApproval.client_phone}
                   </div>
+                  {selectedApproval.client_state && (
+                    <div>
+                      <span className="font-medium">State:</span> {selectedApproval.client_state}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -623,6 +634,16 @@ export function ClientOnboardingApprovals() {
                       <SelectItem value="HIGH">High Risk</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="client_state">State</Label>
+                  <Input
+                    id="client_state"
+                    value={formData.client_state}
+                    onChange={(e) => setFormData(prev => ({ ...prev, client_state: e.target.value }))}
+                    placeholder={selectedApproval?.client_state || "Enter client state"}
+                  />
                 </div>
 
                 <div className="col-span-2">

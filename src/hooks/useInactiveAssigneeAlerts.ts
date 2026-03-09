@@ -1,0 +1,176 @@
+import { useEffect, useCallback, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+
+const CHECK_INTERVAL_MS = 60_000; // Check every 60 seconds
+const OFFLINE_THRESHOLD_MS = 90_000; // 90s without heartbeat = offline
+
+/**
+ * This hook runs for admins/supervisors. It checks if any user who has
+ * an active (is_active=true) payer or operator assignment is offline,
+ * and creates notifications for all superiors in the hierarchy tree.
+ * When the user comes back online, it auto-resolves (deactivates) those notifications.
+ */
+export function useInactiveAssigneeAlerts() {
+  const { userId, isTerminalAdmin } = useTerminalAuth();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const checkAndNotify = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      // 1. Get all active payer & operator assignments
+      const [payerRes, operatorRes] = await Promise.all([
+        supabase
+          .from('terminal_payer_assignments')
+          .select('payer_user_id')
+          .eq('is_active', true),
+        supabase
+          .from('terminal_operator_assignments' as any)
+          .select('operator_user_id')
+          .eq('is_active', true),
+      ]);
+
+      const assignedUserIds = new Set<string>();
+      for (const a of payerRes.data || []) assignedUserIds.add(a.payer_user_id);
+      for (const a of (operatorRes.data || []) as any[]) assignedUserIds.add(a.operator_user_id);
+
+      if (assignedUserIds.size === 0) return;
+
+      // 2. Get presence status for all assigned users
+      const { data: presenceData } = await supabase
+        .from('terminal_user_presence' as any)
+        .select('user_id, is_online, last_seen_at')
+        .in('user_id', Array.from(assignedUserIds));
+
+      const presenceMap = new Map<string, { is_online: boolean; last_seen_at: string }>();
+      for (const p of (presenceData || []) as any[]) {
+        presenceMap.set(p.user_id, { is_online: p.is_online, last_seen_at: p.last_seen_at });
+      }
+
+      // 3. Determine who is offline
+      const now = Date.now();
+      const offlineUsers = new Set<string>();
+      const onlineUsers = new Set<string>();
+
+      for (const uid of assignedUserIds) {
+        const presence = presenceMap.get(uid);
+        if (!presence) {
+          // No presence record at all = never connected = offline
+          offlineUsers.add(uid);
+        } else if (!presence.is_online || (now - new Date(presence.last_seen_at).getTime()) > OFFLINE_THRESHOLD_MS) {
+          offlineUsers.add(uid);
+        } else {
+          onlineUsers.add(uid);
+        }
+      }
+
+      // 4. Get supervisor mappings to find who to notify
+      const { data: supervisorMappings } = await supabase
+        .from('terminal_user_supervisor_mappings')
+        .select('user_id, supervisor_id');
+
+      // Build reverse map: user -> all supervisors up the chain (BFS)
+      const directSupervisors = new Map<string, Set<string>>();
+      for (const m of supervisorMappings || []) {
+        if (!directSupervisors.has(m.user_id)) directSupervisors.set(m.user_id, new Set());
+        directSupervisors.get(m.user_id)!.add(m.supervisor_id);
+      }
+
+      function getAncestors(uid: string): Set<string> {
+        const ancestors = new Set<string>();
+        const queue = [uid];
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          const sups = directSupervisors.get(current);
+          if (sups) {
+            for (const s of sups) {
+              if (!ancestors.has(s)) {
+                ancestors.add(s);
+                queue.push(s);
+              }
+            }
+          }
+        }
+        return ancestors;
+      }
+
+      // 5. Get usernames for display
+      const allUserIds = [...assignedUserIds];
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, username, first_name, last_name')
+        .in('id', allUserIds);
+
+      const userNameMap = new Map<string, string>();
+      for (const u of usersData || []) {
+        const name = u.first_name && u.last_name ? `${u.first_name} ${u.last_name}` : u.username || u.id;
+        userNameMap.set(u.id, name);
+      }
+
+      // 6. For offline users with active assignments: create notifications for ancestors
+      for (const offlineUid of offlineUsers) {
+        const ancestors = getAncestors(offlineUid);
+        if (ancestors.size === 0) continue;
+
+        const displayName = userNameMap.get(offlineUid) || offlineUid.slice(0, 8);
+
+        // Check what assignments they have
+        const payerAssigned = (payerRes.data || []).some(a => a.payer_user_id === offlineUid);
+        const operatorAssigned = ((operatorRes.data || []) as any[]).some(a => a.operator_user_id === offlineUid);
+        const roles: string[] = [];
+        if (payerAssigned) roles.push('Payer');
+        if (operatorAssigned) roles.push('Operator');
+
+        for (const ancestorId of ancestors) {
+          // Check if we already have an active notification for this combo
+          const { data: existing } = await supabase
+            .from('terminal_notifications' as any)
+            .select('id')
+            .eq('user_id', ancestorId)
+            .eq('related_user_id', offlineUid)
+            .eq('notification_type', 'inactive_assignee')
+            .eq('is_active', true)
+            .limit(1);
+
+          if (existing && existing.length > 0) continue; // Already notified
+
+          await supabase.from('terminal_notifications' as any).insert({
+            user_id: ancestorId,
+            title: `${roles.join(' & ')} Inactive`,
+            message: `${displayName} has active ${roles.join('/')} assignments but is not online in the terminal.`,
+            notification_type: 'inactive_assignee',
+            related_user_id: offlineUid,
+            is_active: true,
+            is_read: false,
+          });
+        }
+      }
+
+      // 7. For users who came back online: deactivate their inactive notifications
+      for (const onlineUid of onlineUsers) {
+        await supabase
+          .from('terminal_notifications' as any)
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('related_user_id', onlineUid)
+          .eq('notification_type', 'inactive_assignee')
+          .eq('is_active', true);
+      }
+    } catch (err) {
+      console.error('Inactive assignee alert check error:', err);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    // Initial check after a short delay (let presence settle)
+    const timeout = setTimeout(checkAndNotify, 10_000);
+    intervalRef.current = setInterval(checkAndNotify, CHECK_INTERVAL_MS);
+
+    return () => {
+      clearTimeout(timeout);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [userId, checkAndNotify]);
+}

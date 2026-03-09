@@ -10119,6 +10119,60 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_read: boolean
+          message: string
+          notification_type: string
+          related_user_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_read?: boolean
+          message: string
+          notification_type?: string
+          related_user_id?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_read?: boolean
+          message?: string
+          notification_type?: string
+          related_user_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_notifications_related_user_id_fkey"
+            columns: ["related_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_operator_assignments: {
         Row: {
           ad_id: string | null
@@ -10537,6 +10591,35 @@ export type Database = {
             foreignKeyName: "terminal_user_exchange_mappings_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_user_presence: {
+        Row: {
+          is_online: boolean
+          last_seen_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          is_online?: boolean
+          last_seen_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          is_online?: boolean
+          last_seen_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_user_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },

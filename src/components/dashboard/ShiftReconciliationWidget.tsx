@@ -510,26 +510,32 @@ export function ShiftReconciliationWidget() {
               <AlertTriangle className="h-5 w-5" />
               <span className="font-semibold">Mismatches detected — Action required</span>
             </div>
-            <Textarea
-              placeholder="Add review notes (optional)..."
-              value={reviewNotes}
-              onChange={e => setReviewNotes(e.target.value)}
-              className="bg-white"
-            />
-            <div className="flex gap-2">
-              <Button onClick={() => handleReview("approved")} className="bg-green-600 hover:bg-green-700">
-                <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
-              </Button>
-              <Button onClick={() => handleReview("rejected")} variant="destructive">
-                <XCircle className="h-4 w-4 mr-1" /> Reject & Request Re-upload
-              </Button>
-              <Button variant="outline" onClick={() => {
-                setActiveView("actions");
-                setReportData(null);
-              }}>
-                <RefreshCw className="h-4 w-4 mr-1" /> Upload Updated CSV
-              </Button>
-            </div>
+            {canApprove ? (
+              <>
+                <Textarea
+                  placeholder="Add review notes (optional)..."
+                  value={reviewNotes}
+                  onChange={e => setReviewNotes(e.target.value)}
+                  className="bg-white"
+                />
+                <div className="flex gap-2">
+                  <Button onClick={() => handleReview("approved")} className="bg-green-600 hover:bg-green-700">
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
+                  </Button>
+                  <Button onClick={() => handleReview("rejected")} variant="destructive">
+                    <XCircle className="h-4 w-4 mr-1" /> Reject & Request Re-upload
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    setActiveView("actions");
+                    setReportData(null);
+                  }}>
+                    <RefreshCw className="h-4 w-4 mr-1" /> Upload Updated CSV
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-xs text-muted-foreground">You don't have permission to approve or reject. Please contact an authorized reviewer.</p>
+            )}
           </div>
         )}
 

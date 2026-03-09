@@ -63,18 +63,18 @@ Deno.serve(async (req) => {
       (wallets || []).map((w: any) => [w.id, w.wallet_name])
     );
 
-    // Get calculated balances from wallet_transactions SUM
+    // Get calculated USDT balances from wallet_transactions SUM
     const { data: walletCalcRows } = await supabase.rpc("get_wallet_calculated_balances");
 
+    // Map by wallet_id for USDT summary comparison
     const walletCalcMap = new Map<string, number>();
     if (walletCalcRows) {
       for (const r of walletCalcRows as any[]) {
-        walletCalcMap.set(`${r.wallet_id}::${r.asset_code}`, Number(r.calculated_balance));
+        walletCalcMap.set(r.wallet_id, Number(r.calculated_balance));
       }
     }
 
     for (const wa of walletAssets || []) {
-      const key = `${wa.wallet_id}::${wa.asset_code}`;
       lines.push({
         snapshot_id: snapshotId,
         entity_type: "WALLET_ASSET",
@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
         entity_name: walletNameMap.get(wa.wallet_id) || null,
         asset_code: wa.asset_code,
         tracked_balance: Number(wa.balance || 0),
-        calculated_balance: walletCalcMap.get(key) ?? null,
+        calculated_balance: null, // Per-asset calculated not available from summary RPC
         metadata: {
           total_received: wa.total_received,
           total_sent: wa.total_sent,
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Wallet summary rows (wallets.current_balance)
+    // Wallet summary rows (wallets.current_balance vs calculated from transactions)
     for (const w of wallets || []) {
       lines.push({
         snapshot_id: snapshotId,
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         entity_name: w.wallet_name,
         asset_code: null,
         tracked_balance: Number(w.current_balance || 0),
-        calculated_balance: null,
+        calculated_balance: walletCalcMap.get(w.id) ?? null,
         metadata: {
           is_active: w.is_active,
           total_received: w.total_received,

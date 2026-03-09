@@ -12020,9 +12020,9 @@ export type Database = {
       get_wallet_calculated_balances: {
         Args: never
         Returns: {
-          asset_code: string
           calculated_balance: number
           wallet_id: string
+          wallet_name: string
         }[]
       }
       get_webauthn_credentials: {

@@ -566,6 +566,11 @@ export function ClientOnboardingApprovals() {
                   <div>
                     <span className="font-medium">Phone:</span> {selectedApproval.client_phone}
                   </div>
+                  {selectedApproval.client_state && (
+                    <div>
+                      <span className="font-medium">State:</span> {selectedApproval.client_state}
+                    </div>
+                  )}
                 </div>
               </div>
 

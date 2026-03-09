@@ -51,7 +51,22 @@ Deno.serve(async (req) => {
           .eq("device_serial", serialNumber)
           .maybeSingle();
 
-        const lastStamp = device?.last_stamp || "0";
+        let lastStamp = device?.last_stamp || "0";
+
+        // Fallback: if stamp was never initialized, derive from latest punch for this device
+        if (!lastStamp || lastStamp === "0") {
+          const { data: latestPunch } = await supabase
+            .from("hr_attendance_punches")
+            .select("punch_time")
+            .eq("device_serial", serialNumber)
+            .order("punch_time", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestPunch?.punch_time) {
+            lastStamp = formatESSLStamp(new Date(latestPunch.punch_time));
+          }
+        }
 
         const config = [
           "GET OPTION FROM: " + serialNumber,

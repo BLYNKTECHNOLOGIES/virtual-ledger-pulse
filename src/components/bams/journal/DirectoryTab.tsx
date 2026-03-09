@@ -519,6 +519,7 @@ export function DirectoryTab() {
                     <SelectItem value="income">Income</SelectItem>
                     <SelectItem value="transfer">Transfer</SelectItem>
                     <SelectItem value="purchase">Purchase</SelectItem>
+                    <SelectItem value="adjustment">Manual Adjustment</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

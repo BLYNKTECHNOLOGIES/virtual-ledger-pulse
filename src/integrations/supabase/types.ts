@@ -1952,6 +1952,77 @@ export type Database = {
           },
         ]
       }
+      erp_balance_snapshot_lines: {
+        Row: {
+          asset_code: string | null
+          calculated_balance: number | null
+          drift: number | null
+          entity_id: string
+          entity_name: string | null
+          entity_type: string
+          id: string
+          metadata: Json | null
+          snapshot_id: string
+          tracked_balance: number
+        }
+        Insert: {
+          asset_code?: string | null
+          calculated_balance?: number | null
+          drift?: number | null
+          entity_id: string
+          entity_name?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          snapshot_id: string
+          tracked_balance?: number
+        }
+        Update: {
+          asset_code?: string | null
+          calculated_balance?: number | null
+          drift?: number | null
+          entity_id?: string
+          entity_name?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          snapshot_id?: string
+          tracked_balance?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_balance_snapshot_lines_snapshot_id_fkey"
+            columns: ["snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "erp_balance_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      erp_balance_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          snapshot_at: string
+          snapshot_type: string
+          summary: Json | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          snapshot_at?: string
+          snapshot_type?: string
+          summary?: Json | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          snapshot_at?: string
+          snapshot_type?: string
+          summary?: Json | null
+        }
+        Relationships: []
+      }
       erp_product_conversions: {
         Row: {
           actual_execution_rate: number | null
@@ -11408,6 +11479,21 @@ export type Database = {
       calculate_user_risk_score: {
         Args: { user_uuid: string }
         Returns: number
+      }
+      cleanup_old_snapshots: { Args: never; Returns: undefined }
+      compare_snapshots: {
+        Args: { p_snapshot_id_new: string; p_snapshot_id_old: string }
+        Returns: {
+          asset_code: string
+          balance_change: number
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          new_balance: number
+          new_drift: number
+          old_balance: number
+          old_drift: number
+        }[]
       }
       complete_sales_order_with_banking: {
         Args: {

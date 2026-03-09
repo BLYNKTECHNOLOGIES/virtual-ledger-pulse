@@ -71,6 +71,7 @@ const availablePermissions = [
   { id: "bams_destructive", name: "BAMS Destructive", description: "Delete/close/reverse BAMS entries and accounts" },
   { id: "clients_destructive", name: "Clients Destructive", description: "Delete/reject clients" },
   { id: "stock_destructive", name: "Stock Destructive", description: "Delete stock/wallet transactions and conversions" },
+  { id: "shift_reconciliation_approve", name: "Shift Reconciliation Approve", description: "Approve or reject shift reconciliation records" },
 ];
 
 // Map old permission format to new format (for backwards compatibility)

@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
       if (table === "ATTLOG" && bodyText.trim()) {
         const lines = bodyText.trim().split("\n");
         const results = { inserted: 0, skipped: 0, errors: [] as string[] };
-        let maxStamp = "0";
+        let maxPunchDate: Date | null = null;
 
         // Cutoff: only process punches from the last 7 days
         const cutoffDate = new Date();
@@ -156,10 +156,11 @@ Deno.serve(async (req) => {
             // Parse punch time
             const punchISO = parseESSLTimestamp(punch_time_str);
             const punchDateObj = new Date(punchISO);
-            
-            // Track max stamp for this batch
-            if (punch_time_str > maxStamp) {
-              maxStamp = punch_time_str;
+            const punchDate = getPunchDateFromESSLTimestamp(punch_time_str);
+
+            // Track max punch time for stamp sync
+            if (!maxPunchDate || punchDateObj > maxPunchDate) {
+              maxPunchDate = punchDateObj;
             }
 
             // Skip old punches beyond cutoff
@@ -168,11 +169,10 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            const punchDate = punchISO.split("T")[0];
-
             // Determine punch type
             const punch_type = raw_status === 1 || raw_status === 2 || raw_status === 5
               ? "out" : "in";
+
 
             // 1. Store raw punch
             const { error: punchError } = await supabase.from("hr_attendance_punches").insert({

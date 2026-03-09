@@ -65,7 +65,8 @@ export function ClientOnboardingApprovals() {
     purpose_of_buying: '',
     proposed_monthly_limit: '',
     risk_assessment: 'HIGH',
-    compliance_notes: ''
+    compliance_notes: '',
+    client_state: ''
   });
   
   const { toast } = useToast();

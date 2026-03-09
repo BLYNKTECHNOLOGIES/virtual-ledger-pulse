@@ -219,16 +219,18 @@ export function DirectoryTab() {
       case 'EXPENSE':
         return <TrendingDown className="h-4 w-4 text-red-600" />;
       case 'PURCHASE_ORDER':
-        return <TrendingDown className="h-4 w-4 text-blue-600" />; // Purchase is blue, not red
+        return <TrendingDown className="h-4 w-4 text-blue-600" />;
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return <ArrowRightLeft className="h-4 w-4 text-blue-600" />;
+      case 'ADJUSTMENT':
+        return <Settings className="h-4 w-4 text-amber-600" />;
       default:
         return null;
     }
   };
 
-  const getTransactionColor = (type: string) => {
+  const getTransactionColor = (type: string, transaction?: any) => {
     switch (type) {
       case 'INCOME':
       case 'SALES_ORDER':
@@ -236,10 +238,12 @@ export function DirectoryTab() {
       case 'EXPENSE':
         return 'text-red-700';
       case 'PURCHASE_ORDER':
-        return 'text-red-700'; // Purchase still shows as debit (red amount)
+        return 'text-red-700';
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return 'text-blue-700';
+      case 'ADJUSTMENT':
+        return transaction?.adjustment_direction === 'DEPOSIT' ? 'text-green-700' : 'text-red-700';
       default:
         return 'text-gray-700';
     }
@@ -253,10 +257,12 @@ export function DirectoryTab() {
       case 'EXPENSE':
         return 'destructive';
       case 'PURCHASE_ORDER':
-        return 'secondary'; // Purchase is secondary (blue/gray), not destructive (red)
+        return 'secondary';
       case 'TRANSFER_IN':
       case 'TRANSFER_OUT':
         return 'secondary';
+      case 'ADJUSTMENT':
+        return 'outline';
       default:
         return 'outline';
     }

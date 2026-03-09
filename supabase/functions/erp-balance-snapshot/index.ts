@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Wallet summary rows (wallets.current_balance)
+    // Wallet summary rows (wallets.current_balance vs calculated from transactions)
     for (const w of wallets || []) {
       lines.push({
         snapshot_id: snapshotId,
@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
         entity_name: w.wallet_name,
         asset_code: null,
         tracked_balance: Number(w.current_balance || 0),
-        calculated_balance: null,
+        calculated_balance: walletCalcMap.get(w.id) ?? null,
         metadata: {
           is_active: w.is_active,
           total_received: w.total_received,

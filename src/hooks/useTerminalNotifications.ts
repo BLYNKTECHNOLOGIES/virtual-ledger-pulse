@@ -21,8 +21,8 @@ export function useTerminalNotifications() {
     queryKey: ['terminal-notifications', userId],
     queryFn: async () => {
       if (!userId) return [];
-      // Use SECURITY DEFINER RPC to bypass RLS issues
-      const { data, error } = await supabase.rpc('get_my_terminal_notifications');
+      // Use SECURITY DEFINER RPC with explicit user_id (custom auth, auth.uid() is NULL)
+      const { data, error } = await supabase.rpc('get_my_terminal_notifications', { p_user_id: userId });
       if (error) {
         console.error('[Notifications] Fetch failed:', error.message);
         throw error;

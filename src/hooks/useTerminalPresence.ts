@@ -11,8 +11,8 @@ export function useTerminalPresence() {
 
   const sendHeartbeat = useCallback(async () => {
     if (!userId) return;
-    // Use SECURITY DEFINER RPC to bypass any RLS issues
-    const { error } = await supabase.rpc('terminal_heartbeat');
+    // Use SECURITY DEFINER RPC with explicit user_id (custom auth, auth.uid() is NULL)
+    const { error } = await supabase.rpc('terminal_heartbeat', { p_user_id: userId });
     if (error) {
       console.error('[Presence] Heartbeat RPC failed:', error.message);
     }

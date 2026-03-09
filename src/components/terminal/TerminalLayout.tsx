@@ -4,6 +4,7 @@ import { TerminalHeader } from './TerminalHeader';
 import { TerminalAuthProvider, useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { BiometricAuthGate } from './BiometricAuthGate';
 import { ShieldOff, Loader2 } from 'lucide-react';
+import { TerminalPresenceAndAlerts } from './TerminalPresenceAndAlerts';
 
 interface TerminalLayoutProps {
   children: React.ReactNode;

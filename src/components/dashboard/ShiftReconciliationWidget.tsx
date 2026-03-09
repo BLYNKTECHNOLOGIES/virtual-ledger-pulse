@@ -262,14 +262,14 @@ export function ShiftReconciliationWidget() {
       const stockIds = rows.filter(r => r.Category === "STOCK").map(r => r.ID);
       const posIds = rows.filter(r => r.Category === "POS").map(r => r.ID);
 
-      // Bank balances from computed view
+      // Bank balances - use actual balance from bank_accounts (already maintained by triggers)
       let bankBalances: Record<string, number> = {};
       if (bankIds.length > 0) {
         const { data } = await supabase
-          .from("bank_accounts_with_balance")
-          .select("id, computed_balance")
+          .from("bank_accounts")
+          .select("id, balance")
           .in("id", bankIds);
-        (data || []).forEach(b => { bankBalances[b.id!] = b.computed_balance || 0; });
+        (data || []).forEach(b => { bankBalances[b.id] = b.balance || 0; });
       }
 
       // Wallet USDT balances

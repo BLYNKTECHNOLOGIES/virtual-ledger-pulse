@@ -39,7 +39,8 @@ export function AuthCheck({ children }: AuthCheckProps) {
             'kyc_approvals_view', 'kyc_approvals_manage',
             'statistics_view', 'statistics_manage',
             'erp_destructive', 'terminal_destructive', 'bams_destructive',
-            'clients_destructive', 'stock_destructive'
+            'clients_destructive', 'stock_destructive',
+            'shift_reconciliation_approve'
           ]));
         }
         

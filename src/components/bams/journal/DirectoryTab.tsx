@@ -180,7 +180,8 @@ export function DirectoryTab() {
         'expense': ['EXPENSE'],
         'income': ['INCOME'],
         'transfer': ['TRANSFER_IN', 'TRANSFER_OUT'],
-        'purchase': ['PURCHASE_ORDER']
+        'purchase': ['PURCHASE_ORDER'],
+        'adjustment': ['ADJUSTMENT']
       };
       
       const allowedTypes = typeMapping[selectedTransactionType] || [selectedTransactionType];

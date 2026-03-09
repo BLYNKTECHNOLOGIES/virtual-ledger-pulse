@@ -75,7 +75,6 @@ Deno.serve(async (req) => {
     }
 
     for (const wa of walletAssets || []) {
-      const key = `${wa.wallet_id}::${wa.asset_code}`;
       lines.push({
         snapshot_id: snapshotId,
         entity_type: "WALLET_ASSET",
@@ -83,7 +82,7 @@ Deno.serve(async (req) => {
         entity_name: walletNameMap.get(wa.wallet_id) || null,
         asset_code: wa.asset_code,
         tracked_balance: Number(wa.balance || 0),
-        calculated_balance: walletCalcMap.get(key) ?? null,
+        calculated_balance: null, // Per-asset calculated not available from summary RPC
         metadata: {
           total_received: wa.total_received,
           total_sent: wa.total_sent,

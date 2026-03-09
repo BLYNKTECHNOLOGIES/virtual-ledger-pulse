@@ -316,16 +316,21 @@ function parseESSLTimestamp(timeStr: string): string {
 
 // Keep attendance date aligned to device-local date (prevents UTC date shift issues)
 function getPunchDateFromESSLTimestamp(timeStr: string): string {
-  const cleaned = timeStr.replace(/\s+/g, " ").trim();
-  const datePart = cleaned.split(" ")[0];
+  const iso = parseESSLTimestamp(timeStr);
+  const utc = new Date(iso);
+  const ist = new Date(utc.getTime() + 330 * 60 * 1000);
 
-  // Supports YYYY-MM-DD and YYYY/MM/DD inputs from device payloads
-  return datePart.replace(/\//g, "-");
+  const yyyy = ist.getUTCFullYear();
+  const mm = String(ist.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(ist.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function formatESSLStamp(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+  const ist = new Date(date.getTime() + 330 * 60 * 1000);
+
+  return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}:${pad(ist.getUTCSeconds())}`;
 }
 
 // ─── Helper: Process attendance records ───

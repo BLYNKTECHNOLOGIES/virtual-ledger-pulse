@@ -9,7 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Plus, Trash2, ChevronDown, ChevronRight, User } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Trash2, ChevronDown, ChevronRight, User, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -27,6 +28,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
+type GroupBy = 'user' | 'size_range';
+
 export function PayerAssignmentManager() {
   const { data: assignments = [], isLoading } = useAllPayerAssignments();
   const createAssignment = useCreatePayerAssignment();
@@ -38,9 +41,9 @@ export function PayerAssignmentManager() {
   const [selectedPayer, setSelectedPayer] = useState('');
   const [selectedRange, setSelectedRange] = useState('');
   const [adId, setAdId] = useState('');
-  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [groupBy, setGroupBy] = useState<GroupBy>('user');
 
-  // Fetch users who have terminal_payer_view permission
   const { data: payerUsers = [] } = useQuery({
     queryKey: ['payer-users'],
     queryFn: async () => {
@@ -50,21 +53,15 @@ export function PayerAssignmentManager() {
         .eq('permission', 'terminal_payer_view');
       const payerRoleIds = [...new Set((permissions || []).map((p: any) => p.role_id))];
       const { data: superAdminRoles } = await supabase
-        .from('p2p_terminal_roles')
-        .select('id')
-        .lt('hierarchy_level', 0);
+        .from('p2p_terminal_roles').select('id').lt('hierarchy_level', 0);
       const allRoleIds = [...new Set([...payerRoleIds, ...(superAdminRoles || []).map((r: any) => r.id)])];
       if (allRoleIds.length === 0) return [];
       const { data: userRoles } = await supabase
-        .from('p2p_terminal_user_roles')
-        .select('user_id')
-        .in('role_id', allRoleIds);
+        .from('p2p_terminal_user_roles').select('user_id').in('role_id', allRoleIds);
       if (!userRoles || userRoles.length === 0) return [];
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
       const { data: users } = await supabase
-        .from('users')
-        .select('id, username, first_name, last_name')
-        .in('id', userIds);
+        .from('users').select('id, username, first_name, last_name').in('id', userIds);
       return users || [];
     },
   });
@@ -81,27 +78,46 @@ export function PayerAssignmentManager() {
     },
   });
 
-  // Group assignments by user
   const groupedAssignments = useMemo(() => {
-    const groups = new Map<string, { userName: string; assignments: any[] }>();
-    for (const a of assignments) {
-      const userId = a.payer_user_id || a.user?.id || 'unknown';
-      const userName = getUserName(a.user);
-      if (!groups.has(userId)) {
-        groups.set(userId, { userName, assignments: [] });
-      }
-      groups.get(userId)!.assignments.push(a);
-    }
-    return Array.from(groups.entries()).sort((a, b) => a[1].userName.localeCompare(b[1].userName));
-  }, [assignments]);
+    const groups = new Map<string, { label: string; subLabel?: string; assignments: any[] }>();
 
-  const toggleUser = (userId: string) => {
-    setExpandedUsers(prev => {
+    if (groupBy === 'user') {
+      for (const a of assignments) {
+        const userId = a.payer_user_id || a.user?.id || 'unknown';
+        const userName = getUserName(a.user);
+        if (!groups.has(userId)) groups.set(userId, { label: userName, assignments: [] });
+        groups.get(userId)!.assignments.push(a);
+      }
+    } else {
+      for (const a of assignments) {
+        if (a.assignment_type === 'size_range' && a.size_range) {
+          const key = a.size_range_id || a.size_range?.id || 'unknown';
+          const label = `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString()}–${(a.size_range.max_amount ?? 0).toLocaleString()})`;
+          if (!groups.has(key)) groups.set(key, { label, assignments: [] });
+          groups.get(key)!.assignments.push(a);
+        } else {
+          const key = `ad_${a.ad_id || 'unknown'}`;
+          const label = `Ad ID: ${a.ad_id || '—'}`;
+          if (!groups.has(key)) groups.set(key, { label, assignments: [] });
+          groups.get(key)!.assignments.push(a);
+        }
+      }
+    }
+
+    return Array.from(groups.entries()).sort((a, b) => a[1].label.localeCompare(b[1].label));
+  }, [assignments, groupBy]);
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => {
       const next = new Set(prev);
-      if (next.has(userId)) next.delete(userId);
-      else next.add(userId);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
+  };
+
+  const handleGroupByChange = (val: string) => {
+    setGroupBy(val as GroupBy);
+    setExpandedGroups(new Set());
   };
 
   const handleCreate = async () => {
@@ -115,9 +131,7 @@ export function PayerAssignmentManager() {
       ad_id: formType === 'ad_id' ? adId.trim() : undefined,
     });
     setDialogOpen(false);
-    setSelectedPayer('');
-    setSelectedRange('');
-    setAdId('');
+    setSelectedPayer(''); setSelectedRange(''); setAdId('');
   };
 
   return (
@@ -134,9 +148,7 @@ export function PayerAssignmentManager() {
             </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create Payer Assignment</DialogTitle>
-            </DialogHeader>
+            <DialogHeader><DialogTitle>Create Payer Assignment</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
                 <Label className="text-xs">Payer</Label>
@@ -148,7 +160,6 @@ export function PayerAssignmentManager() {
                     ))}
                   </SelectContent>
                 </Select>
-                {payerUsers.length === 0 && <p className="text-[10px] text-amber-500">No users have access to the Payer tab.</p>}
               </div>
               <div className="space-y-2">
                 <Label className="text-xs">Assignment Type</Label>
@@ -186,6 +197,18 @@ export function PayerAssignmentManager() {
         </Dialog>
       </div>
 
+      {/* Group by toggle */}
+      <Tabs value={groupBy} onValueChange={handleGroupByChange} className="w-full">
+        <TabsList className="h-8 w-fit">
+          <TabsTrigger value="user" className="text-[10px] h-6 gap-1 px-2.5">
+            <User className="h-3 w-3" /> By User
+          </TabsTrigger>
+          <TabsTrigger value="size_range" className="text-[10px] h-6 gap-1 px-2.5">
+            <Layers className="h-3 w-3" /> By Size Range
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       <Card className="bg-card border-border">
         <CardContent className="p-0">
           {isLoading ? (
@@ -195,24 +218,23 @@ export function PayerAssignmentManager() {
           ) : groupedAssignments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <p className="text-sm text-muted-foreground">No assignments configured</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-1">Add assignments to route orders to payers</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {groupedAssignments.map(([userId, group]) => {
-                const isOpen = expandedUsers.has(userId);
+              {groupedAssignments.map(([key, group]) => {
+                const isOpen = expandedGroups.has(key);
                 const activeCount = group.assignments.filter((a: any) => a.is_active).length;
                 return (
-                  <Collapsible key={userId} open={isOpen} onOpenChange={() => toggleUser(userId)}>
+                  <Collapsible key={key} open={isOpen} onOpenChange={() => toggleGroup(key)}>
                     <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2">
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                        <User className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-medium text-foreground">{group.userName}</span>
+                        {groupBy === 'user' ? <User className="h-3.5 w-3.5 text-muted-foreground" /> : <Layers className="h-3.5 w-3.5 text-muted-foreground" />}
+                        <span className="text-xs font-medium text-foreground">{group.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
-                          {group.assignments.length} assignment{group.assignments.length !== 1 ? 's' : ''}
+                          {group.assignments.length}
                         </Badge>
                         <Badge variant={activeCount > 0 ? 'default' : 'destructive'} className="text-[9px] px-1.5 py-0">
                           {activeCount} active
@@ -223,8 +245,9 @@ export function PayerAssignmentManager() {
                       <Table>
                         <TableHeader>
                           <TableRow className="border-border hover:bg-transparent">
+                            {groupBy === 'size_range' && <TableHead className="text-[10px] text-muted-foreground font-medium pl-10">Payer</TableHead>}
                             <TableHead className="text-[10px] text-muted-foreground font-medium pl-10">Type</TableHead>
-                            <TableHead className="text-[10px] text-muted-foreground font-medium">Assignment</TableHead>
+                            {groupBy === 'user' && <TableHead className="text-[10px] text-muted-foreground font-medium">Assignment</TableHead>}
                             <TableHead className="text-[10px] text-muted-foreground font-medium">Active</TableHead>
                             <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Actions</TableHead>
                           </TableRow>
@@ -232,18 +255,25 @@ export function PayerAssignmentManager() {
                         <TableBody>
                           {group.assignments.map((a: any) => (
                             <TableRow key={a.id} className="border-border">
+                              {groupBy === 'size_range' && (
+                                <TableCell className="py-2 pl-10">
+                                  <span className="text-xs text-foreground font-medium">{getUserName(a.user)}</span>
+                                </TableCell>
+                              )}
                               <TableCell className="py-2 pl-10">
                                 <Badge variant="outline" className="text-[9px]">
                                   {a.assignment_type === 'size_range' ? 'Size Range' : 'Ad ID'}
                                 </Badge>
                               </TableCell>
-                              <TableCell className="py-2">
-                                <span className="text-xs text-muted-foreground">
-                                  {a.assignment_type === 'size_range' && a.size_range
-                                    ? `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString()}–${(a.size_range.max_amount ?? 0).toLocaleString()})`
-                                    : a.ad_id || '—'}
-                                </span>
-                              </TableCell>
+                              {groupBy === 'user' && (
+                                <TableCell className="py-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    {a.assignment_type === 'size_range' && a.size_range
+                                      ? `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString()}–${(a.size_range.max_amount ?? 0).toLocaleString()})`
+                                      : a.ad_id || '—'}
+                                  </span>
+                                </TableCell>
+                              )}
                               <TableCell className="py-2">
                                 <Switch checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} />
                               </TableCell>

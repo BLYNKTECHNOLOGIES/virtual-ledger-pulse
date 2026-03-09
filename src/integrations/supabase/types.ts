@@ -11435,15 +11435,10 @@ export type Database = {
       }
     }
     Functions: {
-      admin_reset_user_password:
-        | {
-            Args: { p_new_password: string; p_user_id: string }
-            Returns: boolean
-          }
-        | {
-            Args: { new_password: string; user_email: string }
-            Returns: boolean
-          }
+      admin_reset_user_password: {
+        Args: { p_new_password: string; p_user_id: string }
+        Returns: boolean
+      }
       approve_product_conversion: {
         Args: { p_approved_by: string; p_conversion_id: string }
         Returns: Json
@@ -11922,19 +11917,12 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
-      get_user_permissions:
-        | {
-            Args: { user_uuid: string }
-            Returns: {
-              permission: Database["public"]["Enums"]["app_permission"]
-            }[]
-          }
-        | {
-            Args: { username: string }
-            Returns: {
-              permission: Database["public"]["Enums"]["app_permission"]
-            }[]
-          }
+      get_user_permissions: {
+        Args: { user_uuid: string }
+        Returns: {
+          permission: Database["public"]["Enums"]["app_permission"]
+        }[]
+      }
       get_user_role_functions: {
         Args: { p_user_id: string }
         Returns: {
@@ -12073,126 +12061,46 @@ export type Database = {
         Args: { wallet_id_param: string }
         Returns: undefined
       }
-      reconcile_purchase_order_edit:
-        | {
-            Args: {
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_new_bank_account_id: string
-              p_new_net_payable: number
-              p_new_quantity: number
-              p_new_total_amount: number
-              p_new_wallet_id: string
-              p_old_bank_account_id: string
-              p_old_net_payable: number
-              p_old_quantity: number
-              p_old_total_amount: number
-              p_old_wallet_id: string
-              p_order_date: string
-              p_order_id: string
-              p_order_number: string
-              p_supplier_name: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_new_bank_account_id?: string
-              p_new_net_payable?: number
-              p_new_quantity?: number
-              p_new_wallet_id?: string
-              p_old_bank_account_id?: string
-              p_old_net_payable?: number
-              p_old_quantity?: number
-              p_old_wallet_id?: string
-              p_order_date: string
-              p_order_id: string
-              p_order_number: string
-              p_payment_splits?: Json
-              p_product_code?: string
-              p_supplier_name: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_new_bank_account_id: string
-              p_new_net_payable: number
-              p_new_quantity: number
-              p_new_wallet_id: string
-              p_old_bank_account_id: string
-              p_old_net_payable: number
-              p_old_quantity: number
-              p_old_wallet_id: string
-              p_order_date: string
-              p_order_id: string
-              p_order_number: string
-              p_product_code?: string
-              p_supplier_name: string
-            }
-            Returns: Json
-          }
-      reconcile_sales_order_edit:
-        | {
-            Args: {
-              p_client_name: string
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_new_quantity: number
-              p_new_total_amount: number
-              p_new_wallet_id: string
-              p_old_quantity: number
-              p_old_total_amount: number
-              p_old_wallet_id: string
-              p_order_date: string
-              p_order_id: string
-              p_order_number: string
-              p_payment_method_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_client_name: string
-              p_fee_percentage: number
-              p_is_off_market: boolean
-              p_new_quantity: number
-              p_new_total_amount: number
-              p_new_wallet_id: string
-              p_old_quantity: number
-              p_old_total_amount: number
-              p_old_wallet_id: string
-              p_order_date: string
-              p_order_id: string
-              p_order_number: string
-              p_payment_method_id: string
-              p_product_code: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_client_name: string
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_new_quantity: number
-              p_new_total_amount: number
-              p_new_wallet_id: string
-              p_old_quantity: number
-              p_old_total_amount: number
-              p_old_wallet_id: string
-              p_order_date: string
-              p_order_id: string
-              p_order_number: string
-              p_payment_method_id: string
-              p_product_code?: string
-            }
-            Returns: Json
-          }
+      reconcile_purchase_order_edit: {
+        Args: {
+          p_fee_percentage?: number
+          p_is_off_market?: boolean
+          p_new_bank_account_id?: string
+          p_new_net_payable?: number
+          p_new_quantity?: number
+          p_new_wallet_id?: string
+          p_old_bank_account_id?: string
+          p_old_net_payable?: number
+          p_old_quantity?: number
+          p_old_wallet_id?: string
+          p_order_date: string
+          p_order_id: string
+          p_order_number: string
+          p_payment_splits?: Json
+          p_product_code?: string
+          p_supplier_name: string
+        }
+        Returns: Json
+      }
+      reconcile_sales_order_edit: {
+        Args: {
+          p_client_name: string
+          p_fee_percentage: number
+          p_is_off_market: boolean
+          p_new_quantity: number
+          p_new_total_amount: number
+          p_new_wallet_id: string
+          p_old_quantity: number
+          p_old_total_amount: number
+          p_old_wallet_id: string
+          p_order_date: string
+          p_order_id: string
+          p_order_number: string
+          p_payment_method_id: string
+          p_product_code: string
+        }
+        Returns: Json
+      }
       register_user_request: {
         Args: {
           p_email: string
@@ -12224,12 +12132,10 @@ export type Database = {
         Args: { p_role_id: string; p_user_id: string }
         Returns: undefined
       }
-      reverse_payment_gateway_settlement:
-        | { Args: { p_settlement_id: string }; Returns: Json }
-        | {
-            Args: { p_reversed_by?: string; p_settlement_id: string }
-            Returns: Json
-          }
+      reverse_payment_gateway_settlement: {
+        Args: { p_reversed_by?: string; p_settlement_id: string }
+        Returns: Json
+      }
       revoke_terminal_biometric_session: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -12422,21 +12328,13 @@ export type Database = {
         Args: { _function_key: string; _user_id: string }
         Returns: boolean
       }
-      user_has_permission:
-        | {
-            Args: {
-              check_permission: Database["public"]["Enums"]["app_permission"]
-              user_uuid: string
-            }
-            Returns: boolean
-          }
-        | {
-            Args: {
-              check_permission: Database["public"]["Enums"]["app_permission"]
-              username: string
-            }
-            Returns: boolean
-          }
+      user_has_permission: {
+        Args: {
+          check_permission: Database["public"]["Enums"]["app_permission"]
+          user_uuid: string
+        }
+        Returns: boolean
+      }
       validate_role_purchase_functions: {
         Args: { p_role_id: string }
         Returns: boolean

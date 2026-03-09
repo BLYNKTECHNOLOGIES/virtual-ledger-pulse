@@ -523,7 +523,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               />
               {binanceNetworkFee > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {item.amount} + {binanceNetworkFee} network fee = {prefillQuantity} {item.asset}
+                  Qty: {item.amount} {item.asset} | Network fee: {binanceNetworkFee} {item.asset} (auto-debited separately)
                 </p>
               )}
             </div>

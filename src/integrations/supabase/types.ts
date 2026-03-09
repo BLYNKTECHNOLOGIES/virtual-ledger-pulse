@@ -11998,6 +11998,27 @@ export type Database = {
             Args: {
               p_fee_percentage?: number
               p_is_off_market?: boolean
+              p_new_bank_account_id?: string
+              p_new_net_payable?: number
+              p_new_quantity?: number
+              p_new_wallet_id?: string
+              p_old_bank_account_id?: string
+              p_old_net_payable?: number
+              p_old_quantity?: number
+              p_old_wallet_id?: string
+              p_order_date: string
+              p_order_id: string
+              p_order_number: string
+              p_payment_splits?: Json
+              p_product_code?: string
+              p_supplier_name: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
               p_new_bank_account_id: string
               p_new_net_payable: number
               p_new_quantity: number

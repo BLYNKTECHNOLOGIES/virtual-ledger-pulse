@@ -98,7 +98,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
         {
           bank_account_id: formData.bank_account_id,
           amount,
-          transaction_type: isCredit ? "DEPOSIT" : "WITHDRAWAL",
+          transaction_type: isCredit ? "INCOME" : "EXPENSE",
           transaction_date: transactionDate,
           description: `Manual Balance Adjustment: ${formData.reason}`,
           reference_number: refNumber,

@@ -100,10 +100,34 @@ export function DirectoryTab() {
           bank_accounts:bank_account_id(account_name, bank_name, id, account_number),
           created_by_user:users!created_by(username, first_name, last_name)
         `)
-        .eq('status', 'COMPLETED')  // Only show completed purchase orders
+        .eq('status', 'COMPLETED')
         .order('order_date', { ascending: false });
 
       if (purchaseError) throw purchaseError;
+
+      // Fetch split payments for purchase orders
+      const purchaseIds = (purchaseData || []).map(p => p.id);
+      let splitPaymentsMap: Record<string, Array<{ amount: number; bank_account_id: string; bank_accounts: any }>> = {};
+      
+      if (purchaseIds.length > 0) {
+        const { data: splitData } = await supabase
+          .from('purchase_order_payment_splits')
+          .select(`
+            purchase_order_id,
+            amount,
+            bank_account_id,
+            bank_accounts:bank_account_id(account_name, bank_name, id, account_number)
+          `)
+          .in('purchase_order_id', purchaseIds);
+
+        if (splitData) {
+          for (const split of splitData) {
+            const poId = (split as any).purchase_order_id;
+            if (!splitPaymentsMap[poId]) splitPaymentsMap[poId] = [];
+            splitPaymentsMap[poId].push(split as any);
+          }
+        }
+      }
 
       // Combine and format all transactions
       const combinedTransactions = [
@@ -138,22 +162,49 @@ export function DirectoryTab() {
             ? ((s as any).created_by_user.first_name || (s as any).created_by_user.username)
             : null
         })),
-        ...(purchaseData || []).map(p => ({
-          ...p,
-          source: 'PURCHASE',
-          display_amount: p.total_amount,
-          display_date: p.order_date,
-          display_type: 'PURCHASE_ORDER',
-          display_description: `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`,
-          display_reference: p.order_number,
-          display_account: p.bank_accounts?.account_name && p.bank_accounts?.bank_name ? 
-            `${p.bank_accounts.account_name} - ${p.bank_accounts.bank_name}` : 
-            'Bank Account Not Specified',
-          bank_account_id: p.bank_accounts?.id,
-          display_created_by: (p as any).created_by_user 
+        // Purchase orders: if split payments exist, create one entry per split; otherwise single entry
+        ...(purchaseData || []).flatMap(p => {
+          const splits = splitPaymentsMap[p.id];
+          const createdBy = (p as any).created_by_user 
             ? ((p as any).created_by_user.first_name || (p as any).created_by_user.username)
-            : null
-        }))
+            : null;
+          const baseDescription = `Stock Purchase - ${p.supplier_name} - Order #${p.order_number}${p.description ? ': ' + p.description : ''}`;
+
+          if (splits && splits.length > 1) {
+            // Split payment: one entry per bank
+            return splits.map((split, idx) => ({
+              ...p,
+              id: `${p.id}-split-${idx}`,
+              source: 'PURCHASE',
+              display_amount: split.amount,
+              display_date: p.order_date,
+              display_type: 'PURCHASE_ORDER',
+              display_description: baseDescription,
+              display_reference: p.order_number,
+              display_account: split.bank_accounts?.account_name && split.bank_accounts?.bank_name
+                ? `${split.bank_accounts.account_name} - ${split.bank_accounts.bank_name}`
+                : 'Bank Account Not Specified',
+              bank_account_id: split.bank_accounts?.id || split.bank_account_id,
+              display_created_by: createdBy
+            }));
+          }
+
+          // Single payment (no splits or single split)
+          return [{
+            ...p,
+            source: 'PURCHASE',
+            display_amount: p.total_amount,
+            display_date: p.order_date,
+            display_type: 'PURCHASE_ORDER',
+            display_description: baseDescription,
+            display_reference: p.order_number,
+            display_account: p.bank_accounts?.account_name && p.bank_accounts?.bank_name ? 
+              `${p.bank_accounts.account_name} - ${p.bank_accounts.bank_name}` : 
+              'Bank Account Not Specified',
+            bank_account_id: p.bank_accounts?.id,
+            display_created_by: createdBy
+          }];
+        })
       ];
 
       // Sort by exact time (created_at) with fallback to date

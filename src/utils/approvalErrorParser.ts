@@ -49,6 +49,14 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
   const msg: string = extractErrorMessage(error);
   const lowerMsg = msg.toLowerCase();
 
+  // ── Insufficient balance (specific bank/wallet) ──
+  if (lowerMsg.includes('insufficient balance in ')) {
+    return {
+      title: 'Insufficient Bank Balance',
+      description: msg,
+    };
+  }
+
   // ── Balance / Negative checks ──
   if (lowerMsg.includes('cannot be negative') || lowerMsg.includes('it cannot be negative')) {
     return {

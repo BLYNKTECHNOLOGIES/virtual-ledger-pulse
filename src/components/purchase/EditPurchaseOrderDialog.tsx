@@ -205,13 +205,20 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         // Get product code for asset_code
         const productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
 
+        // Build split payments JSON if using multiple payments
+        const splitPaymentsJson = isMultiplePayments && paymentSplits.length > 0
+          ? paymentSplits
+              .filter(s => s.bank_account_id && parseFloat(s.amount) > 0)
+              .map(s => ({ bank_account_id: s.bank_account_id, amount: parseFloat(s.amount) }))
+          : null;
+
         const { data: reconcileResult, error: reconcileError } = await supabase.rpc('reconcile_purchase_order_edit', {
           p_order_id: order.id,
           p_order_number: data.order_number,
           p_order_date: data.order_date,
           p_supplier_name: data.supplier_name,
           p_old_bank_account_id: order.bank_account_id || null,
-          p_new_bank_account_id: selectedBankId,
+          p_new_bank_account_id: isMultiplePayments ? null : selectedBankId,
           p_old_net_payable: oldNetPayable,
           p_new_net_payable: netPayableAmount,
           p_old_wallet_id: oldWalletId,
@@ -221,6 +228,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           p_is_off_market: isOffMarket,
           p_fee_percentage: feePercentage,
           p_product_code: productCode,
+          p_payment_splits: splitPaymentsJson,
         });
 
         if (reconcileError) {

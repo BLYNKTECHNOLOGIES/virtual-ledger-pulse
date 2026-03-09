@@ -224,6 +224,7 @@ export function OperatorAssignmentManager() {
               {groupedAssignments.map(([key, group]) => {
                 const isOpen = expandedGroups.has(key);
                 const activeCount = group.assignments.filter((a: any) => a.is_active).length;
+                const allActive = activeCount === group.assignments.length;
                 return (
                   <Collapsible key={key} open={isOpen} onOpenChange={() => toggleGroup(key)}>
                     <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors">

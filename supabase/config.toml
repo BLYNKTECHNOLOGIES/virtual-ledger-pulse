@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.auto-price-engine]
 verify_jwt = false
+
+[functions.erp-balance-snapshot]
+verify_jwt = false

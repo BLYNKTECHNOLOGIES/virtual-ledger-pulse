@@ -1,6 +1,7 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Bell, LogOut, Shield } from 'lucide-react';
+import { LogOut, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TerminalNotificationBell } from './TerminalNotificationBell';
 import { Separator } from '@/components/ui/separator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useAuth } from '@/hooks/useAuth';

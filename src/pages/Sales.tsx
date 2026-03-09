@@ -710,10 +710,10 @@ export default function Sales() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="pending">
-                  Pending ({pendingOrders.length})
+                  Pending ({orderCounts?.pending ?? pendingOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed">
-                  Completed ({completedOrders.length})
+                  Completed ({orderCounts?.completed ?? completedOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="terminal-sync">
                   Terminal Sync

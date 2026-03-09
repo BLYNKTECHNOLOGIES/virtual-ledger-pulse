@@ -11855,6 +11855,84 @@ export type Database = {
         }
         Returns: string
       }
+      debug_client_usage_drift: {
+        Args: never
+        Returns: {
+          calculated_usage: number
+          client_id: string
+          client_name: string
+          drift: number
+          monthly_limit: number
+          tracked_usage: number
+        }[]
+      }
+      debug_duplicate_bank_transactions: {
+        Args: never
+        Returns: {
+          bank_account_id: string
+          category: string
+          duplicate_count: number
+          earliest: string
+          latest: string
+          per_entry_amount: number
+          reference_number: string
+          total_amount: number
+        }[]
+      }
+      debug_erp_health_check: {
+        Args: never
+        Returns: {
+          check_name: string
+          count: number
+          details: string
+          status: string
+        }[]
+      }
+      debug_full_reconciliation: {
+        Args: never
+        Returns: {
+          asset_code: string
+          calculated_balance: number
+          drift: number
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          tracked_balance: number
+        }[]
+      }
+      debug_orphaned_bank_transactions: {
+        Args: never
+        Returns: {
+          amount: number
+          bank_account_id: string
+          category: string
+          created_at: string
+          id: string
+          reference_number: string
+          transaction_type: string
+        }[]
+      }
+      debug_payment_method_drift: {
+        Args: never
+        Returns: {
+          calculated_usage: number
+          drift: number
+          pm_id: string
+          pm_name: string
+          tracked_usage: number
+        }[]
+      }
+      debug_trace_order: {
+        Args: { p_order_number: string }
+        Returns: {
+          amount: number
+          created_at: string
+          details: Json
+          layer: string
+          record_id: string
+          record_type: string
+        }[]
+      }
       delete_all_user_webauthn_credentials: {
         Args: { p_user_id: string }
         Returns: undefined

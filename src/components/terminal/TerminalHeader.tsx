@@ -44,9 +44,7 @@ export function TerminalHeader() {
       </div>
 
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          <Bell className="h-3.5 w-3.5" />
-        </Button>
+        <TerminalNotificationBell />
 
         {!isLoading && email && (
           <DropdownMenu>

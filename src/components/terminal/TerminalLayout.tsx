@@ -43,7 +43,8 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
       <TerminalAuthProvider>
         <TerminalAccessGate>
           <BiometricAuthGate>
-            <SidebarProvider>
+           <TerminalPresenceAndAlerts />
+           <SidebarProvider>
               <div className="flex w-full min-h-screen bg-background">
                 <div className="hidden md:block">
                   <TerminalSidebar />

@@ -52,9 +52,39 @@ export default function Sales() {
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("pending");
 
-  // Fetch sales orders from database
+  // Fetch accurate counts for tab badges (not limited by default 1000 row cap)
+  const { data: orderCounts } = useQuery({
+    queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
+    queryFn: async () => {
+      const buildBaseFilter = (q: any) => {
+        if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
+        if (filterPaymentStatus) q = q.eq('payment_status', filterPaymentStatus);
+        if (filterDateFrom) q = q.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
+        if (filterDateTo) q = q.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
+        return q;
+      };
+
+      const [pendingRes, completedRes] = await Promise.all([
+        buildBaseFilter(
+          supabase.from('sales_orders').select('id', { count: 'exact', head: true })
+            .in('payment_status', ['PENDING', 'USER_PAYING'])
+        ),
+        buildBaseFilter(
+          supabase.from('sales_orders').select('id', { count: 'exact', head: true })
+            .in('payment_status', ['COMPLETED', 'PAYMENT_DONE'])
+        ),
+      ]);
+
+      return {
+        pending: pendingRes.count ?? 0,
+        completed: completedRes.count ?? 0,
+      };
+    },
+  });
+
+  // Fetch sales orders from database — scoped to active tab to avoid 1000 row cap
   const { data: salesOrders, isLoading } = useQuery({
-    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
+    queryKey: ['sales_orders', activeTab, searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
     queryFn: async () => {
       let query = supabase
         .from('sales_orders')
@@ -64,6 +94,13 @@ export default function Sales() {
           wallet:wallets!wallet_id(wallet_name)
         `)
         .order('created_at', { ascending: false });
+
+      // Scope query to current tab's statuses to stay within limits
+      if (activeTab === 'pending') {
+        query = query.in('payment_status', ['PENDING', 'USER_PAYING']);
+      } else if (activeTab === 'completed') {
+        query = query.in('payment_status', ['COMPLETED', 'PAYMENT_DONE']);
+      }
 
       if (searchTerm) {
         query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
@@ -81,19 +118,18 @@ export default function Sales() {
         query = query.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
       }
 
+      // Fetch up to 5000 rows for the active tab
+      query = query.limit(5000);
+
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },
   });
 
-  // Filter orders based on active tab
-  const pendingOrders = salesOrders?.filter(order => 
-    order.payment_status === 'PENDING' || order.payment_status === 'USER_PAYING'
-  ) || [];
-  const completedOrders = salesOrders?.filter(order => 
-    order.payment_status === 'COMPLETED' || order.payment_status === 'PAYMENT_DONE'
-  ) || [];
+  // Orders are already filtered by tab via the query — use them directly
+  const pendingOrders = activeTab === 'pending' ? (salesOrders || []) : [];
+  const completedOrders = activeTab === 'completed' ? (salesOrders || []) : [];
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -674,10 +710,10 @@ export default function Sales() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="pending">
-                  Pending ({pendingOrders.length})
+                  Pending ({orderCounts?.pending ?? pendingOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="completed">
-                  Completed ({completedOrders.length})
+                  Completed ({orderCounts?.completed ?? completedOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="terminal-sync">
                   Terminal Sync

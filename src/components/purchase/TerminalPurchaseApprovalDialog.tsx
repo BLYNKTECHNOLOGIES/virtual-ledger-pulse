@@ -293,10 +293,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         const commission = parseFloat(od.commission) || 0;
         const netQty = grossQty - commission;
 
+        // Convert settlement date to IST date to avoid UTC date truncation
+        const istOrderDate = new Date(settlementDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const rpcParams = {
           p_order_number: od.order_number || `TRM-${Date.now()}`,
           p_supplier_name: syncRecord.counterparty_name,
-          p_order_date: settlementDate,
+          p_order_date: istOrderDate,
           p_total_amount: totalAmount,
           p_product_id: matchedProduct?.id,
           p_quantity: netQty,
@@ -320,10 +322,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         const commission = parseFloat(od.commission) || 0;
         const netQty = grossQty - commission;
 
+        // Convert settlement date to IST date to avoid UTC date truncation
+        const istOrderDate2 = new Date(settlementDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const rpcParams = {
           p_order_number: od.order_number || `TRM-${Date.now()}`,
           p_supplier_name: syncRecord.counterparty_name,
-          p_order_date: settlementDate,
+          p_order_date: istOrderDate2,
           p_total_amount: totalAmount,
           p_product_id: matchedProduct?.id || null,
           p_quantity: netQty,

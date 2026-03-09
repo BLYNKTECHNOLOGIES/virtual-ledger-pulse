@@ -323,9 +323,16 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       const isGateway = Boolean(selectedMethod?.payment_gateway);
 
       const orderNumber = `SO-TRM-${od.order_number?.slice(-8) || Date.now()}`;
+      // Convert Binance create_time to IST date string to avoid UTC date truncation
+      // (e.g., Mar 9 01:55 IST = Mar 8 20:25 UTC → stored as Mar 8 if using UTC)
       const orderDate = od.create_time
-        ? new Date(od.create_time).toISOString()
-        : new Date(settlementDate).toISOString();
+        ? (() => {
+            const d = new Date(od.create_time);
+            // Format in Asia/Kolkata timezone as YYYY-MM-DD
+            const istDate = d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // en-CA gives YYYY-MM-DD
+            return istDate;
+          })()
+        : new Date(settlementDate).toISOString().slice(0, 10);
 
       // Fetch CoinUSDT market rate at approval time
       const asset = (od.asset || 'USDT').toUpperCase();

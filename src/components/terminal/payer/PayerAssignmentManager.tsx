@@ -226,21 +226,30 @@ export function PayerAssignmentManager() {
                 const activeCount = group.assignments.filter((a: any) => a.is_active).length;
                 return (
                   <Collapsible key={key} open={isOpen} onOpenChange={() => toggleGroup(key)}>
-                    <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors">
+                      <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
                         {groupBy === 'user' ? <User className="h-3.5 w-3.5 text-muted-foreground" /> : <Layers className="h-3.5 w-3.5 text-muted-foreground" />}
                         <span className="text-xs font-medium text-foreground">{group.label}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0 ml-1">
                           {group.assignments.length}
                         </Badge>
                         <Badge variant={activeCount > 0 ? 'default' : 'destructive'} className="text-[9px] px-1.5 py-0">
                           {activeCount} active
                         </Badge>
+                      </CollapsibleTrigger>
+                      <div className="flex items-center gap-1.5 ml-2" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[9px] text-muted-foreground">{allActive ? 'All On' : 'All Off'}</span>
+                        <Switch
+                          checked={allActive}
+                          onCheckedChange={(checked) => {
+                            group.assignments.forEach((a: any) => {
+                              if (a.is_active !== checked) toggleAssignment.mutate({ id: a.id, is_active: checked });
+                            });
+                          }}
+                        />
                       </div>
-                    </CollapsibleTrigger>
+                    </div>
                     <CollapsibleContent>
                       <Table>
                         <TableHeader>

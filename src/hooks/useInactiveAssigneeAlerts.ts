@@ -6,13 +6,14 @@ const CHECK_INTERVAL_MS = 60_000; // Check every 60 seconds
 const OFFLINE_THRESHOLD_MS = 90_000; // 90s without heartbeat = offline
 
 /**
- * This hook runs for admins/supervisors. It checks if any user who has
+ * This hook runs for any logged-in terminal user. It checks if any user who has
  * an active (is_active=true) payer or operator assignment is offline,
- * and creates notifications for all superiors in the hierarchy tree.
+ * and creates notifications for all superiors in the hierarchy tree via
+ * SECURITY DEFINER RPCs (to bypass RLS for cross-user notifications).
  * When the user comes back online, it auto-resolves (deactivates) those notifications.
  */
 export function useInactiveAssigneeAlerts() {
-  const { userId, isTerminalAdmin } = useTerminalAuth();
+  const { userId } = useTerminalAuth();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const checkAndNotify = useCallback(async () => {
@@ -31,6 +32,15 @@ export function useInactiveAssigneeAlerts() {
           .eq('is_active', true),
       ]);
 
+      if (payerRes.error) {
+        console.error('[AlertCheck] Failed to fetch payer assignments:', payerRes.error.message);
+        return;
+      }
+      if (operatorRes.error) {
+        console.error('[AlertCheck] Failed to fetch operator assignments:', operatorRes.error.message);
+        return;
+      }
+
       const assignedUserIds = new Set<string>();
       for (const a of payerRes.data || []) assignedUserIds.add(a.payer_user_id);
       for (const a of (operatorRes.data || []) as any[]) assignedUserIds.add(a.operator_user_id);
@@ -38,10 +48,15 @@ export function useInactiveAssigneeAlerts() {
       if (assignedUserIds.size === 0) return;
 
       // 2. Get presence status for all assigned users
-      const { data: presenceData } = await supabase
+      const { data: presenceData, error: presenceError } = await supabase
         .from('terminal_user_presence' as any)
         .select('user_id, is_online, last_seen_at')
         .in('user_id', Array.from(assignedUserIds));
+
+      if (presenceError) {
+        console.error('[AlertCheck] Failed to fetch presence:', presenceError.message);
+        return;
+      }
 
       const presenceMap = new Map<string, { is_online: boolean; last_seen_at: string }>();
       for (const p of (presenceData || []) as any[]) {
@@ -56,7 +71,7 @@ export function useInactiveAssigneeAlerts() {
       for (const uid of assignedUserIds) {
         const presence = presenceMap.get(uid);
         if (!presence) {
-          // No presence record at all = never connected = offline
+          // No presence record = never connected = offline
           offlineUsers.add(uid);
         } else if (!presence.is_online || (now - new Date(presence.last_seen_at).getTime()) > OFFLINE_THRESHOLD_MS) {
           offlineUsers.add(uid);
@@ -65,12 +80,16 @@ export function useInactiveAssigneeAlerts() {
         }
       }
 
-      // 4. Get supervisor mappings to find who to notify
-      const { data: supervisorMappings } = await supabase
+      // 4. Get supervisor mappings to find who to notify (BFS ancestors)
+      const { data: supervisorMappings, error: supError } = await supabase
         .from('terminal_user_supervisor_mappings')
         .select('user_id, supervisor_id');
 
-      // Build reverse map: user -> all supervisors up the chain (BFS)
+      if (supError) {
+        console.error('[AlertCheck] Failed to fetch supervisor mappings:', supError.message);
+        return;
+      }
+
       const directSupervisors = new Map<string, Set<string>>();
       for (const m of supervisorMappings || []) {
         if (!directSupervisors.has(m.user_id)) directSupervisors.set(m.user_id, new Set());
@@ -108,14 +127,13 @@ export function useInactiveAssigneeAlerts() {
         userNameMap.set(u.id, name);
       }
 
-      // 6. For offline users with active assignments: create notifications for ancestors
+      // 6. For offline users: create notifications for ancestors via RPC
       for (const offlineUid of offlineUsers) {
         const ancestors = getAncestors(offlineUid);
         if (ancestors.size === 0) continue;
 
         const displayName = userNameMap.get(offlineUid) || offlineUid.slice(0, 8);
 
-        // Check what assignments they have
         const payerAssigned = (payerRes.data || []).some(a => a.payer_user_id === offlineUid);
         const operatorAssigned = ((operatorRes.data || []) as any[]).some(a => a.operator_user_id === offlineUid);
         const roles: string[] = [];
@@ -123,41 +141,30 @@ export function useInactiveAssigneeAlerts() {
         if (operatorAssigned) roles.push('Operator');
 
         for (const ancestorId of ancestors) {
-          // Check if we already have an active notification for this combo
-          const { data: existing } = await supabase
-            .from('terminal_notifications' as any)
-            .select('id')
-            .eq('user_id', ancestorId)
-            .eq('related_user_id', offlineUid)
-            .eq('notification_type', 'inactive_assignee')
-            .eq('is_active', true)
-            .limit(1);
-
-          if (existing && existing.length > 0) continue; // Already notified
-
-          await supabase.from('terminal_notifications' as any).insert({
-            user_id: ancestorId,
-            title: `${roles.join(' & ')} Inactive`,
-            message: `${displayName} has active ${roles.join('/')} assignments but is not online in the terminal.`,
-            notification_type: 'inactive_assignee',
-            related_user_id: offlineUid,
-            is_active: true,
-            is_read: false,
+          // Use SECURITY DEFINER RPC (handles dedup internally)
+          const { error: rpcErr } = await supabase.rpc('create_inactive_assignee_notification', {
+            p_user_id: ancestorId,
+            p_title: `${roles.join(' & ')} Inactive`,
+            p_message: `${displayName} has active ${roles.join('/')} assignments but is not online in the terminal.`,
+            p_related_user_id: offlineUid,
           });
+          if (rpcErr) {
+            console.error(`[AlertCheck] Failed to create notification for ancestor ${ancestorId}:`, rpcErr.message);
+          }
         }
       }
 
-      // 7. For users who came back online: deactivate their inactive notifications
+      // 7. For users who came back online: deactivate via RPC
       for (const onlineUid of onlineUsers) {
-        await supabase
-          .from('terminal_notifications' as any)
-          .update({ is_active: false, updated_at: new Date().toISOString() })
-          .eq('related_user_id', onlineUid)
-          .eq('notification_type', 'inactive_assignee')
-          .eq('is_active', true);
+        const { error: resolveErr } = await supabase.rpc('resolve_inactive_assignee_notifications', {
+          p_related_user_id: onlineUid,
+        });
+        if (resolveErr) {
+          console.error(`[AlertCheck] Failed to resolve notifications for ${onlineUid}:`, resolveErr.message);
+        }
       }
     } catch (err) {
-      console.error('Inactive assignee alert check error:', err);
+      console.error('[AlertCheck] Unexpected error:', err);
     }
   }, [userId]);
 

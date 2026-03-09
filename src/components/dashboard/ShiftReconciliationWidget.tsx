@@ -56,6 +56,8 @@ const POS_TOLERANCE = 2;      // ₹2
 
 export function ShiftReconciliationWidget() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canApprove = hasPermission('shift_reconciliation_approve');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

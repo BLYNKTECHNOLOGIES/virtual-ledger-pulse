@@ -83,16 +83,17 @@ export function useValidation() {
   };
 
   const handleDatabaseError = (error: any) => {
-    if (error.message?.includes('It cannot be negative check previous entries and balances again!')) {
+    const errMsg = error.message || '';
+    if (errMsg.includes('Insufficient balance in ')) {
       toast({
-        title: "Balance/Stock Error",
-        description: "It cannot be negative check previous entries and balances again!",
+        title: "Insufficient Bank Balance",
+        description: errMsg,
         variant: "destructive",
       });
-    } else if (error.message?.includes('cannot be negative')) {
+    } else if (errMsg.includes('It cannot be negative') || errMsg.includes('cannot be negative')) {
       toast({
-        title: "Validation Error",
-        description: error.message,
+        title: "Balance/Stock Error",
+        description: errMsg.includes('₹') ? errMsg : "Insufficient balance. Please check bank accounts and balances.",
         variant: "destructive",
       });
     } else if (error.message?.includes('check constraint')) {

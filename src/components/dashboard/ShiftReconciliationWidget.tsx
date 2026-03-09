@@ -655,24 +655,6 @@ export function ShiftReconciliationWidget() {
                   </CardContent>
                 </Card>
 
-                {/* Tolerances Info */}
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <h4 className="font-semibold text-sm mb-2">Tolerance Thresholds</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-blue-500" />
-                      <span>Banks: ±₹{BANK_TOLERANCE}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-amber-500" />
-                      <span>Stock (USDT): ±${STOCK_TOLERANCE}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-purple-500" />
-                      <span>POS Settlement: ±₹{POS_TOLERANCE}</span>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 

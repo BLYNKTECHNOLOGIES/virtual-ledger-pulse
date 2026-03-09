@@ -670,8 +670,8 @@ export function DirectoryTab() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`font-semibold text-lg ${getTransactionColor(transaction.display_type)}`}>
-                      {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' ? '-' : '+'}
+                    <div className={`font-semibold text-lg ${getTransactionColor(transaction.display_type, transaction)}`}>
+                      {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' || (transaction.display_type === 'ADJUSTMENT' && transaction.adjustment_direction === 'WITHDRAWAL') ? '-' : '+'}
                       ₹{parseFloat(transaction.display_amount.toString()).toLocaleString()}
                     </div>
                     <div className="text-xs text-gray-500">

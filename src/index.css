@@ -440,9 +440,43 @@ html {
     word-break: break-word !important;
   }
 
-  /* --- Flex rows that should stack on mobile --- */
-  .flex.items-center.gap-3 > .p-3 + div > h1 {
-    font-size: 1.25rem !important;
+  /* --- HRMS page headers: stack title + actions vertically on mobile --- */
+  .horilla-root .space-y-6 > .flex.items-center.justify-between,
+  .horilla-root .space-y-5 > .flex.items-center.justify-between,
+  .horilla-root .space-y-4 > .flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Action buttons row inside HRMS headers: wrap and stay full-width */
+  .horilla-root .space-y-6 > .flex.items-center.justify-between > .flex,
+  .horilla-root .space-y-5 > .flex.items-center.justify-between > .flex,
+  .horilla-root .space-y-4 > .flex.items-center.justify-between > .flex,
+  .horilla-root .space-y-6 > .flex.items-center.justify-between > button,
+  .horilla-root .space-y-5 > .flex.items-center.justify-between > button,
+  .horilla-root .space-y-4 > .flex.items-center.justify-between > button {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+
+  /* Legend / status indicators in HRMS: wrap instead of overflow */
+  .horilla-root .flex.items-center.gap-4 {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Ensure HRMS buttons don't shrink */
+  .horilla-root button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  /* HRMS card grids: single column on mobile */
+  .horilla-root .grid.grid-cols-2,
+  .horilla-root .grid.grid-cols-3,
+  .horilla-root .grid.grid-cols-4 {
+    grid-template-columns: 1fr !important;
   }
 
   /* --- Popover / dropdown positioning --- */

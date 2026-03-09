@@ -12182,6 +12182,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      mark_terminal_user_offline: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }
         Returns: undefined

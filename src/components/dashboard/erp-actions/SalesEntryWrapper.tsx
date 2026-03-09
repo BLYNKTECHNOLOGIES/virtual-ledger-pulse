@@ -74,13 +74,15 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
     }
   }, [matchedSellCommission]);
 
-  // For on-chain withdrawals, pre-fill quantity as amount + Binance network fee
-  // so that the fee is absorbed into the sales quantity (charged to counterparty)
+  // For on-chain withdrawals, extract the Binance network fee from raw_data.
+  // The fee is tracked as a separate WITHDRAWAL_FEE DEBIT (not absorbed into quantity)
+  // so the sales quantity matches the actual amount sent to the counterparty.
   const binanceNetworkFee =
     item.movement_type === 'withdrawal'
-      ? parseFloat(item.raw_data?.transactionFee ?? item.raw_data?.fee ?? 0) || 0
+      ? parseFloat(item.raw_data?.transactionFee ?? item.raw_data?.fee ?? item.raw_data?.networkFee ?? 0) || 0
       : 0;
-  const prefillQuantity = item.amount + binanceNetworkFee;
+  // Pre-fill quantity as the withdrawal amount only (fee tracked separately)
+  const prefillQuantity = item.amount;
 
   const [formData, setFormData] = useState({
     order_number: '',

@@ -170,7 +170,7 @@ export function ClientOnboardingApprovals() {
             buyer_approved_at: new Date().toISOString(),
             aadhar_front_url: approval.aadhar_front_url,
            aadhar_back_url: approval.aadhar_back_url,
-           state: approval.client_state || null
+           state: clientData.client_state || approval.client_state || null
           });
 
         if (clientError) throw clientError;

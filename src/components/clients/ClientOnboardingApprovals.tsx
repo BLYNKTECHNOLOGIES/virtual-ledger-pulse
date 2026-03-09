@@ -140,7 +140,7 @@ export function ClientOnboardingApprovals() {
             monthly_limit: parseFloat(clientData.proposed_monthly_limit),
             buying_purpose: clientData.purpose_of_buying,
             risk_appetite: clientData.risk_assessment,
-            state: approval.client_state || undefined // Only update if state provided
+            state: clientData.client_state || approval.client_state || undefined
           })
           .eq('id', existingClient.id);
 

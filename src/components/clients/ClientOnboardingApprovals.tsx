@@ -275,7 +275,8 @@ export function ClientOnboardingApprovals() {
       purpose_of_buying: approval.purpose_of_buying || '',
       proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
       risk_assessment: approval.risk_assessment || 'HIGH',
-      compliance_notes: approval.compliance_notes || ''
+      compliance_notes: approval.compliance_notes || '',
+      client_state: approval.client_state || ''
     });
     setDialogOpen(true);
   };

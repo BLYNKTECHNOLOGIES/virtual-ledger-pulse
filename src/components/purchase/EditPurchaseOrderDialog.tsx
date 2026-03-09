@@ -419,8 +419,18 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     }
 
     if (isMultiplePayments) {
-      if (!splitAllocation.isValid) {
-        toast({ title: "Error", description: "Split payment allocation must match net payable amount", variant: "destructive" });
+      const missingBank = paymentSplits.some(s => !s.bank_account_id);
+      const missingAmount = paymentSplits.some(s => !parseFloat(s.amount));
+      if (missingBank) {
+        toast({ title: "Error", description: "Please select a bank account for all payment splits", variant: "destructive" });
+        return;
+      }
+      if (missingAmount) {
+        toast({ title: "Error", description: "Please enter an amount for all payment splits", variant: "destructive" });
+        return;
+      }
+      if (Math.abs(splitAllocation.remaining) >= 0.01) {
+        toast({ title: "Error", description: `Split payment allocation must match net payable amount. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`, variant: "destructive" });
         return;
       }
       const bankIds = paymentSplits.map(s => s.bank_account_id);

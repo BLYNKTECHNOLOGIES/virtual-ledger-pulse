@@ -109,14 +109,15 @@ export function DirectoryTab() {
       const combinedTransactions = [
         ...(bankData || []).map(t => ({
           ...t,
-          source: 'BANK',
+          source: t.category === 'ADJUSTMENT' ? 'ADJUSTMENT' : 'BANK',
           display_amount: t.amount,
           display_date: t.transaction_date,
-          display_type: t.transaction_type,
+          display_type: t.category === 'ADJUSTMENT' ? 'ADJUSTMENT' : t.transaction_type,
           display_description: t.description || '',
           display_reference: t.reference_number || '',
           display_account: t.bank_accounts?.account_name + ' - ' + t.bank_accounts?.bank_name,
           bank_account_id: t.bank_accounts?.id,
+          adjustment_direction: t.category === 'ADJUSTMENT' ? t.transaction_type : null,
           display_created_by: (t as any).created_by_user 
             ? ((t as any).created_by_user.first_name || (t as any).created_by_user.username)
             : null

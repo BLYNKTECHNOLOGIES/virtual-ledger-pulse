@@ -773,6 +773,100 @@ export function ShiftReconciliationWidget() {
                 <Separator />
                 <h3 className="font-semibold">Comparison Details</h3>
                 {renderReport(detailRecord.comparison_result || [], false)}
+
+                {/* Approve / Reject actions for pending records */}
+                {detailRecord.status === "pending_review" && detailRecord.has_mismatches && (
+                  <div className="border rounded-lg p-4 bg-amber-50 space-y-3">
+                    <div className="flex items-center gap-2 text-amber-700">
+                      <AlertTriangle className="h-5 w-5" />
+                      <span className="font-semibold">Mismatches detected — Action required</span>
+                    </div>
+                    <Textarea
+                      placeholder="Add review notes (optional)..."
+                      value={reviewNotes}
+                      onChange={e => setReviewNotes(e.target.value)}
+                      className="bg-white"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from("shift_reconciliations")
+                              .update({
+                                status: "approved",
+                                reviewed_by: user?.email || user?.id || "unknown",
+                                reviewed_at: new Date().toISOString(),
+                                review_notes: reviewNotes || null,
+                              })
+                              .eq("id", detailRecord.id);
+                            if (error) throw error;
+                            toast({ title: "✅ Approved", description: "Shift reconciliation approved." });
+                            setReviewNotes("");
+                            setDetailRecord({ ...detailRecord, status: "approved", reviewed_by: user?.email || user?.id || "unknown", reviewed_at: new Date().toISOString(), review_notes: reviewNotes || null });
+                            queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                          }
+                        }}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase
+                              .from("shift_reconciliations")
+                              .update({
+                                status: "rejected",
+                                reviewed_by: user?.email || user?.id || "unknown",
+                                reviewed_at: new Date().toISOString(),
+                                review_notes: reviewNotes || null,
+                              })
+                              .eq("id", detailRecord.id);
+                            if (error) throw error;
+                            toast({ title: "❌ Rejected", description: "Shift reconciliation rejected." });
+                            setReviewNotes("");
+                            setDetailRecord({ ...detailRecord, status: "rejected", reviewed_by: user?.email || user?.id || "unknown", reviewed_at: new Date().toISOString(), review_notes: reviewNotes || null });
+                            queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
+                          } catch (err: any) {
+                            toast({ title: "Error", description: err.message, variant: "destructive" });
+                          }
+                        }}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" /> Reject
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show approved/rejected status confirmation */}
+                {detailRecord.status === "approved" && (
+                  <div className="border rounded-lg p-4 bg-green-50 flex items-center gap-3">
+                    <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    <div>
+                      <p className="font-semibold text-green-700">Approved</p>
+                      <p className="text-sm text-green-600">
+                        {detailRecord.reviewed_by && `By ${detailRecord.reviewed_by}`}
+                        {detailRecord.reviewed_at && ` on ${format(new Date(detailRecord.reviewed_at), "MMM dd, yyyy HH:mm")}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {detailRecord.status === "rejected" && (
+                  <div className="border rounded-lg p-4 bg-red-50 flex items-center gap-3">
+                    <XCircle className="h-6 w-6 text-red-600" />
+                    <div>
+                      <p className="font-semibold text-red-700">Rejected</p>
+                      <p className="text-sm text-red-600">
+                        {detailRecord.reviewed_by && `By ${detailRecord.reviewed_by}`}
+                        {detailRecord.reviewed_at && ` on ${format(new Date(detailRecord.reviewed_at), "MMM dd, yyyy HH:mm")}`}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </ScrollArea>

@@ -57,7 +57,7 @@ export default function Sales() {
     queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
     queryFn: async () => {
       const buildBaseFilter = (q: any) => {
-        if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
+        if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
         if (filterPaymentStatus) q = q.eq('payment_status', filterPaymentStatus);
         if (filterDateFrom) q = q.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
         if (filterDateTo) q = q.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));

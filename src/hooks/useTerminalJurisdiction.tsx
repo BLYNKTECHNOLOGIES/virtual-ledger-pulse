@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
@@ -21,11 +21,14 @@ interface EligibleOperator {
   isActive: boolean;
 }
 
+const ASSIGNMENT_POLL_INTERVAL = 10_000; // 10s
+
 export function useTerminalJurisdiction() {
   const { userId, isTerminalAdmin } = useTerminalAuth();
   const [visibleUserIds, setVisibleUserIds] = useState<Set<string>>(new Set());
   const [orderAssignments, setOrderAssignments] = useState<Map<string, OrderAssignment>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchVisibleUsers = useCallback(async () => {
     if (!userId) return;
@@ -65,9 +68,40 @@ export function useTerminalJurisdiction() {
     setIsLoading(false);
   }, [fetchVisibleUsers, fetchOrderAssignments]);
 
+  // Initial fetch
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  // Poll assignments every 10s so "My Orders" stays current
+  useEffect(() => {
+    pollRef.current = setInterval(() => {
+      fetchOrderAssignments();
+    }, ASSIGNMENT_POLL_INTERVAL);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchOrderAssignments]);
+
+  // Realtime subscription for instant updates when assignments change
+  useEffect(() => {
+    const channel = supabase
+      .channel('terminal-order-assignments-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'terminal_order_assignments' },
+        () => {
+          // Refetch all assignments on any change
+          fetchOrderAssignments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchOrderAssignments]);
 
   // Check if current user can view an order based on jurisdiction
   const canViewOrder = useCallback((orderNumber: string): boolean => {
@@ -81,9 +115,6 @@ export function useTerminalJurisdiction() {
   // Check if current user can assign an order
   const canAssignOrder = useCallback((orderNumber: string): boolean => {
     if (isTerminalAdmin) return true;
-
-    // Check if user has manage permission (handled by caller)
-    // Supervisors can assign orders within their jurisdiction
     return true;
   }, [isTerminalAdmin]);
 
@@ -181,7 +212,7 @@ export function useTerminalJurisdiction() {
       const operators: EligibleOperator[] = [];
       for (const [uid, role] of userRoleMap) {
         if (!visibleIds.has(uid)) continue;
-        if (uid === userId && !isTerminalAdmin) continue; // Don't assign to self unless admin
+        if (uid === userId && !isTerminalAdmin) continue;
         
         const user = usersMap.get(uid);
         if (!user) continue;

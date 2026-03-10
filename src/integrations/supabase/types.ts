@@ -11442,6 +11442,16 @@ export type Database = {
         Args: { p_assigned_by?: string; p_role_id: string; p_user_id: string }
         Returns: undefined
       }
+      auto_assign_order_by_scope: {
+        Args: {
+          p_adv_no?: string
+          p_asset?: string
+          p_order_number: string
+          p_total_price: number
+          p_trade_type: string
+        }
+        Returns: Json
+      }
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean

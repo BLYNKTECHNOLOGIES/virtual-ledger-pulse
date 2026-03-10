@@ -2497,6 +2497,42 @@ export type Database = {
           },
         ]
       }
+      hr_attendance_activity_archive: {
+        Row: {
+          activity_date: string
+          archived_at: string | null
+          clock_in: string | null
+          clock_in_note: string | null
+          clock_out: string | null
+          clock_out_note: string | null
+          created_at: string
+          employee_id: string
+          id: string
+        }
+        Insert: {
+          activity_date?: string
+          archived_at?: string | null
+          clock_in?: string | null
+          clock_in_note?: string | null
+          clock_out?: string | null
+          clock_out_note?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+        }
+        Update: {
+          activity_date?: string
+          archived_at?: string | null
+          clock_in?: string | null
+          clock_in_note?: string | null
+          clock_out?: string | null
+          clock_out_note?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       hr_attendance_daily: {
         Row: {
           attendance_date: string
@@ -2574,6 +2610,48 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          badge_id?: string
+          created_at?: string | null
+          device_name?: string | null
+          device_serial?: string | null
+          employee_id?: string | null
+          id?: string
+          punch_time?: string
+          punch_type?: string | null
+          raw_status?: number | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
+      hr_attendance_punches_archive: {
+        Row: {
+          archived_at: string | null
+          badge_id: string
+          created_at: string | null
+          device_name: string | null
+          device_serial: string | null
+          employee_id: string | null
+          id: string
+          punch_time: string
+          punch_type: string | null
+          raw_status: number | null
+          verified: boolean | null
+        }
+        Insert: {
+          archived_at?: string | null
+          badge_id: string
+          created_at?: string | null
+          device_name?: string | null
+          device_serial?: string | null
+          employee_id?: string | null
+          id?: string
+          punch_time: string
+          punch_type?: string | null
+          raw_status?: number | null
+          verified?: boolean | null
+        }
+        Update: {
+          archived_at?: string | null
           badge_id?: string
           created_at?: string | null
           device_name?: string | null

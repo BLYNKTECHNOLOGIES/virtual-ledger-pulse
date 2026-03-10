@@ -167,6 +167,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   }, [paymentSplits, netPayableAmount]);
 
   const addPaymentSplit = () => {
+    // Prevent adding rows if allocation already meets or exceeds net payable
+    if (splitAllocation.remaining <= 0) {
+      toast({ title: "Cannot add more", description: "Total allocation already meets or exceeds the net payable amount", variant: "destructive" });
+      return;
+    }
     setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
   };
 

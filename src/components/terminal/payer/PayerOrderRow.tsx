@@ -107,7 +107,6 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   };
 
   // Acknowledge: log as acknowledged so it moves to completed and disappears from pending
-  const [isAcknowledging, setIsAcknowledging] = useState(false);
   const handleAcknowledge = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsAcknowledging(true);

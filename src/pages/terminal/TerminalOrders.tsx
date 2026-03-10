@@ -264,7 +264,7 @@ export default function TerminalOrders() {
         return [];
       };
 
-      const maxPages = 10; // 500 rows in this derived window
+      const maxPages = 3; // Reduced from 10 – covers most active-window statuses
       const rows = 50;
       const all: any[] = [];
       const seen = new Set<string>();

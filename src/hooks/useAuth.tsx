@@ -124,11 +124,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Step 2: Normal auth failed — try Super Admin impersonation
       // (Super Admin can log into any user's account using their own password)
-      const { data: impersonationResult, error: impersonationError } = await supabase
-        .rpc('try_super_admin_impersonation', {
+      const { data: impersonationResult, error: impersonationError } = await rpcWithTimeout(
+        supabase.rpc('try_super_admin_impersonation', {
           target_username: inputIdentifier,
           input_password: password
-        });
+        })
+      );
 
       if (!impersonationError && Array.isArray(impersonationResult) && impersonationResult.length > 0) {
         const impData = impersonationResult[0] as ValidationUser;

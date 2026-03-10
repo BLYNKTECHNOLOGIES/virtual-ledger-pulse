@@ -101,20 +101,27 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     const name = displayName.trim().toLowerCase();
     if (!name) return;
 
-    // Find exact match — only among APPROVED or already-existing clients
-    // (PENDING clients are in approval queue, still valid to link but treated as new)
-    const exactMatch = allClients.find(
+    // Find ALL exact matches — only among non-deleted, non-rejected clients
+    const exactMatches = allClients.filter(
       c => !(c as any).is_deleted && c.buyer_approval_status !== 'REJECTED' && c.name.trim().toLowerCase() === name
     );
 
-    if (exactMatch) {
+    if (exactMatches.length === 1) {
+      // Single exact match — safe to auto-link
+      const exactMatch = exactMatches[0];
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      // Fallback: fill from client master ONLY if counterparty data didn't already populate
       const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
       if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
+    } else if (exactMatches.length > 1) {
+      // Multiple clients with same name — force operator to choose
+      console.warn(`[SalesApproval] Multiple clients found for "${displayName}" — requires manual selection`);
+      setLinkedClientId('');
+      setLinkedClientName('');
+      setClientAutoMatched(false);
+      setShowClientDropdown(true);
     }
     // Don't blank out contact/state when no client match — counterparty data may already be filled
   }, [open, displayName, allClients]);

@@ -59,6 +59,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAcknowledging, setIsAcknowledging] = useState(false);
 
   // Fetch alternate UPI request for this order
   const { data: altUpiRequest } = useAlternateUpiRequest(order.orderNumber);

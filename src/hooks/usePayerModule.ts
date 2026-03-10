@@ -249,17 +249,23 @@ export function usePayerOrders() {
     return myOrders;
   }, [activeOrdersData, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId]);
 
-  // Pending: not marked paid, not completed/cancelled/expired
-  // Binance listOrders status codes: 1=TRADING, 2=BUYER_PAYED, 3=PAID,
+  // Pending: orders that still need payer action
+  // Binance status codes: 1=TRADING, 2=BUYER_PAYED, 3=PAID/PAYING,
   // 4=COMPLETED, 5=CANCELLED, 6=APPEAL, 7=EXPIRED
+  //
+  // RULE: If an operator manually marked the order as paid (status 3 on Binance)
+  // but there's no payer log entry, the order should NOT appear in Pending.
+  // It should only appear in Pending if status is 1 (TRADING) or 2 (BUYER_PAYED).
+  // Status 6 (APPEAL) also stays visible for awareness.
+  // Orders marked paid through this payer module (in paidOrderNumbers) go to Completed tab.
   const pendingOrders = useMemo(() => {
-    // Only exclude truly finalized statuses: COMPLETED(4), CANCELLED(5), EXPIRED(7)
-    // Keep TRADING(1), BUYER_PAYED(2), PAID(3) as active for payer workflow
-    // Keep APPEAL(6) visible so payers are aware
-    const finalizedCodes = new Set(['4', '5', '7']);
+    // Statuses that should NOT appear in pending:
+    // 3 = PAID/PAYING (already paid by operator/automation/Binance — not pending for payer)
+    // 4 = COMPLETED, 5 = CANCELLED, 7 = EXPIRED (finalized)
+    const excludeFromPending = new Set(['3', '4', '5', '7']);
     const result = allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
-      .filter((o: any) => !finalizedCodes.has(String(o.orderStatus)));
+      .filter((o: any) => !excludeFromPending.has(String(o.orderStatus)));
 
     console.log('[PayerModule] Pending orders:', result.length, 'of', allMatchedOrders.length, 'matched');
     if (allMatchedOrders.length > 0 && result.length === 0) {
@@ -269,9 +275,12 @@ export function usePayerOrders() {
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 
-  // Completed: orders marked paid by this payer (from log)
+  // Completed: orders marked paid by this payer (from log) OR already in PAID/PAYING status (3)
+  // on Binance (marked by operator or automation outside this module)
   const completedOrders = useMemo(() => {
-    return allMatchedOrders.filter((o: any) => paidOrderNumbers.has(o.orderNumber));
+    return allMatchedOrders.filter((o: any) =>
+      paidOrderNumbers.has(o.orderNumber) || String(o.orderStatus) === '3'
+    );
   }, [allMatchedOrders, paidOrderNumbers]);
 
   return {

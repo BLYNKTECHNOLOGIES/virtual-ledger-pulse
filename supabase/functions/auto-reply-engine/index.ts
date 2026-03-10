@@ -557,8 +557,6 @@ serve(async (req) => {
           proxyHeaders,
           pm.orderNumber,
           pm.message,
-          BINANCE_API_KEY || "",
-          BINANCE_API_SECRET || "",
           chatCredential,
         );
         // Update cached credential if returned

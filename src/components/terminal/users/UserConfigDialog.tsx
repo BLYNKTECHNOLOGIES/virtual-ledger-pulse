@@ -153,6 +153,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           shift: profile.shift || null,
           is_active: profile.is_active,
           automation_included: profile.automation_included,
+          select_all_size_ranges: selectAllSizeRanges,
         }, { onConflict: "user_id" });
 
       if (profileErr) throw profileErr;

@@ -329,33 +329,29 @@ function OverrideUpiDisplay({ upiId, upiName, payMethod }: { upiId: string; upiN
         {payMethod || 'UPI'} <span className="ml-0.5 text-[7px] opacity-70">Updated</span>
       </Badge>
       {upiName && (
-        <>
-          <span className="text-foreground font-medium truncate">{upiName}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(upiName);
-              toast.success('Name copied');
-            }}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            title="Copy name"
-          >
-            <Copy className="h-3 w-3" />
-          </button>
-        </>
+        <span
+          className="text-foreground font-medium truncate cursor-pointer hover:text-primary transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(upiName);
+            toast.success('Name copied');
+          }}
+          title="Click to copy name"
+        >
+          {upiName}
+        </span>
       )}
-      <span className="text-muted-foreground truncate">{upiId}</span>
-      <button
+      <span
+        className="text-muted-foreground truncate cursor-pointer hover:text-primary transition-colors"
         onClick={(e) => {
           e.stopPropagation();
           navigator.clipboard.writeText(upiId);
           toast.success('UPI ID copied');
         }}
-        className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-        title="Copy UPI ID"
+        title="Click to copy UPI ID"
       >
-        <ClipboardCopy className="h-3 w-3" />
-      </button>
+        {upiId}
+      </span>
     </div>
   );
 }

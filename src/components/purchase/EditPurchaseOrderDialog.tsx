@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -129,12 +130,20 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   // Initialize splits from existing data
   useEffect(() => {
     if (existingSplits && existingSplits.length > 0) {
+      // Existing split payment records found — load them faithfully
       setIsMultiplePayments(existingSplits.length > 1);
       setPaymentSplits(existingSplits.map((s: any) => ({
         bank_account_id: s.bank_account_id || '',
         amount: String(s.amount || ''),
       })));
     } else if (order?.bank_account_id) {
+      // Single bank account order — initialize with that bank and net payable
+      setIsMultiplePayments(false);
+      setPaymentSplits([{ 
+        bank_account_id: order.bank_account_id, 
+        amount: '' 
+      }]);
+    } else {
       setIsMultiplePayments(false);
       setPaymentSplits([{ bank_account_id: '', amount: '' }]);
     }
@@ -158,6 +167,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   }, [paymentSplits, netPayableAmount]);
 
   const addPaymentSplit = () => {
+    // Prevent adding rows if allocation already meets or exceeds net payable
+    if (splitAllocation.remaining <= 0) {
+      toast({ title: "Cannot add more", description: "Total allocation already meets or exceeds the net payable amount", variant: "destructive" });
+      return;
+    }
     setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
   };
 
@@ -377,7 +391,35 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Log the edit action with detailed metadata for audit trail
+      const changedFields: string[] = [];
+      if (data.supplier_name !== order.supplier_name) changedFields.push('supplier_name');
+      if (data.total_amount !== order.total_amount) changedFields.push('total_amount');
+      if (data.bank_account_id !== order.bank_account_id) changedFields.push('bank_account');
+      if (data.wallet_id !== (order.wallet_id || order.wallet?.id)) changedFields.push('wallet');
+      if (data.tds_applied !== order.tds_applied) changedFields.push('tds');
+      if (data.pan_number !== order.pan_number) changedFields.push('pan_number');
+      if (data.order_date !== order.order_date) changedFields.push('order_date');
+      if (data.description !== order.description) changedFields.push('description');
+      if (isMultiplePayments) changedFields.push('split_payments');
+
+      logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_ORDER_EDITED,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: order.id,
+        module: Modules.PURCHASE,
+        metadata: { 
+          order_number: data.order_number,
+          changed_fields: changedFields,
+          old_total: order.total_amount,
+          new_total: data.total_amount,
+          old_bank: order.bank_account_id,
+          new_bank: data.bank_account_id,
+          split_count: isMultiplePayments ? paymentSplits.length : 0,
+        }
+      });
+
       toast({ title: "Success", description: "Purchase order updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
@@ -393,6 +435,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['tds-records'] });
       queryClient.invalidateQueries({ queryKey: ['client-tds-records'] });
       queryClient.invalidateQueries({ queryKey: ['tax-management'] });
+      // Also invalidate activity timeline so the new edit shows immediately
+      queryClient.invalidateQueries({ queryKey: ['activity_timeline'] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -757,10 +801,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                     variant="outline"
                     size="sm"
                     onClick={addPaymentSplit}
+                    disabled={splitAllocation.remaining <= 0}
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Another Bank
+                    {splitAllocation.remaining <= 0 ? 'Fully Allocated' : 'Add Another Bank'}
                   </Button>
                 </CardContent>
               </Card>

@@ -296,28 +296,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           .eq('id', firstItemId);
       }
 
-      // Handle payment splits
-      // Delete existing splits
-      await supabase
-        .from('purchase_order_payment_splits')
-        .delete()
-        .eq('purchase_order_id', order.id);
-
-      if (isMultiplePayments && paymentSplits.length > 0) {
-        const splitsToInsert = paymentSplits
-          .filter(s => s.bank_account_id && parseFloat(s.amount) > 0)
-          .map(s => ({
-            purchase_order_id: order.id,
-            bank_account_id: s.bank_account_id,
-            amount: parseFloat(s.amount),
-          }));
-        if (splitsToInsert.length > 0) {
-          const { error: splitError } = await supabase
-            .from('purchase_order_payment_splits')
-            .insert(splitsToInsert);
-          if (splitError) throw splitError;
-        }
-      }
+      // Payment splits are now handled inside the reconcile_purchase_order_edit RPC
+      // (SECURITY DEFINER) to prevent silent RLS failures causing duplicate accumulation
 
       // ── TDS CASCADING UPDATES ──
       // When TDS details change, update all dependent records

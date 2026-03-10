@@ -547,7 +547,7 @@ serve(async (req) => {
       // Pre-fetch WebSocket credentials once, reuse for all messages
       let chatCredential: { chatWssUrl: string; listenKey: string; token: string } | null = null;
       if (pendingMessages.length > 0) {
-        chatCredential = await getChatCredential(BINANCE_API_KEY || "", BINANCE_API_SECRET || "");
+        chatCredential = await getChatCredential(BINANCE_PROXY_URL, proxyHeaders);
       }
 
       // Send each message via WebSocket

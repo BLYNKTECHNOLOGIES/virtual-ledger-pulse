@@ -48,7 +48,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   );
   const [remarks, setRemarks] = useState('');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
+  const [linkedClientName, setLinkedClientName] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
+  const [duplicateClients, setDuplicateClients] = useState<any[]>([]);
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   

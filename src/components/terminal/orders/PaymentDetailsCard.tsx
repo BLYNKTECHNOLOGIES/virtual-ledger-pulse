@@ -38,24 +38,19 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
             </span>
           </div>
 
-          {/* You Pay amount */}
           <div className="bg-primary/5 border border-primary/20 rounded-md px-3 py-2 mb-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">You Pay</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-primary tabular-nums">
-                  {fiatSymbol}{Number(totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                </span>
-                <button
-                  onClick={() => {
-                    const intAmount = Math.floor(Number(totalPrice)).toString();
-                    copyToClipboard(intAmount, 'Amount');
-                  }}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Copy className="h-3 w-3" />
-                </button>
-              </div>
+              <span
+                className="text-sm font-bold text-primary tabular-nums cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => {
+                  const intAmount = Math.floor(Number(totalPrice)).toString();
+                  copyToClipboard(intAmount, 'Amount');
+                }}
+                title="Click to copy amount"
+              >
+                {fiatSymbol}{Number(totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
             </div>
           </div>
 
@@ -67,19 +62,13 @@ export function PaymentDetailsCard({ payMethods, totalPrice, fiatSymbol = '₹' 
             return (
               <div key={fIdx} className="flex items-start justify-between py-1.5 border-b border-border/50 last:border-0">
                 <span className="text-[10px] text-muted-foreground shrink-0 mr-2">{field.fieldName}</span>
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="text-[11px] text-foreground font-medium text-right break-all">
-                    {field.fieldValue}
-                  </span>
-                  {shouldShowCopy && (
-                    <button
-                      onClick={() => copyToClipboard(field.fieldValue, field.fieldName)}
-                      className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
+                <span
+                  className={`text-[11px] text-foreground font-medium text-right break-all ${shouldShowCopy ? 'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                  onClick={shouldShowCopy ? () => copyToClipboard(field.fieldValue, field.fieldName) : undefined}
+                  title={shouldShowCopy ? `Click to copy ${field.fieldName}` : undefined}
+                >
+                  {field.fieldValue}
+                </span>
               </div>
             );
           })}

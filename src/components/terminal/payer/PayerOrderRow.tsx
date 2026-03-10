@@ -386,14 +386,20 @@ function PaymentDetailsInline({ payMethods }: { payMethods: any[] }) {
           return (
             <div key={idx} className="flex items-center gap-2 text-[10px]">
               <Badge variant="outline" className="text-[8px] px-1 py-0 border-primary/30 text-primary shrink-0">UPI</Badge>
-              <span className="text-foreground font-medium truncate">{verifiedName || '—'}</span>
-              <button onClick={(e) => copyPaymentDetails(e, verifiedName)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Copy name">
-                <Copy className="h-3 w-3" />
-              </button>
-              <span className="text-muted-foreground truncate">{upiId || '—'}</span>
-              <button onClick={(e) => copyPaymentDetails(e, upiId)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Copy UPI ID">
-                <ClipboardCopy className="h-3 w-3" />
-              </button>
+              <span
+                className="text-foreground font-medium truncate cursor-pointer hover:text-primary transition-colors"
+                onClick={(e) => copyPaymentDetails(e, verifiedName)}
+                title="Click to copy name"
+              >
+                {verifiedName || '—'}
+              </span>
+              <span
+                className="text-muted-foreground truncate cursor-pointer hover:text-primary transition-colors"
+                onClick={(e) => copyPaymentDetails(e, upiId)}
+                title="Click to copy UPI ID"
+              >
+                {upiId || '—'}
+              </span>
             </div>
           );
         }
@@ -402,18 +408,28 @@ function PaymentDetailsInline({ payMethods }: { payMethods: any[] }) {
         const ifsc = fieldMap['ifsc'] || fieldMap['ifsc code'] || fieldMap['ifsccode'] || '';
         const bankName = fieldMap['bank name'] || fieldMap['bankname'] || fieldMap['bank'] || tradeMethodName;
         const verifiedName = fieldMap['verified name'] || fieldMap['name'] || fieldMap['account holder'] || fieldMap['beneficiary'] || '';
-        const copyText = `Bank: ${verifiedName} | A/C: ${accountNo} | IFSC: ${ifsc} | ${bankName}`;
 
         return (
           <div key={idx} className="flex items-center gap-2 text-[10px]">
             <Badge variant="outline" className="text-[8px] px-1 py-0 border-emerald-500/30 text-emerald-500 shrink-0">Bank</Badge>
-            <span className="text-foreground font-medium truncate">{verifiedName || '—'}</span>
-            {accountNo && <span className="text-muted-foreground">A/C: {accountNo}</span>}
+            <span
+              className="text-foreground font-medium truncate cursor-pointer hover:text-primary transition-colors"
+              onClick={(e) => copyPaymentDetails(e, verifiedName)}
+              title="Click to copy name"
+            >
+              {verifiedName || '—'}
+            </span>
+            {accountNo && (
+              <span
+                className="text-muted-foreground cursor-pointer hover:text-primary transition-colors"
+                onClick={(e) => copyPaymentDetails(e, accountNo)}
+                title="Click to copy account number"
+              >
+                A/C: {accountNo}
+              </span>
+            )}
             {ifsc && <span className="text-muted-foreground">IFSC: {ifsc}</span>}
             {bankName && <span className="text-muted-foreground/70 truncate">{bankName}</span>}
-            <button onClick={(e) => copyPaymentDetails(e, copyText)} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
-              <ClipboardCopy className="h-3 w-3" />
-            </button>
           </div>
         );
       })}

@@ -111,20 +111,15 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      // Auto-populate contact ONLY if the client actually has a phone number stored
-      // Auto-populate state ONLY if the client actually has a state stored AND is APPROVED
-      // Never infer or guess — only populate if the value genuinely exists in the client record
+      // Fallback: fill from client master ONLY if counterparty data didn't already populate
       const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
       if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
-    } else {
-      // No matching client — ensure state/contact are blank (don't carry over from syncRecord stale data)
-      setClientState('');
-      setContactNumber('');
     }
+    // Don't blank out contact/state when no client match — counterparty data may already be filled
   }, [open, displayName, allClients]);
 
-  // Track counterparty data for conflict detection
+  // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {
     if (!open) return;
     const nickname = (syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name || '').trim();
@@ -135,8 +130,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       .eq('counterparty_nickname', nickname)
       .maybeSingle()
       .then(({ data }) => {
-        setCounterpartyPhone(data?.contact_number || '');
-        setCounterpartyState(data?.state || '');
+        const phone = data?.contact_number || '';
+        const state = data?.state || '';
+        setCounterpartyPhone(phone);
+        setCounterpartyState(state);
+        // Pre-fill form fields from terminal-captured data (highest priority)
+        if (phone) setContactNumber(prev => prev || phone);
+        if (state) setClientState(prev => prev || state);
       });
   }, [open, syncRecord]);
 
@@ -161,30 +161,30 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   }, [clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Helper: lookup contact records by nickname(s) and pre-fill
-  // ONLY fills contact number (never state — state must come from actual client record)
   const lookupContact = async (nicknames: string[]) => {
     const unique = [...new Set(nicknames.filter(Boolean))];
     if (unique.length === 0) return;
 
-    // Only do exact nickname matches — no fuzzy/prefix matching to avoid cross-client pollution
     const { data: exactRecords } = await supabase
       .from('counterparty_contact_records')
       .select('contact_number, state')
       .in('counterparty_nickname', unique);
-    const exactFound = (exactRecords || []).find(r => r.contact_number);
+    const exactFound = (exactRecords || []).find(r => r.contact_number || r.state);
     if (exactFound?.contact_number) {
-      // Only fill contact number if not already set; NEVER auto-fill state from counterparty records
       setContactNumber(prev => prev || exactFound.contact_number!);
     }
-    // NOTE: state is intentionally NOT set here — it must come only from the linked client's actual record
+    if (exactFound?.state) {
+      setClientState(prev => prev || exactFound.state!);
+    }
   };
 
   // Reset state and fetch verified name when dialog opens
   useEffect(() => {
     setLinkedClientId(syncRecord?.client_id || '');
     setLinkedClientName('');
-    setContactNumber(''); // NEVER pre-fill contact from syncRecord — only from actual client record
-    setClientState('');   // NEVER pre-fill state from syncRecord — only from actual client record
+    // Pre-fill from sync record's stored terminal data (captured during order flow)
+    setContactNumber(syncRecord?.contact_number || '');
+    setClientState(syncRecord?.state || '');
     setEnrichedName(null);
     setClientAutoMatched(false);
     setShowClientDropdown(false);

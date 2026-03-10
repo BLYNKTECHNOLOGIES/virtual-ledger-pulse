@@ -11458,49 +11458,27 @@ export type Database = {
         }
         Returns: Json
       }
-      create_manual_purchase_complete_v2:
-        | {
-            Args: {
-              p_bank_account_id: string
-              p_contact_number: string
-              p_created_by?: string
-              p_credit_wallet_id?: string
-              p_description: string
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_order_date: string
-              p_order_number: string
-              p_pan_number?: string
-              p_product_id: string
-              p_quantity: number
-              p_supplier_name: string
-              p_tds_option?: string
-              p_total_amount: number
-              p_unit_price: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_bank_account_id: string
-              p_contact_number?: string
-              p_created_by?: string
-              p_credit_wallet_id?: string
-              p_description?: string
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_order_date: string
-              p_order_number: string
-              p_pan_number?: string
-              p_product_id: string
-              p_quantity: number
-              p_supplier_name: string
-              p_tds_option?: string
-              p_total_amount: number
-              p_unit_price: number
-            }
-            Returns: Json
-          }
+      create_manual_purchase_complete_v2: {
+        Args: {
+          p_bank_account_id: string
+          p_contact_number?: string
+          p_created_by?: string
+          p_credit_wallet_id?: string
+          p_description?: string
+          p_fee_percentage?: number
+          p_is_off_market?: boolean
+          p_order_date: string
+          p_order_number: string
+          p_pan_number?: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_name: string
+          p_tds_option?: string
+          p_total_amount: number
+          p_unit_price: number
+        }
+        Returns: Json
+      }
       create_manual_purchase_complete_v2_rpc: {
         Args: {
           p_bank_account_id: string
@@ -11605,49 +11583,27 @@ export type Database = {
         }
         Returns: string
       }
-      create_manual_purchase_with_split_payments:
-        | {
-            Args: {
-              p_contact_number: string
-              p_created_by?: string
-              p_credit_wallet_id?: string
-              p_description: string
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_order_date: string
-              p_order_number: string
-              p_pan_number?: string
-              p_payment_splits: Json
-              p_product_id: string
-              p_quantity: number
-              p_supplier_name: string
-              p_tds_option?: string
-              p_total_amount: number
-              p_unit_price: number
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_contact_number?: string
-              p_created_by?: string
-              p_credit_wallet_id?: string
-              p_description?: string
-              p_fee_percentage?: number
-              p_is_off_market?: boolean
-              p_order_date: string
-              p_order_number: string
-              p_pan_number?: string
-              p_payment_splits?: Json
-              p_product_id: string
-              p_quantity: number
-              p_supplier_name: string
-              p_tds_option?: string
-              p_total_amount: number
-              p_unit_price: number
-            }
-            Returns: Json
-          }
+      create_manual_purchase_with_split_payments: {
+        Args: {
+          p_contact_number?: string
+          p_created_by?: string
+          p_credit_wallet_id?: string
+          p_description?: string
+          p_fee_percentage?: number
+          p_is_off_market?: boolean
+          p_order_date: string
+          p_order_number: string
+          p_pan_number?: string
+          p_payment_splits?: Json
+          p_product_id: string
+          p_quantity: number
+          p_supplier_name: string
+          p_tds_option?: string
+          p_total_amount: number
+          p_unit_price: number
+        }
+        Returns: Json
+      }
       create_manual_purchase_with_split_payments_rpc: {
         Args: {
           p_contact_number?: string
@@ -11853,35 +11809,20 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
-      get_my_terminal_notifications:
-        | {
-            Args: never
-            Returns: {
-              created_at: string
-              id: string
-              is_active: boolean
-              is_read: boolean
-              message: string
-              notification_type: string
-              related_user_id: string
-              title: string
-              updated_at: string
-            }[]
-          }
-        | {
-            Args: { p_user_id: string }
-            Returns: {
-              created_at: string
-              id: string
-              is_active: boolean
-              is_read: boolean
-              message: string
-              notification_type: string
-              related_user_id: string
-              title: string
-              updated_at: string
-            }[]
-          }
+      get_my_terminal_notifications: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          id: string
+          is_active: boolean
+          is_read: boolean
+          message: string
+          notification_type: string
+          related_user_id: string
+          title: string
+          updated_at: string
+        }[]
+      }
       get_super_admin_ids: {
         Args: never
         Returns: {
@@ -12227,9 +12168,7 @@ export type Database = {
         Returns: Json
       }
       sync_usdt_stock: { Args: never; Returns: undefined }
-      terminal_heartbeat:
-        | { Args: never; Returns: undefined }
-        | { Args: { p_user_id: string }; Returns: undefined }
+      terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
       try_super_admin_impersonation: {
         Args: { input_password: string; target_username: string }
         Returns: {

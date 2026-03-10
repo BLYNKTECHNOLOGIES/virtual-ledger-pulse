@@ -169,7 +169,7 @@ export default function TerminalMPI() {
       const rangeEndISO = rangeEnd.toISOString();
 
       // Parallel fetch all data
-      const [usersRes, assignmentsRes, payerLogsRes, actionLogsRes, rolesRes, userRolesRes, profilesRes] = await Promise.all([
+      const [usersRes, assignmentsRes, payerLogsRes, actionLogsRes, rolesRes, userRolesRes, profilesRes, payerAssignRes, operatorAssignRes, payerLocksRes, sizeRangesRes] = await Promise.all([
         supabase.from('users').select('id, username, first_name, last_name'),
         supabase.from('terminal_order_assignments')
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
@@ -187,6 +187,10 @@ export default function TerminalMPI() {
         supabase.from('p2p_terminal_roles').select('id, name'),
         supabase.from('p2p_terminal_user_roles').select('user_id, role_id'),
         supabase.from('terminal_user_profiles').select('user_id, specialization, shift, is_active, automation_included'),
+        supabase.from('terminal_payer_assignments').select('id, payer_user_id, assignment_type, size_range_id, ad_id, is_active'),
+        supabase.from('terminal_operator_assignments').select('id, operator_user_id, assignment_type, size_range_id, ad_id, is_active'),
+        supabase.from('terminal_payer_order_locks').select('id, payer_user_id, status, order_number'),
+        supabase.from('terminal_order_size_ranges').select('id, name'),
       ]);
 
       const users = usersRes.data || [];

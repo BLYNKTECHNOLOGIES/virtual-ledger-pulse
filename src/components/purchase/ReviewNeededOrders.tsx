@@ -144,14 +144,24 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
   }
 
   const filteredOrders = (reviewOrders || []).filter((order: any) => {
+    const term = (searchTerm || '').toLowerCase();
     const matchesSearch = !searchTerm || (
-      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      order.order_number?.toLowerCase().includes(term) ||
+      order.supplier_name?.toLowerCase().includes(term) ||
+      (order.description && order.description.toLowerCase().includes(term))
     );
     const od = order.order_date ? new Date(order.order_date) : null;
     const inFrom = !dateFrom || (od && od >= new Date(dateFrom));
     const inTo = !dateTo || (od && od <= new Date(dateTo));
     return matchesSearch && inFrom && inTo;
+  }).sort((a: any, b: any) => {
+    if (!searchTerm) return 0;
+    const term = searchTerm.toLowerCase();
+    const aPrimary = a.order_number?.toLowerCase().includes(term) || a.supplier_name?.toLowerCase().includes(term);
+    const bPrimary = b.order_number?.toLowerCase().includes(term) || b.supplier_name?.toLowerCase().includes(term);
+    if (aPrimary && !bPrimary) return -1;
+    if (!aPrimary && bPrimary) return 1;
+    return 0;
   });
 
   return (

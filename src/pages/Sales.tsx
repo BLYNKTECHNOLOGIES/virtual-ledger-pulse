@@ -57,7 +57,7 @@ export default function Sales() {
     queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
     queryFn: async () => {
       const buildBaseFilter = (q: any) => {
-        if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
+        if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
         if (filterPaymentStatus) q = q.eq('payment_status', filterPaymentStatus);
         if (filterDateFrom) q = q.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
         if (filterDateTo) q = q.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
@@ -103,7 +103,7 @@ export default function Sales() {
       }
 
       if (searchTerm) {
-        query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
+        query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
       if (filterPaymentStatus) {
@@ -123,6 +123,18 @@ export default function Sales() {
 
       const { data, error } = await query;
       if (error) throw error;
+      
+      // Sort: description-only matches go to bottom
+      if (searchTerm && data) {
+        const term = searchTerm.toLowerCase();
+        return data.sort((a: any, b: any) => {
+          const aPrimary = a.order_number?.toLowerCase().includes(term) || a.client_name?.toLowerCase().includes(term);
+          const bPrimary = b.order_number?.toLowerCase().includes(term) || b.client_name?.toLowerCase().includes(term);
+          if (aPrimary && !bPrimary) return -1;
+          if (!aPrimary && bPrimary) return 1;
+          return 0;
+        });
+      }
       return data || [];
     },
   });

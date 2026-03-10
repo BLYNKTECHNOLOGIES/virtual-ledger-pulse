@@ -91,6 +91,8 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
       console.error('Biometric auth error:', err);
       if (err.name === 'NotAllowedError') {
         toast.error('Biometric verification was cancelled or timed out');
+      } else if (err.message?.includes('timed out')) {
+        toast.error('Server is not responding. Please check your internet connection and try again.');
       } else {
         toast.error(err.message || 'Biometric verification failed');
       }

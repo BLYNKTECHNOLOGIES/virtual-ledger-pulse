@@ -184,7 +184,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         client_id: clientId,
         counterparty_name: counterpartyName,
         contact_number: contact?.contact_number || null,
-        state: null, // State must never be pre-filled from counterparty records — only from actual client record
+        state: contact?.state || null,
         synced_by: userId || null,
         synced_at: new Date().toISOString(),
       });

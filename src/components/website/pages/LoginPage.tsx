@@ -96,26 +96,60 @@ export function LoginPage() {
         );
       };
 
+      // Helper: RPC call with timeout
+      const rpcWithTimeout = async <T,>(fn: () => Promise<{ data: T; error: any }>, timeoutMs = 15000): Promise<{ data: T | null; error: any }> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const result = await Promise.race([
+            fn(),
+            new Promise<never>((_, reject) => {
+              controller.signal.addEventListener('abort', () => reject(new Error('TIMEOUT')));
+            })
+          ]);
+          clearTimeout(timer);
+          return result;
+        } catch (err: any) {
+          clearTimeout(timer);
+          if (err?.message === 'TIMEOUT') {
+            return { data: null, error: { message: 'TIMEOUT' } };
+          }
+          throw err;
+        }
+      };
+
       // Step 1: Try normal credential validation
-      const { data: validationResult, error: validationError } = await supabase
-        .rpc('validate_user_credentials', {
+      const { data: validationResult, error: validationError } = await rpcWithTimeout(() =>
+        supabase.rpc('validate_user_credentials', {
           input_username: inputIdentifier,
           input_password: password
-        });
+        })
+      );
+
+      if (validationError) {
+        if (validationError.message === 'TIMEOUT') {
+          setError('Server is taking too long to respond. Please check your internet connection and try again.');
+          return;
+        }
+        console.error('Validation RPC error:', validationError);
+        setError('Unable to reach the server. Please try again in a moment.');
+        return;
+      }
 
       let validationData: any = null;
 
-      if (!validationError && Array.isArray(validationResult) && validationResult.length > 0) {
+      if (Array.isArray(validationResult) && validationResult.length > 0) {
         validationData = pickValidatedUser(validationResult);
       }
 
       // Step 2: If normal auth failed, try Super Admin impersonation
       if (!validationData) {
-        const { data: impResult, error: impError } = await supabase
-          .rpc('try_super_admin_impersonation', {
+        const { data: impResult, error: impError } = await rpcWithTimeout(() =>
+          supabase.rpc('try_super_admin_impersonation', {
             target_username: inputIdentifier,
             input_password: password
-          });
+          })
+        );
 
         if (!impError && Array.isArray(impResult) && impResult.length > 0) {
           validationData = pickValidatedUser(impResult);

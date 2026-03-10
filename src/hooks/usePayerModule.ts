@@ -181,13 +181,28 @@ export function usePayerOrders() {
   const allMatchedOrders = useMemo(() => {
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const list = Array.isArray(d) ? d : [];
+
+    console.log('[PayerModule] Raw active orders data type:', typeof activeOrdersData, 'isArray:', Array.isArray(activeOrdersData));
+    console.log('[PayerModule] Extracted list length:', list.length);
+
     const buyOrders = list.filter((o: any) => o.tradeType === 'BUY');
+    console.log('[PayerModule] BUY orders:', buyOrders.length, 'of', list.length, 'total');
+    console.log('[PayerModule] My assignments:', myAssignments.length, 'All assignments:', allAssignments.length);
+
+    if (list.length > 0 && buyOrders.length === 0) {
+      // Debug: check what tradeTypes exist
+      const types = new Set(list.map((o: any) => o.tradeType));
+      console.log('[PayerModule] Available tradeTypes:', Array.from(types));
+    }
 
     // Track running workload for fair distribution within this batch
     const runningWorkload: Record<string, number> = { ...payerWorkloadMap };
 
     // First check if this user even has assignments
-    if (myAssignments.length === 0) return [];
+    if (myAssignments.length === 0) {
+      console.log('[PayerModule] No assignments for current user, returning empty');
+      return [];
+    }
 
     const myOrders: any[] = [];
 
@@ -198,7 +213,12 @@ export function usePayerOrders() {
 
     for (const order of sorted) {
       const matchingPayers = getMatchingPayers(order);
-      if (matchingPayers.length === 0) continue;
+      const totalPrice = parseFloat(order.totalPrice || '0');
+
+      if (matchingPayers.length === 0) {
+        console.log(`[PayerModule] Order ${order.orderNumber} (₹${totalPrice}) - NO matching payers`);
+        continue;
+      }
 
       // Pick the payer with least workload
       let bestPayer = matchingPayers[0];
@@ -217,18 +237,33 @@ export function usePayerOrders() {
       // Only include if this order was assigned to the current user
       if (bestPayer === userId) {
         myOrders.push(order);
+      } else {
+        console.log(`[PayerModule] Order ${order.orderNumber} (₹${totalPrice}) assigned to ${bestPayer}, not me (${userId})`);
       }
     }
 
+    console.log('[PayerModule] Total matched orders for me:', myOrders.length);
     return myOrders;
-  }, [activeOrdersData, myAssignments, getMatchingPayers, payerWorkloadMap, userId]);
+  }, [activeOrdersData, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId]);
 
   // Pending: not marked paid, not completed/cancelled/expired
+  // Binance listOrders status codes: 1=TRADING, 2=BUYER_PAYED, 3=PAID,
+  // 4=COMPLETED, 5=CANCELLED, 6=APPEAL, 7=EXPIRED
   const pendingOrders = useMemo(() => {
-    const finalizedCodes = new Set(['3', '4', '5', '6', '8']);
-    return allMatchedOrders
-      .filter((o: any) => !paidOrderNumbers.has(o.orderNumber))
+    // Only exclude truly finalized statuses: COMPLETED(4), CANCELLED(5), EXPIRED(7)
+    // Keep TRADING(1), BUYER_PAYED(2), PAID(3) as active for payer workflow
+    // Keep APPEAL(6) visible so payers are aware
+    const finalizedCodes = new Set(['4', '5', '7']);
+    const result = allMatchedOrders
+      .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
       .filter((o: any) => !finalizedCodes.has(String(o.orderStatus)));
+
+    console.log('[PayerModule] Pending orders:', result.length, 'of', allMatchedOrders.length, 'matched');
+    if (allMatchedOrders.length > 0 && result.length === 0) {
+      console.log('[PayerModule] All orders filtered out. Statuses:', allMatchedOrders.map((o: any) => `${o.orderNumber}:${o.orderStatus}`));
+      console.log('[PayerModule] Paid order numbers:', Array.from(paidOrderNumbers));
+    }
+    return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 
   // Completed: orders marked paid by this payer (from log)

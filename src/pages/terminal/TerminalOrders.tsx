@@ -288,7 +288,7 @@ export default function TerminalOrders() {
         }
 
         if (items.length < rows) break;
-        await new Promise(r => setTimeout(r, 150));
+        await new Promise(r => setTimeout(r, 50));
       }
 
       return all;

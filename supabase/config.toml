@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.erp-balance-snapshot]
 verify_jwt = false
+
+[functions.auto-pay-engine]
+verify_jwt = false

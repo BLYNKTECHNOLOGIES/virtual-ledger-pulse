@@ -300,27 +300,24 @@ serve(async (req) => {
 
     if (rulesErr) throw rulesErr;
 
-    // 2. Fetch auto-pay settings
-    const { data: autoPaySettings } = await supabase
-      .from("p2p_auto_pay_settings")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
-
-    const autoPayActive = autoPaySettings?.is_active === true;
-    const autoPayMinutes = autoPaySettings?.minutes_before_expiry || 3;
+    // Auto-pay is now handled by the dedicated auto-pay-engine function.
+    // This function only handles auto-reply chat messages.
+    const autoPayActive = false;
+    const autoPaidCount = 0;
 
     const hasRules = rules && rules.length > 0;
-    if (!hasRules && !autoPayActive) {
-      console.log("No active rules or auto-pay. Skipping.");
-      return new Response(JSON.stringify({ message: "Nothing active", processed: 0 }), {
+    if (!hasRules) {
+      console.log("No active auto-reply rules. Skipping.");
+      return new Response(JSON.stringify({ message: "No active rules", processed: 0 }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Rules: ${rules?.length || 0}, AutoPay: ${autoPayActive ? `ON (${autoPayMinutes}min)` : "OFF"}`);
+    let processed = 0;
+    let errors = 0;
 
-    // 3. Fetch ONLY active orders
+    // ===== AUTO-REPLY LOGIC =====
+    // Fetch active orders for auto-reply processing
     const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
       method: "POST",
       headers: proxyHeaders,
@@ -328,128 +325,9 @@ serve(async (req) => {
     });
     const activeData = await activeRes.json();
     const activeOrders: BinanceOrder[] = activeData?.data || [];
+    console.log(`Processing ${activeOrders.length} active orders for auto-reply`);
 
-    console.log(`Processing ${activeOrders.length} active orders`);
-
-    let processed = 0;
-    let errors = 0;
-    let autoPaidCount = 0;
-
-    // ===== AUTO-PAY LOGIC =====
-    if (autoPayActive) {
-      // Numeric status codes from Binance listOrders API:
-      // 1=TRADING, 2=BUYER_PAYED, 3=PAID, 4=COMPLETED, 5=CANCELLED, 6=APPEAL, 7=EXPIRED
-      // Only status 1 (TRADING/pending payment) is valid for auto-pay
-      const PAYABLE_STATUSES = new Set(["1", "TRADING"]);
-      const NON_PAYABLE_KEYWORDS = ["PAID", "PAYING", "COMPLETED", "CANCEL", "APPEAL", "EXPIRED"];
-
-      const buyOrdersPendingPayment = activeOrders.filter((o) => {
-        const statusRaw = String(o.orderStatus ?? "");
-        const statusUpper = statusRaw.toUpperCase();
-
-        // Must be a BUY order (we are the buyer)
-        if (o.tradeType !== "BUY") return false;
-
-        // If numeric status, only "1" (TRADING) is payable
-        if (/^\d+$/.test(statusRaw)) {
-          return PAYABLE_STATUSES.has(statusRaw);
-        }
-
-        // If string status, exclude non-payable keywords
-        return !NON_PAYABLE_KEYWORDS.some((kw) => statusUpper.includes(kw));
-      });
-
-      console.log(`Auto-pay candidates: ${buyOrdersPendingPayment.length} BUY orders in TRADING status`);
-
-      // Fetch recent failed attempts to avoid retry-spamming (within last 3 minutes)
-      const recentCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-      const { data: recentFailedLogs } = await supabase
-        .from("p2p_auto_pay_log")
-        .select("order_number")
-        .eq("status", "failed")
-        .gte("executed_at", recentCutoff);
-
-      const recentlyFailed = new Set((recentFailedLogs || []).map((l: any) => l.order_number));
-
-      // Process auto-pay candidates in parallel for speed
-      const autoPayPromises = buyOrdersPendingPayment.map(async (order) => {
-        try {
-          let expiryTimeMs: number | null = null;
-          if (order.notifyPayEndTime) {
-            expiryTimeMs = order.notifyPayEndTime;
-          } else if (order.notifyPayedExpireMinute && order.createTime) {
-            expiryTimeMs = order.createTime + order.notifyPayedExpireMinute * 60 * 1000;
-          }
-          if (!expiryTimeMs) {
-            expiryTimeMs = order.createTime + 15 * 60 * 1000;
-          }
-
-          const timeRemainingMs = expiryTimeMs - Date.now();
-          const minutesRemaining = timeRemainingMs / 60000;
-
-          if (minutesRemaining <= autoPayMinutes && minutesRemaining > 0) {
-            // Skip if already successfully paid
-            const { data: alreadyPaid } = await supabase
-              .from("p2p_auto_pay_log")
-              .select("id")
-              .eq("order_number", order.orderNumber)
-              .eq("status", "success")
-              .maybeSingle();
-
-            if (alreadyPaid) return { skipped: true, reason: "already_paid" };
-
-            // Skip if recently failed (avoid log spam)
-            if (recentlyFailed.has(order.orderNumber)) {
-              return { skipped: true, reason: "recently_failed" };
-            }
-
-            console.log(`🤖 Auto-paying order ${order.orderNumber} (${minutesRemaining.toFixed(1)} min remaining)`);
-            const markPaidRes = await fetch(
-              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`,
-              {
-                method: "POST",
-                headers: proxyHeaders,
-                body: JSON.stringify({ orderNumber: order.orderNumber }),
-              }
-            );
-            const markPaidResult = await markPaidRes.json();
-
-            // Only treat as success if Binance explicitly returns success code
-            if (markPaidResult?.code === "000000") {
-              await supabase.from("p2p_auto_pay_log").insert({
-                order_number: order.orderNumber,
-                action: "mark_paid",
-                status: "success",
-                minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
-              });
-              return { success: true };
-            } else {
-              await supabase.from("p2p_auto_pay_log").insert({
-                order_number: order.orderNumber,
-                action: "mark_paid",
-                status: "failed",
-                minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
-                error_message: JSON.stringify(markPaidResult),
-              });
-              return { failed: true };
-            }
-          }
-          return { skipped: true, reason: "outside_window" };
-        } catch (apErr) {
-          console.error(`Auto-pay error for ${order.orderNumber}:`, apErr);
-          return { error: true };
-        }
-      });
-
-      const autoPayResults = await Promise.all(autoPayPromises);
-      for (const r of autoPayResults) {
-        if (r.success) autoPaidCount++;
-        if (r.failed || r.error) errors++;
-      }
-    }
-
-    // ===== AUTO-REPLY LOGIC =====
-    if (hasRules) {
+    {
       const { data: exclusionRows } = await supabase
         .from("terminal_auto_reply_exclusions")
         .select("order_number");

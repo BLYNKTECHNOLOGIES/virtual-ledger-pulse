@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +23,26 @@ export function PayerMyAssignments() {
           .select('id, name, min_amount, max_amount'),
       ]);
 
+      // Only return new data if queries actually succeeded; otherwise throw to trigger retry
+      if (assignmentsRes.error) {
+        console.warn('[PayerMyAssignments] assignments query error:', assignmentsRes.error.message);
+        throw new Error(assignmentsRes.error.message);
+      }
+
       return {
         assignments: assignmentsRes.data || [],
         sizeRanges: rangesRes.data || [],
       };
     },
     enabled: !!userId,
+    // CRITICAL: Keep showing previous data during background refetches to prevent flicker
+    placeholderData: keepPreviousData,
+    // Retry transient failures before showing error state
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    // Don't refetch too aggressively
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const assignments = data?.assignments || [];

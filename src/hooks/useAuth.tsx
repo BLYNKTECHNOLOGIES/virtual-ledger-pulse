@@ -433,13 +433,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Sync user to localStorage
+  // Sync user object to localStorage WITHOUT resetting the session timestamp.
+  // Resetting timestamp here would create a race condition with checkForceLogout
+  // and cause the session to appear "newer" than it actually is.
   useEffect(() => {
     if (user) {
+      const existing = localStorage.getItem('userSession');
+      let existingTimestamp = Date.now();
+      let existingExpiry = 7 * 24 * 60 * 60 * 1000;
+      if (existing) {
+        try {
+          const parsed = JSON.parse(existing);
+          existingTimestamp = parsed.timestamp || existingTimestamp;
+          existingExpiry = parsed.expiresIn || existingExpiry;
+        } catch { /* use defaults */ }
+      }
       const sessionData = {
         user,
-        timestamp: Date.now(),
-        expiresIn: 7 * 24 * 60 * 60 * 1000
+        timestamp: existingTimestamp,
+        expiresIn: existingExpiry
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
     }

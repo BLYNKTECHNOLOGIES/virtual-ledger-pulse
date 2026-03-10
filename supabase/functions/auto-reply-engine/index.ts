@@ -113,24 +113,20 @@ async function signQuery(queryString: string, secret: string): Promise<string> {
 }
 
 /**
- * Get Binance chat WebSocket credentials via SAPI.
+ * Get Binance chat WebSocket credentials via proxy (same as binance-ads).
+ * Direct Binance API calls fail due to IP restrictions on edge functions.
  */
 async function getChatCredential(
-  apiKey: string,
-  apiSecret: string,
+  proxyUrl: string,
+  proxyHeaders: Record<string, string>,
 ): Promise<{ chatWssUrl: string; listenKey: string; token: string } | null> {
   try {
-    const timestamp = Date.now();
-    const queryString = `timestamp=${timestamp}`;
-    const signature = await signQuery(queryString, apiSecret);
-    const url = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${queryString}&signature=${signature}`;
+    const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
+    console.log("getChatCredential URL (GET):", url);
     
     const res = await fetch(url, {
       method: "GET",
-      headers: {
-        "X-MBX-APIKEY": apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: proxyHeaders,
     });
     const text = await res.text();
     console.log("getChatCredential response:", res.status, text.substring(0, 500));

@@ -10331,6 +10331,36 @@ export type Database = {
           },
         ]
       }
+      terminal_payer_order_locks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          locked_at: string
+          order_number: string
+          payer_user_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          locked_at?: string
+          order_number: string
+          payer_user_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          locked_at?: string
+          order_number?: string
+          payer_user_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       terminal_payer_order_log: {
         Row: {
           action: string

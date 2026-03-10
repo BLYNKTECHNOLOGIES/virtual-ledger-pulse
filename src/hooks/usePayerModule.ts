@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useBinanceActiveOrders, useMarkOrderAsPaid, callBinanceAds } from '@/hooks/useBinanceActions';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface PayerAssignment {
@@ -25,6 +25,14 @@ interface PayerOrderLog {
   created_at: string;
 }
 
+interface PayerOrderLock {
+  id: string;
+  order_number: string;
+  payer_user_id: string;
+  status: string;
+  locked_at: string;
+}
+
 export function usePayerAssignments(payerUserId?: string | null) {
   return useQuery({
     queryKey: ['payer-assignments', payerUserId],
@@ -39,7 +47,6 @@ export function usePayerAssignments(payerUserId?: string | null) {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch size range details for assignments that have size_range_id
       const sizeRangeIds = (data || [])
         .filter((a: any) => a.size_range_id)
         .map((a: any) => a.size_range_id);
@@ -66,6 +73,66 @@ export function usePayerAssignments(payerUserId?: string | null) {
     placeholderData: keepPreviousData,
     retry: 3,
     staleTime: 30_000,
+  });
+}
+
+// ===================== Order Locks =====================
+
+export function usePayerOrderLocks() {
+  return useQuery({
+    queryKey: ['payer-order-locks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_payer_order_locks' as any)
+        .select('*')
+        .eq('status', 'active');
+      if (error) throw error;
+      return (data || []) as unknown as PayerOrderLock[];
+    },
+    refetchInterval: 10_000,
+  });
+}
+
+function useLockOrderToPayer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ orderNumber, payerUserId }: { orderNumber: string; payerUserId: string }) => {
+      // Use upsert with the unique partial index on (order_number) WHERE status = 'active'
+      // If already locked, this will be a no-op due to conflict
+      const { error } = await supabase
+        .from('terminal_payer_order_locks' as any)
+        .upsert(
+          { order_number: orderNumber, payer_user_id: payerUserId, status: 'active' },
+          { onConflict: 'order_number', ignoreDuplicates: true }
+        );
+      if (error) {
+        // Unique constraint violation means already locked — that's fine
+        if (error.code === '23505') return;
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payer-order-locks'] });
+    },
+  });
+}
+
+function useCompleteOrderLock() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (orderNumber: string) => {
+      const { error } = await supabase
+        .from('terminal_payer_order_locks' as any)
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('order_number', orderNumber)
+        .eq('status', 'active');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payer-order-locks'] });
+    },
   });
 }
 
@@ -119,6 +186,7 @@ export function useExcludeFromAutoReply() {
 export function useLogPayerAction() {
   const queryClient = useQueryClient();
   const { userId } = useTerminalAuth();
+  const completeOrderLock = useCompleteOrderLock();
 
   return useMutation({
     mutationFn: async ({ orderNumber, action }: { orderNumber: string; action: string }) => {
@@ -128,8 +196,12 @@ export function useLogPayerAction() {
         .insert({ order_number: orderNumber, payer_id: userId, action });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_d, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payer-order-log'] });
+      // When an order is marked paid, release the lock
+      if (variables.action === 'marked_paid') {
+        completeOrderLock.mutate(variables.orderNumber);
+      }
     },
   });
 }
@@ -137,17 +209,26 @@ export function useLogPayerAction() {
 export function usePayerOrders() {
   const { userId } = useTerminalAuth();
   const { data: activeOrdersData, isLoading: ordersLoading, refetch: refetchOrders, isFetching } = useBinanceActiveOrders();
-  // Fetch MY assignments
   const { data: myAssignments = [], isLoading: assignmentsLoading } = usePayerAssignments(userId);
-  // Fetch ALL active payer assignments (for deduplication across payers)
   const { data: allAssignments = [], isLoading: allAssignmentsLoading } = usePayerAssignments(null);
   const { data: orderLog = [], isLoading: logLoading } = usePayerOrderLog();
+  const { data: orderLocks = [], isLoading: locksLoading } = usePayerOrderLocks();
   const { data: exclusions = new Set<string>() } = useAutoReplyExclusions();
+  const lockOrder = useLockOrderToPayer();
 
   // Set of orders already marked paid
   const paidOrderNumbers = useMemo(() => {
     return new Set(orderLog.filter(l => l.action === 'marked_paid').map(l => l.order_number));
   }, [orderLog]);
+
+  // Build lock maps for fast lookup
+  const lockByOrder = useMemo(() => {
+    const map = new Map<string, string>(); // order_number -> payer_user_id
+    for (const lock of orderLocks) {
+      map.set(lock.order_number, lock.payer_user_id);
+    }
+    return map;
+  }, [orderLocks]);
 
   // Count how many orders each payer already has marked paid (for workload balancing)
   const payerWorkloadMap = useMemo(() => {
@@ -180,48 +261,47 @@ export function usePayerOrders() {
     return Array.from(matchedPayers);
   }, [allAssignments]);
 
-  // Filter and deduplicate: each order goes to exactly one payer (least workload)
-  const allMatchedOrders = useMemo(() => {
+  // Filter and deduplicate: locked orders stay with their payer, new orders get distributed
+  const { myOrders: allMatchedOrders, newLocks } = useMemo(() => {
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const list = Array.isArray(d) ? d : [];
 
-    console.log('[PayerModule] Raw active orders data type:', typeof activeOrdersData, 'isArray:', Array.isArray(activeOrdersData));
-    console.log('[PayerModule] Extracted list length:', list.length);
+    console.log('[PayerModule] Raw active orders:', list.length);
 
     const buyOrders = list.filter((o: any) => o.tradeType === 'BUY');
-    console.log('[PayerModule] BUY orders:', buyOrders.length, 'of', list.length, 'total');
-    console.log('[PayerModule] My assignments:', myAssignments.length, 'All assignments:', allAssignments.length);
+    console.log('[PayerModule] BUY orders:', buyOrders.length, 'My assignments:', myAssignments.length);
 
-    if (list.length > 0 && buyOrders.length === 0) {
-      // Debug: check what tradeTypes exist
-      const types = new Set(list.map((o: any) => o.tradeType));
-      console.log('[PayerModule] Available tradeTypes:', Array.from(types));
-    }
-
-    // Track running workload for fair distribution within this batch
-    const runningWorkload: Record<string, number> = { ...payerWorkloadMap };
-
-    // First check if this user even has assignments
     if (myAssignments.length === 0) {
-      console.log('[PayerModule] No assignments for current user, returning empty');
-      return [];
+      // Even with no current assignments, still show orders locked to this user
+      const lockedToMe = buyOrders.filter((o: any) => lockByOrder.get(o.orderNumber) === userId);
+      console.log('[PayerModule] No assignments but', lockedToMe.length, 'orders locked to me');
+      return { myOrders: lockedToMe, newLocks: [] };
     }
 
     const myOrders: any[] = [];
+    const newLocks: { orderNumber: string; payerUserId: string }[] = [];
+    const runningWorkload: Record<string, number> = { ...payerWorkloadMap };
 
-    // Sort orders deterministically (by orderNumber) so all payers compute the same assignment
     const sorted = [...buyOrders].sort((a: any, b: any) =>
       (a.orderNumber || '').localeCompare(b.orderNumber || '')
     );
 
     for (const order of sorted) {
-      const matchingPayers = getMatchingPayers(order);
-      const totalPrice = parseFloat(order.totalPrice || '0');
+      const existingLock = lockByOrder.get(order.orderNumber);
 
-      if (matchingPayers.length === 0) {
-        console.log(`[PayerModule] Order ${order.orderNumber} (₹${totalPrice}) - NO matching payers`);
+      if (existingLock) {
+        // Order is already locked to a payer — respect the lock regardless of current assignments
+        if (existingLock === userId) {
+          myOrders.push(order);
+        } else {
+          console.log(`[PayerModule] Order ${order.orderNumber} locked to ${existingLock}, skipping`);
+        }
         continue;
       }
+
+      // No lock exists — distribute based on current assignments
+      const matchingPayers = getMatchingPayers(order);
+      if (matchingPayers.length === 0) continue;
 
       // Pick the payer with least workload
       let bestPayer = matchingPayers[0];
@@ -234,49 +314,50 @@ export function usePayerOrders() {
         }
       }
 
-      // Increment running workload for the assigned payer
       runningWorkload[bestPayer] = (runningWorkload[bestPayer] || 0) + 1;
 
-      // Only include if this order was assigned to the current user
+      // Create a lock for this new assignment
+      newLocks.push({ orderNumber: order.orderNumber, payerUserId: bestPayer });
+
       if (bestPayer === userId) {
         myOrders.push(order);
       } else {
-        console.log(`[PayerModule] Order ${order.orderNumber} (₹${totalPrice}) assigned to ${bestPayer}, not me (${userId})`);
+        console.log(`[PayerModule] Order ${order.orderNumber} assigned to ${bestPayer}, not me`);
       }
     }
 
-    console.log('[PayerModule] Total matched orders for me:', myOrders.length);
-    return myOrders;
-  }, [activeOrdersData, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId]);
+    console.log('[PayerModule] Total matched orders for me:', myOrders.length, 'New locks to create:', newLocks.length);
+    return { myOrders, newLocks };
+  }, [activeOrdersData, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId, lockByOrder]);
+
+  // Persist new locks to the database (fire-and-forget, deduplicated)
+  const lockedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const lock of newLocks) {
+      if (!lockedRef.current.has(lock.orderNumber)) {
+        lockedRef.current.add(lock.orderNumber);
+        lockOrder.mutate(lock, {
+          onError: () => {
+            // Remove from ref so it can retry next cycle
+            lockedRef.current.delete(lock.orderNumber);
+          },
+        });
+      }
+    }
+  }, [newLocks]);
 
   // Pending: orders that still need payer action
-  // Binance status codes: 1=TRADING, 2=BUYER_PAYED, 3=PAID/PAYING,
-  // 4=COMPLETED, 5=CANCELLED, 6=APPEAL, 7=EXPIRED
-  //
-  // RULE: If an operator manually marked the order as paid (status 3 on Binance)
-  // but there's no payer log entry, the order should NOT appear in Pending.
-  // It should only appear in Pending if status is 1 (TRADING) or 2 (BUYER_PAYED).
-  // Status 6 (APPEAL) also stays visible for awareness.
-  // Orders marked paid through this payer module (in paidOrderNumbers) go to Completed tab.
   const pendingOrders = useMemo(() => {
-    // Statuses that should NOT appear in pending:
-    // 3 = PAID/PAYING (already paid by operator/automation/Binance — not pending for payer)
-    // 4 = COMPLETED, 5 = CANCELLED, 7 = EXPIRED (finalized)
     const excludeFromPending = new Set(['3', '4', '5', '7']);
     const result = allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
       .filter((o: any) => !excludeFromPending.has(String(o.orderStatus)));
 
     console.log('[PayerModule] Pending orders:', result.length, 'of', allMatchedOrders.length, 'matched');
-    if (allMatchedOrders.length > 0 && result.length === 0) {
-      console.log('[PayerModule] All orders filtered out. Statuses:', allMatchedOrders.map((o: any) => `${o.orderNumber}:${o.orderStatus}`));
-      console.log('[PayerModule] Paid order numbers:', Array.from(paidOrderNumbers));
-    }
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 
-  // Completed: orders marked paid by this payer (from log) OR already in PAID/PAYING status (3)
-  // on Binance (marked by operator or automation outside this module)
+  // Completed: orders marked paid by this payer or already PAID on Binance
   const completedOrders = useMemo(() => {
     return allMatchedOrders.filter((o: any) =>
       paidOrderNumbers.has(o.orderNumber) || String(o.orderStatus) === '3'
@@ -286,7 +367,7 @@ export function usePayerOrders() {
   return {
     orders: pendingOrders,
     completedOrders,
-    isLoading: ordersLoading || assignmentsLoading || allAssignmentsLoading || logLoading,
+    isLoading: ordersLoading || assignmentsLoading || allAssignmentsLoading || logLoading || locksLoading,
     isFetching,
     refetch: refetchOrders,
     exclusions,

@@ -138,6 +138,16 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (!linkedClientId) {
         setLinkedClientId(syncRecord?.client_id || '');
       }
+      
+      // Check for multiple clients with same name (disambiguation needed)
+      if (!linkedClientId && !syncRecord?.client_id && syncRecord?.counterparty_name) {
+        const matches = await findAllClientsByName(syncRecord.counterparty_name);
+        if (matches.length > 1) {
+          setDuplicateClients(matches);
+        } else {
+          setDuplicateClients([]);
+        }
+      }
     };
 
     fetchResolvedData();

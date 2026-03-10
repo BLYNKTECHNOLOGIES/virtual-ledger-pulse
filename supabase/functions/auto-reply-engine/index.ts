@@ -503,6 +503,8 @@ serve(async (req) => {
           proxyHeaders,
           pm.orderNumber,
           pm.message,
+          BINANCE_API_KEY || "",
+          BINANCE_API_SECRET || "",
         );
 
         if (result.success) {

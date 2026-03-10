@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw } from 'lucide-react';
+import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';

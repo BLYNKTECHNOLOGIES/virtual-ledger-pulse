@@ -303,9 +303,18 @@ serve(async (req) => {
     // Auto-pay is now handled by the dedicated auto-pay-engine function.
     // This function only handles auto-reply chat messages.
     const autoPayActive = false;
+    const autoPaidCount = 0;
+
+    const hasRules = rules && rules.length > 0;
+    if (!hasRules) {
+      console.log("No active auto-reply rules. Skipping.");
+      return new Response(JSON.stringify({ message: "No active rules", processed: 0 }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ===== AUTO-REPLY LOGIC =====
-    if (hasRules) {
+    {
       const { data: exclusionRows } = await supabase
         .from("terminal_auto_reply_exclusions")
         .select("order_number");

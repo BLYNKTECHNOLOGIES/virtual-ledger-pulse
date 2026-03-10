@@ -257,6 +257,8 @@ export default function AttendanceActivityPage() {
             <tbody>
               {isLoading ? (
                 <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
+              ) : queryError ? (
+                <tr><td colSpan={7} className="text-center py-8 text-red-500">Error loading data. Please refresh the page.</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-8 text-gray-400">No activity records for this date</td></tr>
               ) : (

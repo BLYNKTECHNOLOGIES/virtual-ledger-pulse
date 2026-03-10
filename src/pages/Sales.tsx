@@ -123,6 +123,18 @@ export default function Sales() {
 
       const { data, error } = await query;
       if (error) throw error;
+      
+      // Sort: description-only matches go to bottom
+      if (searchTerm && data) {
+        const term = searchTerm.toLowerCase();
+        return data.sort((a: any, b: any) => {
+          const aPrimary = a.order_number?.toLowerCase().includes(term) || a.client_name?.toLowerCase().includes(term);
+          const bPrimary = b.order_number?.toLowerCase().includes(term) || b.client_name?.toLowerCase().includes(term);
+          if (aPrimary && !bPrimary) return -1;
+          if (!aPrimary && bPrimary) return 1;
+          return 0;
+        });
+      }
       return data || [];
     },
   });

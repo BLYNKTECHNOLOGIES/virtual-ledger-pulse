@@ -196,10 +196,32 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   });
 }
 
-/** Fetch order history from the local binance_order_history DB table (fast, no API calls).
- *  Falls back to empty array if DB is unavailable. */
+/** Two-phase order history: Phase 1 fetches latest 50 orders instantly,
+ *  Phase 2 lazily loads the rest in the background. Consumers see a single merged array. */
 export function useBinanceOrderHistory() {
-  return useQuery({
+  // Phase 1: Fast initial load – latest 50 orders only
+  const phase1 = useQuery({
+    queryKey: ['binance-order-history-fast'],
+    queryFn: async () => {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await supabase
+        .from('binance_order_history')
+        .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
+        .order('create_time', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('[OrderHistory] Phase 1 fetch error:', error);
+        return [];
+      }
+      return (data || []).map(mapOrderRow);
+    },
+    staleTime: 20 * 1000,
+    refetchInterval: 30 * 1000,
+  });
+
+  // Phase 2: Full background load – all remaining orders
+  const phase2 = useQuery({
     queryKey: ['binance-order-history-bulk'],
     queryFn: async () => {
       const { supabase } = await import('@/integrations/supabase/client');
@@ -208,7 +230,6 @@ export function useBinanceOrderHistory() {
       let offset = 0;
       let hasMore = true;
 
-      // Paginate to bypass the 1000-row default limit
       while (hasMore) {
         const { data, error } = await supabase
           .from('binance_order_history')
@@ -217,30 +238,13 @@ export function useBinanceOrderHistory() {
           .range(offset, offset + batchSize - 1);
 
         if (error) {
-          console.error('[OrderHistory] DB fetch error:', error);
+          console.error('[OrderHistory] Phase 2 fetch error:', error);
           break;
         }
 
         if (data && data.length > 0) {
           for (const row of data) {
-            allOrders.push({
-              orderNumber: row.order_number,
-              advNo: row.adv_no,
-              tradeType: row.trade_type,
-              asset: row.asset || 'USDT',
-              fiat: row.fiat_unit || 'INR',
-              fiatUnit: row.fiat_unit || 'INR',
-              amount: row.amount,
-              totalPrice: row.total_price,
-              unitPrice: row.unit_price,
-              commission: row.commission,
-              orderStatus: row.order_status,
-              createTime: row.create_time,
-              payMethodName: row.pay_method_name,
-              counterPartNickName: row.counter_part_nick_name,
-              verifiedName: row.verified_name,
-              additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
-            });
+            allOrders.push(mapOrderRow(row));
           }
           offset += batchSize;
           hasMore = data.length === batchSize;
@@ -249,12 +253,47 @@ export function useBinanceOrderHistory() {
         }
       }
 
-      console.log(`[OrderHistory] Loaded ${allOrders.length} orders from DB`);
+      console.log(`[OrderHistory] Phase 2 loaded ${allOrders.length} total orders from DB`);
       return allOrders;
     },
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 60 * 1000,
+    refetchInterval: 120 * 1000, // Full refresh every 2 min (background)
+    // Delay phase 2 slightly so phase 1 renders first
+    enabled: phase1.isFetched,
   });
+
+  // Merge: use full data once available, otherwise fast data
+  const mergedData = phase2.data && phase2.data.length > 0 ? phase2.data : (phase1.data || []);
+
+  return {
+    data: mergedData,
+    isLoading: phase1.isLoading, // Only block UI on phase 1
+    isFetching: phase1.isFetching || phase2.isFetching,
+    refetch: async () => {
+      await Promise.all([phase1.refetch(), phase2.refetch()]);
+    },
+  };
+}
+
+function mapOrderRow(row: any) {
+  return {
+    orderNumber: row.order_number,
+    advNo: row.adv_no,
+    tradeType: row.trade_type,
+    asset: row.asset || 'USDT',
+    fiat: row.fiat_unit || 'INR',
+    fiatUnit: row.fiat_unit || 'INR',
+    amount: row.amount,
+    totalPrice: row.total_price,
+    unitPrice: row.unit_price,
+    commission: row.commission,
+    orderStatus: row.order_status,
+    createTime: row.create_time,
+    payMethodName: row.pay_method_name,
+    counterPartNickName: row.counter_part_nick_name,
+    verifiedName: row.verified_name,
+    additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
+  };
 }
 
 // ==================== COUNTERPARTY STATS ====================

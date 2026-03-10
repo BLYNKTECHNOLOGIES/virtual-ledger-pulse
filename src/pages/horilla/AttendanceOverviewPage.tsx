@@ -29,7 +29,7 @@ export default function AttendanceOverviewPage() {
     notes: "",
   });
 
-  const { data: attendance = [], isLoading } = useQuery({
+  const { data: attendance = [], isLoading, error: queryError } = useQuery({
     queryKey: ["hr_attendance", dateFilter, statusFilter],
     queryFn: async () => {
       const selectClause = "*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)";
@@ -184,6 +184,8 @@ export default function AttendanceOverviewPage() {
             <tbody>
               {isLoading ? (
                 <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
+              ) : queryError ? (
+                <tr><td colSpan={9} className="text-center py-8 text-red-500">Error loading data. Please refresh the page.</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} className="text-center py-8 text-gray-400">No attendance records for this date</td></tr>
               ) : (

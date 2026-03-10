@@ -87,7 +87,7 @@ export function usePayerOrderLocks() {
         .select('*')
         .eq('status', 'active');
       if (error) throw error;
-      return (data || []) as PayerOrderLock[];
+      return (data || []) as unknown as PayerOrderLock[];
     },
     refetchInterval: 10_000,
   });

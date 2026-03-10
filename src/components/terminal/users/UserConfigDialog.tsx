@@ -463,10 +463,31 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                 <p className="text-xs text-muted-foreground italic">No size ranges configured yet.</p>
               ) : (
                 <div className="space-y-1.5 border border-border rounded-lg p-2">
+                  {/* Select All toggle */}
+                  <label className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/20 rounded px-1 py-1 border-b border-border pb-2 mb-1">
+                    <Checkbox
+                      checked={selectAllSizeRanges}
+                      onCheckedChange={(checked) => {
+                        const val = !!checked;
+                        setSelectAllSizeRanges(val);
+                        if (val) {
+                          setSelectedSizeRanges(new Set(sizeRanges.map(sr => sr.id)));
+                        }
+                      }}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="font-semibold">Select All</span>
+                    {selectAllSizeRanges && (
+                      <Badge variant="default" className="text-[9px] ml-auto h-4 px-1.5">
+                        Auto-assigns new ranges
+                      </Badge>
+                    )}
+                  </label>
                   {sizeRanges.map(sr => (
                     <label key={sr.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/20 rounded px-1 py-1">
                       <Checkbox
-                        checked={selectedSizeRanges.has(sr.id)}
+                        checked={selectAllSizeRanges || selectedSizeRanges.has(sr.id)}
+                        disabled={selectAllSizeRanges}
                         onCheckedChange={() => toggleSizeRange(sr.id)}
                         className="h-3.5 w-3.5"
                       />

@@ -96,26 +96,51 @@ export function LoginPage() {
         );
       };
 
+      // Helper: RPC call with timeout
+      const rpcWithTimeout = async (rpcPromise: PromiseLike<{ data: any; error: any }>, timeoutMs = 15000): Promise<{ data: any; error: any }> => {
+        let timer: ReturnType<typeof setTimeout>;
+        const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) => {
+          timer = setTimeout(() => resolve({ data: null, error: { message: 'TIMEOUT' } }), timeoutMs);
+        });
+        const result = await Promise.race([
+          Promise.resolve(rpcPromise).then(r => { clearTimeout(timer!); return r; }),
+          timeoutPromise
+        ]);
+        return result;
+      };
+
       // Step 1: Try normal credential validation
-      const { data: validationResult, error: validationError } = await supabase
-        .rpc('validate_user_credentials', {
+      const { data: validationResult, error: validationError } = await rpcWithTimeout(
+        supabase.rpc('validate_user_credentials', {
           input_username: inputIdentifier,
           input_password: password
-        });
+        })
+      );
+
+      if (validationError) {
+        if (validationError.message === 'TIMEOUT') {
+          setError('Server is taking too long to respond. Please check your internet connection and try again.');
+          return;
+        }
+        console.error('Validation RPC error:', validationError);
+        setError('Unable to reach the server. Please try again in a moment.');
+        return;
+      }
 
       let validationData: any = null;
 
-      if (!validationError && Array.isArray(validationResult) && validationResult.length > 0) {
+      if (Array.isArray(validationResult) && validationResult.length > 0) {
         validationData = pickValidatedUser(validationResult);
       }
 
       // Step 2: If normal auth failed, try Super Admin impersonation
       if (!validationData) {
-        const { data: impResult, error: impError } = await supabase
-          .rpc('try_super_admin_impersonation', {
+        const { data: impResult, error: impError } = await rpcWithTimeout(
+          supabase.rpc('try_super_admin_impersonation', {
             target_username: inputIdentifier,
             input_password: password
-          });
+          })
+        );
 
         if (!impError && Array.isArray(impResult) && impResult.length > 0) {
           validationData = pickValidatedUser(impResult);
@@ -204,9 +229,15 @@ export function LoginPage() {
       setSuccess('Correct password, redirecting to Dashboard...');
       setTimeout(() => navigate('/dashboard'), 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      setError('Login failed. Please try again.');
+      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.message?.includes('ERR_')) {
+        setError('Network error — unable to reach the server. Please check your internet connection and try again.');
+      } else if (error?.message === 'TIMEOUT') {
+        setError('Server is taking too long to respond. Please try again in a moment.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

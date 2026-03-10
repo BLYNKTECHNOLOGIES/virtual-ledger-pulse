@@ -56,8 +56,8 @@ export default function AttendanceActivityPage() {
       const result: Record<string, { isNightShift: boolean; shiftName: string }> = {};
       for (const emp of emps) {
         if (emp.shift_id && shiftMap.has(emp.shift_id)) {
-          const shift = shiftMap.get(emp.shift_id);
-          result[emp.id] = { isNightShift: !!shift.is_night_shift, shiftName: shift.name };
+          const shift = shiftMap.get(emp.shift_id)!;
+          result[emp.id] = { isNightShift: !!(shift as any).is_night_shift, shiftName: (shift as any).name };
         }
       }
       return result;

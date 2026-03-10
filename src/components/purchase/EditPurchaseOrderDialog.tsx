@@ -391,7 +391,35 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Log the edit action with detailed metadata for audit trail
+      const changedFields: string[] = [];
+      if (data.supplier_name !== order.supplier_name) changedFields.push('supplier_name');
+      if (data.total_amount !== order.total_amount) changedFields.push('total_amount');
+      if (data.bank_account_id !== order.bank_account_id) changedFields.push('bank_account');
+      if (data.wallet_id !== (order.wallet_id || order.wallet?.id)) changedFields.push('wallet');
+      if (data.tds_applied !== order.tds_applied) changedFields.push('tds');
+      if (data.pan_number !== order.pan_number) changedFields.push('pan_number');
+      if (data.order_date !== order.order_date) changedFields.push('order_date');
+      if (data.description !== order.description) changedFields.push('description');
+      if (isMultiplePayments) changedFields.push('split_payments');
+
+      logActionWithCurrentUser({
+        actionType: ActionTypes.PURCHASE_ORDER_EDITED,
+        entityType: EntityTypes.PURCHASE_ORDER,
+        entityId: order.id,
+        module: Modules.PURCHASE,
+        metadata: { 
+          order_number: data.order_number,
+          changed_fields: changedFields,
+          old_total: order.total_amount,
+          new_total: data.total_amount,
+          old_bank: order.bank_account_id,
+          new_bank: data.bank_account_id,
+          split_count: isMultiplePayments ? paymentSplits.length : 0,
+        }
+      });
+
       toast({ title: "Success", description: "Purchase order updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
@@ -407,6 +435,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['tds-records'] });
       queryClient.invalidateQueries({ queryKey: ['client-tds-records'] });
       queryClient.invalidateQueries({ queryKey: ['tax-management'] });
+      // Also invalidate activity timeline so the new edit shows immediately
+      queryClient.invalidateQueries({ queryKey: ['activity_timeline'] });
       onOpenChange(false);
     },
     onError: (error: any) => {

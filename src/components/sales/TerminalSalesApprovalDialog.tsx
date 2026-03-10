@@ -457,6 +457,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       // Payment method usage is computed live — no manual current_usage update needed
 
       console.log('[SalesApproval] Sales order created - bank transaction handled by triggers if applicable');
+      } // end if (!existingSO)
 
       // Update sync record
       const { error: updateErr } = await supabase

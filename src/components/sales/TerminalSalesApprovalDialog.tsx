@@ -161,22 +161,21 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   }, [clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Helper: lookup contact records by nickname(s) and pre-fill
-  // ONLY fills contact number (never state — state must come from actual client record)
   const lookupContact = async (nicknames: string[]) => {
     const unique = [...new Set(nicknames.filter(Boolean))];
     if (unique.length === 0) return;
 
-    // Only do exact nickname matches — no fuzzy/prefix matching to avoid cross-client pollution
     const { data: exactRecords } = await supabase
       .from('counterparty_contact_records')
       .select('contact_number, state')
       .in('counterparty_nickname', unique);
-    const exactFound = (exactRecords || []).find(r => r.contact_number);
+    const exactFound = (exactRecords || []).find(r => r.contact_number || r.state);
     if (exactFound?.contact_number) {
-      // Only fill contact number if not already set; NEVER auto-fill state from counterparty records
       setContactNumber(prev => prev || exactFound.contact_number!);
     }
-    // NOTE: state is intentionally NOT set here — it must come only from the linked client's actual record
+    if (exactFound?.state) {
+      setClientState(prev => prev || exactFound.state!);
+    }
   };
 
   // Reset state and fetch verified name when dialog opens

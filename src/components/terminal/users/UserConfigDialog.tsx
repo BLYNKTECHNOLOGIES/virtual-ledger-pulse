@@ -199,8 +199,12 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
       // Sync size range mappings
       await supabase.from("terminal_user_size_range_mappings").delete().eq("user_id", userId);
-      if (selectedSizeRanges.size > 0) {
-        const rows = Array.from(selectedSizeRanges).map(sid => ({
+      // If select all is enabled, insert ALL active size ranges; otherwise only selected ones
+      const rangesToSave = selectAllSizeRanges
+        ? sizeRanges.map(sr => sr.id)
+        : Array.from(selectedSizeRanges);
+      if (rangesToSave.length > 0) {
+        const rows = rangesToSave.map(sid => ({
           user_id: userId,
           size_range_id: sid,
         }));

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield, Fingerprint, RotateCcw } from "lucide-react";
+import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield, Fingerprint, RotateCcw, CheckCircle2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 

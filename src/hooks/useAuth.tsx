@@ -87,14 +87,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
         );
       };
 
+      // Helper: RPC call with timeout
+      const rpcWithTimeout = async (rpcPromise: PromiseLike<{ data: any; error: any }>, timeoutMs = 15000): Promise<{ data: any; error: any }> => {
+        let timer: ReturnType<typeof setTimeout>;
+        const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) => {
+          timer = setTimeout(() => resolve({ data: null, error: { message: 'TIMEOUT' } }), timeoutMs);
+        });
+        const result = await Promise.race([
+          Promise.resolve(rpcPromise).then(r => { clearTimeout(timer!); return r; }),
+          timeoutPromise
+        ]);
+        return result;
+      };
+
       // Step 1: Try normal authentication
-      const { data: validationResult, error: validationError } = await supabase
-        .rpc('validate_user_credentials', {
+      const { data: validationResult, error: validationError } = await rpcWithTimeout(
+        supabase.rpc('validate_user_credentials', {
           input_username: inputIdentifier,
           input_password: password
-        });
+        })
+      );
 
-      if (!validationError && Array.isArray(validationResult) && validationResult.length > 0) {
+      if (validationError) {
+        if (validationError.message === 'TIMEOUT') {
+          throw new Error('Server is taking too long to respond. Please check your internet connection and try again.');
+        }
+        throw new Error('Unable to reach the server. Please try again in a moment.');
+      }
+
+      if (Array.isArray(validationResult) && validationResult.length > 0) {
         const matchedUser = pickValidatedUser(validationResult as ValidationUser[]);
         if (matchedUser) {
           return await buildUserFromValidation(matchedUser, inputIdentifier);

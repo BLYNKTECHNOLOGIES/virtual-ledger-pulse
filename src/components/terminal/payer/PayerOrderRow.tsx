@@ -170,19 +170,16 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       {/* Order No */}
       <TableCell className="py-3">
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
-            {order.orderNumber}
-          </span>
-          <button
+          <span
+            className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2 cursor-pointer hover:text-primary transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               navigator.clipboard.writeText(order.orderNumber);
               toast.success('Order number copied');
             }}
-            className="text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Copy className="h-3 w-3" />
-          </button>
+            {order.orderNumber}
+          </span>
         </div>
       </TableCell>
 

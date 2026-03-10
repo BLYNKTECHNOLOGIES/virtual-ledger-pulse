@@ -116,13 +116,11 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
     const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
-    // 4. Get contact records for counterparties — only fetch contact_number, NOT state
-    // State must only come from the actual client record when a client is linked,
-    // never from counterparty_contact_records (which can have stale/cross-polluted state data)
+    // 4. Get contact records for counterparties
     const nicknames = [...new Set(filteredSells.map(o => o.counter_part_nick_name).filter(Boolean))];
     const { data: contactRecords } = await supabase
       .from('counterparty_contact_records')
-      .select('counterparty_nickname, contact_number')
+      .select('counterparty_nickname, contact_number, state')
       .in('counterparty_nickname', nicknames.length > 0 ? nicknames : ['__none__']);
 
     const contactMap = new Map((contactRecords || []).map(c => [c.counterparty_nickname, c]));

@@ -717,7 +717,49 @@ export function ClientOnboardingApprovals() {
                     </div>
                   </div>
 
-                  {/* New request details for comparison */}
+                  {/* Recent Transactions */}
+                  {existingClientTransactions.length > 0 && (
+                    <div className="bg-white rounded-md p-3 border border-orange-200">
+                      <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b text-muted-foreground">
+                              <th className="text-left py-1 pr-2">Order #</th>
+                              <th className="text-left py-1 pr-2">Date</th>
+                              <th className="text-left py-1 pr-2">Type</th>
+                              <th className="text-right py-1 pr-2">Amount</th>
+                              <th className="text-right py-1 pr-2">Qty</th>
+                              <th className="text-right py-1 pr-2">Rate</th>
+                              <th className="text-left py-1 pr-2">Phone</th>
+                              <th className="text-left py-1 pr-2">State</th>
+                              <th className="text-left py-1">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {existingClientTransactions.map((tx, idx) => (
+                              <tr key={idx} className="border-b border-dashed last:border-0">
+                                <td className="py-1 pr-2 font-mono">{tx.order_number}</td>
+                                <td className="py-1 pr-2">{new Date(tx.order_date).toLocaleDateString('en-IN')}</td>
+                                <td className="py-1 pr-2 capitalize">{tx.sale_type || 'N/A'}</td>
+                                <td className="py-1 pr-2 text-right">₹{tx.total_amount?.toLocaleString()}</td>
+                                <td className="py-1 pr-2 text-right">{tx.quantity}</td>
+                                <td className="py-1 pr-2 text-right">₹{tx.price_per_unit?.toLocaleString()}</td>
+                                <td className="py-1 pr-2">{tx.client_phone || '-'}</td>
+                                <td className="py-1 pr-2">{tx.client_state || '-'}</td>
+                                <td className="py-1">
+                                  <span className={`px-1.5 py-0.5 rounded text-xs ${tx.status === 'APPROVED' ? 'bg-green-100 text-green-700' : tx.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+                                    {tx.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-white rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">

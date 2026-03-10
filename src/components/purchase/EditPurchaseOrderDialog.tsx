@@ -801,10 +801,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                     variant="outline"
                     size="sm"
                     onClick={addPaymentSplit}
+                    disabled={splitAllocation.remaining <= 0}
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Another Bank
+                    {splitAllocation.remaining <= 0 ? 'Fully Allocated' : 'Add Another Bank'}
                   </Button>
                 </CardContent>
               </Card>

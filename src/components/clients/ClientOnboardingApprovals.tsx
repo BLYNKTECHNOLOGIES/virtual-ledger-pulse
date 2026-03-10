@@ -760,14 +760,21 @@ export function ClientOnboardingApprovals() {
               {/* Compliance Form */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="proposed_monthly_limit">Monthly Transaction Limit (₹) *</Label>
+                  <Label htmlFor="proposed_monthly_limit">
+                    Monthly Transaction Limit (₹) {approvalMode !== 'merge' && '*'}
+                    {approvalMode === 'merge' && existingClientMatch?.monthly_limit && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Auto-filled from existing record — editable)
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="proposed_monthly_limit"
                     type="number"
                     value={formData.proposed_monthly_limit}
                     onChange={(e) => setFormData(prev => ({ ...prev, proposed_monthly_limit: e.target.value }))}
-                    placeholder="Enter monthly limit"
-                    required
+                    placeholder={approvalMode === 'merge' ? 'Using existing limit' : 'Enter monthly limit'}
+                    required={approvalMode !== 'merge'}
                   />
                   <div className="flex flex-wrap gap-2 mt-2">
                     {[

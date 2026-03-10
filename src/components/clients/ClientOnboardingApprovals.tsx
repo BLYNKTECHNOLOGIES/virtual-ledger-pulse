@@ -354,7 +354,15 @@ export function ClientOnboardingApprovals() {
     // Pre-check for existing client with same name
     const existing = await checkExistingClient(approval.client_name);
     setExistingClientMatch(existing);
-    setApprovalMode(existing ? 'merge' : 'normal'); // Default to merge if match found
+    if (existing) {
+      setApprovalMode('merge');
+      // Auto-fill monthly limit from existing client if not already provided in the approval
+      if (existing.monthly_limit && !approval.proposed_monthly_limit) {
+        setFormData(prev => ({ ...prev, proposed_monthly_limit: existing.monthly_limit!.toString() }));
+      }
+    } else {
+      setApprovalMode('normal');
+    }
     setDialogOpen(true);
   };
 

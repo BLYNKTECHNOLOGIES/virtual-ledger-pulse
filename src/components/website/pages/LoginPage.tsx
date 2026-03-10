@@ -238,9 +238,15 @@ export function LoginPage() {
       setSuccess('Correct password, redirecting to Dashboard...');
       setTimeout(() => navigate('/dashboard'), 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      setError('Login failed. Please try again.');
+      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.message?.includes('ERR_')) {
+        setError('Network error — unable to reach the server. Please check your internet connection and try again.');
+      } else if (error?.message === 'TIMEOUT') {
+        setError('Server is taking too long to respond. Please try again in a moment.');
+      } else {
+        setError('Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

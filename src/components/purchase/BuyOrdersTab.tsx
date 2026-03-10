@@ -208,6 +208,14 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
       }
       
       return true;
+    }).sort((a: any, b: any) => {
+      if (!searchTerm) return 0;
+      const term = searchTerm.toLowerCase();
+      const aPrimary = a.order_number?.toLowerCase().includes(term) || a.supplier_name?.toLowerCase().includes(term);
+      const bPrimary = b.order_number?.toLowerCase().includes(term) || b.supplier_name?.toLowerCase().includes(term);
+      if (aPrimary && !bPrimary) return -1;
+      if (!aPrimary && bPrimary) return 1;
+      return 0;
     });
   }, [orders, selectedStatus, searchTerm, dateFrom, dateTo]);
 

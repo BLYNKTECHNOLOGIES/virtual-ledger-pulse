@@ -397,10 +397,12 @@ export function PendingPurchaseOrders({ searchTerm, dateFrom, dateTo }: { search
   }
 
   const filteredOrders = (orders || []).filter((order: any) => {
+    const term = (searchTerm || '').toLowerCase();
     const matchesSearch = !searchTerm || (
-      order.order_number?.toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-      order.supplier_name?.toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-      (order.contact_number && String(order.contact_number).toLowerCase().includes((searchTerm || '').toLowerCase()))
+      order.order_number?.toLowerCase().includes(term) ||
+      order.supplier_name?.toLowerCase().includes(term) ||
+      (order.contact_number && String(order.contact_number).toLowerCase().includes(term)) ||
+      (order.description && order.description.toLowerCase().includes(term))
     );
     const od = order.order_date ? new Date(order.order_date) : null;
     const inFrom = !dateFrom || (od && od >= new Date(dateFrom));

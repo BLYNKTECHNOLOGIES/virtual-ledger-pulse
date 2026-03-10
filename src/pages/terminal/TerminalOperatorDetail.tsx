@@ -336,6 +336,12 @@ export default function TerminalOperatorDetail() {
 
       setProfile(profileRes.data || null);
       setRecentAssignments(userAssignments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setPayerAssignData(payerAssignRes.data || []);
+      setOperatorAssignData(operatorAssignRes.data || []);
+      setPayerLockData(payerLocksRes.data || []);
+      const srMap = new Map<string, string>();
+      (sizeRangesRes.data || []).forEach((r: any) => srMap.set(r.id, r.name));
+      setSizeRangeNames(srMap);
 
       const m: OperatorMetric = {
         userId,

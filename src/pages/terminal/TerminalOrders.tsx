@@ -632,7 +632,22 @@ export default function TerminalOrders() {
     if (assignmentFilter !== 'all') {
       filtered = filtered.filter(r => {
         const vis = getOrderVisibility(r.binance_order_number);
-        if (assignmentFilter === 'mine') return vis === 'assigned_to_me';
+        if (assignmentFilter === 'mine') {
+          // Show explicitly assigned orders AND scope-matched orders (fallback)
+          if (vis === 'assigned_to_me') return true;
+          // If unassigned, check if it falls within my operator scope (size range or ad ID)
+          if (vis === 'unassigned' && !isTerminalAdmin) {
+            const price = r.total_price || 0;
+            const advNo = r.binance_adv_no || '';
+            const scopeMatch = (userSizeRanges && userSizeRanges.length > 0 && userSizeRanges.some(range => {
+              const min = range.min_amount ?? 0;
+              const max = range.max_amount;
+              return price >= min && (max === null || max === undefined || price <= max);
+            })) || (userAdIdAssignments && userAdIdAssignments.length > 0 && userAdIdAssignments.includes(advNo));
+            return !!scopeMatch;
+          }
+          return false;
+        }
         if (assignmentFilter === 'team') return vis === 'assigned_to_team';
         if (assignmentFilter === 'unassigned') return vis === 'unassigned';
         return true;

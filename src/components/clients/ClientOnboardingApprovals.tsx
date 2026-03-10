@@ -367,30 +367,40 @@ export function ClientOnboardingApprovals() {
   };
 
   const handleApprove = () => {
-    if (selectedApproval && formData.proposed_monthly_limit) {
-      // If there's a name match and operator hasn't chosen, block
-      if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
-        toast({
-          title: "Action Required",
-          description: "Please choose to link to existing client or create a new one",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      approveClientMutation.mutate({
-        id: selectedApproval.id,
-        clientData: formData,
-        mode: approvalMode,
-        existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
-      });
-    } else {
+    if (!selectedApproval) return;
+    
+    // For merge mode, monthly limit is optional (uses existing client's limit)
+    const needsLimit = approvalMode !== 'merge' || !existingClientMatch?.monthly_limit;
+    
+    if (needsLimit && !formData.proposed_monthly_limit) {
       toast({
         title: "Missing Information",
         description: "Please enter the monthly transaction limit",
         variant: "destructive"
       });
+      return;
     }
+
+    // If there's a name match and operator hasn't chosen, block
+    if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
+      toast({
+        title: "Action Required",
+        description: "Please choose to link to existing client or create a new one",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    approveClientMutation.mutate({
+      id: selectedApproval.id,
+      clientData: {
+        ...formData,
+        // For merge: if no new limit provided, pass existing client's limit
+        proposed_monthly_limit: formData.proposed_monthly_limit || existingClientMatch?.monthly_limit?.toString() || '',
+      },
+      mode: approvalMode,
+      existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
+    });
   };
 
   const handleReject = (id: string, reason: string) => {

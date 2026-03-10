@@ -144,8 +144,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
         .eq('id', userId)
         .single();
       
-      // If user not found (deleted), force logout
-      if (error || !data) return true;
+      // CRITICAL: On transient errors (network hiccup, RLS timeout), do NOT force logout.
+      // Only force logout on definitive signals (user deleted, suspended, or force_logout_at set).
+      if (error) {
+        // PGRST116 = "not found" → user was deleted → force logout
+        if (error.code === 'PGRST116') {
+          console.warn('[useAuth] User not found in DB, forcing logout');
+          return true;
+        }
+        // Any other error (network, RLS, timeout) → assume transient, do NOT logout
+        console.warn('[useAuth] checkForceLogout query error (transient, skipping):', error.message);
+        return false;
+      }
+      
+      if (!data) return false; // No data but no error = skip
       
       // If user is suspended/inactive, force logout
       if (data.status === 'SUSPENDED' || data.status === 'INACTIVE') return true;
@@ -158,7 +170,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
       return false;
-    } catch {
+    } catch (err) {
+      // Network-level failures → do NOT force logout
+      console.warn('[useAuth] checkForceLogout exception (transient, skipping):', err);
       return false;
     }
   };

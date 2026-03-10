@@ -135,7 +135,7 @@ export function LoginPage() {
 
       // Step 2: If normal auth failed, try Super Admin impersonation
       if (!validationData) {
-        const { data: impResult, error: impError } = await rpcWithTimeout(() =>
+        const { data: impResult, error: impError } = await rpcWithTimeout(
           supabase.rpc('try_super_admin_impersonation', {
             target_username: inputIdentifier,
             input_password: password

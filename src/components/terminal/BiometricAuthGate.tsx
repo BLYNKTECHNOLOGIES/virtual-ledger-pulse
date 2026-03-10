@@ -43,10 +43,18 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
     }
   };
 
-  // Check if user has registered credentials
+  // Check if user has registered credentials (with timeout)
   const checkCredentials = async (targetUserId: string) => {
     try {
-      const { data } = await supabase.rpc('get_webauthn_credentials', { p_user_id: targetUserId });
+      let timer: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<{ data: null }>((resolve) => {
+        timer = setTimeout(() => resolve({ data: null }), 10000);
+      });
+      const rpcPromise = supabase.rpc('get_webauthn_credentials', { p_user_id: targetUserId }).then(r => {
+        clearTimeout(timer!);
+        return r;
+      });
+      const { data } = await Promise.race([rpcPromise, timeoutPromise]);
       const hasCreds = Array.isArray(data) && data.length > 0;
       if (targetUserId === userId) {
         setHasCredentials(hasCreds);
@@ -83,6 +91,8 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
       console.error('Biometric auth error:', err);
       if (err.name === 'NotAllowedError') {
         toast.error('Biometric verification was cancelled or timed out');
+      } else if (err.message?.includes('timed out')) {
+        toast.error('Server is not responding. Please check your internet connection and try again.');
       } else {
         toast.error(err.message || 'Biometric verification failed');
       }

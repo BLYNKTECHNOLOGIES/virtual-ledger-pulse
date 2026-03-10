@@ -25,14 +25,19 @@ export function useTerminalBiometricSession(userId: string | null) {
   const revalidationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const extendThrottleRef = useRef<number>(0);
 
-  // Server-side session validation
+  // Server-side session validation (with timeout)
   const validateServerSession = useCallback(async (token: string): Promise<boolean> => {
     if (!userId) return false;
     try {
-      const { data } = await supabase.rpc('validate_terminal_biometric_session', {
+      let timer: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<{ data: null }>((resolve) => {
+        timer = setTimeout(() => resolve({ data: null }), 10000);
+      });
+      const rpcPromise = supabase.rpc('validate_terminal_biometric_session', {
         p_user_id: userId,
         p_token: token,
-      });
+      }).then(r => { clearTimeout(timer!); return r; });
+      const { data } = await Promise.race([rpcPromise, timeoutPromise]);
       return !!data;
     } catch {
       return false;

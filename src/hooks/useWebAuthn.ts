@@ -30,12 +30,24 @@ export async function checkPlatformAuthenticator(): Promise<boolean> {
   }
 }
 
-async function callWebAuthn(action: string, body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke('terminal-webauthn', {
-    body: { action, ...body },
+// Promise-race timeout helper
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out — server is not responding. Please try again.`)), ms);
   });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function callWebAuthn(action: string, body: Record<string, unknown>) {
+  const { data, error } = await withTimeout(
+    supabase.functions.invoke('terminal-webauthn', {
+      body: { action, ...body },
+    }),
+    15000,
+    'Biometric server'
+  );
   if (error) {
-    // Try to extract server error message from data
     const serverMsg = data?.error || error.message || 'WebAuthn request failed';
     console.error('WebAuthn callWebAuthn error:', { action, serverMsg, data, error });
     throw new Error(serverMsg);

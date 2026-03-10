@@ -168,10 +168,15 @@ export default function Purchase() {
       // Determine asset type from product_category or product_name
       const assetType = productCategory || (order.product_name || 'USDT').toUpperCase();
       
-      // For USDT, effective price = price_per_unit; for other coins, price_per_unit / market_rate_usdt
+      // For USDT, effective price = price_per_unit (INR per USDT)
+      // For other coins: convert to INR-per-USDT-equivalent
+      // Formula: total_amount_INR / (quantity * market_rate_usdt) = INR cost per 1 USDT worth of the coin
       let effectivePriceUsdt = pricePerUnit;
-      if (assetType !== 'USDT' && marketRate > 0) {
-        effectivePriceUsdt = pricePerUnit / marketRate;
+      const quantity = order.quantity || 0;
+      if (assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
+        const totalAmountInr = order.total_amount || 0;
+        const usdtEquivQty = quantity * marketRate;
+        effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;
       }
 
       return [

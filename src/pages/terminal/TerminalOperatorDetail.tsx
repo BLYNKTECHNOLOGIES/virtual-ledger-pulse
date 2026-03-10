@@ -477,6 +477,7 @@ export default function TerminalOperatorDetail() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="h-8">
           <TabsTrigger value="overview" className="text-xs h-7">Overview</TabsTrigger>
+          <TabsTrigger value="assignments" className="text-xs h-7">Assignments</TabsTrigger>
           <TabsTrigger value="actions" className="text-xs h-7">Actions</TabsTrigger>
           <TabsTrigger value="trends" className="text-xs h-7">Trends</TabsTrigger>
           <TabsTrigger value="orders" className="text-xs h-7">Orders</TabsTrigger>

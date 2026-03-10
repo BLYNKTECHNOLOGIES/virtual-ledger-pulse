@@ -85,6 +85,7 @@ export function ClientOnboardingApprovals() {
   const [viewOrderData, setViewOrderData] = useState<any>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
+  const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
   const [formData, setFormData] = useState({
     aadhar_number: '',

@@ -63,6 +63,9 @@ export function usePayerAssignments(payerUserId?: string | null) {
       })) as PayerAssignment[];
     },
     enabled: true,
+    placeholderData: keepPreviousData,
+    retry: 3,
+    staleTime: 30_000,
   });
 }
 

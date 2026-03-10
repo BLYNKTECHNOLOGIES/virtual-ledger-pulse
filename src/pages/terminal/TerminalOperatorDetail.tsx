@@ -12,7 +12,8 @@ import {
   CheckCircle, XCircle, Clock, Shield, Wallet, CreditCard, Users,
   BarChart3, Zap, Target, Banknote, Unlock, CalendarDays,
   ArrowUpRight, ArrowDownRight, Gauge, Trophy, AlertTriangle,
-  MessageSquare, RefreshCw, Star,
+  MessageSquare, RefreshCw, Star, UserCheck, Lock,
+  ClipboardList, Link2, Hash,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,

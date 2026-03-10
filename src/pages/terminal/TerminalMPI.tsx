@@ -768,6 +768,70 @@ export default function TerminalMPI() {
                     </TooltipProvider>
                   </div>
 
+                  {/* Assignment Stats */}
+                  {(m.payerAssignments.total > 0 || m.operatorAssignments.total > 0 || m.payerLocksTotal > 0) && (
+                    <div className="grid grid-cols-3 gap-1.5 text-center mb-3">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-blue-500/5 border border-blue-500/10">
+                              <div className="flex items-center justify-center gap-1">
+                                <UserCheck className="h-2.5 w-2.5 text-blue-400" />
+                                <span className="text-[10px] font-semibold text-foreground">{m.payerAssignments.active}/{m.payerAssignments.total}</span>
+                              </div>
+                              <div className="text-[7px] text-muted-foreground">Payer Assign</div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <p>Payer: {m.payerAssignments.active} active / {m.payerAssignments.total} total</p>
+                              {m.payerAssignments.sizeRanges.length > 0 && <p>Ranges: {m.payerAssignments.sizeRanges.join(', ')}</p>}
+                              {m.payerAssignments.adIds.length > 0 && <p>Ads: {m.payerAssignments.adIds.length}</p>}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-indigo-500/5 border border-indigo-500/10">
+                              <div className="flex items-center justify-center gap-1">
+                                <ClipboardList className="h-2.5 w-2.5 text-indigo-400" />
+                                <span className="text-[10px] font-semibold text-foreground">{m.operatorAssignments.active}/{m.operatorAssignments.total}</span>
+                              </div>
+                              <div className="text-[7px] text-muted-foreground">Op Assign</div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <p>Operator: {m.operatorAssignments.active} active / {m.operatorAssignments.total} total</p>
+                              {m.operatorAssignments.sizeRanges.length > 0 && <p>Ranges: {m.operatorAssignments.sizeRanges.join(', ')}</p>}
+                              {m.operatorAssignments.adIds.length > 0 && <p>Ads: {m.operatorAssignments.adIds.length}</p>}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-cyan-500/5 border border-cyan-500/10">
+                              <div className="flex items-center justify-center gap-1">
+                                <Lock className="h-2.5 w-2.5 text-cyan-400" />
+                                <span className="text-[10px] font-semibold text-foreground">{m.payerLocksCompleted}/{m.payerLocksTotal}</span>
+                              </div>
+                              <div className="text-[7px] text-muted-foreground">Payer Locks</div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <p>Completed: {m.payerLocksCompleted} / Total: {m.payerLocksTotal}</p>
+                              <p>Active locks: {m.payerLocksActive}</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
                   {/* Efficiency Bar */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[10px]">

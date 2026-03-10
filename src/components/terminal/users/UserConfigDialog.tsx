@@ -60,6 +60,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
     is_active: true,
     automation_included: true,
   });
+  const [selectAllSizeRanges, setSelectAllSizeRanges] = useState(false);
   const [selectedSupervisors, setSelectedSupervisors] = useState<Set<string>>(new Set());
   const [allUsers, setAllUsers] = useState<{ id: string; username: string; first_name: string | null; last_name: string | null }[]>([]);
   const [exchangeAccounts, setExchangeAccounts] = useState<ExchangeAccount[]>([]);
@@ -103,6 +104,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           is_active: profileRes.data.is_active,
           automation_included: profileRes.data.automation_included,
         });
+        setSelectAllSizeRanges(profileRes.data.select_all_size_ranges ?? false);
       }
 
       const roles: TerminalRole[] = (rolesRes.data || []).map((r: any) => ({
@@ -151,6 +153,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           shift: profile.shift || null,
           is_active: profile.is_active,
           automation_included: profile.automation_included,
+          select_all_size_ranges: selectAllSizeRanges,
         }, { onConflict: "user_id" });
 
       if (profileErr) throw profileErr;
@@ -196,8 +199,12 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
       // Sync size range mappings
       await supabase.from("terminal_user_size_range_mappings").delete().eq("user_id", userId);
-      if (selectedSizeRanges.size > 0) {
-        const rows = Array.from(selectedSizeRanges).map(sid => ({
+      // If select all is enabled, insert ALL active size ranges; otherwise only selected ones
+      const rangesToSave = selectAllSizeRanges
+        ? sizeRanges.map(sr => sr.id)
+        : Array.from(selectedSizeRanges);
+      if (rangesToSave.length > 0) {
+        const rows = rangesToSave.map(sid => ({
           user_id: userId,
           size_range_id: sid,
         }));
@@ -456,10 +463,31 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                 <p className="text-xs text-muted-foreground italic">No size ranges configured yet.</p>
               ) : (
                 <div className="space-y-1.5 border border-border rounded-lg p-2">
+                  {/* Select All toggle */}
+                  <label className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/20 rounded px-1 py-1 border-b border-border pb-2 mb-1">
+                    <Checkbox
+                      checked={selectAllSizeRanges}
+                      onCheckedChange={(checked) => {
+                        const val = !!checked;
+                        setSelectAllSizeRanges(val);
+                        if (val) {
+                          setSelectedSizeRanges(new Set(sizeRanges.map(sr => sr.id)));
+                        }
+                      }}
+                      className="h-3.5 w-3.5"
+                    />
+                    <span className="font-semibold">Select All</span>
+                    {selectAllSizeRanges && (
+                      <Badge variant="default" className="text-[9px] ml-auto h-4 px-1.5">
+                        Auto-assigns new ranges
+                      </Badge>
+                    )}
+                  </label>
                   {sizeRanges.map(sr => (
                     <label key={sr.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/20 rounded px-1 py-1">
                       <Checkbox
-                        checked={selectedSizeRanges.has(sr.id)}
+                        checked={selectAllSizeRanges || selectedSizeRanges.has(sr.id)}
+                        disabled={selectAllSizeRanges}
                         onCheckedChange={() => toggleSizeRange(sr.id)}
                         className="h-3.5 w-3.5"
                       />

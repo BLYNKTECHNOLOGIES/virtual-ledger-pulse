@@ -10567,6 +10567,7 @@ export type Database = {
           id: string
           is_active: boolean
           reports_to: string | null
+          select_all_size_ranges: boolean
           shift: string | null
           specialization: string
           updated_at: string
@@ -10578,6 +10579,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           reports_to?: string | null
+          select_all_size_ranges?: boolean
           shift?: string | null
           specialization?: string
           updated_at?: string
@@ -10589,6 +10591,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           reports_to?: string | null
+          select_all_size_ranges?: boolean
           shift?: string | null
           specialization?: string
           updated_at?: string

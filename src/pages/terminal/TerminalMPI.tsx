@@ -12,7 +12,8 @@ import {
   ArrowUpRight, ArrowDownRight, ChevronRight, RefreshCw,
   Target, Timer, Package, AlertTriangle, ShieldAlert,
   Trophy, CreditCard, Banknote, Unlock, Gauge, Star,
-  MessageSquare, CheckCircle, XCircle,
+  MessageSquare, CheckCircle, XCircle, UserCheck, Lock,
+  ClipboardList, Link2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
@@ -47,6 +48,12 @@ interface OperatorMetric {
   escalationsHandled: number;
   // Efficiency score (0-100)
   efficiencyScore: number;
+  // Assignment stats
+  payerAssignments: { total: number; active: number; sizeRanges: string[]; adIds: string[] };
+  operatorAssignments: { total: number; active: number; sizeRanges: string[]; adIds: string[] };
+  payerLocksTotal: number;
+  payerLocksCompleted: number;
+  payerLocksActive: number;
 }
 
 function getTimeRangeStart(range: string): Date {
@@ -162,7 +169,7 @@ export default function TerminalMPI() {
       const rangeEndISO = rangeEnd.toISOString();
 
       // Parallel fetch all data
-      const [usersRes, assignmentsRes, payerLogsRes, actionLogsRes, rolesRes, userRolesRes, profilesRes] = await Promise.all([
+      const [usersRes, assignmentsRes, payerLogsRes, actionLogsRes, rolesRes, userRolesRes, profilesRes, payerAssignRes, operatorAssignRes, payerLocksRes, sizeRangesRes] = await Promise.all([
         supabase.from('users').select('id, username, first_name, last_name'),
         supabase.from('terminal_order_assignments')
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
@@ -180,6 +187,10 @@ export default function TerminalMPI() {
         supabase.from('p2p_terminal_roles').select('id, name'),
         supabase.from('p2p_terminal_user_roles').select('user_id, role_id'),
         supabase.from('terminal_user_profiles').select('user_id, specialization, shift, is_active, automation_included'),
+        supabase.from('terminal_payer_assignments').select('id, payer_user_id, assignment_type, size_range_id, ad_id, is_active'),
+        supabase.from('terminal_operator_assignments').select('id, operator_user_id, assignment_type, size_range_id, ad_id, is_active'),
+        supabase.from('terminal_payer_order_locks').select('id, payer_user_id, status, order_number'),
+        supabase.from('terminal_order_size_ranges').select('id, name'),
       ]);
 
       const users = usersRes.data || [];
@@ -189,6 +200,52 @@ export default function TerminalMPI() {
       const roles = rolesRes.data || [];
       const userRoles = userRolesRes.data || [];
       const profiles = profilesRes.data || [];
+      const payerAssignments = payerAssignRes.data || [];
+      const operatorAssignments = operatorAssignRes.data || [];
+      const payerLocks = payerLocksRes.data || [];
+      const sizeRanges = sizeRangesRes.data || [];
+
+      // Build size range name map
+      const sizeRangeNameMap = new Map<string, string>();
+      sizeRanges.forEach(r => sizeRangeNameMap.set(r.id, r.name));
+
+      // Index payer assignments by user
+      const payerAssignByUser = new Map<string, { total: number; active: number; sizeRanges: string[]; adIds: string[] }>();
+      payerAssignments.forEach(pa => {
+        const existing = payerAssignByUser.get(pa.payer_user_id) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        existing.total++;
+        if (pa.is_active) existing.active++;
+        if (pa.size_range_id) {
+          const name = sizeRangeNameMap.get(pa.size_range_id) || pa.size_range_id.slice(0, 8);
+          if (!existing.sizeRanges.includes(name)) existing.sizeRanges.push(name);
+        }
+        if (pa.ad_id && !existing.adIds.includes(pa.ad_id)) existing.adIds.push(pa.ad_id);
+        payerAssignByUser.set(pa.payer_user_id, existing);
+      });
+
+      // Index operator assignments by user
+      const operatorAssignByUser = new Map<string, { total: number; active: number; sizeRanges: string[]; adIds: string[] }>();
+      operatorAssignments.forEach(oa => {
+        const existing = operatorAssignByUser.get(oa.operator_user_id) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        existing.total++;
+        if (oa.is_active) existing.active++;
+        if (oa.size_range_id) {
+          const name = sizeRangeNameMap.get(oa.size_range_id) || oa.size_range_id.slice(0, 8);
+          if (!existing.sizeRanges.includes(name)) existing.sizeRanges.push(name);
+        }
+        if (oa.ad_id && !existing.adIds.includes(oa.ad_id)) existing.adIds.push(oa.ad_id);
+        operatorAssignByUser.set(oa.operator_user_id, existing);
+      });
+
+      // Index payer locks by user
+      const payerLocksByUser = new Map<string, { total: number; completed: number; active: number }>();
+      payerLocks.forEach(pl => {
+        const existing = payerLocksByUser.get(pl.payer_user_id) || { total: 0, completed: 0, active: 0 };
+        existing.total++;
+        if (pl.status === 'completed') existing.completed++;
+        else existing.active++;
+        payerLocksByUser.set(pl.payer_user_id, existing);
+      });
 
       const usersMap = new Map<string, any>();
       users.forEach(u => usersMap.set(u.id, u));
@@ -310,6 +367,10 @@ export default function TerminalMPI() {
         const completionRate = userAssignments.length > 0 ? Math.round((completed.length / userAssignments.length) * 100) : 0;
         const avgHandle = avg(handleTimes);
 
+        const payerAssign = payerAssignByUser.get(uid) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        const operatorAssign = operatorAssignByUser.get(uid) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        const payerLockStats = payerLocksByUser.get(uid) || { total: 0, completed: 0, active: 0 };
+
         const metric: OperatorMetric = {
           userId: uid,
           displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username,
@@ -330,6 +391,11 @@ export default function TerminalMPI() {
           chatMessagesSent: chatCountByUser.get(uid) || 0,
           escalationsHandled: escalationCountByUser.get(uid) || 0,
           efficiencyScore: 0,
+          payerAssignments: payerAssign,
+          operatorAssignments: operatorAssign,
+          payerLocksTotal: payerLockStats.total,
+          payerLocksCompleted: payerLockStats.completed,
+          payerLocksActive: payerLockStats.active,
         };
         metric.efficiencyScore = computeEfficiencyScore(metric);
 
@@ -702,6 +768,70 @@ export default function TerminalMPI() {
                     </TooltipProvider>
                   </div>
 
+                  {/* Assignment Stats */}
+                  {(m.payerAssignments.total > 0 || m.operatorAssignments.total > 0 || m.payerLocksTotal > 0) && (
+                    <div className="grid grid-cols-3 gap-1.5 text-center mb-3">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-blue-500/5 border border-blue-500/10">
+                              <div className="flex items-center justify-center gap-1">
+                                <UserCheck className="h-2.5 w-2.5 text-blue-400" />
+                                <span className="text-[10px] font-semibold text-foreground">{m.payerAssignments.active}/{m.payerAssignments.total}</span>
+                              </div>
+                              <div className="text-[7px] text-muted-foreground">Payer Assign</div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <p>Payer: {m.payerAssignments.active} active / {m.payerAssignments.total} total</p>
+                              {m.payerAssignments.sizeRanges.length > 0 && <p>Ranges: {m.payerAssignments.sizeRanges.join(', ')}</p>}
+                              {m.payerAssignments.adIds.length > 0 && <p>Ads: {m.payerAssignments.adIds.length}</p>}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-indigo-500/5 border border-indigo-500/10">
+                              <div className="flex items-center justify-center gap-1">
+                                <ClipboardList className="h-2.5 w-2.5 text-indigo-400" />
+                                <span className="text-[10px] font-semibold text-foreground">{m.operatorAssignments.active}/{m.operatorAssignments.total}</span>
+                              </div>
+                              <div className="text-[7px] text-muted-foreground">Op Assign</div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <p>Operator: {m.operatorAssignments.active} active / {m.operatorAssignments.total} total</p>
+                              {m.operatorAssignments.sizeRanges.length > 0 && <p>Ranges: {m.operatorAssignments.sizeRanges.join(', ')}</p>}
+                              {m.operatorAssignments.adIds.length > 0 && <p>Ads: {m.operatorAssignments.adIds.length}</p>}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="p-1 rounded bg-cyan-500/5 border border-cyan-500/10">
+                              <div className="flex items-center justify-center gap-1">
+                                <Lock className="h-2.5 w-2.5 text-cyan-400" />
+                                <span className="text-[10px] font-semibold text-foreground">{m.payerLocksCompleted}/{m.payerLocksTotal}</span>
+                              </div>
+                              <div className="text-[7px] text-muted-foreground">Payer Locks</div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <div className="text-xs space-y-0.5">
+                              <p>Completed: {m.payerLocksCompleted} / Total: {m.payerLocksTotal}</p>
+                              <p>Active locks: {m.payerLocksActive}</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  )}
                   {/* Efficiency Bar */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[10px]">

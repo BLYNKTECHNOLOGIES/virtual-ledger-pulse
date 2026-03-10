@@ -143,6 +143,19 @@ export function ClientOnboardingApprovals() {
       .ilike('name', clientName.trim())
       .maybeSingle();
     
+    // Fetch recent transactions for the matched client
+    if (data?.id) {
+      const { data: recentOrders } = await supabase
+        .from('sales_orders')
+        .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
+        .eq('client_id', data.id)
+        .order('order_date', { ascending: false })
+        .limit(5);
+      setExistingClientTransactions(recentOrders || []);
+    } else {
+      setExistingClientTransactions([]);
+    }
+
     return data as ExistingClientMatch | null;
   };
 

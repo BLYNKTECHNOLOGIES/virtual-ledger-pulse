@@ -47,6 +47,12 @@ interface OperatorMetric {
   escalationsHandled: number;
   // Efficiency score (0-100)
   efficiencyScore: number;
+  // Assignment stats
+  payerAssignments: { total: number; active: number; sizeRanges: string[]; adIds: string[] };
+  operatorAssignments: { total: number; active: number; sizeRanges: string[]; adIds: string[] };
+  payerLocksTotal: number;
+  payerLocksCompleted: number;
+  payerLocksActive: number;
 }
 
 function getTimeRangeStart(range: string): Date {

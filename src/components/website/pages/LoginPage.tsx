@@ -97,29 +97,20 @@ export function LoginPage() {
       };
 
       // Helper: RPC call with timeout
-      const rpcWithTimeout = async <T,>(fn: () => Promise<{ data: T; error: any }>, timeoutMs = 15000): Promise<{ data: T | null; error: any }> => {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        try {
-          const result = await Promise.race([
-            fn(),
-            new Promise<never>((_, reject) => {
-              controller.signal.addEventListener('abort', () => reject(new Error('TIMEOUT')));
-            })
-          ]);
-          clearTimeout(timer);
-          return result;
-        } catch (err: any) {
-          clearTimeout(timer);
-          if (err?.message === 'TIMEOUT') {
-            return { data: null, error: { message: 'TIMEOUT' } };
-          }
-          throw err;
-        }
+      const rpcWithTimeout = async (rpcPromise: PromiseLike<{ data: any; error: any }>, timeoutMs = 15000): Promise<{ data: any; error: any }> => {
+        let timer: ReturnType<typeof setTimeout>;
+        const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) => {
+          timer = setTimeout(() => resolve({ data: null, error: { message: 'TIMEOUT' } }), timeoutMs);
+        });
+        const result = await Promise.race([
+          Promise.resolve(rpcPromise).then(r => { clearTimeout(timer!); return r; }),
+          timeoutPromise
+        ]);
+        return result;
       };
 
       // Step 1: Try normal credential validation
-      const { data: validationResult, error: validationError } = await rpcWithTimeout(() =>
+      const { data: validationResult, error: validationError } = await rpcWithTimeout(
         supabase.rpc('validate_user_credentials', {
           input_username: inputIdentifier,
           input_password: password

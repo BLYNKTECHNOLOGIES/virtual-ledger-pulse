@@ -124,7 +124,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     }
   }, [open, displayName, allClients]);
 
-  // Track counterparty data for conflict detection
+  // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {
     if (!open) return;
     const nickname = (syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name || '').trim();
@@ -135,8 +135,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       .eq('counterparty_nickname', nickname)
       .maybeSingle()
       .then(({ data }) => {
-        setCounterpartyPhone(data?.contact_number || '');
-        setCounterpartyState(data?.state || '');
+        const phone = data?.contact_number || '';
+        const state = data?.state || '';
+        setCounterpartyPhone(phone);
+        setCounterpartyState(state);
+        // Pre-fill form fields from terminal-captured data (highest priority)
+        if (phone) setContactNumber(prev => prev || phone);
+        if (state) setClientState(prev => prev || state);
       });
   }, [open, syncRecord]);
 

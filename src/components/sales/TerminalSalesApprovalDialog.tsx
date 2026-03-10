@@ -345,38 +345,54 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       const asset = (od.asset || 'USDT').toUpperCase();
       const marketRateUsdt = await fetchCoinMarketRate(asset);
 
-      const { data: salesOrder, error: soErr } = await supabase
+      // Check if a sales order already exists for this order number (partial approval recovery)
+      const { data: existingSO } = await supabase
         .from('sales_orders')
-        .insert({
-          order_number: orderNumber,
-          client_name: displayName,
-          client_phone: contactNumber || null,
-          client_state: clientState || null,
-          order_date: orderDate,
-          total_amount: totalAmount,
-          quantity: quantity,
-          price_per_unit: unitPrice,
-          product_id: usdtProduct?.id || null,
-          wallet_id: od.wallet_id || null,
-          platform: od.wallet_name || 'Binance',
-          fee_percentage: 0,
-          fee_amount: commission,
-          net_amount: totalAmount,
-          sales_payment_method_id: paymentMethodId,
-          payment_status: 'COMPLETED',
-          status: 'COMPLETED',
-          settlement_status: isGateway ? 'PENDING' : 'DIRECT',
-          is_off_market: false,
-          description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
-          created_by: userId || null,
-          source: 'terminal',
-          terminal_sync_id: syncRecord.id,
-          market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
-        })
         .select('id')
-        .single();
+        .eq('order_number', orderNumber)
+        .maybeSingle();
 
-      if (soErr) throw soErr;
+      let salesOrder: { id: string };
+
+      if (existingSO) {
+        // Sales order already exists from a previous partial approval — reuse it
+        console.log('[SalesApproval] Existing sales order found, recovering from partial approval:', existingSO.id);
+        salesOrder = existingSO;
+      } else {
+        const { data: newSO, error: soErr } = await supabase
+          .from('sales_orders')
+          .insert({
+            order_number: orderNumber,
+            client_name: displayName,
+            client_phone: contactNumber || null,
+            client_state: clientState || null,
+            order_date: orderDate,
+            total_amount: totalAmount,
+            quantity: quantity,
+            price_per_unit: unitPrice,
+            product_id: usdtProduct?.id || null,
+            wallet_id: od.wallet_id || null,
+            platform: od.wallet_name || 'Binance',
+            fee_percentage: 0,
+            fee_amount: commission,
+            net_amount: totalAmount,
+            sales_payment_method_id: paymentMethodId,
+            payment_status: 'COMPLETED',
+            status: 'COMPLETED',
+            settlement_status: isGateway ? 'PENDING' : 'DIRECT',
+            is_off_market: false,
+            description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
+            created_by: userId || null,
+            source: 'terminal',
+            terminal_sync_id: syncRecord.id,
+            market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
+          })
+          .select('id')
+          .single();
+
+        if (soErr) throw soErr;
+        salesOrder = newSO;
+      }
 
       // Process wallet deduction
       // Debit net quantity (gross - commission) here; commission is debited separately below

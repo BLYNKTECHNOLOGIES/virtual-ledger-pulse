@@ -367,6 +367,10 @@ export default function TerminalMPI() {
         const completionRate = userAssignments.length > 0 ? Math.round((completed.length / userAssignments.length) * 100) : 0;
         const avgHandle = avg(handleTimes);
 
+        const payerAssign = payerAssignByUser.get(uid) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        const operatorAssign = operatorAssignByUser.get(uid) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        const payerLockStats = payerLocksByUser.get(uid) || { total: 0, completed: 0, active: 0 };
+
         const metric: OperatorMetric = {
           userId: uid,
           displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username,
@@ -387,6 +391,11 @@ export default function TerminalMPI() {
           chatMessagesSent: chatCountByUser.get(uid) || 0,
           escalationsHandled: escalationCountByUser.get(uid) || 0,
           efficiencyScore: 0,
+          payerAssignments: payerAssign,
+          operatorAssignments: operatorAssign,
+          payerLocksTotal: payerLockStats.total,
+          payerLocksCompleted: payerLockStats.completed,
+          payerLocksActive: payerLockStats.active,
         };
         metric.efficiencyScore = computeEfficiencyScore(metric);
 

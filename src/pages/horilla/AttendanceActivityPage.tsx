@@ -52,7 +52,7 @@ export default function AttendanceActivityPage() {
 
       return uniqueActivities;
     },
-    refetchInterval: 30000,
+    refetchInterval: 600000, // 10 minutes
   });
 
   const { data: employees = [] } = useQuery({

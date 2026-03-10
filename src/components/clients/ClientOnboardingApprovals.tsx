@@ -21,7 +21,10 @@ import {
   Video, 
   AlertCircle,
   ExternalLink,
-  Download
+  Download,
+  UserCheck,
+  UserPlus,
+  AlertTriangle
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
@@ -54,11 +57,30 @@ interface ClientOnboardingApproval {
   updated_at: string;
 }
 
+interface ExistingClientMatch {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  state: string | null;
+  client_id: string;
+  kyc_status: string;
+  monthly_limit: number | null;
+  is_buyer: boolean | null;
+  is_seller: boolean | null;
+  date_of_onboarding: string;
+  pan_card_number: string | null;
+  buying_purpose: string | null;
+  current_month_used: number | null;
+}
+
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOrderData, setViewOrderData] = useState<any>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);
+  const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
+  const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
   const [formData, setFormData] = useState({
     aadhar_number: '',
     address: '',
@@ -77,7 +99,6 @@ export function ClientOnboardingApprovals() {
   const { data: approvals, isLoading } = useQuery({
     queryKey: ['client_onboarding_approvals'],
     queryFn: async () => {
-      // Fetch ALL PENDING approvals (not just today)
       const { data: allPending, error: pendingError } = await supabase
         .from('client_onboarding_approvals')
         .select('*')
@@ -86,7 +107,6 @@ export function ClientOnboardingApprovals() {
 
       if (pendingError) throw pendingError;
 
-      // Fetch all non-pending (history) approvals
       const { data: history, error: historyError } = await supabase
         .from('client_onboarding_approvals')
         .select('*')
@@ -99,7 +119,6 @@ export function ClientOnboardingApprovals() {
     }
   });
 
-  // Generate 6-digit alphanumeric client ID
   const generateClientId = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
@@ -109,27 +128,33 @@ export function ClientOnboardingApprovals() {
     return result;
   };
 
+  // Check for existing client with same name
+  const checkExistingClient = async (clientName: string): Promise<ExistingClientMatch | null> => {
+    const { data } = await supabase
+      .from('clients')
+      .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used')
+      .eq('is_deleted', false)
+      .ilike('name', clientName.trim())
+      .maybeSingle();
+    
+    return data as ExistingClientMatch | null;
+  };
+
   // Approve client mutation
   const approveClientMutation = useMutation({
     mutationFn: async (approvalData: {
       id: string;
       clientData: typeof formData;
+      mode: 'normal' | 'merge' | 'create_new';
+      existingClientId?: string;
     }) => {
-      const { id, clientData } = approvalData;
+      const { id, clientData, mode, existingClientId } = approvalData;
       
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
 
-      // Check if client already exists (by phone or email)
-      const { data: existingClient } = await supabase
-        .from('clients')
-        .select('id, name')
-        .eq('is_deleted', false)
-        .or(`phone.eq.${approval.client_phone || ''},email.eq.${approval.client_email || ''}`)
-        .maybeSingle();
-
-      if (existingClient) {
-        // Update existing client to add buyer role
+      if (mode === 'merge' && existingClientId) {
+        // Merge: update existing client with buyer role
         const { error: updateClientError } = await supabase
           .from('clients')
           .update({
@@ -140,43 +165,86 @@ export function ClientOnboardingApprovals() {
             monthly_limit: parseFloat(clientData.proposed_monthly_limit),
             buying_purpose: clientData.purpose_of_buying,
             risk_appetite: clientData.risk_assessment,
-            state: clientData.client_state || approval.client_state || undefined
+            state: clientData.client_state || approval.client_state || undefined,
+            phone: approval.client_phone || undefined,
+            email: approval.client_email || undefined,
           })
-          .eq('id', existingClient.id);
+          .eq('id', existingClientId);
 
         if (updateClientError) throw updateClientError;
       } else {
-        // Create new client record with buyer role
-        const { error: clientError } = await supabase
-          .from('clients')
-          .insert({
-            name: approval.client_name,
-            email: approval.client_email,
-            phone: approval.client_phone,
-            client_type: 'INDIVIDUAL',
-            kyc_status: 'VERIFIED',
-            monthly_limit: parseFloat(clientData.proposed_monthly_limit),
-            current_month_used: 0,
-            first_order_value: approval.order_amount,
-            buying_purpose: clientData.purpose_of_buying,
-            risk_appetite: clientData.risk_assessment,
-            assigned_operator: 'Compliance Team',
-            date_of_onboarding: new Date().toISOString().split('T')[0],
-            client_id: generateClientId(),
-            is_buyer: true,
-            is_seller: false,
-            buyer_approval_status: 'APPROVED',
-            seller_approval_status: 'NOT_APPLICABLE',
-            buyer_approved_at: new Date().toISOString(),
-            aadhar_front_url: approval.aadhar_front_url,
-           aadhar_back_url: approval.aadhar_back_url,
-           state: clientData.client_state || approval.client_state || null
-          });
+        // Check by phone/email first for non-name matches
+        let existingByContact = null;
+        if (mode === 'normal') {
+          const { data } = await supabase
+            .from('clients')
+            .select('id, name')
+            .eq('is_deleted', false)
+            .or(`phone.eq.${approval.client_phone || ''},email.eq.${approval.client_email || ''}`)
+            .maybeSingle();
+          existingByContact = data;
+        }
 
-        if (clientError) throw clientError;
+        if (existingByContact) {
+          // Update existing client found by phone/email
+          const { error: updateClientError } = await supabase
+            .from('clients')
+            .update({
+              is_buyer: true,
+              buyer_approval_status: 'APPROVED',
+              buyer_approved_at: new Date().toISOString(),
+              kyc_status: 'VERIFIED',
+              monthly_limit: parseFloat(clientData.proposed_monthly_limit),
+              buying_purpose: clientData.purpose_of_buying,
+              risk_appetite: clientData.risk_assessment,
+              state: clientData.client_state || approval.client_state || undefined
+            })
+            .eq('id', existingByContact.id);
+
+          if (updateClientError) throw updateClientError;
+        } else {
+          // Create new client
+          const clientName = mode === 'create_new' 
+            ? approval.client_name // Name will be unique because it's a different person
+            : approval.client_name;
+          
+          const { error: clientError } = await supabase
+            .from('clients')
+            .insert({
+              name: clientName,
+              email: approval.client_email,
+              phone: approval.client_phone,
+              client_type: 'INDIVIDUAL',
+              kyc_status: 'VERIFIED',
+              monthly_limit: parseFloat(clientData.proposed_monthly_limit),
+              current_month_used: 0,
+              first_order_value: approval.order_amount,
+              buying_purpose: clientData.purpose_of_buying,
+              risk_appetite: clientData.risk_assessment,
+              assigned_operator: 'Compliance Team',
+              date_of_onboarding: new Date().toISOString().split('T')[0],
+              client_id: generateClientId(),
+              is_buyer: true,
+              is_seller: false,
+              buyer_approval_status: 'APPROVED',
+              seller_approval_status: 'NOT_APPLICABLE',
+              buyer_approved_at: new Date().toISOString(),
+              aadhar_front_url: approval.aadhar_front_url,
+              aadhar_back_url: approval.aadhar_back_url,
+              state: clientData.client_state || approval.client_state || null
+            });
+
+          if (clientError) {
+            // If still hits unique constraint, provide clear message
+            if (clientError.message?.includes('idx_clients_unique_name_active')) {
+              throw new Error(`A client named "${approval.client_name}" already exists. Please use "Link to Existing" or contact admin to resolve.`);
+            }
+            throw clientError;
+          }
+        }
       }
 
-      // Update approval record AFTER client is created/updated
+      // Update approval record
       const { error: updateError } = await supabase
         .from('client_onboarding_approvals')
         .update({
@@ -197,18 +265,23 @@ export function ClientOnboardingApprovals() {
       }
     },
     onSuccess: (_, variables) => {
-      // Log the action
       logActionWithCurrentUser({
         actionType: ActionTypes.CLIENT_BUYER_APPROVED,
         entityType: EntityTypes.CLIENT_ONBOARDING,
         entityId: variables.id,
         module: Modules.CLIENTS,
-        metadata: { proposed_monthly_limit: variables.clientData.proposed_monthly_limit }
+        metadata: { 
+          proposed_monthly_limit: variables.clientData.proposed_monthly_limit,
+          mode: variables.mode,
+          merged_with: variables.existingClientId || null
+        }
       });
       
       toast({
         title: "Client Approved",
-        description: "Client has been successfully onboarded and added to the directory"
+        description: variables.mode === 'merge' 
+          ? "Client has been linked to existing record and approved"
+          : "Client has been successfully onboarded and added to the directory"
       });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
@@ -243,7 +316,6 @@ export function ClientOnboardingApprovals() {
       }
     },
     onSuccess: (_, variables) => {
-      // Log the action
       logActionWithCurrentUser({
         actionType: ActionTypes.CLIENT_BUYER_REJECTED,
         entityType: EntityTypes.CLIENT_ONBOARDING,
@@ -267,7 +339,7 @@ export function ClientOnboardingApprovals() {
     }
   });
 
-  const handleApprovalClick = (approval: ClientOnboardingApproval) => {
+  const handleApprovalClick = async (approval: ClientOnboardingApproval) => {
     setSelectedApproval(approval);
     setFormData({
       aadhar_number: approval.aadhar_number || '',
@@ -278,14 +350,31 @@ export function ClientOnboardingApprovals() {
       compliance_notes: approval.compliance_notes || '',
       client_state: approval.client_state || ''
     });
+    
+    // Pre-check for existing client with same name
+    const existing = await checkExistingClient(approval.client_name);
+    setExistingClientMatch(existing);
+    setApprovalMode(existing ? 'merge' : 'normal'); // Default to merge if match found
     setDialogOpen(true);
   };
 
   const handleApprove = () => {
     if (selectedApproval && formData.proposed_monthly_limit) {
+      // If there's a name match and operator hasn't chosen, block
+      if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
+        toast({
+          title: "Action Required",
+          description: "Please choose to link to existing client or create a new one",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       approveClientMutation.mutate({
         id: selectedApproval.id,
-        clientData: formData
+        clientData: formData,
+        mode: approvalMode,
+        existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
       });
     } else {
       toast({
@@ -329,6 +418,8 @@ export function ClientOnboardingApprovals() {
       client_state: ''
     });
     setSelectedApproval(null);
+    setExistingClientMatch(null);
+    setApprovalMode('normal');
   };
 
   const getStatusBadge = (status: string) => {
@@ -442,14 +533,16 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewOrder(approval.sales_order_id)}
-                        >
-                          <FileText className="h-3 w-3 mr-1" />
-                          View Order
-                        </Button>
+                        {approval.sales_order_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewOrder(approval.sales_order_id)}
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            View Order
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           onClick={() => handleApprovalClick(approval)}
@@ -484,7 +577,7 @@ export function ClientOnboardingApprovals() {
         </CardContent>
       </Card>
 
-      {/* Reviewed Approvals - Including Approved and Rejected */}
+      {/* Reviewed Approvals */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -552,6 +645,80 @@ export function ClientOnboardingApprovals() {
 
           {selectedApproval && (
             <div className="space-y-6">
+              {/* Existing Client Match Warning */}
+              {existingClientMatch && (
+                <div className="border-2 border-orange-300 bg-orange-50 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-orange-800 font-semibold">
+                    <AlertTriangle className="h-5 w-5" />
+                    Existing Client Found with Same Name
+                  </div>
+                  <p className="text-sm text-orange-700">
+                    A client named <strong>"{existingClientMatch.name}"</strong> already exists. Please verify if this is the same person before proceeding.
+                  </p>
+                  
+                  {/* Existing client details */}
+                  <div className="bg-white rounded-md p-3 border border-orange-200">
+                    <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
+                      <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Email:</span> {existingClientMatch.email || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">PAN:</span> {existingClientMatch.pan_card_number || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">KYC:</span> {existingClientMatch.kyc_status}</div>
+                      <div><span className="text-muted-foreground">Monthly Limit:</span> ₹{existingClientMatch.monthly_limit?.toLocaleString() || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Used This Month:</span> ₹{existingClientMatch.current_month_used?.toLocaleString() || '0'}</div>
+                      <div><span className="text-muted-foreground">Buyer:</span> {existingClientMatch.is_buyer ? 'Yes' : 'No'}</div>
+                      <div><span className="text-muted-foreground">Seller:</span> {existingClientMatch.is_seller ? 'Yes' : 'No'}</div>
+                      <div><span className="text-muted-foreground">Onboarded:</span> {existingClientMatch.date_of_onboarding}</div>
+                      <div><span className="text-muted-foreground">Purpose:</span> {existingClientMatch.buying_purpose || 'N/A'}</div>
+                    </div>
+                  </div>
+
+                  {/* New request details for comparison */}
+                  <div className="bg-white rounded-md p-3 border border-orange-200">
+                    <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
+                      <div><span className="text-muted-foreground">Phone:</span> {selectedApproval.client_phone || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Email:</span> {selectedApproval.client_email || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">State:</span> {selectedApproval.client_state || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString()}</div>
+                      <div><span className="text-muted-foreground">Order Date:</span> {new Date(selectedApproval.order_date).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3">
+                    <Button
+                      variant={approvalMode === 'merge' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setApprovalMode('merge')}
+                      className={approvalMode === 'merge' ? 'bg-green-600 hover:bg-green-700' : ''}
+                    >
+                      <UserCheck className="h-4 w-4 mr-1" />
+                      Same Person — Link to Existing
+                    </Button>
+                    <Button
+                      variant={approvalMode === 'create_new' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setApprovalMode('create_new')}
+                      className={approvalMode === 'create_new' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" />
+                      Different Person — Create New
+                    </Button>
+                  </div>
+                  
+                  {approvalMode === 'create_new' && (
+                    <p className="text-xs text-orange-600">
+                      ⚠️ Creating a new client with the same name requires the existing client's name to be disambiguated first. 
+                      Please ensure their names differ (e.g., add a middle name or location) to avoid the unique name constraint.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Client Details */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Order Information</h3>
@@ -664,11 +831,15 @@ export function ClientOnboardingApprovals() {
                 </Button>
                 <Button
                   onClick={handleApprove}
-                  disabled={approveClientMutation.isPending}
+                  disabled={approveClientMutation.isPending || (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new')}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  {approveClientMutation.isPending ? 'Approving...' : 'Approve & Onboard Client'}
+                  {approveClientMutation.isPending 
+                    ? 'Approving...' 
+                    : approvalMode === 'merge' 
+                      ? 'Link & Approve'
+                      : 'Approve & Onboard Client'}
                 </Button>
               </div>
             </div>

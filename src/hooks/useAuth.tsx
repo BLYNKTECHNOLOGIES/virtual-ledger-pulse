@@ -152,8 +152,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
 
       return null;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Authentication error:', error);
+      // Re-throw user-facing errors (timeout, network) so Login component can display them
+      if (error?.message?.includes('Server is taking too long') || error?.message?.includes('Unable to reach')) {
+        throw error;
+      }
       return null;
     }
   };

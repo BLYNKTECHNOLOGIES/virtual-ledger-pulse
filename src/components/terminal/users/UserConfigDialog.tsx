@@ -104,6 +104,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
           is_active: profileRes.data.is_active,
           automation_included: profileRes.data.automation_included,
         });
+        setSelectAllSizeRanges(profileRes.data.select_all_size_ranges ?? false);
       }
 
       const roles: TerminalRole[] = (rolesRes.data || []).map((r: any) => ({

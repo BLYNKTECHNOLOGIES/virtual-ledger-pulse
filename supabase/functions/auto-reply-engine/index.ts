@@ -100,32 +100,26 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
 }
 
 /**
- * Send a chat message via REST proxy (POST).
+ * Send a chat message via REST proxy (POST with query params, matching binance-ads proxy format).
  */
 async function sendChatMessage(
   proxyUrl: string,
-  proxyToken: string,
+  headers: Record<string, string>,
   orderNo: string,
   content: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(
-      `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-proxy-token": proxyToken,
-        },
-        body: JSON.stringify({
-          orderNumber: orderNo,
-          message: content,
-          msgType: "TEXT",
-        }),
-      }
-    );
-    const data = await res.json();
-    console.log(`sendMessage REST for ${orderNo}: status=${res.status}, code=${data?.code}, msg=${JSON.stringify(data).substring(0, 200)}`);
+    const sendMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
+    console.log("auto-reply sendChatMessage URL:", sendMsgUrl);
+    const res = await fetch(sendMsgUrl, {
+      method: "POST",
+      headers,
+    });
+    const text = await res.text();
+    console.log(`sendMessage REST for ${orderNo}: status=${res.status}, body=${text.substring(0, 300)}`);
+
+    let data: any;
+    try { data = JSON.parse(text); } catch { data = { raw: text, status: res.status }; }
 
     if (res.ok && (data?.code === "000000" || data?.success)) {
       return { success: true };

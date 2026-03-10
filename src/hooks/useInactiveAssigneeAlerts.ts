@@ -157,7 +157,7 @@ export function useInactiveAssigneeAlerts() {
       // 7. For users who came back online: deactivate via RPC
       for (const onlineUid of onlineUsers) {
         const { error: resolveErr } = await supabase.rpc('resolve_inactive_assignee_notifications', {
-          p_related_user_id: onlineUid,
+          p_user_id: onlineUid,
         });
         if (resolveErr) {
           console.error(`[AlertCheck] Failed to resolve notifications for ${onlineUid}:`, resolveErr.message);

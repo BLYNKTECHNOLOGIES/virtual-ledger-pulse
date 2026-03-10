@@ -353,6 +353,7 @@ serve(async (req) => {
       totalOrders: allActiveOrders.length,
       candidates: buyOrdersPendingPayment.length,
       autoPaid: autoPaidCount,
+      autoAssigned,
       skipped,
       errors,
       autoPayMinutes,

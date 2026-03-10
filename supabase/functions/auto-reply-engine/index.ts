@@ -550,7 +550,13 @@ serve(async (req) => {
 
       console.log(`${pendingMessages.length} pending auto-reply messages to send`);
 
-      // Send each message via WebSocket relay
+      // Pre-fetch WebSocket credentials once, reuse for all messages
+      let chatCredential: { chatWssUrl: string; listenKey: string; token: string } | null = null;
+      if (pendingMessages.length > 0) {
+        chatCredential = await getChatCredential(BINANCE_API_KEY || "", BINANCE_API_SECRET || "");
+      }
+
+      // Send each message via WebSocket
       for (const pm of pendingMessages) {
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
@@ -559,7 +565,10 @@ serve(async (req) => {
           pm.message,
           BINANCE_API_KEY || "",
           BINANCE_API_SECRET || "",
+          chatCredential,
         );
+        // Update cached credential if returned
+        if (result.credential) chatCredential = result.credential;
 
         if (result.success) {
           await supabase.from("p2p_auto_reply_processed").insert({

@@ -689,11 +689,17 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-3">
+                   <div className="flex gap-3">
                     <Button
                       variant={approvalMode === 'merge' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setApprovalMode('merge')}
+                      onClick={() => {
+                        setApprovalMode('merge');
+                        // Auto-fill monthly limit from existing client if available and not already set
+                        if (existingClientMatch?.monthly_limit && !formData.proposed_monthly_limit) {
+                          setFormData(prev => ({ ...prev, proposed_monthly_limit: existingClientMatch.monthly_limit!.toString() }));
+                        }
+                      }}
                       className={approvalMode === 'merge' ? 'bg-green-600 hover:bg-green-700' : ''}
                     >
                       <UserCheck className="h-4 w-4 mr-1" />

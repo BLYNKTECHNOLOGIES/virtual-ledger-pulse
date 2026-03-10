@@ -12,7 +12,8 @@ import {
   ArrowUpRight, ArrowDownRight, ChevronRight, RefreshCw,
   Target, Timer, Package, AlertTriangle, ShieldAlert,
   Trophy, CreditCard, Banknote, Unlock, Gauge, Star,
-  MessageSquare, CheckCircle, XCircle,
+  MessageSquare, CheckCircle, XCircle, UserCheck, Lock,
+  ClipboardList, Link2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';

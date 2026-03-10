@@ -196,7 +196,7 @@ export function BuyOrdersTab({ searchTerm, dateFrom, dateTo }: BuyOrdersTabProps
           order.order_number?.toLowerCase().includes(term) ||
           order.supplier_name?.toLowerCase().includes(term) ||
           order.contact_number?.includes(term) ||
-          order.description?.toLowerCase().includes(term);
+          (order as any).description?.toLowerCase().includes(term);
         if (!matchesSearch) return false;
       }
       

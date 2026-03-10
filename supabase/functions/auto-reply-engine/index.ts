@@ -43,6 +43,7 @@ interface PendingMessage {
   message: string;
   event: string;
   rule: AutoReplyRule;
+  isRetry?: boolean;
 }
 
 function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {
@@ -99,9 +100,6 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   return events;
 }
 
-/**
- * Generate HMAC-SHA256 signature for Binance API requests.
- */
 async function signQuery(queryString: string, secret: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -113,43 +111,85 @@ async function signQuery(queryString: string, secret: string): Promise<string> {
 }
 
 /**
- * Get Binance chat WebSocket credentials via proxy (same as binance-ads).
- * Direct Binance API calls fail due to IP restrictions on edge functions.
+ * Get Binance chat WebSocket credentials with retry logic.
+ * Retries up to 3 times with exponential backoff.
  */
-async function getChatCredential(
+async function getChatCredentialWithRetry(
   proxyUrl: string,
   proxyHeaders: Record<string, string>,
+  maxRetries = 3,
 ): Promise<{ chatWssUrl: string; listenKey: string; token: string } | null> {
-  try {
-    const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
-    console.log("getChatCredential URL (GET):", url);
-    
-    const res = await fetch(url, {
-      method: "GET",
-      headers: proxyHeaders,
-    });
-    const text = await res.text();
-    console.log("getChatCredential response:", res.status, text.substring(0, 500));
-    
-    const data = JSON.parse(text);
-    if (data?.code === "000000" && data?.data) {
-      return {
-        chatWssUrl: data.data.chatWssUrl,
-        listenKey: data.data.listenKey,
-        token: data.data.listenToken || data.data.token,
-      };
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
+      if (attempt === 1) console.log("getChatCredential URL (GET):", url);
+      
+      const res = await fetch(url, {
+        method: "GET",
+        headers: proxyHeaders,
+      });
+      const text = await res.text();
+      if (attempt === 1) console.log("getChatCredential response:", res.status, text.substring(0, 500));
+      
+      const data = JSON.parse(text);
+      if (data?.code === "000000" && data?.data) {
+        return {
+          chatWssUrl: data.data.chatWssUrl,
+          listenKey: data.data.listenKey,
+          token: data.data.listenToken || data.data.token,
+        };
+      }
+      
+      if (attempt < maxRetries) {
+        console.warn(`getChatCredential attempt ${attempt} failed, retrying in ${attempt * 1000}ms...`);
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      } else {
+        console.error("getChatCredential failed after all retries:", text.substring(0, 300));
+      }
+    } catch (err) {
+      if (attempt < maxRetries) {
+        console.warn(`getChatCredential attempt ${attempt} error, retrying...`, err);
+        await new Promise(r => setTimeout(r, attempt * 1000));
+      } else {
+        console.error("getChatCredential error after all retries:", err);
+      }
     }
-    console.error("getChatCredential failed:", text.substring(0, 300));
-    return null;
+  }
+  return null;
+}
+
+/**
+ * Verify message delivery by checking if our message appears in chat history.
+ */
+async function verifyMessageDelivery(
+  proxyUrl: string,
+  proxyHeaders: Record<string, string>,
+  orderNo: string,
+  sentContent: string,
+): Promise<boolean> {
+  try {
+    const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?orderNo=${encodeURIComponent(orderNo)}&page=1&rows=10`;
+    const res = await fetch(url, { method: "GET", headers: proxyHeaders });
+    const data = await res.json();
+    
+    if (data?.code === "000000" && data?.data) {
+      // Check if any message from us (self=true) contains part of the sent content
+      const contentSnippet = sentContent.substring(0, 50);
+      return data.data.some((msg: any) => 
+        msg.self === true && 
+        msg.type === "text" && 
+        msg.content?.includes(contentSnippet)
+      );
+    }
+    return false;
   } catch (err) {
-    console.error("getChatCredential error:", err);
-    return null;
+    console.warn("verifyMessageDelivery error:", err);
+    return false; // Can't verify, assume not delivered
   }
 }
 
 /**
- * Send a chat message via Binance WebSocket.
- * Binance P2P chat requires WebSocket — there is no REST endpoint for sending messages.
+ * Send a chat message via Binance WebSocket with delivery verification.
  */
 async function sendChatMessage(
   proxyUrl: string,
@@ -157,8 +197,8 @@ async function sendChatMessage(
   orderNo: string,
   content: string,
   cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
-): Promise<{ success: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
-  // First try proxy (in case it supports sendMessage)
+): Promise<{ success: boolean; verified: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
+  // First try proxy REST endpoint (in case it supports sendMessage)
   try {
     const proxyMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
     const proxyRes = await fetch(proxyMsgUrl, { method: "POST", headers: proxyHeaders });
@@ -168,72 +208,103 @@ async function sendChatMessage(
       let data: any;
       try { data = JSON.parse(proxyText); } catch { data = { raw: proxyText }; }
       if (data?.code === "000000" || data?.success) {
-        return { success: true };
+        // Verify delivery
+        await new Promise(r => setTimeout(r, 2000));
+        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content);
+        return { success: true, verified };
       }
     }
   } catch {
     // Proxy failed, continue to WebSocket
   }
 
-  // WebSocket approach: get credentials, connect, send, disconnect
-  const cred = cachedCredential || await getChatCredential(proxyUrl, proxyHeaders);
+  // WebSocket approach with retry
+  const cred = cachedCredential || await getChatCredentialWithRetry(proxyUrl, proxyHeaders);
   if (!cred) {
-    return { success: false, error: "Failed to get chat WebSocket credentials" };
+    return { success: false, verified: false, error: "Failed to get chat WebSocket credentials after 3 retries" };
   }
 
-  try {
-    const wssUrl = `${cred.chatWssUrl}/${cred.listenKey}?token=${cred.token}&clientType=web`;
-    console.log(`WS connecting for order ${orderNo}...`);
+  // Try WebSocket send up to 2 times
+  for (let wsAttempt = 1; wsAttempt <= 2; wsAttempt++) {
+    try {
+      const wssUrl = `${cred.chatWssUrl}/${cred.listenKey}?token=${cred.token}&clientType=web`;
+      if (wsAttempt === 1) console.log(`WS connecting for order ${orderNo}...`);
 
-    const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
-      const timeout = setTimeout(() => {
-        try { ws.close(); } catch {}
-        resolve({ success: false, error: "WebSocket timeout (8s)" });
-      }, 8000);
-
-      const ws = new WebSocket(wssUrl);
-
-      ws.onopen = () => {
-        console.log(`WS connected, sending message to order ${orderNo}`);
-        const now = Date.now();
-        const msgPayload = JSON.stringify({
-          type: "text",
-          uuid: String(now),
-          orderNo: orderNo,
-          content: content,
-          self: true,
-          clientType: "web",
-          createTime: now,
-          sendStatus: 0,
-          topicId: orderNo,
-          topicType: "ORDER",
-        });
-        ws.send(msgPayload);
-        console.log(`WS payload sent: ${msgPayload.substring(0, 200)}`);
-        
-        // Give Binance a moment to acknowledge, then close
-        setTimeout(() => {
-          clearTimeout(timeout);
+      const wsSendResult = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+        const timeout = setTimeout(() => {
           try { ws.close(); } catch {}
-          resolve({ success: true });
-        }, 1500);
-      };
+          resolve({ success: false, error: "WebSocket timeout (10s)" });
+        }, 10000);
 
-      ws.onerror = (err) => {
-        clearTimeout(timeout);
-        console.error(`WS error for ${orderNo}:`, err);
-        resolve({ success: false, error: `WebSocket error` });
-      };
+        const ws = new WebSocket(wssUrl);
 
-      ws.onclose = () => {
-        // If already resolved, this is a no-op
-      };
-    });
+        ws.onopen = () => {
+          console.log(`WS connected, sending message to order ${orderNo}`);
+          const now = Date.now();
+          const msgPayload = JSON.stringify({
+            type: "text",
+            uuid: String(now),
+            orderNo: orderNo,
+            content: content,
+            self: true,
+            clientType: "web",
+            createTime: now,
+            sendStatus: 0,
+            topicId: orderNo,
+            topicType: "ORDER",
+          });
+          ws.send(msgPayload);
+          console.log(`WS payload sent: ${msgPayload.substring(0, 200)}`);
+          
+          // Wait for Binance to process
+          setTimeout(() => {
+            clearTimeout(timeout);
+            try { ws.close(); } catch {}
+            resolve({ success: true });
+          }, 2500);
+        };
 
-    return { ...result, credential: cred };
-  } catch (err) {
-    return { success: false, error: `WebSocket exception: ${String(err)}`, credential: cred };
+        ws.onerror = (err) => {
+          clearTimeout(timeout);
+          console.error(`WS error for ${orderNo}:`, err);
+          resolve({ success: false, error: `WebSocket error` });
+        };
+
+        ws.onclose = () => {};
+      });
+
+      if (wsSendResult.success) {
+        // Verify delivery by checking chat messages
+        await new Promise(r => setTimeout(r, 1500));
+        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content);
+        
+        if (verified) {
+          console.log(`✅ Message delivery VERIFIED for order ${orderNo}`);
+          return { success: true, verified: true, credential: cred };
+        } else if (wsAttempt === 1) {
+          console.warn(`⚠️ Message sent but NOT verified for order ${orderNo}, retrying WS...`);
+          continue; // Retry once
+        } else {
+          // Second attempt also unverified — log as sent but unverified
+          console.warn(`⚠️ Message sent but NOT verified after 2 attempts for order ${orderNo}`);
+          return { success: true, verified: false, credential: cred };
+        }
+      } else if (wsAttempt < 2) {
+        console.warn(`WS send failed for ${orderNo}, retrying...`);
+        await new Promise(r => setTimeout(r, 1000));
+      } else {
+        return { success: false, verified: false, error: wsSendResult.error, credential: cred };
+      }
+    } catch (err) {
+      if (wsAttempt < 2) {
+        await new Promise(r => setTimeout(r, 1000));
+      } else {
+        return { success: false, verified: false, error: `WebSocket exception: ${String(err)}`, credential: cred };
+      }
+    }
   }
+
+  return { success: false, verified: false, error: "All WebSocket attempts failed", credential: cred };
 }
 
 /**
@@ -254,11 +325,8 @@ async function fetchVerifiedName(
     const data = await res.json();
     const detail = data?.data;
     if (!detail) return null;
-    // For BUY orders we are the buyer, counterparty is seller
-    // For SELL orders we are the seller, counterparty is buyer
     const name = tradeType === "BUY" ? detail.sellerRealName : detail.buyerRealName;
     if (name && !name.includes("*")) return name;
-    // Fallback to nickname
     return detail.counterPartNickName || null;
   } catch {
     return null;
@@ -300,11 +368,6 @@ serve(async (req) => {
 
     if (rulesErr) throw rulesErr;
 
-    // Auto-pay is now handled by the dedicated auto-pay-engine function.
-    // This function only handles auto-reply chat messages.
-    const autoPayActive = false;
-    const autoPaidCount = 0;
-
     const hasRules = rules && rules.length > 0;
     if (!hasRules) {
       console.log("No active auto-reply rules. Skipping.");
@@ -314,18 +377,65 @@ serve(async (req) => {
     }
 
     let processed = 0;
+    let verified = 0;
+    let unverified = 0;
     let errors = 0;
+    let retried = 0;
 
-    // ===== AUTO-REPLY LOGIC =====
-    // Fetch active orders for auto-reply processing
-    const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
-      method: "POST",
-      headers: proxyHeaders,
-      body: JSON.stringify({ page: 1, rows: 50 }),
-    });
-    const activeData = await activeRes.json();
-    const activeOrders: BinanceOrder[] = activeData?.data || [];
-    console.log(`Processing ${activeOrders.length} active orders for auto-reply`);
+    // ===== RETRY PREVIOUSLY UNVERIFIED MESSAGES =====
+    // Find messages logged as "sent" but not verified, within last 30 minutes
+    const { data: unverifiedMessages } = await supabase
+      .from("p2p_auto_reply_log")
+      .select("order_number, trigger_event, rule_id, message_sent")
+      .eq("status", "sent_unverified")
+      .gte("executed_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .limit(10);
+
+    const retryOrders = new Set<string>();
+    if (unverifiedMessages && unverifiedMessages.length > 0) {
+      console.log(`${unverifiedMessages.length} unverified messages to retry`);
+      for (const uv of unverifiedMessages) {
+        // Check if it's now been delivered
+        const isNowDelivered = await verifyMessageDelivery(BINANCE_PROXY_URL, proxyHeaders, uv.order_number, uv.message_sent);
+        if (isNowDelivered) {
+          // Update status to verified
+          await supabase
+            .from("p2p_auto_reply_log")
+            .update({ status: "sent", error_message: "Verified on retry" })
+            .eq("order_number", uv.order_number)
+            .eq("trigger_event", uv.trigger_event)
+            .eq("status", "sent_unverified");
+          console.log(`✅ Retry verification passed for ${uv.order_number}`);
+        } else {
+          // Mark for re-send: delete from processed so it gets picked up again
+          retryOrders.add(`${uv.order_number}:${uv.trigger_event}:${uv.rule_id}`);
+          await supabase
+            .from("p2p_auto_reply_processed")
+            .delete()
+            .eq("order_number", uv.order_number)
+            .eq("trigger_event", uv.trigger_event)
+            .eq("rule_id", uv.rule_id);
+          console.log(`🔄 Queued retry for unverified message: ${uv.order_number}`);
+          retried++;
+        }
+      }
+    }
+
+    // ===== FETCH ACTIVE ORDERS =====
+    // Paginate to ensure we don't miss orders beyond the first 50
+    const allActiveOrders: BinanceOrder[] = [];
+    for (let page = 1; page <= 3; page++) {
+      const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+        method: "POST",
+        headers: proxyHeaders,
+        body: JSON.stringify({ page, rows: 50 }),
+      });
+      const activeData = await activeRes.json();
+      const pageOrders: BinanceOrder[] = activeData?.data || [];
+      allActiveOrders.push(...pageOrders);
+      if (pageOrders.length < 50) break;
+    }
+    console.log(`Processing ${allActiveOrders.length} active orders for auto-reply`);
 
     {
       const { data: exclusionRows } = await supabase
@@ -348,7 +458,7 @@ serve(async (req) => {
         .maybeSingle();
 
       // Pre-fetch verified names from DB
-      const orderNumbers = activeOrders.map((o) => o.orderNumber);
+      const orderNumbers = allActiveOrders.map((o) => o.orderNumber);
       const verifiedNameMap = new Map<string, string>();
       if (orderNumbers.length > 0) {
         const { data: nameRows } = await supabase
@@ -364,7 +474,7 @@ serve(async (req) => {
       }
 
       // For orders without a clean name, fetch from Binance detail API
-      for (const order of activeOrders) {
+      for (const order of allActiveOrders) {
         if (!verifiedNameMap.has(order.orderNumber)) {
           const detailName = await fetchVerifiedName(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber, order.tradeType);
           if (detailName && !detailName.includes("*")) {
@@ -373,10 +483,10 @@ serve(async (req) => {
         }
       }
 
-      // Collect all pending messages first
+      // Collect all pending messages
       const pendingMessages: PendingMessage[] = [];
 
-      for (const order of activeOrders) {
+      for (const order of allActiveOrders) {
         if (excludedOrders.has(order.orderNumber)) continue;
 
         const triggerEvents = detectTriggerEvents(order);
@@ -402,15 +512,20 @@ serve(async (req) => {
           });
 
           for (const rule of matchingRules) {
-            const { data: existing } = await supabase
-              .from("p2p_auto_reply_processed")
-              .select("id")
-              .eq("order_number", order.orderNumber)
-              .eq("trigger_event", event)
-              .eq("rule_id", rule.id)
-              .maybeSingle();
+            const retryKey = `${order.orderNumber}:${event}:${rule.id}`;
+            const isRetry = retryOrders.has(retryKey);
 
-            if (existing) continue;
+            if (!isRetry) {
+              const { data: existing } = await supabase
+                .from("p2p_auto_reply_processed")
+                .select("id")
+                .eq("order_number", order.orderNumber)
+                .eq("trigger_event", event)
+                .eq("rule_id", rule.id)
+                .maybeSingle();
+
+              if (existing) continue;
+            }
 
             const orderAgeSeconds = (Date.now() - order.createTime) / 1000;
             if (orderAgeSeconds < rule.delay_seconds) continue;
@@ -418,20 +533,20 @@ serve(async (req) => {
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
-            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule });
+            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, isRetry });
           }
         }
       }
 
       console.log(`${pendingMessages.length} pending auto-reply messages to send`);
 
-      // Pre-fetch WebSocket credentials once, reuse for all messages
+      // Pre-fetch WebSocket credentials once with retry
       let chatCredential: { chatWssUrl: string; listenKey: string; token: string } | null = null;
       if (pendingMessages.length > 0) {
-        chatCredential = await getChatCredential(BINANCE_PROXY_URL, proxyHeaders);
+        chatCredential = await getChatCredentialWithRetry(BINANCE_PROXY_URL, proxyHeaders);
       }
 
-      // Send each message via WebSocket
+      // Send each message with verification
       for (const pm of pendingMessages) {
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
@@ -440,23 +555,33 @@ serve(async (req) => {
           pm.message,
           chatCredential,
         );
-        // Update cached credential if returned
         if (result.credential) chatCredential = result.credential;
 
         if (result.success) {
+          // Record in processed table
           await supabase.from("p2p_auto_reply_processed").insert({
             order_number: pm.orderNumber,
             trigger_event: pm.event,
             rule_id: pm.rule.id,
-          });
+          }).onConflict("order_number,trigger_event,rule_id").ignoreDuplicates();
+
+          const status = result.verified ? "sent" : "sent_unverified";
           await supabase.from("p2p_auto_reply_log").insert({
             rule_id: pm.rule.id,
             order_number: pm.orderNumber,
             trigger_event: pm.event,
             message_sent: pm.message,
-            status: "sent",
+            status: status,
+            error_message: result.verified ? null : "Sent via WS but delivery not confirmed by chat history",
           });
-          console.log(`✅ Auto-reply sent: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
+
+          if (result.verified) {
+            console.log(`✅ Auto-reply sent & VERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
+            verified++;
+          } else {
+            console.log(`⚠️ Auto-reply sent but UNVERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
+            unverified++;
+          }
           processed++;
         } else {
           await supabase.from("p2p_auto_reply_log").insert({
@@ -476,11 +601,12 @@ serve(async (req) => {
     const result = {
       message: "Execution complete",
       processed,
-      autoPaid: autoPaidCount,
+      verified,
+      unverified,
+      retried,
       errors,
-      ordersChecked: activeOrders.length,
+      ordersChecked: allActiveOrders.length,
       rulesActive: rules?.length || 0,
-      autoPayActive,
     };
     console.log("Auto-reply engine result:", JSON.stringify(result));
 

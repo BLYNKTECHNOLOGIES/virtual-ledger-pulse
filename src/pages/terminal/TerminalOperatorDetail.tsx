@@ -148,7 +148,7 @@ export default function TerminalOperatorDetail() {
     setIsLoading(true);
     try {
       // Parallel fetch core data
-      const [userRes, assignmentsRes, payerLogsRes, actionLogsRes, userRolesRes, profileRes] = await Promise.all([
+      const [userRes, assignmentsRes, payerLogsRes, actionLogsRes, userRolesRes, profileRes, payerAssignRes, operatorAssignRes, payerLocksRes, sizeRangesRes] = await Promise.all([
         supabase.from('users').select('id, username, first_name, last_name').eq('id', userId).single(),
         supabase.from('terminal_order_assignments')
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
@@ -162,6 +162,10 @@ export default function TerminalOperatorDetail() {
           .eq('user_id', userId),
         supabase.from('p2p_terminal_user_roles').select('role_id').eq('user_id', userId),
         supabase.from('terminal_user_profiles').select('specialization, shift, is_active, automation_included').eq('user_id', userId).single(),
+        supabase.from('terminal_payer_assignments').select('*').eq('payer_user_id', userId),
+        supabase.from('terminal_operator_assignments').select('*').eq('operator_user_id', userId),
+        supabase.from('terminal_payer_order_locks').select('*').eq('payer_user_id', userId),
+        supabase.from('terminal_order_size_ranges').select('id, name, min_amount, max_amount'),
       ]);
 
       const user = userRes.data;

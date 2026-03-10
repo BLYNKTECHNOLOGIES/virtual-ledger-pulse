@@ -264,7 +264,8 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
           transaction_type: 'Expense',
           amount: feeAmt,
           category: 'finance_banking_compliance',
-          description: `Processing fee – Payout gateway fee for Small Buys ${record.asset_code} (${record.order_count} orders, PO: ${result?.purchase_order_id || 'N/A'})`,
+          description: `Processing fee – Payout gateway fee for ${orderNumber} (${record.asset_code}, ${record.order_count} orders)`,
+          reference_number: orderNumber,
           transaction_date: settlementDate,
           created_by: userId,
         });

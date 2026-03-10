@@ -69,6 +69,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const [selectedSizeRanges, setSelectedSizeRanges] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [biometricResetDone, setBiometricResetDone] = useState(false);
 
   // Role management
   const [allRoles, setAllRoles] = useState<TerminalRole[]>([]);

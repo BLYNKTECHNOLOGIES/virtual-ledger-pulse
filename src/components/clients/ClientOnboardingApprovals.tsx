@@ -354,35 +354,53 @@ export function ClientOnboardingApprovals() {
     // Pre-check for existing client with same name
     const existing = await checkExistingClient(approval.client_name);
     setExistingClientMatch(existing);
-    setApprovalMode(existing ? 'merge' : 'normal'); // Default to merge if match found
+    if (existing) {
+      setApprovalMode('merge');
+      // Auto-fill monthly limit from existing client if not already provided in the approval
+      if (existing.monthly_limit && !approval.proposed_monthly_limit) {
+        setFormData(prev => ({ ...prev, proposed_monthly_limit: existing.monthly_limit!.toString() }));
+      }
+    } else {
+      setApprovalMode('normal');
+    }
     setDialogOpen(true);
   };
 
   const handleApprove = () => {
-    if (selectedApproval && formData.proposed_monthly_limit) {
-      // If there's a name match and operator hasn't chosen, block
-      if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
-        toast({
-          title: "Action Required",
-          description: "Please choose to link to existing client or create a new one",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      approveClientMutation.mutate({
-        id: selectedApproval.id,
-        clientData: formData,
-        mode: approvalMode,
-        existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
-      });
-    } else {
+    if (!selectedApproval) return;
+    
+    // For merge mode, monthly limit is optional (uses existing client's limit)
+    const needsLimit = approvalMode !== 'merge' || !existingClientMatch?.monthly_limit;
+    
+    if (needsLimit && !formData.proposed_monthly_limit) {
       toast({
         title: "Missing Information",
         description: "Please enter the monthly transaction limit",
         variant: "destructive"
       });
+      return;
     }
+
+    // If there's a name match and operator hasn't chosen, block
+    if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
+      toast({
+        title: "Action Required",
+        description: "Please choose to link to existing client or create a new one",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    approveClientMutation.mutate({
+      id: selectedApproval.id,
+      clientData: {
+        ...formData,
+        // For merge: if no new limit provided, pass existing client's limit
+        proposed_monthly_limit: formData.proposed_monthly_limit || existingClientMatch?.monthly_limit?.toString() || '',
+      },
+      mode: approvalMode,
+      existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
+    });
   };
 
   const handleReject = (id: string, reason: string) => {
@@ -689,11 +707,17 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* Action buttons */}
-                  <div className="flex gap-3">
+                   <div className="flex gap-3">
                     <Button
                       variant={approvalMode === 'merge' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setApprovalMode('merge')}
+                      onClick={() => {
+                        setApprovalMode('merge');
+                        // Auto-fill monthly limit from existing client if available and not already set
+                        if (existingClientMatch?.monthly_limit && !formData.proposed_monthly_limit) {
+                          setFormData(prev => ({ ...prev, proposed_monthly_limit: existingClientMatch.monthly_limit!.toString() }));
+                        }
+                      }}
                       className={approvalMode === 'merge' ? 'bg-green-600 hover:bg-green-700' : ''}
                     >
                       <UserCheck className="h-4 w-4 mr-1" />
@@ -746,14 +770,21 @@ export function ClientOnboardingApprovals() {
               {/* Compliance Form */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <Label htmlFor="proposed_monthly_limit">Monthly Transaction Limit (₹) *</Label>
+                  <Label htmlFor="proposed_monthly_limit">
+                    Monthly Transaction Limit (₹) {approvalMode !== 'merge' && '*'}
+                    {approvalMode === 'merge' && existingClientMatch?.monthly_limit && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        (Auto-filled from existing record — editable)
+                      </span>
+                    )}
+                  </Label>
                   <Input
                     id="proposed_monthly_limit"
                     type="number"
                     value={formData.proposed_monthly_limit}
                     onChange={(e) => setFormData(prev => ({ ...prev, proposed_monthly_limit: e.target.value }))}
-                    placeholder="Enter monthly limit"
-                    required
+                    placeholder={approvalMode === 'merge' ? 'Using existing limit' : 'Enter monthly limit'}
+                    required={approvalMode !== 'merge'}
                   />
                   <div className="flex flex-wrap gap-2 mt-2">
                     {[

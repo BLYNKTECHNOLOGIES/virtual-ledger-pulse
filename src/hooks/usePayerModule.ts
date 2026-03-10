@@ -275,9 +275,12 @@ export function usePayerOrders() {
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 
-  // Completed: orders marked paid by this payer (from log)
+  // Completed: orders marked paid by this payer (from log) OR already in PAID/PAYING status (3)
+  // on Binance (marked by operator or automation outside this module)
   const completedOrders = useMemo(() => {
-    return allMatchedOrders.filter((o: any) => paidOrderNumbers.has(o.orderNumber));
+    return allMatchedOrders.filter((o: any) =>
+      paidOrderNumbers.has(o.orderNumber) || String(o.orderStatus) === '3'
+    );
   }, [allMatchedOrders, paidOrderNumbers]);
 
   return {

@@ -313,6 +313,9 @@ serve(async (req) => {
       });
     }
 
+    let processed = 0;
+    let errors = 0;
+
     // ===== AUTO-REPLY LOGIC =====
     // Fetch active orders for auto-reply processing
     const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {

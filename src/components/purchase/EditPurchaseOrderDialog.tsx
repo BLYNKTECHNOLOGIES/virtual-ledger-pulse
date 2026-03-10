@@ -130,12 +130,20 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   // Initialize splits from existing data
   useEffect(() => {
     if (existingSplits && existingSplits.length > 0) {
+      // Existing split payment records found — load them faithfully
       setIsMultiplePayments(existingSplits.length > 1);
       setPaymentSplits(existingSplits.map((s: any) => ({
         bank_account_id: s.bank_account_id || '',
         amount: String(s.amount || ''),
       })));
     } else if (order?.bank_account_id) {
+      // Single bank account order — initialize with that bank and net payable
+      setIsMultiplePayments(false);
+      setPaymentSplits([{ 
+        bank_account_id: order.bank_account_id, 
+        amount: '' 
+      }]);
+    } else {
       setIsMultiplePayments(false);
       setPaymentSplits([{ bank_account_id: '', amount: '' }]);
     }

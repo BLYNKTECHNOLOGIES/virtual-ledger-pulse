@@ -394,6 +394,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         salesOrder = newSO;
       }
 
+      // Skip wallet/fee processing if recovering from a partial approval (already done)
+      if (!existingSO) {
       // Process wallet deduction
       // Debit net quantity (gross - commission) here; commission is debited separately below
       // This prevents double-debiting since Binance commission is taken FROM the gross amount

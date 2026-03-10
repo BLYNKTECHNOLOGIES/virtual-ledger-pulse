@@ -726,6 +726,192 @@ export default function TerminalOperatorDetail() {
           </div>
         </TabsContent>
 
+        {/* ASSIGNMENTS TAB */}
+        <TabsContent value="assignments" className="space-y-4 mt-4">
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            Assignment Configuration & Stats
+          </h3>
+
+          {/* Assignment Summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <Card className="border-border bg-card border-l-2 border-l-blue-500">
+              <CardContent className="p-3 text-center">
+                <UserCheck className="h-4 w-4 text-blue-400 mx-auto mb-1" />
+                <div className="text-xl font-bold text-foreground">{payerAssignData.filter(a => a.is_active).length}</div>
+                <div className="text-[9px] text-muted-foreground">Active Payer Assignments</div>
+                <div className="text-[8px] text-muted-foreground mt-0.5">{payerAssignData.length} total</div>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card border-l-2 border-l-indigo-500">
+              <CardContent className="p-3 text-center">
+                <ClipboardList className="h-4 w-4 text-indigo-400 mx-auto mb-1" />
+                <div className="text-xl font-bold text-foreground">{operatorAssignData.filter(a => a.is_active).length}</div>
+                <div className="text-[9px] text-muted-foreground">Active Operator Assignments</div>
+                <div className="text-[8px] text-muted-foreground mt-0.5">{operatorAssignData.length} total</div>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card border-l-2 border-l-cyan-500">
+              <CardContent className="p-3 text-center">
+                <Lock className="h-4 w-4 text-cyan-400 mx-auto mb-1" />
+                <div className="text-xl font-bold text-foreground">{payerLockData.filter(l => l.status !== 'completed').length}</div>
+                <div className="text-[9px] text-muted-foreground">Active Payer Locks</div>
+                <div className="text-[8px] text-muted-foreground mt-0.5">{payerLockData.length} total locks</div>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-card border-l-2 border-l-green-500">
+              <CardContent className="p-3 text-center">
+                <CheckCircle className="h-4 w-4 text-green-400 mx-auto mb-1" />
+                <div className="text-xl font-bold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}</div>
+                <div className="text-[9px] text-muted-foreground">Completed Payer Locks</div>
+                <div className="text-[8px] text-muted-foreground mt-0.5">
+                  {payerLockData.length > 0 ? Math.round((payerLockData.filter(l => l.status === 'completed').length / payerLockData.length) * 100) : 0}% completion
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Payer Assignments Detail */}
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <UserCheck className="h-3.5 w-3.5 text-blue-400" />
+                Payer Assignments
+                <Badge variant="outline" className="text-[9px]">{payerAssignData.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {payerAssignData.length > 0 ? (
+                <div className="space-y-2">
+                  {payerAssignData.map((pa, i) => (
+                    <div key={pa.id || i} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full ${pa.is_active ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                        <div>
+                          <div className="text-xs text-foreground font-medium capitalize">{pa.assignment_type?.replace(/_/g, ' ') || 'N/A'}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {pa.size_range_id && (
+                              <Badge variant="outline" className="text-[8px]">
+                                Range: {sizeRangeNames.get(pa.size_range_id) || pa.size_range_id.slice(0, 8)}
+                              </Badge>
+                            )}
+                            {pa.ad_id && (
+                              <Badge variant="outline" className="text-[8px]">
+                                <Link2 className="h-2 w-2 mr-0.5" /> Ad: ...{pa.ad_id.slice(-8)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={`text-[8px] ${pa.is_active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                        {pa.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No payer assignments configured</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Operator Assignments Detail */}
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ClipboardList className="h-3.5 w-3.5 text-indigo-400" />
+                Operator Assignments
+                <Badge variant="outline" className="text-[9px]">{operatorAssignData.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {operatorAssignData.length > 0 ? (
+                <div className="space-y-2">
+                  {operatorAssignData.map((oa, i) => (
+                    <div key={oa.id || i} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 border border-border">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-2 w-2 rounded-full ${oa.is_active ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                        <div>
+                          <div className="text-xs text-foreground font-medium capitalize">{oa.assignment_type?.replace(/_/g, ' ') || 'N/A'}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {oa.size_range_id && (
+                              <Badge variant="outline" className="text-[8px]">
+                                Range: {sizeRangeNames.get(oa.size_range_id) || oa.size_range_id.slice(0, 8)}
+                              </Badge>
+                            )}
+                            {oa.ad_id && (
+                              <Badge variant="outline" className="text-[8px]">
+                                <Link2 className="h-2 w-2 mr-0.5" /> Ad: ...{oa.ad_id.slice(-8)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={`text-[8px] ${oa.is_active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
+                        {oa.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No operator assignments configured</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Payer Order Locks */}
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Lock className="h-3.5 w-3.5 text-cyan-400" />
+                Payer Order Locks
+                <Badge variant="outline" className="text-[9px]">{payerLockData.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {payerLockData.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-2 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-2 font-medium">Status</th>
+                        <th className="text-left py-1.5 px-2 font-medium">Locked At</th>
+                        <th className="text-left py-1.5 px-2 font-medium">Completed At</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payerLockData.slice(0, 20).map((lock, i) => (
+                        <tr key={lock.id || i} className="border-b border-border/50 hover:bg-muted/20">
+                          <td className="py-1.5 px-2 font-mono">...{lock.order_number?.slice(-8)}</td>
+                          <td className="py-1.5 px-2">
+                            <Badge variant="outline" className={`text-[9px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                              {lock.status}
+                            </Badge>
+                          </td>
+                          <td className="py-1.5 px-2 text-muted-foreground">
+                            {new Date(lock.locked_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                          <td className="py-1.5 px-2 text-muted-foreground">
+                            {lock.completed_at ? new Date(lock.completed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {payerLockData.length > 20 && (
+                    <p className="text-center text-[10px] text-muted-foreground mt-2">
+                      Showing 20 of {payerLockData.length} locks
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No payer order locks recorded</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         {/* ACTIONS TAB */}
         <TabsContent value="actions" className="space-y-4 mt-4">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">

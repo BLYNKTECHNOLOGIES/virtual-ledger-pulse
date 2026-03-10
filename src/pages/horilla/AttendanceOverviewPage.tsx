@@ -29,7 +29,7 @@ export default function AttendanceOverviewPage() {
     notes: "",
   });
 
-  const { data: attendance = [], isLoading } = useQuery({
+  const { data: attendance = [], isLoading, error: queryError } = useQuery({
     queryKey: ["hr_attendance", dateFilter, statusFilter],
     queryFn: async () => {
       const selectClause = "*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)";

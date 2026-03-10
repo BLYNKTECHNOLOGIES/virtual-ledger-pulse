@@ -20,7 +20,7 @@ export default function AttendanceActivityPage() {
   const [selectedEmp, setSelectedEmp] = useState("");
   const [clockNote, setClockNote] = useState("");
 
-  const { data: activities = [], isLoading } = useQuery({
+  const { data: activities = [], isLoading, error: queryError } = useQuery({
     queryKey: ["hr_attendance_activity", dateFilter],
     queryFn: async () => {
       const selectClause = "*, hr_employees!hr_attendance_activity_employee_id_fkey(id, badge_id, first_name, last_name)";

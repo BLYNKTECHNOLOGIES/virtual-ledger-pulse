@@ -60,6 +60,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
     is_active: true,
     automation_included: true,
   });
+  const [selectAllSizeRanges, setSelectAllSizeRanges] = useState(false);
   const [selectedSupervisors, setSelectedSupervisors] = useState<Set<string>>(new Set());
   const [allUsers, setAllUsers] = useState<{ id: string; username: string; first_name: string | null; last_name: string | null }[]>([]);
   const [exchangeAccounts, setExchangeAccounts] = useState<ExchangeAccount[]>([]);

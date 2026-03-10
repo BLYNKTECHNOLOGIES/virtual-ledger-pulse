@@ -103,7 +103,7 @@ export default function Sales() {
       }
 
       if (searchTerm) {
-        query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%`);
+        query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
       }
 
       if (filterPaymentStatus) {

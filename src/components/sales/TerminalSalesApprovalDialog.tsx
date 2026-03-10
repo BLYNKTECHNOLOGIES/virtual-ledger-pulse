@@ -673,6 +673,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                   {/* No client linked — show matching suggestions or create option */}
                   {matchingClients.length > 0 ? (
                     <div className="space-y-2">
+                      {matchingClients.filter(c => c.name.trim().toLowerCase() === displayName.trim().toLowerCase()).length > 1 && (
+                        <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                          <Users className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                            Multiple clients exist with the same name. Please verify details (phone, state, PAN) and select the correct one.
+                          </span>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Matching clients found for "<span className="font-medium text-foreground">{displayName}</span>". Select the correct client:
                       </p>

@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search } from "lucide-react";
+import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -101,20 +101,27 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     const name = displayName.trim().toLowerCase();
     if (!name) return;
 
-    // Find exact match — only among APPROVED or already-existing clients
-    // (PENDING clients are in approval queue, still valid to link but treated as new)
-    const exactMatch = allClients.find(
+    // Find ALL exact matches — only among non-deleted, non-rejected clients
+    const exactMatches = allClients.filter(
       c => !(c as any).is_deleted && c.buyer_approval_status !== 'REJECTED' && c.name.trim().toLowerCase() === name
     );
 
-    if (exactMatch) {
+    if (exactMatches.length === 1) {
+      // Single exact match — safe to auto-link
+      const exactMatch = exactMatches[0];
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      // Fallback: fill from client master ONLY if counterparty data didn't already populate
       const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
       if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
+    } else if (exactMatches.length > 1) {
+      // Multiple clients with same name — force operator to choose
+      console.warn(`[SalesApproval] Multiple clients found for "${displayName}" — requires manual selection`);
+      setLinkedClientId('');
+      setLinkedClientName('');
+      setClientAutoMatched(false);
+      setShowClientDropdown(true);
     }
     // Don't blank out contact/state when no client match — counterparty data may already be filled
   }, [open, displayName, allClients]);
@@ -666,6 +673,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                   {/* No client linked — show matching suggestions or create option */}
                   {matchingClients.length > 0 ? (
                     <div className="space-y-2">
+                      {matchingClients.filter(c => c.name.trim().toLowerCase() === displayName.trim().toLowerCase()).length > 1 && (
+                        <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                          <Users className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                            Multiple clients exist with the same name. Please verify details (phone, state, PAN) and select the correct one.
+                          </span>
+                        </div>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Matching clients found for "<span className="font-medium text-foreground">{displayName}</span>". Select the correct client:
                       </p>

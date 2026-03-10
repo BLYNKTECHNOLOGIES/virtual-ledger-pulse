@@ -11,12 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, Plus, Minus } from "lucide-react";
+import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, Plus, Minus, Users } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUserId } from "@/lib/system-action-logger";
-import { createSellerClient } from "@/utils/clientIdGenerator";
+import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 
@@ -48,7 +48,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   );
   const [remarks, setRemarks] = useState('');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
+  const [linkedClientName, setLinkedClientName] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
+  const [duplicateClients, setDuplicateClients] = useState<any[]>([]);
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   
@@ -135,6 +137,16 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
       if (!linkedClientId) {
         setLinkedClientId(syncRecord?.client_id || '');
+      }
+      
+      // Check for multiple clients with same name (disambiguation needed)
+      if (!linkedClientId && !syncRecord?.client_id && syncRecord?.counterparty_name) {
+        const matches = await findAllClientsByName(syncRecord.counterparty_name);
+        if (matches.length > 1) {
+          setDuplicateClients(matches);
+        } else {
+          setDuplicateClients([]);
+        }
       }
     };
 
@@ -530,8 +542,46 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
               {linkedClientId ? (
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">{syncRecord?.counterparty_name}</span>
+                  <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
                   <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
+                  {duplicateClients.length > 1 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px]"
+                      onClick={() => { setLinkedClientId(''); setLinkedClientName(''); }}
+                    >
+                      Change
+                    </Button>
+                  )}
+                </div>
+              ) : duplicateClients.length > 1 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-amber-600">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm font-medium">Multiple clients found with name "{syncRecord?.counterparty_name}" — select the correct one</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                    {duplicateClients.map((client) => (
+                      <button
+                        key={client.id}
+                        onClick={() => { setLinkedClientId(client.id); setLinkedClientName(client.name); setDuplicateClients(duplicateClients); }}
+                        className="w-full text-left p-2 rounded border hover:bg-accent/50 transition-colors text-sm"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{client.name}</span>
+                          <Badge variant="outline" className="text-[9px]">{client.client_id}</Badge>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground mt-0.5 flex gap-3">
+                          <span>📱 {client.phone || 'No phone'}</span>
+                          <span>📍 {client.state || 'No state'}</span>
+                          <span>🆔 PAN: {client.pan_card_number || 'N/A'}</span>
+                          <span>{client.is_seller ? '✅ Seller' : ''} {client.is_buyer ? '✅ Buyer' : ''}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-destructive font-medium">⚠ Approval blocked until client is selected</p>
                 </div>
               ) : (
                 <div className="space-y-2">

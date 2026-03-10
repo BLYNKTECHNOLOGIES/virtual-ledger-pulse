@@ -44,7 +44,7 @@ export function LiveAttendanceDashboard() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 30000,
+    refetchInterval: 600000, // 10 minutes
   });
 
   const totalEmployees = employees?.length ?? 0;

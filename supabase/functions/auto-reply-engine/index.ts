@@ -314,6 +314,16 @@ serve(async (req) => {
     }
 
     // ===== AUTO-REPLY LOGIC =====
+    // Fetch active orders for auto-reply processing
+    const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+      method: "POST",
+      headers: proxyHeaders,
+      body: JSON.stringify({ page: 1, rows: 50 }),
+    });
+    const activeData = await activeRes.json();
+    const activeOrders: BinanceOrder[] = activeData?.data || [];
+    console.log(`Processing ${activeOrders.length} active orders for auto-reply`);
+
     {
       const { data: exclusionRows } = await supabase
         .from("terminal_auto_reply_exclusions")

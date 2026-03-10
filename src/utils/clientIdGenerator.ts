@@ -52,15 +52,41 @@ export const findClientByName = async (name: string) => {
     .select('*')
     .ilike('name', name.trim())
     .eq('is_deleted', false)
-    .order('created_at', { ascending: true })
-    .limit(1);
+    .order('created_at', { ascending: true });
   
   if (error) {
     console.error('Error finding client by name:', error);
     return null;
   }
   
-  return data && data.length > 0 ? data[0] : null;
+  if (!data || data.length === 0) return null;
+  
+  // If multiple clients share the same name, return null to force manual disambiguation
+  if (data.length > 1) {
+    console.warn(`[findClientByName] Multiple clients found for "${name}" (${data.length} matches) — skipping auto-map, requires manual selection`);
+    return null;
+  }
+  
+  return data[0];
+};
+
+/**
+ * Find ALL clients matching a given name (for disambiguation UI)
+ */
+export const findAllClientsByName = async (name: string) => {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .ilike('name', name.trim())
+    .eq('is_deleted', false)
+    .order('created_at', { ascending: true });
+  
+  if (error) {
+    console.error('Error finding clients by name:', error);
+    return [];
+  }
+  
+  return data || [];
 };
 
 /**

@@ -504,54 +504,96 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // POST /sapi/v1/c2c/chat/sendMessage — try proxy first, fallback to direct HMAC
+        // Binance P2P chat requires WebSocket for sending messages — no REST endpoint exists.
+        // Try proxy first, then fall back to WebSocket.
         const msgContent = payload.imageUrl || payload.content || payload.message;
         const msgType = payload.imageUrl ? "IMAGE" : (payload.contentType || payload.chatMessageType || "TEXT");
+        
+        // Try proxy first
         const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
-        console.log("sendChatMessage URL:", sendMsgUrl);
-        let response = await fetchWithRetry(sendMsgUrl, { 
-          method: "POST", 
-          headers: proxyHeaders,
-        });
+        console.log("sendChatMessage trying proxy:", sendMsgUrl);
+        let response = await fetchWithRetry(sendMsgUrl, { method: "POST", headers: proxyHeaders });
         let text = await response.text();
         console.log("sendChatMessage proxy response:", response.status, text.substring(0, 500));
 
-        // If proxy returns 404, fallback to direct Binance API with HMAC signing
+        // If proxy 404, use WebSocket approach
         if (response.status === 404 || text.includes("Not Found")) {
-          console.log("sendChatMessage: proxy 404, falling back to direct Binance HMAC");
+          console.log("sendChatMessage: proxy 404, using WebSocket approach");
+          
+          // Step 1: Get chat credentials
           const timestamp = Date.now();
-          const qs = `orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}&timestamp=${timestamp}`;
+          const credQs = `timestamp=${timestamp}`;
           const encoder = new TextEncoder();
-          const key = await crypto.subtle.importKey(
+          const credKey = await crypto.subtle.importKey(
             "raw", encoder.encode(BINANCE_API_SECRET),
             { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
           );
-          const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(qs));
-          const signature = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+          const credSig = await crypto.subtle.sign("HMAC", credKey, encoder.encode(credQs));
+          const credSignature = Array.from(new Uint8Array(credSig)).map(b => b.toString(16).padStart(2, '0')).join('');
           
-          const hosts = ["p2p.binance.com", "api.binance.com"];
-          for (const host of hosts) {
-            const directUrl = `https://${host}/sapi/v1/c2c/chat/sendMessage?${qs}&signature=${signature}`;
-            console.log(`sendChatMessage direct via ${host}`);
-            try {
-              response = await fetch(directUrl, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  "X-MBX-APIKEY": BINANCE_API_KEY,
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                },
-              });
-              text = await response.text();
-              console.log(`sendChatMessage ${host}: status=${response.status}, body=${text.substring(0, 500)}`);
-              if (response.ok && !text.includes("Not Found")) break;
-            } catch (e) {
-              console.log(`sendChatMessage ${host} error:`, (e as Error).message);
-            }
-          }
-        }
+          const credUrl = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${credQs}&signature=${credSignature}`;
+          const credRes = await fetch(credUrl, {
+            method: "GET",
+            headers: { "X-MBX-APIKEY": BINANCE_API_KEY, "Content-Type": "application/json" },
+          });
+          const credText = await credRes.text();
+          console.log("getChatCredential:", credRes.status, credText.substring(0, 500));
+          
+          let credData: any;
+          try { credData = JSON.parse(credText); } catch { credData = null; }
+          
+          if (credData?.code === "000000" && credData?.data) {
+            const { chatWssUrl, listenKey, listenToken } = credData.data;
+            const token = listenToken || credData.data.token;
+            const wssUrl = `${chatWssUrl}/${listenKey}?token=${token}&clientType=web`;
+            
+            // Step 2: Connect and send via WebSocket
+            console.log(`WS connecting for sendChatMessage order ${payload.orderNo}...`);
+            const wsResult = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+              const wsTimeout = setTimeout(() => {
+                try { ws.close(); } catch {}
+                resolve({ success: false, error: "WebSocket timeout (8s)" });
+              }, 8000);
 
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+              const ws = new WebSocket(wssUrl);
+              ws.onopen = () => {
+                console.log(`WS open, sending to order ${payload.orderNo}`);
+                const msgPayload = JSON.stringify({
+                  type: "chat",
+                  data: JSON.stringify({
+                    type: "text",
+                    orderNo: payload.orderNo,
+                    content: msgContent,
+                    contentType: msgType,
+                    self: true,
+                    uuid: crypto.randomUUID(),
+                  }),
+                });
+                ws.send(msgPayload);
+                setTimeout(() => {
+                  clearTimeout(wsTimeout);
+                  try { ws.close(); } catch {}
+                  resolve({ success: true });
+                }, 1500);
+              };
+              ws.onerror = (err) => {
+                clearTimeout(wsTimeout);
+                console.error(`WS error for ${payload.orderNo}:`, err);
+                resolve({ success: false, error: "WebSocket error" });
+              };
+            });
+
+            if (wsResult.success) {
+              result = { code: "000000", success: true, message: "Sent via WebSocket" };
+            } else {
+              result = { code: "ERROR", success: false, error: wsResult.error };
+            }
+          } else {
+            result = { code: "ERROR", success: false, error: "Failed to get chat credentials", raw: credText.substring(0, 300) };
+          }
+        } else {
+          try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        }
         break;
       }
 

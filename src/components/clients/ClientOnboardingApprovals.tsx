@@ -137,7 +137,7 @@ export function ClientOnboardingApprovals() {
   const checkExistingClient = async (clientName: string): Promise<ExistingClientMatch | null> => {
     const { data } = await supabase
       .from('clients')
-      .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used')
+      .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used, risk_appetite, first_order_value, client_type, default_risk_level, assigned_operator')
       .eq('is_deleted', false)
       .ilike('name', clientName.trim())
       .maybeSingle();

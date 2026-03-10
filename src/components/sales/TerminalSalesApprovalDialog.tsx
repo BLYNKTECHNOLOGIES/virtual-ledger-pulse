@@ -111,17 +111,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      // Auto-populate contact ONLY if the client actually has a phone number stored
-      // Auto-populate state ONLY if the client actually has a state stored AND is APPROVED
-      // Never infer or guess — only populate if the value genuinely exists in the client record
+      // Fallback: fill from client master ONLY if counterparty data didn't already populate
       const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
       if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
-    } else {
-      // No matching client — ensure state/contact are blank (don't carry over from syncRecord stale data)
-      setClientState('');
-      setContactNumber('');
     }
+    // Don't blank out contact/state when no client match — counterparty data may already be filled
   }, [open, displayName, allClients]);
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)

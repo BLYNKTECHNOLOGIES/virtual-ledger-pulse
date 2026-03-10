@@ -149,6 +149,30 @@ serve(async (req) => {
     const allActiveOrders = await fetchAllActiveOrders(BINANCE_PROXY_URL, proxyHeaders);
     console.log(`Fetched ${allActiveOrders.length} total active orders (all pages)`);
 
+    // 2b. Auto-assign orders to operators by scope (size range / ad ID)
+    let autoAssigned = 0;
+    for (const order of allActiveOrders) {
+      try {
+        const { data: result } = await supabase.rpc('auto_assign_order_by_scope', {
+          p_order_number: order.orderNumber,
+          p_trade_type: order.tradeType,
+          p_total_price: parseFloat(order.totalPrice || '0'),
+          p_asset: order.asset || 'USDT',
+          p_adv_no: order.advNo || null,
+        });
+        if (result?.status === 'assigned') {
+          autoAssigned++;
+          console.log(`📋 Auto-assigned ${order.orderNumber} to ${result.operator_id} via ${result.match_type}`);
+        }
+      } catch (err) {
+        // Non-critical — log and continue
+        console.warn(`Auto-assign failed for ${order.orderNumber}:`, err);
+      }
+    }
+    if (autoAssigned > 0) {
+      console.log(`Auto-assigned ${autoAssigned} orders to operators by scope`);
+    }
+
     // 3. Filter to BUY orders in TRADING status (status 1)
     const PAYABLE_STATUSES = new Set(["1", "TRADING"]);
     const NON_PAYABLE_KEYWORDS = ["PAID", "PAYING", "COMPLETED", "CANCEL", "APPEAL", "EXPIRED"];

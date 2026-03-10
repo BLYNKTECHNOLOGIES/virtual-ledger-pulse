@@ -445,7 +445,7 @@ serve(async (req) => {
       for (const pm of pendingMessages) {
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
-          BINANCE_PROXY_TOKEN,
+          proxyHeaders,
           pm.orderNumber,
           pm.message,
         );

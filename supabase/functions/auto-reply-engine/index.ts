@@ -195,18 +195,21 @@ async function sendChatMessage(
 
       ws.onopen = () => {
         console.log(`WS connected, sending message to order ${orderNo}`);
+        const now = Date.now();
         const msgPayload = JSON.stringify({
-          type: "chat",
-          data: JSON.stringify({
-            type: "text",
-            orderNo: orderNo,
-            content: content,
-            contentType: "TEXT",
-            self: true,
-            uuid: crypto.randomUUID(),
-          }),
+          type: "text",
+          uuid: String(now),
+          orderNo: orderNo,
+          content: content,
+          self: true,
+          clientType: "web",
+          createTime: now,
+          sendStatus: 0,
+          topicId: orderNo,
+          topicType: "ORDER",
         });
         ws.send(msgPayload);
+        console.log(`WS payload sent: ${msgPayload.substring(0, 200)}`);
         
         // Give Binance a moment to acknowledge, then close
         setTimeout(() => {

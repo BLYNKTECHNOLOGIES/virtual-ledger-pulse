@@ -121,6 +121,22 @@ export default function TerminalOrders() {
     queryFn: async () => {
       if (!userId) return null;
 
+      // Check if user has select_all_size_ranges enabled
+      const { data: profileData } = await supabase
+        .from('terminal_user_profiles')
+        .select('select_all_size_ranges')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (profileData?.select_all_size_ranges) {
+        // User has "Select All" — return ALL active size ranges (bypasses individual mappings)
+        const { data: allRanges } = await supabase
+          .from('terminal_order_size_ranges')
+          .select('id, name, min_amount, max_amount')
+          .eq('is_active', true);
+        return allRanges && allRanges.length > 0 ? allRanges : null;
+      }
+
       // Source 1: terminal_user_size_range_mappings (set via User Config dialog)
       const { data: directMappings } = await supabase
         .from('terminal_user_size_range_mappings')

@@ -258,6 +258,22 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       <TableCell className="py-3 text-right">
         {isCompleted || isOrderFinalized ? (
           <span className="text-[10px] text-muted-foreground italic">—</span>
+        ) : isPaidExternally ? (
+          <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 mr-1">
+              Paid Externally
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2.5 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+              onClick={handleAcknowledge}
+              disabled={isAcknowledging}
+            >
+              {isAcknowledging ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />}
+              Acknowledge
+            </Button>
+          </div>
         ) : (
           <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
             {/* Hidden file input for upload */}

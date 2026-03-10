@@ -68,6 +68,8 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const statusStr = mapOrderStatusCode(order.orderStatus);
   const isOrderFinalized = ['COMPLETED', 'PAID', 'CANCELLED', 'EXPIRED'].includes(statusStr.toUpperCase());
   const isAlreadyPaidOrPaying = ['PAYING', 'PAID'].includes(statusStr.toUpperCase());
+  // Order was paid externally (via Binance directly or automation) — status 2 means buyer already marked paid
+  const isPaidExternally = String(order.orderStatus) === '2' && !isCompleted;
 
   // Fetch order detail for payment methods
   const { data: orderDetail } = useQuery({

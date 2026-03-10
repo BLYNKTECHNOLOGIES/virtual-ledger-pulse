@@ -156,8 +156,6 @@ async function sendChatMessage(
   proxyHeaders: Record<string, string>,
   orderNo: string,
   content: string,
-  apiKey: string,
-  apiSecret: string,
   cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
 ): Promise<{ success: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
   // First try proxy (in case it supports sendMessage)

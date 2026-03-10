@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw } from 'lucide-react';
+import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw, CheckCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
@@ -59,6 +59,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isAcknowledging, setIsAcknowledging] = useState(false);
 
   // Fetch alternate UPI request for this order
   const { data: altUpiRequest } = useAlternateUpiRequest(order.orderNumber);
@@ -68,6 +69,8 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const statusStr = mapOrderStatusCode(order.orderStatus);
   const isOrderFinalized = ['COMPLETED', 'PAID', 'CANCELLED', 'EXPIRED'].includes(statusStr.toUpperCase());
   const isAlreadyPaidOrPaying = ['PAYING', 'PAID'].includes(statusStr.toUpperCase());
+  // Order was paid externally (via Binance directly or automation) — status 2 means buyer already marked paid
+  const isPaidExternally = String(order.orderStatus) === '2' && !isCompleted;
 
   // Fetch order detail for payment methods
   const { data: orderDetail } = useQuery({
@@ -101,6 +104,21 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
   const handleExcludeAuto = () => {
     excludeFromAuto.mutate(order.orderNumber);
+  };
+
+  // Acknowledge: log as acknowledged so it moves to completed and disappears from pending
+  const handleAcknowledge = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsAcknowledging(true);
+    try {
+      await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
+      toast.success('Order acknowledged and removed from pending');
+      onMarkPaidSuccess();
+    } catch {
+      toast.error('Failed to acknowledge order');
+    } finally {
+      setIsAcknowledging(false);
+    }
   };
 
   const handleRequestAltUpi = (e: React.MouseEvent) => {
@@ -240,6 +258,22 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       <TableCell className="py-3 text-right">
         {isCompleted || isOrderFinalized ? (
           <span className="text-[10px] text-muted-foreground italic">—</span>
+        ) : isPaidExternally ? (
+          <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+            <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 mr-1">
+              Paid Externally
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2.5 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10"
+              onClick={handleAcknowledge}
+              disabled={isAcknowledging}
+            >
+              {isAcknowledging ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCheck className="h-3 w-3" />}
+              Acknowledge
+            </Button>
+          </div>
         ) : (
           <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
             {/* Hidden file input for upload */}

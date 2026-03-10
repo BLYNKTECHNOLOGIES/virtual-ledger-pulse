@@ -113,8 +113,47 @@ async function signQuery(queryString: string, secret: string): Promise<string> {
 }
 
 /**
- * Send a chat message directly to Binance API with HMAC signing.
- * The proxy doesn't support the sendMessage route, so we go direct.
+ * Get Binance chat WebSocket credentials via SAPI.
+ */
+async function getChatCredential(
+  apiKey: string,
+  apiSecret: string,
+): Promise<{ chatWssUrl: string; listenKey: string; token: string } | null> {
+  try {
+    const timestamp = Date.now();
+    const queryString = `timestamp=${timestamp}`;
+    const signature = await signQuery(queryString, apiSecret);
+    const url = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${queryString}&signature=${signature}`;
+    
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "X-MBX-APIKEY": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+    const text = await res.text();
+    console.log("getChatCredential response:", res.status, text.substring(0, 500));
+    
+    const data = JSON.parse(text);
+    if (data?.code === "000000" && data?.data) {
+      return {
+        chatWssUrl: data.data.chatWssUrl,
+        listenKey: data.data.listenKey,
+        token: data.data.listenToken || data.data.token,
+      };
+    }
+    console.error("getChatCredential failed:", text.substring(0, 300));
+    return null;
+  } catch (err) {
+    console.error("getChatCredential error:", err);
+    return null;
+  }
+}
+
+/**
+ * Send a chat message via Binance WebSocket.
+ * Binance P2P chat requires WebSocket — there is no REST endpoint for sending messages.
  */
 async function sendChatMessage(
   proxyUrl: string,
@@ -123,14 +162,13 @@ async function sendChatMessage(
   content: string,
   apiKey: string,
   apiSecret: string,
-): Promise<{ success: boolean; error?: string }> {
-  // First try proxy (in case it gets added later)
+  cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
+): Promise<{ success: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
+  // First try proxy (in case it supports sendMessage)
   try {
     const proxyMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
-    console.log("auto-reply trying proxy URL:", proxyMsgUrl);
     const proxyRes = await fetch(proxyMsgUrl, { method: "POST", headers: proxyHeaders });
     const proxyText = await proxyRes.text();
-    console.log(`proxy sendMessage for ${orderNo}: status=${proxyRes.status}, body=${proxyText.substring(0, 300)}`);
     
     if (proxyRes.ok && !proxyText.includes("Not Found")) {
       let data: any;
@@ -139,49 +177,65 @@ async function sendChatMessage(
         return { success: true };
       }
     }
-  } catch (e) {
-    console.log("Proxy sendMessage failed, falling back to direct:", (e as Error).message);
+  } catch {
+    // Proxy failed, continue to WebSocket
   }
 
-  // Fallback: Direct Binance API with HMAC signing
+  // WebSocket approach: get credentials, connect, send, disconnect
+  const cred = cachedCredential || await getChatCredential(apiKey, apiSecret);
+  if (!cred) {
+    return { success: false, error: "Failed to get chat WebSocket credentials" };
+  }
+
   try {
-    const timestamp = Date.now();
-    const queryString = `orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT&timestamp=${timestamp}`;
-    const signature = await signQuery(queryString, apiSecret);
-    
-    const hosts = ["p2p.binance.com", "api.binance.com"];
-    for (const host of hosts) {
-      const directUrl = `https://${host}/sapi/v1/c2c/chat/sendMessage?${queryString}&signature=${signature}`;
-      console.log(`auto-reply direct sendMessage via ${host} for order ${orderNo}`);
-      try {
-        const res = await fetch(directUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-MBX-APIKEY": apiKey,
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          },
+    const wssUrl = `${cred.chatWssUrl}/${cred.listenKey}?token=${cred.token}&clientType=web`;
+    console.log(`WS connecting for order ${orderNo}...`);
+
+    const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+      const timeout = setTimeout(() => {
+        try { ws.close(); } catch {}
+        resolve({ success: false, error: "WebSocket timeout (8s)" });
+      }, 8000);
+
+      const ws = new WebSocket(wssUrl);
+
+      ws.onopen = () => {
+        console.log(`WS connected, sending message to order ${orderNo}`);
+        const msgPayload = JSON.stringify({
+          type: "chat",
+          data: JSON.stringify({
+            type: "text",
+            orderNo: orderNo,
+            content: content,
+            contentType: "TEXT",
+            self: true,
+            uuid: crypto.randomUUID(),
+          }),
         });
-        const text = await res.text();
-        console.log(`direct sendMessage ${host} for ${orderNo}: status=${res.status}, body=${text.substring(0, 300)}`);
+        ws.send(msgPayload);
         
-        let data: any;
-        try { data = JSON.parse(text); } catch { data = { raw: text, status: res.status }; }
-        
-        if (res.ok && (data?.code === "000000" || data?.success)) {
-          return { success: true };
-        }
-        // If not a 404/network error, return this error (don't try next host)
-        if (res.status !== 404 && res.status !== 403) {
-          return { success: false, error: JSON.stringify(data) };
-        }
-      } catch (hostErr) {
-        console.log(`direct sendMessage ${host} error:`, (hostErr as Error).message);
-      }
-    }
-    return { success: false, error: "All direct Binance hosts failed for sendMessage" };
+        // Give Binance a moment to acknowledge, then close
+        setTimeout(() => {
+          clearTimeout(timeout);
+          try { ws.close(); } catch {}
+          resolve({ success: true });
+        }, 1500);
+      };
+
+      ws.onerror = (err) => {
+        clearTimeout(timeout);
+        console.error(`WS error for ${orderNo}:`, err);
+        resolve({ success: false, error: `WebSocket error` });
+      };
+
+      ws.onclose = () => {
+        // If already resolved, this is a no-op
+      };
+    });
+
+    return { ...result, credential: cred };
   } catch (err) {
-    return { success: false, error: String(err) };
+    return { success: false, error: `WebSocket exception: ${String(err)}`, credential: cred };
   }
 }
 

@@ -504,17 +504,53 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // POST /sapi/v1/c2c/chat/sendMessage — proxy route uses query params: orderNo, content, contentType
+        // POST /sapi/v1/c2c/chat/sendMessage — try proxy first, fallback to direct HMAC
         const msgContent = payload.imageUrl || payload.content || payload.message;
         const msgType = payload.imageUrl ? "IMAGE" : (payload.contentType || payload.chatMessageType || "TEXT");
         const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
         console.log("sendChatMessage URL:", sendMsgUrl);
-        const response = await fetchWithRetry(sendMsgUrl, { 
+        let response = await fetchWithRetry(sendMsgUrl, { 
           method: "POST", 
           headers: proxyHeaders,
         });
-        const text = await response.text();
-        console.log("sendChatMessage response:", response.status, text.substring(0, 500));
+        let text = await response.text();
+        console.log("sendChatMessage proxy response:", response.status, text.substring(0, 500));
+
+        // If proxy returns 404, fallback to direct Binance API with HMAC signing
+        if (response.status === 404 || text.includes("Not Found")) {
+          console.log("sendChatMessage: proxy 404, falling back to direct Binance HMAC");
+          const timestamp = Date.now();
+          const qs = `orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}&timestamp=${timestamp}`;
+          const encoder = new TextEncoder();
+          const key = await crypto.subtle.importKey(
+            "raw", encoder.encode(BINANCE_API_SECRET),
+            { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+          );
+          const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(qs));
+          const signature = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          const hosts = ["p2p.binance.com", "api.binance.com"];
+          for (const host of hosts) {
+            const directUrl = `https://${host}/sapi/v1/c2c/chat/sendMessage?${qs}&signature=${signature}`;
+            console.log(`sendChatMessage direct via ${host}`);
+            try {
+              response = await fetch(directUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "X-MBX-APIKEY": BINANCE_API_KEY,
+                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                },
+              });
+              text = await response.text();
+              console.log(`sendChatMessage ${host}: status=${response.status}, body=${text.substring(0, 500)}`);
+              if (response.ok && !text.includes("Not Found")) break;
+            } catch (e) {
+              console.log(`sendChatMessage ${host} error:`, (e as Error).message);
+            }
+          }
+        }
+
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

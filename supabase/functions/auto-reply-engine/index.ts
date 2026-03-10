@@ -100,31 +100,86 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
 }
 
 /**
- * Send a chat message via REST proxy (POST with query params, matching binance-ads proxy format).
+ * Generate HMAC-SHA256 signature for Binance API requests.
+ */
+async function signQuery(queryString: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw", encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(queryString));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Send a chat message directly to Binance API with HMAC signing.
+ * The proxy doesn't support the sendMessage route, so we go direct.
  */
 async function sendChatMessage(
   proxyUrl: string,
-  headers: Record<string, string>,
+  proxyHeaders: Record<string, string>,
   orderNo: string,
   content: string,
+  apiKey: string,
+  apiSecret: string,
 ): Promise<{ success: boolean; error?: string }> {
+  // First try proxy (in case it gets added later)
   try {
-    const sendMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
-    console.log("auto-reply sendChatMessage URL:", sendMsgUrl);
-    const res = await fetch(sendMsgUrl, {
-      method: "POST",
-      headers,
-    });
-    const text = await res.text();
-    console.log(`sendMessage REST for ${orderNo}: status=${res.status}, body=${text.substring(0, 300)}`);
-
-    let data: any;
-    try { data = JSON.parse(text); } catch { data = { raw: text, status: res.status }; }
-
-    if (res.ok && (data?.code === "000000" || data?.success)) {
-      return { success: true };
+    const proxyMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
+    console.log("auto-reply trying proxy URL:", proxyMsgUrl);
+    const proxyRes = await fetch(proxyMsgUrl, { method: "POST", headers: proxyHeaders });
+    const proxyText = await proxyRes.text();
+    console.log(`proxy sendMessage for ${orderNo}: status=${proxyRes.status}, body=${proxyText.substring(0, 300)}`);
+    
+    if (proxyRes.ok && !proxyText.includes("Not Found")) {
+      let data: any;
+      try { data = JSON.parse(proxyText); } catch { data = { raw: proxyText }; }
+      if (data?.code === "000000" || data?.success) {
+        return { success: true };
+      }
     }
-    return { success: false, error: JSON.stringify(data) };
+  } catch (e) {
+    console.log("Proxy sendMessage failed, falling back to direct:", (e as Error).message);
+  }
+
+  // Fallback: Direct Binance API with HMAC signing
+  try {
+    const timestamp = Date.now();
+    const queryString = `orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT&timestamp=${timestamp}`;
+    const signature = await signQuery(queryString, apiSecret);
+    
+    const hosts = ["p2p.binance.com", "api.binance.com"];
+    for (const host of hosts) {
+      const directUrl = `https://${host}/sapi/v1/c2c/chat/sendMessage?${queryString}&signature=${signature}`;
+      console.log(`auto-reply direct sendMessage via ${host} for order ${orderNo}`);
+      try {
+        const res = await fetch(directUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-MBX-APIKEY": apiKey,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          },
+        });
+        const text = await res.text();
+        console.log(`direct sendMessage ${host} for ${orderNo}: status=${res.status}, body=${text.substring(0, 300)}`);
+        
+        let data: any;
+        try { data = JSON.parse(text); } catch { data = { raw: text, status: res.status }; }
+        
+        if (res.ok && (data?.code === "000000" || data?.success)) {
+          return { success: true };
+        }
+        // If not a 404/network error, return this error (don't try next host)
+        if (res.status !== 404 && res.status !== 403) {
+          return { success: false, error: JSON.stringify(data) };
+        }
+      } catch (hostErr) {
+        console.log(`direct sendMessage ${host} error:`, (hostErr as Error).message);
+      }
+    }
+    return { success: false, error: "All direct Binance hosts failed for sendMessage" };
   } catch (err) {
     return { success: false, error: String(err) };
   }
@@ -448,6 +503,8 @@ serve(async (req) => {
           proxyHeaders,
           pm.orderNumber,
           pm.message,
+          BINANCE_API_KEY || "",
+          BINANCE_API_SECRET || "",
         );
 
         if (result.success) {

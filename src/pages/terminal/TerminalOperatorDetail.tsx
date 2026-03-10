@@ -136,6 +136,10 @@ export default function TerminalOperatorDetail() {
   const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
   const [dailyTrends, setDailyTrends] = useState<DailyTrend[]>([]);
   const [actionDetails, setActionDetails] = useState<ActionDetail[]>([]);
+  const [payerAssignData, setPayerAssignData] = useState<any[]>([]);
+  const [operatorAssignData, setOperatorAssignData] = useState<any[]>([]);
+  const [payerLockData, setPayerLockData] = useState<any[]>([]);
+  const [sizeRangeNames, setSizeRangeNames] = useState<Map<string, string>>(new Map());
   const [activeTab, setActiveTab] = useState('overview');
   const [trendDays, setTrendDays] = useState('7');
 

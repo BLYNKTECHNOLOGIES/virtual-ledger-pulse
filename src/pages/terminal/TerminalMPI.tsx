@@ -200,6 +200,52 @@ export default function TerminalMPI() {
       const roles = rolesRes.data || [];
       const userRoles = userRolesRes.data || [];
       const profiles = profilesRes.data || [];
+      const payerAssignments = payerAssignRes.data || [];
+      const operatorAssignments = operatorAssignRes.data || [];
+      const payerLocks = payerLocksRes.data || [];
+      const sizeRanges = sizeRangesRes.data || [];
+
+      // Build size range name map
+      const sizeRangeNameMap = new Map<string, string>();
+      sizeRanges.forEach(r => sizeRangeNameMap.set(r.id, r.name));
+
+      // Index payer assignments by user
+      const payerAssignByUser = new Map<string, { total: number; active: number; sizeRanges: string[]; adIds: string[] }>();
+      payerAssignments.forEach(pa => {
+        const existing = payerAssignByUser.get(pa.payer_user_id) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        existing.total++;
+        if (pa.is_active) existing.active++;
+        if (pa.size_range_id) {
+          const name = sizeRangeNameMap.get(pa.size_range_id) || pa.size_range_id.slice(0, 8);
+          if (!existing.sizeRanges.includes(name)) existing.sizeRanges.push(name);
+        }
+        if (pa.ad_id && !existing.adIds.includes(pa.ad_id)) existing.adIds.push(pa.ad_id);
+        payerAssignByUser.set(pa.payer_user_id, existing);
+      });
+
+      // Index operator assignments by user
+      const operatorAssignByUser = new Map<string, { total: number; active: number; sizeRanges: string[]; adIds: string[] }>();
+      operatorAssignments.forEach(oa => {
+        const existing = operatorAssignByUser.get(oa.operator_user_id) || { total: 0, active: 0, sizeRanges: [], adIds: [] };
+        existing.total++;
+        if (oa.is_active) existing.active++;
+        if (oa.size_range_id) {
+          const name = sizeRangeNameMap.get(oa.size_range_id) || oa.size_range_id.slice(0, 8);
+          if (!existing.sizeRanges.includes(name)) existing.sizeRanges.push(name);
+        }
+        if (oa.ad_id && !existing.adIds.includes(oa.ad_id)) existing.adIds.push(oa.ad_id);
+        operatorAssignByUser.set(oa.operator_user_id, existing);
+      });
+
+      // Index payer locks by user
+      const payerLocksByUser = new Map<string, { total: number; completed: number; active: number }>();
+      payerLocks.forEach(pl => {
+        const existing = payerLocksByUser.get(pl.payer_user_id) || { total: 0, completed: 0, active: 0 };
+        existing.total++;
+        if (pl.status === 'completed') existing.completed++;
+        else existing.active++;
+        payerLocksByUser.set(pl.payer_user_id, existing);
+      });
 
       const usersMap = new Map<string, any>();
       users.forEach(u => usersMap.set(u.id, u));

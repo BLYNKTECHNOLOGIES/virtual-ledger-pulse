@@ -44,14 +44,14 @@ const availablePermissions = [
   { id: "kyc_approvals_manage", name: "KYC Approvals Manage", description: "Manage KYC approvals" },
   { id: "statistics_view", name: "Statistics View", description: "View statistics and reports" },
   { id: "statistics_manage", name: "Statistics Manage", description: "Manage statistics" },
-  { id: "ems_view", name: "EMS View", description: "View Employee Management System" },
-  { id: "ems_manage", name: "EMS Manage", description: "Manage Employee Management System" },
   { id: "erp_destructive", name: "ERP Destructive", description: "Reject/delete ERP actions and conversions" },
   { id: "terminal_destructive", name: "Terminal Destructive", description: "Reject/delete terminal syncs and orders" },
   { id: "bams_destructive", name: "BAMS Destructive", description: "Delete/close/reverse BAMS entries and accounts" },
   { id: "clients_destructive", name: "Clients Destructive", description: "Delete/reject clients" },
   { id: "stock_destructive", name: "Stock Destructive", description: "Delete stock/wallet transactions and conversions" },
   { id: "shift_reconciliation_approve", name: "Shift Reconciliation Approve", description: "Approve or reject shift reconciliation records" },
+  { id: "stock_conversion_approve", name: "Stock Conversion Approve", description: "Approve stock/product conversions" },
+  { id: "stock_conversion_create", name: "Stock Conversion Create", description: "Create stock/product conversions" },
 ];
 
 export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {

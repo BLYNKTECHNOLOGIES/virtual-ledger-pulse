@@ -819,9 +819,13 @@ export default function TerminalOrders() {
           ) : displayOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <ShoppingCart className="h-10 w-10 text-muted-foreground/20 mb-3" />
-              <p className="text-sm text-muted-foreground">No orders found</p>
+              <p className="text-sm text-muted-foreground">
+                {isFetchingHistory ? 'Loading orders...' : 'No orders found'}
+              </p>
               <p className="text-[11px] text-muted-foreground/60 mt-1">
-                {rawOrders.length > 0 ? 'No orders match current filters' : 'Orders will appear after syncing from Binance'}
+                {isFetchingHistory
+                  ? 'Fetching complete order history from database'
+                  : rawOrders.length > 0 ? 'No orders match current filters' : 'Orders will appear after syncing from Binance'}
               </p>
             </div>
           ) : (

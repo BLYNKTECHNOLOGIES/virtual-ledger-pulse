@@ -203,7 +203,6 @@ export function useBinanceOrderHistory() {
   const phase1 = useQuery({
     queryKey: ['binance-order-history-fast'],
     queryFn: async () => {
-      const { supabase } = await import('@/integrations/supabase/client');
       const { data, error } = await supabase
         .from('binance_order_history')
         .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
@@ -214,17 +213,17 @@ export function useBinanceOrderHistory() {
         console.error('[OrderHistory] Phase 1 fetch error:', error);
         return [];
       }
+      console.log(`[OrderHistory] Phase 1: ${data?.length ?? 0} orders loaded`);
       return (data || []).map(mapOrderRow);
     },
     staleTime: 20 * 1000,
     refetchInterval: 30 * 1000,
   });
 
-  // Phase 2: Full background load – all remaining orders
+  // Phase 2: Full background load – all remaining orders (deferred)
   const phase2 = useQuery({
     queryKey: ['binance-order-history-bulk'],
     queryFn: async () => {
-      const { supabase } = await import('@/integrations/supabase/client');
       const batchSize = 1000;
       const allOrders: any[] = [];
       let offset = 0;
@@ -253,12 +252,11 @@ export function useBinanceOrderHistory() {
         }
       }
 
-      console.log(`[OrderHistory] Phase 2 loaded ${allOrders.length} total orders from DB`);
+      console.log(`[OrderHistory] Phase 2: ${allOrders.length} total orders loaded`);
       return allOrders;
     },
     staleTime: 60 * 1000,
-    refetchInterval: 120 * 1000, // Full refresh every 2 min (background)
-    // Delay phase 2 slightly so phase 1 renders first
+    refetchInterval: 120 * 1000,
     enabled: phase1.isFetched,
   });
 
@@ -267,7 +265,7 @@ export function useBinanceOrderHistory() {
 
   return {
     data: mergedData,
-    isLoading: phase1.isLoading, // Only block UI on phase 1
+    isLoading: phase1.isLoading,
     isFetching: phase1.isFetching || phase2.isFetching,
     refetch: async () => {
       await Promise.all([phase1.refetch(), phase2.refetch()]);

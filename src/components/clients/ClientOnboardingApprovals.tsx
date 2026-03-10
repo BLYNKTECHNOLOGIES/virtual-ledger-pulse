@@ -72,6 +72,11 @@ interface ExistingClientMatch {
   pan_card_number: string | null;
   buying_purpose: string | null;
   current_month_used: number | null;
+  risk_appetite: string | null;
+  first_order_value: number | null;
+  client_type: string | null;
+  default_risk_level: string | null;
+  assigned_operator: string | null;
 }
 
 export function ClientOnboardingApprovals() {

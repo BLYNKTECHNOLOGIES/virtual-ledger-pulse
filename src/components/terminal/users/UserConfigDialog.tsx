@@ -79,6 +79,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
+    setBiometricResetDone(false);
     try {
       // Get current user's session for hierarchy check
       const sessionStr = localStorage.getItem("userSession");

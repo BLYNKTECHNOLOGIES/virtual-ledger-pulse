@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield, Fingerprint, RotateCcw } from "lucide-react";
+import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler, Shield, Fingerprint, RotateCcw, CheckCircle2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 
@@ -69,6 +69,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
   const [selectedSizeRanges, setSelectedSizeRanges] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [biometricResetDone, setBiometricResetDone] = useState(false);
 
   // Role management
   const [allRoles, setAllRoles] = useState<TerminalRole[]>([]);
@@ -78,6 +79,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
+    setBiometricResetDone(false);
     try {
       // Get current user's session for hierarchy check
       const sessionStr = localStorage.getItem("userSession");
@@ -502,47 +504,59 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
             </div>
 
             {/* Reset Biometric Registration */}
-            <div className="space-y-2 border border-destructive/30 rounded-lg p-3 bg-destructive/5">
-              <label className="text-xs font-medium text-destructive flex items-center gap-1.5">
-                <Fingerprint className="h-3.5 w-3.5" /> Biometric Registration
-              </label>
-              <p className="text-[11px] text-muted-foreground">
-                Reset this user's biometric credentials. They will be prompted to register again on their next terminal login.
-              </p>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5">
-                    <RotateCcw className="h-3 w-3" /> Reset Registration
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Reset Biometric Registration?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will delete all biometric credentials for <strong>@{username}</strong>. They will need to register their fingerprint/passkey again on next terminal login. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={async () => {
-                        try {
-                          const { error } = await supabase.rpc('delete_all_user_webauthn_credentials', { p_user_id: userId });
-                          if (error) throw error;
-                          toast.success(`Biometric credentials reset for @${username}. They will re-register on next login.`);
-                        } catch (err: any) {
-                          console.error('Failed to reset biometric:', err);
-                          toast.error(err.message || 'Failed to reset biometric credentials');
-                        }
-                      }}
-                    >
-                      Reset Credentials
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            {biometricResetDone ? (
+              <div className="space-y-2 border border-green-500/30 rounded-lg p-3 bg-green-500/5">
+                <label className="text-xs font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Biometric Registration Reset
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  All biometric credentials for <strong>@{username}</strong> have been deleted. They will be prompted to register their fingerprint/passkey again on their next terminal login.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 border border-destructive/30 rounded-lg p-3 bg-destructive/5">
+                <label className="text-xs font-medium text-destructive flex items-center gap-1.5">
+                  <Fingerprint className="h-3.5 w-3.5" /> Biometric Registration
+                </label>
+                <p className="text-[11px] text-muted-foreground">
+                  Reset this user's biometric credentials. They will be prompted to register again on their next terminal login.
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="h-8 text-xs gap-1.5">
+                      <RotateCcw className="h-3 w-3" /> Reset Registration
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset Biometric Registration?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will delete all biometric credentials for <strong>@{username}</strong>. They will need to register their fingerprint/passkey again on next terminal login. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase.rpc('delete_all_user_webauthn_credentials', { p_user_id: userId });
+                            if (error) throw error;
+                            setBiometricResetDone(true);
+                            toast.success(`Biometric credentials reset for @${username}. They will re-register on next login.`);
+                          } catch (err: any) {
+                            console.error('Failed to reset biometric:', err);
+                            toast.error(err.message || 'Failed to reset biometric credentials');
+                          }
+                        }}
+                      >
+                        Reset Credentials
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </div>
         )}
 

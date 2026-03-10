@@ -113,24 +113,20 @@ async function signQuery(queryString: string, secret: string): Promise<string> {
 }
 
 /**
- * Get Binance chat WebSocket credentials via SAPI.
+ * Get Binance chat WebSocket credentials via proxy (same as binance-ads).
+ * Direct Binance API calls fail due to IP restrictions on edge functions.
  */
 async function getChatCredential(
-  apiKey: string,
-  apiSecret: string,
+  proxyUrl: string,
+  proxyHeaders: Record<string, string>,
 ): Promise<{ chatWssUrl: string; listenKey: string; token: string } | null> {
   try {
-    const timestamp = Date.now();
-    const queryString = `timestamp=${timestamp}`;
-    const signature = await signQuery(queryString, apiSecret);
-    const url = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${queryString}&signature=${signature}`;
+    const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
+    console.log("getChatCredential URL (GET):", url);
     
     const res = await fetch(url, {
       method: "GET",
-      headers: {
-        "X-MBX-APIKEY": apiKey,
-        "Content-Type": "application/json",
-      },
+      headers: proxyHeaders,
     });
     const text = await res.text();
     console.log("getChatCredential response:", res.status, text.substring(0, 500));
@@ -160,8 +156,6 @@ async function sendChatMessage(
   proxyHeaders: Record<string, string>,
   orderNo: string,
   content: string,
-  apiKey: string,
-  apiSecret: string,
   cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
 ): Promise<{ success: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
   // First try proxy (in case it supports sendMessage)
@@ -182,7 +176,7 @@ async function sendChatMessage(
   }
 
   // WebSocket approach: get credentials, connect, send, disconnect
-  const cred = cachedCredential || await getChatCredential(apiKey, apiSecret);
+  const cred = cachedCredential || await getChatCredential(proxyUrl, proxyHeaders);
   if (!cred) {
     return { success: false, error: "Failed to get chat WebSocket credentials" };
   }
@@ -553,7 +547,7 @@ serve(async (req) => {
       // Pre-fetch WebSocket credentials once, reuse for all messages
       let chatCredential: { chatWssUrl: string; listenKey: string; token: string } | null = null;
       if (pendingMessages.length > 0) {
-        chatCredential = await getChatCredential(BINANCE_API_KEY || "", BINANCE_API_SECRET || "");
+        chatCredential = await getChatCredential(BINANCE_PROXY_URL, proxyHeaders);
       }
 
       // Send each message via WebSocket
@@ -563,8 +557,6 @@ serve(async (req) => {
           proxyHeaders,
           pm.orderNumber,
           pm.message,
-          BINANCE_API_KEY || "",
-          BINANCE_API_SECRET || "",
           chatCredential,
         );
         // Update cached credential if returned

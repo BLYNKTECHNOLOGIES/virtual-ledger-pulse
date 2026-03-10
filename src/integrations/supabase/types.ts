@@ -12114,7 +12114,7 @@ export type Database = {
         Returns: undefined
       }
       resolve_inactive_assignee_notifications: {
-        Args: { p_related_user_id: string }
+        Args: { p_user_id: string }
         Returns: undefined
       }
       reverse_payment_gateway_settlement: {

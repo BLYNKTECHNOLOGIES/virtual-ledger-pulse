@@ -72,6 +72,11 @@ interface ExistingClientMatch {
   pan_card_number: string | null;
   buying_purpose: string | null;
   current_month_used: number | null;
+  risk_appetite: string | null;
+  first_order_value: number | null;
+  client_type: string | null;
+  default_risk_level: string | null;
+  assigned_operator: string | null;
 }
 
 export function ClientOnboardingApprovals() {
@@ -132,7 +137,7 @@ export function ClientOnboardingApprovals() {
   const checkExistingClient = async (clientName: string): Promise<ExistingClientMatch | null> => {
     const { data } = await supabase
       .from('clients')
-      .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used')
+      .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used, risk_appetite, first_order_value, client_type, default_risk_level, assigned_operator')
       .eq('is_deleted', false)
       .ilike('name', clientName.trim())
       .maybeSingle();
@@ -656,7 +661,7 @@ export function ClientOnboardingApprovals() {
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
           </DialogHeader>
@@ -675,19 +680,24 @@ export function ClientOnboardingApprovals() {
                   </p>
                   
                   {/* Existing client details */}
-                  <div className="bg-white rounded-md p-3 border border-orange-200">
+                   <div className="bg-white rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {existingClientMatch.email || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">PAN:</span> {existingClientMatch.pan_card_number || 'N/A'}</div>
                       <div><span className="text-muted-foreground">KYC:</span> {existingClientMatch.kyc_status}</div>
-                      <div><span className="text-muted-foreground">Monthly Limit:</span> ₹{existingClientMatch.monthly_limit?.toLocaleString() || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Monthly Limit:</span> {existingClientMatch.monthly_limit ? `₹${existingClientMatch.monthly_limit.toLocaleString()}` : 'N/A'}</div>
                       <div><span className="text-muted-foreground">Used This Month:</span> ₹{existingClientMatch.current_month_used?.toLocaleString() || '0'}</div>
+                      <div><span className="text-muted-foreground">First Order:</span> {existingClientMatch.first_order_value ? `₹${existingClientMatch.first_order_value.toLocaleString()}` : 'N/A'}</div>
                       <div><span className="text-muted-foreground">Buyer:</span> {existingClientMatch.is_buyer ? 'Yes' : 'No'}</div>
                       <div><span className="text-muted-foreground">Seller:</span> {existingClientMatch.is_seller ? 'Yes' : 'No'}</div>
+                      <div><span className="text-muted-foreground">Client Type:</span> {existingClientMatch.client_type || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Risk Appetite:</span> {existingClientMatch.risk_appetite || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Risk Level:</span> {existingClientMatch.default_risk_level || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Operator:</span> {existingClientMatch.assigned_operator || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Onboarded:</span> {existingClientMatch.date_of_onboarding}</div>
                       <div><span className="text-muted-foreground">Purpose:</span> {existingClientMatch.buying_purpose || 'N/A'}</div>
                     </div>

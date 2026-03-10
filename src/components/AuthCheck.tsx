@@ -46,7 +46,7 @@ export function AuthCheck({ children }: AuthCheckProps) {
         
         setIsAuthenticated(true);
       } else {
-        navigate('/website/login');
+        navigate('/');
       }
     };
 

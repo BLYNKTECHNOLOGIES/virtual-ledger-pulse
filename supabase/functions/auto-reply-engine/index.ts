@@ -176,7 +176,7 @@ async function sendChatMessage(
   }
 
   // WebSocket approach: get credentials, connect, send, disconnect
-  const cred = cachedCredential || await getChatCredential(apiKey, apiSecret);
+  const cred = cachedCredential || await getChatCredential(proxyUrl, proxyHeaders);
   if (!cred) {
     return { success: false, error: "Failed to get chat WebSocket credentials" };
   }

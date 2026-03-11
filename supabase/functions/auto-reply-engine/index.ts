@@ -608,7 +608,7 @@ serve(async (req) => {
       processed,
       verified,
       unverified,
-      retried,
+      
       errors,
       ordersChecked: allActiveOrders.length,
       rulesActive: rules?.length || 0,

@@ -723,7 +723,7 @@ export default function TerminalMPI() {
                   </div>
 
                   {/* Action Stats */}
-                  <div className="grid grid-cols-3 gap-1.5 text-center mb-3">
+                  <div className="grid grid-cols-3 gap-1 sm:gap-1.5 text-center mb-2 sm:mb-3">
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>

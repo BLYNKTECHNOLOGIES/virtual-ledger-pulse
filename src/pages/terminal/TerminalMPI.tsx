@@ -556,25 +556,25 @@ export default function TerminalMPI() {
       </div>
 
       {/* Leaderboard + Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Leaderboard */}
         <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
+          <CardHeader className="pb-2 px-3 pt-3">
+            <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
               <Trophy className="h-3.5 w-3.5 text-amber-500" />
               Top Performers
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="px-3 pb-3 space-y-2">
             {leaderboard.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No data yet</p>
+              <p className="text-[10px] text-muted-foreground text-center py-4">No data yet</p>
             ) : leaderboard.map((m, i) => (
               <div
                 key={m.userId}
-                className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/20 border border-border hover:border-primary/30 cursor-pointer transition-colors"
+                className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border hover:border-primary/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/terminal/mpi/${m.userId}`)}
               >
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                   i === 0 ? 'bg-amber-500/20 text-amber-400' :
                   i === 1 ? 'bg-slate-400/20 text-slate-400' :
                   'bg-orange-800/20 text-orange-600'
@@ -582,12 +582,12 @@ export default function TerminalMPI() {
                   {i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-foreground truncate">{m.displayName}</div>
-                  <div className="text-[9px] text-muted-foreground">
+                  <div className="text-[10px] sm:text-xs font-medium text-foreground truncate">{m.displayName}</div>
+                  <div className="text-[8px] sm:text-[9px] text-muted-foreground">
                     {m.ordersHandled} orders · {fmtVol(m.totalVolume)}
                   </div>
                 </div>
-                <div className={`text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
+                <div className={`text-xs sm:text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
                   {m.efficiencyScore}
                 </div>
               </div>
@@ -596,22 +596,22 @@ export default function TerminalMPI() {
         </Card>
 
         {/* Volume by Operator */}
-        <Card className="border-border bg-card lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
+        <Card className="border-border bg-card sm:col-span-1 lg:col-span-2">
+          <CardHeader className="pb-2 px-3 pt-3">
+            <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
               <TrendingUp className="h-3.5 w-3.5 text-primary" />
               Volume by Operator
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-52">
+          <CardContent className="px-3 pb-3">
+            <div className="h-40 sm:h-52">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={volumeByOperator}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                   <ReTooltip
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 10 }}
                     formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Volume']}
                   />
                   <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
@@ -623,26 +623,26 @@ export default function TerminalMPI() {
 
         {/* Action Breakdown */}
         <Card className="border-border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
+          <CardHeader className="pb-2 px-3 pt-3">
+            <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
               <Zap className="h-3.5 w-3.5 text-primary" />
               Action Breakdown
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="h-52">
+          <CardContent className="px-3 pb-3">
+            <div className="h-40 sm:h-52">
               {actionBreakdown.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={actionBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value">
+                    <Pie data={actionBreakdown} cx="50%" cy="50%" innerRadius={30} outerRadius={55} paddingAngle={4} dataKey="value">
                       {actionBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                     </Pie>
-                    <Legend wrapperStyle={{ fontSize: 10 }} />
-                    <ReTooltip contentStyle={{ fontSize: 11, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
+                    <Legend wrapperStyle={{ fontSize: 9 }} />
+                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-xs text-muted-foreground">No actions recorded</div>
+                <div className="flex items-center justify-center h-full text-[10px] text-muted-foreground">No actions recorded</div>
               )}
             </div>
           </CardContent>

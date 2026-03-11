@@ -833,8 +833,8 @@ export default function TerminalMPI() {
                     </div>
                   )}
                   {/* Efficiency Bar */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[10px]">
+                  <div className="space-y-0.5 sm:space-y-1">
+                    <div className="flex items-center justify-between text-[9px] sm:text-[10px]">
                       <span className="text-muted-foreground flex items-center gap-1">
                         <Gauge className="h-2.5 w-2.5" /> Efficiency Score
                       </span>

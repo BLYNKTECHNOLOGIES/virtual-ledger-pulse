@@ -224,7 +224,7 @@ export default function TerminalOperatorDetail() {
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
           .eq('assigned_to', userId),
         supabase.from('terminal_payer_order_log')
-          .select('order_number, action, created_at, payer_id, metadata')
+          .select('order_number, action, created_at, payer_id')
           .eq('payer_id', userId),
         supabase.from('system_action_logs')
           .select('entity_id, action_type, recorded_at, user_id, module')

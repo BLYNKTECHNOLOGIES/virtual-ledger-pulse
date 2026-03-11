@@ -471,28 +471,28 @@ export default function TerminalMPI() {
   const fmtVol = (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}K`;
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="space-y-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <BarChart3 className="h-5 w-5 text-primary" />
+          <div className="p-2 bg-primary/10 rounded-lg shrink-0">
+            <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">Management Performance Interface</h1>
-            <p className="text-xs text-muted-foreground">
-              Real-time operational intelligence & team analytics
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-lg font-semibold text-foreground truncate">Management Performance Interface</h1>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">
+              Real-time operational intelligence
               {!isTerminalAdmin && (
-                <span className="inline-flex items-center gap-1 ml-2 text-amber-500">
-                  <ShieldAlert className="h-3 w-3" /> Your branch only
+                <span className="inline-flex items-center gap-1 ml-1 text-amber-500">
+                  <ShieldAlert className="h-3 w-3" /> Your branch
                 </span>
               )}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <Select value={viewLevel} onValueChange={setViewLevel}>
-            <SelectTrigger className="h-8 text-xs w-28">
+            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -503,7 +503,7 @@ export default function TerminalMPI() {
             </SelectContent>
           </Select>
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="h-8 text-xs w-28">
+            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -514,7 +514,7 @@ export default function TerminalMPI() {
             </SelectContent>
           </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="h-8 text-xs w-28">
+            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -524,7 +524,7 @@ export default function TerminalMPI() {
               <SelectItem value="speed">By Speed</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={fetchMetrics}>
+          <Button variant="outline" size="sm" className="h-7 text-[10px] sm:text-xs px-2" onClick={fetchMetrics}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </div>

@@ -246,7 +246,9 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       await new Promise(r => setTimeout(r, 200));
     }
 
-    const counterpartyName = verifiedName || order.counter_part_nick_name || 'Unknown';
+    const isMaskedNick = (order.counter_part_nick_name || '').includes('*');
+    // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
+    const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
     const safeNickname = getSafeCounterpartyKey(order.counter_part_nick_name);
     const pan = safeNickname ? (panMap.get(safeNickname) || null) : null;
 

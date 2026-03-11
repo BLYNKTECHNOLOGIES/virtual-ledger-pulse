@@ -121,11 +121,13 @@ export function TransactionActorsCard({ orderId, orderStatus, className }: Trans
   // Define the display order for actions
   const displayOrder = [
     'order_created',
+    'manual_entry_created',
     'banking_collected',
     'pan_collected',
     'added_to_bank',
     'payment_created',
     'payment_completed',
+    'order_edited',
     'order_completed',
     'order_cancelled',
   ];

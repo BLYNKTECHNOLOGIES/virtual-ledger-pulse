@@ -144,7 +144,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         bank_account_id: order.bank_account_id || '',
       });
     }
-  }, [order]);
+  }, [order, existingWalletCredit]);
 
   // Initialize splits from existing data
   useEffect(() => {

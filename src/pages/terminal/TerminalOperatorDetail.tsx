@@ -324,14 +324,7 @@ export default function TerminalOperatorDetail() {
           const diffMin = (compAt.getTime() - lockAt.getTime()) / 60000;
           if (diffMin > 0 && diffMin < 1440) lockToPayTimes.push(diffMin);
         }
-        if (lock.total_price) payerPaymentVolume += Number(lock.total_price) || 0;
-      }
-      // Also calculate from payer logs if locks don't have volume
-      if (payerPaymentVolume === 0) {
-        payerPaymentLogs.forEach(l => {
-          const meta = l.metadata as any;
-          if (meta?.total_price) payerPaymentVolume += Number(meta.total_price) || 0;
-        });
+        if ((lock as any).total_price) payerPaymentVolume += Number((lock as any).total_price) || 0;
       }
 
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;

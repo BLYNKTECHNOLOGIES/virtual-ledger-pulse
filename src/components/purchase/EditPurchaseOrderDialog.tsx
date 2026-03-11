@@ -291,6 +291,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           pan_number: data.pan_number,
           tds_amount: tdsAmount,
           net_payable_amount: netPayableAmount,
+          quantity: data.quantity,
+          price_per_unit: data.price_per_unit,
           wallet_id: data.warehouse_id || null,
           bank_account_id: selectedBankId,
           updated_at: new Date().toISOString()

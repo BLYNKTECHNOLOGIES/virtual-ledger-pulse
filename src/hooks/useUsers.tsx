@@ -57,7 +57,8 @@ export function useUsers() {
             )
           )
         `)
-        .order('created_at', { ascending: false });
+        .order('first_name', { ascending: true })
+        .order('username', { ascending: true });
 
       if (usersError) {
         console.error('Error fetching users:', usersError);

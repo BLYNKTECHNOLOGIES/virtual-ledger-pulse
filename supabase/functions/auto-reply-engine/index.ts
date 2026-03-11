@@ -43,7 +43,7 @@ interface PendingMessage {
   message: string;
   event: string;
   rule: AutoReplyRule;
-  isRetry?: boolean;
+  sendTimestamp: number;
 }
 
 function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {
@@ -166,6 +166,7 @@ async function verifyMessageDelivery(
   proxyHeaders: Record<string, string>,
   orderNo: string,
   sentContent: string,
+  sentAfterMs?: number,
 ): Promise<boolean> {
   try {
     const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?orderNo=${encodeURIComponent(orderNo)}&page=1&rows=10`;
@@ -173,18 +174,20 @@ async function verifyMessageDelivery(
     const data = await res.json();
     
     if (data?.code === "000000" && data?.data) {
-      // Check if any message from us (self=true) contains part of the sent content
       const contentSnippet = sentContent.substring(0, 50);
+      // Only match messages sent AFTER the send attempt to avoid matching old duplicates
+      const cutoff = sentAfterMs ? sentAfterMs - 5000 : 0;
       return data.data.some((msg: any) => 
         msg.self === true && 
         msg.type === "text" && 
-        msg.content?.includes(contentSnippet)
+        msg.content?.includes(contentSnippet) &&
+        (!cutoff || (msg.createTime && msg.createTime >= cutoff))
       );
     }
     return false;
   } catch (err) {
     console.warn("verifyMessageDelivery error:", err);
-    return false; // Can't verify, assume not delivered
+    return false;
   }
 }
 
@@ -198,6 +201,7 @@ async function sendChatMessage(
   content: string,
   cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
 ): Promise<{ success: boolean; verified: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
+  const sendStartMs = Date.now();
   // First try proxy REST endpoint (in case it supports sendMessage)
   try {
     const proxyMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
@@ -210,7 +214,7 @@ async function sendChatMessage(
       if (data?.code === "000000" || data?.success) {
         // Verify delivery
         await new Promise(r => setTimeout(r, 2000));
-        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content);
+        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
         return { success: true, verified };
       }
     }
@@ -276,7 +280,7 @@ async function sendChatMessage(
       if (wsSendResult.success) {
         // Verify delivery by checking chat messages
         await new Promise(r => setTimeout(r, 1500));
-        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content);
+        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
         
         if (verified) {
           console.log(`✅ Message delivery VERIFIED for order ${orderNo}`);
@@ -380,43 +384,31 @@ serve(async (req) => {
     let verified = 0;
     let unverified = 0;
     let errors = 0;
-    let retried = 0;
+    
 
     // ===== RETRY PREVIOUSLY UNVERIFIED MESSAGES =====
     // Find messages logged as "sent" but not verified, within last 30 minutes
+    // Only VERIFY delivery — never delete processed records or re-send
     const { data: unverifiedMessages } = await supabase
       .from("p2p_auto_reply_log")
-      .select("order_number, trigger_event, rule_id, message_sent")
+      .select("id, order_number, trigger_event, rule_id, message_sent")
       .eq("status", "sent_unverified")
       .gte("executed_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
       .limit(10);
 
-    const retryOrders = new Set<string>();
     if (unverifiedMessages && unverifiedMessages.length > 0) {
-      console.log(`${unverifiedMessages.length} unverified messages to retry`);
+      console.log(`${unverifiedMessages.length} unverified messages to check`);
       for (const uv of unverifiedMessages) {
-        // Check if it's now been delivered
         const isNowDelivered = await verifyMessageDelivery(BINANCE_PROXY_URL, proxyHeaders, uv.order_number, uv.message_sent);
         if (isNowDelivered) {
-          // Update status to verified
           await supabase
             .from("p2p_auto_reply_log")
             .update({ status: "sent", error_message: "Verified on retry" })
-            .eq("order_number", uv.order_number)
-            .eq("trigger_event", uv.trigger_event)
-            .eq("status", "sent_unverified");
+            .eq("id", uv.id);
           console.log(`✅ Retry verification passed for ${uv.order_number}`);
         } else {
-          // Mark for re-send: delete from processed so it gets picked up again
-          retryOrders.add(`${uv.order_number}:${uv.trigger_event}:${uv.rule_id}`);
-          await supabase
-            .from("p2p_auto_reply_processed")
-            .delete()
-            .eq("order_number", uv.order_number)
-            .eq("trigger_event", uv.trigger_event)
-            .eq("rule_id", uv.rule_id);
-          console.log(`🔄 Queued retry for unverified message: ${uv.order_number}`);
-          retried++;
+          // Mark as permanently unverified after 30 min — do NOT delete processed or re-send
+          console.log(`⚠️ Still unverified: ${uv.order_number} — keeping processed guard intact`);
         }
       }
     }
@@ -512,28 +504,40 @@ serve(async (req) => {
           });
 
           for (const rule of matchingRules) {
-            const retryKey = `${order.orderNumber}:${event}:${rule.id}`;
-            const isRetry = retryOrders.has(retryKey);
+            // Check if already processed (dedup guard)
+            const { data: existing } = await supabase
+              .from("p2p_auto_reply_processed")
+              .select("id")
+              .eq("order_number", order.orderNumber)
+              .eq("trigger_event", event)
+              .eq("rule_id", rule.id)
+              .maybeSingle();
 
-            if (!isRetry) {
-              const { data: existing } = await supabase
-                .from("p2p_auto_reply_processed")
-                .select("id")
-                .eq("order_number", order.orderNumber)
-                .eq("trigger_event", event)
-                .eq("rule_id", rule.id)
-                .maybeSingle();
-
-              if (existing) continue;
-            }
+            if (existing) continue;
 
             const orderAgeSeconds = (Date.now() - order.createTime) / 1000;
             if (orderAgeSeconds < rule.delay_seconds) continue;
 
+            // === CLAIM THE SLOT FIRST (before sending) ===
+            // This prevents concurrent cron runs from both sending
+            const { error: claimErr } = await supabase
+              .from("p2p_auto_reply_processed")
+              .insert({
+                order_number: order.orderNumber,
+                trigger_event: event,
+                rule_id: rule.id,
+              });
+
+            if (claimErr) {
+              // Unique constraint violation = another invocation already claimed it
+              console.log(`⏭️ Slot already claimed for ${order.orderNumber}:${event}:${rule.id}`);
+              continue;
+            }
+
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
-            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, isRetry });
+            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule });
           }
         }
       }
@@ -548,6 +552,7 @@ serve(async (req) => {
 
       // Send each message with verification
       for (const pm of pendingMessages) {
+        pm.sendTimestamp = Date.now();
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
           proxyHeaders,
@@ -558,13 +563,7 @@ serve(async (req) => {
         if (result.credential) chatCredential = result.credential;
 
         if (result.success) {
-          // Record in processed table
-          await supabase.from("p2p_auto_reply_processed").insert({
-            order_number: pm.orderNumber,
-            trigger_event: pm.event,
-            rule_id: pm.rule.id,
-          }).onConflict("order_number,trigger_event,rule_id").ignoreDuplicates();
-
+          // Slot already claimed before sending — just log
           const status = result.verified ? "sent" : "sent_unverified";
           await supabase.from("p2p_auto_reply_log").insert({
             rule_id: pm.rule.id,
@@ -584,6 +583,13 @@ serve(async (req) => {
           }
           processed++;
         } else {
+          // Send failed — remove the claimed slot so it can retry next cycle
+          await supabase.from("p2p_auto_reply_processed")
+            .delete()
+            .eq("order_number", pm.orderNumber)
+            .eq("trigger_event", pm.event)
+            .eq("rule_id", pm.rule.id);
+
           await supabase.from("p2p_auto_reply_log").insert({
             rule_id: pm.rule.id,
             order_number: pm.orderNumber,
@@ -603,7 +609,7 @@ serve(async (req) => {
       processed,
       verified,
       unverified,
-      retried,
+      
       errors,
       ordersChecked: allActiveOrders.length,
       rulesActive: rules?.length || 0,

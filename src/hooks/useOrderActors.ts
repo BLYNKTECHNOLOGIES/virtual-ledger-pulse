@@ -43,13 +43,29 @@ const ACTION_LABELS: Record<string, string> = {
   'manual_entry_created': 'Manual Entry Created By',
 };
 
+/**
+ * Resolves an array of user IDs to a map of id→username
+ */
+async function resolveUsernames(userIds: string[]): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  if (userIds.length === 0) return map;
+
+  const { data: users } = await supabase
+    .from('users')
+    .select('id, username')
+    .in('id', userIds);
+
+  users?.forEach(user => {
+    map[user.id] = user.username || 'Unknown User';
+  });
+
+  return map;
+}
 
 /**
  * Hook to fetch actor ownership data for a purchase order.
- * Returns structured actor information for direct display on transactions.
- * 
- * @param orderId - The purchase order UUID
- * @returns OrderActors object with structured actor data
+ * Falls back to purchase_orders.created_by + system_action_logs
+ * when purchase_action_timings has no records (for older orders).
  */
 export function useOrderActors(orderId: string | undefined) {
   return useQuery({
@@ -68,50 +84,111 @@ export function useOrderActors(orderId: string | undefined) {
 
       if (error) {
         console.error('[useOrderActors] Error fetching timings:', error);
-        throw error;
       }
 
-      if (!timings || timings.length === 0) {
-        return { allActors: [] };
+      // If we have timing records, use them directly
+      if (timings && timings.length > 0) {
+        const userIds = [...new Set(timings.map(t => t.actor_user_id).filter(Boolean))] as string[];
+        const userMap = await resolveUsernames(userIds);
+
+        const allActors: OrderActor[] = timings.map(timing => ({
+          actionType: timing.action_type,
+          actionLabel: ACTION_LABELS[timing.action_type] || timing.action_type,
+          actorRole: timing.actor_role,
+          actorUserId: timing.actor_user_id,
+          actorName: timing.actor_user_id
+            ? (userMap[timing.actor_user_id] || 'Unknown User')
+            : (timing.actor_role === 'system' ? 'System' : 'Unknown User'),
+          recordedAt: timing.recorded_at,
+          formattedTime: format(new Date(timing.recorded_at), 'dd MMM yyyy, HH:mm'),
+        }));
+
+        const findActor = (actionType: string) => allActors.find(a => a.actionType === actionType);
+
+        return {
+          creator: findActor('order_created'),
+          bankingCollector: findActor('banking_collected'),
+          panCollector: findActor('pan_collected'),
+          bankAdder: findActor('added_to_bank'),
+          payer: findActor('payment_completed') || findActor('payment_created'),
+          completer: findActor('order_completed'),
+          canceller: findActor('order_cancelled'),
+          allActors,
+        };
       }
 
-      // Get unique user IDs (filter out nulls)
-      const userIds = [...new Set(timings.map(t => t.actor_user_id).filter(Boolean))] as string[];
+      // ── FALLBACK: Build actors from purchase_orders + system_action_logs ──
+      const allActors: OrderActor[] = [];
 
-      // Fetch user details (username) for all user IDs from User Management
-      let userMap: Record<string, string> = {};
-      if (userIds.length > 0) {
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('id, username')
-          .in('id', userIds);
+      // 1. Get created_by from purchase_orders
+      const { data: orderData } = await supabase
+        .from('purchase_orders')
+        .select('created_by, created_at, status')
+        .eq('id', orderId)
+        .single();
 
-        if (usersError) {
-          console.error('[useOrderActors] Error fetching users:', usersError);
-        }
+      // 2. Get all system_action_logs for this order
+      const { data: logs } = await supabase
+        .from('system_action_logs')
+        .select('action_type, user_id, user_name, recorded_at')
+        .eq('entity_id', orderId)
+        .eq('entity_type', 'purchase_order')
+        .order('recorded_at', { ascending: true });
 
-        // Map user_id to username - username is always the display value
-        users?.forEach(user => {
-          userMap[user.id] = user.username || 'Unknown User';
+      // Collect all user IDs for resolution
+      const userIds = new Set<string>();
+      if (orderData?.created_by) userIds.add(orderData.created_by);
+      logs?.forEach(l => { if (l.user_id) userIds.add(l.user_id); });
+      const userMap = await resolveUsernames([...userIds]);
+
+      // Add creator from purchase_orders.created_by
+      if (orderData?.created_by) {
+        allActors.push({
+          actionType: 'order_created',
+          actionLabel: 'Created By',
+          actorRole: 'purchase_creator',
+          actorUserId: orderData.created_by,
+          actorName: userMap[orderData.created_by] || 'Unknown User',
+          recordedAt: orderData.created_at,
+          formattedTime: format(new Date(orderData.created_at), 'dd MMM yyyy, HH:mm'),
         });
       }
 
-      // Transform timings to OrderActor format
-      // actorName = username derived from user_id (source of truth)
-      const allActors: OrderActor[] = timings.map(timing => ({
-        actionType: timing.action_type,
-        actionLabel: ACTION_LABELS[timing.action_type] || timing.action_type,
-        actorRole: timing.actor_role,
-        actorUserId: timing.actor_user_id,
-        // Username is ALWAYS derived from user_id, never show role/function/designation
-        actorName: timing.actor_user_id 
-          ? (userMap[timing.actor_user_id] || 'Unknown User')
-          : (timing.actor_role === 'system' ? 'System' : 'Unknown User'),
-        recordedAt: timing.recorded_at,
-        formattedTime: format(new Date(timing.recorded_at), 'dd MMM yyyy, HH:mm:ss'),
-      }));
+      // Map system_action_logs action_type → our display action_type
+      const LOG_TO_ACTION: Record<string, { actionType: string; label: string; role: string }> = {
+        'purchase.order_created': { actionType: 'order_created', label: 'Created By', role: 'purchase_creator' },
+        'purchase.order_completed': { actionType: 'order_completed', label: 'Order Completed By', role: 'payer' },
+        'purchase.order_cancelled': { actionType: 'order_cancelled', label: 'Order Cancelled By', role: 'system' },
+        'purchase.order_edited': { actionType: 'order_edited', label: 'Order Edited By', role: 'purchase_creator' },
+        'purchase.banking_collected': { actionType: 'banking_collected', label: 'Banking Collected By', role: 'purchase_creator' },
+        'purchase.pan_collected': { actionType: 'pan_collected', label: 'PAN Collected By', role: 'purchase_creator' },
+        'purchase.added_to_bank': { actionType: 'added_to_bank', label: 'Added to Bank By', role: 'payer' },
+        'purchase.payment_created': { actionType: 'payment_created', label: 'Payment Recorded By', role: 'payer' },
+        'purchase.payment_completed': { actionType: 'payment_completed', label: 'Payment Completed By', role: 'payer' },
+        'purchase.manual_entry_created': { actionType: 'manual_entry_created', label: 'Manual Entry Created By', role: 'purchase_creator' },
+      };
 
-      // Build structured actors object
+      // Add actors from system_action_logs (skip if we already have order_created from purchase_orders)
+      const addedTypes = new Set(allActors.map(a => a.actionType));
+      logs?.forEach(log => {
+        const mapping = LOG_TO_ACTION[log.action_type];
+        if (!mapping) return;
+        if (addedTypes.has(mapping.actionType)) return; // Skip duplicates
+
+        addedTypes.add(mapping.actionType);
+        allActors.push({
+          actionType: mapping.actionType,
+          actionLabel: mapping.label,
+          actorRole: mapping.role,
+          actorUserId: log.user_id,
+          actorName: log.user_id
+            ? (userMap[log.user_id] || log.user_name || 'Unknown User')
+            : (log.user_name || 'Unknown User'),
+          recordedAt: log.recorded_at,
+          formattedTime: format(new Date(log.recorded_at), 'dd MMM yyyy, HH:mm'),
+        });
+      });
+
       const findActor = (actionType: string) => allActors.find(a => a.actionType === actionType);
 
       return {
@@ -126,6 +203,6 @@ export function useOrderActors(orderId: string | undefined) {
       };
     },
     enabled: !!orderId,
-    staleTime: 30000, // 30 seconds
+    staleTime: 30000,
   });
 }

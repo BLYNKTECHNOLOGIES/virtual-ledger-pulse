@@ -19,6 +19,8 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   'payment_completed': CreditCard,
   'order_completed': CheckCircle,
   'order_cancelled': XCircle,
+  'order_edited': FileText,
+  'manual_entry_created': User,
 };
 
 // Color mapping for action types
@@ -31,6 +33,8 @@ const ACTION_COLORS: Record<string, string> = {
   'payment_completed': 'text-emerald-600',
   'order_completed': 'text-green-500',
   'order_cancelled': 'text-red-500',
+  'order_edited': 'text-amber-500',
+  'manual_entry_created': 'text-blue-600',
 };
 
 function ActorRow({ actor }: { actor: OrderActor }) {
@@ -117,11 +121,13 @@ export function TransactionActorsCard({ orderId, orderStatus, className }: Trans
   // Define the display order for actions
   const displayOrder = [
     'order_created',
+    'manual_entry_created',
     'banking_collected',
     'pan_collected',
     'added_to_bank',
     'payment_created',
     'payment_completed',
+    'order_edited',
     'order_completed',
     'order_cancelled',
   ];

@@ -256,7 +256,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
       const clientData = await createSellerClient(
         syncRecord.counterparty_name,
-        contactRec?.contact_number || undefined
+        contactPhone
       );
       return clientData;
     },

@@ -387,39 +387,27 @@ serve(async (req) => {
 
     // ===== RETRY PREVIOUSLY UNVERIFIED MESSAGES =====
     // Find messages logged as "sent" but not verified, within last 30 minutes
+    // Only VERIFY delivery — never delete processed records or re-send
     const { data: unverifiedMessages } = await supabase
       .from("p2p_auto_reply_log")
-      .select("order_number, trigger_event, rule_id, message_sent")
+      .select("id, order_number, trigger_event, rule_id, message_sent")
       .eq("status", "sent_unverified")
       .gte("executed_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
       .limit(10);
 
-    const retryOrders = new Set<string>();
     if (unverifiedMessages && unverifiedMessages.length > 0) {
-      console.log(`${unverifiedMessages.length} unverified messages to retry`);
+      console.log(`${unverifiedMessages.length} unverified messages to check`);
       for (const uv of unverifiedMessages) {
-        // Check if it's now been delivered
         const isNowDelivered = await verifyMessageDelivery(BINANCE_PROXY_URL, proxyHeaders, uv.order_number, uv.message_sent);
         if (isNowDelivered) {
-          // Update status to verified
           await supabase
             .from("p2p_auto_reply_log")
             .update({ status: "sent", error_message: "Verified on retry" })
-            .eq("order_number", uv.order_number)
-            .eq("trigger_event", uv.trigger_event)
-            .eq("status", "sent_unverified");
+            .eq("id", uv.id);
           console.log(`✅ Retry verification passed for ${uv.order_number}`);
         } else {
-          // Mark for re-send: delete from processed so it gets picked up again
-          retryOrders.add(`${uv.order_number}:${uv.trigger_event}:${uv.rule_id}`);
-          await supabase
-            .from("p2p_auto_reply_processed")
-            .delete()
-            .eq("order_number", uv.order_number)
-            .eq("trigger_event", uv.trigger_event)
-            .eq("rule_id", uv.rule_id);
-          console.log(`🔄 Queued retry for unverified message: ${uv.order_number}`);
-          retried++;
+          // Mark as permanently unverified after 30 min — do NOT delete processed or re-send
+          console.log(`⚠️ Still unverified: ${uv.order_number} — keeping processed guard intact`);
         }
       }
     }

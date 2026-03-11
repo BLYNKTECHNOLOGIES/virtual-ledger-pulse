@@ -169,7 +169,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
   // Helper: lookup contact records by nickname(s) and pre-fill
   const lookupContact = async (nicknames: string[]) => {
-    const unique = [...new Set(nicknames.filter(Boolean))];
+    // Filter out masked nicknames (containing *) to prevent cross-contamination
+    const unique = [...new Set(nicknames.filter(n => !!n && !n.includes('*')))];
     if (unique.length === 0) return;
 
     const { data: exactRecords } = await supabase

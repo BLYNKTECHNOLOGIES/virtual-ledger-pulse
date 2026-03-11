@@ -341,7 +341,7 @@ export default function TerminalOperatorDetail() {
       const todayCompletedArr = todayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
       const todayVol = todayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       const todayPayments = payerPaymentLogs.filter(l => new Date(l.created_at) >= todayStart).length;
-      const todayPayerVol = payerLocks.filter(l => new Date(l.locked_at || l.created_at) >= todayStart).reduce((s, l) => s + (Number(l.total_price) || 0), 0);
+      const todayPayerVol = payerLocks.filter(l => new Date(l.locked_at || l.created_at) >= todayStart).reduce((s, l) => s + (Number((l as any).total_price) || 0), 0);
 
       // Peak hour
       const hourCounts = new Array(24).fill(0);

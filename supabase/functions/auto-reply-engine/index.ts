@@ -280,7 +280,7 @@ async function sendChatMessage(
       if (wsSendResult.success) {
         // Verify delivery by checking chat messages
         await new Promise(r => setTimeout(r, 1500));
-        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content);
+        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
         
         if (verified) {
           console.log(`✅ Message delivery VERIFIED for order ${orderNo}`);

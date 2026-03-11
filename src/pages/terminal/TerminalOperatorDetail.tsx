@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Package, TrendingUp, Timer, Activity, ArrowLeft,
   CheckCircle, XCircle, Clock, Shield, Wallet, CreditCard, Users,
@@ -28,6 +29,7 @@ interface OperatorMetric {
   userId: string;
   displayName: string;
   roleName: string;
+  roleType: 'payer' | 'operator' | 'admin' | 'hybrid';
   ordersHandled: number;
   ordersCompleted: number;
   ordersCancelled: number;
@@ -48,16 +50,24 @@ interface OperatorMetric {
   todayVolume: number;
   peakHour: number | null;
   peakHourOrders: number;
-  // Action counts
   paymentsMade: number;
   releasesPerformed: number;
   chatMessagesSent: number;
   escalationsHandled: number;
   approvalActions: number;
-  // Efficiency
   efficiencyScore: number;
   completionRate: number;
   cancellationRate: number;
+  // Payer-specific
+  payerLocksTotal: number;
+  payerLocksCompleted: number;
+  payerLocksActive: number;
+  payerAvgLockToPayMin: number | null;
+  payerMedianLockToPayMin: number | null;
+  payerFastestPayMin: number | null;
+  payerPaymentVolume: number;
+  payerTodayPayments: number;
+  payerTodayVolume: number;
 }
 
 interface DailyTrend {
@@ -66,6 +76,7 @@ interface DailyTrend {
   volume: number;
   completed: number;
   cancelled: number;
+  payments?: number;
 }
 
 interface ActionDetail {
@@ -81,6 +92,16 @@ interface OperatorProfile {
   shift: string | null;
   is_active: boolean;
   automation_included: boolean;
+}
+
+function getRoleType(roleName: string): 'payer' | 'operator' | 'admin' | 'hybrid' {
+  const name = roleName.toLowerCase();
+  const isPayer = name.includes('payer');
+  const isOperator = name.includes('operator');
+  if (isPayer && isOperator) return 'hybrid';
+  if (name.includes('super') || name.includes('admin') || name.includes('coo')) return 'admin';
+  if (isPayer) return 'payer';
+  return 'operator';
 }
 
 function getRoleBadgeClass(roleName: string) {
@@ -111,21 +132,71 @@ function computeEfficiencyScore(m: {
   avgTotalHandleTimeMin: number | null;
   ordersHandled: number;
   ordersCancelled: number;
+  paymentsMade: number;
+  payerLocksCompleted: number;
+  payerLocksTotal: number;
+  payerAvgLockToPayMin: number | null;
+  roleType: string;
 }): number {
   let score = 0;
-  score += m.completionRate * 0.4;
-  if (m.avgTotalHandleTimeMin != null && m.avgTotalHandleTimeMin > 0) {
-    score += Math.max(0, Math.min(100, 100 - ((m.avgTotalHandleTimeMin - 5) / 25) * 100)) * 0.3;
-  } else if (m.ordersHandled > 0) {
-    score += 50 * 0.3;
+  
+  if (m.roleType === 'payer') {
+    // Payer scoring: Lock completion (40%), Payment speed (30%), Volume (20%), Reliability (10%)
+    const lockRate = m.payerLocksTotal > 0 ? (m.payerLocksCompleted / m.payerLocksTotal) * 100 : (m.paymentsMade > 0 ? 80 : 0);
+    score += lockRate * 0.4;
+    if (m.payerAvgLockToPayMin != null && m.payerAvgLockToPayMin > 0) {
+      score += Math.max(0, Math.min(100, 100 - ((m.payerAvgLockToPayMin - 2) / 15) * 100)) * 0.3;
+    } else if (m.paymentsMade > 0) {
+      score += 50 * 0.3;
+    }
+    score += Math.min(100, (m.paymentsMade / 15) * 100) * 0.2;
+    score += Math.max(0, 100 - ((m.payerLocksTotal - m.payerLocksCompleted) / Math.max(1, m.payerLocksTotal)) * 200) * 0.1;
+  } else {
+    // Operator/Admin scoring
+    score += m.completionRate * 0.4;
+    if (m.avgTotalHandleTimeMin != null && m.avgTotalHandleTimeMin > 0) {
+      score += Math.max(0, Math.min(100, 100 - ((m.avgTotalHandleTimeMin - 5) / 25) * 100)) * 0.3;
+    } else if (m.ordersHandled > 0) {
+      score += 50 * 0.3;
+    }
+    score += Math.min(100, (m.ordersHandled / 20) * 100) * 0.2;
+    const cancelRate = m.ordersHandled > 0 ? (m.ordersCancelled / m.ordersHandled) * 100 : 0;
+    score += Math.max(0, 100 - cancelRate * 5) * 0.1;
   }
-  score += Math.min(100, (m.ordersHandled / 20) * 100) * 0.2;
-  const cancelRate = m.ordersHandled > 0 ? (m.ordersCancelled / m.ordersHandled) * 100 : 0;
-  score += Math.max(0, 100 - cancelRate * 5) * 0.1;
+
   return Math.round(Math.max(0, Math.min(100, score)));
 }
 
 const fmtVol = (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}K`;
+
+// Reusable stat mini card
+function StatMini({ icon: Icon, label, value, color = 'text-primary' }: { icon: any; label: string; value: string | number; color?: string }) {
+  return (
+    <div className="flex items-center gap-2 p-2 sm:p-2.5 rounded-lg bg-muted/30 border border-border min-w-0">
+      <Icon className={`h-3.5 w-3.5 shrink-0 ${color}`} />
+      <div className="min-w-0">
+        <div className="text-xs font-semibold text-foreground truncate">{value}</div>
+        <div className="text-[9px] text-muted-foreground truncate">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+// Timing card
+function TimingCard({ icon: Icon, label, value, subtitle, borderColor }: { icon: any; label: string; value: string; subtitle: string; borderColor: string }) {
+  return (
+    <Card className={`border-border bg-card border-l-2 ${borderColor}`}>
+      <CardContent className="p-2.5 sm:p-3">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" style={{ color: 'inherit' }} />
+          <span className="text-[9px] sm:text-[10px] text-muted-foreground truncate">{label}</span>
+        </div>
+        <div className="text-sm sm:text-lg font-bold text-foreground">{value}</div>
+        <p className="text-[8px] sm:text-[9px] text-muted-foreground">{subtitle}</p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function TerminalOperatorDetail() {
   const { userId } = useParams<{ userId: string }>();
@@ -147,14 +218,13 @@ export default function TerminalOperatorDetail() {
     if (!userId) return;
     setIsLoading(true);
     try {
-      // Parallel fetch core data
       const [userRes, assignmentsRes, payerLogsRes, actionLogsRes, userRolesRes, profileRes, payerAssignRes, operatorAssignRes, payerLocksRes, sizeRangesRes] = await Promise.all([
         supabase.from('users').select('id, username, first_name, last_name').eq('id', userId).single(),
         supabase.from('terminal_order_assignments')
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
           .eq('assigned_to', userId),
         supabase.from('terminal_payer_order_log')
-          .select('order_number, action, created_at, payer_id')
+          .select('order_number, action, created_at, payer_id, metadata')
           .eq('payer_id', userId),
         supabase.from('system_action_logs')
           .select('entity_id, action_type, recorded_at, user_id, module')
@@ -174,6 +244,7 @@ export default function TerminalOperatorDetail() {
       const userAssignments = assignmentsRes.data || [];
       const payerLogs = payerLogsRes.data || [];
       const actionLogs = actionLogsRes.data || [];
+      const payerLocks = payerLocksRes.data || [];
 
       // Get role name
       let roleName = 'Operator';
@@ -185,7 +256,9 @@ export default function TerminalOperatorDetail() {
         }
       }
 
-      // Core stats
+      const roleType = getRoleType(roleName);
+
+      // Core stats from assignments
       const active = userAssignments.filter(a => a.is_active);
       const completed = userAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
       const cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
@@ -195,20 +268,16 @@ export default function TerminalOperatorDetail() {
       const buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       const sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
 
-      // Order numbers for cross-referencing
-      const orderNumbers = userAssignments.map(a => a.order_number).filter(Boolean);
-
-      // Index payer logs by order
+      // Payer logs indexed
       const payerLogByOrder = new Map<string, Date>();
-      payerLogs.forEach(l => {
-        if (l.action === 'marked_paid') {
-          const dt = new Date(l.created_at);
-          const existing = payerLogByOrder.get(l.order_number);
-          if (!existing || dt < existing) payerLogByOrder.set(l.order_number, dt);
-        }
+      const payerPaymentLogs = payerLogs.filter(l => l.action === 'marked_paid');
+      payerPaymentLogs.forEach(l => {
+        const dt = new Date(l.created_at);
+        const existing = payerLogByOrder.get(l.order_number);
+        if (!existing || dt < existing) payerLogByOrder.set(l.order_number, dt);
       });
 
-      // Index action logs by order
+      // Release logs indexed
       const releaseLogByOrder = new Map<string, Date>();
       actionLogs.forEach(l => {
         if (['release_coin', 'released', 'order_released'].includes(l.action_type)) {
@@ -218,7 +287,7 @@ export default function TerminalOperatorDetail() {
         }
       });
 
-      // Timing metrics
+      // Timing metrics from assignments
       const paymentTimes: number[] = [];
       const releaseTimes: number[] = [];
       const handleTimes: number[] = [];
@@ -226,13 +295,11 @@ export default function TerminalOperatorDetail() {
       for (const assignment of userAssignments) {
         const assignedAt = new Date(assignment.created_at);
         const orderNum = assignment.order_number;
-
         const paidAt = payerLogByOrder.get(orderNum);
         if (paidAt && paidAt > assignedAt) {
           const diffMin = (paidAt.getTime() - assignedAt.getTime()) / 60000;
           if (diffMin > 0 && diffMin < 1440) paymentTimes.push(diffMin);
         }
-
         if (paidAt) {
           const releasedAt = releaseLogByOrder.get(orderNum);
           if (releasedAt && releasedAt > paidAt) {
@@ -240,12 +307,31 @@ export default function TerminalOperatorDetail() {
             if (diffMin > 0 && diffMin < 1440) releaseTimes.push(diffMin);
           }
         }
-
         if (!assignment.is_active && assignment.updated_at) {
           const closedAt = new Date(assignment.updated_at);
           const diffMin = (closedAt.getTime() - assignedAt.getTime()) / 60000;
           if (diffMin > 0 && diffMin < 1440) handleTimes.push(diffMin);
         }
+      }
+
+      // Payer lock-to-payment times
+      const lockToPayTimes: number[] = [];
+      let payerPaymentVolume = 0;
+      for (const lock of payerLocks) {
+        if (lock.status === 'completed' && lock.locked_at && lock.completed_at) {
+          const lockAt = new Date(lock.locked_at);
+          const compAt = new Date(lock.completed_at);
+          const diffMin = (compAt.getTime() - lockAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) lockToPayTimes.push(diffMin);
+        }
+        if (lock.total_price) payerPaymentVolume += Number(lock.total_price) || 0;
+      }
+      // Also calculate from payer logs if locks don't have volume
+      if (payerPaymentVolume === 0) {
+        payerPaymentLogs.forEach(l => {
+          const meta = l.metadata as any;
+          if (meta?.total_price) payerPaymentVolume += Number(meta.total_price) || 0;
+        });
       }
 
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
@@ -261,32 +347,25 @@ export default function TerminalOperatorDetail() {
       const todayAssignments = userAssignments.filter(a => new Date(a.created_at) >= todayStart);
       const todayCompletedArr = todayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
       const todayVol = todayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      const todayPayments = payerPaymentLogs.filter(l => new Date(l.created_at) >= todayStart).length;
+      const todayPayerVol = payerLocks.filter(l => new Date(l.locked_at || l.created_at) >= todayStart).reduce((s, l) => s + (Number(l.total_price) || 0), 0);
 
       // Peak hour
       const hourCounts = new Array(24).fill(0);
-      userAssignments.forEach(a => { hourCounts[new Date(a.created_at).getHours()]++; });
+      const sourceForHours = roleType === 'payer' ? payerPaymentLogs : userAssignments;
+      sourceForHours.forEach(a => { hourCounts[new Date(a.created_at).getHours()]++; });
       let peakHour: number | null = null;
       let peakCount = 0;
       hourCounts.forEach((c, i) => { if (c > peakCount) { peakCount = c; peakHour = i; } });
 
       // Action counts
-      const paymentsMade = payerLogs.filter(l => l.action === 'marked_paid').length;
+      const paymentsMade = payerPaymentLogs.length;
       const releasesPerformed = actionLogs.filter(l => ['release_coin', 'released', 'order_released'].includes(l.action_type)).length;
       const chatMessages = actionLogs.filter(l => ['send_chat', 'chat_message'].includes(l.action_type)).length;
       const escalations = actionLogs.filter(l => ['escalation', 'appeal_handled'].includes(l.action_type)).length;
       const approvalActions = actionLogs.filter(l => ['approve', 'approved', 'reject', 'rejected'].includes(l.action_type)).length;
 
-      // Action details for the detail tab
-      const actionTypeCounts = new Map<string, number>();
-      actionLogs.forEach(l => {
-        actionTypeCounts.set(l.action_type, (actionTypeCounts.get(l.action_type) || 0) + 1);
-      });
-      // Also count payer actions
-      const payerActionCounts = new Map<string, number>();
-      payerLogs.forEach(l => {
-        payerActionCounts.set(l.action, (payerActionCounts.get(l.action) || 0) + 1);
-      });
-
+      // Action details
       const actionDetailsList: ActionDetail[] = [
         { action_type: 'marked_paid', count: paymentsMade, label: 'Payments Made', icon: CreditCard, color: 'text-purple-400' },
         { action_type: 'release', count: releasesPerformed, label: 'Coin Releases', icon: Unlock, color: 'text-emerald-400' },
@@ -295,19 +374,13 @@ export default function TerminalOperatorDetail() {
         { action_type: 'approval', count: approvalActions, label: 'Approvals/Rejections', icon: Shield, color: 'text-blue-400' },
       ];
 
-      // Add any other action types from logs
+      const actionTypeCounts = new Map<string, number>();
+      actionLogs.forEach(l => { actionTypeCounts.set(l.action_type, (actionTypeCounts.get(l.action_type) || 0) + 1); });
       actionTypeCounts.forEach((count, type) => {
         if (!['release_coin', 'released', 'order_released', 'send_chat', 'chat_message', 'escalation', 'appeal_handled', 'approve', 'approved', 'reject', 'rejected'].includes(type)) {
-          actionDetailsList.push({
-            action_type: type,
-            count,
-            label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-            icon: Zap,
-            color: 'text-muted-foreground',
-          });
+          actionDetailsList.push({ action_type: type, count, label: type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: Zap, color: 'text-muted-foreground' });
         }
       });
-
       setActionDetails(actionDetailsList.filter(a => a.count > 0).sort((a, b) => b.count - a.count));
 
       // Daily trends
@@ -317,28 +390,29 @@ export default function TerminalOperatorDetail() {
         const d = subDays(new Date(), i);
         const dayStart = startOfDay(d);
         const dayEnd = endOfDay(d);
-        const dayAssignments = userAssignments.filter(a => {
-          const dt = new Date(a.created_at);
-          return dt >= dayStart && dt <= dayEnd;
-        });
+        const dayAssignments = userAssignments.filter(a => { const dt = new Date(a.created_at); return dt >= dayStart && dt <= dayEnd; });
+        const dayPayments = payerPaymentLogs.filter(l => { const dt = new Date(l.created_at); return dt >= dayStart && dt <= dayEnd; });
         trends.push({
           date: format(d, 'dd MMM'),
           orders: dayAssignments.length,
           volume: dayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0),
           completed: dayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled').length,
           cancelled: dayAssignments.filter(a => a.assignment_type === 'cancelled').length,
+          payments: dayPayments.length,
         });
       }
       setDailyTrends(trends);
 
       const completionRate = userAssignments.length > 0 ? Math.round((completed.length / userAssignments.length) * 100) : 0;
       const cancellationRate = userAssignments.length > 0 ? Math.round((cancelled.length / userAssignments.length) * 100) : 0;
+      const payerLocksCompleted = payerLocks.filter(l => l.status === 'completed').length;
+      const payerLocksActive = payerLocks.filter(l => l.status !== 'completed').length;
 
       setProfile(profileRes.data || null);
       setRecentAssignments(userAssignments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
       setPayerAssignData(payerAssignRes.data || []);
       setOperatorAssignData(operatorAssignRes.data || []);
-      setPayerLockData(payerLocksRes.data || []);
+      setPayerLockData(payerLocks);
       const srMap = new Map<string, string>();
       (sizeRangesRes.data || []).forEach((r: any) => srMap.set(r.id, r.name));
       setSizeRangeNames(srMap);
@@ -347,6 +421,7 @@ export default function TerminalOperatorDetail() {
         userId,
         displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username,
         roleName,
+        roleType,
         ordersHandled: userAssignments.length,
         ordersCompleted: completed.length,
         ordersCancelled: cancelled.length,
@@ -375,6 +450,15 @@ export default function TerminalOperatorDetail() {
         completionRate,
         cancellationRate,
         efficiencyScore: 0,
+        payerLocksTotal: payerLocks.length,
+        payerLocksCompleted,
+        payerLocksActive,
+        payerAvgLockToPayMin: avg(lockToPayTimes),
+        payerMedianLockToPayMin: median(lockToPayTimes),
+        payerFastestPayMin: lockToPayTimes.length > 0 ? Math.round(Math.min(...lockToPayTimes) * 10) / 10 : null,
+        payerPaymentVolume,
+        payerTodayPayments: todayPayments,
+        payerTodayVolume: todayPayerVol,
       };
       m.efficiencyScore = computeEfficiencyScore(m);
       setMetric(m);
@@ -389,13 +473,13 @@ export default function TerminalOperatorDetail() {
 
   if (isLoading || !metric) {
     return (
-      <div className="p-4 md:p-6 space-y-5">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/terminal/mpi')} className="mb-4">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/terminal/mpi')} className="mb-2">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to MPI
         </Button>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="border-border bg-card animate-pulse"><CardContent className="p-4 h-20" /></Card>
+        <div className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="border-border bg-card animate-pulse"><CardContent className="p-3 h-16" /></Card>
           ))}
         </div>
       </div>
@@ -403,6 +487,8 @@ export default function TerminalOperatorDetail() {
   }
 
   const m = metric;
+  const isPayer = m.roleType === 'payer' || m.roleType === 'hybrid';
+  const isOp = m.roleType === 'operator' || m.roleType === 'hybrid' || m.roleType === 'admin';
 
   const tradeBreakdown = [
     { name: 'Buy', value: m.buyCount },
@@ -420,7 +506,7 @@ export default function TerminalOperatorDetail() {
 
   const volumeBuckets = [
     { range: '0-10K', count: 0 },
-    { range: '10K-50K', count: 0 },
+    { range: '10-50K', count: 0 },
     { range: '50K-1L', count: 0 },
     { range: '1L+', count: 0 },
   ];
@@ -433,193 +519,176 @@ export default function TerminalOperatorDetail() {
   });
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/terminal/mpi')}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-3 flex-1">
-          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-            <span className="text-lg font-bold text-primary">{m.displayName.charAt(0).toUpperCase()}</span>
+    <div className="p-3 sm:p-4 md:p-6 space-y-4">
+      {/* Header - mobile responsive */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate('/terminal/mpi')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-base font-bold text-primary">{m.displayName.charAt(0).toUpperCase()}</span>
           </div>
-          <div>
-            <h1 className="text-lg font-semibold text-foreground">{m.displayName}</h1>
-            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <Badge className={`text-[10px] ${getRoleBadgeClass(m.roleName)}`}>{m.roleName}</Badge>
-              {profile?.shift && <Badge variant="outline" className="text-[10px]">{profile.shift} Shift</Badge>}
-              {profile?.specialization && profile.specialization !== 'general' && (
-                <Badge variant="outline" className="text-[10px] capitalize">{profile.specialization}</Badge>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base sm:text-lg font-semibold text-foreground truncate">{m.displayName}</h1>
+            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+              <Badge className={`text-[9px] ${getRoleBadgeClass(m.roleName)}`}>{m.roleName}</Badge>
+              {profile?.shift && <Badge variant="outline" className="text-[9px]">{profile.shift} Shift</Badge>}
+              {profile?.specialization && profile.specialization !== 'general' && profile.specialization !== 'both' && (
+                <Badge variant="outline" className="text-[9px] capitalize">{profile.specialization}</Badge>
               )}
-              <div className="flex items-center gap-1 ml-1">
+              <div className="flex items-center gap-1">
                 <div className={`h-1.5 w-1.5 rounded-full ${profile?.is_active !== false ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-                <span className="text-[10px] text-muted-foreground">{profile?.is_active !== false ? 'Online' : 'Offline'}</span>
+                <span className="text-[9px] text-muted-foreground">{profile?.is_active !== false ? 'Online' : 'Offline'}</span>
               </div>
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Efficiency Score Badge */}
-          <div className={`flex flex-col items-center px-3 py-1.5 rounded-lg border border-border bg-muted/20`}>
+        {/* Score + actions row */}
+        <div className="flex items-center gap-2 ml-11 sm:ml-0 sm:justify-end">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/20">
             <span className="text-[9px] text-muted-foreground">Score</span>
             <span className={`text-xl font-bold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}</span>
           </div>
           {m.activeLoad > 0 && (
-            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">{m.activeLoad} active</Badge>
+            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">{m.activeLoad} active</Badge>
           )}
-          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={fetchData}>
+          <Button variant="outline" size="sm" className="h-7 text-[10px] px-2" onClick={fetchData}>
             <RefreshCw className="h-3 w-3 mr-1" /> Refresh
           </Button>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs - scrollable on mobile */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="h-8">
-          <TabsTrigger value="overview" className="text-xs h-7">Overview</TabsTrigger>
-          <TabsTrigger value="assignments" className="text-xs h-7">Assignments</TabsTrigger>
-          <TabsTrigger value="actions" className="text-xs h-7">Actions</TabsTrigger>
-          <TabsTrigger value="trends" className="text-xs h-7">Trends</TabsTrigger>
-          <TabsTrigger value="orders" className="text-xs h-7">Orders</TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full">
+          <TabsList className="h-8 w-max">
+            <TabsTrigger value="overview" className="text-[10px] sm:text-xs h-7">Overview</TabsTrigger>
+            <TabsTrigger value="assignments" className="text-[10px] sm:text-xs h-7">Assignments</TabsTrigger>
+            <TabsTrigger value="actions" className="text-[10px] sm:text-xs h-7">Actions</TabsTrigger>
+            <TabsTrigger value="trends" className="text-[10px] sm:text-xs h-7">Trends</TabsTrigger>
+            <TabsTrigger value="orders" className="text-[10px] sm:text-xs h-7">Orders</TabsTrigger>
+          </TabsList>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
 
         {/* OVERVIEW TAB */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
-          {/* Core Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {[
-              { label: 'Total Handled', value: m.ordersHandled, icon: Package, color: 'text-primary' },
-              { label: 'Completed', value: m.ordersCompleted, icon: CheckCircle, color: 'text-green-500' },
-              { label: 'Cancelled', value: m.ordersCancelled, icon: XCircle, color: 'text-destructive' },
-              { label: 'Total Volume', value: fmtVol(m.totalVolume), icon: TrendingUp, color: 'text-emerald-500' },
-              { label: 'Active Now', value: m.activeLoad, icon: Activity, color: 'text-amber-500' },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/30 border border-border">
-                <Icon className={`h-4 w-4 ${color}`} />
-                <div>
-                  <div className="text-xs font-semibold text-foreground">{value}</div>
-                  <div className="text-[9px] text-muted-foreground">{label}</div>
-                </div>
+        <TabsContent value="overview" className="space-y-4 mt-3">
+          {/* Role-specific primary KPIs */}
+          {isPayer && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
+                <StatMini icon={CreditCard} label="Payments Made" value={m.paymentsMade} color="text-purple-500" />
+                <StatMini icon={Banknote} label="Payment Volume" value={fmtVol(m.payerPaymentVolume || m.totalVolume)} color="text-green-500" />
+                <StatMini icon={Lock} label="Locks Completed" value={`${m.payerLocksCompleted}/${m.payerLocksTotal}`} color="text-cyan-500" />
+                <StatMini icon={Timer} label="Avg Lock→Pay" value={formatDuration(m.payerAvgLockToPayMin)} color="text-blue-500" />
+                <StatMini icon={Activity} label="Active Locks" value={m.payerLocksActive} color="text-amber-500" />
               </div>
-            ))}
-          </div>
 
-          {/* Timing Metrics */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Card className="border-border bg-card border-l-2 border-l-blue-500">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Banknote className="h-3.5 w-3.5 text-blue-500" />
-                  <span className="text-[10px] text-muted-foreground">Avg Payment Turnout</span>
-                </div>
-                <div className="text-lg font-bold text-foreground">{formatDuration(m.avgPaymentTimeMin)}</div>
-                <p className="text-[9px] text-muted-foreground">Assignment → Payment</p>
-              </CardContent>
-            </Card>
+              {/* Payer timing cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+                <TimingCard icon={Banknote} label="Avg Lock → Payment" value={formatDuration(m.payerAvgLockToPayMin)} subtitle="Lock to completion" borderColor="border-l-blue-500" />
+                <TimingCard icon={Timer} label="Median Lock → Pay" value={formatDuration(m.payerMedianLockToPayMin)} subtitle="50th percentile" borderColor="border-l-indigo-500" />
+                <TimingCard icon={Trophy} label="Fastest Payment" value={formatDuration(m.payerFastestPayMin)} subtitle="Best time" borderColor="border-l-emerald-500" />
+                <TimingCard icon={Gauge} label="Lock Success Rate" value={m.payerLocksTotal > 0 ? `${Math.round((m.payerLocksCompleted / m.payerLocksTotal) * 100)}%` : 'N/A'} subtitle="Completed / Total" borderColor="border-l-purple-500" />
+              </div>
+            </>
+          )}
 
-            <Card className="border-border bg-card border-l-2 border-l-emerald-500">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Unlock className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-[10px] text-muted-foreground">Avg Release Turnout</span>
-                </div>
-                <div className="text-lg font-bold text-foreground">{formatDuration(m.avgReleaseTimeMin)}</div>
-                <p className="text-[9px] text-muted-foreground">Payment → Release</p>
-              </CardContent>
-            </Card>
+          {isOp && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
+                <StatMini icon={Package} label="Total Handled" value={m.ordersHandled} color="text-primary" />
+                <StatMini icon={CheckCircle} label="Completed" value={m.ordersCompleted} color="text-green-500" />
+                <StatMini icon={XCircle} label="Cancelled" value={m.ordersCancelled} color="text-destructive" />
+                <StatMini icon={TrendingUp} label="Total Volume" value={fmtVol(m.totalVolume)} color="text-emerald-500" />
+                <StatMini icon={Activity} label="Active Now" value={m.activeLoad} color="text-amber-500" />
+              </div>
 
-            <Card className="border-border bg-card border-l-2 border-l-amber-500">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Gauge className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-[10px] text-muted-foreground">Avg Handle Time</span>
-                </div>
-                <div className="text-lg font-bold text-foreground">{formatDuration(m.avgTotalHandleTimeMin)}</div>
-                <p className="text-[9px] text-muted-foreground">Assignment → Closure</p>
-              </CardContent>
-            </Card>
+              {/* Operator timing cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-3">
+                <TimingCard icon={Banknote} label="Avg Payment Turnout" value={formatDuration(m.avgPaymentTimeMin)} subtitle="Assignment → Payment" borderColor="border-l-blue-500" />
+                <TimingCard icon={Unlock} label="Avg Release Turnout" value={formatDuration(m.avgReleaseTimeMin)} subtitle="Payment → Release" borderColor="border-l-emerald-500" />
+                <TimingCard icon={Gauge} label="Avg Handle Time" value={formatDuration(m.avgTotalHandleTimeMin)} subtitle="Assignment → Closure" borderColor="border-l-amber-500" />
+                <TimingCard icon={Timer} label="Median Handle" value={formatDuration(m.medianHandleTimeMin)} subtitle="50th percentile" borderColor="border-l-indigo-500" />
+                <TimingCard icon={Trophy} label="Speed Range" value={m.fastestHandleTimeMin != null ? `${formatDuration(m.fastestHandleTimeMin)} – ${formatDuration(m.slowestHandleTimeMin)}` : 'N/A'} subtitle="Fastest → Slowest" borderColor="border-l-purple-500" />
+              </div>
+            </>
+          )}
 
-            <Card className="border-border bg-card border-l-2 border-l-indigo-500">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Timer className="h-3.5 w-3.5 text-indigo-500" />
-                  <span className="text-[10px] text-muted-foreground">Median Handle</span>
-                </div>
-                <div className="text-lg font-bold text-foreground">{formatDuration(m.medianHandleTimeMin)}</div>
-                <p className="text-[9px] text-muted-foreground">50th percentile</p>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-card border-l-2 border-l-purple-500">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Trophy className="h-3.5 w-3.5 text-purple-500" />
-                  <span className="text-[10px] text-muted-foreground">Speed Range</span>
-                </div>
-                <div className="text-sm font-bold text-foreground">
-                  {m.fastestHandleTimeMin != null
-                    ? `${formatDuration(m.fastestHandleTimeMin)} – ${formatDuration(m.slowestHandleTimeMin)}`
-                    : 'N/A'}
-                </div>
-                <p className="text-[9px] text-muted-foreground">Fastest → Slowest</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Today + Volume */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Today's Performance + Volume */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5 text-primary" /> Today's Performance
                 </h4>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-2 rounded-lg bg-muted/30">
-                    <div className="text-lg font-bold text-foreground">{m.todayHandled}</div>
-                    <div className="text-[9px] text-muted-foreground">Handled</div>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-muted/30">
-                    <div className="text-lg font-bold text-green-500">{m.todayCompleted}</div>
-                    <div className="text-[9px] text-muted-foreground">Completed</div>
-                  </div>
-                  <div className="text-center p-2 rounded-lg bg-muted/30">
-                    <div className="text-lg font-bold text-foreground">{fmtVol(m.todayVolume)}</div>
-                    <div className="text-[9px] text-muted-foreground">Volume</div>
-                  </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {isPayer ? (
+                    <>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <div className="text-base sm:text-lg font-bold text-foreground">{m.payerTodayPayments}</div>
+                        <div className="text-[8px] sm:text-[9px] text-muted-foreground">Payments</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <div className="text-base sm:text-lg font-bold text-green-500">{m.todayCompleted}</div>
+                        <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <div className="text-base sm:text-lg font-bold text-foreground">{fmtVol(m.payerTodayVolume || m.todayVolume)}</div>
+                        <div className="text-[8px] sm:text-[9px] text-muted-foreground">Volume</div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <div className="text-base sm:text-lg font-bold text-foreground">{m.todayHandled}</div>
+                        <div className="text-[8px] sm:text-[9px] text-muted-foreground">Handled</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <div className="text-base sm:text-lg font-bold text-green-500">{m.todayCompleted}</div>
+                        <div className="text-[8px] sm:text-[9px] text-muted-foreground">Completed</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/30">
+                        <div className="text-base sm:text-lg font-bold text-foreground">{fmtVol(m.todayVolume)}</div>
+                        <div className="text-[8px] sm:text-[9px] text-muted-foreground">Volume</div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 {m.peakHour != null && (
-                  <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground bg-muted/20 rounded p-2">
-                    <Zap className="h-3 w-3 text-amber-500" />
-                    <span>Peak Hour: <strong className="text-foreground">{m.peakHour}:00 – {m.peakHour + 1}:00</strong> ({m.peakHourOrders} orders)</span>
+                  <div className="mt-2 flex items-center gap-2 text-[9px] text-muted-foreground bg-muted/20 rounded p-1.5">
+                    <Zap className="h-3 w-3 text-amber-500 shrink-0" />
+                    <span>Peak: <strong className="text-foreground">{m.peakHour}:00</strong> ({m.peakHourOrders} orders)</span>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
+              <CardContent className="p-3 sm:p-4">
                 <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
                   <Wallet className="h-3.5 w-3.5 text-primary" /> Volume Breakdown
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="flex items-center gap-2">
-                      <ArrowDownRight className="h-3.5 w-3.5 text-green-500" />
-                      <span className="text-xs text-muted-foreground">Buy Volume</span>
+                      <ArrowDownRight className="h-3 w-3 text-green-500" />
+                      <span className="text-[10px] text-muted-foreground">Buy Volume</span>
                     </div>
-                    <span className="text-sm font-bold text-foreground">{fmtVol(m.buyVolume)}</span>
+                    <span className="text-xs font-bold text-foreground">{fmtVol(m.buyVolume)}</span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                     <div className="flex items-center gap-2">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-amber-500" />
-                      <span className="text-xs text-muted-foreground">Sell Volume</span>
+                      <ArrowUpRight className="h-3 w-3 text-amber-500" />
+                      <span className="text-[10px] text-muted-foreground">Sell Volume</span>
                     </div>
-                    <span className="text-sm font-bold text-foreground">{fmtVol(m.sellVolume)}</span>
+                    <span className="text-xs font-bold text-foreground">{fmtVol(m.sellVolume)}</span>
                   </div>
-                  <Separator />
+                  <Separator className="my-1" />
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Avg Order Size</span>
-                    <span className="text-sm font-semibold text-foreground">
+                    <span className="text-[10px] text-muted-foreground">Avg Order Size</span>
+                    <span className="text-xs font-semibold text-foreground">
                       {m.ordersHandled > 0 ? fmtVol(m.totalVolume / m.ordersHandled) : 'N/A'}
                     </span>
                   </div>
@@ -629,51 +698,78 @@ export default function TerminalOperatorDetail() {
           </div>
 
           {/* Rates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3 text-green-500" /> Completion Rate
-                </span>
-                <span className="font-semibold text-green-500">{m.completionRate}%</span>
-              </div>
-              <Progress value={m.completionRate} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1">
-                  <XCircle className="h-3 w-3 text-destructive" /> Cancellation Rate
-                </span>
-                <span className="font-semibold text-destructive">{m.cancellationRate}%</span>
-              </div>
-              <Progress value={m.cancellationRate} className="h-2 [&>div]:bg-destructive" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {isPayer ? (
+              <>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Lock className="h-3 w-3 text-cyan-500" /> Lock Success Rate
+                    </span>
+                    <span className="font-semibold text-cyan-500">
+                      {m.payerLocksTotal > 0 ? Math.round((m.payerLocksCompleted / m.payerLocksTotal) * 100) : 0}%
+                    </span>
+                  </div>
+                  <Progress value={m.payerLocksTotal > 0 ? (m.payerLocksCompleted / m.payerLocksTotal) * 100 : 0} className="h-1.5 sm:h-2" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3 text-green-500" /> Order Completion Rate
+                    </span>
+                    <span className="font-semibold text-green-500">{m.completionRate}%</span>
+                  </div>
+                  <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3 text-green-500" /> Completion Rate
+                    </span>
+                    <span className="font-semibold text-green-500">{m.completionRate}%</span>
+                  </div>
+                  <Progress value={m.completionRate} className="h-1.5 sm:h-2" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <XCircle className="h-3 w-3 text-destructive" /> Cancellation Rate
+                    </span>
+                    <span className="font-semibold text-destructive">{m.cancellationRate}%</span>
+                  </div>
+                  <Progress value={m.cancellationRate} className="h-1.5 sm:h-2 [&>div]:bg-destructive" />
+                </div>
+              </>
+            )}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] sm:text-xs">
                 <span className="text-muted-foreground flex items-center gap-1">
                   <Gauge className="h-3 w-3" /> Efficiency Score
                 </span>
                 <span className={`font-semibold ${getScoreColor(m.efficiencyScore)}`}>{m.efficiencyScore}%</span>
               </div>
-              <Progress value={m.efficiencyScore} className="h-2" />
+              <Progress value={m.efficiencyScore} className="h-1.5 sm:h-2" />
             </div>
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {tradeBreakdown.length > 0 && (
               <Card className="border-border bg-card">
-                <CardContent className="p-4">
-                  <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                    <Target className="h-3.5 w-3.5 text-primary" /> Trade Type Split
+                <CardContent className="p-3">
+                  <h4 className="text-[10px] sm:text-xs font-semibold text-foreground mb-2 flex items-center gap-1">
+                    <Target className="h-3 w-3 text-primary" /> Trade Type
                   </h4>
-                  <div className="h-40">
+                  <div className="h-32 sm:h-40">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={tradeBreakdown} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={4} dataKey="value">
+                        <Pie data={tradeBreakdown} cx="50%" cy="50%" innerRadius={25} outerRadius={45} paddingAngle={4} dataKey="value">
                           {tradeBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
                         </Pie>
-                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        <Legend wrapperStyle={{ fontSize: 9 }} />
                         <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
@@ -684,19 +780,17 @@ export default function TerminalOperatorDetail() {
 
             {statusBreakdown.length > 0 && (
               <Card className="border-border bg-card">
-                <CardContent className="p-4">
-                  <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                    <BarChart3 className="h-3.5 w-3.5 text-primary" /> Order Status
+                <CardContent className="p-3">
+                  <h4 className="text-[10px] sm:text-xs font-semibold text-foreground mb-2 flex items-center gap-1">
+                    <BarChart3 className="h-3 w-3 text-primary" /> Status
                   </h4>
-                  <div className="h-40">
+                  <div className="h-32 sm:h-40">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={4} dataKey="value">
-                          <Cell fill={COLORS[1]} />
-                          <Cell fill={COLORS[2]} />
-                          <Cell fill={COLORS[3]} />
+                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={25} outerRadius={45} paddingAngle={4} dataKey="value">
+                          <Cell fill={COLORS[1]} /><Cell fill={COLORS[2]} /><Cell fill={COLORS[3]} />
                         </Pie>
-                        <Legend wrapperStyle={{ fontSize: 10 }} />
+                        <Legend wrapperStyle={{ fontSize: 9 }} />
                         <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       </PieChart>
                     </ResponsiveContainer>
@@ -706,16 +800,16 @@ export default function TerminalOperatorDetail() {
             )}
 
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
-                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5 text-primary" /> Volume Buckets
+              <CardContent className="p-3">
+                <h4 className="text-[10px] sm:text-xs font-semibold text-foreground mb-2 flex items-center gap-1">
+                  <TrendingUp className="h-3 w-3 text-primary" /> Volume Buckets
                 </h4>
-                <div className="h-40">
+                <div className="h-32 sm:h-40">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={volumeBuckets}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
-                      <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                      <XAxis dataKey="range" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
                       <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                       <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                     </BarChart>
@@ -727,236 +821,212 @@ export default function TerminalOperatorDetail() {
         </TabsContent>
 
         {/* ASSIGNMENTS TAB */}
-        <TabsContent value="assignments" className="space-y-4 mt-4">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <TabsContent value="assignments" className="space-y-4 mt-3">
+          <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-primary" />
-            Assignment Configuration & Stats
+            Assignment Configuration
           </h3>
 
-          {/* Assignment Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <Card className="border-border bg-card border-l-2 border-l-blue-500">
-              <CardContent className="p-3 text-center">
+              <CardContent className="p-2.5 text-center">
                 <UserCheck className="h-4 w-4 text-blue-400 mx-auto mb-1" />
-                <div className="text-xl font-bold text-foreground">{payerAssignData.filter(a => a.is_active).length}</div>
-                <div className="text-[9px] text-muted-foreground">Active Payer Assignments</div>
-                <div className="text-[8px] text-muted-foreground mt-0.5">{payerAssignData.length} total</div>
+                <div className="text-base font-bold text-foreground">{payerAssignData.filter(a => a.is_active).length}/{payerAssignData.length}</div>
+                <div className="text-[8px] text-muted-foreground">Payer Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-indigo-500">
-              <CardContent className="p-3 text-center">
+              <CardContent className="p-2.5 text-center">
                 <ClipboardList className="h-4 w-4 text-indigo-400 mx-auto mb-1" />
-                <div className="text-xl font-bold text-foreground">{operatorAssignData.filter(a => a.is_active).length}</div>
-                <div className="text-[9px] text-muted-foreground">Active Operator Assignments</div>
-                <div className="text-[8px] text-muted-foreground mt-0.5">{operatorAssignData.length} total</div>
+                <div className="text-base font-bold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
+                <div className="text-[8px] text-muted-foreground">Operator Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-cyan-500">
-              <CardContent className="p-3 text-center">
+              <CardContent className="p-2.5 text-center">
                 <Lock className="h-4 w-4 text-cyan-400 mx-auto mb-1" />
-                <div className="text-xl font-bold text-foreground">{payerLockData.filter(l => l.status !== 'completed').length}</div>
-                <div className="text-[9px] text-muted-foreground">Active Payer Locks</div>
-                <div className="text-[8px] text-muted-foreground mt-0.5">{payerLockData.length} total locks</div>
+                <div className="text-base font-bold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}/{payerLockData.length}</div>
+                <div className="text-[8px] text-muted-foreground">Payer Locks</div>
               </CardContent>
             </Card>
-            <Card className="border-border bg-card border-l-2 border-l-green-500">
-              <CardContent className="p-3 text-center">
-                <CheckCircle className="h-4 w-4 text-green-400 mx-auto mb-1" />
-                <div className="text-xl font-bold text-foreground">{payerLockData.filter(l => l.status === 'completed').length}</div>
-                <div className="text-[9px] text-muted-foreground">Completed Payer Locks</div>
-                <div className="text-[8px] text-muted-foreground mt-0.5">
-                  {payerLockData.length > 0 ? Math.round((payerLockData.filter(l => l.status === 'completed').length / payerLockData.length) * 100) : 0}% completion
+            <Card className="border-border bg-card border-l-2 border-l-emerald-500">
+              <CardContent className="p-2.5 text-center">
+                <Link2 className="h-4 w-4 text-emerald-400 mx-auto mb-1" />
+                <div className="text-base font-bold text-foreground">
+                  {new Set([...payerAssignData.map(a => a.ad_id), ...operatorAssignData.map(a => a.ad_id)].filter(Boolean)).size}
                 </div>
+                <div className="text-[8px] text-muted-foreground">Unique Ad IDs</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Payer Assignments Detail */}
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <UserCheck className="h-3.5 w-3.5 text-blue-400" />
-                Payer Assignments
-                <Badge variant="outline" className="text-[9px]">{payerAssignData.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {payerAssignData.length > 0 ? (
-                <div className="space-y-2">
-                  {payerAssignData.map((pa, i) => (
-                    <div key={pa.id || i} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 border border-border">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-2 w-2 rounded-full ${pa.is_active ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-                        <div>
-                          <div className="text-xs text-foreground font-medium capitalize">{pa.assignment_type?.replace(/_/g, ' ') || 'N/A'}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {pa.size_range_id && (
-                              <Badge variant="outline" className="text-[8px]">
-                                Range: {sizeRangeNames.get(pa.size_range_id) || pa.size_range_id.slice(0, 8)}
-                              </Badge>
-                            )}
-                            {pa.ad_id && (
-                              <Badge variant="outline" className="text-[8px]">
-                                <Link2 className="h-2 w-2 mr-0.5" /> Ad: ...{pa.ad_id.slice(-8)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge className={`text-[8px] ${pa.is_active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
-                        {pa.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-4">No payer assignments configured</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Operator Assignments Detail */}
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <ClipboardList className="h-3.5 w-3.5 text-indigo-400" />
-                Operator Assignments
-                <Badge variant="outline" className="text-[9px]">{operatorAssignData.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {operatorAssignData.length > 0 ? (
-                <div className="space-y-2">
-                  {operatorAssignData.map((oa, i) => (
-                    <div key={oa.id || i} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 border border-border">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-2 w-2 rounded-full ${oa.is_active ? 'bg-green-500' : 'bg-muted-foreground'}`} />
-                        <div>
-                          <div className="text-xs text-foreground font-medium capitalize">{oa.assignment_type?.replace(/_/g, ' ') || 'N/A'}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {oa.size_range_id && (
-                              <Badge variant="outline" className="text-[8px]">
-                                Range: {sizeRangeNames.get(oa.size_range_id) || oa.size_range_id.slice(0, 8)}
-                              </Badge>
-                            )}
-                            {oa.ad_id && (
-                              <Badge variant="outline" className="text-[8px]">
-                                <Link2 className="h-2 w-2 mr-0.5" /> Ad: ...{oa.ad_id.slice(-8)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge className={`text-[8px] ${oa.is_active ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-muted text-muted-foreground border-border'}`}>
-                        {oa.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-4">No operator assignments configured</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Payer Order Locks */}
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Lock className="h-3.5 w-3.5 text-cyan-400" />
-                Payer Order Locks
-                <Badge variant="outline" className="text-[9px]">{payerLockData.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {payerLockData.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[11px]">
+          {/* Payer Assignments Table */}
+          {payerAssignData.length > 0 && (
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-2 px-3 pt-3">
+                <CardTitle className="text-xs flex items-center gap-2">
+                  <UserCheck className="h-3.5 w-3.5 text-blue-400" /> Payer Assignments
+                  <Badge variant="outline" className="text-[9px]">{payerAssignData.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
                     <thead>
                       <tr className="border-b border-border text-muted-foreground">
-                        <th className="text-left py-1.5 px-2 font-medium">Order</th>
-                        <th className="text-left py-1.5 px-2 font-medium">Status</th>
-                        <th className="text-left py-1.5 px-2 font-medium">Locked At</th>
-                        <th className="text-left py-1.5 px-2 font-medium">Completed At</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Type</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Range / Ad</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {payerLockData.slice(0, 20).map((lock, i) => (
-                        <tr key={lock.id || i} className="border-b border-border/50 hover:bg-muted/20">
-                          <td className="py-1.5 px-2 font-mono">...{lock.order_number?.slice(-8)}</td>
-                          <td className="py-1.5 px-2">
-                            <Badge variant="outline" className={`text-[9px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
-                              {lock.status}
+                      {payerAssignData.map((a, i) => (
+                        <tr key={a.id || i} className="border-b border-border/50">
+                          <td className="py-1 px-1.5 capitalize">{a.assignment_type}</td>
+                          <td className="py-1 px-1.5 font-mono text-[9px]">
+                            {a.size_range_id ? (sizeRangeNames.get(a.size_range_id) || a.size_range_id.slice(0, 8)) : a.ad_id || '—'}
+                          </td>
+                          <td className="py-1 px-1.5">
+                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-green-500 border-green-500/30' : 'text-muted-foreground'}`}>
+                              {a.is_active ? 'Active' : 'Inactive'}
                             </Badge>
-                          </td>
-                          <td className="py-1.5 px-2 text-muted-foreground">
-                            {new Date(lock.locked_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                          <td className="py-1.5 px-2 text-muted-foreground">
-                            {lock.completed_at ? new Date(lock.completed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {payerLockData.length > 20 && (
-                    <p className="text-center text-[10px] text-muted-foreground mt-2">
-                      Showing 20 of {payerLockData.length} locks
-                    </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Operator Assignments Table */}
+          {operatorAssignData.length > 0 && (
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-2 px-3 pt-3">
+                <CardTitle className="text-xs flex items-center gap-2">
+                  <ClipboardList className="h-3.5 w-3.5 text-indigo-400" /> Operator Assignments
+                  <Badge variant="outline" className="text-[9px]">{operatorAssignData.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-1.5 font-medium">Type</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Range / Ad</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {operatorAssignData.map((a, i) => (
+                        <tr key={a.id || i} className="border-b border-border/50">
+                          <td className="py-1 px-1.5 capitalize">{a.assignment_type}</td>
+                          <td className="py-1 px-1.5 font-mono text-[9px]">
+                            {a.size_range_id ? (sizeRangeNames.get(a.size_range_id) || a.size_range_id.slice(0, 8)) : a.ad_id || '—'}
+                          </td>
+                          <td className="py-1 px-1.5">
+                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-green-500 border-green-500/30' : 'text-muted-foreground'}`}>
+                              {a.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Payer Order Locks */}
+          {payerLockData.length > 0 && (
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-2 px-3 pt-3">
+                <CardTitle className="text-xs flex items-center gap-2">
+                  <Lock className="h-3.5 w-3.5 text-cyan-400" /> Payer Locks
+                  <Badge variant="outline" className="text-[9px]">{payerLockData.length}</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-3 pb-3">
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payerLockData.slice(0, 15).map((lock, i) => (
+                        <tr key={lock.id || i} className="border-b border-border/50">
+                          <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
+                          <td className="py-1 px-1.5">
+                            <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                              {lock.status}
+                            </Badge>
+                          </td>
+                          <td className="py-1 px-1.5 text-muted-foreground text-[9px]">
+                            {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {payerLockData.length > 15 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 15 of {payerLockData.length}</p>
                   )}
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground text-center py-4">No payer order locks recorded</p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
+
+          {payerAssignData.length === 0 && operatorAssignData.length === 0 && payerLockData.length === 0 && (
+            <div className="text-center py-8 text-xs text-muted-foreground">No assignment data found for this user.</div>
+          )}
         </TabsContent>
 
         {/* ACTIONS TAB */}
-        <TabsContent value="actions" className="space-y-4 mt-4">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            Action Breakdown
-            <span className="text-[10px] text-muted-foreground font-normal ml-1">All-time actions performed by this user</span>
+        <TabsContent value="actions" className="space-y-4 mt-3">
+          <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" /> Action Breakdown
           </h3>
 
-          {/* Action Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
             {[
-              { label: 'Payments Made', value: m.paymentsMade, icon: CreditCard, color: 'text-purple-400', bgColor: 'bg-purple-500/10 border-purple-500/20' },
-              { label: 'Coin Releases', value: m.releasesPerformed, icon: Unlock, color: 'text-emerald-400', bgColor: 'bg-emerald-500/10 border-emerald-500/20' },
-              { label: 'Chat Messages', value: m.chatMessagesSent, icon: MessageSquare, color: 'text-amber-400', bgColor: 'bg-amber-500/10 border-amber-500/20' },
-              { label: 'Escalations', value: m.escalationsHandled, icon: AlertTriangle, color: 'text-destructive', bgColor: 'bg-destructive/10 border-destructive/20' },
-              { label: 'Approvals', value: m.approvalActions, icon: Shield, color: 'text-blue-400', bgColor: 'bg-blue-500/10 border-blue-500/20' },
-            ].map(({ label, value, icon: Icon, color, bgColor }) => (
-              <Card key={label} className={`border ${bgColor}`}>
-                <CardContent className="p-3 text-center">
-                  <Icon className={`h-5 w-5 ${color} mx-auto mb-1.5`} />
-                  <div className="text-xl font-bold text-foreground">{value}</div>
-                  <div className="text-[9px] text-muted-foreground">{label}</div>
+              { label: 'Payments', value: m.paymentsMade, icon: CreditCard, color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+              { label: 'Releases', value: m.releasesPerformed, icon: Unlock, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+              { label: 'Chats', value: m.chatMessagesSent, icon: MessageSquare, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
+              { label: 'Escalations', value: m.escalationsHandled, icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/20' },
+              { label: 'Approvals', value: m.approvalActions, icon: Shield, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+            ].map(({ label, value, icon: Icon, color, bg }) => (
+              <Card key={label} className={`border ${bg}`}>
+                <CardContent className="p-2.5 text-center">
+                  <Icon className={`h-4 w-4 ${color} mx-auto mb-1`} />
+                  <div className="text-lg font-bold text-foreground">{value}</div>
+                  <div className="text-[8px] text-muted-foreground">{label}</div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          {/* Detailed Action List */}
-          {actionDetails.length > 0 ? (
+          {actionDetails.length > 0 && (
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
-                <h4 className="text-xs font-semibold text-foreground mb-3">All Recorded Actions</h4>
-                <div className="space-y-2">
+              <CardContent className="p-3">
+                <h4 className="text-xs font-semibold text-foreground mb-2">All Recorded Actions</h4>
+                <div className="space-y-1.5">
                   {actionDetails.map(a => (
-                    <div key={a.action_type} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 border border-border">
-                      <div className="flex items-center gap-2">
-                        <a.icon className={`h-4 w-4 ${a.color}`} />
-                        <span className="text-xs text-foreground">{a.label}</span>
+                    <div key={a.action_type} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <a.icon className={`h-3.5 w-3.5 shrink-0 ${a.color}`} />
+                        <span className="text-[10px] sm:text-xs text-foreground truncate">{a.label}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-foreground">{a.count}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs font-bold text-foreground">{a.count}</span>
                         {m.ordersHandled > 0 && (
-                          <Badge variant="outline" className="text-[8px]">
-                            {Math.round((a.count / m.ordersHandled) * 100)}% of orders
-                          </Badge>
+                          <Badge variant="outline" className="text-[7px] sm:text-[8px]">{Math.round((a.count / m.ordersHandled) * 100)}%</Badge>
                         )}
                       </div>
                     </div>
@@ -964,32 +1034,19 @@ export default function TerminalOperatorDetail() {
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            <div className="text-center py-12 text-sm text-muted-foreground">
-              No action logs recorded for this user yet.
-            </div>
           )}
 
-          {/* Action Pie Chart */}
           {actionDetails.length > 0 && (
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <h4 className="text-xs font-semibold text-foreground mb-2">Action Distribution</h4>
-                <div className="h-56">
+                <div className="h-44 sm:h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={actionDetails.map(a => ({ name: a.label, value: a.count }))}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
-                        paddingAngle={3}
-                        dataKey="value"
-                      >
+                      <Pie data={actionDetails.map(a => ({ name: a.label, value: a.count }))} cx="50%" cy="50%" innerRadius={35} outerRadius={60} paddingAngle={3} dataKey="value">
                         {actionDetails.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                      <Legend wrapperStyle={{ fontSize: 9 }} />
                       <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                     </PieChart>
                   </ResponsiveContainer>
@@ -997,69 +1054,76 @@ export default function TerminalOperatorDetail() {
               </CardContent>
             </Card>
           )}
+
+          {actionDetails.length === 0 && (
+            <div className="text-center py-8 text-xs text-muted-foreground">No action logs recorded yet.</div>
+          )}
         </TabsContent>
 
         {/* TRENDS TAB */}
-        <TabsContent value="trends" className="space-y-4 mt-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              Performance Trends
+        <TabsContent value="trends" className="space-y-4 mt-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> Trends
             </h3>
             <Select value={trendDays} onValueChange={setTrendDays}>
-              <SelectTrigger className="h-8 text-xs w-28">
+              <SelectTrigger className="h-7 text-[10px] w-24">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7">Last 7 Days</SelectItem>
-                <SelectItem value="14">Last 14 Days</SelectItem>
-                <SelectItem value="30">Last 30 Days</SelectItem>
+                <SelectItem value="7">7 Days</SelectItem>
+                <SelectItem value="14">14 Days</SelectItem>
+                <SelectItem value="30">30 Days</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Orders Trend */}
           <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Package className="h-3.5 w-3.5 text-primary" /> Daily Orders
+            <CardHeader className="pb-1 px-3 pt-3">
+              <CardTitle className="text-xs flex items-center gap-2">
+                <Package className="h-3.5 w-3.5 text-primary" /> Daily {isPayer ? 'Payments' : 'Orders'}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-52">
+            <CardContent className="px-3 pb-3">
+              <div className="h-40 sm:h-52">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyTrends}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
                     <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
-                    <Area type="monotone" dataKey="orders" stackId="1" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" fillOpacity={0.2} name="Total" />
-                    <Area type="monotone" dataKey="completed" stackId="2" fill="hsl(142, 76%, 36%)" stroke="hsl(142, 76%, 36%)" fillOpacity={0.2} name="Completed" />
-                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    {isPayer ? (
+                      <>
+                        <Area type="monotone" dataKey="payments" fill="hsl(262, 83%, 48%)" stroke="hsl(262, 83%, 48%)" fillOpacity={0.2} name="Payments" />
+                        <Area type="monotone" dataKey="orders" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" fillOpacity={0.1} name="Orders" />
+                      </>
+                    ) : (
+                      <>
+                        <Area type="monotone" dataKey="orders" fill="hsl(var(--primary))" stroke="hsl(var(--primary))" fillOpacity={0.2} name="Total" />
+                        <Area type="monotone" dataKey="completed" fill="hsl(142, 76%, 36%)" stroke="hsl(142, 76%, 36%)" fillOpacity={0.2} name="Completed" />
+                      </>
+                    )}
+                    <Legend wrapperStyle={{ fontSize: 9 }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          {/* Volume Trend */}
           <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
+            <CardHeader className="pb-1 px-3 pt-3">
+              <CardTitle className="text-xs flex items-center gap-2">
                 <Banknote className="h-3.5 w-3.5 text-primary" /> Daily Volume (₹)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-48">
+            <CardContent className="px-3 pb-3">
+              <div className="h-36 sm:h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={dailyTrends}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                    <ReTooltip
-                      contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }}
-                      formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Volume']}
-                    />
+                    <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
+                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Volume']} />
                     <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1067,20 +1131,19 @@ export default function TerminalOperatorDetail() {
             </CardContent>
           </Card>
 
-          {/* Activity by Hour */}
           <Card className="border-border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Activity className="h-3.5 w-3.5 text-primary" /> Activity by Hour (All-Time)
+            <CardHeader className="pb-1 px-3 pt-3">
+              <CardTitle className="text-xs flex items-center gap-2">
+                <Activity className="h-3.5 w-3.5 text-primary" /> Hourly Activity
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-36">
+            <CardContent className="px-3 pb-3">
+              <div className="h-28 sm:h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={hourlyActivity.filter((_, i) => i >= 6 && i <= 23)}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="hour" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <XAxis dataKey="hour" tick={{ fontSize: 7, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
                     <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} />
                     <Bar dataKey="orders" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
                   </BarChart>
@@ -1091,40 +1154,40 @@ export default function TerminalOperatorDetail() {
         </TabsContent>
 
         {/* ORDERS TAB */}
-        <TabsContent value="orders" className="space-y-4 mt-4">
+        <TabsContent value="orders" className="space-y-3 mt-3">
           {recentAssignments.length > 0 ? (
             <Card className="border-border bg-card">
-              <CardContent className="p-4">
-                <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+              <CardContent className="p-3">
+                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
                   <Package className="h-3.5 w-3.5 text-primary" /> All Assignments ({recentAssignments.length})
                 </h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[11px]">
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
                     <thead>
                       <tr className="border-b border-border text-muted-foreground">
-                        <th className="text-left py-1.5 px-2 font-medium">Order</th>
-                        <th className="text-left py-1.5 px-2 font-medium">Type</th>
-                        <th className="text-right py-1.5 px-2 font-medium">Amount</th>
-                        <th className="text-left py-1.5 px-2 font-medium">Status</th>
-                        <th className="text-left py-1.5 px-2 font-medium">Assigned</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Type</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Time</th>
                       </tr>
                     </thead>
                     <tbody>
                       {recentAssignments.slice(0, 30).map((a, i) => (
                         <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
-                          <td className="py-1.5 px-2 font-mono">...{a.order_number?.slice(-8)}</td>
-                          <td className="py-1.5 px-2">
-                            <Badge variant="outline" className={`text-[9px] ${a.trade_type === 'BUY' ? 'text-green-500 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>
+                          <td className="py-1 px-1.5 font-mono text-[9px]">...{a.order_number?.slice(-8)}</td>
+                          <td className="py-1 px-1.5">
+                            <Badge variant="outline" className={`text-[8px] ${a.trade_type === 'BUY' ? 'text-green-500 border-green-500/30' : 'text-amber-500 border-amber-500/30'}`}>
                               {a.trade_type || 'N/A'}
                             </Badge>
                           </td>
-                          <td className="py-1.5 px-2 text-right font-medium">₹{Number(a.total_price || 0).toLocaleString()}</td>
-                          <td className="py-1.5 px-2">
-                            <Badge variant="outline" className={`text-[9px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : a.assignment_type === 'cancelled' ? 'text-destructive border-destructive/30' : 'text-green-500 border-green-500/30'}`}>
+                          <td className="py-1 px-1.5 text-right font-medium">₹{Number(a.total_price || 0).toLocaleString()}</td>
+                          <td className="py-1 px-1.5">
+                            <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : a.assignment_type === 'cancelled' ? 'text-destructive border-destructive/30' : 'text-green-500 border-green-500/30'}`}>
                               {a.is_active ? 'Active' : a.assignment_type === 'cancelled' ? 'Cancelled' : 'Done'}
                             </Badge>
                           </td>
-                          <td className="py-1.5 px-2 text-muted-foreground">
+                          <td className="py-1 px-1.5 text-muted-foreground hidden sm:table-cell">
                             {new Date(a.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </td>
                         </tr>
@@ -1132,23 +1195,19 @@ export default function TerminalOperatorDetail() {
                     </tbody>
                   </table>
                   {recentAssignments.length > 30 && (
-                    <p className="text-center text-[10px] text-muted-foreground mt-2">
-                      Showing 30 of {recentAssignments.length} assignments
-                    </p>
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 30 of {recentAssignments.length}</p>
                   )}
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <div className="text-center py-12 text-sm text-muted-foreground">
-              No assignments found for this user.
-            </div>
+            <div className="text-center py-8 text-xs text-muted-foreground">No assignments found.</div>
           )}
         </TabsContent>
       </Tabs>
 
-      {/* Footer info */}
-      <div className="flex items-center gap-3 text-[10px] text-muted-foreground flex-wrap">
+      {/* Footer */}
+      <div className="flex items-center gap-3 text-[9px] text-muted-foreground flex-wrap">
         {profile?.automation_included && <span>⚡ Auto-assign: Enabled</span>}
         {profile?.specialization && <span>Specialization: <span className="capitalize text-foreground">{profile.specialization}</span></span>}
       </div>

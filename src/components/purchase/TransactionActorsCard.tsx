@@ -19,6 +19,8 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   'payment_completed': CreditCard,
   'order_completed': CheckCircle,
   'order_cancelled': XCircle,
+  'order_edited': FileText,
+  'manual_entry_created': User,
 };
 
 // Color mapping for action types

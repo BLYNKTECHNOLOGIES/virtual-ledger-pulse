@@ -503,28 +503,40 @@ serve(async (req) => {
           });
 
           for (const rule of matchingRules) {
-            const retryKey = `${order.orderNumber}:${event}:${rule.id}`;
-            const isRetry = retryOrders.has(retryKey);
+            // Check if already processed (dedup guard)
+            const { data: existing } = await supabase
+              .from("p2p_auto_reply_processed")
+              .select("id")
+              .eq("order_number", order.orderNumber)
+              .eq("trigger_event", event)
+              .eq("rule_id", rule.id)
+              .maybeSingle();
 
-            if (!isRetry) {
-              const { data: existing } = await supabase
-                .from("p2p_auto_reply_processed")
-                .select("id")
-                .eq("order_number", order.orderNumber)
-                .eq("trigger_event", event)
-                .eq("rule_id", rule.id)
-                .maybeSingle();
-
-              if (existing) continue;
-            }
+            if (existing) continue;
 
             const orderAgeSeconds = (Date.now() - order.createTime) / 1000;
             if (orderAgeSeconds < rule.delay_seconds) continue;
 
+            // === CLAIM THE SLOT FIRST (before sending) ===
+            // This prevents concurrent cron runs from both sending
+            const { error: claimErr } = await supabase
+              .from("p2p_auto_reply_processed")
+              .insert({
+                order_number: order.orderNumber,
+                trigger_event: event,
+                rule_id: rule.id,
+              });
+
+            if (claimErr) {
+              // Unique constraint violation = another invocation already claimed it
+              console.log(`⏭️ Slot already claimed for ${order.orderNumber}:${event}:${rule.id}`);
+              continue;
+            }
+
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
-            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, isRetry });
+            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule });
           }
         }
       }

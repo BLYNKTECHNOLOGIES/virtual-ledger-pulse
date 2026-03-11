@@ -34,7 +34,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const queryClient = useQueryClient();
   const od = syncRecord?.order_data || {};
   const [enrichedName, setEnrichedName] = useState<string | null>(null);
-  const displayName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
+  // Never use masked nicknames as display name — force manual resolution
+  const rawName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
+  const displayName = (rawName.includes('*')) ? '—' : rawName;
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [settlementDate, setSettlementDate] = useState(

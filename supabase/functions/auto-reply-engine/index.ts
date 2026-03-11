@@ -201,6 +201,7 @@ async function sendChatMessage(
   content: string,
   cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
 ): Promise<{ success: boolean; verified: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
+  const sendStartMs = Date.now();
   // First try proxy REST endpoint (in case it supports sendMessage)
   try {
     const proxyMsgUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(content)}&contentType=TEXT`;
@@ -213,7 +214,7 @@ async function sendChatMessage(
       if (data?.code === "000000" || data?.success) {
         // Verify delivery
         await new Promise(r => setTimeout(r, 2000));
-        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content);
+        const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
         return { success: true, verified };
       }
     }

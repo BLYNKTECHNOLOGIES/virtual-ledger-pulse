@@ -677,9 +677,9 @@ export default function TerminalMPI() {
                 className="border-border bg-card hover:border-primary/30 transition-colors cursor-pointer group"
                 onClick={() => navigate(`/terminal/mpi/${m.userId}`)}
               >
-                <CardContent className="p-4">
+                <CardContent className="p-3 sm:p-4">
                   {/* Header */}
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <span className="text-xs font-bold text-primary">{m.displayName.charAt(0)}</span>

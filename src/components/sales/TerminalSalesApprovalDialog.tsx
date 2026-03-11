@@ -298,6 +298,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Create buyer client mutation
   const createClientMutation = useMutation({
     mutationFn: async () => {
+      // Block client creation with masked nicknames or unknown names
+      if (!displayName || displayName === '—' || displayName === 'Unknown' || displayName.includes('*')) {
+        throw new Error('Cannot create client with a masked or unknown name. Please resolve the verified name first.');
+      }
       const clientData = await createBuyerClient(
         displayName,
         contactNumber || undefined,

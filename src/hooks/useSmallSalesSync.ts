@@ -36,6 +36,12 @@ export async function getSmallSalesConfig(): Promise<SmallSalesConfig | null> {
  * Uses deduplication-based approach (NOT time-window) to catch late-arriving orders.
  * Looks back LOOKBACK_DAYS and picks up any COMPLETED SELL order in the small range
  * that hasn't already been mapped in small_sales_order_map.
+ *
+ * Mirrors the Small Buys sync logic including:
+ * - Belt-and-suspenders dedup via order_numbers array on sync records
+ * - Actual order timestamp windows (not lookback window)
+ * - Conflict-safe map inserts
+ * - Rejected batch re-sync support
  */
 export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   const config = await getSmallSalesConfig();
@@ -58,7 +64,7 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
       .from('binance_order_history')
       .select('*')
       .eq('trade_type', 'SELL')
-      .eq('order_status', 'COMPLETED')
+      .in('order_status', ['COMPLETED', 'APPEAL'])
       .gte('create_time', cutoffMs)
       .order('create_time', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
@@ -96,10 +102,22 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     .eq('sync_status', 'rejected');
   const rejectedSyncIds = new Set((rejectedSyncs || []).map((s: any) => s.id));
 
-  // Check for already-synced order numbers (batch the IN query to avoid limits)
+  // Belt-and-suspenders: also check order_numbers array on non-rejected sync records
+  const { data: existingSyncRecords } = await supabase
+    .from('small_sales_sync')
+    .select('order_numbers, sync_status')
+    .neq('sync_status', 'rejected');
+  const syncLevelExistingOrders = new Set<string>();
+  for (const sr of (existingSyncRecords || [])) {
+    for (const on of (sr.order_numbers || [])) {
+      syncLevelExistingOrders.add(on);
+    }
+  }
+
+  // Check for already-synced order numbers via order_map (batch the IN query)
   // Exclude orders belonging to rejected batches — they should be re-synced
   const orderNumbers = smallOrders.map(o => o.order_number);
-  const existingSet = new Set<string>();
+  const existingSet = new Set<string>(syncLevelExistingOrders);
 
   for (let i = 0; i < orderNumbers.length; i += 500) {
     const batch = orderNumbers.slice(i, i + 500);
@@ -125,6 +143,19 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
 
   console.log(`[SmallSalesSync] Found ${newOrders.length} new small sale orders (${duplicates} already synced)`);
 
+  // Clean up old map entries from rejected syncs so UNIQUE constraint won't block re-inserts
+  if (rejectedSyncIds.size > 0) {
+    const rejectedArr = Array.from(rejectedSyncIds);
+    for (let i = 0; i < rejectedArr.length; i += 100) {
+      const batch = rejectedArr.slice(i, i + 100);
+      await supabase
+        .from('small_sales_order_map')
+        .delete()
+        .in('small_sales_sync_id', batch);
+    }
+    console.log(`[SmallSalesSync] Cleaned up map entries for ${rejectedSyncIds.size} rejected syncs`);
+  }
+
   // Get active terminal wallet link
   const { data: activeLink } = await supabase
     .from('terminal_wallet_links')
@@ -148,8 +179,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
 
   const batchId = `SM-${Date.now()}`;
   const userId = getCurrentUserId();
-  const windowStart = new Date(cutoffMs).toISOString();
-  const windowEnd = now.toISOString();
 
   let entriesCreated = 0;
 
@@ -158,6 +187,13 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     const totalAmount = group.reduce((s, o) => s + parseFloat(o.total_price || '0'), 0);
     const totalFee = group.reduce((s, o) => s + parseFloat(o.commission || '0'), 0);
     const avgPrice = totalQty > 0 ? totalAmount / totalQty : 0;
+
+    // Use actual order date range instead of lookback window
+    const orderTimes = group.map(o => Number(o.create_time)).filter(t => t > 0);
+    const minTime = Math.min(...orderTimes);
+    const maxTime = Math.max(...orderTimes);
+    const windowStart = new Date(minTime).toISOString();
+    const windowEnd = new Date(maxTime).toISOString();
 
     const { data: syncRecord, error: insertErr } = await supabase
       .from('small_sales_sync')
@@ -185,24 +221,38 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
       continue;
     }
 
-    // Insert order map entries
-    const mapEntries = group.map(o => ({
-      small_sales_sync_id: syncRecord.id,
-      binance_order_number: o.order_number,
-      order_data: {
-        order_number: o.order_number,
-        asset: o.asset,
-        amount: o.amount,
-        total_price: o.total_price,
-        unit_price: o.unit_price,
-        commission: o.commission,
-        counter_part_nick_name: o.counter_part_nick_name,
-        create_time: o.create_time,
-        pay_method_name: o.pay_method_name,
-      },
-    }));
+    // Insert order map entries one by one to handle UNIQUE constraint gracefully
+    let mapInsertCount = 0;
+    for (const o of group) {
+      const { error: mapErr } = await supabase
+        .from('small_sales_order_map')
+        .upsert(
+          {
+            small_sales_sync_id: syncRecord.id,
+            binance_order_number: o.order_number,
+            order_data: {
+              order_number: o.order_number,
+              asset: o.asset,
+              amount: o.amount,
+              total_price: o.total_price,
+              unit_price: o.unit_price,
+              commission: o.commission,
+              counter_part_nick_name: o.counter_part_nick_name,
+              create_time: o.create_time,
+              pay_method_name: o.pay_method_name,
+            },
+          },
+          { onConflict: 'binance_order_number' }
+        );
 
-    await supabase.from('small_sales_order_map').insert(mapEntries);
+      if (mapErr) {
+        console.warn(`[SmallSalesSync] Map upsert warning for ${o.order_number}:`, mapErr.message);
+      } else {
+        mapInsertCount++;
+      }
+    }
+
+    console.log(`[SmallSalesSync] Mapped ${mapInsertCount}/${group.length} orders for sync ${syncRecord.id}`);
     entriesCreated++;
   }
 
@@ -211,8 +261,8 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     sync_batch_id: batchId,
     sync_started_at: now.toISOString(),
     sync_completed_at: new Date().toISOString(),
-    time_window_start: windowStart,
-    time_window_end: windowEnd,
+    time_window_start: new Date(cutoffMs).toISOString(),
+    time_window_end: now.toISOString(),
     total_orders_processed: newOrders.length,
     entries_created: entriesCreated,
     synced_by: userId || null,

@@ -33,6 +33,8 @@ const ACTION_COLORS: Record<string, string> = {
   'payment_completed': 'text-emerald-600',
   'order_completed': 'text-green-500',
   'order_cancelled': 'text-red-500',
+  'order_edited': 'text-amber-500',
+  'manual_entry_created': 'text-blue-600',
 };
 
 function ActorRow({ actor }: { actor: OrderActor }) {

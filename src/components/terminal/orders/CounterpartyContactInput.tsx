@@ -63,24 +63,8 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
         }, { onConflict: 'counterparty_nickname' });
       if (error) throw error;
 
-      // Sync to client master if a client is linked by name
-      const { data: clients } = await supabase
-        .from('clients')
-        .select('id')
-        .ilike('name', counterpartyNickname)
-        .limit(1);
-
-      if (clients && clients.length > 0) {
-        const updates: any = {};
-        if (trimmedPhone) updates.phone = trimmedPhone;
-        if (trimmedState) updates.state = trimmedState;
-        if (Object.keys(updates).length > 0) {
-          await supabase
-            .from('clients')
-            .update(updates)
-            .eq('id', clients[0].id);
-        }
-      }
+      // Do NOT sync to client master by name matching — this causes cross-contamination.
+      // Client updates should only happen during approval flow with explicit client ID linking.
 
       // Propagate to terminal_sales_sync records that match this counterparty
       // This ensures post-approval updates are reflected

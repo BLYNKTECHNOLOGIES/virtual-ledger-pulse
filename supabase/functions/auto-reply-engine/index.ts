@@ -166,6 +166,7 @@ async function verifyMessageDelivery(
   proxyHeaders: Record<string, string>,
   orderNo: string,
   sentContent: string,
+  sentAfterMs?: number,
 ): Promise<boolean> {
   try {
     const url = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?orderNo=${encodeURIComponent(orderNo)}&page=1&rows=10`;
@@ -173,18 +174,20 @@ async function verifyMessageDelivery(
     const data = await res.json();
     
     if (data?.code === "000000" && data?.data) {
-      // Check if any message from us (self=true) contains part of the sent content
       const contentSnippet = sentContent.substring(0, 50);
+      // Only match messages sent AFTER the send attempt to avoid matching old duplicates
+      const cutoff = sentAfterMs ? sentAfterMs - 5000 : 0;
       return data.data.some((msg: any) => 
         msg.self === true && 
         msg.type === "text" && 
-        msg.content?.includes(contentSnippet)
+        msg.content?.includes(contentSnippet) &&
+        (!cutoff || (msg.createTime && msg.createTime >= cutoff))
       );
     }
     return false;
   } catch (err) {
     console.warn("verifyMessageDelivery error:", err);
-    return false; // Can't verify, assume not delivered
+    return false;
   }
 }
 

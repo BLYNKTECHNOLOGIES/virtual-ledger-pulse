@@ -551,6 +551,7 @@ serve(async (req) => {
 
       // Send each message with verification
       for (const pm of pendingMessages) {
+        pm.sendTimestamp = Date.now();
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
           proxyHeaders,
@@ -561,13 +562,7 @@ serve(async (req) => {
         if (result.credential) chatCredential = result.credential;
 
         if (result.success) {
-          // Record in processed table
-          await supabase.from("p2p_auto_reply_processed").insert({
-            order_number: pm.orderNumber,
-            trigger_event: pm.event,
-            rule_id: pm.rule.id,
-          }).onConflict("order_number,trigger_event,rule_id").ignoreDuplicates();
-
+          // Slot already claimed before sending — just log
           const status = result.verified ? "sent" : "sent_unverified";
           await supabase.from("p2p_auto_reply_log").insert({
             rule_id: pm.rule.id,
@@ -587,6 +582,13 @@ serve(async (req) => {
           }
           processed++;
         } else {
+          // Send failed — remove the claimed slot so it can retry next cycle
+          await supabase.from("p2p_auto_reply_processed")
+            .delete()
+            .eq("order_number", pm.orderNumber)
+            .eq("trigger_event", pm.event)
+            .eq("rule_id", pm.rule.id);
+
           await supabase.from("p2p_auto_reply_log").insert({
             rule_id: pm.rule.id,
             order_number: pm.orderNumber,

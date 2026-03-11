@@ -681,44 +681,44 @@ export default function TerminalMPI() {
                   {/* Header */}
                   <div className="flex items-center justify-between mb-2 sm:mb-3">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                        <span className="text-xs font-bold text-primary">{m.displayName.charAt(0)}</span>
+                      <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] sm:text-xs font-bold text-primary">{m.displayName.charAt(0)}</span>
                       </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">{m.displayName}</div>
-                        <Badge className={`text-[8px] ${getRoleBadgeClass(m.roleName)}`}>{m.roleName}</Badge>
+                        <div className="text-[11px] sm:text-sm font-medium text-foreground truncate">{m.displayName}</div>
+                        <Badge className={`text-[7px] sm:text-[8px] ${getRoleBadgeClass(m.roleName)}`}>{m.roleName}</Badge>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {m.activeLoad > 0 && (
                         <div className="flex items-center gap-1">
                           <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                          <span className="text-[10px] text-muted-foreground">{m.activeLoad} active</span>
+                          <span className="text-[9px] text-muted-foreground">{m.activeLoad}</span>
                         </div>
                       )}
-                      <div className={`text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
+                      <div className={`text-xs sm:text-sm font-bold ${getScoreColor(m.efficiencyScore)}`}>
                         {m.efficiencyScore}
                       </div>
                     </div>
                   </div>
 
                   {/* Primary Stats */}
-                  <div className="grid grid-cols-4 gap-1.5 text-center mb-3">
-                    <div className="p-1.5 rounded bg-muted/20">
-                      <div className="text-xs font-bold text-foreground">{m.ordersHandled}</div>
-                      <div className="text-[8px] text-muted-foreground">Handled</div>
+                  <div className="grid grid-cols-4 gap-1 sm:gap-1.5 text-center mb-2 sm:mb-3">
+                    <div className="p-1 sm:p-1.5 rounded bg-muted/20">
+                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{m.ordersHandled}</div>
+                      <div className="text-[7px] sm:text-[8px] text-muted-foreground">Handled</div>
                     </div>
-                    <div className="p-1.5 rounded bg-muted/20">
-                      <div className="text-xs font-bold text-foreground">{fmtVol(m.totalVolume)}</div>
-                      <div className="text-[8px] text-muted-foreground">Volume</div>
+                    <div className="p-1 sm:p-1.5 rounded bg-muted/20">
+                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{fmtVol(m.totalVolume)}</div>
+                      <div className="text-[7px] sm:text-[8px] text-muted-foreground">Volume</div>
                     </div>
-                    <div className="p-1.5 rounded bg-muted/20">
-                      <div className="text-xs font-bold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
-                      <div className="text-[8px] text-muted-foreground">Avg Time</div>
+                    <div className="p-1 sm:p-1.5 rounded bg-muted/20">
+                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{formatDuration(m.avgHandleTimeMin)}</div>
+                      <div className="text-[7px] sm:text-[8px] text-muted-foreground">Avg Time</div>
                     </div>
-                    <div className="p-1.5 rounded bg-muted/20">
-                      <div className="text-xs font-bold text-foreground">{m.completionRate}%</div>
-                      <div className="text-[8px] text-muted-foreground">Rate</div>
+                    <div className="p-1 sm:p-1.5 rounded bg-muted/20">
+                      <div className="text-[10px] sm:text-xs font-bold text-foreground">{m.completionRate}%</div>
+                      <div className="text-[7px] sm:text-[8px] text-muted-foreground">Rate</div>
                     </div>
                   </div>
 

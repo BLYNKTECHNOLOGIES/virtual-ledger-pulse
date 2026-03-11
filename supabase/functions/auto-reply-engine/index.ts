@@ -383,7 +383,7 @@ serve(async (req) => {
     let verified = 0;
     let unverified = 0;
     let errors = 0;
-    let retried = 0;
+    
 
     // ===== RETRY PREVIOUSLY UNVERIFIED MESSAGES =====
     // Find messages logged as "sent" but not verified, within last 30 minutes

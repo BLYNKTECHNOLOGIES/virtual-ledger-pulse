@@ -146,6 +146,9 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
     },
     onError: (error: any, orderId: string, context) => {
       // rollback optimistic update

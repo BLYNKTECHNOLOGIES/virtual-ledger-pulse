@@ -92,12 +92,31 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     enabled: !!order?.id && open,
   });
 
+  // Fallback wallet for legacy orders where wallet_id/warehouse_id was not persisted
+  const { data: existingWalletCredit } = useQuery({
+    queryKey: ['purchase_wallet_credit', order?.id],
+    queryFn: async () => {
+      if (!order?.id) return null;
+      const { data } = await supabase
+        .from('wallet_transactions')
+        .select('wallet_id')
+        .in('reference_type', ['PURCHASE', 'PURCHASE_ORDER'])
+        .eq('reference_id', order.id)
+        .eq('transaction_type', 'CREDIT')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.wallet_id || null;
+    },
+    enabled: !!order?.id && open,
+  });
+
   useEffect(() => {
     if (order) {
       const firstItem = order.purchase_order_items?.[0];
       const quantity = firstItem?.quantity || order.quantity || 0;
       const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
-      const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || '';
+      const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || existingWalletCredit || '';
 
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
@@ -125,7 +144,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         bank_account_id: order.bank_account_id || '',
       });
     }
-  }, [order]);
+  }, [order, existingWalletCredit]);
 
   // Initialize splits from existing data
   useEffect(() => {
@@ -272,6 +291,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           pan_number: data.pan_number,
           tds_amount: tdsAmount,
           net_payable_amount: netPayableAmount,
+          quantity: data.quantity,
+          price_per_unit: data.price_per_unit,
           wallet_id: data.warehouse_id || null,
           bank_account_id: selectedBankId,
           updated_at: new Date().toISOString()
@@ -409,6 +430,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['counterparty-pan-records'] });

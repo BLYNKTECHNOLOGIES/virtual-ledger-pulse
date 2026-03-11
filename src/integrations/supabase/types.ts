@@ -82,7 +82,7 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
-          user_id: string
+          user_id: string | null
           user_name: string | null
         }
         Insert: {
@@ -92,7 +92,7 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
-          user_id: string
+          user_id?: string | null
           user_name?: string | null
         }
         Update: {
@@ -102,7 +102,7 @@ export type Database = {
           created_at?: string
           id?: string
           metadata?: Json | null
-          user_id?: string
+          user_id?: string | null
           user_name?: string | null
         }
         Relationships: []
@@ -1011,7 +1011,7 @@ export type Database = {
           message_content: string
           order_number: string
           sent_at_ms: number
-          user_id: string
+          user_id: string | null
           username: string
         }
         Insert: {
@@ -1020,7 +1020,7 @@ export type Database = {
           message_content: string
           order_number: string
           sent_at_ms: number
-          user_id: string
+          user_id?: string | null
           username: string
         }
         Update: {
@@ -1029,7 +1029,7 @@ export type Database = {
           message_content?: string
           order_number?: string
           sent_at_ms?: number
-          user_id?: string
+          user_id?: string | null
           username?: string
         }
         Relationships: []
@@ -2086,7 +2086,8 @@ export type Database = {
           binance_transfer_id: string | null
           cost_out_usdt: number | null
           created_at: string
-          created_by: string
+          created_by: string | null
+          created_by_name: string | null
           execution_rate_usdt: number | null
           fee_amount: number | null
           fee_asset: string | null
@@ -2127,7 +2128,8 @@ export type Database = {
           binance_transfer_id?: string | null
           cost_out_usdt?: number | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
+          created_by_name?: string | null
           execution_rate_usdt?: number | null
           fee_amount?: number | null
           fee_asset?: string | null
@@ -2168,7 +2170,8 @@ export type Database = {
           binance_transfer_id?: string | null
           cost_out_usdt?: number | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
+          created_by_name?: string | null
           execution_rate_usdt?: number | null
           fee_amount?: number | null
           fee_asset?: string | null
@@ -9542,7 +9545,8 @@ export type Database = {
           metadata: Json | null
           module: string
           recorded_at: string
-          user_id: string
+          user_id: string | null
+          user_name: string | null
         }
         Insert: {
           action_type: string
@@ -9553,7 +9557,8 @@ export type Database = {
           metadata?: Json | null
           module: string
           recorded_at?: string
-          user_id: string
+          user_id?: string | null
+          user_name?: string | null
         }
         Update: {
           action_type?: string
@@ -9564,7 +9569,8 @@ export type Database = {
           metadata?: Json | null
           module?: string
           recorded_at?: string
-          user_id?: string
+          user_id?: string | null
+          user_name?: string | null
         }
         Relationships: []
       }

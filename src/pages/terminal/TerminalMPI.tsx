@@ -651,15 +651,15 @@ export default function TerminalMPI() {
 
       {/* Operator Performance Cards */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
+        <div className="flex items-center justify-between mb-2 sm:mb-3">
+          <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
             Operator Performance
-            <Badge variant="outline" className="text-[9px] ml-1">{filteredMetrics.length} users</Badge>
+            <Badge variant="outline" className="text-[8px] sm:text-[9px] ml-1">{filteredMetrics.length} users</Badge>
           </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {isLoading ? (
             Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="border-border bg-card animate-pulse">

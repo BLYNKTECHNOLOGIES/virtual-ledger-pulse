@@ -43,7 +43,7 @@ interface PendingMessage {
   message: string;
   event: string;
   rule: AutoReplyRule;
-  isRetry?: boolean;
+  sendTimestamp: number;
 }
 
 function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {

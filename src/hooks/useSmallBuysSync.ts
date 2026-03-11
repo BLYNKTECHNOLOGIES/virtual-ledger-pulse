@@ -201,24 +201,38 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
       continue;
     }
 
-    // Insert order map entries
-    const mapEntries = group.map(o => ({
-      small_buys_sync_id: (syncRecord as any).id,
-      binance_order_number: o.order_number,
-      order_data: {
-        order_number: o.order_number,
-        asset: o.asset,
-        amount: o.amount,
-        total_price: o.total_price,
-        unit_price: o.unit_price,
-        commission: o.commission,
-        counter_part_nick_name: o.counter_part_nick_name,
-        create_time: o.create_time,
-        pay_method_name: o.pay_method_name,
-      },
-    }));
+    // Insert order map entries one by one to handle UNIQUE constraint gracefully
+    let mapInsertCount = 0;
+    for (const o of group) {
+      const { error: mapErr } = await supabase
+        .from('small_buys_order_map' as any)
+        .upsert(
+          {
+            small_buys_sync_id: (syncRecord as any).id,
+            binance_order_number: o.order_number,
+            order_data: {
+              order_number: o.order_number,
+              asset: o.asset,
+              amount: o.amount,
+              total_price: o.total_price,
+              unit_price: o.unit_price,
+              commission: o.commission,
+              counter_part_nick_name: o.counter_part_nick_name,
+              create_time: o.create_time,
+              pay_method_name: o.pay_method_name,
+            },
+          },
+          { onConflict: 'binance_order_number' }
+        );
 
-    await supabase.from('small_buys_order_map' as any).insert(mapEntries);
+      if (mapErr) {
+        console.warn(`[SmallBuysSync] Map upsert warning for ${o.order_number}:`, mapErr.message);
+      } else {
+        mapInsertCount++;
+      }
+    }
+
+    console.log(`[SmallBuysSync] Mapped ${mapInsertCount}/${group.length} orders for sync ${(syncRecord as any).id}`);
     entriesCreated++;
   }
 

@@ -243,12 +243,16 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const createClientMutation = useMutation({
     mutationFn: async () => {
       const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
-      // Look up contact number from counterparty records
-      const { data: contactRec } = await supabase
-        .from('counterparty_contact_records')
-        .select('contact_number')
-        .eq('counterparty_nickname', nickname)
-        .maybeSingle();
+      // Only look up contact for unmasked nicknames to prevent cross-contamination
+      let contactPhone: string | undefined;
+      if (nickname && !nickname.includes('*')) {
+        const { data: contactRec } = await supabase
+          .from('counterparty_contact_records')
+          .select('contact_number')
+          .eq('counterparty_nickname', nickname)
+          .maybeSingle();
+        contactPhone = contactRec?.contact_number || undefined;
+      }
 
       const clientData = await createSellerClient(
         syncRecord.counterparty_name,

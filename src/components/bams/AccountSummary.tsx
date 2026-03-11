@@ -664,9 +664,9 @@ export function AccountSummary() {
                               </td>
                               <td className="p-3">
                                 <Badge 
-                                  variant={transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT' ? 'default' : 'secondary'}
+                                  variant={['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type) ? 'default' : 'secondary'}
                                   className={
-                                    transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT'
+                                    ['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type)
                                       ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
                                       : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                                   }
@@ -676,11 +676,11 @@ export function AccountSummary() {
                               </td>
                               <td className="p-3 text-right font-mono font-semibold">
                                 <span className={
-                                  transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT' 
+                                  ['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type)
                                     ? 'text-green-600 dark:text-green-400' 
                                     : 'text-red-600 dark:text-red-400'
                                 }>
-                                  {transaction.transaction_type === 'INCOME' || transaction.transaction_type === 'CREDIT' ? '+' : '-'}
+                                  {['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type) ? '+' : '-'}
                                   {formatCurrency(transaction.amount)}
                                 </span>
                               </td>

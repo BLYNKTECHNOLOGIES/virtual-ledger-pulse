@@ -163,10 +163,13 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         await new Promise(r => setTimeout(r, 200));
       }
 
-      const counterpartyName = verifiedName || order.counter_part_nick_name || 'Unknown';
+      const isMaskedNick = (order.counter_part_nick_name || '').includes('*');
+      // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
+      const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
       const contact = contactMap.get(order.counter_part_nick_name || '') || null;
-      const clientId = clientMap.get(counterpartyName.toLowerCase()) || null;
-      const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
+      const clientId = (counterpartyName !== 'Unknown') ? (clientMap.get(counterpartyName.toLowerCase()) || null) : null;
+      // Force manual mapping if we couldn't resolve a real name
+      const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');
 
       toInsert.push({
         binance_order_number: order.order_number,

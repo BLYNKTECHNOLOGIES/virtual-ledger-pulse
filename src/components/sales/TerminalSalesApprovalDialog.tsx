@@ -34,7 +34,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const queryClient = useQueryClient();
   const od = syncRecord?.order_data || {};
   const [enrichedName, setEnrichedName] = useState<string | null>(null);
-  const displayName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
+  // Never use masked nicknames as display name — force manual resolution
+  const rawName = enrichedName || od.verified_name || syncRecord?.counterparty_name || '—';
+  const displayName = (rawName.includes('*')) ? '—' : rawName;
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [settlementDate, setSettlementDate] = useState(
@@ -298,6 +300,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Create buyer client mutation
   const createClientMutation = useMutation({
     mutationFn: async () => {
+      // Block client creation with masked nicknames or unknown names
+      if (!displayName || displayName === '—' || displayName === 'Unknown' || displayName.includes('*')) {
+        throw new Error('Cannot create client with a masked or unknown name. Please resolve the verified name first.');
+      }
       const clientData = await createBuyerClient(
         displayName,
         contactNumber || undefined,

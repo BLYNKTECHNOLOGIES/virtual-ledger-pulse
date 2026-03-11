@@ -254,8 +254,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         contactPhone = contactRec?.contact_number || undefined;
       }
 
+      // Block client creation with masked nicknames or unknown names
+      const clientName = syncRecord.counterparty_name;
+      if (!clientName || clientName === 'Unknown' || clientName.includes('*')) {
+        throw new Error('Cannot create client with a masked or unknown name. Please resolve the verified name first.');
+      }
       const clientData = await createSellerClient(
-        syncRecord.counterparty_name,
+        clientName,
         contactPhone
       );
       return clientData;

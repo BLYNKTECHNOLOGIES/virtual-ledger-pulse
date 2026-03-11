@@ -531,7 +531,7 @@ export default function TerminalMPI() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
         {[
           { label: 'Orders', value: totalOrders, icon: Package, color: 'text-primary' },
           { label: 'Volume', value: fmtVol(totalVolume), icon: TrendingUp, color: 'text-green-500' },
@@ -543,13 +543,13 @@ export default function TerminalMPI() {
           { label: 'Avg Score', value: `${avgEfficiency}%`, icon: Gauge, color: getScoreColor(avgEfficiency) },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label} className="border-border bg-card">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <Icon className={`h-3.5 w-3.5 ${color}`} />
-                <Badge variant="outline" className="text-[8px] px-1">{timeRange}</Badge>
+            <CardContent className="p-2 sm:p-3">
+              <div className="flex items-center justify-between mb-1">
+                <Icon className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${color}`} />
+                <Badge variant="outline" className="text-[7px] sm:text-[8px] px-1">{timeRange}</Badge>
               </div>
-              <div className="text-lg font-bold text-foreground">{value}</div>
-              <div className="text-[9px] text-muted-foreground">{label}</div>
+              <div className="text-sm sm:text-lg font-bold text-foreground">{value}</div>
+              <div className="text-[8px] sm:text-[9px] text-muted-foreground">{label}</div>
             </CardContent>
           </Card>
         ))}

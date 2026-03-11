@@ -661,9 +661,9 @@ export default function TerminalMPI() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
           {isLoading ? (
-            Array.from({ length: 6 }).map((_, i) => (
+          Array.from({ length: 4 }).map((_, i) => (
               <Card key={i} className="border-border bg-card animate-pulse">
-                <CardContent className="p-4 h-44" />
+                <CardContent className="p-3 h-32 sm:h-44" />
               </Card>
             ))
           ) : filteredMetrics.length === 0 ? (

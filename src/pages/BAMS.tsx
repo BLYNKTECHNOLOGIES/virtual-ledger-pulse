@@ -102,7 +102,10 @@ export default function BAMS() {
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   Cases
                 </TabsTrigger>
-              </TabsList>
+                <TabsTrigger value="beneficiary" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <Users className="h-3.5 w-3.5 shrink-0" />
+                  Beneficiary
+                </TabsTrigger>
             </div>
 
             {/* Desktop: original 7-column grid — unchanged */}

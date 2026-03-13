@@ -106,6 +106,7 @@ export default function BAMS() {
                   <Users className="h-3.5 w-3.5 shrink-0" />
                   Beneficiary
                 </TabsTrigger>
+              </TabsList>
             </div>
 
             {/* Desktop: original 7-column grid — unchanged */}

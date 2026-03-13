@@ -205,6 +205,16 @@ export function useSyncOrderHistory() {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';
       toast.success(`${label}: ${count.toLocaleString()} orders in ${(duration / 1000).toFixed(0)}s`);
       
+      // Post-sync: capture seller payment details from active BUY orders (before they complete)
+      try {
+        const { captured } = await captureSellerPaymentDetails();
+        if (captured > 0) {
+          console.log(`[PostSync] Captured seller payment details for ${captured} active order(s)`);
+        }
+      } catch (err) {
+        console.error('[PostSync] Seller payment capture failed:', err);
+      }
+
       // Post-sync: sync completed BUY orders to terminal_purchase_sync
       try {
         const { synced, duplicates } = await syncCompletedBuyOrders();

@@ -13,7 +13,7 @@ import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUserId } from "@/lib/system-action-logger";
+import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { format } from "date-fns";

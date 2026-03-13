@@ -109,7 +109,7 @@ export default function BAMS() {
             </div>
 
             {/* Desktop: original 7-column grid — unchanged */}
-            <TabsList className="hidden md:grid md:grid-cols-7 w-full bg-gray-100 p-1 rounded-md mb-6">
+            <TabsList className="hidden md:grid md:grid-cols-8 w-full bg-gray-100 p-1 rounded-md mb-6">
               <TabsTrigger value="account-summary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <BarChart3 className="h-4 w-4" />
                 <span>Account Summary</span>

@@ -518,6 +518,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['beneficiary_records'] });
       onSuccess();
     },
     onError: (err: Error) => {

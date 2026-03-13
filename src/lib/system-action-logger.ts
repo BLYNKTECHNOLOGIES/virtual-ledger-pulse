@@ -201,6 +201,29 @@ export function getCurrentUserId(): string | null {
 }
 
 /**
+ * Async version of getCurrentUserId that also tries Supabase auth session as fallback.
+ * Use this in mutation handlers where async is acceptable.
+ */
+export async function getCurrentUserIdAsync(): Promise<string | null> {
+  // Try sync version first (localStorage)
+  const syncId = getCurrentUserId();
+  if (syncId) return syncId;
+
+  // Fallback: try Supabase auth session
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      console.warn('[SystemActionLogger] Used Supabase auth fallback for user ID:', user.id);
+      return user.id;
+    }
+  } catch (err) {
+    console.error('[SystemActionLogger] Supabase auth fallback failed:', err);
+  }
+  return null;
+}
+
+/**
  * Convenience function that auto-resolves the current user ID
  */
 export async function logActionWithCurrentUser(

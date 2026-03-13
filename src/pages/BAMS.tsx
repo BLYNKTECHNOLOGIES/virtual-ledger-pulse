@@ -138,6 +138,10 @@ export default function BAMS() {
                 <AlertCircle className="h-4 w-4" />
                 <span>Case Generator</span>
               </TabsTrigger>
+              <TabsTrigger value="beneficiary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Users className="h-4 w-4" />
+                <span>Beneficiary</span>
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 w-full overflow-auto">

@@ -6,9 +6,10 @@ import { PaymentMethodManagement } from "@/components/bams/PaymentMethodManageme
 import { PurchaseManagement } from "@/components/bams/PurchaseManagement";
 import { BankJournalEntries } from "@/components/bams/BankJournalEntries";
 import { PaymentGatewayManagement } from "@/components/bams/PaymentGatewayManagement";
-import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone, AlertCircle, BarChart3 } from "lucide-react";
+import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone, AlertCircle, BarChart3, Users } from "lucide-react";
 import { CaseGenerator } from "@/components/bams/CaseGenerator";
 import { AccountSummary } from "@/components/bams/AccountSummary";
+import { BeneficiaryManagement } from "@/components/bams/BeneficiaryManagement";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";

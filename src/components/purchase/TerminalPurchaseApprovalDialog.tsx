@@ -839,6 +839,47 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             </Card>
           )}
 
+          {/* Seller Bank Details (for Beneficiary Tracking) */}
+          <Card className="border-emerald-200 bg-emerald-50/30">
+            <CardContent className="p-4 space-y-3">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Seller Bank Details (Beneficiary)
+              </Label>
+              <p className="text-[10px] text-muted-foreground">Enter the seller's bank details as shown on Binance order page for beneficiary tracking</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-[10px]">Account Number</Label>
+                  <Input
+                    value={sellerAccountNumber}
+                    onChange={(e) => setSellerAccountNumber(e.target.value.trim())}
+                    placeholder="Account number"
+                    className="mt-1 h-8 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px]">Account Holder Name</Label>
+                  <Input
+                    value={sellerAccountName}
+                    onChange={(e) => setSellerAccountName(e.target.value)}
+                    placeholder="Holder name"
+                    className="mt-1 h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px]">IFSC Code</Label>
+                  <Input
+                    value={sellerIfsc}
+                    onChange={(e) => setSellerIfsc(e.target.value.toUpperCase().trim())}
+                    placeholder="IFSC code"
+                    className="mt-1 h-8 text-xs font-mono"
+                    maxLength={11}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div>
             <Label className="text-xs">Remarks</Label>
             <Textarea

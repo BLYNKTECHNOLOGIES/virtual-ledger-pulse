@@ -444,6 +444,28 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           })
           .eq('id', result.purchase_order_id);
 
+        // Auto-record beneficiary: fetch the PO's bank details and upsert
+        try {
+          const { data: createdPO } = await supabase
+            .from('purchase_orders')
+            .select('bank_account_number, bank_account_name, ifsc_code, order_number, supplier_name')
+            .eq('id', result.purchase_order_id)
+            .maybeSingle();
+
+          if (createdPO?.bank_account_number) {
+            await supabase.rpc('upsert_beneficiary_record' as any, {
+              p_account_number: createdPO.bank_account_number,
+              p_account_holder_name: createdPO.bank_account_name || null,
+              p_ifsc_code: createdPO.ifsc_code || null,
+              p_source_order_number: createdPO.order_number,
+              p_client_name: createdPO.supplier_name || syncRecord.counterparty_name || null,
+            });
+            console.log('✅ Beneficiary record upserted for:', createdPO.bank_account_number);
+          }
+        } catch (benErr) {
+          console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
+        }
+
         // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly
         if (asset !== 'USDT' && marketRateUsdt > 0) {
           const grossQtyVal = parseFloat(od.amount) || 0;
@@ -496,6 +518,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['beneficiary_records'] });
       onSuccess();
     },
     onError: (err: Error) => {

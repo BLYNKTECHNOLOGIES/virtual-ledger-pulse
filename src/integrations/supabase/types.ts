@@ -926,6 +926,100 @@ export type Database = {
           },
         ]
       }
+      beneficiary_bank_additions: {
+        Row: {
+          added_at: string
+          added_by: string | null
+          bank_account_id: string
+          beneficiary_id: string
+          id: string
+        }
+        Insert: {
+          added_at?: string
+          added_by?: string | null
+          bank_account_id: string
+          beneficiary_id: string
+          id?: string
+        }
+        Update: {
+          added_at?: string
+          added_by?: string | null
+          bank_account_id?: string
+          beneficiary_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beneficiary_bank_additions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beneficiary_bank_additions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beneficiary_bank_additions_beneficiary_id_fkey"
+            columns: ["beneficiary_id"]
+            isOneToOne: false
+            referencedRelation: "beneficiary_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beneficiary_records: {
+        Row: {
+          account_holder_name: string | null
+          account_number: string
+          bank_name: string | null
+          client_name: string | null
+          created_at: string
+          exported_at: string | null
+          first_seen_at: string
+          id: string
+          ifsc_code: string | null
+          last_seen_at: string
+          occurrence_count: number
+          source_order_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_holder_name?: string | null
+          account_number: string
+          bank_name?: string | null
+          client_name?: string | null
+          created_at?: string
+          exported_at?: string | null
+          first_seen_at?: string
+          id?: string
+          ifsc_code?: string | null
+          last_seen_at?: string
+          occurrence_count?: number
+          source_order_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_holder_name?: string | null
+          account_number?: string
+          bank_name?: string | null
+          client_name?: string | null
+          created_at?: string
+          exported_at?: string | null
+          first_seen_at?: string
+          id?: string
+          ifsc_code?: string | null
+          last_seen_at?: string
+          occurrence_count?: number
+          source_order_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       binance_order_history: {
         Row: {
           adv_no: string | null
@@ -12429,6 +12523,17 @@ export type Database = {
       update_webauthn_sign_count: {
         Args: { p_credential_id: string; p_sign_count: number }
         Returns: undefined
+      }
+      upsert_beneficiary_record: {
+        Args: {
+          p_account_holder_name?: string
+          p_account_number: string
+          p_bank_name?: string
+          p_client_name?: string
+          p_ifsc_code?: string
+          p_source_order_number?: string
+        }
+        Returns: string
       }
       upsert_p2p_counterparty: {
         Args: { p_nickname: string; p_trade_type: string; p_volume: number }

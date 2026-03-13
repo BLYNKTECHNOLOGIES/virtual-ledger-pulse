@@ -1,92 +1,56 @@
 
 
-## Beneficiary Addition Tab for BAMS
+## Internal Chat System — Plan
 
-### Problem
-When Binance P2P purchase orders are received, the seller provides bank details (account number, holder name, IFSC) for payment. These details need to be collected as "beneficiaries" so they can be exported as CSV and added to the company's bank accounts (e.g., HDFC, SBI) for NEFT/IMPS transfers.
+### Overview
+Build an order-scoped internal team chat system. Replace the "History" tab in `OrderDetailWorkspace` with "Internal Chat" (default tab). Add a second chat icon per order row in `TerminalOrders.tsx` beside the existing Binance chat icon. Each internal chat is scoped to one order and persists forever.
 
-### Current State
-- `purchase_orders` table already stores `bank_account_number`, `bank_account_name`, and `ifsc_code` from terminal purchase approvals
-- However, there's no centralized beneficiary tracking system — no deduplication, no record of which bank accounts a beneficiary has been added to
+### Database Changes
 
-### Plan
+**1. New table: `terminal_internal_messages`**
+- `id` (uuid PK), `order_number` (text, indexed), `sender_id` (uuid), `sender_name` (text), `message_text` (text nullable), `file_url` (text nullable), `file_name` (text nullable), `message_type` (text: 'text'|'image'|'file'), `created_at` (timestamptz)
 
-#### 1. New Database Table: `beneficiary_records`
+**2. New table: `terminal_internal_chat_reads`**
+- `id` (uuid PK), `order_number` (text), `user_id` (uuid), `last_read_at` (timestamptz)
+- UNIQUE(order_number, user_id)
 
-```text
-beneficiary_records
-├── id (uuid, PK)
-├── account_number (text, NOT NULL)          -- seller's bank account number
-├── account_holder_name (text)               -- seller's name
-├── ifsc_code (text)                         -- seller's IFSC
-├── bank_name (text)                         -- seller's bank name (if available)
-├── source_order_number (text)               -- first order that introduced this beneficiary
-├── client_id (uuid, FK → clients)           -- linked client if known
-├── client_name (text)                       -- for display
-├── occurrence_count (int, default 1)        -- how many orders had this account
-├── first_seen_at (timestamptz)
-├── last_seen_at (timestamptz)
-├── exported_at (timestamptz)                -- last CSV export timestamp
-├── created_at (timestamptz)
-├── updated_at (timestamptz)
-└── UNIQUE(account_number)                   -- dedup by account number
-```
+**3. Storage bucket: `internal-chat-files`** for photo/file uploads.
 
-#### 2. New Table: `beneficiary_bank_additions`
+**4. RLS**: Matching the project's existing anon-based auth pattern.
 
-Tracks which bank each beneficiary has been added to (many-to-many).
+### Code Changes
 
-```text
-beneficiary_bank_additions
-├── id (uuid, PK)
-├── beneficiary_id (uuid, FK → beneficiary_records)
-├── bank_account_id (uuid, FK → bank_accounts)  -- our company bank
-├── added_at (timestamptz)
-├── added_by (uuid)
-└── UNIQUE(beneficiary_id, bank_account_id)
-```
+**1. New hook: `src/hooks/useInternalChat.ts`**
+- `useInternalMessages(orderNumber)` — fetch messages + Supabase realtime subscription for live updates
+- `useSendInternalMessage()` — insert message with sender info from `useTerminalAuth`
+- `useInternalUnreadCounts(orderNumbers[])` — bulk unread count query per order
+- `useMarkInternalChatRead(orderNumber)` — upsert `last_read_at` to now
 
-#### 3. Auto-Record Beneficiaries on Purchase Approval
+**2. New component: `src/components/terminal/orders/InternalChatPanel.tsx`**
+- Chat UI: sender name on each bubble, own messages right-aligned (blue), others left-aligned (gray)
+- File/photo upload via Supabase storage bucket
+- Auto-scroll to bottom, mark-as-read on mount
+- Text input with send button + attachment button
 
-Modify `TerminalPurchaseApprovalDialog.tsx`: after a purchase order is approved, upsert the seller's bank details into `beneficiary_records`. If the account number already exists, increment `occurrence_count` and update `last_seen_at`.
+**3. Update `OrderDetailWorkspace.tsx`**
+- Replace "History" tab with "Internal" tab in the right panel tabs (Profile | Internal)
+- Set default `rightPanel` to `'internal'` instead of `'profile'`
+- On mobile, add "Internal" tab (Details | Chat | Internal | Profile), default to `'internal'`
+- Render `InternalChatPanel` when internal tab is active
 
-#### 4. New BAMS Tab: `BeneficiaryManagement.tsx`
+**4. Update `TerminalOrders.tsx` — order row (lines ~798-811)**
+- Add a second icon button (e.g., `Users` icon) right beside the existing `MessageSquare` chat icon in the same `<TableCell>`
+- Call `useInternalUnreadCounts` for visible order numbers
+- Show red unread badge on the internal chat icon independently
+- Clicking the internal icon opens the order detail with internal chat tab focused
 
-**Features:**
-- **List View**: Paginated table showing all beneficiary records with columns: Account Number, Holder Name, IFSC, Bank Name, Client, Occurrences, First Seen, Banks Added To, Status
-- **Search**: Search by account number — shows beneficiary details plus which company banks it's been added to
-- **Export CSV**: Select number of entries (e.g., 10, 25, 50) → exports CSV with bank details. After export, prompts to select which active BAMS bank account these beneficiaries were added to → records in `beneficiary_bank_additions`
-- **Individual Bank Addition**: Each row has action to mark "Added to Bank" with bank selector (from active BAMS bank accounts)
-- **Bank Addition Status**: Visual indicators showing which banks each beneficiary has been registered with
+### Per-order scoping
+Each chat is keyed by `order_number`. Messages from one order never appear in another. After order completion, text messages remain forever; files can be manually cleaned up later (no auto-deletion now).
 
-#### 5. BAMS Page Update
+### Suggested Additional Features
 
-Add an 8th tab "Beneficiary" with a `Users` icon to the BAMS tabs (both mobile and desktop layouts).
-
-### Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| Migration SQL | Create `beneficiary_records` and `beneficiary_bank_additions` tables with RLS |
-| `src/components/bams/BeneficiaryManagement.tsx` | New — main tab component with list, search, export, bank-addition |
-| `src/components/purchase/TerminalPurchaseApprovalDialog.tsx` | Modify — upsert beneficiary on approval |
-| `src/pages/BAMS.tsx` | Modify — add Beneficiary tab |
-
-### Data Flow
-
-```text
-Binance P2P BUY Order → Terminal Purchase Sync → Approval Dialog
-                                                      ↓
-                                              beneficiary_records (upsert by account_number)
-                                                      ↓
-                                              Export CSV (select count)
-                                                      ↓
-                                              Select bank → beneficiary_bank_additions
-```
-
-### Technical Notes
-- Deduplication uses `account_number` as unique key — same account across multiple orders only creates one beneficiary record
-- Active bank accounts for the "added to" selector come from `useActiveBankAccounts` hook (excludes dormant banks)
-- CSV export uses the `xlsx` library already installed
-- The `NewPurchaseOrderDialog` (manual purchases) also captures bank details — those will be recorded too
+1. **@Mention Notifications** — Tag specific operators in internal chat messages for focused alerts.
+2. **Order Handoff / Transfer** — Formal operator-to-operator order transfer with summary note.
+3. **Pinned Messages** — Pin critical internal messages to the top of the order detail.
+4. **SLA Timer / Breach Alerts** — Highlight orders exceeding response time targets.
 

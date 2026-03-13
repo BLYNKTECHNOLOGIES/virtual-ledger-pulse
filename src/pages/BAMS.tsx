@@ -6,9 +6,10 @@ import { PaymentMethodManagement } from "@/components/bams/PaymentMethodManageme
 import { PurchaseManagement } from "@/components/bams/PurchaseManagement";
 import { BankJournalEntries } from "@/components/bams/BankJournalEntries";
 import { PaymentGatewayManagement } from "@/components/bams/PaymentGatewayManagement";
-import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone, AlertCircle, BarChart3 } from "lucide-react";
+import { CreditCard, Building, ShoppingBag, BookOpen, Smartphone, AlertCircle, BarChart3, Users } from "lucide-react";
 import { CaseGenerator } from "@/components/bams/CaseGenerator";
 import { AccountSummary } from "@/components/bams/AccountSummary";
+import { BeneficiaryManagement } from "@/components/bams/BeneficiaryManagement";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
@@ -101,11 +102,15 @@ export default function BAMS() {
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   Cases
                 </TabsTrigger>
+                <TabsTrigger value="beneficiary" className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                  <Users className="h-3.5 w-3.5 shrink-0" />
+                  Beneficiary
+                </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Desktop: original 7-column grid — unchanged */}
-            <TabsList className="hidden md:grid md:grid-cols-7 w-full bg-gray-100 p-1 rounded-md mb-6">
+            <TabsList className="hidden md:grid md:grid-cols-8 w-full bg-gray-100 p-1 rounded-md mb-6">
               <TabsTrigger value="account-summary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 <BarChart3 className="h-4 w-4" />
                 <span>Account Summary</span>
@@ -134,6 +139,10 @@ export default function BAMS() {
                 <AlertCircle className="h-4 w-4" />
                 <span>Case Generator</span>
               </TabsTrigger>
+              <TabsTrigger value="beneficiary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Users className="h-4 w-4" />
+                <span>Beneficiary</span>
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 w-full overflow-auto">
@@ -157,6 +166,9 @@ export default function BAMS() {
               </TabsContent>
               <TabsContent value="case-generator" className="w-full h-full">
                 <CaseGenerator />
+              </TabsContent>
+              <TabsContent value="beneficiary" className="w-full h-full">
+                <BeneficiaryManagement />
               </TabsContent>
             </div>
           </Tabs>

@@ -210,6 +210,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const tdsAmount = totalAmount * (tdsRate / 100);
   const netPayable = totalAmount - tdsAmount;
 
+  const normalizedSellerAccountNumber = sellerAccountNumber.trim();
+  const normalizedSellerAccountName = sellerAccountName.trim();
+  const normalizedSellerIfsc = sellerIfsc.trim().toUpperCase();
+  const requiresSellerBankDetails = !isUpiPayment;
+  const hasRequiredSellerBankDetails = !requiresSellerBankDetails || normalizedSellerAccountNumber.length > 0;
+
   // Split payment allocation
   const splitAllocation = useMemo(() => {
     const totalAllocated = paymentSplits.reduce((sum, s) =>

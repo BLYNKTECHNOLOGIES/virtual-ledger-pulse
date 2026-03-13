@@ -282,6 +282,8 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
         wallet_id: activeLink.wallet_id,
         wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
         fee_treatment: activeLink.fee_treatment,
+        // Include seller payment details captured while order was live
+        seller_payment_details: order.seller_payment_details || null,
       },
       client_id: clientId,
       counterparty_name: counterpartyName,

@@ -49,10 +49,11 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );
   const [remarks, setRemarks] = useState('');
-  // Seller bank details for beneficiary tracking
-  const [sellerAccountNumber, setSellerAccountNumber] = useState('');
-  const [sellerAccountName, setSellerAccountName] = useState('');
-  const [sellerIfsc, setSellerIfsc] = useState('');
+  // Seller bank details for beneficiary tracking — pre-fill from captured payment details
+  const capturedPayment = od.seller_payment_details || {};
+  const [sellerAccountNumber, setSellerAccountNumber] = useState(capturedPayment.accountNo || '');
+  const [sellerAccountName, setSellerAccountName] = useState(capturedPayment.accountName || '');
+  const [sellerIfsc, setSellerIfsc] = useState(capturedPayment.ifscCode || '');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
   const [linkedClientName, setLinkedClientName] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
@@ -158,6 +159,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
     fetchResolvedData();
   }, [open, syncRecord, linkedClientId]);
+
+  // Pre-fill seller bank details from captured payment data when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    const payment = od.seller_payment_details || {};
+    setSellerAccountNumber(payment.accountNo || '');
+    setSellerAccountName(payment.accountName || '');
+    setSellerIfsc(payment.ifscCode || '');
+  }, [open, syncRecord]);
 
   // Build conflict items for the banner
   const panConflicts = useMemo(() => {
@@ -859,8 +869,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                 Seller Bank Details (Beneficiary)
               </Label>
               <p className="text-[10px] text-muted-foreground">
-                Enter seller bank details from Binance order page for beneficiary tracking.
-                {requiresSellerBankDetails ? " Account number is required for this payment type." : " UPI orders may not include bank account details."}
+                {od.seller_payment_details?.accountNo
+                  ? "✅ Auto-captured from live order. Verify and edit if needed."
+                  : requiresSellerBankDetails
+                    ? "Enter seller bank details. Account number is required for this payment type."
+                    : "UPI orders may not include bank account details."
+                }
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <div>

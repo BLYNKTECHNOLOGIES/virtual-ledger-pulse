@@ -5,6 +5,7 @@ import { callBinanceAds } from './useBinanceActions';
 import { toast } from 'sonner';
 import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from './useTerminalSalesSync';
+import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 3 * 60 * 60 * 1000; // 3 hours — re-fetch recent orders for status updates
@@ -204,6 +205,16 @@ export function useSyncOrderHistory() {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';
       toast.success(`${label}: ${count.toLocaleString()} orders in ${(duration / 1000).toFixed(0)}s`);
       
+      // Post-sync: capture seller payment details from active BUY orders (before they complete)
+      try {
+        const { captured } = await captureSellerPaymentDetails();
+        if (captured > 0) {
+          console.log(`[PostSync] Captured seller payment details for ${captured} active order(s)`);
+        }
+      } catch (err) {
+        console.error('[PostSync] Seller payment capture failed:', err);
+      }
+
       // Post-sync: sync completed BUY orders to terminal_purchase_sync
       try {
         const { synced, duplicates } = await syncCompletedBuyOrders();

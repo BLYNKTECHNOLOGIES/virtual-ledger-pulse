@@ -858,10 +858,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                 <Users className="h-3.5 w-3.5" />
                 Seller Bank Details (Beneficiary)
               </Label>
-              <p className="text-[10px] text-muted-foreground">Enter the seller's bank details as shown on Binance order page for beneficiary tracking</p>
+              <p className="text-[10px] text-muted-foreground">
+                Enter seller bank details from Binance order page for beneficiary tracking.
+                {requiresSellerBankDetails ? " Account number is required for this payment type." : " UPI orders may not include bank account details."}
+              </p>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <Label className="text-[10px]">Account Number</Label>
+                  <Label className="text-[10px]">Account Number {requiresSellerBankDetails ? '*' : ''}</Label>
                   <Input
                     value={sellerAccountNumber}
                     onChange={(e) => setSellerAccountNumber(e.target.value.trim())}

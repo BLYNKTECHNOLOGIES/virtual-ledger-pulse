@@ -5,6 +5,7 @@ import { callBinanceAds } from './useBinanceActions';
 import { toast } from 'sonner';
 import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from './useTerminalSalesSync';
+import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 3 * 60 * 60 * 1000; // 3 hours — re-fetch recent orders for status updates

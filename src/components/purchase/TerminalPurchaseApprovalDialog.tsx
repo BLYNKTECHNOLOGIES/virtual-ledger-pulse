@@ -278,7 +278,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Approval mutation
   const approveMutation = useMutation({
     mutationFn: async () => {
-      const userId = getCurrentUserId();
+      const userId = await getCurrentUserIdAsync();
 
       // Validate
       if (tdsOption === '1%' && !panNumber.trim()) {

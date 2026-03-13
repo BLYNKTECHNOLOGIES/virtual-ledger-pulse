@@ -327,7 +327,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Approval mutation
   const approveMutation = useMutation({
     mutationFn: async () => {
-      const userId = getCurrentUserId();
+      const userId = await getCurrentUserIdAsync();
 
       if (!paymentMethodId) {
         throw new Error("Please select a payment method");

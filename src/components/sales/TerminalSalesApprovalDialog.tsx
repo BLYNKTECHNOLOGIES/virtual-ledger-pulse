@@ -336,7 +336,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       const selectedMethod = paymentMethods.find((m: any) => m.id === paymentMethodId);
       const isGateway = Boolean(selectedMethod?.payment_gateway);
 
-      const orderNumber = `SO-TRM-${od.order_number?.slice(-8) || Date.now()}`;
+      const orderNumber = `SO-TRM-${od.order_number?.slice(-12) || Date.now()}`;
       // Convert Binance create_time to IST date string to avoid UTC date truncation
       // (e.g., Mar 9 01:55 IST = Mar 8 20:25 UTC → stored as Mar 8 if using UTC)
       const orderDate = od.create_time
@@ -352,11 +352,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       const asset = (od.asset || 'USDT').toUpperCase();
       const marketRateUsdt = await fetchCoinMarketRate(asset);
 
-      // Check if a sales order already exists for this order number (partial approval recovery)
+      // Check if a sales order already exists for THIS sync record (partial approval recovery)
+      // Use terminal_sync_id instead of order_number to avoid false matches from collisions
       const { data: existingSO } = await supabase
         .from('sales_orders')
         .select('id')
-        .eq('order_number', orderNumber)
+        .eq('terminal_sync_id', syncRecord.id)
         .maybeSingle();
 
       let salesOrder: { id: string };

@@ -15,7 +15,7 @@ import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, Plus, Minus, Users 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUserId } from "@/lib/system-action-logger";
+import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
@@ -278,7 +278,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Approval mutation
   const approveMutation = useMutation({
     mutationFn: async () => {
-      const userId = getCurrentUserId();
+      const userId = await getCurrentUserIdAsync();
 
       // Validate
       if (tdsOption === '1%' && !panNumber.trim()) {

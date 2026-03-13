@@ -343,13 +343,13 @@ serve(async (req) => {
 
       case "getOrderDetail": {
         // POST /sapi/v1/c2c/orderMatch/getUserOrderDetail
-        // API requires "adOrderNo" in body (not "orderNumber")
+        // API uses "orderNo" parameter (not "adOrderNo")
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
         const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
-          adOrderNo: payload.orderNumber,
+          orderNo: payload.orderNumber,
         }) });
         const text = await response.text();
-        console.log("getOrderDetail response:", response.status, text.substring(0, 2000));
+        console.log("getOrderDetail response:", response.status, text.substring(0, 5000));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         break;
       }

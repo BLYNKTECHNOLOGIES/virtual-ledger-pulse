@@ -47,6 +47,10 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );
   const [remarks, setRemarks] = useState('');
+  // Seller bank details for beneficiary tracking
+  const [sellerAccountNumber, setSellerAccountNumber] = useState('');
+  const [sellerAccountName, setSellerAccountName] = useState('');
+  const [sellerIfsc, setSellerIfsc] = useState('');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
   const [linkedClientName, setLinkedClientName] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
@@ -441,29 +445,27 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
+            // Save seller bank details
+            bank_account_number: sellerAccountNumber || null,
+            bank_account_name: sellerAccountName || null,
+            ifsc_code: sellerIfsc || null,
           })
           .eq('id', result.purchase_order_id);
 
-        // Auto-record beneficiary: fetch the PO's bank details and upsert
-        try {
-          const { data: createdPO } = await supabase
-            .from('purchase_orders')
-            .select('bank_account_number, bank_account_name, ifsc_code, order_number, supplier_name')
-            .eq('id', result.purchase_order_id)
-            .maybeSingle();
-
-          if (createdPO?.bank_account_number) {
+        // Auto-record beneficiary from seller bank details entered by operator
+        if (sellerAccountNumber) {
+          try {
             await supabase.rpc('upsert_beneficiary_record' as any, {
-              p_account_number: createdPO.bank_account_number,
-              p_account_holder_name: createdPO.bank_account_name || null,
-              p_ifsc_code: createdPO.ifsc_code || null,
-              p_source_order_number: createdPO.order_number,
-              p_client_name: createdPO.supplier_name || syncRecord.counterparty_name || null,
+              p_account_number: sellerAccountNumber,
+              p_account_holder_name: sellerAccountName || null,
+              p_ifsc_code: sellerIfsc || null,
+              p_source_order_number: od.order_number || result.purchase_order_id,
+              p_client_name: syncRecord.counterparty_name || null,
             });
-            console.log('✅ Beneficiary record upserted for:', createdPO.bank_account_number);
+            console.log('✅ Beneficiary record upserted for:', sellerAccountNumber);
+          } catch (benErr) {
+            console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
           }
-        } catch (benErr) {
-          console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
         }
 
         // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly
@@ -834,6 +836,47 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
               </CardContent>
             </Card>
           )}
+
+          {/* Seller Bank Details (for Beneficiary Tracking) */}
+          <Card className="border-emerald-200 bg-emerald-50/30">
+            <CardContent className="p-4 space-y-3">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Seller Bank Details (Beneficiary)
+              </Label>
+              <p className="text-[10px] text-muted-foreground">Enter the seller's bank details as shown on Binance order page for beneficiary tracking</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-[10px]">Account Number</Label>
+                  <Input
+                    value={sellerAccountNumber}
+                    onChange={(e) => setSellerAccountNumber(e.target.value.trim())}
+                    placeholder="Account number"
+                    className="mt-1 h-8 text-xs font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px]">Account Holder Name</Label>
+                  <Input
+                    value={sellerAccountName}
+                    onChange={(e) => setSellerAccountName(e.target.value)}
+                    placeholder="Holder name"
+                    className="mt-1 h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px]">IFSC Code</Label>
+                  <Input
+                    value={sellerIfsc}
+                    onChange={(e) => setSellerIfsc(e.target.value.toUpperCase().trim())}
+                    placeholder="IFSC code"
+                    className="mt-1 h-8 text-xs font-mono"
+                    maxLength={11}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div>
             <Label className="text-xs">Remarks</Label>

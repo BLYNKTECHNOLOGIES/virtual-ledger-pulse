@@ -259,9 +259,9 @@ export function TerminalSalesSyncTab() {
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
-          <Button size="sm" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="gap-1">
+          <Button size="sm" onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending || enrichMutation.isPending} className="gap-1">
             {syncMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
-            Sync Now
+            {syncMutation.isPending ? 'Syncing & Fetching Names...' : 'Sync Now'}
           </Button>
           {syncRecords.some((r: any) => !(r.order_data as any)?.verified_name && (r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending')) && (
             <Button size="sm" variant="outline" onClick={() => enrichMutation.mutate()} disabled={enrichMutation.isPending} className="gap-1">

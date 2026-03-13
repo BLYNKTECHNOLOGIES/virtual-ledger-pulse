@@ -1033,6 +1033,7 @@ export type Database = {
           order_status: string | null
           pay_method_name: string | null
           raw_data: Json | null
+          seller_payment_details: Json | null
           synced_at: string
           total_price: string | null
           trade_type: string | null
@@ -1051,6 +1052,7 @@ export type Database = {
           order_status?: string | null
           pay_method_name?: string | null
           raw_data?: Json | null
+          seller_payment_details?: Json | null
           synced_at?: string
           total_price?: string | null
           trade_type?: string | null
@@ -1069,6 +1071,7 @@ export type Database = {
           order_status?: string | null
           pay_method_name?: string | null
           raw_data?: Json | null
+          seller_payment_details?: Json | null
           synced_at?: string
           total_price?: string | null
           trade_type?: string | null

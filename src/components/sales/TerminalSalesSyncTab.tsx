@@ -145,13 +145,60 @@ export function TerminalSalesSyncTab() {
     },
   });
 
-  // Manual sync trigger
+  // Auto-enrich names for records missing verified_name
+  async function enrichMissingNamesAuto() {
+    const { data: freshRecords } = await supabase
+      .from('terminal_sales_sync')
+      .select('*')
+      .in('sync_status', ['synced_pending_approval', 'client_mapping_pending'])
+      .order('synced_at', { ascending: false })
+      .limit(200);
+
+    if (!freshRecords?.length) return 0;
+
+    const pending = freshRecords.filter((r: any) => !(r.order_data as any)?.verified_name);
+    let enriched = 0;
+    for (const record of pending) {
+      const orderNumber = (record.order_data as any)?.order_number || record.binance_order_number;
+      if (!orderNumber) continue;
+      try {
+        const { data } = await supabase.functions.invoke('binance-ads', {
+          body: { action: 'getOrderDetail', orderNumber },
+        });
+        const apiResult = data?.data;
+        const detail = apiResult?.data || apiResult;
+        const buyerName = detail?.buyerRealName || detail?.buyerName || null;
+        if (buyerName) {
+          const od = record.order_data as any;
+          await supabase
+            .from('terminal_sales_sync')
+            .update({
+              counterparty_name: buyerName,
+              order_data: { ...od, verified_name: buyerName },
+            })
+            .eq('id', record.id);
+          enriched++;
+        }
+        await new Promise(r => setTimeout(r, 300));
+      } catch { /* skip */ }
+    }
+    return enriched;
+  }
+
+  // Manual sync trigger — now also auto-fetches names
   const syncMutation = useMutation({
-    mutationFn: syncCompletedSellOrders,
-    onSuccess: ({ synced, duplicates }) => {
+    mutationFn: async () => {
+      const syncResult = await syncCompletedSellOrders();
+      // Invalidate so we get fresh records before enrichment
+      await queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      // Auto-enrich names
+      const enriched = await enrichMissingNamesAuto();
+      return { ...syncResult, enriched };
+    },
+    onSuccess: ({ synced, duplicates, enriched }) => {
       toast({
         title: "Sales Sync Complete",
-        description: `${synced} new sell orders synced, ${duplicates} duplicates skipped`,
+        description: `${synced} synced, ${duplicates} duplicates skipped, ${enriched} names fetched`,
       });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
     },

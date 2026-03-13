@@ -166,6 +166,9 @@ export default function BAMS() {
               <TabsContent value="case-generator" className="w-full h-full">
                 <CaseGenerator />
               </TabsContent>
+              <TabsContent value="beneficiary" className="w-full h-full">
+                <BeneficiaryManagement />
+              </TabsContent>
             </div>
           </Tabs>
         </div>

@@ -297,6 +297,10 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         throw new Error("PAN is required for 1% TDS");
       }
 
+      if (requiresSellerBankDetails && !normalizedSellerAccountNumber) {
+        throw new Error("Seller account number is required for non-UPI orders to track beneficiary records.");
+      }
+
       if (isMultiplePayments) {
         if (!splitAllocation.isValid) {
           throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`);

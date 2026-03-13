@@ -39,6 +39,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const od = syncRecord?.order_data || {};
   const assetCode = (od.asset || 'USDT').toUpperCase();
   const isNonUsdt = assetCode !== 'USDT';
+  const payMethodText = String(od.pay_method || '').toUpperCase();
+  const isUpiPayment = payMethodText.includes('UPI');
 
   const [tdsOption, setTdsOption] = useState<'none' | '1%' | '20%'>('none');
   const [panNumber, setPanNumber] = useState(syncRecord?.pan_number || '');

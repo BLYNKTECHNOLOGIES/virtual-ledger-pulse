@@ -160,6 +160,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     fetchResolvedData();
   }, [open, syncRecord, linkedClientId]);
 
+  // Pre-fill seller bank details from captured payment data when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    const payment = od.seller_payment_details || {};
+    setSellerAccountNumber(payment.accountNo || '');
+    setSellerAccountName(payment.accountName || '');
+    setSellerIfsc(payment.ifscCode || '');
+  }, [open, syncRecord]);
+
   // Build conflict items for the banner
   const panConflicts = useMemo(() => {
     const items: { field: string; clientValue: string; counterpartyValue: string; onChoose: (v: string) => void }[] = [];

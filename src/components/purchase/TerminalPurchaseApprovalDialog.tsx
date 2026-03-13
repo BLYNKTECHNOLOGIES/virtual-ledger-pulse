@@ -445,29 +445,27 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
+            // Save seller bank details
+            bank_account_number: sellerAccountNumber || null,
+            bank_account_name: sellerAccountName || null,
+            ifsc_code: sellerIfsc || null,
           })
           .eq('id', result.purchase_order_id);
 
-        // Auto-record beneficiary: fetch the PO's bank details and upsert
-        try {
-          const { data: createdPO } = await supabase
-            .from('purchase_orders')
-            .select('bank_account_number, bank_account_name, ifsc_code, order_number, supplier_name')
-            .eq('id', result.purchase_order_id)
-            .maybeSingle();
-
-          if (createdPO?.bank_account_number) {
+        // Auto-record beneficiary from seller bank details entered by operator
+        if (sellerAccountNumber) {
+          try {
             await supabase.rpc('upsert_beneficiary_record' as any, {
-              p_account_number: createdPO.bank_account_number,
-              p_account_holder_name: createdPO.bank_account_name || null,
-              p_ifsc_code: createdPO.ifsc_code || null,
-              p_source_order_number: createdPO.order_number,
-              p_client_name: createdPO.supplier_name || syncRecord.counterparty_name || null,
+              p_account_number: sellerAccountNumber,
+              p_account_holder_name: sellerAccountName || null,
+              p_ifsc_code: sellerIfsc || null,
+              p_source_order_number: od.order_number || result.purchase_order_id,
+              p_client_name: syncRecord.counterparty_name || null,
             });
-            console.log('✅ Beneficiary record upserted for:', createdPO.bank_account_number);
+            console.log('✅ Beneficiary record upserted for:', sellerAccountNumber);
+          } catch (benErr) {
+            console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
           }
-        } catch (benErr) {
-          console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
         }
 
         // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly

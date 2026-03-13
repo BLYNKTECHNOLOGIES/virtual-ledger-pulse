@@ -869,8 +869,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                 Seller Bank Details (Beneficiary)
               </Label>
               <p className="text-[10px] text-muted-foreground">
-                Enter seller bank details from Binance order page for beneficiary tracking.
-                {requiresSellerBankDetails ? " Account number is required for this payment type." : " UPI orders may not include bank account details."}
+                {od.seller_payment_details?.accountNo
+                  ? "✅ Auto-captured from live order. Verify and edit if needed."
+                  : requiresSellerBankDetails
+                    ? "Enter seller bank details. Account number is required for this payment type."
+                    : "UPI orders may not include bank account details."
+                }
               </p>
               <div className="grid grid-cols-3 gap-3">
                 <div>

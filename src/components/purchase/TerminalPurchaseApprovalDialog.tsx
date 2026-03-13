@@ -49,10 +49,11 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );
   const [remarks, setRemarks] = useState('');
-  // Seller bank details for beneficiary tracking
-  const [sellerAccountNumber, setSellerAccountNumber] = useState('');
-  const [sellerAccountName, setSellerAccountName] = useState('');
-  const [sellerIfsc, setSellerIfsc] = useState('');
+  // Seller bank details for beneficiary tracking — pre-fill from captured payment details
+  const capturedPayment = od.seller_payment_details || {};
+  const [sellerAccountNumber, setSellerAccountNumber] = useState(capturedPayment.accountNo || '');
+  const [sellerAccountName, setSellerAccountName] = useState(capturedPayment.accountName || '');
+  const [sellerIfsc, setSellerIfsc] = useState(capturedPayment.ifscCode || '');
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
   const [linkedClientName, setLinkedClientName] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);

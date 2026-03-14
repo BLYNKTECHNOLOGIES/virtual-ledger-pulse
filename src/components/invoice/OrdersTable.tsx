@@ -1,10 +1,13 @@
-import type { OrderRecord } from "@/types/invoice";
+import type { OrderRecord, InvoiceCategory } from "@/types/invoice";
 
 interface OrdersTableProps {
   records: OrderRecord[];
+  category?: InvoiceCategory;
 }
 
-export default function OrdersTable({ records }: OrdersTableProps) {
+export default function OrdersTable({ records, category = "it_services" }: OrdersTableProps) {
+  const isFinancial = category === "financial_intermediation";
+
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="overflow-x-auto">
@@ -14,10 +17,18 @@ export default function OrdersTable({ records }: OrdersTableProps) {
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">#</th>
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Invoice No.</th>
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Description</th>
-              <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">HSN/SAC</th>
+              <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">SAC</th>
               <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Qty</th>
-              <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Rate</th>
-              <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Amount</th>
+              <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Unit</th>
+              {isFinancial && (
+                <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Txn Value</th>
+              )}
+              <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                {isFinancial ? "Service Margin" : "Rate"}
+              </th>
+              <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                {isFinancial ? "Taxable Value" : "Amount"}
+              </th>
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Buyer</th>
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Date</th>
             </tr>
@@ -32,8 +43,14 @@ export default function OrdersTable({ records }: OrdersTableProps) {
                 <td className="px-4 py-3 font-mono text-xs">{r.invoiceNumber}</td>
                 <td className="px-4 py-3 font-medium">{r.description}</td>
                 <td className="px-4 py-3 text-muted-foreground">{r.hsnSac}</td>
-                <td className="px-4 py-3 text-right font-mono">{r.quantity.toFixed(2)}</td>
-                <td className="px-4 py-3 text-right font-mono">₹{r.rate.toFixed(2)}</td>
+                <td className="px-4 py-3 text-right font-mono">{r.quantity}</td>
+                <td className="px-4 py-3 text-muted-foreground">{r.unit || "NOS"}</td>
+                {isFinancial && (
+                  <td className="px-4 py-3 text-right font-mono">₹{(r.transactionValue || 0).toLocaleString()}</td>
+                )}
+                <td className="px-4 py-3 text-right font-mono">
+                  ₹{isFinancial ? (r.serviceMargin || 0).toFixed(2) : r.rate.toFixed(2)}
+                </td>
                 <td className="px-4 py-3 text-right font-semibold font-mono">₹{r.amount.toLocaleString()}</td>
                 <td className="px-4 py-3">{r.buyerName}</td>
                 <td className="px-4 py-3 text-muted-foreground text-xs">{r.date}</td>

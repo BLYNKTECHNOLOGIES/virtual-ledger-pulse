@@ -6,9 +6,11 @@ import OrdersTable from "@/components/invoice/OrdersTable";
 import CompanyForm from "@/components/invoice/CompanyForm";
 import GSTSettings from "@/components/invoice/GSTSettings";
 import SignatorySettings from "@/components/invoice/SignatorySettings";
+import InvoiceCategorySelector from "@/components/invoice/InvoiceCategorySelector";
+import FinancialIntermediationNote, { DEFAULT_FI_NOTE } from "@/components/invoice/FinancialIntermediationNote";
 import { generateInvoicesPDF } from "@/lib/invoicePdfGenerator";
 import { generateCSVTemplate, groupByInvoice } from "@/lib/csvParser";
-import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig } from "@/types/invoice";
+import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory } from "@/types/invoice";
 
 const emptyCompany: CompanyInfo = {
   name: "",
@@ -39,35 +41,54 @@ const InvoiceCreatorPage = () => {
   const [gst, setGst] = useState<GSTConfig>(defaultGST);
   const [signatory, setSignatory] = useState<SignatoryConfig>(defaultSignatory);
   const [generating, setGenerating] = useState(false);
+  const [category, setCategory] = useState<InvoiceCategory>("it_services");
+  const [fiNote, setFiNote] = useState(DEFAULT_FI_NOTE);
+
+  const handleCategoryChange = useCallback((newCategory: InvoiceCategory) => {
+    setCategory(newCategory);
+    setRecords([]); // Clear records when switching category
+    if (newCategory === "financial_intermediation") {
+      // Auto-enable GST at 18% for financial intermediation
+      setGst({ enabled: true, rate: 18, type: "IGST", inclusive: false });
+    }
+  }, []);
 
   const handleGenerate = useCallback(() => {
     if (records.length === 0) return;
     setGenerating(true);
     setTimeout(() => {
       try {
-        const grouped = groupByInvoice(records);
-        const doc = generateInvoicesPDF(grouped, { company, gst, signatory });
+        const grouped = groupByInvoice(records, category);
+        const doc = generateInvoicesPDF(grouped, {
+          company,
+          gst,
+          signatory,
+          note: category === "financial_intermediation" ? fiNote : undefined,
+        });
         doc.save(`invoices_${grouped.length}_orders.pdf`);
       } catch (err) {
         console.error("PDF generation failed:", err);
       }
       setGenerating(false);
     }, 100);
-  }, [records, company, gst, signatory]);
+  }, [records, company, gst, signatory, category, fiNote]);
 
   const handleDownloadTemplate = useCallback(() => {
-    const csv = generateCSVTemplate();
+    const csv = generateCSVTemplate(category);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "invoice_template.csv";
+    a.download = category === "financial_intermediation"
+      ? "fi_invoice_template.csv"
+      : "invoice_template.csv";
     a.click();
     URL.revokeObjectURL(url);
-  }, []);
+  }, [category]);
 
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
   const invoiceCount = new Set(records.map(r => r.invoiceNumber)).size;
+  const isFinancial = category === "financial_intermediation";
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -102,15 +123,36 @@ const InvoiceCreatorPage = () => {
         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
         <span>
           <strong>Important:</strong> Please use only the provided CSV template (Download CSV Template) to upload data. Using any other format will cause errors.
+          {isFinancial && (
+            <> For Financial Intermediation, provide <strong>Transaction Value</strong> and <strong>Service Margin</strong>. GST will be auto-calculated on the margin.</>
+          )}
         </span>
       </div>
 
+      {/* Invoice Category Selector */}
+      <InvoiceCategorySelector category={category} onChange={handleCategoryChange} />
+
       {/* Stats */}
       {records.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-2 ${isFinancial ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4`}>
           {[
             { label: "Line Items", value: records.length.toString(), icon: Hash },
-            { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
+            ...(isFinancial
+              ? [
+                  {
+                    label: "Total Txn Value",
+                    value: `₹${records.reduce((s, r) => s + (r.transactionValue || 0), 0).toLocaleString()}`,
+                    icon: Receipt,
+                  },
+                  {
+                    label: "Total Margin",
+                    value: `₹${totalAmount.toLocaleString()}`,
+                    icon: Receipt,
+                  },
+                ]
+              : [
+                  { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
+                ]),
             { label: "Unique Buyers", value: new Set(records.map(r => r.buyerName)).size.toString(), icon: FileText },
             { label: "Invoices", value: invoiceCount.toString(), icon: FileText },
           ].map((stat) => (
@@ -124,11 +166,16 @@ const InvoiceCreatorPage = () => {
 
       {/* Settings */}
       <CompanyForm company={company} onChange={setCompany} />
-      <GSTSettings gst={gst} onChange={setGst} />
+      <GSTSettings gst={gst} onChange={setGst} lockedForCategory={isFinancial} />
       <SignatorySettings signatory={signatory} onChange={setSignatory} />
 
+      {/* Financial Intermediation Note */}
+      {isFinancial && (
+        <FinancialIntermediationNote note={fiNote} onChange={setFiNote} />
+      )}
+
       {/* CSV Upload */}
-      <CSVUploader onDataLoaded={setRecords} />
+      <CSVUploader onDataLoaded={setRecords} category={category} />
 
       {/* Orders Table */}
       {records.length > 0 && (
@@ -136,7 +183,7 @@ const InvoiceCreatorPage = () => {
           <h2 className="text-lg font-semibold text-foreground mb-3">
             Imported Orders ({records.length})
           </h2>
-          <OrdersTable records={records} />
+          <OrdersTable records={records} category={category} />
         </div>
       )}
     </div>

@@ -4,14 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ReceiptText } from "lucide-react";
+import { ReceiptText, Lock } from "lucide-react";
 
 interface GSTSettingsProps {
   gst: GSTConfig;
   onChange: (gst: GSTConfig) => void;
+  /** When true, GST is locked to enabled/18%/IGST for financial intermediation */
+  lockedForCategory?: boolean;
 }
 
-export default function GSTSettings({ gst, onChange }: GSTSettingsProps) {
+export default function GSTSettings({ gst, onChange, lockedForCategory = false }: GSTSettingsProps) {
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-5">
       <div className="flex items-center gap-3">
@@ -20,17 +22,26 @@ export default function GSTSettings({ gst, onChange }: GSTSettingsProps) {
         </div>
         <div>
           <h3 className="font-semibold text-foreground">GST Settings</h3>
-          <p className="text-xs text-muted-foreground">Tax configuration for invoices</p>
+          <p className="text-xs text-muted-foreground">
+            {lockedForCategory
+              ? "GST auto-configured for Financial Intermediation (18% IGST on service margin)"
+              : "Tax configuration for invoices"}
+          </p>
         </div>
+        {lockedForCategory && <Lock className="w-4 h-4 text-muted-foreground ml-auto" />}
       </div>
 
       <div className="flex items-center gap-3">
         <Checkbox
           id="gst-enabled"
           checked={gst.enabled}
+          disabled={lockedForCategory}
           onCheckedChange={(checked) => onChange({ ...gst, enabled: !!checked })}
         />
-        <Label htmlFor="gst-enabled" className="cursor-pointer">Enable GST Invoice</Label>
+        <Label htmlFor="gst-enabled" className="cursor-pointer">
+          Enable GST Invoice
+          {lockedForCategory && <span className="text-xs text-muted-foreground ml-2">(auto-enabled)</span>}
+        </Label>
       </div>
 
       {gst.enabled && (
@@ -44,6 +55,7 @@ export default function GSTSettings({ gst, onChange }: GSTSettingsProps) {
                 max={28}
                 step={0.5}
                 value={gst.rate}
+                disabled={lockedForCategory}
                 onChange={(e) => onChange({ ...gst, rate: parseFloat(e.target.value) || 0 })}
               />
             </div>
@@ -51,6 +63,7 @@ export default function GSTSettings({ gst, onChange }: GSTSettingsProps) {
               <Label>Tax Type</Label>
               <Select
                 value={gst.type}
+                disabled={lockedForCategory}
                 onValueChange={(val) => onChange({ ...gst, type: val as GSTConfig["type"] })}
               >
                 <SelectTrigger>
@@ -64,20 +77,22 @@ export default function GSTSettings({ gst, onChange }: GSTSettingsProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border border-border p-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">Reverse Taxation (GST Inclusive)</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {gst.inclusive
-                  ? "GST is included in the rate — tax will be extracted from the amount"
-                  : "GST is charged above the sales rate — tax will be added on top"}
-              </p>
+          {!lockedForCategory && (
+            <div className="flex items-center justify-between rounded-lg border border-border p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Reverse Taxation (GST Inclusive)</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {gst.inclusive
+                    ? "GST is included in the rate — tax will be extracted from the amount"
+                    : "GST is charged above the sales rate — tax will be added on top"}
+                </p>
+              </div>
+              <Switch
+                checked={gst.inclusive}
+                onCheckedChange={(checked) => onChange({ ...gst, inclusive: checked })}
+              />
             </div>
-            <Switch
-              checked={gst.inclusive}
-              onCheckedChange={(checked) => onChange({ ...gst, inclusive: checked })}
-            />
-          </div>
+          )}
         </div>
       )}
     </div>

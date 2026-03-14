@@ -1,3 +1,5 @@
+export type InvoiceCategory = "it_services" | "financial_intermediation";
+
 export interface OrderRecord {
   invoiceNumber: string;
   description: string;
@@ -10,6 +12,12 @@ export interface OrderRecord {
   buyerGstin: string;
   buyerContact: string;
   date: string;
+  /** Only for financial intermediation invoices */
+  transactionValue?: number;
+  /** Only for financial intermediation invoices */
+  serviceMargin?: number;
+  /** Unit label (NOS, Service, etc.) */
+  unit?: string;
 }
 
 export interface InvoiceGroup {
@@ -21,6 +29,10 @@ export interface InvoiceGroup {
   date: string;
   items: OrderRecord[];
   totalAmount: number;
+  /** Invoice category */
+  category?: InvoiceCategory;
+  /** Editable note for the invoice */
+  note?: string;
 }
 
 export interface CompanyInfo {

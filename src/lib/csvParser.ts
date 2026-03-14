@@ -1,6 +1,6 @@
-import type { OrderRecord, InvoiceGroup } from "@/types/invoice";
+import type { OrderRecord, InvoiceGroup, InvoiceCategory } from "@/types/invoice";
 
-export function parseCSV(csvText: string): OrderRecord[] {
+export function parseCSV(csvText: string, category: InvoiceCategory = "it_services"): OrderRecord[] {
   const lines = csvText.trim().split("\n");
   if (lines.length < 2) return [];
 
@@ -11,24 +11,56 @@ export function parseCSV(csvText: string): OrderRecord[] {
     if (!line) continue;
 
     const cols = parseCSVLine(line);
-    const invoiceNumber = cols[0]?.trim() || "";
-    const description = cols[1]?.trim() || "";
-    const hsnSac = cols[2]?.trim() || "";
-    const quantity = parseFloat(cols[3]?.trim()) || 0;
-    const rate = parseFloat(cols[4]?.trim()) || 0;
-    const amount = parseFloat(cols[5]?.trim()) || quantity * rate;
-    const buyerName = cols[6]?.trim() || "";
-    const buyerAddress = cols[7]?.trim() || "";
-    const buyerGstin = cols[8]?.trim() || "";
-    const buyerContact = cols[9]?.trim() || "";
-    const date = cols[10]?.trim() || "";
 
-    if (!invoiceNumber || !description) continue;
+    if (category === "financial_intermediation") {
+      const invoiceNumber = cols[0]?.trim() || "";
+      const buyerName = cols[1]?.trim() || "";
+      const buyerAddress = cols[2]?.trim() || "";
+      const buyerGstin = cols[3]?.trim() || "";
+      const buyerContact = cols[4]?.trim() || "";
+      const date = cols[5]?.trim() || "";
+      const transactionValue = parseFloat(cols[6]?.trim()) || 0;
+      const serviceMargin = parseFloat(cols[7]?.trim()) || 0;
 
-    records.push({
-      invoiceNumber, description, hsnSac, quantity, rate, amount,
-      buyerName, buyerAddress, buyerGstin, buyerContact, date,
-    });
+      if (!invoiceNumber || serviceMargin <= 0) continue;
+
+      records.push({
+        invoiceNumber,
+        description: "Financial Intermediation Service – Asset Settlement",
+        hsnSac: "997152",
+        quantity: 1,
+        rate: serviceMargin,
+        amount: serviceMargin, // taxable value = service margin
+        buyerName,
+        buyerAddress,
+        buyerGstin,
+        buyerContact,
+        date,
+        unit: "Service",
+        transactionValue,
+        serviceMargin,
+      });
+    } else {
+      const invoiceNumber = cols[0]?.trim() || "";
+      const description = cols[1]?.trim() || "";
+      const hsnSac = cols[2]?.trim() || "";
+      const quantity = parseFloat(cols[3]?.trim()) || 0;
+      const rate = parseFloat(cols[4]?.trim()) || 0;
+      const amount = parseFloat(cols[5]?.trim()) || quantity * rate;
+      const buyerName = cols[6]?.trim() || "";
+      const buyerAddress = cols[7]?.trim() || "";
+      const buyerGstin = cols[8]?.trim() || "";
+      const buyerContact = cols[9]?.trim() || "";
+      const date = cols[10]?.trim() || "";
+
+      if (!invoiceNumber || !description) continue;
+
+      records.push({
+        invoiceNumber, description, hsnSac, quantity, rate, amount,
+        buyerName, buyerAddress, buyerGstin, buyerContact, date,
+        unit: "NOS",
+      });
+    }
   }
 
   return records;
@@ -54,7 +86,16 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-export function generateCSVTemplate(): string {
+export function generateCSVTemplate(category: InvoiceCategory = "it_services"): string {
+  if (category === "financial_intermediation") {
+    const headers = ["Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date", "Transaction Value", "Service Margin"];
+    const rows = [
+      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "2372.88"],
+      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "4500"],
+    ];
+    return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
+  }
+
   const headers = ["Invoice Number", "Description", "HSN/SAC", "Quantity", "Rate", "Amount", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date"];
   const rows = [
     ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026"],
@@ -64,7 +105,7 @@ export function generateCSVTemplate(): string {
   return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
 }
 
-export function groupByInvoice(records: OrderRecord[]): InvoiceGroup[] {
+export function groupByInvoice(records: OrderRecord[], category: InvoiceCategory = "it_services"): InvoiceGroup[] {
   const map = new Map<string, InvoiceGroup>();
 
   for (const record of records) {
@@ -82,6 +123,7 @@ export function groupByInvoice(records: OrderRecord[]): InvoiceGroup[] {
         date: record.date,
         items: [record],
         totalAmount: record.amount,
+        category,
       });
     }
   }

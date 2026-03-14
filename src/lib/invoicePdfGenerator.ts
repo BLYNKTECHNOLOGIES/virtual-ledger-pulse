@@ -6,10 +6,11 @@ interface PDFOptions {
   company: CompanyInfo;
   gst: GSTConfig;
   signatory: SignatoryConfig;
+  note?: string;
 }
 
 export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOptions): jsPDF {
-  const { company, gst, signatory } = options;
+  const { company, gst, signatory, note } = options;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = 210;
   const marginL = 15;
@@ -19,12 +20,14 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
   invoices.forEach((invoice, index) => {
     if (index > 0) doc.addPage();
 
+    const isFinancial = invoice.category === "financial_intermediation";
     let y = 15;
 
     doc.setDrawColor(0);
     doc.setLineWidth(0.5);
     doc.rect(10, 10, 190, 277);
 
+    // Header
     doc.setFontSize(16);
     doc.setFont("helvetica", "bold");
     const headerText = gst.enabled ? "TAX INVOICE" : "INVOICE";
@@ -40,12 +43,14 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.line(marginL, y, pageW - marginR, y);
     y += 5;
 
+    // Invoice number & date
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text(`Invoice No.: ${invoice.invoiceNumber}`, marginL, y);
     doc.text(`Dated: ${formatDate(invoice.date)}`, pageW - marginR, y, { align: "right" });
     y += 7;
 
+    // Company address
     doc.setFontSize(8);
     company.address.forEach((line) => {
       doc.text(line, marginL, y);
@@ -64,6 +69,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.line(marginL, y, pageW - marginR, y);
     y += 6;
 
+    // Buyer details
     if (invoice.buyerName) {
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
@@ -80,6 +86,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 4;
     }
 
+    // Table header
     doc.setLineWidth(0.3);
     doc.line(marginL, y, pageW - marginR, y);
     y += 1;
@@ -88,59 +95,99 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.setFont("helvetica", "bold");
     doc.text("Sl No.", marginL + 1, y + 5);
     doc.text("Description of Goods and Services", marginL + 15, y + 5);
-    doc.text("HSN/SAC", marginL + 95, y + 5);
-    doc.text("Quantity", marginL + 115, y + 5);
-    doc.text("Rate", marginL + 135, y + 5);
+    doc.text("HSN/SAC", marginL + 90, y + 5);
+    doc.text("Qty", marginL + 110, y + 5);
+    doc.text("Unit", marginL + 120, y + 5);
+    doc.text("Taxable Value", marginL + 135, y + 5);
+
+    if (gst.enabled) {
+      if (gst.type === "IGST") {
+        doc.text("IGST", marginL + 155, y + 5);
+      } else {
+        doc.text("CGST", marginL + 150, y + 5);
+        doc.text("SGST", marginL + 163, y + 5);
+      }
+    }
     doc.text("Amount", pageW - marginR - 2, y + 5, { align: "right" });
     y += 8;
 
     doc.line(marginL, y, pageW - marginR, y);
     y += 1;
 
+    // Table rows
     let subtotal = 0;
     invoice.items.forEach((item, itemIdx) => {
       doc.setFont("helvetica", "normal");
       doc.text(String(itemIdx + 1), marginL + 3, y + 5);
 
-      const descLines = doc.splitTextToSize(item.description, 75);
+      const descLines = doc.splitTextToSize(item.description, 70);
       descLines.forEach((line: string, i: number) => {
         doc.text(line, marginL + 15, y + 5 + i * 4);
       });
 
-      const itemBase = gst.enabled && gst.inclusive && gst.rate > 0
-        ? item.amount / (1 + gst.rate / 100)
-        : item.amount;
+      let taxableValue: number;
+      if (isFinancial) {
+        // For financial intermediation, taxable value = service margin
+        taxableValue = item.serviceMargin || item.amount;
+      } else {
+        taxableValue = gst.enabled && gst.inclusive && gst.rate > 0
+          ? item.amount / (1 + gst.rate / 100)
+          : item.amount;
+      }
 
-      doc.text(item.hsnSac || "-", marginL + 95, y + 5);
-      doc.text(item.quantity.toFixed(2), marginL + 115, y + 5);
-      doc.text(item.rate.toFixed(2), marginL + 135, y + 5);
-      doc.text(itemBase.toFixed(2), pageW - marginR - 2, y + 5, { align: "right" });
+      const unitLabel = item.unit || (isFinancial ? "Service" : "NOS");
 
-      subtotal += itemBase;
+      doc.text(item.hsnSac || "-", marginL + 90, y + 5);
+      doc.text(item.quantity.toFixed(0), marginL + 110, y + 5);
+      doc.text(unitLabel, marginL + 120, y + 5);
+      doc.text(taxableValue.toFixed(2), marginL + 140, y + 5);
+
+      if (gst.enabled && gst.rate > 0) {
+        if (gst.type === "IGST") {
+          const igst = taxableValue * (gst.rate / 100);
+          doc.text(igst.toFixed(2), marginL + 155, y + 5);
+        } else {
+          const half = taxableValue * (gst.rate / 200);
+          doc.text(half.toFixed(2), marginL + 150, y + 5);
+          doc.text(half.toFixed(2), marginL + 163, y + 5);
+        }
+      }
+
+      const rowTotal = gst.enabled && gst.rate > 0
+        ? taxableValue + taxableValue * (gst.rate / 100)
+        : taxableValue;
+
+      doc.text(rowTotal.toFixed(2), pageW - marginR - 2, y + 5, { align: "right" });
+
+      subtotal += taxableValue;
       y += Math.max(8, descLines.length * 4 + 4);
     });
 
     doc.line(marginL, y, pageW - marginR, y);
     y += 1;
 
-    let taxableValue = subtotal;
+    // Tax totals
     let igstAmt = 0, cgstAmt = 0, sgstAmt = 0;
-
     if (gst.enabled && gst.rate > 0) {
       if (gst.type === "IGST") {
-        igstAmt = taxableValue * (gst.rate / 100);
+        igstAmt = subtotal * (gst.rate / 100);
       } else {
-        cgstAmt = taxableValue * (gst.rate / 200);
-        sgstAmt = taxableValue * (gst.rate / 200);
+        cgstAmt = subtotal * (gst.rate / 200);
+        sgstAmt = subtotal * (gst.rate / 200);
       }
     }
 
     const totalWithTax = gst.enabled
-      ? (gst.inclusive ? invoice.totalAmount : subtotal + igstAmt + cgstAmt + sgstAmt)
-      : invoice.totalAmount;
+      ? subtotal + igstAmt + cgstAmt + sgstAmt
+      : subtotal;
+
+    // Sub Total
+    doc.setFont("helvetica", "normal");
+    doc.text("Sub Total", marginL + 15, y + 5);
+    doc.text(subtotal.toFixed(2), pageW - marginR - 2, y + 5, { align: "right" });
+    y += 7;
 
     if (gst.enabled && gst.rate > 0) {
-      doc.setFont("helvetica", "normal");
       if (gst.type === "IGST") {
         doc.text(`IGST @ ${gst.rate}%`, marginL + 15, y + 5);
         doc.text(igstAmt.toFixed(2), pageW - marginR - 2, y + 5, { align: "right" });
@@ -153,10 +200,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         doc.text(sgstAmt.toFixed(2), pageW - marginR - 2, y + 5, { align: "right" });
         y += 7;
       }
-      doc.line(marginL, y, pageW - marginR, y);
-      y += 1;
     }
 
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 1;
+
+    // Total
     doc.setFont("helvetica", "bold");
     doc.text("Total", marginL + 15, y + 5);
     doc.text(totalWithTax.toFixed(2), pageW - marginR - 2, y + 5, { align: "right" });
@@ -164,14 +213,37 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.line(marginL, y, pageW - marginR, y);
     y += 7;
 
+    // Amount in words
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text(`Amount Chargeable (in words): ${numberToWords(totalWithTax)}`, marginL, y);
-    y += 12;
+    y += 8;
 
+    // Transaction Reference section (Financial Intermediation only)
+    if (isFinancial && invoice.items.length > 0) {
+      const totalTransactionValue = invoice.items.reduce((s, it) => s + (it.transactionValue || 0), 0);
+      const totalServiceMargin = invoice.items.reduce((s, it) => s + (it.serviceMargin || 0), 0);
+      const totalGstOnMargin = totalServiceMargin * (gst.rate / 100);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("Transaction Reference", marginL, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text(`Transaction Value: ₹${totalTransactionValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
+      y += 4;
+      doc.text(`Service Margin: ₹${totalServiceMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
+      y += 4;
+      doc.text(`GST (${gst.rate}%): ₹${totalGstOnMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
+      y += 8;
+    }
+
+    // Bank details
     if (company.bankName || company.accountNumber) {
       doc.setFont("helvetica", "bold");
-      doc.text("Payment Received In:", marginL, y);
+      doc.setFontSize(9);
+      doc.text("Pay To:", marginL, y);
       y += 6;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
@@ -181,6 +253,20 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 6;
     }
 
+    // Note (for financial intermediation)
+    const invoiceNote = isFinancial ? (note || "") : "";
+    if (invoiceNote) {
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7);
+      const noteLines = doc.splitTextToSize(`Note: ${invoiceNote}`, contentW);
+      noteLines.forEach((line: string) => {
+        doc.text(line, marginL, y);
+        y += 3.5;
+      });
+      y += 4;
+    }
+
+    // Declaration
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text("Declaration", marginL, y);
@@ -194,6 +280,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 4;
     });
 
+    // Signatory
     y = 245;
     if (signatory.enabled) {
       if (signatory.signatureDataUrl) {
@@ -220,6 +307,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text("Authorised Signatory", pageW - marginR, y, { align: "right" });
     }
 
+    // Footer
     y = 282;
     doc.setFont("helvetica", "italic");
     doc.setFontSize(7);

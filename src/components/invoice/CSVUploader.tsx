@@ -1,13 +1,14 @@
 import { useState, useCallback } from "react";
 import { Upload, FileText, AlertCircle } from "lucide-react";
 import { parseCSV } from "@/lib/csvParser";
-import type { OrderRecord } from "@/types/invoice";
+import type { OrderRecord, InvoiceCategory } from "@/types/invoice";
 
 interface CSVUploaderProps {
   onDataLoaded: (records: OrderRecord[]) => void;
+  category?: InvoiceCategory;
 }
 
-export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
+export default function CSVUploader({ onDataLoaded, category = "it_services" }: CSVUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,16 +23,16 @@ export default function CSVUploader({ onDataLoaded }: CSVUploaderProps) {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const records = parseCSV(text);
+      const records = parseCSV(text, category);
       if (records.length === 0) {
-        setError("No valid records found in CSV");
+        setError("No valid records found in CSV. Make sure you are using the correct template for the selected invoice category.");
         return;
       }
       setFileName(file.name);
       onDataLoaded(records);
     };
     reader.readAsText(file);
-  }, [onDataLoaded]);
+  }, [onDataLoaded, category]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

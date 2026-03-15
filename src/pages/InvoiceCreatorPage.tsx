@@ -245,6 +245,8 @@ const InvoiceCreatorPage = () => {
           marginType={fiMarginType}
           marginPercentage={fiMarginPercentage}
           marginAmount={fiMarginAmount}
+          gstDirection={fiGstDirection}
+          taxableValue={fiTaxableValue}
           gstAmount={fiGstAmount}
           totalInvoice={fiTotalInvoice}
           onTransactionValueChange={setFiTransactionValue}
@@ -252,6 +254,7 @@ const InvoiceCreatorPage = () => {
           onMarginTypeChange={setFiMarginType}
           onMarginPercentageChange={setFiMarginPercentage}
           onMarginAmountChange={setFiMarginAbsolute}
+          onGstDirectionChange={setFiGstDirection}
         />
       )}
 

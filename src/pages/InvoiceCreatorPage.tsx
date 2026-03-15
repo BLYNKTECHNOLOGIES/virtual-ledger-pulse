@@ -11,7 +11,7 @@ import FinancialIntermediationNote, { DEFAULT_FI_NOTE } from "@/components/invoi
 import TransactionReferenceDetails from "@/components/invoice/TransactionReferenceDetails";
 import { generateInvoicesPDF } from "@/lib/invoicePdfGenerator";
 import { generateCSVTemplate, groupByInvoice } from "@/lib/csvParser";
-import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory, MarginType } from "@/types/invoice";
+import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory, MarginType, GSTDirection } from "@/types/invoice";
 
 const emptyCompany: CompanyInfo = {
   name: "",
@@ -51,6 +51,7 @@ const InvoiceCreatorPage = () => {
   const [fiMarginType, setFiMarginType] = useState<MarginType>("percentage");
   const [fiMarginPercentage, setFiMarginPercentage] = useState(0);
   const [fiMarginAbsolute, setFiMarginAbsolute] = useState(0);
+  const [fiGstDirection, setFiGstDirection] = useState<GSTDirection>("forward");
 
   const fiMarginAmount = useMemo(() => {
     if (fiMarginType === "percentage") {
@@ -59,8 +60,15 @@ const InvoiceCreatorPage = () => {
     return fiMarginAbsolute;
   }, [fiMarginType, fiTransactionValue, fiMarginPercentage, fiMarginAbsolute]);
 
-  const fiGstAmount = useMemo(() => fiMarginAmount * 0.18, [fiMarginAmount]);
-  const fiTotalInvoice = useMemo(() => fiMarginAmount + fiGstAmount, [fiMarginAmount, fiGstAmount]);
+  const fiTaxableValue = useMemo(() => {
+    if (fiGstDirection === "reverse") {
+      return fiMarginAmount / 1.18;
+    }
+    return fiMarginAmount;
+  }, [fiMarginAmount, fiGstDirection]);
+
+  const fiGstAmount = useMemo(() => fiTaxableValue * 0.18, [fiTaxableValue]);
+  const fiTotalInvoice = useMemo(() => fiTaxableValue + fiGstAmount, [fiTaxableValue, fiGstAmount]);
 
   const handleCategoryChange = useCallback((newCategory: InvoiceCategory) => {
     setCategory(newCategory);
@@ -95,8 +103,8 @@ const InvoiceCreatorPage = () => {
         description: "Financial Intermediation Service",
         hsnSac: "997152",
         quantity: 1,
-        rate: fiMarginAmount,
-        amount: fiMarginAmount,
+        rate: fiTaxableValue,
+        amount: fiTaxableValue,
         buyerName: "",
         buyerAddress: "",
         buyerGstin: "",
@@ -104,7 +112,7 @@ const InvoiceCreatorPage = () => {
         date: new Date().toLocaleDateString("en-GB"),
         unit: "Service",
         transactionValue: fiTransactionValue,
-        serviceMargin: fiMarginAmount,
+        serviceMargin: fiTaxableValue,
         utrReference: fiUtrReference,
         marginType: fiMarginType,
         marginPercentage: fiMarginType === "percentage" ? fiMarginPercentage : undefined,
@@ -237,6 +245,8 @@ const InvoiceCreatorPage = () => {
           marginType={fiMarginType}
           marginPercentage={fiMarginPercentage}
           marginAmount={fiMarginAmount}
+          gstDirection={fiGstDirection}
+          taxableValue={fiTaxableValue}
           gstAmount={fiGstAmount}
           totalInvoice={fiTotalInvoice}
           onTransactionValueChange={setFiTransactionValue}
@@ -244,6 +254,7 @@ const InvoiceCreatorPage = () => {
           onMarginTypeChange={setFiMarginType}
           onMarginPercentageChange={setFiMarginPercentage}
           onMarginAmountChange={setFiMarginAbsolute}
+          onGstDirectionChange={setFiGstDirection}
         />
       )}
 

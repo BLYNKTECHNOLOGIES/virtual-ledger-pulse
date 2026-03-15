@@ -1,4 +1,4 @@
-import type { MarginType } from "@/types/invoice";
+import type { MarginType, GSTDirection } from "@/types/invoice";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +10,8 @@ interface TransactionReferenceDetailsProps {
   marginType: MarginType;
   marginPercentage: number;
   marginAmount: number;
+  gstDirection: GSTDirection;
+  taxableValue: number;
   gstAmount: number;
   totalInvoice: number;
   onTransactionValueChange: (v: number) => void;
@@ -17,6 +19,7 @@ interface TransactionReferenceDetailsProps {
   onMarginTypeChange: (v: MarginType) => void;
   onMarginPercentageChange: (v: number) => void;
   onMarginAmountChange: (v: number) => void;
+  onGstDirectionChange: (v: GSTDirection) => void;
 }
 
 export default function TransactionReferenceDetails({
@@ -25,6 +28,8 @@ export default function TransactionReferenceDetails({
   marginType,
   marginPercentage,
   marginAmount,
+  gstDirection,
+  taxableValue,
   gstAmount,
   totalInvoice,
   onTransactionValueChange,
@@ -32,7 +37,10 @@ export default function TransactionReferenceDetails({
   onMarginTypeChange,
   onMarginPercentageChange,
   onMarginAmountChange,
+  onGstDirectionChange,
 }: TransactionReferenceDetailsProps) {
+  const showCalc = marginAmount > 0 || (marginPercentage > 0 && transactionValue > 0);
+
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-5">
       <div className="flex items-center gap-3">
@@ -72,7 +80,7 @@ export default function TransactionReferenceDetails({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <Label>Margin Type</Label>
           <Select value={marginType} onValueChange={(v) => onMarginTypeChange(v as MarginType)}>
@@ -115,23 +123,51 @@ export default function TransactionReferenceDetails({
             </>
           )}
         </div>
+        <div>
+          <Label>GST Calculation</Label>
+          <Select value={gstDirection} onValueChange={(v) => onGstDirectionChange(v as GSTDirection)}>
+            <SelectTrigger className="mt-1">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="forward">Forward (GST on top)</SelectItem>
+              <SelectItem value="reverse">Reverse (GST inclusive)</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            {gstDirection === "forward"
+              ? "GST will be added on top of the margin"
+              : "Margin entered includes GST — tax will be extracted"}
+          </p>
+        </div>
       </div>
 
       {/* Live calculation preview */}
-      {(marginAmount > 0 || (marginPercentage > 0 && transactionValue > 0)) && (
+      {showCalc && (
         <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-2">
           <div className="flex items-center gap-2 mb-2">
             <Calculator className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Auto-Calculated Values</span>
+            <span className="text-sm font-semibold text-foreground">
+              Auto-Calculated Values
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                ({gstDirection === "forward" ? "Forward — GST added on top" : "Reverse — GST extracted from margin"})
+              </span>
+            </span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
             <div>
               <p className="text-muted-foreground text-xs">Txn Value</p>
               <p className="font-mono font-semibold">₹{transactionValue.toLocaleString("en-IN")}</p>
             </div>
             <div>
-              <p className="text-muted-foreground text-xs">Service Margin</p>
+              <p className="text-muted-foreground text-xs">
+                {gstDirection === "forward" ? "Service Margin" : "Margin (Incl. GST)"}
+              </p>
               <p className="font-mono font-semibold">₹{marginAmount.toFixed(2)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Taxable Value</p>
+              <p className="font-mono font-semibold">₹{taxableValue.toFixed(2)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">GST (18%)</p>
@@ -145,6 +181,11 @@ export default function TransactionReferenceDetails({
           {marginType === "percentage" && marginPercentage > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
               Margin: {transactionValue.toLocaleString("en-IN")} × {marginPercentage}% = ₹{marginAmount.toFixed(2)}
+            </p>
+          )}
+          {gstDirection === "reverse" && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Taxable = ₹{marginAmount.toFixed(2)} ÷ 1.18 = ₹{taxableValue.toFixed(2)} | GST = ₹{marginAmount.toFixed(2)} − ₹{taxableValue.toFixed(2)} = ₹{gstAmount.toFixed(2)}
             </p>
           )}
           {marginAmount > transactionValue && transactionValue > 0 && (

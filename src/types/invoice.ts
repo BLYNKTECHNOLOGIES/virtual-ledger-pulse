@@ -3,6 +3,18 @@ export type InvoiceCategory = "it_services" | "financial_intermediation";
 export type MarginType = "percentage" | "absolute";
 export type GSTDirection = "forward" | "reverse";
 
+export type InvoiceTemplateId =
+  | "classic_green"
+  | "modern_minimal"
+  | "corporate_blue"
+  | "bold_dark"
+  | "elegant_maroon"
+  | "teal_business"
+  | "royal_purple"
+  | "sunset_orange"
+  | "classic_bw"
+  | "ocean_gradient";
+
 export interface OrderRecord {
   invoiceNumber: string;
   description: string;

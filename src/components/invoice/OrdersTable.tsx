@@ -23,6 +23,12 @@ export default function OrdersTable({ records, category = "it_services" }: Order
               {isFinancial && (
                 <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Txn Value</th>
               )}
+              {isFinancial && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">UTR</th>
+              )}
+              {isFinancial && (
+                <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Margin %</th>
+              )}
               <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 {isFinancial ? "Service Margin" : "Rate"}
               </th>

@@ -1,29 +1,23 @@
 import jsPDF from "jspdf";
-import type { InvoiceGroup, CompanyInfo, GSTConfig, SignatoryConfig } from "@/types/invoice";
+import type { InvoiceGroup, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceTemplateId } from "@/types/invoice";
 import { numberToWords, formatDate } from "@/lib/csvParser";
+import { getTemplate, type InvoiceTemplate } from "@/lib/invoiceTemplates";
 
 interface PDFOptions {
   company: CompanyInfo;
   gst: GSTConfig;
   signatory: SignatoryConfig;
   note?: string;
+  templateId?: InvoiceTemplateId;
 }
-
-// Green theme colors (RGB)
-const GREEN_PRIMARY: [number, number, number] = [118, 185, 71]; // #76B947
-const GREEN_DARK: [number, number, number] = [85, 150, 45];
-const WHITE: [number, number, number] = [255, 255, 255];
-const BLACK: [number, number, number] = [0, 0, 0];
-const GRAY_TEXT: [number, number, number] = [80, 80, 80];
-const LIGHT_BG: [number, number, number] = [245, 250, 242];
 
 function formatINR(val: number): string {
   return `Rs. ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-
 export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOptions): jsPDF {
-  const { company, gst, signatory, note } = options;
+  const { company, gst, signatory, note, templateId } = options;
+  const t = getTemplate(templateId || "classic_green");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = 210;
   const marginL = 14;
@@ -31,58 +25,112 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
   const contentW = pageW - marginL - marginR;
   const rightEdge = pageW - marginR;
 
+  const setColor = (c: [number, number, number]) => doc.setTextColor(c[0], c[1], c[2]);
+  const setFill = (c: [number, number, number]) => doc.setFillColor(c[0], c[1], c[2]);
+  const setDraw = (c: [number, number, number]) => doc.setDrawColor(c[0], c[1], c[2]);
+
   invoices.forEach((invoice, index) => {
     if (index > 0) doc.addPage();
 
     const isFinancial = invoice.category === "financial_intermediation";
-    let y = 14;
+    let y = 10;
+
+    // ── Top accent bar ──
+    if (t.style.topAccentBarHeight > 0) {
+      setFill(t.colors.primary);
+      doc.rect(0, 0, pageW, t.style.topAccentBarHeight, "F");
+      y = t.style.topAccentBarHeight + 6;
+    }
+
+    // ── Outer border ──
+    if (t.style.outerBorder) {
+      setDraw(t.colors.border);
+      doc.setLineWidth(0.5);
+      doc.rect(8, Math.max(t.style.topAccentBarHeight, 5), 194, 282 - Math.max(t.style.topAccentBarHeight, 5));
+      y = Math.max(y, t.style.topAccentBarHeight + 6);
+    }
+
+    // ── Title (top position) ──
+    if (t.style.titlePosition === "top") {
+      const headerText = gst.enabled ? "TAX INVOICE" : "INVOICE";
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      setColor(t.colors.primary);
+      if (t.style.titleAlign === "center") {
+        doc.text(headerText, pageW / 2, y + 5, { align: "center" });
+      } else {
+        doc.text(headerText, marginL, y + 5);
+      }
+      y += 14;
+    }
 
     // ── Company Header ──
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(...BLACK);
-    doc.text(company.name, marginL, y);
+    setColor(t.colors.bodyText);
+    if (t.style.companyAlign === "center") {
+      doc.text(company.name, pageW / 2, y, { align: "center" });
+    } else {
+      doc.text(company.name, marginL, y);
+    }
     y += 6;
 
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...GRAY_TEXT);
+    setColor(t.colors.mutedText);
     company.address.forEach((line) => {
-      doc.text(line, marginL, y);
+      if (t.style.companyAlign === "center") {
+        doc.text(line, pageW / 2, y, { align: "center" });
+      } else {
+        doc.text(line, marginL, y);
+      }
       y += 3.5;
     });
     if (company.email) {
-      doc.text(`Email: ${company.email}`, marginL, y);
+      const emailText = `Email: ${company.email}`;
+      if (t.style.companyAlign === "center") {
+        doc.text(emailText, pageW / 2, y, { align: "center" });
+      } else {
+        doc.text(emailText, marginL, y);
+      }
       y += 3.5;
     }
     if (company.gstin) {
-      doc.text(`GSTIN Number: ${company.gstin}`, marginL, y);
+      const gstinText = `GSTIN Number: ${company.gstin}`;
+      if (t.style.companyAlign === "center") {
+        doc.text(gstinText, pageW / 2, y, { align: "center" });
+      } else {
+        doc.text(gstinText, marginL, y);
+      }
       y += 3.5;
     }
     y += 2;
 
-    // ── Green divider line ──
-    doc.setDrawColor(...GREEN_PRIMARY);
-    doc.setLineWidth(0.8);
-    doc.line(marginL, y, rightEdge, y);
-    y += 6;
+    // ── Divider line ──
+    if (t.style.sectionDividers) {
+      setDraw(t.colors.primary);
+      doc.setLineWidth(0.8);
+      doc.line(marginL, y, rightEdge, y);
+      y += 6;
+    }
 
-    // ── "Tax Invoice" title ──
-    const headerText = gst.enabled ? "Tax Invoice" : "Invoice";
-    doc.setFontSize(18);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...GREEN_PRIMARY);
-    doc.text(headerText, pageW / 2, y, { align: "center" });
-    y += 3;
+    // ── Title (after-company position) ──
+    if (t.style.titlePosition === "after-company") {
+      const headerText = gst.enabled ? "Tax Invoice" : "Invoice";
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      setColor(t.colors.primary);
+      doc.text(headerText, pageW / 2, y, { align: "center" });
+      y += 3;
+      const titleW = doc.getTextWidth(headerText);
+      setDraw(t.colors.primary);
+      doc.setLineWidth(0.5);
+      doc.line(pageW / 2 - titleW / 2, y, pageW / 2 + titleW / 2, y);
+      y += 8;
+    }
 
-    // Green underline below title
-    const titleWidth = doc.getTextWidth(headerText);
-    doc.setLineWidth(0.5);
-    doc.line(pageW / 2 - titleWidth / 2, y, pageW / 2 + titleWidth / 2, y);
-    y += 8;
-
-    // ── Bill To (left) & Invoice Details (right) ──
-    doc.setTextColor(...BLACK);
+    // ── Bill To & Invoice Details ──
+    setColor(t.colors.bodyText);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text("Bill To", marginL, y);
@@ -91,7 +139,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     const billToStartY = y;
 
-    // Buyer info
     if (invoice.buyerName) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
@@ -99,17 +146,16 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 5;
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(...GRAY_TEXT);
+      setColor(t.colors.mutedText);
       if (invoice.buyerAddress) { doc.text(invoice.buyerAddress, marginL, y); y += 3.5; }
       if (invoice.buyerGstin) { doc.text(`GSTIN: ${invoice.buyerGstin}`, marginL, y); y += 3.5; }
       if (invoice.buyerContact) { doc.text(`Contact: ${invoice.buyerContact}`, marginL, y); y += 3.5; }
     }
 
-    // Invoice details on right side
     let ry = billToStartY;
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.setTextColor(...GRAY_TEXT);
+    setColor(t.colors.mutedText);
     doc.text(`Invoice No.: ${invoice.invoiceNumber}`, rightEdge, ry, { align: "right" });
     ry += 5;
     doc.text(`Date: ${formatDate(invoice.date)}`, rightEdge, ry, { align: "right" });
@@ -117,7 +163,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     y = Math.max(y, ry) + 10;
 
     // ── Items Table ──
-    // Table header with green background
     const colX = {
       hash: marginL + 1,
       name: marginL + 10,
@@ -131,13 +176,19 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     const headerH = 7;
 
-    // Green header bar
-    doc.setFillColor(...GREEN_PRIMARY);
-    doc.rect(marginL, y, contentW, headerH, "F");
+    // Table header
+    if (t.style.tableHeaderStyle === "filled") {
+      setFill(t.colors.primary);
+      doc.rect(marginL, y, contentW, headerH, "F");
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      setColor(t.colors.headerText);
+    } else {
+      doc.setFontSize(7.5);
+      doc.setFont("helvetica", "bold");
+      setColor(t.colors.bodyText);
+    }
 
-    doc.setFontSize(7.5);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...WHITE);
     const headerY = y + 5;
     doc.text("#", colX.hash, headerY);
     doc.text("Item name", colX.name, headerY);
@@ -149,22 +200,26 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst, headerY);
     }
     doc.text("Amount", colX.amount, headerY, { align: "right" });
+
+    if (t.style.tableHeaderStyle === "underline") {
+      setDraw(t.colors.border);
+      doc.setLineWidth(0.5);
+      doc.line(marginL, y + headerH, rightEdge, y + headerH);
+    }
     y += headerH + 1;
 
     // Table rows
     let subtotal = 0;
-    doc.setTextColor(...BLACK);
 
     invoice.items.forEach((item, itemIdx) => {
-      // Alternate row background
-      if (itemIdx % 2 === 0) {
-        doc.setFillColor(...LIGHT_BG);
+      if (t.style.altRows && itemIdx % 2 === 0) {
+        setFill(t.colors.altRowBg);
         doc.rect(marginL, y, contentW, 8, "F");
       }
 
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(...BLACK);
+      setColor(t.colors.bodyText);
 
       let taxableValue: number;
       if (isFinancial) {
@@ -180,7 +235,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
       doc.text(String(itemIdx + 1), colX.hash, rowY);
 
-      // Item name - wrap if needed
       const descLines = doc.splitTextToSize(item.description, 68);
       descLines.forEach((line: string, i: number) => {
         doc.text(line, colX.name, rowY + i * 3.5);
@@ -194,12 +248,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       if (gst.enabled && gst.rate > 0) {
         if (gst.type === "IGST") {
           const igst = taxableValue * (gst.rate / 100);
-          doc.text(`${formatINR(igst)}`, colX.igst, rowY);
-          doc.setFontSize(6.5);
-          doc.setTextColor(...GRAY_TEXT);
-          doc.text(`(${gst.rate}%)`, colX.igst + doc.getTextWidth(`${formatINR(taxableValue * (gst.rate / 100))}`) + 1, rowY);
-          doc.setFontSize(8);
-          doc.setTextColor(...BLACK);
+          doc.text(formatINR(igst), colX.igst, rowY);
         } else {
           const half = taxableValue * (gst.rate / 200);
           doc.text(formatINR(half * 2), colX.igst, rowY);
@@ -215,17 +264,14 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += Math.max(8, descLines.length * 3.5 + 5);
     });
 
-    // Spacer after items
     y += 5;
 
     // ── Totals Section ──
-    // Divider line
-    doc.setDrawColor(...GREEN_DARK);
+    setDraw(t.colors.primaryDark);
     doc.setLineWidth(0.3);
     doc.line(marginL, y, rightEdge, y);
     y += 1;
 
-    // Total row with IGST column value
     let igstAmt = 0, cgstAmt = 0, sgstAmt = 0;
     if (gst.enabled && gst.rate > 0) {
       if (gst.type === "IGST") {
@@ -237,8 +283,10 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     }
     const totalWithTax = gst.enabled ? subtotal + igstAmt + cgstAmt + sgstAmt : subtotal;
 
+    // Total row
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
+    setColor(t.colors.bodyText);
     doc.text("Total", marginL + 1, y + 5);
     if (gst.enabled && gst.rate > 0) {
       doc.text(formatINR(igstAmt + cgstAmt + sgstAmt), colX.igst, y + 5);
@@ -246,17 +294,17 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text(formatINR(totalWithTax), colX.amount, y + 5, { align: "right" });
     y += 8;
 
-    doc.setDrawColor(...GREEN_DARK);
+    setDraw(t.colors.primaryDark);
     doc.line(marginL, y, rightEdge, y);
     y += 6;
 
-    // Sub Total & GST breakdown (right-aligned section)
+    // Sub Total & GST breakdown (right side)
     const labelX = pageW / 2 + 10;
     const valX = rightEdge;
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.setTextColor(...GRAY_TEXT);
+    setColor(t.colors.mutedText);
     doc.text("Sub Total", labelX, y);
     doc.text(formatINR(subtotal), valX, y, { align: "right" });
     y += 5;
@@ -276,20 +324,32 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       }
     }
 
-    // Green Total bar
-    doc.setFillColor(...GREEN_PRIMARY);
-    doc.rect(labelX - 2, y - 1, valX - labelX + 4, 7, "F");
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...WHITE);
-    doc.text("Total", labelX, y + 4);
-    doc.text(formatINR(totalWithTax), valX, y + 4, { align: "right" });
+    // Total bar or line
+    if (t.style.totalBar) {
+      setFill(t.colors.primary);
+      doc.rect(labelX - 2, y - 1, valX - labelX + 4, 7, "F");
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      setColor(t.colors.totalBarText);
+      doc.text("Total", labelX, y + 4);
+      doc.text(formatINR(totalWithTax), valX, y + 4, { align: "right" });
+    } else {
+      setDraw(t.colors.border);
+      doc.setLineWidth(0.5);
+      doc.line(labelX - 2, y - 1, valX + 2, y - 1);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      setColor(t.colors.bodyText);
+      doc.text("Total", labelX, y + 4);
+      doc.text(formatINR(totalWithTax), valX, y + 4, { align: "right" });
+      doc.line(labelX - 2, y + 6, valX + 2, y + 6);
+    }
     y += 10;
 
-    doc.setTextColor(...BLACK);
+    setColor(t.colors.bodyText);
 
-    // ── Invoice Amount In Words (left side) ──
-    const wordsStartY = y - 20; // align with subtotal section
+    // ── Amount In Words (left side) ──
+    const wordsStartY = y - 20;
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.text("Invoice Amount In Words", marginL, wordsStartY);
@@ -303,7 +363,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     y += 2;
 
-    // ── Transaction Reference (Financial Intermediation only) ──
+    // ── Transaction Reference (FI only) ──
     if (isFinancial && invoice.items.length > 0) {
       const totalTransactionValue = invoice.items.reduce((s, it) => s + (it.transactionValue || 0), 0);
       const totalServiceMargin = invoice.items.reduce((s, it) => s + (it.serviceMargin || 0), 0);
@@ -315,18 +375,14 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         .map(it => it.marginPercentage);
       const uniquePcts = [...new Set(marginPcts)];
 
-      // Section header
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.setTextColor(...GREEN_DARK);
+      setColor(t.colors.primaryDark);
       doc.text("Transaction Reference", marginL, y);
       y += 6;
 
-      // Reference details in a clean format
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
-      doc.setTextColor(...BLACK);
-
+      setColor(t.colors.bodyText);
       const refLabelX = marginL + 2;
       const refValX = marginL + 52;
 
@@ -370,12 +426,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     if (invoiceNote) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8.5);
-      doc.setTextColor(...BLACK);
+      setColor(t.colors.bodyText);
       doc.text("Terms And Conditions", marginL, y);
       y += 4;
       doc.setFont("helvetica", "italic");
       doc.setFontSize(7.5);
-      doc.setTextColor(...GRAY_TEXT);
+      setColor(t.colors.mutedText);
       const noteLines = doc.splitTextToSize(invoiceNote, contentW);
       noteLines.forEach((line: string) => {
         doc.text(line, marginL, y);
@@ -388,12 +444,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     if (company.bankName || company.accountNumber) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.setTextColor(...BLACK);
+      setColor(t.colors.bodyText);
       doc.text("Pay To:", marginL, y);
       y += 5;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.setTextColor(...GRAY_TEXT);
+      setColor(t.colors.mutedText);
       if (company.bankName) { doc.text(`Bank Name: ${company.bankName}`, marginL, y); y += 4; }
       if (company.accountNumber) { doc.text(`Bank Account No.: ${company.accountNumber}`, marginL, y); y += 4; }
       if (company.accountName) { doc.text(`Account Holder's Name: ${company.accountName}`, marginL, y); y += 4; }
@@ -403,12 +459,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     // ── Declaration ──
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
-    doc.setTextColor(...BLACK);
+    setColor(t.colors.bodyText);
     doc.text("Declaration", marginL, y);
     y += 4;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.setTextColor(...GRAY_TEXT);
+    setColor(t.colors.mutedText);
     const declText = "We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.";
     const declLines = doc.splitTextToSize(declText, contentW);
     declLines.forEach((line: string) => {
@@ -416,7 +472,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 3.5;
     });
 
-    // ── Signatory (bottom right) ──
+    // ── Signatory ──
     let sigY = 255;
     if (signatory.enabled) {
       if (signatory.signatureDataUrl) {
@@ -426,7 +482,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       }
       doc.setFontSize(8.5);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...BLACK);
+      setColor(t.colors.bodyText);
       doc.text(company.name, rightEdge, sigY, { align: "right" });
       sigY += 5;
       if (signatory.name) {
@@ -439,7 +495,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     } else {
       doc.setFontSize(8.5);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...BLACK);
+      setColor(t.colors.bodyText);
       doc.text(company.name, rightEdge, sigY, { align: "right" });
       sigY += 8;
       doc.text("Authorised Signatory", rightEdge, sigY, { align: "right" });
@@ -448,7 +504,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     // ── Footer ──
     doc.setFont("helvetica", "italic");
     doc.setFontSize(7);
-    doc.setTextColor(...GRAY_TEXT);
+    setColor(t.colors.mutedText);
     doc.text('"This is a computer-generated invoice"', pageW / 2, 285, { align: "center" });
   });
 

@@ -7,9 +7,10 @@ import CompanyForm from "@/components/invoice/CompanyForm";
 import SignatorySettings from "@/components/invoice/SignatorySettings";
 import InvoiceCategorySelector from "@/components/invoice/InvoiceCategorySelector";
 import FinancialIntermediationNote, { DEFAULT_FI_NOTE } from "@/components/invoice/FinancialIntermediationNote";
+import TemplateSelector from "@/components/invoice/TemplateSelector";
 import { generateInvoicesPDF } from "@/lib/invoicePdfGenerator";
 import { generateCSVTemplate, groupByInvoice } from "@/lib/csvParser";
-import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory } from "@/types/invoice";
+import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory, InvoiceTemplateId } from "@/types/invoice";
 
 const emptyCompany: CompanyInfo = {
   name: "",
@@ -42,11 +43,11 @@ const InvoiceCreatorPage = () => {
   const [generating, setGenerating] = useState(false);
   const [category, setCategory] = useState<InvoiceCategory>("it_services");
   const [fiNote, setFiNote] = useState(DEFAULT_FI_NOTE);
+  const [templateId, setTemplateId] = useState<InvoiceTemplateId>("classic_green");
 
   const handleCategoryChange = useCallback((newCategory: InvoiceCategory) => {
     setCategory(newCategory);
     setRecords([]);
-    // Reset GST to default - will be overridden by CSV
     setGst(defaultGST);
   }, []);
 
@@ -66,6 +67,7 @@ const InvoiceCreatorPage = () => {
           gst,
           signatory,
           note: category === "financial_intermediation" ? fiNote : undefined,
+          templateId,
         });
         doc.save(`invoices_${grouped.length}_orders.pdf`);
       } catch (err) {
@@ -73,7 +75,7 @@ const InvoiceCreatorPage = () => {
       }
       setGenerating(false);
     }, 100);
-  }, [records, company, gst, signatory, category, fiNote]);
+  }, [records, company, gst, signatory, category, fiNote, templateId]);
 
   const handleDownloadTemplate = useCallback(() => {
     const csv = generateCSVTemplate(category);
@@ -94,7 +96,7 @@ const InvoiceCreatorPage = () => {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      {/* Header with actions */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
@@ -120,20 +122,20 @@ const InvoiceCreatorPage = () => {
         </div>
       </div>
 
-      {/* Info banner */}
+      {/* Info */}
       <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 text-sm rounded-md">
         <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
         <span>
-          <strong>Important:</strong> All invoice data including GST settings, margin details, and transaction references are now controlled via the CSV.
-          Download the template to see the required columns.
-          {isFinancial && (
-            <> The FI template includes columns for <strong>Transaction Value</strong>, <strong>UTR</strong>, <strong>Margin Type/Percentage/Amount</strong>, <strong>GST Direction</strong>, <strong>GST Rate</strong>, and <strong>GST Type</strong>.</>
-          )}
+          <strong>Important:</strong> All invoice data including GST settings, margin details, and transaction references are controlled via the CSV.
+          Download the template to see required columns.
         </span>
       </div>
 
-      {/* Invoice Category Selector */}
+      {/* Invoice Category */}
       <InvoiceCategorySelector category={category} onChange={handleCategoryChange} />
+
+      {/* Template Selector */}
+      <TemplateSelector selected={templateId} onChange={setTemplateId} />
 
       {/* Stats */}
       {records.length > 0 && (
@@ -167,7 +169,7 @@ const InvoiceCreatorPage = () => {
         </div>
       )}
 
-      {/* GST detected from CSV indicator */}
+      {/* GST detected */}
       {records.length > 0 && gst.enabled && (
         <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-800 px-4 py-2 text-sm rounded-md">
           <Receipt className="h-4 w-4 flex-shrink-0" />
@@ -178,13 +180,13 @@ const InvoiceCreatorPage = () => {
         </div>
       )}
 
-      {/* Company & Payment Details (with saved profiles) */}
+      {/* Company & Payment Details */}
       <CompanyForm company={company} onChange={setCompany} />
 
-      {/* Signatory Settings */}
+      {/* Signatory */}
       <SignatorySettings signatory={signatory} onChange={setSignatory} />
 
-      {/* Financial Intermediation Note */}
+      {/* FI Note */}
       {isFinancial && (
         <FinancialIntermediationNote note={fiNote} onChange={setFiNote} />
       )}

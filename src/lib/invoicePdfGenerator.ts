@@ -256,9 +256,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         }
       }
 
-      const rowTotal = gst.enabled && gst.rate > 0
-        ? taxableValue + taxableValue * (gst.rate / 100)
-        : taxableValue;
+      const rowTotal = hasGst ? taxableValue + taxableValue * (gst.rate / 100) : taxableValue;
       doc.text(formatINR(rowTotal), colX.amount, rowY, { align: "right" });
 
       subtotal += taxableValue;

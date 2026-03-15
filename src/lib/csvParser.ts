@@ -1,10 +1,17 @@
-import type { OrderRecord, InvoiceGroup, InvoiceCategory } from "@/types/invoice";
+import type { OrderRecord, InvoiceGroup, InvoiceCategory, GSTConfig } from "@/types/invoice";
 
-export function parseCSV(csvText: string, category: InvoiceCategory = "it_services"): OrderRecord[] {
+export interface CSVParseResult {
+  records: OrderRecord[];
+  gst: GSTConfig;
+}
+
+export function parseCSV(csvText: string, category: InvoiceCategory = "it_services"): CSVParseResult {
   const lines = csvText.trim().split("\n");
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { records: [], gst: { enabled: false, rate: 18, type: "IGST", inclusive: false } };
 
   const records: OrderRecord[] = [];
+  let detectedGst: GSTConfig = { enabled: false, rate: 18, type: "IGST", inclusive: false };
+  let gstDetected = false;
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -13,6 +20,9 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
     const cols = parseCSVLine(line);
 
     if (category === "financial_intermediation") {
+      // Columns: Invoice Number, Buyer Name, Buyer Address, Buyer GSTIN, Buyer Contact, Date,
+      //          Transaction Value, UTR Reference, Margin Type, Margin Percentage, Margin Amount,
+      //          GST Direction, GST Rate, GST Type
       const invoiceNumber = cols[0]?.trim() || "";
       const buyerName = cols[1]?.trim() || "";
       const buyerAddress = cols[2]?.trim() || "";
@@ -25,6 +35,17 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const marginType = marginTypeRaw === "absolute" ? "absolute" as const : "percentage" as const;
       const marginPercentage = parseFloat(cols[9]?.trim()) || 0;
       const marginAmountRaw = parseFloat(cols[10]?.trim()) || 0;
+      const gstDirectionRaw = (cols[11]?.trim() || "forward").toLowerCase();
+      const gstDirection = gstDirectionRaw === "reverse" ? "reverse" as const : "forward" as const;
+      const gstRate = parseFloat(cols[12]?.trim()) || 18;
+      const gstTypeRaw = (cols[13]?.trim() || "IGST").toUpperCase();
+      const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+
+      // Detect GST from first valid row
+      if (!gstDetected) {
+        detectedGst = { enabled: true, rate: gstRate, type: gstType, inclusive: false };
+        gstDetected = true;
+      }
 
       // Calculate service margin
       let serviceMargin: number;
@@ -39,6 +60,12 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         serviceMargin = transactionValue;
       }
 
+      // Apply GST direction (reverse = extract GST from margin)
+      let taxableValue = serviceMargin;
+      if (gstDirection === "reverse" && gstRate > 0) {
+        taxableValue = serviceMargin / (1 + gstRate / 100);
+      }
+
       if (!invoiceNumber || serviceMargin <= 0) continue;
 
       records.push({
@@ -46,8 +73,8 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         description: "Financial Intermediation Service",
         hsnSac: "997152",
         quantity: 1,
-        rate: serviceMargin,
-        amount: serviceMargin,
+        rate: taxableValue,
+        amount: taxableValue,
         buyerName,
         buyerAddress,
         buyerGstin,
@@ -55,12 +82,15 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         date,
         unit: "Service",
         transactionValue,
-        serviceMargin,
+        serviceMargin: taxableValue,
         utrReference,
         marginType,
         marginPercentage: marginType === "percentage" ? marginPercentage : undefined,
       });
     } else {
+      // IT Services columns: Invoice Number, Description, HSN/SAC, Quantity, Rate, Amount,
+      //                      Buyer Name, Buyer Address, Buyer GSTIN, Buyer Contact, Date,
+      //                      GST Rate, GST Type, GST Inclusive
       const invoiceNumber = cols[0]?.trim() || "";
       const description = cols[1]?.trim() || "";
       const hsnSac = cols[2]?.trim() || "";
@@ -72,6 +102,17 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const buyerGstin = cols[8]?.trim() || "";
       const buyerContact = cols[9]?.trim() || "";
       const date = cols[10]?.trim() || "";
+      const gstRate = parseFloat(cols[11]?.trim());
+      const gstTypeRaw = (cols[12]?.trim() || "").toUpperCase();
+      const gstInclusiveRaw = (cols[13]?.trim() || "").toLowerCase();
+
+      // Detect GST settings from first row that has them
+      if (!gstDetected && !isNaN(gstRate)) {
+        const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+        const gstInclusive = gstInclusiveRaw === "yes" || gstInclusiveRaw === "true" || gstInclusiveRaw === "1";
+        detectedGst = { enabled: gstRate > 0, rate: gstRate, type: gstType, inclusive: gstInclusive };
+        gstDetected = true;
+      }
 
       if (!invoiceNumber || !description) continue;
 
@@ -83,7 +124,7 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
     }
   }
 
-  return records;
+  return { records, gst: detectedGst };
 }
 
 function parseCSVLine(line: string): string[] {
@@ -108,19 +149,27 @@ function parseCSVLine(line: string): string[] {
 
 export function generateCSVTemplate(category: InvoiceCategory = "it_services"): string {
   if (category === "financial_intermediation") {
-    const headers = ["Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage", "Margin Amount"];
+    const headers = [
+      "Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date",
+      "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage", "Margin Amount",
+      "GST Direction", "GST Rate", "GST Type"
+    ];
     const rows = [
-      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "UTIB12345678", "percentage", "3", ""],
-      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "HDFC98765432", "absolute", "", "4500"],
+      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "UTIB12345678", "percentage", "3", "", "forward", "18", "IGST"],
+      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }
 
-  const headers = ["Invoice Number", "Description", "HSN/SAC", "Quantity", "Rate", "Amount", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date"];
+  const headers = [
+    "Invoice Number", "Description", "HSN/SAC", "Quantity", "Rate", "Amount",
+    "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date",
+    "GST Rate", "GST Type", "GST Inclusive"
+  ];
   const rows = [
-    ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026"],
-    ["INV-001", "Server Maintenance", "998314", "2", "10000", "20000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026"],
-    ["INV-002", "UI/UX Design", "998314", "1", "30000", "30000", "XYZ Corp", "456 Park Avenue Mumbai", "27FGHIJ5678K2Z3", "9123456780", "17/02/2026"],
+    ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no"],
+    ["INV-001", "Server Maintenance", "998314", "2", "10000", "20000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no"],
+    ["INV-002", "UI/UX Design", "998314", "1", "30000", "30000", "XYZ Corp", "456 Park Avenue Mumbai", "27FGHIJ5678K2Z3", "9123456780", "17/02/2026", "18", "CGST_SGST", "no"],
   ];
   return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
 }

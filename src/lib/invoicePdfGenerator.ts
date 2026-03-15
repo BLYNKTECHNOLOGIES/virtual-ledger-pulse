@@ -225,17 +225,36 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       const totalServiceMargin = invoice.items.reduce((s, it) => s + (it.serviceMargin || 0), 0);
       const totalGstOnMargin = totalServiceMargin * (gst.rate / 100);
 
+      // Collect UTRs
+      const utrs = invoice.items
+        .map(it => it.utrReference)
+        .filter(Boolean);
+
+      // Determine margin percentage display
+      const marginPcts = invoice.items
+        .filter(it => it.marginType === "percentage" && it.marginPercentage)
+        .map(it => it.marginPercentage);
+      const uniquePcts = [...new Set(marginPcts)];
+
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.text("Transaction Reference", marginL, y);
       y += 6;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
-      doc.text(`Transaction Value: ₹${totalTransactionValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
+      doc.text(`Transaction Value: \u20B9${totalTransactionValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
       y += 4;
-      doc.text(`Service Margin: ₹${totalServiceMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
+      if (utrs.length > 0) {
+        doc.text(`UTR / Payment Reference: ${utrs.join(", ")}`, marginL, y);
+        y += 4;
+      }
+      if (uniquePcts.length > 0) {
+        doc.text(`Margin Percentage: ${uniquePcts.join(", ")}%`, marginL, y);
+        y += 4;
+      }
+      doc.text(`Service Margin: \u20B9${totalServiceMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
       y += 4;
-      doc.text(`GST (${gst.rate}%): ₹${totalGstOnMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
+      doc.text(`GST (${gst.rate}%): \u20B9${totalGstOnMargin.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`, marginL, y);
       y += 8;
     }
 

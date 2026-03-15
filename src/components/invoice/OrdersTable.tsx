@@ -23,6 +23,12 @@ export default function OrdersTable({ records, category = "it_services" }: Order
               {isFinancial && (
                 <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Txn Value</th>
               )}
+              {isFinancial && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">UTR</th>
+              )}
+              {isFinancial && (
+                <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Margin %</th>
+              )}
               <th className="text-right px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                 {isFinancial ? "Service Margin" : "Rate"}
               </th>
@@ -47,6 +53,14 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 <td className="px-4 py-3 text-muted-foreground">{r.unit || "NOS"}</td>
                 {isFinancial && (
                   <td className="px-4 py-3 text-right font-mono">₹{(r.transactionValue || 0).toLocaleString()}</td>
+                )}
+                {isFinancial && (
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.utrReference || "-"}</td>
+                )}
+                {isFinancial && (
+                  <td className="px-4 py-3 text-right font-mono">
+                    {r.marginType === "percentage" && r.marginPercentage ? `${r.marginPercentage}%` : "-"}
+                  </td>
                 )}
                 <td className="px-4 py-3 text-right font-mono">
                   ₹{isFinancial ? (r.serviceMargin || 0).toFixed(2) : r.rate.toFixed(2)}

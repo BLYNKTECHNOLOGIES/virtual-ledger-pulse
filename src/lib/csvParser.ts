@@ -20,17 +20,34 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const buyerContact = cols[4]?.trim() || "";
       const date = cols[5]?.trim() || "";
       const transactionValue = parseFloat(cols[6]?.trim()) || 0;
-      const serviceMargin = parseFloat(cols[7]?.trim()) || 0;
+      const utrReference = cols[7]?.trim() || "";
+      const marginTypeRaw = (cols[8]?.trim() || "percentage").toLowerCase();
+      const marginType = marginTypeRaw === "absolute" ? "absolute" as const : "percentage" as const;
+      const marginPercentage = parseFloat(cols[9]?.trim()) || 0;
+      const marginAmountRaw = parseFloat(cols[10]?.trim()) || 0;
+
+      // Calculate service margin
+      let serviceMargin: number;
+      if (marginType === "percentage") {
+        serviceMargin = transactionValue * (marginPercentage / 100);
+      } else {
+        serviceMargin = marginAmountRaw;
+      }
+
+      // Validation: margin cannot exceed transaction value
+      if (transactionValue > 0 && serviceMargin > transactionValue) {
+        serviceMargin = transactionValue;
+      }
 
       if (!invoiceNumber || serviceMargin <= 0) continue;
 
       records.push({
         invoiceNumber,
-        description: "Financial Intermediation Service – Asset Settlement",
+        description: "Financial Intermediation Service",
         hsnSac: "997152",
         quantity: 1,
         rate: serviceMargin,
-        amount: serviceMargin, // taxable value = service margin
+        amount: serviceMargin,
         buyerName,
         buyerAddress,
         buyerGstin,
@@ -39,6 +56,9 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         unit: "Service",
         transactionValue,
         serviceMargin,
+        utrReference,
+        marginType,
+        marginPercentage: marginType === "percentage" ? marginPercentage : undefined,
       });
     } else {
       const invoiceNumber = cols[0]?.trim() || "";
@@ -88,10 +108,10 @@ function parseCSVLine(line: string): string[] {
 
 export function generateCSVTemplate(category: InvoiceCategory = "it_services"): string {
   if (category === "financial_intermediation") {
-    const headers = ["Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date", "Transaction Value", "Service Margin"];
+    const headers = ["Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage", "Margin Amount"];
     const rows = [
-      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "2372.88"],
-      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "4500"],
+      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "UTIB12345678", "percentage", "3", ""],
+      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "HDFC98765432", "absolute", "", "4500"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }

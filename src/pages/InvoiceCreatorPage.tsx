@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Download, Receipt, Hash, FileText, FileDown, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CSVUploader from "@/components/invoice/CSVUploader";
@@ -8,9 +8,10 @@ import GSTSettings from "@/components/invoice/GSTSettings";
 import SignatorySettings from "@/components/invoice/SignatorySettings";
 import InvoiceCategorySelector from "@/components/invoice/InvoiceCategorySelector";
 import FinancialIntermediationNote, { DEFAULT_FI_NOTE } from "@/components/invoice/FinancialIntermediationNote";
+import TransactionReferenceDetails from "@/components/invoice/TransactionReferenceDetails";
 import { generateInvoicesPDF } from "@/lib/invoicePdfGenerator";
 import { generateCSVTemplate, groupByInvoice } from "@/lib/csvParser";
-import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory } from "@/types/invoice";
+import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory, MarginType } from "@/types/invoice";
 
 const emptyCompany: CompanyInfo = {
   name: "",
@@ -44,21 +45,77 @@ const InvoiceCreatorPage = () => {
   const [category, setCategory] = useState<InvoiceCategory>("it_services");
   const [fiNote, setFiNote] = useState(DEFAULT_FI_NOTE);
 
+  // Transaction Reference state (for manual single-invoice FI entry)
+  const [fiTransactionValue, setFiTransactionValue] = useState(0);
+  const [fiUtrReference, setFiUtrReference] = useState("");
+  const [fiMarginType, setFiMarginType] = useState<MarginType>("percentage");
+  const [fiMarginPercentage, setFiMarginPercentage] = useState(0);
+  const [fiMarginAbsolute, setFiMarginAbsolute] = useState(0);
+
+  const fiMarginAmount = useMemo(() => {
+    if (fiMarginType === "percentage") {
+      return fiTransactionValue * (fiMarginPercentage / 100);
+    }
+    return fiMarginAbsolute;
+  }, [fiMarginType, fiTransactionValue, fiMarginPercentage, fiMarginAbsolute]);
+
+  const fiGstAmount = useMemo(() => fiMarginAmount * 0.18, [fiMarginAmount]);
+  const fiTotalInvoice = useMemo(() => fiMarginAmount + fiGstAmount, [fiMarginAmount, fiGstAmount]);
+
   const handleCategoryChange = useCallback((newCategory: InvoiceCategory) => {
     setCategory(newCategory);
-    setRecords([]); // Clear records when switching category
+    setRecords([]);
     if (newCategory === "financial_intermediation") {
-      // Auto-enable GST at 18% for financial intermediation
       setGst({ enabled: true, rate: 18, type: "IGST", inclusive: false });
     }
+    // Reset FI fields
+    setFiTransactionValue(0);
+    setFiUtrReference("");
+    setFiMarginType("percentage");
+    setFiMarginPercentage(0);
+    setFiMarginAbsolute(0);
   }, []);
 
+  // When CSV is loaded for FI, records already have margin info from CSV.
+  // The TransactionReferenceDetails component is for manual single-invoice entry
+  // that populates a record when no CSV is uploaded.
+
   const handleGenerate = useCallback(() => {
-    if (records.length === 0) return;
+    let finalRecords = records;
+
+    // If FI mode and no CSV records, create a single record from manual fields
+    if (category === "financial_intermediation" && records.length === 0 && fiMarginAmount > 0) {
+      // Validation
+      if (fiTransactionValue > 0 && fiMarginAmount > fiTransactionValue) {
+        alert("Margin cannot exceed Transaction Value");
+        return;
+      }
+      finalRecords = [{
+        invoiceNumber: "FI-001",
+        description: "Financial Intermediation Service",
+        hsnSac: "997152",
+        quantity: 1,
+        rate: fiMarginAmount,
+        amount: fiMarginAmount,
+        buyerName: "",
+        buyerAddress: "",
+        buyerGstin: "",
+        buyerContact: "",
+        date: new Date().toLocaleDateString("en-GB"),
+        unit: "Service",
+        transactionValue: fiTransactionValue,
+        serviceMargin: fiMarginAmount,
+        utrReference: fiUtrReference,
+        marginType: fiMarginType,
+        marginPercentage: fiMarginType === "percentage" ? fiMarginPercentage : undefined,
+      }];
+    }
+
+    if (finalRecords.length === 0) return;
     setGenerating(true);
     setTimeout(() => {
       try {
-        const grouped = groupByInvoice(records, category);
+        const grouped = groupByInvoice(finalRecords, category);
         const doc = generateInvoicesPDF(grouped, {
           company,
           gst,
@@ -71,7 +128,7 @@ const InvoiceCreatorPage = () => {
       }
       setGenerating(false);
     }, 100);
-  }, [records, company, gst, signatory, category, fiNote]);
+  }, [records, company, gst, signatory, category, fiNote, fiMarginAmount, fiTransactionValue, fiUtrReference, fiMarginType, fiMarginPercentage]);
 
   const handleDownloadTemplate = useCallback(() => {
     const csv = generateCSVTemplate(category);
@@ -89,6 +146,7 @@ const InvoiceCreatorPage = () => {
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
   const invoiceCount = new Set(records.map(r => r.invoiceNumber)).size;
   const isFinancial = category === "financial_intermediation";
+  const canGenerate = records.length > 0 || (isFinancial && fiMarginAmount > 0);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -109,10 +167,12 @@ const InvoiceCreatorPage = () => {
             <FileDown className="w-4 h-4" />
             Download CSV Template
           </Button>
-          {records.length > 0 && (
+          {canGenerate && (
             <Button onClick={handleGenerate} disabled={generating} size="lg" className="gap-2">
               <Download className="w-4 h-4" />
-              {generating ? "Generating..." : `Download ${invoiceCount} Invoice${invoiceCount > 1 ? 's' : ''}`}
+              {generating ? "Generating..." : records.length > 0
+                ? `Download ${invoiceCount} Invoice${invoiceCount > 1 ? 's' : ''}`
+                : "Generate Invoice"}
             </Button>
           )}
         </div>
@@ -124,7 +184,7 @@ const InvoiceCreatorPage = () => {
         <span>
           <strong>Important:</strong> Please use only the provided CSV template (Download CSV Template) to upload data. Using any other format will cause errors.
           {isFinancial && (
-            <> For Financial Intermediation, provide <strong>Transaction Value</strong> and <strong>Service Margin</strong>. GST will be auto-calculated on the margin.</>
+            <> For Financial Intermediation, provide <strong>Transaction Value</strong>, <strong>UTR</strong>, and <strong>Margin</strong> details. GST will be auto-calculated on the margin.</>
           )}
         </span>
       </div>
@@ -168,6 +228,24 @@ const InvoiceCreatorPage = () => {
       <CompanyForm company={company} onChange={setCompany} />
       <GSTSettings gst={gst} onChange={setGst} lockedForCategory={isFinancial} />
       <SignatorySettings signatory={signatory} onChange={setSignatory} />
+
+      {/* Financial Intermediation: Transaction Reference Details (manual entry) */}
+      {isFinancial && (
+        <TransactionReferenceDetails
+          transactionValue={fiTransactionValue}
+          utrReference={fiUtrReference}
+          marginType={fiMarginType}
+          marginPercentage={fiMarginPercentage}
+          marginAmount={fiMarginAmount}
+          gstAmount={fiGstAmount}
+          totalInvoice={fiTotalInvoice}
+          onTransactionValueChange={setFiTransactionValue}
+          onUtrChange={setFiUtrReference}
+          onMarginTypeChange={setFiMarginType}
+          onMarginPercentageChange={setFiMarginPercentage}
+          onMarginAmountChange={setFiMarginAbsolute}
+        />
+      )}
 
       {/* Financial Intermediation Note */}
       {isFinancial && (

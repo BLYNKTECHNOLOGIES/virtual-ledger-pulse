@@ -1,5 +1,7 @@
 export type InvoiceCategory = "it_services" | "financial_intermediation";
 
+export type MarginType = "percentage" | "absolute";
+
 export interface OrderRecord {
   invoiceNumber: string;
   description: string;
@@ -18,6 +20,12 @@ export interface OrderRecord {
   serviceMargin?: number;
   /** Unit label (NOS, Service, etc.) */
   unit?: string;
+  /** UTR / Payment Reference Number */
+  utrReference?: string;
+  /** Margin calculation type */
+  marginType?: MarginType;
+  /** Margin percentage (when marginType is "percentage") */
+  marginPercentage?: number;
 }
 
 export interface InvoiceGroup {

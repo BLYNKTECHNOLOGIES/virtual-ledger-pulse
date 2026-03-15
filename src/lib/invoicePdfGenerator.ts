@@ -163,15 +163,16 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     y = Math.max(y, ry) + 10;
 
     // ── Items Table ──
+    const hasGst = gst.enabled && gst.rate > 0;
     const colX = {
       hash: marginL + 1,
       name: marginL + 10,
-      sac: marginL + 82,
-      qty: marginL + 102,
-      unit: marginL + 115,
-      price: marginL + 130,
-      igst: marginL + 152,
-      amount: rightEdge - 2,
+      sac: marginL + 72,
+      qty: marginL + 90,
+      unit: marginL + 102,
+      price: hasGst ? marginL + 112 : marginL + 120,
+      igst: marginL + 142,
+      amount: rightEdge - 1,
     };
 
     const headerH = 7;
@@ -196,7 +197,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text("Quantity", colX.qty, headerY);
     doc.text("Unit", colX.unit, headerY);
     doc.text("Price/unit", colX.price, headerY);
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst, headerY);
     }
     doc.text("Amount", colX.amount, headerY, { align: "right" });
@@ -245,7 +246,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(unitLabel, colX.unit, rowY);
       doc.text(formatINR(taxableValue), colX.price, rowY);
 
-      if (gst.enabled && gst.rate > 0) {
+      if (hasGst) {
         if (gst.type === "IGST") {
           const igst = taxableValue * (gst.rate / 100);
           doc.text(formatINR(igst), colX.igst, rowY);
@@ -255,9 +256,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         }
       }
 
-      const rowTotal = gst.enabled && gst.rate > 0
-        ? taxableValue + taxableValue * (gst.rate / 100)
-        : taxableValue;
+      const rowTotal = hasGst ? taxableValue + taxableValue * (gst.rate / 100) : taxableValue;
       doc.text(formatINR(rowTotal), colX.amount, rowY, { align: "right" });
 
       subtotal += taxableValue;
@@ -273,7 +272,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     y += 1;
 
     let igstAmt = 0, cgstAmt = 0, sgstAmt = 0;
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       if (gst.type === "IGST") {
         igstAmt = subtotal * (gst.rate / 100);
       } else {
@@ -281,14 +280,14 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         sgstAmt = subtotal * (gst.rate / 200);
       }
     }
-    const totalWithTax = gst.enabled ? subtotal + igstAmt + cgstAmt + sgstAmt : subtotal;
+    const totalWithTax = hasGst ? subtotal + igstAmt + cgstAmt + sgstAmt : subtotal;
 
     // Total row
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     setColor(t.colors.bodyText);
     doc.text("Total", marginL + 1, y + 5);
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       doc.text(formatINR(igstAmt + cgstAmt + sgstAmt), colX.igst, y + 5);
     }
     doc.text(formatINR(totalWithTax), colX.amount, y + 5, { align: "right" });
@@ -309,7 +308,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text(formatINR(subtotal), valX, y, { align: "right" });
     y += 5;
 
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       if (gst.type === "IGST") {
         doc.text(`GST(${gst.rate}%)`, labelX, y);
         doc.text(formatINR(igstAmt), valX, y, { align: "right" });

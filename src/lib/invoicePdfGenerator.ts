@@ -21,16 +21,6 @@ function formatINR(val: number): string {
   return `Rs. ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Render a rupee-prefixed value using the ₹ symbol drawn separately to avoid font encoding issues */
-function drawINR(doc: jsPDF, val: number, x: number, y: number, align?: "left" | "right") {
-  const formatted = val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const text = `Rs. ${formatted}`;
-  if (align === "right") {
-    doc.text(text, x, y, { align: "right" });
-  } else {
-    doc.text(text, x, y);
-  }
-}
 
 export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOptions): jsPDF {
   const { company, gst, signatory, note } = options;

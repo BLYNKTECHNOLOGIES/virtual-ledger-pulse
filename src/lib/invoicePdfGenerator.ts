@@ -272,7 +272,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     y += 1;
 
     let igstAmt = 0, cgstAmt = 0, sgstAmt = 0;
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       if (gst.type === "IGST") {
         igstAmt = subtotal * (gst.rate / 100);
       } else {
@@ -280,7 +280,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         sgstAmt = subtotal * (gst.rate / 200);
       }
     }
-    const totalWithTax = gst.enabled ? subtotal + igstAmt + cgstAmt + sgstAmt : subtotal;
+    const totalWithTax = hasGst ? subtotal + igstAmt + cgstAmt + sgstAmt : subtotal;
 
     // Total row
     doc.setFontSize(9);

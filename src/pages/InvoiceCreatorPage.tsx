@@ -11,7 +11,7 @@ import FinancialIntermediationNote, { DEFAULT_FI_NOTE } from "@/components/invoi
 import TransactionReferenceDetails from "@/components/invoice/TransactionReferenceDetails";
 import { generateInvoicesPDF } from "@/lib/invoicePdfGenerator";
 import { generateCSVTemplate, groupByInvoice } from "@/lib/csvParser";
-import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory, MarginType } from "@/types/invoice";
+import type { OrderRecord, CompanyInfo, GSTConfig, SignatoryConfig, InvoiceCategory, MarginType, GSTDirection } from "@/types/invoice";
 
 const emptyCompany: CompanyInfo = {
   name: "",

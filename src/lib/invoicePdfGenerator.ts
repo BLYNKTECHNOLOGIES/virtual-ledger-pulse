@@ -163,15 +163,16 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     y = Math.max(y, ry) + 10;
 
     // ── Items Table ──
+    const hasGst = gst.enabled && gst.rate > 0;
     const colX = {
       hash: marginL + 1,
       name: marginL + 10,
-      sac: marginL + 82,
-      qty: marginL + 102,
-      unit: marginL + 115,
-      price: marginL + 130,
-      igst: marginL + 152,
-      amount: rightEdge - 2,
+      sac: marginL + 72,
+      qty: marginL + 90,
+      unit: marginL + 102,
+      price: hasGst ? marginL + 112 : marginL + 120,
+      igst: marginL + 142,
+      amount: rightEdge - 1,
     };
 
     const headerH = 7;

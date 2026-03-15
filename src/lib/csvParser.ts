@@ -88,10 +88,10 @@ function parseCSVLine(line: string): string[] {
 
 export function generateCSVTemplate(category: InvoiceCategory = "it_services"): string {
   if (category === "financial_intermediation") {
-    const headers = ["Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date", "Transaction Value", "Service Margin"];
+    const headers = ["Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage", "Margin Amount"];
     const rows = [
-      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "2372.88"],
-      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "4500"],
+      ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "UTIB12345678", "percentage", "3", ""],
+      ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "HDFC98765432", "absolute", "", "4500"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }

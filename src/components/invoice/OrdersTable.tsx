@@ -54,6 +54,14 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 {isFinancial && (
                   <td className="px-4 py-3 text-right font-mono">₹{(r.transactionValue || 0).toLocaleString()}</td>
                 )}
+                {isFinancial && (
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.utrReference || "-"}</td>
+                )}
+                {isFinancial && (
+                  <td className="px-4 py-3 text-right font-mono">
+                    {r.marginType === "percentage" && r.marginPercentage ? `${r.marginPercentage}%` : "-"}
+                  </td>
+                )}
                 <td className="px-4 py-3 text-right font-mono">
                   ₹{isFinancial ? (r.serviceMargin || 0).toFixed(2) : r.rate.toFixed(2)}
                 </td>

@@ -197,7 +197,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text("Quantity", colX.qty, headerY);
     doc.text("Unit", colX.unit, headerY);
     doc.text("Price/unit", colX.price, headerY);
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst, headerY);
     }
     doc.text("Amount", colX.amount, headerY, { align: "right" });

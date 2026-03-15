@@ -159,7 +159,7 @@ const InvoiceCreatorPage = () => {
                   { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
                 ]),
             { label: "Unique Buyers", value: new Set(records.map(r => r.buyerName)).size.toString(), icon: FileText },
-            { label: "Invoices", value: invoiceCount.toString(), icon: FileText },
+            { label: "Invoices (grouped)", value: invoiceCount.toString(), icon: FileText },
           ].map((stat) => (
             <div key={stat.label} className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">{stat.label}</p>

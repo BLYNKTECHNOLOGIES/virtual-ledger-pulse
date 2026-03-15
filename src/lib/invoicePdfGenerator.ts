@@ -308,7 +308,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text(formatINR(subtotal), valX, y, { align: "right" });
     y += 5;
 
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       if (gst.type === "IGST") {
         doc.text(`GST(${gst.rate}%)`, labelX, y);
         doc.text(formatINR(igstAmt), valX, y, { align: "right" });

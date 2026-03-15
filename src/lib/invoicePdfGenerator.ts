@@ -287,7 +287,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.setFont("helvetica", "bold");
     setColor(t.colors.bodyText);
     doc.text("Total", marginL + 1, y + 5);
-    if (gst.enabled && gst.rate > 0) {
+    if (hasGst) {
       doc.text(formatINR(igstAmt + cgstAmt + sgstAmt), colX.igst, y + 5);
     }
     doc.text(formatINR(totalWithTax), colX.amount, y + 5, { align: "right" });

@@ -246,7 +246,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(unitLabel, colX.unit, rowY);
       doc.text(formatINR(taxableValue), colX.price, rowY);
 
-      if (gst.enabled && gst.rate > 0) {
+      if (hasGst) {
         if (gst.type === "IGST") {
           const igst = taxableValue * (gst.rate / 100);
           doc.text(formatINR(igst), colX.igst, rowY);

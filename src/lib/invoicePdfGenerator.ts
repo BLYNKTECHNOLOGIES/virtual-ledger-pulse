@@ -18,8 +18,9 @@ const GRAY_TEXT: [number, number, number] = [80, 80, 80];
 const LIGHT_BG: [number, number, number] = [245, 250, 242];
 
 function formatINR(val: number): string {
-  return `\u20B9 ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `Rs. ${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
 
 export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOptions): jsPDF {
   const { company, gst, signatory, note } = options;

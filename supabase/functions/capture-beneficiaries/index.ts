@@ -118,7 +118,7 @@ serve(async (req) => {
   let checked = 0;
 
   try {
-    // 1. Find active BUY orders without captured seller_payment_details
+    // 1a. Find active BUY orders without captured seller_payment_details
     const { data: activeOrders, error: queryErr } = await supabase
       .from("binance_order_history")
       .select("order_number, order_status")
@@ -136,15 +136,37 @@ serve(async (req) => {
       });
     }
 
-    if (!activeOrders || activeOrders.length === 0) {
-      console.log("[CaptureBeneficiaries] No active BUY orders needing capture.");
+    // 1b. Also find recently completed BUY orders (last 6 hours) that were never captured
+    //     Orders can complete between sync cycles; Binance still returns payMethods for recent completions
+    const sixHoursAgo = Date.now() - 6 * 60 * 60 * 1000;
+    const { data: recentCompleted } = await supabase
+      .from("binance_order_history")
+      .select("order_number, order_status")
+      .eq("trade_type", "BUY")
+      .eq("order_status", "COMPLETED")
+      .is("seller_payment_details", null)
+      .gte("create_time", sixHoursAgo)
+      .order("create_time", { ascending: false })
+      .limit(10);
+
+    const allOrders = [...(activeOrders || []), ...(recentCompleted || [])];
+    // Deduplicate by order_number
+    const seen = new Set<string>();
+    const ordersToProcess = allOrders.filter((o) => {
+      if (seen.has(o.order_number)) return false;
+      seen.add(o.order_number);
+      return true;
+    });
+
+    if (ordersToProcess.length === 0) {
+      console.log("[CaptureBeneficiaries] No orders needing capture.");
       return new Response(
         JSON.stringify({ captured: 0, checked: 0, duration_ms: Date.now() - startTime }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[CaptureBeneficiaries] Found ${activeOrders.length} active BUY orders to process.`);
+    console.log(`[CaptureBeneficiaries] Found ${ordersToProcess.length} orders to process (${activeOrders?.length || 0} active + ${recentCompleted?.length || 0} recent completed).`);
 
     // 2. For each order, call Binance getOrderDetail and extract payment fields
     for (const order of activeOrders) {

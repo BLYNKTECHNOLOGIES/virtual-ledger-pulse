@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentUserId } from '@/lib/system-action-logger';
+import { getCurrentUserIdAsync } from '@/lib/system-action-logger';
 
 /**
  * Action types for purchase workflow timing capture

@@ -224,14 +224,26 @@ export async function getCurrentUserIdAsync(): Promise<string | null> {
 }
 
 /**
- * Convenience function that auto-resolves the current user ID
+ * REQUIRED version of getCurrentUserIdAsync — throws an error if no user is found.
+ * Use this in order creation and other critical flows where anonymous actions are NOT allowed.
+ */
+export async function requireCurrentUserId(): Promise<string> {
+  const userId = await getCurrentUserIdAsync();
+  if (!userId) {
+    throw new Error('User session not found. Please log in again before performing this action.');
+  }
+  return userId;
+}
+
+/**
+ * Convenience function that auto-resolves the current user ID (with async fallback)
  */
 export async function logActionWithCurrentUser(
   params: Omit<LogActionParams, 'userId'>
 ): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserIdAsync();
   if (!userId) {
-    console.warn('[SystemActionLogger] No user session found, skipping log');
+    console.warn('[SystemActionLogger] No user session found, skipping log for:', params.actionType);
     return;
   }
   await logAction({ ...params, userId });

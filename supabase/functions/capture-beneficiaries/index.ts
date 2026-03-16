@@ -238,6 +238,106 @@ function buildEnrichmentPatch(existing: BeneficiaryRow, incoming: PaymentInfo): 
   return patch;
 }
 
+const BINANCE_STATUS_MAP: Record<number, string> = {
+  0: "PENDING",
+  1: "TRADING",
+  2: "BUYER_PAYED",
+  3: "DISTRIBUTING",
+  4: "COMPLETED",
+  5: "CANCELLED",
+  6: "CANCELLED_BY_SYSTEM",
+  7: "IN_APPEAL",
+};
+
+function mapOrderStatus(rawStatus: unknown): string {
+  const cleaned = clean(rawStatus);
+  if (!cleaned) return "";
+
+  const num = Number(cleaned);
+  if (!Number.isNaN(num) && BINANCE_STATUS_MAP[num]) {
+    return BINANCE_STATUS_MAP[num];
+  }
+
+  return cleaned.toUpperCase();
+}
+
+function mapLiveOrderToHistoryRow(order: any) {
+  return {
+    order_number: clean(order?.orderNumber),
+    adv_no: clean(order?.advNo) || null,
+    trade_type: clean(order?.tradeType) || "BUY",
+    asset: clean(order?.asset) || null,
+    fiat_unit: clean(order?.fiat || order?.fiatUnit) || null,
+    order_status: mapOrderStatus(order?.orderStatus),
+    amount: clean(order?.amount) || null,
+    total_price: clean(order?.totalPrice) || null,
+    unit_price: clean(order?.unitPrice) || null,
+    commission: clean(order?.commission) || null,
+    counter_part_nick_name: clean(order?.counterPartNickName || order?.sellerNickname || order?.buyerNickname) || null,
+    create_time: Number(order?.createTime || 0),
+    pay_method_name: clean(order?.payMethodName) || null,
+    raw_data: order,
+    synced_at: new Date().toISOString(),
+  };
+}
+
+async function fetchLiveActiveBuyOrders(
+  proxyUrl: string,
+  headers: Record<string, string>,
+): Promise<OrderScopeRow[]> {
+  const rows: OrderScopeRow[] = [];
+  const seen = new Set<string>();
+  const maxPages = 4;
+
+  for (let page = 1; page <= maxPages; page++) {
+    const response = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ page, rows: 50, tradeType: "BUY" }),
+    });
+
+    const text = await response.text();
+    let parsed: any = null;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      console.warn(`[CaptureBeneficiaries] Could not parse listOrders page=${page}`);
+      break;
+    }
+
+    const list = Array.isArray(parsed?.data?.data)
+      ? parsed.data.data
+      : Array.isArray(parsed?.data)
+        ? parsed.data
+        : [];
+
+    if (list.length === 0) break;
+
+    for (const order of list) {
+      const orderNumber = clean(order?.orderNumber);
+      const mappedStatus = mapOrderStatus(order?.orderStatus);
+      const createTime = Number(order?.createTime || 0);
+
+      if (!orderNumber || !ACTIVE_STATUSES.includes(mappedStatus) || createTime <= 0 || seen.has(orderNumber)) {
+        continue;
+      }
+
+      seen.add(orderNumber);
+      rows.push({
+        order_number: orderNumber,
+        order_status: mappedStatus,
+        seller_payment_details: null,
+        create_time: createTime,
+      });
+    }
+
+    if (list.length < 50) break;
+  }
+
+  return rows;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

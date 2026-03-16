@@ -261,26 +261,6 @@ function mapOrderStatus(rawStatus: unknown): string {
   return cleaned.toUpperCase();
 }
 
-function mapLiveOrderToHistoryRow(order: any) {
-  return {
-    order_number: clean(order?.orderNumber),
-    adv_no: clean(order?.advNo) || null,
-    trade_type: clean(order?.tradeType) || "BUY",
-    asset: clean(order?.asset) || null,
-    fiat_unit: clean(order?.fiat || order?.fiatUnit) || null,
-    order_status: mapOrderStatus(order?.orderStatus),
-    amount: clean(order?.amount) || null,
-    total_price: clean(order?.totalPrice) || null,
-    unit_price: clean(order?.unitPrice) || null,
-    commission: clean(order?.commission) || null,
-    counter_part_nick_name: clean(order?.counterPartNickName || order?.sellerNickname || order?.buyerNickname) || null,
-    create_time: Number(order?.createTime || 0),
-    pay_method_name: clean(order?.payMethodName) || null,
-    raw_data: order,
-    synced_at: new Date().toISOString(),
-  };
-}
-
 async function fetchLiveActiveBuyOrders(
   proxyUrl: string,
   headers: Record<string, string>,

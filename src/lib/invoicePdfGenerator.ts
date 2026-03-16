@@ -171,7 +171,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     qty: marginL + 90,
     unit: marginL + 108,
     price: hasGst ? marginL + 122 : marginL + 128,
-    igst: marginL + 150,
+    igst: marginL + 154,
     amount: rightEdge - 1,
   };
 
@@ -396,14 +396,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         doc.text("UTR / Payment Reference:", refLabelX, y);
         doc.setFont("helvetica", "bold");
         doc.text(utrs.join(", "), refValX, y);
-        y += 5;
-      }
-
-      if (uniquePcts.length > 0) {
-        doc.setFont("helvetica", "normal");
-        doc.text("Margin Percentage:", refLabelX, y);
-        doc.setFont("helvetica", "bold");
-        doc.text(`${uniquePcts.join(", ")}%`, refValX, y);
         y += 5;
       }
 

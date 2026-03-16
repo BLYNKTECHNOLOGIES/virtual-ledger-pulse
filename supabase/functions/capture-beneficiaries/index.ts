@@ -310,6 +310,7 @@ async function fetchLiveActiveBuyOrders(
         order_status: mappedStatus,
         seller_payment_details: null,
         create_time: createTime,
+        raw_data: order,
       });
     }
 

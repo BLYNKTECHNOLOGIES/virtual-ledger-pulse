@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import { createValidatedWalletTransaction } from "@/hooks/useWalletStock";
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { format } from "date-fns";

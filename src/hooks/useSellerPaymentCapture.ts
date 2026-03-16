@@ -223,7 +223,9 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
               p_ifsc_code: paymentInfo.ifscCode?.trim() || null,
               p_bank_name: paymentInfo.bankName?.trim() || null,
               p_source_order_number: order.order_number,
-              p_client_name: detail.tradePartnerNickname || detail.buyerNickname || detail.sellerNickname || null,
+              p_client_name: detail.counterPartNickName || detail.counterpartyNickname || detail.buyerNickname || detail.sellerNickname || null,
+              p_account_type: paymentInfo.accountType?.trim() || null,
+              p_account_opening_branch: paymentInfo.accountOpeningBranch?.trim() || null,
             });
             console.log(`[PaymentCapture] ✓ Beneficiary auto-saved for ${order.order_number}: ${paymentInfo.accountNo}`);
           } catch (benErr) {

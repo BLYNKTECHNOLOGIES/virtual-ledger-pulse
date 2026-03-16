@@ -28,23 +28,34 @@ interface BeneficiaryRow {
   account_opening_branch: string | null;
 }
 
+interface OrderScopeRow {
+  order_number: string;
+  order_status: string;
+  seller_payment_details: any;
+  create_time: number;
+  raw_data?: any;
+}
+
 const clean = (value: unknown): string => String(value ?? "").trim();
 
 const hasAccountNumber = (value: string): boolean => value.length >= 4;
 
-// Only store beneficiaries for these bank-transfer payment methods (case-insensitive match)
+// Only store beneficiaries for these Binance bank-transfer payment methods
 const ALLOWED_PAY_TYPES = new Set([
   "imps",
   "impspan",
   "bankindia",
   "banktransfer",
-  "bank transfer",
-  "bank transfer (india)",
+  "banktransferindia",
 ]);
+
+function normalizePayType(payType: string): string {
+  return payType.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 function isAllowedPayType(payType: string): boolean {
   if (!payType) return false;
-  return ALLOWED_PAY_TYPES.has(payType.toLowerCase().replace(/[\s\-_]+/g, "").replace("banktransferindia", "bankindia"));
+  return ALLOWED_PAY_TYPES.has(normalizePayType(payType));
 }
 
 // Check if account looks like UPI (contains @)
@@ -60,10 +71,8 @@ const findFieldValue = (fields: any[], predicate: (field: any) => boolean): stri
   return clean(field?.fieldValue);
 };
 
-function extractPaymentFromMethods(methods: any[], detail: any): PaymentInfo | null {
-  if (!Array.isArray(methods) || methods.length === 0) return null;
-
-  const primary = methods[0] || {};
+function extractPaymentFromSingleMethod(method: any, detail: any): PaymentInfo | null {
+  const primary = method || {};
   const fields = Array.isArray(primary.fields) ? primary.fields : [];
 
   const accountNoFromFields = findFieldValue(fields, (f) => {
@@ -118,6 +127,23 @@ function extractPaymentFromMethods(methods: any[], detail: any): PaymentInfo | n
   };
 }
 
+function extractPaymentFromMethods(methods: any[], detail: any): PaymentInfo | null {
+  if (!Array.isArray(methods) || methods.length === 0) return null;
+
+  const candidates = methods
+    .map((method) => extractPaymentFromSingleMethod(method, detail))
+    .filter((candidate): candidate is PaymentInfo => Boolean(candidate));
+
+  if (candidates.length === 0) return null;
+
+  // Prefer non-UPI allowed bank methods if present; fallback to first parseable method.
+  const preferred = candidates.find(
+    (candidate) => !isUpiAccount(candidate.accountNo) && isAllowedPayType(candidate.payType)
+  );
+
+  return preferred || candidates[0] || null;
+}
+
 /**
  * Extract seller payment details from Binance getUserOrderDetail response.
  */
@@ -165,6 +191,11 @@ function extractPaymentFromDetail(detail: any): PaymentInfo | null {
 function extractPaymentFromStored(stored: any): PaymentInfo | null {
   if (!stored || typeof stored !== "object") return null;
 
+  // Prefer raw Binance detail first so we can select the correct bank method
+  // when multiple methods exist (e.g., UPI + IMPS on the same order).
+  const fromRaw = extractPaymentFromDetail(stored._raw_detail || stored.raw_detail || stored);
+  if (fromRaw) return fromRaw;
+
   const directAccountNo = clean(
     stored.accountNo ||
       stored.account_number ||
@@ -173,27 +204,25 @@ function extractPaymentFromStored(stored: any): PaymentInfo | null {
       stored.sellerAccountNo
   );
 
-  if (hasAccountNumber(directAccountNo)) {
-    return {
-      accountNo: directAccountNo,
-      accountName: clean(
-        stored.accountName ||
-          stored.account_holder_name ||
-          stored.payAccountName ||
-          stored.payeeAccountName ||
-          stored.sellerAccountName
-      ),
-      bankName: clean(stored.bankName || stored.bank_name || stored.payBankName),
-      ifscCode: clean(stored.ifscCode || stored.ifsc_code || stored.payIfscCode),
-      accountType: clean(stored.accountType || stored.account_type || stored.payAccountType),
-      accountOpeningBranch: clean(
-        stored.accountOpeningBranch || stored.account_opening_branch || stored.openingBranch || stored.branch
-      ),
-      payType: clean(stored.payType || stored.pay_type || stored.payMethodName),
-    };
-  }
+  if (!hasAccountNumber(directAccountNo)) return null;
 
-  return extractPaymentFromDetail(stored._raw_detail || stored.raw_detail || stored);
+  return {
+    accountNo: directAccountNo,
+    accountName: clean(
+      stored.accountName ||
+        stored.account_holder_name ||
+        stored.payAccountName ||
+        stored.payeeAccountName ||
+        stored.sellerAccountName
+    ),
+    bankName: clean(stored.bankName || stored.bank_name || stored.payBankName),
+    ifscCode: clean(stored.ifscCode || stored.ifsc_code || stored.payIfscCode),
+    accountType: clean(stored.accountType || stored.account_type || stored.payAccountType),
+    accountOpeningBranch: clean(
+      stored.accountOpeningBranch || stored.account_opening_branch || stored.openingBranch || stored.branch
+    ),
+    payType: clean(stored.payType || stored.pay_type || stored.payMethodName),
+  };
 }
 
 function buildEnrichmentPatch(existing: BeneficiaryRow, incoming: PaymentInfo): Record<string, string> {
@@ -208,6 +237,87 @@ function buildEnrichmentPatch(existing: BeneficiaryRow, incoming: PaymentInfo): 
   }
 
   return patch;
+}
+
+const BINANCE_STATUS_MAP: Record<number, string> = {
+  0: "PENDING",
+  1: "TRADING",
+  2: "BUYER_PAYED",
+  3: "DISTRIBUTING",
+  4: "COMPLETED",
+  5: "CANCELLED",
+  6: "CANCELLED_BY_SYSTEM",
+  7: "IN_APPEAL",
+};
+
+function mapOrderStatus(rawStatus: unknown): string {
+  const cleaned = clean(rawStatus);
+  if (!cleaned) return "";
+
+  const num = Number(cleaned);
+  if (!Number.isNaN(num) && BINANCE_STATUS_MAP[num]) {
+    return BINANCE_STATUS_MAP[num];
+  }
+
+  return cleaned.toUpperCase();
+}
+
+async function fetchLiveActiveBuyOrders(
+  proxyUrl: string,
+  headers: Record<string, string>,
+): Promise<OrderScopeRow[]> {
+  const rows: OrderScopeRow[] = [];
+  const seen = new Set<string>();
+  const maxPages = 4;
+
+  for (let page = 1; page <= maxPages; page++) {
+    const response = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ page, rows: 50, tradeType: "BUY" }),
+    });
+
+    const text = await response.text();
+    let parsed: any = null;
+
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      console.warn(`[CaptureBeneficiaries] Could not parse listOrders page=${page}`);
+      break;
+    }
+
+    const list = Array.isArray(parsed?.data?.data)
+      ? parsed.data.data
+      : Array.isArray(parsed?.data)
+        ? parsed.data
+        : [];
+
+    if (list.length === 0) break;
+
+    for (const order of list) {
+      const orderNumber = clean(order?.orderNumber);
+      const mappedStatus = mapOrderStatus(order?.orderStatus);
+      const createTime = Number(order?.createTime || 0);
+
+      if (!orderNumber || !ACTIVE_STATUSES.includes(mappedStatus) || createTime <= 0 || seen.has(orderNumber)) {
+        continue;
+      }
+
+      seen.add(orderNumber);
+      rows.push({
+        order_number: orderNumber,
+        order_status: mappedStatus,
+        seller_payment_details: null,
+        create_time: createTime,
+        raw_data: order,
+      });
+    }
+
+    if (list.length < 50) break;
+  }
+
+  return rows;
 }
 
 serve(async (req) => {
@@ -246,7 +356,36 @@ serve(async (req) => {
   let enriched = 0;
 
   try {
-    // 1a. Active BUY orders
+    // 1a. Pull live active BUY orders directly from Binance so capture does not depend on UI-triggered DB sync.
+    let liveActiveOrders: OrderScopeRow[] = [];
+    try {
+      liveActiveOrders = await fetchLiveActiveBuyOrders(BINANCE_PROXY_URL, proxyHeaders);
+      console.log(`[CaptureBeneficiaries] Live active BUY orders from Binance: ${liveActiveOrders.length}`);
+
+      if (liveActiveOrders.length > 0) {
+        const { error: liveUpsertErr } = await supabase
+          .from("binance_order_history")
+          .upsert(
+            liveActiveOrders.map((order) => ({
+              order_number: order.order_number,
+              order_status: order.order_status,
+              trade_type: "BUY",
+              create_time: order.create_time,
+              raw_data: order.raw_data || null,
+              synced_at: new Date().toISOString(),
+            })),
+            { onConflict: "order_number" },
+          );
+
+        if (liveUpsertErr) {
+          console.warn("[CaptureBeneficiaries] Live order upsert warning:", liveUpsertErr);
+        }
+      }
+    } catch (liveErr) {
+      console.warn("[CaptureBeneficiaries] Live active order fetch warning:", liveErr);
+    }
+
+    // 1b. Active BUY orders already cached in DB
     const { data: activeOrders, error: activeErr } = await supabase
       .from("binance_order_history")
       .select("order_number, order_status, seller_payment_details, create_time")
@@ -263,7 +402,7 @@ serve(async (req) => {
       });
     }
 
-    // 1b. Recently completed BUY orders (safety window for race conditions)
+    // 1c. Recently completed BUY orders (safety window for race conditions)
     const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
     const { data: recentCompleted, error: completedErr } = await supabase
       .from("binance_order_history")
@@ -278,18 +417,20 @@ serve(async (req) => {
       console.warn("[CaptureBeneficiaries] Completed order query warning:", completedErr);
     }
 
-    const allOrdersRaw = [...(activeOrders || []), ...(recentCompleted || [])] as Array<{
-      order_number: string;
-      order_status: string;
-      seller_payment_details: any;
-    }>;
+    const allOrdersRaw: OrderScopeRow[] = [
+      ...((activeOrders || []) as OrderScopeRow[]),
+      ...((recentCompleted || []) as OrderScopeRow[]),
+      ...liveActiveOrders,
+    ];
 
     const seenOrders = new Set<string>();
-    const allOrders = allOrdersRaw.filter((o) => {
-      if (!o?.order_number || seenOrders.has(o.order_number)) return false;
-      seenOrders.add(o.order_number);
-      return true;
-    });
+    const allOrders = allOrdersRaw
+      .filter((o) => {
+        if (!o?.order_number || seenOrders.has(o.order_number)) return false;
+        seenOrders.add(o.order_number);
+        return true;
+      })
+      .sort((a, b) => Number(b.create_time || 0) - Number(a.create_time || 0));
 
     if (allOrders.length === 0) {
       console.log("[CaptureBeneficiaries] No orders found in scope.");

@@ -566,6 +566,39 @@ export type Database = {
           },
         ]
       }
+      bank_bulk_formats: {
+        Row: {
+          bank_display_name: string
+          bank_key: string
+          columns: Json
+          created_at: string
+          default_values: Json | null
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          bank_display_name: string
+          bank_key: string
+          columns: Json
+          created_at?: string
+          default_values?: Json | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bank_display_name?: string
+          bank_key?: string
+          columns?: Json
+          created_at?: string
+          default_values?: Json | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bank_cases: {
         Row: {
           amount_involved: number | null

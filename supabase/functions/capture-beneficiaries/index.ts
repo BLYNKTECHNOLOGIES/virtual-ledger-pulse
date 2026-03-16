@@ -329,6 +329,16 @@ serve(async (req) => {
       if (!storedInfo?.accountNo) continue;
       if (beneficiaryMap.has(storedInfo.accountNo)) continue;
 
+      // Filter: only save bank transfer methods, skip UPI accounts
+      if (isUpiAccount(storedInfo.accountNo)) {
+        console.log(`[CaptureBeneficiaries] Skipped UPI account ${storedInfo.accountNo} for ${order.order_number}`);
+        continue;
+      }
+      if (!isAllowedPayType(storedInfo.payType)) {
+        console.log(`[CaptureBeneficiaries] Skipped non-bank payType "${storedInfo.payType}" for ${order.order_number}`);
+        continue;
+      }
+
       checked++;
       const { error: rpcErr } = await supabase.rpc("upsert_beneficiary_record", {
         p_account_number: storedInfo.accountNo,

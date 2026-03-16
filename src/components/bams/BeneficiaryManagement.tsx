@@ -124,7 +124,8 @@ export function BeneficiaryManagement() {
         b.account_number?.toLowerCase().includes(q) ||
         b.account_holder_name?.toLowerCase().includes(q) ||
         b.ifsc_code?.toLowerCase().includes(q) ||
-        b.client_name?.toLowerCase().includes(q)
+        b.account_type?.toLowerCase().includes(q) ||
+        b.account_opening_branch?.toLowerCase().includes(q)
     );
   }, [beneficiaries, searchQuery]);
 

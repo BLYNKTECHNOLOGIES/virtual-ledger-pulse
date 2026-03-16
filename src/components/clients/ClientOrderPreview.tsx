@@ -54,7 +54,7 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   
   // Match by name OR phone
   if (clientPhone) {
-    salesQuery = salesQuery.or(`client_name.ilike.${clientName},client_phone.eq.${clientPhone}`);
+    salesQuery = salesQuery.or(`client_name.ilike."${clientName}",client_phone.eq."${clientPhone}"`);
   } else {
     salesQuery = salesQuery.ilike('client_name', clientName);
   }

@@ -206,8 +206,6 @@ export function BeneficiaryManagement() {
       "Bank Name": b.bank_name || "",
       "Account Type": b.account_type || "",
       "Account Opening Branch": b.account_opening_branch || "",
-      "Client Name": b.client_name || "",
-      "Times Seen": b.occurrence_count,
       "First Seen": b.first_seen_at ? format(new Date(b.first_seen_at), "dd-MM-yyyy") : "",
     }));
 

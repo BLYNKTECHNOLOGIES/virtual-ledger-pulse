@@ -105,7 +105,7 @@ export async function recordMultipleTimings(
   if (!orderId || !actions.length) return;
 
   // Auto-resolve user ID for all non-system actions that don't have one
-  const currentUserId = getCurrentUserId();
+  const currentUserId = await getCurrentUserIdAsync();
 
   try {
     const records = actions.map(({ actionType, actorRole, actorUserId }) => ({

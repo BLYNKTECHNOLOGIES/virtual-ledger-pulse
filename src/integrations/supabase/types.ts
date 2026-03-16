@@ -1597,27 +1597,6 @@ export type Database = {
         }
         Relationships: []
       }
-      debug_po_log: {
-        Row: {
-          created_at: string | null
-          id: number
-          operation: string | null
-          payload: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: number
-          operation?: string | null
-          payload?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: number
-          operation?: string | null
-          payload?: string | null
-        }
-        Relationships: []
-      }
       departments: {
         Row: {
           code: string
@@ -1695,41 +1674,6 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: []
-      }
-      email_verification_tokens: {
-        Row: {
-          created_at: string | null
-          expires_at: string
-          id: string
-          token: string
-          used: boolean | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          expires_at: string
-          id?: string
-          token: string
-          used?: boolean | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          token?: string
-          used?: boolean | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "email_verification_tokens_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       employee_offboarding: {
         Row: {
@@ -7064,41 +7008,6 @@ export type Database = {
           },
           {
             foreignKeyName: "password_reset_requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      password_reset_tokens: {
-        Row: {
-          created_at: string | null
-          expires_at: string
-          id: string
-          token: string
-          used: boolean | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          expires_at: string
-          id?: string
-          token: string
-          used?: boolean | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          expires_at?: string
-          id?: string
-          token?: string
-          used?: boolean | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "password_reset_tokens_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"

@@ -164,16 +164,40 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     // ── Items Table ──
     const hasGst = gst.enabled && gst.rate > 0;
-  const colX = {
-    hash: marginL + 1,
-    name: marginL + 10,
-    sac: marginL + 68,
-    qty: marginL + 90,
-    unit: marginL + 108,
-    price: hasGst ? marginL + 122 : marginL + 128,
-    igst: marginL + 154,
-    amount: rightEdge - 1,
-  };
+    const columnWidths = hasGst
+      ? { hash: 8, sac: 18, qty: 12, unit: 12, price: 22, igst: 22, amount: 24 }
+      : { hash: 8, sac: 20, qty: 12, unit: 12, price: 24, igst: 0, amount: 24 };
+
+    const nameWidth = contentW
+      - columnWidths.hash
+      - columnWidths.sac
+      - columnWidths.qty
+      - columnWidths.unit
+      - columnWidths.price
+      - columnWidths.igst
+      - columnWidths.amount;
+
+    const colX = {
+      hash: marginL,
+      name: marginL + columnWidths.hash,
+      sac: marginL + columnWidths.hash + nameWidth,
+      qty: marginL + columnWidths.hash + nameWidth + columnWidths.sac,
+      unit: marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty,
+      price: marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty + columnWidths.unit,
+      igst: marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty + columnWidths.unit + columnWidths.price,
+      amount: rightEdge - columnWidths.amount,
+    };
+
+    const colR = {
+      hash: colX.name,
+      name: colX.sac,
+      sac: colX.qty,
+      qty: colX.unit,
+      unit: colX.price,
+      price: hasGst ? colX.igst : colX.amount,
+      igst: colX.amount,
+      amount: rightEdge,
+    };
 
     const headerH = 7;
 
@@ -191,16 +215,16 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     }
 
     const headerY = y + 5;
-    doc.text("#", colX.hash, headerY);
-    doc.text("Item name", colX.name, headerY);
-    doc.text("HSN/SAC", colX.sac, headerY);
-    doc.text("Quantity", colX.qty, headerY);
-    doc.text("Unit", colX.unit, headerY);
-    doc.text("Price/unit", colX.price, headerY);
+    doc.text("#", colX.hash + columnWidths.hash / 2, headerY, { align: "center" });
+    doc.text("Item name", colX.name + 1, headerY);
+    doc.text("HSN/SAC", colX.sac + columnWidths.sac / 2, headerY, { align: "center" });
+    doc.text("Quantity", colX.qty + columnWidths.qty / 2, headerY, { align: "center" });
+    doc.text("Unit", colX.unit + columnWidths.unit / 2, headerY, { align: "center" });
+    doc.text("Price/unit", colX.price + columnWidths.price / 2, headerY, { align: "center" });
     if (hasGst) {
-      doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst, headerY);
+      doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst + columnWidths.igst / 2, headerY, { align: "center" });
     }
-    doc.text("Amount", colX.amount, headerY, { align: "right" });
+    doc.text("Amount", colR.amount - 1, headerY, { align: "right" });
 
     if (t.style.tableHeaderStyle === "underline") {
       setDraw(t.colors.border);
@@ -213,11 +237,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     let subtotal = 0;
 
     invoice.items.forEach((item, itemIdx) => {
-      if (t.style.altRows && itemIdx % 2 === 0) {
-        setFill(t.colors.altRowBg);
-        doc.rect(marginL, y, contentW, 8, "F");
-      }
-
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");
       setColor(t.colors.bodyText);
@@ -232,35 +251,46 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       }
 
       const unitLabel = item.unit || (isFinancial ? "Service" : "NOS");
-      const rowY = y + 5.5;
+      const descLines = doc.splitTextToSize(item.description || "-", Math.max(20, colR.name - colX.name - 2));
+      const hsnLines = doc.splitTextToSize(item.hsnSac || "-", Math.max(8, colR.sac - colX.sac - 2));
+      const rowLineCount = Math.max(descLines.length, hsnLines.length);
+      const rowHeight = Math.max(8, rowLineCount * 3.5 + 4);
+      const rowY = y + 4.8;
 
-      doc.text(String(itemIdx + 1), colX.hash, rowY);
+      if (t.style.altRows && itemIdx % 2 === 0) {
+        setFill(t.colors.altRowBg);
+        doc.rect(marginL, y, contentW, rowHeight, "F");
+      }
 
-      const descLines = doc.splitTextToSize(item.description, 68);
+      doc.text(String(itemIdx + 1), colX.hash + columnWidths.hash / 2, rowY, { align: "center" });
+
       descLines.forEach((line: string, i: number) => {
-        doc.text(line, colX.name, rowY + i * 3.5);
+        doc.text(line, colX.name + 1, rowY + i * 3.5);
       });
 
-      doc.text(item.hsnSac || "-", colX.sac, rowY);
-      doc.text(item.quantity.toFixed(0), colX.qty + 5, rowY, { align: "center" });
-      doc.text(unitLabel, colX.unit, rowY);
-      doc.text(formatINR(taxableValue), colX.price, rowY);
+      hsnLines.forEach((line: string, i: number) => {
+        doc.text(line, colX.sac + columnWidths.sac / 2, rowY + i * 3.5, { align: "center" });
+      });
+
+      doc.text(item.quantity.toFixed(0), colR.qty - 1, rowY, { align: "right" });
+      doc.text(unitLabel, colX.unit + columnWidths.unit / 2, rowY, { align: "center" });
+      doc.text(formatINR(taxableValue), colR.price - 1, rowY, { align: "right" });
 
       if (hasGst) {
         if (gst.type === "IGST") {
           const igst = taxableValue * (gst.rate / 100);
-          doc.text(formatINR(igst), colX.igst, rowY);
+          doc.text(formatINR(igst), colR.igst - 1, rowY, { align: "right" });
         } else {
           const half = taxableValue * (gst.rate / 200);
-          doc.text(formatINR(half * 2), colX.igst, rowY);
+          doc.text(formatINR(half * 2), colR.igst - 1, rowY, { align: "right" });
         }
       }
 
       const rowTotal = hasGst ? taxableValue + taxableValue * (gst.rate / 100) : taxableValue;
-      doc.text(formatINR(rowTotal), colX.amount, rowY, { align: "right" });
+      doc.text(formatINR(rowTotal), colR.amount - 1, rowY, { align: "right" });
 
       subtotal += taxableValue;
-      y += Math.max(8, descLines.length * 3.5 + 5);
+      y += rowHeight;
     });
 
     y += 5;

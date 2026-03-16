@@ -172,10 +172,6 @@ export function ProductCardListingTab() {
 
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Avg Selling:</span>
-                    <span className="font-medium text-green-700">₹377.52</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm mt-1">
                     <span className="text-gray-500">Holdings Value:</span>
                     <span className="font-bold text-purple-600">₹{product.total_value.toFixed(0)}</span>
                   </div>

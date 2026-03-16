@@ -33,6 +33,7 @@ interface OrderScopeRow {
   order_status: string;
   seller_payment_details: any;
   create_time: number;
+  raw_data?: any;
 }
 
 const clean = (value: unknown): string => String(value ?? "").trim();

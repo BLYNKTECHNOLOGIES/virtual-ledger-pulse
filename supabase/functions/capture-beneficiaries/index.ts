@@ -374,7 +374,16 @@ serve(async (req) => {
   let enriched = 0;
 
   try {
-    // 1a. Active BUY orders
+    // 1a. Pull live active BUY orders directly from Binance so capture does not depend on UI-triggered DB sync.
+    let liveActiveOrders: OrderScopeRow[] = [];
+    try {
+      liveActiveOrders = await fetchLiveActiveBuyOrders(BINANCE_PROXY_URL, proxyHeaders);
+      console.log(`[CaptureBeneficiaries] Live active BUY orders from Binance: ${liveActiveOrders.length}`);
+    } catch (liveErr) {
+      console.warn("[CaptureBeneficiaries] Live active order fetch warning:", liveErr);
+    }
+
+    // 1b. Active BUY orders already cached in DB
     const { data: activeOrders, error: activeErr } = await supabase
       .from("binance_order_history")
       .select("order_number, order_status, seller_payment_details, create_time")
@@ -391,7 +400,7 @@ serve(async (req) => {
       });
     }
 
-    // 1b. Recently completed BUY orders (safety window for race conditions)
+    // 1c. Recently completed BUY orders (safety window for race conditions)
     const twelveHoursAgo = Date.now() - 12 * 60 * 60 * 1000;
     const { data: recentCompleted, error: completedErr } = await supabase
       .from("binance_order_history")
@@ -406,18 +415,20 @@ serve(async (req) => {
       console.warn("[CaptureBeneficiaries] Completed order query warning:", completedErr);
     }
 
-    const allOrdersRaw = [...(activeOrders || []), ...(recentCompleted || [])] as Array<{
-      order_number: string;
-      order_status: string;
-      seller_payment_details: any;
-    }>;
+    const allOrdersRaw: OrderScopeRow[] = [
+      ...((activeOrders || []) as OrderScopeRow[]),
+      ...((recentCompleted || []) as OrderScopeRow[]),
+      ...liveActiveOrders,
+    ];
 
     const seenOrders = new Set<string>();
-    const allOrders = allOrdersRaw.filter((o) => {
-      if (!o?.order_number || seenOrders.has(o.order_number)) return false;
-      seenOrders.add(o.order_number);
-      return true;
-    });
+    const allOrders = allOrdersRaw
+      .filter((o) => {
+        if (!o?.order_number || seenOrders.has(o.order_number)) return false;
+        seenOrders.add(o.order_number);
+        return true;
+      })
+      .sort((a, b) => Number(b.create_time || 0) - Number(a.create_time || 0));
 
     if (allOrders.length === 0) {
       console.log("[CaptureBeneficiaries] No orders found in scope.");

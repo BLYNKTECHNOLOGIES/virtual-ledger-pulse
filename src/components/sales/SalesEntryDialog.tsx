@@ -18,7 +18,7 @@ import { AlertTriangle } from "lucide-react";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 

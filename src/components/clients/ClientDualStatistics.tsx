@@ -42,7 +42,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
       let query = supabase
         .from('sales_orders')
         .select('*')
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       

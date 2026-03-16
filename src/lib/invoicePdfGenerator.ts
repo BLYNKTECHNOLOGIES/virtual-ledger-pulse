@@ -407,25 +407,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 8;
     }
 
-    // ── Terms / Note ──
-    const invoiceNote = isFinancial ? (note || "") : "";
-    if (invoiceNote) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      setColor(t.colors.bodyText);
-      doc.text("Terms And Conditions", marginL, y);
-      y += 4;
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(7.5);
-      setColor(t.colors.mutedText);
-      const noteLines = doc.splitTextToSize(invoiceNote, contentW);
-      noteLines.forEach((line: string) => {
-        doc.text(line, marginL, y);
-        y += 3.5;
-      });
-      y += 5;
-    }
-
     // ── Pay To ──
     if (company.bankName || company.accountNumber) {
       doc.setFont("helvetica", "bold");
@@ -457,6 +438,26 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(line, marginL, y);
       y += 3.5;
     });
+    y += 3;
+
+    // ── Terms / Note ──
+    const invoiceNote = isFinancial ? (note || "") : "";
+    if (invoiceNote) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      setColor(t.colors.bodyText);
+      doc.text("Terms And Conditions", marginL, y);
+      y += 4;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7.5);
+      setColor(t.colors.mutedText);
+      const noteLines = doc.splitTextToSize(invoiceNote, contentW);
+      noteLines.forEach((line: string) => {
+        doc.text(line, marginL, y);
+        y += 3.5;
+      });
+      y += 5;
+    }
 
     // ── Signatory ──
     let sigY = 255;

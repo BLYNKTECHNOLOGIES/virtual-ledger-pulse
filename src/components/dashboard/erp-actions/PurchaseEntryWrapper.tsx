@@ -321,7 +321,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
       if (orderNumErr || !orderNumber) throw new Error('Failed to generate order number');
 
       const totalAmount = parseFloat(formData.total_amount) || 0;
-      const currentUserId = getCurrentUserId();
+      const currentUserId = await requireCurrentUserId();
 
       let result: Record<string, unknown>;
       let functionError: Error | null = null;

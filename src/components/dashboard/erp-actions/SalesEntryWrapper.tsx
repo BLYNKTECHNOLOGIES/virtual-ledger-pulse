@@ -248,7 +248,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
       if (stockValidationError) throw new Error(stockValidationError);
 
       const { data: orderNumber } = await supabase.rpc("generate_off_market_sales_order_number");
-      const createdBy = getCurrentUserId();
+      const createdBy = await requireCurrentUserId();
 
       const { data: result, error } = await supabase
         .from("sales_orders")

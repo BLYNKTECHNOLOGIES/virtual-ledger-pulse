@@ -167,11 +167,11 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
   const colX = {
     hash: marginL + 1,
     name: marginL + 10,
-    sac: marginL + 70,
+    sac: marginL + 68,
     qty: marginL + 90,
-    unit: marginL + 105,
-    price: hasGst ? marginL + 120 : marginL + 128,
-    igst: marginL + 148,
+    unit: marginL + 108,
+    price: hasGst ? marginL + 122 : marginL + 128,
+    igst: marginL + 150,
     amount: rightEdge - 1,
   };
 

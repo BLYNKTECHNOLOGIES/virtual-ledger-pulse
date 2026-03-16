@@ -111,7 +111,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       setDraw(t.colors.primary);
       doc.setLineWidth(0.8);
       doc.line(marginL, y, rightEdge, y);
-      y += 6;
+      y += 10;
     }
 
     // ── Title (after-company position) ──
@@ -164,16 +164,16 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     // ── Items Table ──
     const hasGst = gst.enabled && gst.rate > 0;
-    const colX = {
-      hash: marginL + 1,
-      name: marginL + 10,
-      sac: marginL + 72,
-      qty: marginL + 90,
-      unit: marginL + 102,
-      price: hasGst ? marginL + 112 : marginL + 120,
-      igst: marginL + 142,
-      amount: rightEdge - 1,
-    };
+  const colX = {
+    hash: marginL + 1,
+    name: marginL + 10,
+    sac: marginL + 70,
+    qty: marginL + 90,
+    unit: marginL + 105,
+    price: hasGst ? marginL + 120 : marginL + 128,
+    igst: marginL + 148,
+    amount: rightEdge - 1,
+  };
 
     const headerH = 7;
 

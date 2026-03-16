@@ -17,7 +17,7 @@ import { createSellerClient } from "@/utils/clientIdGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { updateClientFromOrder } from "@/utils/updateClientFromOrder";

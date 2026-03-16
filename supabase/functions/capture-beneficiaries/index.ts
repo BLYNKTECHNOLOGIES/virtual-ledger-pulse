@@ -32,19 +32,22 @@ const clean = (value: unknown): string => String(value ?? "").trim();
 
 const hasAccountNumber = (value: string): boolean => value.length >= 4;
 
-// Only store beneficiaries for these bank-transfer payment methods (case-insensitive match)
+// Only store beneficiaries for these Binance bank-transfer payment methods
 const ALLOWED_PAY_TYPES = new Set([
   "imps",
   "impspan",
   "bankindia",
   "banktransfer",
-  "bank transfer",
-  "bank transfer (india)",
+  "banktransferindia",
 ]);
+
+function normalizePayType(payType: string): string {
+  return payType.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 function isAllowedPayType(payType: string): boolean {
   if (!payType) return false;
-  return ALLOWED_PAY_TYPES.has(payType.toLowerCase().replace(/[\s\-_]+/g, "").replace("banktransferindia", "bankindia"));
+  return ALLOWED_PAY_TYPES.has(normalizePayType(payType));
 }
 
 // Check if account looks like UPI (contains @)
@@ -60,10 +63,8 @@ const findFieldValue = (fields: any[], predicate: (field: any) => boolean): stri
   return clean(field?.fieldValue);
 };
 
-function extractPaymentFromMethods(methods: any[], detail: any): PaymentInfo | null {
-  if (!Array.isArray(methods) || methods.length === 0) return null;
-
-  const primary = methods[0] || {};
+function extractPaymentFromSingleMethod(method: any, detail: any): PaymentInfo | null {
+  const primary = method || {};
   const fields = Array.isArray(primary.fields) ? primary.fields : [];
 
   const accountNoFromFields = findFieldValue(fields, (f) => {
@@ -116,6 +117,23 @@ function extractPaymentFromMethods(methods: any[], detail: any): PaymentInfo | n
     accountOpeningBranch: clean(primary.accountOpeningBranch || primary.branch || openingBranchFromFields),
     payType: clean(primary.payType || primary.tradeMethodName || primary.identifier || detail?.payType),
   };
+}
+
+function extractPaymentFromMethods(methods: any[], detail: any): PaymentInfo | null {
+  if (!Array.isArray(methods) || methods.length === 0) return null;
+
+  const candidates = methods
+    .map((method) => extractPaymentFromSingleMethod(method, detail))
+    .filter((candidate): candidate is PaymentInfo => Boolean(candidate));
+
+  if (candidates.length === 0) return null;
+
+  // Prefer non-UPI allowed bank methods if present; fallback to first parseable method.
+  const preferred = candidates.find(
+    (candidate) => !isUpiAccount(candidate.accountNo) && isAllowedPayType(candidate.payType)
+  );
+
+  return preferred || candidates[0] || null;
 }
 
 /**

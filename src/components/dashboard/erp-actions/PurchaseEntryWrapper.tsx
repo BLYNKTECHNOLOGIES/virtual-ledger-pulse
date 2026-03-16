@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { SupplierAutocomplete } from "@/components/purchase/SupplierAutocomplete";
-import { getCurrentUserId } from "@/lib/system-action-logger";
+import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface PaymentSplit {

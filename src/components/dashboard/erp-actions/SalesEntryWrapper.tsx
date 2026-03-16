@@ -594,7 +594,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                     <span>-{binanceCommission.toFixed(4)} {item.asset}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Will be debited from wallet as SALES_ORDER_FEE
+                    Recorded on sales order for reporting (not debited from wallet)
                   </p>
                 </div>
               )}

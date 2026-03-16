@@ -39,7 +39,7 @@ export default function ClientDetail() {
       const { count, error } = await supabase
         .from('sales_orders')
         .select('id', { count: 'exact', head: true })
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
         .neq('status', 'CANCELLED');
       
       if (error) throw error;
@@ -56,7 +56,7 @@ export default function ClientDetail() {
       const { count, error } = await supabase
         .from('purchase_orders')
         .select('id', { count: 'exact', head: true })
-        .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`)
+        .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone}"`)
         .neq('status', 'CANCELLED');
       
       if (error) throw error;

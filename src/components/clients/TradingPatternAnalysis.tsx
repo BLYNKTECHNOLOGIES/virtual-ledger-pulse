@@ -43,7 +43,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
       const { data, error } = await supabase
         .from('sales_orders')
         .select('*')
-        .or(`client_name.ilike.%${client.name}%,client_phone.eq.${client.phone || 'NONE'}`)
+        .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
@@ -62,7 +62,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
       const { data, error } = await supabase
         .from('purchase_orders')
         .select('*')
-        .or(`supplier_name.ilike.%${client.name}%,contact_number.eq.${client.phone || 'NONE'}`)
+        .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       

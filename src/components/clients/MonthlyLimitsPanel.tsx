@@ -49,7 +49,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
       const { data, error } = await supabase
         .from('sales_orders')
         .select('*')
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
         .order('order_date', { ascending: true });
       
       if (error) throw error;

@@ -195,7 +195,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
           *,
           wallet:wallets!wallet_id(wallet_name)
         `)
-        .or(`client_name.eq.${client.name},client_phone.eq.${client.phone}`)
+        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
@@ -220,7 +220,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
             warehouse_id
           )
         `)
-        .or(`supplier_name.eq.${client.name},contact_number.eq.${client.phone}`)
+        .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       

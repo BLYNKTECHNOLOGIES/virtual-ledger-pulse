@@ -111,7 +111,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       setDraw(t.colors.primary);
       doc.setLineWidth(0.8);
       doc.line(marginL, y, rightEdge, y);
-      y += 6;
+      y += 10;
     }
 
     // ── Title (after-company position) ──

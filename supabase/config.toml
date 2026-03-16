@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.auto-pay-engine]
 verify_jwt = false
+
+[functions.capture-beneficiaries]
+verify_jwt = false

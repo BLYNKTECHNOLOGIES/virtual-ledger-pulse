@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { getCurrentUserId } from '@/lib/system-action-logger';
+import { getCurrentUserIdAsync } from '@/lib/system-action-logger';
 
 /**
  * Action types for purchase workflow timing capture
@@ -52,7 +52,11 @@ export async function recordActionTiming(
     // Auto-resolve user ID if not provided (except for system actions)
     let resolvedUserId = actorUserId;
     if (!resolvedUserId && actorRole !== 'system') {
-      resolvedUserId = getCurrentUserId() || undefined;
+      resolvedUserId = await getCurrentUserIdAsync() || undefined;
+    }
+
+    if (!resolvedUserId && actorRole !== 'system') {
+      console.warn('[ActionTiming] No user ID resolved for non-system action:', actionType);
     }
 
     // Use upsert with ignoreDuplicates to ensure immutability
@@ -101,7 +105,7 @@ export async function recordMultipleTimings(
   if (!orderId || !actions.length) return;
 
   // Auto-resolve user ID for all non-system actions that don't have one
-  const currentUserId = getCurrentUserId();
+  const currentUserId = await getCurrentUserIdAsync();
 
   try {
     const records = actions.map(({ actionType, actorRole, actorUserId }) => ({

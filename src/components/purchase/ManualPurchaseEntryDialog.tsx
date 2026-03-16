@@ -17,7 +17,7 @@ import { createSellerClient } from "@/utils/clientIdGenerator";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { recordActionTiming } from "@/lib/purchase-action-timing";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { updateClientFromOrder } from "@/utils/updateClientFromOrder";
@@ -342,8 +342,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const totalAmount = parseFloat(formData.total_amount) || 0;
       console.log('📝 Order number:', orderNumber, 'Total amount:', totalAmount);
 
-      // Get current user ID for created_by tracking
-      const currentUserId = getCurrentUserId();
+      // Get current user ID for created_by tracking — REQUIRED, blocks if missing
+      const currentUserId = await requireCurrentUserId();
 
       let result: Record<string, unknown>;
       let functionError: Error | null = null;

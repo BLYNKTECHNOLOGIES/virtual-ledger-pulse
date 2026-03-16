@@ -18,7 +18,7 @@ import { AlertTriangle } from "lucide-react";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
@@ -170,8 +170,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
   const createSalesOrderMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Get current user ID for tracking creator
-      const createdBy = getCurrentUserId();
+      // Get current user ID for tracking creator — REQUIRED
+      const createdBy = await requireCurrentUserId();
 
       // Fetch CoinUSDT market rate at order creation time
       const selectedProd = products?.find((p: any) => p.id === data.product_id);

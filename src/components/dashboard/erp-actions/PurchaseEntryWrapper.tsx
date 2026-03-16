@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { SupplierAutocomplete } from "@/components/purchase/SupplierAutocomplete";
-import { getCurrentUserId } from "@/lib/system-action-logger";
+import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface PaymentSplit {
@@ -321,7 +321,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
       if (orderNumErr || !orderNumber) throw new Error('Failed to generate order number');
 
       const totalAmount = parseFloat(formData.total_amount) || 0;
-      const currentUserId = getCurrentUserId();
+      const currentUserId = await requireCurrentUserId();
 
       let result: Record<string, unknown>;
       let functionError: Error | null = null;

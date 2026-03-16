@@ -15,6 +15,8 @@ interface SellerPaymentInfo {
   accountName?: string;
   bankName?: string;
   ifscCode?: string;
+  accountType?: string;
+  accountOpeningBranch?: string;
   payType?: string;
   identifier?: string;
   rawMethods?: any[];

@@ -32,6 +32,26 @@ const clean = (value: unknown): string => String(value ?? "").trim();
 
 const hasAccountNumber = (value: string): boolean => value.length >= 4;
 
+// Only store beneficiaries for these bank-transfer payment methods (case-insensitive match)
+const ALLOWED_PAY_TYPES = new Set([
+  "imps",
+  "impspan",
+  "bankindia",
+  "banktransfer",
+  "bank transfer",
+  "bank transfer (india)",
+]);
+
+function isAllowedPayType(payType: string): boolean {
+  if (!payType) return false;
+  return ALLOWED_PAY_TYPES.has(payType.toLowerCase().replace(/[\s\-_]+/g, "").replace("banktransferindia", "bankindia"));
+}
+
+// Check if account looks like UPI (contains @)
+function isUpiAccount(accountNo: string): boolean {
+  return accountNo.includes("@");
+}
+
 const findFieldValue = (fields: any[], predicate: (field: any) => boolean): string => {
   const field = fields.find((f) => {
     const val = clean(f?.fieldValue);

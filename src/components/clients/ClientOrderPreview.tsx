@@ -69,7 +69,7 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   
   // Match by name OR phone
   if (clientPhone) {
-    purchaseQuery = purchaseQuery.or(`supplier_name.ilike.${clientName},contact_number.eq.${clientPhone}`);
+    purchaseQuery = purchaseQuery.or(`supplier_name.ilike."${clientName}",contact_number.eq."${clientPhone}"`);
   } else {
     purchaseQuery = purchaseQuery.ilike('supplier_name', clientName);
   }

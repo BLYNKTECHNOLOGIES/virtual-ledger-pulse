@@ -3,15 +3,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveBankAccounts } from "@/hooks/useActiveBankAccounts";
 import { captureSellerPaymentDetails } from "@/hooks/useSellerPaymentCapture";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Download, Building, Plus, CheckCircle2, Users, FileSpreadsheet } from "lucide-react";
+import { Search, Download, Plus, CheckCircle2, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
@@ -42,24 +43,65 @@ interface BankAddition {
   added_by: string | null;
 }
 
+interface BankBulkFormat {
+  id: string;
+  bank_key: string;
+  bank_display_name: string;
+  columns: ColumnDef[];
+  default_values: Record<string, string>;
+  is_active: boolean;
+}
+
+interface ColumnDef {
+  key: string;
+  header: string;
+  source: string; // 'account_number' | 'ifsc_code' | 'account_holder_name' | 'default'
+  max_length?: number;
+  strip_special?: boolean;
+}
+
+// Steps in the export dialog
+type ExportStep = "configure" | "review";
+
 export function BeneficiaryManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
-  const [exportCount, setExportCount] = useState("10");
   const [showBankDialog, setShowBankDialog] = useState(false);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<BeneficiaryRecord | null>(null);
   const [selectedBankId, setSelectedBankId] = useState("");
-  const [showExportBankDialog, setShowExportBankDialog] = useState(false);
-  const [exportedBeneficiaryIds, setExportedBeneficiaryIds] = useState<string[]>([]);
-  const [selectedExportBankIds, setSelectedExportBankIds] = useState<string[]>([]);
+
+  // Export dialog state
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportStep, setExportStep] = useState<ExportStep>("configure");
+  const [exportBankKey, setExportBankKey] = useState("");
+  const [exportRowCount, setExportRowCount] = useState("10");
+  const [exportedBeneficiaries, setExportedBeneficiaries] = useState<BeneficiaryRecord[]>([]);
+  const [selectedConfirmIds, setSelectedConfirmIds] = useState<Set<string>>(new Set());
 
   const { data: activeBanks } = useActiveBankAccounts();
 
-  // Capture live seller bank details on page load so beneficiary list reflects active IMPS/Bank orders
+  // Fetch configured bank bulk formats
+  const { data: bulkFormats } = useQuery({
+    queryKey: ["bank_bulk_formats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bank_bulk_formats" as any)
+        .select("*")
+        .eq("is_active", true)
+        .order("bank_display_name");
+      if (error) throw error;
+      return (data as unknown as BankBulkFormat[]).map((f) => ({
+        ...f,
+        columns: typeof f.columns === "string" ? JSON.parse(f.columns) : f.columns,
+        default_values: typeof f.default_values === "string" ? JSON.parse(f.default_values) : f.default_values,
+      }));
+    },
+  });
+
+  // Capture live seller bank details on page load
   useEffect(() => {
     let cancelled = false;
-
     const captureNow = async () => {
       try {
         const { checked } = await captureSellerPaymentDetails();
@@ -70,12 +112,8 @@ export function BeneficiaryManagement() {
         console.warn("[BeneficiaryManagement] Live beneficiary capture failed:", error);
       }
     };
-
     captureNow();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [queryClient]);
 
   // Fetch all beneficiary records
@@ -103,7 +141,7 @@ export function BeneficiaryManagement() {
     },
   });
 
-  // Build a map: beneficiary_id → bank_account_ids[]
+  // Build map: beneficiary_id → bank_account_ids[]
   const additionMap = useMemo(() => {
     const map = new Map<string, string[]>();
     bankAdditions?.forEach((ba) => {
@@ -113,6 +151,33 @@ export function BeneficiaryManagement() {
     });
     return map;
   }, [bankAdditions]);
+
+  // Build map: bank_key → Set of beneficiary_ids already added
+  // We need to know which bank_account_ids correspond to which bank_key
+  // For now we match by bank_display_name in activeBanks matching bank_name
+  const bankKeyAdditionMap = useMemo(() => {
+    const map = new Map<string, Set<string>>(); // bank_key → Set<beneficiary_id>
+    if (!bankAdditions || !activeBanks || !bulkFormats) return map;
+
+    // Build bank_account_id → bank_name mapping
+    const bankIdToName = new Map<string, string>();
+    activeBanks.forEach((b) => bankIdToName.set(b.id, b.bank_name));
+
+    // Build bank_display_name → bank_key mapping
+    const displayNameToKey = new Map<string, string>();
+    bulkFormats.forEach((f) => displayNameToKey.set(f.bank_display_name, f.bank_key));
+
+    bankAdditions.forEach((ba) => {
+      const bankName = bankIdToName.get(ba.bank_account_id);
+      if (!bankName) return;
+      // Try to find matching format key - we store by bank_account_id, so each addition is per-bank-account
+      // For the export filter, we use the bank_account_id directly
+      const existingBanks = map.get(ba.bank_account_id) || new Set();
+      existingBanks.add(ba.beneficiary_id);
+      map.set(ba.bank_account_id, existingBanks);
+    });
+    return map;
+  }, [bankAdditions, activeBanks, bulkFormats]);
 
   // Filter beneficiaries
   const filtered = useMemo(() => {
@@ -129,7 +194,7 @@ export function BeneficiaryManagement() {
     );
   }, [beneficiaries, searchQuery]);
 
-  // Add to bank mutation
+  // Add to bank mutation (individual)
   const addToBankMutation = useMutation({
     mutationFn: async ({ beneficiaryId, bankAccountId }: { beneficiaryId: string; bankAccountId: string }) => {
       const { error } = await supabase.from("beneficiary_bank_additions" as any).insert({
@@ -154,79 +219,196 @@ export function BeneficiaryManagement() {
     },
   });
 
-  // Bulk add to bank after export
-  const bulkAddMutation = useMutation({
-    mutationFn: async ({ beneficiaryIds, bankAccountIds }: { beneficiaryIds: string[]; bankAccountIds: string[] }) => {
-      const rows = beneficiaryIds.flatMap((bId) =>
-        bankAccountIds.map((baId) => ({
-          beneficiary_id: bId,
-          bank_account_id: baId,
-          added_at: new Date().toISOString(),
-        }))
-      );
-      // Insert ignoring conflicts
-      for (const row of rows) {
-        await supabase.from("beneficiary_bank_additions" as any).upsert(row as any, { onConflict: "beneficiary_id,bank_account_id" });
-      }
-      // Update exported_at
+  // Bulk confirm addition mutation
+  const bulkConfirmMutation = useMutation({
+    mutationFn: async ({ beneficiaryIds, bankAccountId }: { beneficiaryIds: string[]; bankAccountId: string }) => {
       for (const bId of beneficiaryIds) {
-        await supabase.from("beneficiary_records" as any).update({ exported_at: new Date().toISOString() }).eq("id", bId);
+        await supabase.from("beneficiary_bank_additions" as any).upsert(
+          { beneficiary_id: bId, bank_account_id: bankAccountId, added_at: new Date().toISOString() } as any,
+          { onConflict: "beneficiary_id,bank_account_id" }
+        );
       }
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Bank additions recorded for exported beneficiaries" });
+      toast({ title: "Success", description: "Beneficiaries marked as added to the selected bank" });
       queryClient.invalidateQueries({ queryKey: ["beneficiary_bank_additions"] });
       queryClient.invalidateQueries({ queryKey: ["beneficiary_records"] });
-      setShowExportBankDialog(false);
-      setExportedBeneficiaryIds([]);
-      setSelectedExportBankIds([]);
+      resetExportDialog();
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     },
   });
 
-  // Export CSV
-  const handleExport = () => {
-    const count = parseInt(exportCount) || 10;
-    // Get beneficiaries that haven't been exported yet, or all if not enough
-    const unexported = filtered.filter((b) => !b.exported_at);
-    const toExport = unexported.length >= count ? unexported.slice(0, count) : filtered.slice(0, count);
+  const resetExportDialog = () => {
+    setShowExportDialog(false);
+    setExportStep("configure");
+    setExportBankKey("");
+    setExportRowCount("10");
+    setExportedBeneficiaries([]);
+    setSelectedConfirmIds(new Set());
+  };
 
-    if (toExport.length === 0) {
-      toast({ title: "No Records", description: "No beneficiary records to export", variant: "destructive" });
+  // Strip special characters, keep only alphanumeric and spaces
+  const sanitizeName = (name: string, maxLen?: number): string => {
+    let clean = name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+    if (maxLen && clean.length > maxLen) clean = clean.substring(0, maxLen).trim();
+    return clean;
+  };
+
+  // Generate nickname: first name + first letter of last name (max 10 chars)
+  const generateNickName = (name: string, maxLen: number = 10): string => {
+    const clean = name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+    const parts = clean.split(" ").filter(Boolean);
+    if (parts.length === 0) return "";
+    if (parts.length === 1) return parts[0].substring(0, maxLen);
+    // First name + space + first char of last name
+    const nick = `${parts[0]} ${parts[parts.length - 1].charAt(0)}`;
+    return nick.substring(0, maxLen).trim();
+  };
+
+  // Get cell value for a beneficiary based on column definition
+  const getCellValue = (b: BeneficiaryRecord, col: ColumnDef, defaults: Record<string, string>): string => {
+    if (col.source === "default") {
+      return defaults[col.key] || "";
+    }
+
+    let value = "";
+    switch (col.source) {
+      case "account_number":
+        value = b.account_number || "";
+        break;
+      case "ifsc_code":
+        value = b.ifsc_code || "";
+        break;
+      case "account_holder_name":
+        value = b.account_holder_name || "";
+        if (col.strip_special) {
+          if (col.key === "nick_name") {
+            value = generateNickName(value, col.max_length);
+          } else {
+            value = sanitizeName(value, col.max_length);
+          }
+        }
+        break;
+      default:
+        value = (b as any)[col.source] || "";
+    }
+    return value;
+  };
+
+  // Handle export: generate CSV + show review step
+  const handleGenerateExport = () => {
+    const selectedFormat = bulkFormats?.find((f) => f.bank_key === exportBankKey);
+    if (!selectedFormat) {
+      toast({ title: "Error", description: "No format configuration found", variant: "destructive" });
       return;
     }
 
-    const wsData = toExport.map((b, i) => ({
-      "Sr No": i + 1,
-      "Account Holder Name": b.account_holder_name || "",
-      "Account Number": b.account_number,
-      "IFSC Code": b.ifsc_code || "",
-      "Bank Name": b.bank_name || "",
-      "Account Type": b.account_type || "",
-      "Account Opening Branch": b.account_opening_branch || "",
-      "First Seen": b.first_seen_at ? format(new Date(b.first_seen_at), "dd-MM-yyyy") : "",
-    }));
+    const count = parseInt(exportRowCount) || 10;
+
+    // Find the bank account(s) that match this format's bank
+    // Get all bank_account_ids that have been added for this bank's format
+    const addedBeneficiaryIds = new Set<string>();
+    if (activeBanks && bankAdditions) {
+      // For per-bank export filtering, we find bank accounts matching this bank format
+      // and collect all beneficiary_ids already added to ANY of those accounts
+      activeBanks.forEach((ba) => {
+        // Match by bank name containing the format's bank_display_name or key
+        const matchesPSB = selectedFormat.bank_key === "PSB" && 
+          (ba.bank_name.includes("Punjab") && ba.bank_name.includes("Sind"));
+        // Generic match: bank_display_name in bank_name
+        const matchesGeneric = ba.bank_name.toLowerCase().includes(selectedFormat.bank_display_name.toLowerCase());
+        
+        if (matchesPSB || matchesGeneric) {
+          const additions = bankKeyAdditionMap.get(ba.id);
+          if (additions) {
+            additions.forEach((bId) => addedBeneficiaryIds.add(bId));
+          }
+        }
+      });
+    }
+
+    // Filter: only beneficiaries NOT yet added to this bank
+    const eligible = (beneficiaries || []).filter((b) => !addedBeneficiaryIds.has(b.id));
+    const toExport = eligible.slice(0, count);
+
+    if (toExport.length === 0) {
+      toast({ title: "No Records", description: "All beneficiaries have already been exported/added to this bank", variant: "destructive" });
+      return;
+    }
+
+    // Generate CSV in the exact bank format
+    const columns = selectedFormat.columns;
+    const defaults = selectedFormat.default_values;
+
+    const wsData = toExport.map((b) => {
+      const row: Record<string, string> = {};
+      columns.forEach((col: ColumnDef) => {
+        row[col.header] = getCellValue(b, col, defaults);
+      });
+      return row;
+    });
 
     const ws = XLSX.utils.json_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Beneficiaries");
-    XLSX.writeFile(wb, `beneficiaries_export_${format(new Date(), "yyyyMMdd_HHmmss")}.csv`, { bookType: "csv" });
+    XLSX.writeFile(wb, `${selectedFormat.bank_key}_Bulk_Payee_${format(new Date(), "yyyyMMdd_HHmmss")}.xlsx`, { bookType: "xlsx" });
 
-    // Store exported IDs and open bank selection dialog
-    setExportedBeneficiaryIds(toExport.map((b) => b.id));
-    setShowExportBankDialog(true);
+    // Move to review step
+    setExportedBeneficiaries(toExport);
+    setSelectedConfirmIds(new Set(toExport.map((b) => b.id))); // Select all by default
+    setExportStep("review");
+  };
+
+  // Handle confirm submission
+  const handleConfirmSubmit = () => {
+    if (selectedConfirmIds.size === 0) {
+      toast({ title: "No Selection", description: "Please select at least one beneficiary", variant: "destructive" });
+      return;
+    }
+
+    const selectedFormat = bulkFormats?.find((f) => f.bank_key === exportBankKey);
+    if (!selectedFormat) return;
+
+    // Find matching bank account for this format
+    const matchingBankAccount = activeBanks?.find((ba) => {
+      if (selectedFormat.bank_key === "PSB") {
+        return ba.bank_name.includes("Punjab") && ba.bank_name.includes("Sind");
+      }
+      return ba.bank_name.toLowerCase().includes(selectedFormat.bank_display_name.toLowerCase());
+    });
+
+    if (!matchingBankAccount) {
+      toast({ title: "Error", description: `No active bank account found for ${selectedFormat.bank_display_name}. Please ensure you have an active PSB account in the system.`, variant: "destructive" });
+      return;
+    }
+
+    bulkConfirmMutation.mutate({
+      beneficiaryIds: Array.from(selectedConfirmIds),
+      bankAccountId: matchingBankAccount.id,
+    });
+  };
+
+  const toggleConfirmId = (id: string) => {
+    setSelectedConfirmIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedConfirmIds.size === exportedBeneficiaries.length) {
+      setSelectedConfirmIds(new Set());
+    } else {
+      setSelectedConfirmIds(new Set(exportedBeneficiaries.map((b) => b.id)));
+    }
   };
 
   const getBankName = (bankId: string) => {
     return activeBanks?.find((b) => b.id === bankId)?.account_name || "Unknown";
-  };
-
-  const toggleExportBank = (bankId: string) => {
-    setSelectedExportBankIds((prev) =>
-      prev.includes(bankId) ? prev.filter((id) => id !== bankId) : [...prev, bankId]
-    );
   };
 
   return (
@@ -249,37 +431,12 @@ export function BeneficiaryManagement() {
               className="pl-9 w-64"
             />
           </div>
+          <Button size="sm" className="gap-1.5" onClick={() => { setShowExportDialog(true); setExportStep("configure"); }}>
+            <Download className="h-3.5 w-3.5" />
+            Export for Bank
+          </Button>
         </div>
       </div>
-
-      {/* Export Controls */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Export CSV:</span>
-            </div>
-            <Select value={exportCount} onValueChange={setExportCount}>
-              <SelectTrigger className="w-24">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5</SelectItem>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-sm text-muted-foreground">entries</span>
-            <Button size="sm" onClick={handleExport} className="gap-1.5">
-              <Download className="h-3.5 w-3.5" />
-              Export
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* List View */}
       <Card>
@@ -301,9 +458,7 @@ export function BeneficiaryManagement() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">
-                      Loading...
-                    </TableCell>
+                    <TableCell colSpan={8} className="text-center text-sm text-muted-foreground py-8">Loading...</TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
@@ -376,7 +531,7 @@ export function BeneficiaryManagement() {
                 <p><span className="text-muted-foreground">IFSC:</span> {selectedBeneficiary.ifsc_code || "—"}</p>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Select Bank</label>
+                <Label className="text-xs">Select Bank</Label>
                 <Select value={selectedBankId} onValueChange={setSelectedBankId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Choose active bank..." />
@@ -408,46 +563,105 @@ export function BeneficiaryManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Post-Export Bank Selection Dialog */}
-      <Dialog open={showExportBankDialog} onOpenChange={setShowExportBankDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-sm">Where were these beneficiaries added?</DialogTitle>
-          </DialogHeader>
-          <p className="text-xs text-muted-foreground">
-            {exportedBeneficiaryIds.length} beneficiaries exported. Select the bank(s) where you've added them:
-          </p>
-          <div className="max-h-60 overflow-y-auto space-y-2">
-            {activeBanks?.map((bank) => (
-              <label key={bank.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer">
-                <Checkbox
-                  checked={selectedExportBankIds.includes(bank.id)}
-                  onCheckedChange={() => toggleExportBank(bank.id)}
-                />
-                <div className="text-xs">
-                  <span className="font-medium">{bank.account_name}</span>
-                  <span className="text-muted-foreground ml-1">— {bank.bank_name}</span>
+      {/* Export Dialog — Two Steps */}
+      <Dialog open={showExportDialog} onOpenChange={(open) => { if (!open) resetExportDialog(); else setShowExportDialog(true); }}>
+        <DialogContent className="max-w-2xl">
+          {exportStep === "configure" ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Export Beneficiaries for Bank Bulk Upload
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Select Bank</Label>
+                  <p className="text-xs text-muted-foreground">Only banks with a configured bulk upload format are shown.</p>
+                  <Select value={exportBankKey} onValueChange={setExportBankKey}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose bank..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bulkFormats?.map((f) => (
+                        <SelectItem key={f.bank_key} value={f.bank_key}>
+                          {f.bank_display_name} ({f.bank_key})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {bulkFormats?.length === 0 && (
+                    <p className="text-xs text-destructive">No bank bulk formats configured yet.</p>
+                  )}
                 </div>
-              </label>
-            ))}
-          </div>
-          <DialogFooter className="gap-2">
-            <Button size="sm" variant="outline" onClick={() => setShowExportBankDialog(false)}>
-              Skip
-            </Button>
-            <Button
-              size="sm"
-              disabled={selectedExportBankIds.length === 0 || bulkAddMutation.isPending}
-              onClick={() => {
-                bulkAddMutation.mutate({
-                  beneficiaryIds: exportedBeneficiaryIds,
-                  bankAccountIds: selectedExportBankIds,
-                });
-              }}
-            >
-              {bulkAddMutation.isPending ? "Saving..." : `Mark Added to ${selectedExportBankIds.length} Bank(s)`}
-            </Button>
-          </DialogFooter>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Number of Rows</Label>
+                  <p className="text-xs text-muted-foreground">How many new beneficiaries to include in the export.</p>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={exportRowCount}
+                    onChange={(e) => setExportRowCount(e.target.value)}
+                    className="w-32"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={resetExportDialog}>Cancel</Button>
+                <Button size="sm" disabled={!exportBankKey} onClick={handleGenerateExport} className="gap-1.5">
+                  <Download className="h-3.5 w-3.5" />
+                  Generate & Download
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-base">Confirm Successful Bank Additions</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                {exportedBeneficiaries.length} beneficiaries were exported for <strong>{bulkFormats?.find((f) => f.bank_key === exportBankKey)?.bank_display_name}</strong>.
+                Select the ones that were successfully added to the bank, then click Submit.
+              </p>
+
+              {/* Select All */}
+              <div className="flex items-center gap-2 py-1 border-b">
+                <Checkbox
+                  checked={selectedConfirmIds.size === exportedBeneficiaries.length && exportedBeneficiaries.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                />
+                <span className="text-xs font-medium">Select All ({selectedConfirmIds.size}/{exportedBeneficiaries.length})</span>
+              </div>
+
+              {/* Beneficiary list */}
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {exportedBeneficiaries.map((b) => (
+                  <label key={b.id} className="flex items-center gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer">
+                    <Checkbox
+                      checked={selectedConfirmIds.has(b.id)}
+                      onCheckedChange={() => toggleConfirmId(b.id)}
+                    />
+                    <div className="flex-1 text-xs space-y-0.5">
+                      <div className="font-medium">{b.account_holder_name || "Unknown"}</div>
+                      <div className="text-muted-foreground font-mono">{b.account_number} • {b.ifsc_code || "—"}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" size="sm" onClick={resetExportDialog}>Close</Button>
+                <Button
+                  size="sm"
+                  disabled={selectedConfirmIds.size === 0 || bulkConfirmMutation.isPending}
+                  onClick={handleConfirmSubmit}
+                >
+                  {bulkConfirmMutation.isPending ? "Saving..." : `Submit (${selectedConfirmIds.size} selected)`}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

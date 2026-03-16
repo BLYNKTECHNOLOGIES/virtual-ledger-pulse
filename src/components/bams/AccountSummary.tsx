@@ -612,8 +612,10 @@ export function AccountSummary() {
                     </SelectTrigger>
                     <SelectContent className="z-[100] bg-popover border shadow-md">
                       <SelectItem value="all">All Types</SelectItem>
-                      <SelectItem value="INCOME">Income</SelectItem>
-                      <SelectItem value="EXPENSE">Expense</SelectItem>
+                      <SelectItem value="PURCHASE">Purchase</SelectItem>
+                      <SelectItem value="SALES">Sales</SelectItem>
+                      <SelectItem value="EXPENSE_ONLY">Expense</SelectItem>
+                      <SelectItem value="INCOME_ONLY">Income</SelectItem>
                       <SelectItem value="TRANSFER_IN">Transfer In</SelectItem>
                       <SelectItem value="TRANSFER_OUT">Transfer Out</SelectItem>
                       <SelectItem value="CREDIT">Credit</SelectItem>

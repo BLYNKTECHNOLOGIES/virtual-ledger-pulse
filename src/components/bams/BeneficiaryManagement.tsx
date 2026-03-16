@@ -356,7 +356,7 @@ export function BeneficiaryManagement() {
     const wsData = toExport.map((b) => {
       const row: Record<string, string> = {};
       columns.forEach((col: ColumnDef) => {
-        row[col.header] = getCellValue(b, col, defaults);
+        row[col.header] = getCellValue(b, col, defaults, selectedFormat.bank_key);
       });
       return row;
     });

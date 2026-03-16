@@ -289,7 +289,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         // Payment method usage is computed live — no manual current_usage write needed
       }
 
-      // Process wallet deduction
+      // Process wallet deduction — if this fails, rollback the sales order
       if (formData.wallet_id) {
         const qty = parseFloat(formData.quantity);
         const { error: walletDeductError } = await supabase.rpc('process_sales_order_wallet_deduction', {
@@ -297,7 +297,11 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           wallet_id: formData.wallet_id,
           usdt_amount: qty,
         });
-        if (walletDeductError) throw new Error(`Wallet deduction failed: ${walletDeductError.message}`);
+        if (walletDeductError) {
+          // Rollback: delete the sales order since wallet deduction failed
+          await supabase.from('sales_orders').delete().eq('id', result.id);
+          throw new Error(`Wallet deduction failed: ${walletDeductError.message}`);
+        }
 
         // Process platform fee deduction
         const platformFees = parseFloat(formData.platform_fees) || 0;
@@ -341,7 +345,6 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         }
 
         // Record withdrawal network fee as a separate DEBIT transaction
-        // This ensures the ERP wallet balance exactly matches the Binance wallet
         if (binanceNetworkFee > 0) {
           await supabase
             .from('wallet_transactions')

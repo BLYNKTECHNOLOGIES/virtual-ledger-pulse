@@ -168,8 +168,7 @@ serve(async (req) => {
 
     console.log(`[CaptureBeneficiaries] Found ${ordersToProcess.length} orders to process (${activeOrders?.length || 0} active + ${recentCompleted?.length || 0} recent completed).`);
 
-    // 2. For each order, call Binance getOrderDetail and extract payment fields
-    for (const order of activeOrders) {
+    for (const order of ordersToProcess) {
       checked++;
 
       try {

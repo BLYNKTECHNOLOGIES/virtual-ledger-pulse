@@ -513,6 +513,7 @@ serve(async (req) => {
               }
             }
           }
+          } // end else (allowed pay type)
         }
 
         console.log(

@@ -519,8 +519,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
   const isSubmitDisabled = approveMutation.isPending || 
     !linkedClientId ||
-    (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId) ||
-    !hasRequiredSellerBankDetails;
+    (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

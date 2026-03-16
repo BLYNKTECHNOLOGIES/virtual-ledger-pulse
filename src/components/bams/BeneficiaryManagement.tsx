@@ -256,20 +256,22 @@ export function BeneficiaryManagement() {
     return clean;
   };
 
-  // Generate nickname: first name + first letter of last name (max 10 chars)
-  const generateNickName = (name: string, maxLen: number = 10): string => {
-    const clean = name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
-    const parts = clean.split(" ").filter(Boolean);
-    if (parts.length === 0) return "";
-    if (parts.length === 1) return parts[0].substring(0, maxLen);
-    // First name + space + first char of last name
-    const nick = `${parts[0]} ${parts[parts.length - 1].charAt(0)}`;
-    return nick.substring(0, maxLen).trim();
-  };
-
   // Get cell value for a beneficiary based on column definition
-  const getCellValue = (b: BeneficiaryRecord, col: ColumnDef, defaults: Record<string, string>): string => {
+  // For PSB format: payee_type is WITHIN if beneficiary bank is PSB, else OUTSIDE
+  // For PSB format: nick_name is simply first 10 chars of sanitized name
+  // For PSB format: txn_limit is always 1,00,00,000 (1 crore)
+  const getCellValue = (b: BeneficiaryRecord, col: ColumnDef, defaults: Record<string, string>, bankKey: string): string => {
     if (col.source === "default") {
+      // PSB-specific: auto-detect WITHIN/OUTSIDE based on beneficiary's bank
+      if (bankKey === "PSB" && col.key === "payee_type") {
+        const benBank = (b.bank_name || "").toLowerCase();
+        const isPSB = benBank.includes("punjab") && benBank.includes("sind");
+        return isPSB ? "WITHIN" : "OUTSIDE";
+      }
+      // PSB-specific: transaction limit is 1 crore
+      if (bankKey === "PSB" && col.key === "txn_limit") {
+        return "10000000.00";
+      }
       return defaults[col.key] || "";
     }
 
@@ -280,14 +282,23 @@ export function BeneficiaryManagement() {
         break;
       case "ifsc_code":
         value = b.ifsc_code || "";
+        // PSB-specific: if beneficiary is PSB bank, IFSC should be blank
+        if (bankKey === "PSB") {
+          const benBank = (b.bank_name || "").toLowerCase();
+          const isPSB = benBank.includes("punjab") && benBank.includes("sind");
+          if (isPSB) value = "";
+        }
         break;
       case "account_holder_name":
         value = b.account_holder_name || "";
         if (col.strip_special) {
+          // Remove special chars, keep alphanumeric + space
+          value = value.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
           if (col.key === "nick_name") {
-            value = generateNickName(value, col.max_length);
+            // For PSB: simply trim to first 10 characters
+            value = value.substring(0, col.max_length || 10).trim();
           } else {
-            value = sanitizeName(value, col.max_length);
+            value = value.substring(0, col.max_length || 32).trim();
           }
         }
         break;

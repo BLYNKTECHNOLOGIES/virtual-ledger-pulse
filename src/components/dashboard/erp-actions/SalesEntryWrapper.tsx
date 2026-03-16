@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { CustomerAutocomplete } from "@/components/sales/CustomerAutocomplete";
-import { getCurrentUserId } from "@/lib/system-action-logger";
+import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { AlertTriangle } from "lucide-react";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 

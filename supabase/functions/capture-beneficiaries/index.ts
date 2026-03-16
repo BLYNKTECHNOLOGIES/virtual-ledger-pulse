@@ -183,6 +183,11 @@ function extractPaymentFromDetail(detail: any): PaymentInfo | null {
 function extractPaymentFromStored(stored: any): PaymentInfo | null {
   if (!stored || typeof stored !== "object") return null;
 
+  // Prefer raw Binance detail first so we can select the correct bank method
+  // when multiple methods exist (e.g., UPI + IMPS on the same order).
+  const fromRaw = extractPaymentFromDetail(stored._raw_detail || stored.raw_detail || stored);
+  if (fromRaw) return fromRaw;
+
   const directAccountNo = clean(
     stored.accountNo ||
       stored.account_number ||
@@ -191,27 +196,25 @@ function extractPaymentFromStored(stored: any): PaymentInfo | null {
       stored.sellerAccountNo
   );
 
-  if (hasAccountNumber(directAccountNo)) {
-    return {
-      accountNo: directAccountNo,
-      accountName: clean(
-        stored.accountName ||
-          stored.account_holder_name ||
-          stored.payAccountName ||
-          stored.payeeAccountName ||
-          stored.sellerAccountName
-      ),
-      bankName: clean(stored.bankName || stored.bank_name || stored.payBankName),
-      ifscCode: clean(stored.ifscCode || stored.ifsc_code || stored.payIfscCode),
-      accountType: clean(stored.accountType || stored.account_type || stored.payAccountType),
-      accountOpeningBranch: clean(
-        stored.accountOpeningBranch || stored.account_opening_branch || stored.openingBranch || stored.branch
-      ),
-      payType: clean(stored.payType || stored.pay_type || stored.payMethodName),
-    };
-  }
+  if (!hasAccountNumber(directAccountNo)) return null;
 
-  return extractPaymentFromDetail(stored._raw_detail || stored.raw_detail || stored);
+  return {
+    accountNo: directAccountNo,
+    accountName: clean(
+      stored.accountName ||
+        stored.account_holder_name ||
+        stored.payAccountName ||
+        stored.payeeAccountName ||
+        stored.sellerAccountName
+    ),
+    bankName: clean(stored.bankName || stored.bank_name || stored.payBankName),
+    ifscCode: clean(stored.ifscCode || stored.ifsc_code || stored.payIfscCode),
+    accountType: clean(stored.accountType || stored.account_type || stored.payAccountType),
+    accountOpeningBranch: clean(
+      stored.accountOpeningBranch || stored.account_opening_branch || stored.openingBranch || stored.branch
+    ),
+    payType: clean(stored.payType || stored.pay_type || stored.payMethodName),
+  };
 }
 
 function buildEnrichmentPatch(existing: BeneficiaryRow, incoming: PaymentInfo): Record<string, string> {

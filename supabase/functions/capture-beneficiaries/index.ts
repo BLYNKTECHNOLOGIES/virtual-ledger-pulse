@@ -28,6 +28,13 @@ interface BeneficiaryRow {
   account_opening_branch: string | null;
 }
 
+interface OrderScopeRow {
+  order_number: string;
+  order_status: string;
+  seller_payment_details: any;
+  create_time: number;
+}
+
 const clean = (value: unknown): string => String(value ?? "").trim();
 
 const hasAccountNumber = (value: string): boolean => value.length >= 4;

@@ -50,6 +50,14 @@ function extractSellerPaymentDetails(detail: any): SellerPaymentInfo | null {
 
   const methods = methodArrays.find(arr => Array.isArray(arr) && arr.length > 0);
 
+  const findFieldValue = (fields: any[], predicate: (field: any) => boolean): string => {
+    const field = fields.find((f) => {
+      const val = String(f?.fieldValue || '').trim();
+      return val && predicate(f);
+    });
+    return String(field?.fieldValue || '').trim();
+  };
+
   if (!methods || methods.length === 0) {
     // Check for flat payment fields
     if (detail.payAccountNo || detail.payeeAccountNo || detail.sellerAccountNo) {
@@ -58,6 +66,8 @@ function extractSellerPaymentDetails(detail: any): SellerPaymentInfo | null {
         accountName: detail.payAccountName || detail.payeeAccountName || detail.sellerAccountName || '',
         bankName: detail.payBankName || detail.bankName || '',
         ifscCode: detail.payIfscCode || detail.ifscCode || '',
+        accountType: detail.accountType || detail.payAccountType || '',
+        accountOpeningBranch: detail.accountOpeningBranch || detail.openingBranch || detail.branch || '',
         payType: detail.payMethodName || detail.payType || '',
         identifier: detail.payMethodIdentifier || detail.identifier || '',
       };
@@ -66,14 +76,63 @@ function extractSellerPaymentDetails(detail: any): SellerPaymentInfo | null {
   }
 
   // Use the first method (primary payment method used in the trade)
-  const primary = methods[0];
+  const primary = methods[0] || {};
+  const fields = Array.isArray(primary.fields) ? primary.fields : [];
+
+  const accountNoFromFields = findFieldValue(
+    fields,
+    (f) => {
+      const name = String(f?.fieldName || '').toLowerCase();
+      const contentType = String(f?.fieldContentType || '').toLowerCase();
+      return contentType === 'pay_account' || /bank account|account\/?card/.test(name);
+    }
+  );
+
+  const accountNameFromFields = findFieldValue(
+    fields,
+    (f) => {
+      const name = String(f?.fieldName || '').toLowerCase();
+      const contentType = String(f?.fieldContentType || '').toLowerCase();
+      return contentType === 'payee' || name === 'name' || name.includes('account holder');
+    }
+  );
+
+  const ifscFromFields = findFieldValue(
+    fields,
+    (f) => String(f?.fieldName || '').toLowerCase().includes('ifsc')
+  );
+
+  const bankFromFields = findFieldValue(
+    fields,
+    (f) => {
+      const name = String(f?.fieldName || '').toLowerCase();
+      const contentType = String(f?.fieldContentType || '').toLowerCase();
+      return contentType === 'bank' || name.includes('bank name');
+    }
+  );
+
+  const accountTypeFromFields = findFieldValue(
+    fields,
+    (f) => String(f?.fieldName || '').toLowerCase().includes('account type')
+  );
+
+  const openingBranchFromFields = findFieldValue(
+    fields,
+    (f) => {
+      const name = String(f?.fieldName || '').toLowerCase();
+      return name.includes('opening branch') || name === 'branch';
+    }
+  );
+
   return {
-    accountNo: primary.accountNo || primary.account || primary.bankAccount || primary.bankAccountNumber || '',
-    accountName: primary.name || primary.accountName || primary.realName || primary.bankAccountName || '',
-    bankName: primary.bankName || primary.bank || primary.bankSubName || '',
-    ifscCode: primary.ifscCode || primary.branchCode || primary.bankBranchCode || '',
-    payType: primary.payType || primary.tradeMethodName || primary.identifier || '',
-    identifier: primary.identifier || primary.tradeMethodName || '',
+    accountNo: primary.accountNo || primary.account || primary.bankAccount || primary.bankAccountNumber || accountNoFromFields || '',
+    accountName: primary.name || primary.accountName || primary.realName || primary.bankAccountName || accountNameFromFields || '',
+    bankName: primary.bankName || primary.bank || primary.bankSubName || bankFromFields || '',
+    ifscCode: primary.ifscCode || primary.branchCode || primary.bankBranchCode || ifscFromFields || '',
+    accountType: primary.accountType || accountTypeFromFields || '',
+    accountOpeningBranch: primary.accountOpeningBranch || primary.branch || openingBranchFromFields || '',
+    payType: primary.payType || primary.tradeMethodName || primary.identifier || detail.payType || '',
+    identifier: primary.identifier || primary.tradeMethodName || detail.identifier || '',
     rawMethods: methods,
   };
 }

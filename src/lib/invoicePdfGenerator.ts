@@ -111,7 +111,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       setDraw(t.colors.primary);
       doc.setLineWidth(0.8);
       doc.line(marginL, y, rightEdge, y);
-      y += 6;
+      y += 10;
     }
 
     // ── Title (after-company position) ──
@@ -121,12 +121,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.setFont("helvetica", "bold");
       setColor(t.colors.primary);
       doc.text(headerText, pageW / 2, y, { align: "center" });
-      y += 3;
-      const titleW = doc.getTextWidth(headerText);
-      setDraw(t.colors.primary);
-      doc.setLineWidth(0.5);
-      doc.line(pageW / 2 - titleW / 2, y, pageW / 2 + titleW / 2, y);
-      y += 8;
+      y += 10;
     }
 
     // ── Bill To & Invoice Details ──
@@ -166,12 +161,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     const hasGst = gst.enabled && gst.rate > 0;
     const colX = {
       hash: marginL + 1,
-      name: marginL + 10,
-      sac: marginL + 72,
-      qty: marginL + 90,
-      unit: marginL + 102,
-      price: hasGst ? marginL + 112 : marginL + 120,
-      igst: marginL + 142,
+      name: marginL + 12,
+      sac: marginL + 68,
+      qty: marginL + 86,
+      unit: marginL + 100,
+      price: hasGst ? marginL + 114 : marginL + 120,
+      igst: marginL + 146,
       amount: rightEdge - 1,
     };
 
@@ -399,14 +394,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         y += 5;
       }
 
-      if (uniquePcts.length > 0) {
-        doc.setFont("helvetica", "normal");
-        doc.text("Margin Percentage:", refLabelX, y);
-        doc.setFont("helvetica", "bold");
-        doc.text(`${uniquePcts.join(", ")}%`, refValX, y);
-        y += 5;
-      }
-
       doc.setFont("helvetica", "normal");
       doc.text("Service Margin:", refLabelX, y);
       doc.setFont("helvetica", "bold");
@@ -418,25 +405,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.setFont("helvetica", "bold");
       doc.text(formatINR(totalGstOnMargin), refValX, y);
       y += 8;
-    }
-
-    // ── Terms / Note ──
-    const invoiceNote = isFinancial ? (note || "") : "";
-    if (invoiceNote) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      setColor(t.colors.bodyText);
-      doc.text("Terms And Conditions", marginL, y);
-      y += 4;
-      doc.setFont("helvetica", "italic");
-      doc.setFontSize(7.5);
-      setColor(t.colors.mutedText);
-      const noteLines = doc.splitTextToSize(invoiceNote, contentW);
-      noteLines.forEach((line: string) => {
-        doc.text(line, marginL, y);
-        y += 3.5;
-      });
-      y += 5;
     }
 
     // ── Pay To ──
@@ -470,6 +438,26 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(line, marginL, y);
       y += 3.5;
     });
+    y += 3;
+
+    // ── Terms / Note ──
+    const invoiceNote = isFinancial ? (note || "") : "";
+    if (invoiceNote) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      setColor(t.colors.bodyText);
+      doc.text("Terms And Conditions", marginL, y);
+      y += 4;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(7.5);
+      setColor(t.colors.mutedText);
+      const noteLines = doc.splitTextToSize(invoiceNote, contentW);
+      noteLines.forEach((line: string) => {
+        doc.text(line, marginL, y);
+        y += 3.5;
+      });
+      y += 5;
+    }
 
     // ── Signatory ──
     let sigY = 255;

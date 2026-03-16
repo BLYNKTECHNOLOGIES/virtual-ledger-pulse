@@ -461,6 +461,12 @@ serve(async (req) => {
         }
 
         if (paymentInfo?.accountNo) {
+          // Filter: only save bank transfer methods, skip UPI accounts
+          if (isUpiAccount(paymentInfo.accountNo)) {
+            console.log(`[CaptureBeneficiaries] Skipped UPI account ${paymentInfo.accountNo} for ${order.order_number}`);
+          } else if (!isAllowedPayType(paymentInfo.payType)) {
+            console.log(`[CaptureBeneficiaries] Skipped non-bank payType "${paymentInfo.payType}" for ${order.order_number}`);
+          } else {
           const existing = beneficiaryMap.get(paymentInfo.accountNo);
 
           if (!existing) {

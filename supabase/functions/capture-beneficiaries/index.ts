@@ -361,6 +361,26 @@ serve(async (req) => {
     try {
       liveActiveOrders = await fetchLiveActiveBuyOrders(BINANCE_PROXY_URL, proxyHeaders);
       console.log(`[CaptureBeneficiaries] Live active BUY orders from Binance: ${liveActiveOrders.length}`);
+
+      if (liveActiveOrders.length > 0) {
+        const { error: liveUpsertErr } = await supabase
+          .from("binance_order_history")
+          .upsert(
+            liveActiveOrders.map((order) => ({
+              order_number: order.order_number,
+              order_status: order.order_status,
+              trade_type: "BUY",
+              create_time: order.create_time,
+              raw_data: order.raw_data || null,
+              synced_at: new Date().toISOString(),
+            })),
+            { onConflict: "order_number" },
+          );
+
+        if (liveUpsertErr) {
+          console.warn("[CaptureBeneficiaries] Live order upsert warning:", liveUpsertErr);
+        }
+      }
     } catch (liveErr) {
       console.warn("[CaptureBeneficiaries] Live active order fetch warning:", liveErr);
     }

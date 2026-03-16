@@ -14,6 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import { createValidatedWalletTransaction } from "@/hooks/useWalletStock";
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { format } from "date-fns";
@@ -405,22 +406,36 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       // Skip wallet/fee processing if recovering from a partial approval (already done)
       if (!existingSO) {
       // Process wallet deduction — debit full gross quantity
-      // Binance P2P commission is NOT deducted from the seller's USDT funding wallet;
-      // it's absorbed in fiat proceeds. So we debit the full gross amount only.
+      // Binance P2P SELL: the sold amount is released to buyer, AND commission is
+      // deducted from the seller's crypto wallet on top. Both must be ledgered.
       if (od.wallet_id && quantity > 0) {
+        const assetCode = (od.asset || 'USDT').toUpperCase();
         const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: salesOrder.id,
           usdt_amount: quantity,
           wallet_id: od.wallet_id,
-          p_asset_code: (od.asset || 'USDT').toUpperCase(),
+          p_asset_code: assetCode,
         });
         if (walletErr) {
           await supabase.from('sales_orders').delete().eq('id', salesOrder.id);
           throw new Error(`Wallet deduction failed: ${walletErr.message}. Sales order was not created.`);
         }
 
-        // Record commission in wallet_fee_deductions for reporting only (no wallet debit)
+        // Debit commission from wallet ledger — Binance deducts this from the
+        // seller's crypto balance on top of the sold amount.
         if (commission > 0) {
+          await createValidatedWalletTransaction(
+            od.wallet_id,
+            'DEBIT',
+            commission,
+            'SALES_ORDER_FEE',
+            salesOrder.id,
+            `Platform fee for sales order #${orderNumber} (Binance commission)`,
+            userId || null,
+            assetCode
+          );
+
+          // Also record in wallet_fee_deductions for reporting
           const { data: usdtProd } = await supabase
             .from('products')
             .select('average_buying_price')

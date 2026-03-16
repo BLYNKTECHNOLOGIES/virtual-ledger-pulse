@@ -1,0 +1,1 @@
+DELETE FROM public.beneficiary_records WHERE account_number LIKE '%@%';

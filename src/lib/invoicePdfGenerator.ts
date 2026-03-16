@@ -164,11 +164,55 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     // ── Items Table ──
     const hasGst = gst.enabled && gst.rate > 0;
-    const columnWidths = hasGst
-      ? { hash: 8, sac: 18, qty: 12, unit: 12, price: 22, igst: 22, amount: 24 }
-      : { hash: 8, sac: 20, qty: 12, unit: 12, price: 24, igst: 0, amount: 24 };
 
-    const nameWidth = contentW
+    const getTaxableValue = (item: InvoiceGroup["items"][number]) => {
+      if (isFinancial) return item.serviceMargin || item.amount;
+      return gst.enabled && gst.inclusive && gst.rate > 0
+        ? item.amount / (1 + gst.rate / 100)
+        : item.amount;
+    };
+
+    const taxableValuesForWidth = invoice.items.map(getTaxableValue);
+    const gstValuesForWidth = hasGst
+      ? taxableValuesForWidth.map((value) => value * (gst.rate / 100))
+      : [];
+    const totalsForWidth = taxableValuesForWidth.map((value, i) => value + (gstValuesForWidth[i] || 0));
+    const subtotalPreview = taxableValuesForWidth.reduce((sum, value) => sum + value, 0);
+    const gstPreview = hasGst ? subtotalPreview * (gst.rate / 100) : 0;
+    const grandTotalPreview = subtotalPreview + gstPreview;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+
+    const measuredWidth = (values: string[], min: number, max: number) => {
+      const widest = values.reduce((w, text) => Math.max(w, doc.getTextWidth(text)), 0);
+      return Math.max(min, Math.min(max, widest + 5));
+    };
+
+    let columnWidths = hasGst
+      ? { hash: 8, sac: 18, qty: 12, unit: 12, price: 24, igst: 26, amount: 30 }
+      : { hash: 8, sac: 20, qty: 12, unit: 12, price: 24, igst: 0, amount: 30 };
+
+    columnWidths.price = measuredWidth([
+      "Price/unit",
+      ...taxableValuesForWidth.map((value) => formatINR(value)),
+    ], 22, 30);
+
+    if (hasGst) {
+      columnWidths.igst = measuredWidth([
+        gst.type === "IGST" ? "IGST" : "CGST/SGST",
+        ...gstValuesForWidth.map((value) => formatINR(value)),
+        formatINR(gstPreview),
+      ], 24, 34);
+    }
+
+    columnWidths.amount = measuredWidth([
+      "Amount",
+      ...totalsForWidth.map((value) => formatINR(value)),
+      formatINR(grandTotalPreview),
+    ], 28, 40);
+
+    const getNameWidth = () => contentW
       - columnWidths.hash
       - columnWidths.sac
       - columnWidths.qty
@@ -176,6 +220,25 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       - columnWidths.price
       - columnWidths.igst
       - columnWidths.amount;
+
+    let nameWidth = getNameWidth();
+    const minimumNameWidth = 52;
+    if (nameWidth < minimumNameWidth) {
+      let deficit = minimumNameWidth - nameWidth;
+      const shrink = (key: "amount" | "igst" | "price", minWidth: number) => {
+        if (deficit <= 0) return;
+        const available = columnWidths[key] - minWidth;
+        if (available <= 0) return;
+        const reduceBy = Math.min(available, deficit);
+        columnWidths[key] -= reduceBy;
+        deficit -= reduceBy;
+      };
+
+      shrink("amount", 28);
+      if (hasGst) shrink("igst", 22);
+      shrink("price", 20);
+      nameWidth = getNameWidth();
+    }
 
     const colX = {
       hash: marginL,

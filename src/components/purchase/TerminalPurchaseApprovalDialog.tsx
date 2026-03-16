@@ -451,29 +451,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
-            // Save seller bank details
-            bank_account_number: normalizedSellerAccountNumber || null,
-            bank_account_name: normalizedSellerAccountName || null,
-            ifsc_code: normalizedSellerIfsc || null,
           })
           .eq('id', result.purchase_order_id);
-
-        // Auto-record beneficiary from seller bank details entered by operator
-        if (normalizedSellerAccountNumber) {
-          try {
-            await supabase.rpc('upsert_beneficiary_record' as any, {
-              p_account_number: normalizedSellerAccountNumber,
-              p_account_holder_name: normalizedSellerAccountName || null,
-              p_ifsc_code: normalizedSellerIfsc || null,
-              p_bank_name: null,
-              p_source_order_number: od.order_number || result.purchase_order_id,
-              p_client_name: syncRecord.counterparty_name || null,
-            });
-            console.log('✅ Beneficiary record upserted for:', normalizedSellerAccountNumber);
-          } catch (benErr) {
-            console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
-          }
-        }
 
         // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly
         if (asset !== 'USDT' && marketRateUsdt > 0) {

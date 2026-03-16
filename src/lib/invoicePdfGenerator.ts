@@ -171,7 +171,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     qty: marginL + 90,
     unit: marginL + 108,
     price: hasGst ? marginL + 122 : marginL + 128,
-    igst: marginL + 150,
+    igst: marginL + 154,
     amount: rightEdge - 1,
   };
 

@@ -52,7 +52,11 @@ export async function recordActionTiming(
     // Auto-resolve user ID if not provided (except for system actions)
     let resolvedUserId = actorUserId;
     if (!resolvedUserId && actorRole !== 'system') {
-      resolvedUserId = getCurrentUserId() || undefined;
+      resolvedUserId = await getCurrentUserIdAsync() || undefined;
+    }
+
+    if (!resolvedUserId && actorRole !== 'system') {
+      console.warn('[ActionTiming] No user ID resolved for non-system action:', actionType);
     }
 
     // Use upsert with ignoreDuplicates to ensure immutability

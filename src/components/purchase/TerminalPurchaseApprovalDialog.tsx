@@ -134,8 +134,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setClientMasterState(cMasterState);
       setCounterpartyState(cPartyState);
 
-      // Auto-resolve: client master wins, fallback to counterparty
-      const resolvedPan = cMasterPan || cPartyPan;
+      // Auto-resolve: sync record PAN (entered in terminal) wins, then client master, then counterparty
+      const syncPan = syncRecord?.pan_number || '';
+      const resolvedPan = syncPan || cMasterPan || cPartyPan;
       setPanNumber(resolvedPan);
       setTdsOption(resolvedPan ? '1%' : '20%');
 

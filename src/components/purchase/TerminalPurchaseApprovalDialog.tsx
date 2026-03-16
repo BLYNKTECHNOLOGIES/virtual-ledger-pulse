@@ -49,11 +49,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );
   const [remarks, setRemarks] = useState('');
-  // Seller bank details for beneficiary tracking — pre-fill from captured payment details
-  const capturedPayment = od.seller_payment_details || {};
-  const [sellerAccountNumber, setSellerAccountNumber] = useState(capturedPayment.accountNo || '');
-  const [sellerAccountName, setSellerAccountName] = useState(capturedPayment.accountName || '');
-  const [sellerIfsc, setSellerIfsc] = useState(capturedPayment.ifscCode || '');
+  // Seller bank details are now captured automatically by the server-side capture-beneficiaries edge function
+  // No manual entry needed during approval
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
   const [linkedClientName, setLinkedClientName] = useState('');
   const [creatingClient, setCreatingClient] = useState(false);
@@ -160,14 +157,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     fetchResolvedData();
   }, [open, syncRecord, linkedClientId]);
 
-  // Pre-fill seller bank details from captured payment data when dialog opens
-  useEffect(() => {
-    if (!open) return;
-    const payment = od.seller_payment_details || {};
-    setSellerAccountNumber(payment.accountNo || '');
-    setSellerAccountName(payment.accountName || '');
-    setSellerIfsc(payment.ifscCode || '');
-  }, [open, syncRecord]);
 
   // Build conflict items for the banner
   const panConflicts = useMemo(() => {
@@ -220,11 +209,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const tdsAmount = totalAmount * (tdsRate / 100);
   const netPayable = totalAmount - tdsAmount;
 
-  const normalizedSellerAccountNumber = sellerAccountNumber.trim();
-  const normalizedSellerAccountName = sellerAccountName.trim();
-  const normalizedSellerIfsc = sellerIfsc.trim().toUpperCase();
-  const requiresSellerBankDetails = !isUpiPayment;
-  const hasRequiredSellerBankDetails = !requiresSellerBankDetails || normalizedSellerAccountNumber.length > 0;
 
   // Split payment allocation
   const splitAllocation = useMemo(() => {
@@ -307,9 +291,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         throw new Error("PAN is required for 1% TDS");
       }
 
-      if (requiresSellerBankDetails && !normalizedSellerAccountNumber) {
-        throw new Error("Seller account number is required for non-UPI orders to track beneficiary records.");
-      }
 
       if (isMultiplePayments) {
         if (!splitAllocation.isValid) {
@@ -467,29 +448,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
-            // Save seller bank details
-            bank_account_number: normalizedSellerAccountNumber || null,
-            bank_account_name: normalizedSellerAccountName || null,
-            ifsc_code: normalizedSellerIfsc || null,
           })
           .eq('id', result.purchase_order_id);
-
-        // Auto-record beneficiary from seller bank details entered by operator
-        if (normalizedSellerAccountNumber) {
-          try {
-            await supabase.rpc('upsert_beneficiary_record' as any, {
-              p_account_number: normalizedSellerAccountNumber,
-              p_account_holder_name: normalizedSellerAccountName || null,
-              p_ifsc_code: normalizedSellerIfsc || null,
-              p_bank_name: null,
-              p_source_order_number: od.order_number || result.purchase_order_id,
-              p_client_name: syncRecord.counterparty_name || null,
-            });
-            console.log('✅ Beneficiary record upserted for:', normalizedSellerAccountNumber);
-          } catch (benErr) {
-            console.warn('⚠️ Beneficiary upsert failed (non-blocking):', benErr);
-          }
-        }
 
         // Update WAC cost pool for non-USDT assets so Realized P&L calculates correctly
         if (asset !== 'USDT' && marketRateUsdt > 0) {
@@ -556,8 +516,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
   const isSubmitDisabled = approveMutation.isPending || 
     !linkedClientId ||
-    (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId) ||
-    !hasRequiredSellerBankDetails;
+    (isMultiplePayments ? !splitAllocation.isValid : !bankAccountId);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -861,53 +820,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             </Card>
           )}
 
-          {/* Seller Bank Details (for Beneficiary Tracking) */}
-          <Card className="border-emerald-200 bg-emerald-50/30">
-            <CardContent className="p-4 space-y-3">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Users className="h-3.5 w-3.5" />
-                Seller Bank Details (Beneficiary)
-              </Label>
-              <p className="text-[10px] text-muted-foreground">
-                {od.seller_payment_details?.accountNo
-                  ? "✅ Auto-captured from live order. Verify and edit if needed."
-                  : requiresSellerBankDetails
-                    ? "Enter seller bank details. Account number is required for this payment type."
-                    : "UPI orders may not include bank account details."
-                }
-              </p>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <Label className="text-[10px]">Account Number {requiresSellerBankDetails ? '*' : ''}</Label>
-                  <Input
-                    value={sellerAccountNumber}
-                    onChange={(e) => setSellerAccountNumber(e.target.value.trim())}
-                    placeholder="Account number"
-                    className="mt-1 h-8 text-xs font-mono"
-                  />
-                </div>
-                <div>
-                  <Label className="text-[10px]">Account Holder Name</Label>
-                  <Input
-                    value={sellerAccountName}
-                    onChange={(e) => setSellerAccountName(e.target.value)}
-                    placeholder="Holder name"
-                    className="mt-1 h-8 text-xs"
-                  />
-                </div>
-                <div>
-                  <Label className="text-[10px]">IFSC Code</Label>
-                  <Input
-                    value={sellerIfsc}
-                    onChange={(e) => setSellerIfsc(e.target.value.toUpperCase().trim())}
-                    placeholder="IFSC code"
-                    className="mt-1 h-8 text-xs font-mono"
-                    maxLength={11}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           <div>
             <Label className="text-xs">Remarks</Label>

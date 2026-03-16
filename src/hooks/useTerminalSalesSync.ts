@@ -107,14 +107,53 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       }
     }
 
-    // 3. Get existing sync records to check duplicates AND rejected orders (never re-sync rejected)
+    // 3. Get existing sync records to check duplicates AND detect broken historical links
     const orderNumbers = filteredSells.map(o => o.order_number);
     const { data: existingSyncs } = await supabase
       .from('terminal_sales_sync')
-      .select('binance_order_number, sync_status')
+      .select('id, binance_order_number, sync_status, sales_order_id')
       .in('binance_order_number', orderNumbers);
 
-    const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
+    // Auto-heal: if a sync row points to a sales order that belongs to a different terminal_sync_id,
+    // reset it back to pending approval so it can be approved correctly.
+    const linkedSalesOrderIds = [...new Set((existingSyncs || []).map((s: any) => s.sales_order_id).filter(Boolean))];
+    if (linkedSalesOrderIds.length > 0) {
+      const { data: linkedOrders } = await supabase
+        .from('sales_orders')
+        .select('id, terminal_sync_id')
+        .in('id', linkedSalesOrderIds as string[]);
+
+      const linkedOrderMap = new Map((linkedOrders || []).map((o: any) => [o.id, o]));
+      const mismatchedSyncIds = (existingSyncs || [])
+        .filter((s: any) => {
+          if (!s.sales_order_id) return false;
+          const linked = linkedOrderMap.get(s.sales_order_id);
+          if (!linked) return true; // orphan link
+          return linked.terminal_sync_id !== s.id; // wrong link
+        })
+        .map((s: any) => s.id);
+
+      if (mismatchedSyncIds.length > 0) {
+        const { error: healErr } = await supabase
+          .from('terminal_sales_sync')
+          .update({
+            sync_status: 'synced_pending_approval',
+            sales_order_id: null,
+            reviewed_by: null,
+            reviewed_at: null,
+            rejection_reason: 'Auto-reset: mismatched sales order link detected',
+          })
+          .in('id', mismatchedSyncIds);
+
+        if (healErr) {
+          console.warn('[SalesSync] Auto-heal failed for mismatched links:', healErr);
+        } else {
+          console.log(`[SalesSync] Auto-healed ${mismatchedSyncIds.length} mismatched sync link(s)`);
+        }
+      }
+    }
+
+    const existingSet = new Set((existingSyncs || []).map((s: any) => s.binance_order_number));
 
     // 4. Get contact records for counterparties
     // Filter out masked nicknames (containing *) to prevent cross-contamination of contact data

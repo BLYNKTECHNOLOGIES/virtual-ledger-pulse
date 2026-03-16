@@ -321,23 +321,9 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           }).eq('id', result.id);
         }
 
-        // Deduct Binance commission as separate SALES_ORDER_FEE transaction
+        // Binance P2P commission is NOT deducted from the seller's USDT funding wallet;
+        // it's absorbed in fiat proceeds. Record fee on sales order for reporting only.
         if (binanceCommission > 0) {
-          await supabase
-            .from('wallet_transactions')
-            .insert({
-              wallet_id: formData.wallet_id,
-              transaction_type: 'DEBIT',
-              amount: binanceCommission,
-              reference_type: 'SALES_ORDER_FEE',
-              reference_id: result.id,
-              description: `Binance commission for sales order #${orderNumber}`,
-              balance_before: 0,
-              balance_after: 0,
-              asset_code: (item.asset || 'USDT').toUpperCase(),
-            });
-
-          // Update fee_amount on the sales order to include commission
           const existingFee = parseFloat(formData.platform_fees) || 0;
           await supabase.from('sales_orders').update({
             fee_amount: existingFee + binanceCommission,
@@ -608,7 +594,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                     <span>-{binanceCommission.toFixed(4)} {item.asset}</span>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Will be debited from wallet as SALES_ORDER_FEE
+                    Recorded on sales order for reporting (not debited from wallet)
                   </p>
                 </div>
               )}

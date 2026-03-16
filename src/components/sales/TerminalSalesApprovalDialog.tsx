@@ -404,14 +404,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       // Skip wallet/fee processing if recovering from a partial approval (already done)
       if (!existingSO) {
-      // Process wallet deduction
-      // Debit net quantity (gross - commission) here; commission is debited separately below
-      // This prevents double-debiting since Binance commission is taken FROM the gross amount
-      const netDeductionQty = commission > 0 ? quantity - commission : quantity;
-      if (od.wallet_id && netDeductionQty > 0) {
+      // Process wallet deduction — debit full gross quantity
+      // Binance P2P commission is NOT deducted from the seller's USDT funding wallet;
+      // it's absorbed in fiat proceeds. So we debit the full gross amount only.
+      if (od.wallet_id && quantity > 0) {
         const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: salesOrder.id,
-          usdt_amount: netDeductionQty,
+          usdt_amount: quantity,
           wallet_id: od.wallet_id,
           p_asset_code: (od.asset || 'USDT').toUpperCase(),
         });
@@ -420,22 +419,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           throw new Error(`Wallet deduction failed: ${walletErr.message}. Sales order was not created.`);
         }
 
-        // Deduct Binance commission as separate SALES_ORDER_FEE transaction
+        // Record commission in wallet_fee_deductions for reporting only (no wallet debit)
         if (commission > 0) {
-          await supabase
-            .from('wallet_transactions')
-            .insert({
-              wallet_id: od.wallet_id,
-              transaction_type: 'DEBIT',
-              amount: commission,
-              reference_type: 'SALES_ORDER_FEE',
-              reference_id: salesOrder.id,
-              description: `Platform fee for sales order #${orderNumber} (Binance commission)`,
-              balance_before: 0,
-              balance_after: 0,
-              asset_code: (od.asset || 'USDT').toUpperCase(),
-            });
-
           const { data: usdtProd } = await supabase
             .from('products')
             .select('average_buying_price')

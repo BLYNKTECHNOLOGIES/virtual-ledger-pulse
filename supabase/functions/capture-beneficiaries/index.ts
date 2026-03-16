@@ -32,6 +32,26 @@ const clean = (value: unknown): string => String(value ?? "").trim();
 
 const hasAccountNumber = (value: string): boolean => value.length >= 4;
 
+// Only store beneficiaries for these bank-transfer payment methods (case-insensitive match)
+const ALLOWED_PAY_TYPES = new Set([
+  "imps",
+  "impspan",
+  "bankindia",
+  "banktransfer",
+  "bank transfer",
+  "bank transfer (india)",
+]);
+
+function isAllowedPayType(payType: string): boolean {
+  if (!payType) return false;
+  return ALLOWED_PAY_TYPES.has(payType.toLowerCase().replace(/[\s\-_]+/g, "").replace("banktransferindia", "bankindia"));
+}
+
+// Check if account looks like UPI (contains @)
+function isUpiAccount(accountNo: string): boolean {
+  return accountNo.includes("@");
+}
+
 const findFieldValue = (fields: any[], predicate: (field: any) => boolean): string => {
   const field = fields.find((f) => {
     const val = clean(f?.fieldValue);
@@ -309,6 +329,16 @@ serve(async (req) => {
       if (!storedInfo?.accountNo) continue;
       if (beneficiaryMap.has(storedInfo.accountNo)) continue;
 
+      // Filter: only save bank transfer methods, skip UPI accounts
+      if (isUpiAccount(storedInfo.accountNo)) {
+        console.log(`[CaptureBeneficiaries] Skipped UPI account ${storedInfo.accountNo} for ${order.order_number}`);
+        continue;
+      }
+      if (!isAllowedPayType(storedInfo.payType)) {
+        console.log(`[CaptureBeneficiaries] Skipped non-bank payType "${storedInfo.payType}" for ${order.order_number}`);
+        continue;
+      }
+
       checked++;
       const { error: rpcErr } = await supabase.rpc("upsert_beneficiary_record", {
         p_account_number: storedInfo.accountNo,
@@ -431,6 +461,12 @@ serve(async (req) => {
         }
 
         if (paymentInfo?.accountNo) {
+          // Filter: only save bank transfer methods, skip UPI accounts
+          if (isUpiAccount(paymentInfo.accountNo)) {
+            console.log(`[CaptureBeneficiaries] Skipped UPI account ${paymentInfo.accountNo} for ${order.order_number}`);
+          } else if (!isAllowedPayType(paymentInfo.payType)) {
+            console.log(`[CaptureBeneficiaries] Skipped non-bank payType "${paymentInfo.payType}" for ${order.order_number}`);
+          } else {
           const existing = beneficiaryMap.get(paymentInfo.accountNo);
 
           if (!existing) {
@@ -477,6 +513,7 @@ serve(async (req) => {
               }
             }
           }
+          } // end else (allowed pay type)
         }
 
         console.log(

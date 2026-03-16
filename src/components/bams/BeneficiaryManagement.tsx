@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveBankAccounts } from "@/hooks/useActiveBankAccounts";
+import { captureSellerPaymentDetails } from "@/hooks/useSellerPaymentCapture";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ interface BeneficiaryRecord {
   account_holder_name: string | null;
   ifsc_code: string | null;
   bank_name: string | null;
+  account_type: string | null;
+  account_opening_branch: string | null;
   source_order_number: string | null;
   client_name: string | null;
   occurrence_count: number;
@@ -52,6 +55,28 @@ export function BeneficiaryManagement() {
   const [selectedExportBankIds, setSelectedExportBankIds] = useState<string[]>([]);
 
   const { data: activeBanks } = useActiveBankAccounts();
+
+  // Capture live seller bank details on page load so beneficiary list reflects active IMPS/Bank orders
+  useEffect(() => {
+    let cancelled = false;
+
+    const captureNow = async () => {
+      try {
+        const { checked } = await captureSellerPaymentDetails();
+        if (!cancelled && checked > 0) {
+          queryClient.invalidateQueries({ queryKey: ["beneficiary_records"] });
+        }
+      } catch (error) {
+        console.warn("[BeneficiaryManagement] Live beneficiary capture failed:", error);
+      }
+    };
+
+    captureNow();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
 
   // Fetch all beneficiary records
   const { data: beneficiaries, isLoading } = useQuery({
@@ -178,6 +203,8 @@ export function BeneficiaryManagement() {
       "Account Number": b.account_number,
       "IFSC Code": b.ifsc_code || "",
       "Bank Name": b.bank_name || "",
+      "Account Type": b.account_type || "",
+      "Account Opening Branch": b.account_opening_branch || "",
       "Client Name": b.client_name || "",
       "Times Seen": b.occurrence_count,
       "First Seen": b.first_seen_at ? format(new Date(b.first_seen_at), "dd-MM-yyyy") : "",

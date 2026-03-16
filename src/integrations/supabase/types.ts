@@ -976,6 +976,8 @@ export type Database = {
         Row: {
           account_holder_name: string | null
           account_number: string
+          account_opening_branch: string | null
+          account_type: string | null
           bank_name: string | null
           client_name: string | null
           created_at: string
@@ -991,6 +993,8 @@ export type Database = {
         Insert: {
           account_holder_name?: string | null
           account_number: string
+          account_opening_branch?: string | null
+          account_type?: string | null
           bank_name?: string | null
           client_name?: string | null
           created_at?: string
@@ -1006,6 +1010,8 @@ export type Database = {
         Update: {
           account_holder_name?: string | null
           account_number?: string
+          account_opening_branch?: string | null
+          account_type?: string | null
           bank_name?: string | null
           client_name?: string | null
           created_at?: string
@@ -12527,17 +12533,31 @@ export type Database = {
         Args: { p_credential_id: string; p_sign_count: number }
         Returns: undefined
       }
-      upsert_beneficiary_record: {
-        Args: {
-          p_account_holder_name?: string
-          p_account_number: string
-          p_bank_name?: string
-          p_client_name?: string
-          p_ifsc_code?: string
-          p_source_order_number?: string
-        }
-        Returns: string
-      }
+      upsert_beneficiary_record:
+        | {
+            Args: {
+              p_account_holder_name?: string
+              p_account_number: string
+              p_bank_name?: string
+              p_client_name?: string
+              p_ifsc_code?: string
+              p_source_order_number?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_account_holder_name?: string
+              p_account_number: string
+              p_account_opening_branch?: string
+              p_account_type?: string
+              p_bank_name?: string
+              p_client_name?: string
+              p_ifsc_code?: string
+              p_source_order_number?: string
+            }
+            Returns: string
+          }
       upsert_p2p_counterparty: {
         Args: { p_nickname: string; p_trade_type: string; p_volume: number }
         Returns: string

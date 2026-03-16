@@ -111,7 +111,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       setDraw(t.colors.primary);
       doc.setLineWidth(0.8);
       doc.line(marginL, y, rightEdge, y);
-      y += 6;
+      y += 10;
     }
 
     // ── Title (after-company position) ──
@@ -121,12 +121,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.setFont("helvetica", "bold");
       setColor(t.colors.primary);
       doc.text(headerText, pageW / 2, y, { align: "center" });
-      y += 3;
-      const titleW = doc.getTextWidth(headerText);
-      setDraw(t.colors.primary);
-      doc.setLineWidth(0.5);
-      doc.line(pageW / 2 - titleW / 2, y, pageW / 2 + titleW / 2, y);
-      y += 8;
+      y += 10;
     }
 
     // ── Bill To & Invoice Details ──

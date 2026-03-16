@@ -318,9 +318,9 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     setColor(t.colors.bodyText);
     doc.text("Total", marginL + 1, y + 5);
     if (hasGst) {
-      doc.text(formatINR(igstAmt + cgstAmt + sgstAmt), colX.igst, y + 5);
+      doc.text(formatINR(igstAmt + cgstAmt + sgstAmt), colR.igst - 1, y + 5, { align: "right" });
     }
-    doc.text(formatINR(totalWithTax), colX.amount, y + 5, { align: "right" });
+    doc.text(formatINR(totalWithTax), colR.amount - 1, y + 5, { align: "right" });
     y += 8;
 
     setDraw(t.colors.primaryDark);

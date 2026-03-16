@@ -394,14 +394,6 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         y += 5;
       }
 
-      if (uniquePcts.length > 0) {
-        doc.setFont("helvetica", "normal");
-        doc.text("Margin Percentage:", refLabelX, y);
-        doc.setFont("helvetica", "bold");
-        doc.text(`${uniquePcts.join(", ")}%`, refValX, y);
-        y += 5;
-      }
-
       doc.setFont("helvetica", "normal");
       doc.text("Service Margin:", refLabelX, y);
       doc.setFont("helvetica", "bold");

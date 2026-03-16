@@ -22,6 +22,8 @@ interface BeneficiaryRecord {
   account_holder_name: string | null;
   ifsc_code: string | null;
   bank_name: string | null;
+  account_type: string | null;
+  account_opening_branch: string | null;
   source_order_number: string | null;
   client_name: string | null;
   occurrence_count: number;

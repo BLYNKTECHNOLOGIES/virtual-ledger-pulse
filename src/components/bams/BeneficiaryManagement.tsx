@@ -54,6 +54,28 @@ export function BeneficiaryManagement() {
 
   const { data: activeBanks } = useActiveBankAccounts();
 
+  // Capture live seller bank details on page load so beneficiary list reflects active IMPS/Bank orders
+  useEffect(() => {
+    let cancelled = false;
+
+    const captureNow = async () => {
+      try {
+        const { checked } = await captureSellerPaymentDetails();
+        if (!cancelled && checked > 0) {
+          queryClient.invalidateQueries({ queryKey: ["beneficiary_records"] });
+        }
+      } catch (error) {
+        console.warn("[BeneficiaryManagement] Live beneficiary capture failed:", error);
+      }
+    };
+
+    captureNow();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
+
   // Fetch all beneficiary records
   const { data: beneficiaries, isLoading } = useQuery({
     queryKey: ["beneficiary_records"],

@@ -124,7 +124,8 @@ export function BeneficiaryManagement() {
         b.account_number?.toLowerCase().includes(q) ||
         b.account_holder_name?.toLowerCase().includes(q) ||
         b.ifsc_code?.toLowerCase().includes(q) ||
-        b.client_name?.toLowerCase().includes(q)
+        b.account_type?.toLowerCase().includes(q) ||
+        b.account_opening_branch?.toLowerCase().includes(q)
     );
   }, [beneficiaries, searchQuery]);
 
@@ -205,8 +206,6 @@ export function BeneficiaryManagement() {
       "Bank Name": b.bank_name || "",
       "Account Type": b.account_type || "",
       "Account Opening Branch": b.account_opening_branch || "",
-      "Client Name": b.client_name || "",
-      "Times Seen": b.occurrence_count,
       "First Seen": b.first_seen_at ? format(new Date(b.first_seen_at), "dd-MM-yyyy") : "",
     }));
 
@@ -292,8 +291,8 @@ export function BeneficiaryManagement() {
                   <TableHead className="text-xs">Account Number</TableHead>
                   <TableHead className="text-xs">Holder Name</TableHead>
                   <TableHead className="text-xs">IFSC</TableHead>
-                  <TableHead className="text-xs">Client</TableHead>
-                  <TableHead className="text-xs text-center">Seen</TableHead>
+                  <TableHead className="text-xs">Account Type</TableHead>
+                  <TableHead className="text-xs">Opening Branch</TableHead>
                   <TableHead className="text-xs">First Seen</TableHead>
                   <TableHead className="text-xs">Banks Added To</TableHead>
                   <TableHead className="text-xs text-center">Actions</TableHead>
@@ -320,10 +319,8 @@ export function BeneficiaryManagement() {
                         <TableCell className="text-xs font-mono">{b.account_number}</TableCell>
                         <TableCell className="text-xs">{b.account_holder_name || "—"}</TableCell>
                         <TableCell className="text-xs font-mono">{b.ifsc_code || "—"}</TableCell>
-                        <TableCell className="text-xs">{b.client_name || "—"}</TableCell>
-                        <TableCell className="text-xs text-center">
-                          <Badge variant="secondary" className="text-[10px]">{b.occurrence_count}</Badge>
-                        </TableCell>
+                        <TableCell className="text-xs">{b.account_type || "—"}</TableCell>
+                        <TableCell className="text-xs">{b.account_opening_branch || "—"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {format(new Date(b.first_seen_at), "dd MMM yy")}
                         </TableCell>

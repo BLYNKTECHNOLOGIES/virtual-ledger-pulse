@@ -342,8 +342,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       const totalAmount = parseFloat(formData.total_amount) || 0;
       console.log('📝 Order number:', orderNumber, 'Total amount:', totalAmount);
 
-      // Get current user ID for created_by tracking
-      const currentUserId = getCurrentUserId();
+      // Get current user ID for created_by tracking — REQUIRED, blocks if missing
+      const currentUserId = await requireCurrentUserId();
 
       let result: Record<string, unknown>;
       let functionError: Error | null = null;

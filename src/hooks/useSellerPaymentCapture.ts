@@ -151,6 +151,24 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
         captured++;
         console.log(`[PaymentCapture] ✓ Captured payment details for ${order.order_number}:`,
           paymentInfo ? `accountNo=${paymentInfo.accountNo}, bank=${paymentInfo.bankName}` : 'raw detail stored');
+
+        // Auto-upsert into beneficiary_records so it appears immediately
+        // Don't wait for order approval — Binance strips details after completion
+        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4) {
+          try {
+            await supabase.rpc('upsert_beneficiary_record' as any, {
+              p_account_number: paymentInfo.accountNo.trim(),
+              p_account_holder_name: paymentInfo.accountName?.trim() || null,
+              p_ifsc_code: paymentInfo.ifscCode?.trim() || null,
+              p_bank_name: paymentInfo.bankName?.trim() || null,
+              p_source_order_number: order.order_number,
+              p_client_name: detail.tradePartnerNickname || detail.buyerNickname || detail.sellerNickname || null,
+            });
+            console.log(`[PaymentCapture] ✓ Beneficiary auto-saved for ${order.order_number}: ${paymentInfo.accountNo}`);
+          } catch (benErr) {
+            console.warn(`[PaymentCapture] Beneficiary upsert failed (non-blocking):`, benErr);
+          }
+        }
       } else {
         console.warn(`[PaymentCapture] DB update failed for ${order.order_number}:`, updateErr);
       }

@@ -43,7 +43,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
       const { data: salesData } = await supabase
         .from('sales_orders')
         .select('id, order_number, order_date, total_amount, status')
-        .or(`client_name.ilike.%${client.name}%,client_phone.eq.${client.phone || 'NONE'}`)
+        .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       

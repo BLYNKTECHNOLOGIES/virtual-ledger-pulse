@@ -26,6 +26,8 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   client_mapping_pending: { label: "Client Mapping", variant: "outline" },
 };
 
+const PENDING_SYNC_STATUSES = ['synced_pending_approval', 'client_mapping_pending'];
+
 export function TerminalSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -50,7 +52,9 @@ export function TerminalSyncTab() {
         .order('synced_at', { ascending: false })
         .limit(500);
 
-      if (statusFilter !== 'all') {
+      if (statusFilter === 'pending_queue') {
+        query = query.in('sync_status', PENDING_SYNC_STATUSES);
+      } else if (statusFilter !== 'all') {
         query = query.eq('sync_status', statusFilter);
       }
 

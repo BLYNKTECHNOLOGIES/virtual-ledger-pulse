@@ -80,8 +80,8 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
       if (!fromWalletId || !toWalletId) throw new Error("Wallet not mapped");
       if (feeAmount < 0) throw new Error("Fee cannot be negative");
       if (feeAmount >= transferAmount) throw new Error("Fee cannot exceed transfer amount");
-      if (sourceBalance < totalRequired) {
-        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(4)}, Required: ${totalRequired.toFixed(4)}`);
+      if (sourceBalance < transferAmount) {
+        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(4)}, Required: ${transferAmount.toFixed(4)}`);
       }
 
       const refId = globalThis.crypto?.randomUUID?.() ?? null;

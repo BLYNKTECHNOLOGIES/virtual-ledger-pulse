@@ -534,6 +534,17 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             </Alert>
           )}
 
+          {/* Warn if quantity differs from actual withdrawal amount */}
+          {item.movement_type === 'withdrawal' && quantity > 0 && Math.abs(quantity - prefillQuantity) > 0.001 && (
+            <Alert className="border-orange-500 bg-orange-50">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-700">
+                Quantity ({quantity.toFixed(4)}) differs from actual Binance withdrawal ({prefillQuantity}). 
+                This will cause wallet ledger drift. Use the actual withdrawal amount.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {selectedWalletBalance !== null && (
             <Alert>
               <AlertTriangle className="h-4 w-4" />

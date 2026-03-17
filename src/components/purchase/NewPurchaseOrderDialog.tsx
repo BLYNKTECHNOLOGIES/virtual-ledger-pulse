@@ -287,7 +287,8 @@ export function NewPurchaseOrderDialog({ open, onOpenChange }: NewPurchaseOrderD
           order_status: initialOrderStatus, // Set correct initial status!
           created_by: user?.id,
           status: 'PENDING',
-          is_off_market: isOffMarket
+          is_off_market: isOffMarket,
+          wallet_id: normalizedItems[0]?.warehouse_id || null
         })
         .select()
         .single();

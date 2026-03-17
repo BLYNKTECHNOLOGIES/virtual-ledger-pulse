@@ -69,7 +69,9 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   const feeAmount = parseFloat(fee) || 0;
   const transferAmount = Number(item.amount);
   const sourceBalance = fromWalletId ? getAssetBalance(fromWalletId) : 0;
-  const totalRequired = transferAmount + feeAmount;
+  // Fee is deducted from the transfer amount (not added on top) for on-chain transfers
+  // The source wallet is debited only the transfer amount; fee reduces what the destination receives
+  const totalRequired = transferAmount;
   const hasInsufficientBalance = fromWalletId ? sourceBalance < totalRequired : false;
 
   const transferMutation = useMutation({

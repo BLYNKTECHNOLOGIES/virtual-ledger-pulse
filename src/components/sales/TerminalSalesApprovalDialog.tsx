@@ -405,14 +405,15 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       // Skip wallet/fee processing if recovering from a partial approval (already done)
       if (!existingSO) {
-      // Process wallet deduction — debit full gross quantity
-      // Binance P2P SELL: the sold amount is released to buyer, AND commission is
-      // deducted from the seller's crypto wallet on top. Both must be ledgered.
+      // Binance SELL wallet impact = sold quantity + commission (commission is a separate crypto expense).
+      // Post the full physical deduction in one wallet debit to prevent recurring drift.
       if (od.wallet_id && quantity > 0) {
         const assetCode = (od.asset || 'USDT').toUpperCase();
+        const totalWalletDebit = quantity + Math.max(commission, 0);
+
         const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: salesOrder.id,
-          usdt_amount: quantity,
+          usdt_amount: totalWalletDebit,
           wallet_id: od.wallet_id,
           p_asset_code: assetCode,
         });
@@ -421,21 +422,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           throw new Error(`Wallet deduction failed: ${walletErr.message}. Sales order was not created.`);
         }
 
-        // Debit commission from wallet ledger — Binance deducts this from the
-        // seller's crypto balance on top of the sold amount.
+        // Keep fee analytics/reporting without creating a second wallet DEBIT row.
         if (commission > 0) {
-          await createValidatedWalletTransaction(
-            od.wallet_id,
-            'DEBIT',
-            commission,
-            'SALES_ORDER_FEE',
-            salesOrder.id,
-            `Platform fee for sales order #${orderNumber} (Binance commission)`,
-            userId || null,
-            assetCode
-          );
-
-          // Also record in wallet_fee_deductions for reporting
           const { data: usdtProd } = await supabase
             .from('products')
             .select('average_buying_price')

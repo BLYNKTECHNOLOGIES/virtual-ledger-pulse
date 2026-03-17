@@ -41,6 +41,32 @@ async function fetchWithRetry(
   throw lastError;
 }
 
+function isBinancePayMovement(movement: any): boolean {
+  if (!movement) return false;
+  const movementId = String(movement.id || "");
+  const network = String(movement.network || "").toLowerCase();
+  const raw = movement.raw_data || {};
+
+  return (
+    movementId.startsWith("pay-") ||
+    network.includes("binance pay") ||
+    Boolean(raw?.orderId && raw?.transactionTime && (raw?.payerInfo || raw?.receiverInfo))
+  );
+}
+
+function isQueueEligibleMovement(movement: any): boolean {
+  if (!movement) return false;
+  if (isBinancePayMovement(movement)) return false;
+
+  const movementType = String(movement.movement_type || "").toLowerCase();
+  const status = String(movement.status ?? "");
+
+  const isCompletedDeposit = movementType === "deposit" && (status === "1" || status === "6");
+  const isCompletedWithdrawal = movementType === "withdrawal" && status === "6";
+
+  return isCompletedDeposit || isCompletedWithdrawal;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -654,12 +680,32 @@ serve(async (req) => {
           .gte("movement_time", lookbackMs)
           .order("movement_time", { ascending: false });
 
+        let skippedExisting = 0;
+        let skippedInternalPay = 0;
+        let skippedIncomplete = 0;
+
         const toQueue = (newMovements || []).filter((m: any) => {
-          if (existingQIds.has(m.id)) return false;
-          const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
-          const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
-          return isCompletedDeposit || isCompletedWithdrawal;
+          if (existingQIds.has(m.id)) {
+            skippedExisting += 1;
+            return false;
+          }
+
+          if (isBinancePayMovement(m)) {
+            skippedInternalPay += 1;
+            return false;
+          }
+
+          if (!isQueueEligibleMovement(m)) {
+            skippedIncomplete += 1;
+            return false;
+          }
+
+          return true;
         });
+
+        console.log(
+          `syncAssetMovements queue filter: existing=${skippedExisting}, internalPay=${skippedInternalPay}, incomplete=${skippedIncomplete}, eligible=${toQueue.length}`
+        );
 
         if (toQueue.length > 0) {
           const queueRows2 = toQueue.map((m: any) => ({
@@ -742,18 +788,34 @@ serve(async (req) => {
           .gte("movement_time", dynamicCutoff)
           .order("movement_time", { ascending: false });
 
+        let skippedExisting = 0;
+        let skippedInternalPay = 0;
+        let skippedIncomplete = 0;
+
         let movements: any[] = (allMovements || []).filter((m: any) => {
           // Skip already queued movement IDs
-          if (existingIds.has(m.id)) return false;
-          // Skip internal P2P payment releases (pay- prefix) — these are already
-          // handled by terminal_sales_sync and would cause double-debiting if queued
-          if (typeof m.id === "string" && m.id.startsWith("pay-")) return false;
-          // Deposit statuses from Binance: 1=success, 6=credited but cannot withdraw
-          const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
-          // Withdrawal status from Binance: 6=completed
-          const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
-          return isCompletedDeposit || isCompletedWithdrawal;
+          if (existingIds.has(m.id)) {
+            skippedExisting += 1;
+            return false;
+          }
+
+          // Skip internal Binance Pay/P2P releases already handled in terminal sync
+          if (isBinancePayMovement(m)) {
+            skippedInternalPay += 1;
+            return false;
+          }
+
+          if (!isQueueEligibleMovement(m)) {
+            skippedIncomplete += 1;
+            return false;
+          }
+
+          return true;
         });
+
+        console.log(
+          `checkNewMovements queue filter: existing=${skippedExisting}, internalPay=${skippedInternalPay}, incomplete=${skippedIncomplete}, eligible=${movements.length}`
+        );
 
         console.log(`checkNewMovements: ${allMovements?.length || 0} movements in window, ${movements.length} are new & completed`);
 

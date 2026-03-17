@@ -210,7 +210,7 @@ export function TerminalSyncTab() {
     },
   });
 
-  const pendingCount = syncRecords.filter((r: any) => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
+  const pendingCount = syncRecords.filter((r: any) => PENDING_SYNC_STATUSES.includes(r.sync_status)).length;
 
   return (
     <div className="space-y-4">

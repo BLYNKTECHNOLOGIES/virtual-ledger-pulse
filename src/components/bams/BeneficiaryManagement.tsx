@@ -82,15 +82,19 @@ export function BeneficiaryManagement() {
   const { data: activeBanks } = useActiveBankAccounts();
 
   // Fetch configured bank bulk formats
-  const { data: bulkFormats } = useQuery({
+  const { data: bulkFormats, error: bulkFormatsError } = useQuery({
     queryKey: ["bank_bulk_formats"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("bank_bulk_formats" as any)
+        .from("bank_bulk_formats")
         .select("*")
         .eq("is_active", true)
         .order("bank_display_name");
-      if (error) throw error;
+      if (error) {
+        console.error("Failed to fetch bank_bulk_formats:", error);
+        throw error;
+      }
+      console.log("bank_bulk_formats fetched:", data);
       return (data as unknown as BankBulkFormat[]).map((f) => ({
         ...f,
         columns: typeof f.columns === "string" ? JSON.parse(f.columns) : f.columns,

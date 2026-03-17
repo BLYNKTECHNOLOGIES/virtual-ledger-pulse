@@ -186,7 +186,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           client_phone: data.client_phone || null,
           client_state: data.client_state || null,
           product_id: data.product_id || null,
-          wallet_id: data.wallet_id || null,
+          wallet_id: data.wallet_id,
           platform: data.platform || null,
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,

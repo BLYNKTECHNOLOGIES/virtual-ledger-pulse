@@ -95,31 +95,18 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)`,
+          description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Network fee: ${feeAmount.toFixed(6)} ${item.asset}` : ''}`,
         },
         {
           wallet_id: toWalletId,
           transaction_type: "CREDIT",
-          amount: transferAmount,
+          amount: transferAmount - feeAmount, // Net of network fee
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Fee: ${feeAmount.toFixed(4)} ${item.asset} deducted from source` : ''}`,
+          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Net after ${feeAmount.toFixed(6)} ${item.asset} network fee` : ''}`,
         },
       ];
-
-      // If fee exists, record a separate fee transaction on the source wallet
-      if (feeAmount > 0) {
-        transactions.push({
-          wallet_id: fromWalletId,
-          transaction_type: "DEBIT",
-          amount: feeAmount,
-          asset_code: item.asset,
-          reference_type: "TRANSFER_FEE",
-          reference_id: refId,
-          description: `Transfer fee for wallet transfer (${fromWalletLabel} → ${toWalletLabel})`,
-        });
-      }
 
       const { error: txErr } = await supabase.from("wallet_transactions").insert(transactions);
       if (txErr) throw txErr;

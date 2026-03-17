@@ -69,7 +69,9 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   const feeAmount = parseFloat(fee) || 0;
   const transferAmount = Number(item.amount);
   const sourceBalance = fromWalletId ? getAssetBalance(fromWalletId) : 0;
-  const totalRequired = transferAmount + feeAmount;
+  // Fee is deducted from the transfer amount (not added on top) for on-chain transfers
+  // The source wallet is debited only the transfer amount; fee reduces what the destination receives
+  const totalRequired = transferAmount;
   const hasInsufficientBalance = fromWalletId ? sourceBalance < totalRequired : false;
 
   const transferMutation = useMutation({
@@ -78,8 +80,8 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
       if (!fromWalletId || !toWalletId) throw new Error("Wallet not mapped");
       if (feeAmount < 0) throw new Error("Fee cannot be negative");
       if (feeAmount >= transferAmount) throw new Error("Fee cannot exceed transfer amount");
-      if (sourceBalance < totalRequired) {
-        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(4)}, Required: ${totalRequired.toFixed(4)}`);
+      if (sourceBalance < transferAmount) {
+        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(4)}, Required: ${transferAmount.toFixed(4)}`);
       }
 
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
@@ -93,31 +95,18 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)`,
+          description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Network fee: ${feeAmount.toFixed(6)} ${item.asset}` : ''}`,
         },
         {
           wallet_id: toWalletId,
           transaction_type: "CREDIT",
-          amount: transferAmount,
+          amount: transferAmount - feeAmount, // Net of network fee
           asset_code: item.asset,
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
-          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Fee: ${feeAmount.toFixed(4)} ${item.asset} deducted from source` : ''}`,
+          description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Net after ${feeAmount.toFixed(6)} ${item.asset} network fee` : ''}`,
         },
       ];
-
-      // If fee exists, record a separate fee transaction on the source wallet
-      if (feeAmount > 0) {
-        transactions.push({
-          wallet_id: fromWalletId,
-          transaction_type: "DEBIT",
-          amount: feeAmount,
-          asset_code: item.asset,
-          reference_type: "TRANSFER_FEE",
-          reference_id: refId,
-          description: `Transfer fee for wallet transfer (${fromWalletLabel} → ${toWalletLabel})`,
-        });
-      }
 
       const { error: txErr } = await supabase.from("wallet_transactions").insert(transactions);
       if (txErr) throw txErr;
@@ -228,7 +217,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
               </div>
               <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
                 <span>Net Credited (To Wallet):</span>
-                <span className="text-green-600">{transferAmount.toFixed(4)} {item.asset}</span>
+                <span className="text-green-600">{(transferAmount - feeAmount).toFixed(4)} {item.asset}</span>
               </div>
               <div className="flex justify-between">
                 <span>Fee Deducted (From Source):</span>
@@ -236,7 +225,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
               </div>
               <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
                 <span>Total Source Debit:</span>
-                <span>{(transferAmount + feeAmount).toFixed(4)} {item.asset}</span>
+                <span>{transferAmount.toFixed(4)} {item.asset}</span>
               </div>
             </div>
           )}
@@ -245,7 +234,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
             <Alert variant="destructive" className="py-2">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                Insufficient {item.asset} balance in source wallet. Available: {sourceBalance.toFixed(4)}, Required: {totalRequired.toFixed(4)}
+                Insufficient {item.asset} balance in source wallet. Available: {sourceBalance.toFixed(4)}, Required: {transferAmount.toFixed(4)}
               </AlertDescription>
             </Alert>
           )}

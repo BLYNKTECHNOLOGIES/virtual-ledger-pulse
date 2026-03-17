@@ -680,12 +680,32 @@ serve(async (req) => {
           .gte("movement_time", lookbackMs)
           .order("movement_time", { ascending: false });
 
+        let skippedExisting = 0;
+        let skippedInternalPay = 0;
+        let skippedIncomplete = 0;
+
         const toQueue = (newMovements || []).filter((m: any) => {
-          if (existingQIds.has(m.id)) return false;
-          const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
-          const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
-          return isCompletedDeposit || isCompletedWithdrawal;
+          if (existingQIds.has(m.id)) {
+            skippedExisting += 1;
+            return false;
+          }
+
+          if (isBinancePayMovement(m)) {
+            skippedInternalPay += 1;
+            return false;
+          }
+
+          if (!isQueueEligibleMovement(m)) {
+            skippedIncomplete += 1;
+            return false;
+          }
+
+          return true;
         });
+
+        console.log(
+          `syncAssetMovements queue filter: existing=${skippedExisting}, internalPay=${skippedInternalPay}, incomplete=${skippedIncomplete}, eligible=${toQueue.length}`
+        );
 
         if (toQueue.length > 0) {
           const queueRows2 = toQueue.map((m: any) => ({

@@ -223,7 +223,8 @@ export function TerminalSyncTab() {
             </SelectTrigger>
             <SelectContent className="bg-white border z-50">
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="synced_pending_approval">Pending Approval</SelectItem>
+              <SelectItem value="pending_queue">Pending Queue</SelectItem>
+              <SelectItem value="synced_pending_approval">Ready for Approval</SelectItem>
               <SelectItem value="client_mapping_pending">Client Mapping</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>

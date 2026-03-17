@@ -238,7 +238,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
               </div>
               <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
                 <span>Total Source Debit:</span>
-                <span>{(transferAmount + feeAmount).toFixed(4)} {item.asset}</span>
+                <span>{transferAmount.toFixed(4)} {item.asset}</span>
               </div>
             </div>
           )}

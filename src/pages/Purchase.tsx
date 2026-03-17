@@ -24,6 +24,7 @@ import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { useToast } from "@/hooks/use-toast";
+import { getSmallBuysConfig } from "@/hooks/useSmallBuysSync";
 
 export default function Purchase() {
   const navigate = useNavigate();
@@ -60,17 +61,31 @@ export default function Purchase() {
       const nowUTC = Date.now();
       const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
 
-      const { data, error } = await supabase
-        .from('terminal_purchase_sync')
-        .select('id, order_data, sync_status')
-        .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']);
+      const [{ data, error }, smallBuysConfig] = await Promise.all([
+        supabase
+          .from('terminal_purchase_sync')
+          .select('id, order_data, sync_status')
+          .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']),
+        getSmallBuysConfig(),
+      ]);
+
       if (error) throw error;
 
       // Filter by today's orders using order create_time from order_data
+      // and exclude small buys (those belong to Small Buys tab, not Terminal Sync tab)
       return (data || []).filter(record => {
         const od = record.order_data as any;
         const createTime = od?.create_time ? Number(od.create_time) : 0;
-        return createTime >= midnightISTinUTC;
+        if (createTime < midnightISTinUTC) return false;
+
+        if (smallBuysConfig?.is_enabled) {
+          const totalPrice = parseFloat(od?.total_price || '0');
+          if (totalPrice >= smallBuysConfig.min_amount && totalPrice <= smallBuysConfig.max_amount) {
+            return false;
+          }
+        }
+
+        return true;
       }).length;
     },
   });

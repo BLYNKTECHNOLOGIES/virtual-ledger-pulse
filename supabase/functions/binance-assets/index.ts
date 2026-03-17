@@ -788,18 +788,34 @@ serve(async (req) => {
           .gte("movement_time", dynamicCutoff)
           .order("movement_time", { ascending: false });
 
+        let skippedExisting = 0;
+        let skippedInternalPay = 0;
+        let skippedIncomplete = 0;
+
         let movements: any[] = (allMovements || []).filter((m: any) => {
           // Skip already queued movement IDs
-          if (existingIds.has(m.id)) return false;
-          // Skip internal P2P payment releases (pay- prefix) — these are already
-          // handled by terminal_sales_sync and would cause double-debiting if queued
-          if (typeof m.id === "string" && m.id.startsWith("pay-")) return false;
-          // Deposit statuses from Binance: 1=success, 6=credited but cannot withdraw
-          const isCompletedDeposit = m.movement_type === "deposit" && (m.status === "1" || m.status === "6" || m.status === 1 || m.status === 6);
-          // Withdrawal status from Binance: 6=completed
-          const isCompletedWithdrawal = m.movement_type === "withdrawal" && (m.status === "6" || m.status === 6);
-          return isCompletedDeposit || isCompletedWithdrawal;
+          if (existingIds.has(m.id)) {
+            skippedExisting += 1;
+            return false;
+          }
+
+          // Skip internal Binance Pay/P2P releases already handled in terminal sync
+          if (isBinancePayMovement(m)) {
+            skippedInternalPay += 1;
+            return false;
+          }
+
+          if (!isQueueEligibleMovement(m)) {
+            skippedIncomplete += 1;
+            return false;
+          }
+
+          return true;
         });
+
+        console.log(
+          `checkNewMovements queue filter: existing=${skippedExisting}, internalPay=${skippedInternalPay}, incomplete=${skippedIncomplete}, eligible=${movements.length}`
+        );
 
         console.log(`checkNewMovements: ${allMovements?.length || 0} movements in window, ${movements.length} are new & completed`);
 

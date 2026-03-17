@@ -230,7 +230,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
               </div>
               <div className="flex justify-between font-medium border-t border-border pt-1 mt-1">
                 <span>Net Credited (To Wallet):</span>
-                <span className="text-green-600">{transferAmount.toFixed(4)} {item.asset}</span>
+                <span className="text-green-600">{(transferAmount - feeAmount).toFixed(4)} {item.asset}</span>
               </div>
               <div className="flex justify-between">
                 <span>Fee Deducted (From Source):</span>

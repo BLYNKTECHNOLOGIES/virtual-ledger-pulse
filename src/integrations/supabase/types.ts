@@ -12223,12 +12223,12 @@ export type Database = {
           p_old_net_payable?: number
           p_old_quantity?: number
           p_old_wallet_id?: string
-          p_order_date: string
+          p_order_date?: string
           p_order_id: string
           p_order_number: string
           p_payment_splits?: Json
           p_product_code?: string
-          p_supplier_name: string
+          p_supplier_name?: string
         }
         Returns: Json
       }

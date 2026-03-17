@@ -41,6 +41,32 @@ async function fetchWithRetry(
   throw lastError;
 }
 
+function isBinancePayMovement(movement: any): boolean {
+  if (!movement) return false;
+  const movementId = String(movement.id || "");
+  const network = String(movement.network || "").toLowerCase();
+  const raw = movement.raw_data || {};
+
+  return (
+    movementId.startsWith("pay-") ||
+    network.includes("binance pay") ||
+    Boolean(raw?.orderId && raw?.transactionTime && (raw?.payerInfo || raw?.receiverInfo))
+  );
+}
+
+function isQueueEligibleMovement(movement: any): boolean {
+  if (!movement) return false;
+  if (isBinancePayMovement(movement)) return false;
+
+  const movementType = String(movement.movement_type || "").toLowerCase();
+  const status = String(movement.status ?? "");
+
+  const isCompletedDeposit = movementType === "deposit" && (status === "1" || status === "6");
+  const isCompletedWithdrawal = movementType === "withdrawal" && status === "6";
+
+  return isCompletedDeposit || isCompletedWithdrawal;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

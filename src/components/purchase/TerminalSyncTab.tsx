@@ -26,6 +26,8 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
   client_mapping_pending: { label: "Client Mapping", variant: "outline" },
 };
 
+const PENDING_SYNC_STATUSES = ['synced_pending_approval', 'client_mapping_pending'];
+
 export function TerminalSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -50,7 +52,9 @@ export function TerminalSyncTab() {
         .order('synced_at', { ascending: false })
         .limit(500);
 
-      if (statusFilter !== 'all') {
+      if (statusFilter === 'pending_queue') {
+        query = query.in('sync_status', PENDING_SYNC_STATUSES);
+      } else if (statusFilter !== 'all') {
         query = query.eq('sync_status', statusFilter);
       }
 
@@ -206,7 +210,7 @@ export function TerminalSyncTab() {
     },
   });
 
-  const pendingCount = syncRecords.filter((r: any) => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
+  const pendingCount = syncRecords.filter((r: any) => PENDING_SYNC_STATUSES.includes(r.sync_status)).length;
 
   return (
     <div className="space-y-4">
@@ -219,7 +223,8 @@ export function TerminalSyncTab() {
             </SelectTrigger>
             <SelectContent className="bg-white border z-50">
               <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="synced_pending_approval">Pending Approval</SelectItem>
+              <SelectItem value="pending_queue">Pending Queue</SelectItem>
+              <SelectItem value="synced_pending_approval">Ready for Approval</SelectItem>
               <SelectItem value="client_mapping_pending">Client Mapping</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>

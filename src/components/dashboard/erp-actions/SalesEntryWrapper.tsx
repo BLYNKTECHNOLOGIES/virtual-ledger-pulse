@@ -219,16 +219,24 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
         const price = field === 'price_per_unit' ? parseFloat(value) || 0 : parseFloat(updated.price_per_unit) || 0;
         const total = field === 'total_amount' ? parseFloat(value) || 0 : parseFloat(String(updated.total_amount)) || 0;
 
+        // For withdrawals, quantity is the actual Binance withdrawal amount and
+        // must NOT be auto-recalculated from total_amount/price to prevent ledger drift.
+        const isWithdrawal = item.movement_type === 'withdrawal';
+
         if (field === 'quantity' && price > 0) {
           updated.total_amount = (qty * price).toFixed(2);
         } else if (field === 'price_per_unit') {
-          if (total > 0 && price > 0) {
+          // For withdrawals: never recalculate quantity — keep actual withdrawal amount
+          if (!isWithdrawal && total > 0 && price > 0) {
             updated.quantity = (total / price).toFixed(8);
           } else if (qty > 0 && price > 0) {
             updated.total_amount = (qty * price).toFixed(2);
           }
         } else if (field === 'total_amount') {
-          if (price > 0) {
+          // For withdrawals: derive price from total/qty instead of overwriting quantity
+          if (isWithdrawal && qty > 0 && total > 0) {
+            updated.price_per_unit = (total / qty).toFixed(2);
+          } else if (price > 0) {
             updated.quantity = (total / price).toFixed(4);
           }
         }

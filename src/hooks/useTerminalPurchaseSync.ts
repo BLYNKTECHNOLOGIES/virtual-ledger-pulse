@@ -264,25 +264,32 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
 
     const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
 
+    // Fallback: if primary fields are 0/null, extract from seller_payment_details._raw_detail
+    const raw = order.seller_payment_details?._raw_detail || {};
+    const amount = parseFloat(order.amount || '0') > 0 ? order.amount : (raw.amount || order.amount);
+    const totalPrice = parseFloat(order.total_price || '0') > 0 ? order.total_price : (raw.totalPrice || order.total_price);
+    const unitPrice = parseFloat(order.unit_price || '0') > 0 ? order.unit_price : (raw.price || order.unit_price);
+    const commission = parseFloat(order.commission || '0') > 0 ? order.commission : (raw.commission || order.commission);
+    const payMethod = order.pay_method_name || raw.payType || null;
+
     toInsert.push({
       binance_order_number: order.order_number,
       sync_status: syncStatus,
       order_data: {
         order_number: order.order_number,
-        asset: order.asset || 'USDT',
-        amount: order.amount,
-        total_price: order.total_price,
-        unit_price: order.unit_price,
-        commission: order.commission,
+        asset: order.asset || raw.asset || 'USDT',
+        amount,
+        total_price: totalPrice,
+        unit_price: unitPrice,
+        commission,
         counterparty_name: counterpartyName,
         counterparty_nickname: order.counter_part_nick_name,
         verified_name: verifiedName,
         create_time: order.create_time,
-        pay_method: order.pay_method_name,
+        pay_method: payMethod,
         wallet_id: activeLink.wallet_id,
         wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
         fee_treatment: activeLink.fee_treatment,
-        // Include seller payment details captured while order was live
         seller_payment_details: order.seller_payment_details || null,
       },
       client_id: clientId,

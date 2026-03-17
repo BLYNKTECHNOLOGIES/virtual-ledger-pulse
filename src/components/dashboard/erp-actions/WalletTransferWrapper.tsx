@@ -247,7 +247,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
             <Alert variant="destructive" className="py-2">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
-                Insufficient {item.asset} balance in source wallet. Available: {sourceBalance.toFixed(4)}, Required: {totalRequired.toFixed(4)}
+                Insufficient {item.asset} balance in source wallet. Available: {sourceBalance.toFixed(4)}, Required: {transferAmount.toFixed(4)}
               </AlertDescription>
             </Alert>
           )}

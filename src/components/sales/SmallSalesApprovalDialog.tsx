@@ -108,11 +108,12 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
       if (soErr || !salesOrder) throw soErr || new Error('Failed to create sales order');
 
-      // Process wallet deduction for inventory
+      // Binance SELL wallet impact = sold quantity + commission.
       if (record.wallet_id) {
+        const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
         await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: salesOrder.id,
-          usdt_amount: Number(record.total_quantity),
+          usdt_amount: totalWalletDebit,
           wallet_id: record.wallet_id,
           p_asset_code: record.asset_code,
         });

@@ -502,8 +502,8 @@ export default function TerminalOrders() {
       return next;
     },
     enabled: staleRecheckOrderNumbers.length > 0,
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000, // Recheck every 30s for faster stale resolution
   });
 
   // Persist authoritative terminal statuses discovered by stale recheck.

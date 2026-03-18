@@ -455,8 +455,8 @@ export default function TerminalOrders() {
   // Revalidate older active-like orders via getOrderDetail (authoritative single-order status).
   const staleRecheckOrderNumbers = useMemo(() => {
     const now = Date.now();
-    const maxOrders = 25;
-    const minAgeMs = 6 * 60 * 60 * 1000;
+    const maxOrders = 30;
+    const minAgeMs = 30 * 60 * 1000; // 30 minutes (reduced from 6h to catch stale statuses faster)
 
     const activeLike = rawOrders.filter((o: any) => {
       const status = mapOrderStatusCode(o?.orderStatus);
@@ -465,7 +465,10 @@ export default function TerminalOrders() {
         upper.includes('PENDING') ||
         upper.includes('TRADING') ||
         upper.includes('BUYER_PAYED') ||
-        upper.includes('BUYER_PAID');
+        upper.includes('BUYER_PAID') ||
+        upper.includes('RELEASING') ||
+        upper.includes('APPEAL') ||
+        upper.includes('DISPUTE');
       if (!isActiveLike) return false;
       const created = typeof o?.createTime === 'number' ? o.createTime : Number(o?.createTime || 0);
       return Number.isFinite(created) && created > 0 && now - created >= minAgeMs;
@@ -499,8 +502,8 @@ export default function TerminalOrders() {
       return next;
     },
     enabled: staleRecheckOrderNumbers.length > 0,
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 15 * 1000,
+    refetchInterval: 30 * 1000, // Recheck every 30s for faster stale resolution
   });
 
   // Persist authoritative terminal statuses discovered by stale recheck.

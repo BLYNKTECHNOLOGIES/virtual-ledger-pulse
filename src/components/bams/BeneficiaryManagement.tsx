@@ -101,6 +101,8 @@ export function BeneficiaryManagement() {
         default_values: typeof f.default_values === "string" ? JSON.parse(f.default_values) : f.default_values,
       }));
     },
+    staleTime: 30_000,
+    retry: 2,
   });
 
   // Capture live seller bank details on page load

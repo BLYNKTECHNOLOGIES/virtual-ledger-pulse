@@ -390,10 +390,13 @@ export function BeneficiaryManagement() {
 
     // Find matching bank account for this format
     const matchingBankAccount = activeBanks?.find((ba) => {
+      const bankNameLower = ba.bank_name.toLowerCase();
+      const formatKeyLower = selectedFormat.bank_key.toLowerCase();
+      const formatDisplayLower = selectedFormat.bank_display_name.toLowerCase();
       if (selectedFormat.bank_key === "PSB") {
-        return ba.bank_name.includes("Punjab") && ba.bank_name.includes("Sind");
+        return bankNameLower.includes("psb") || (bankNameLower.includes("punjab") && bankNameLower.includes("sind"));
       }
-      return ba.bank_name.toLowerCase().includes(selectedFormat.bank_display_name.toLowerCase());
+      return bankNameLower.includes(formatDisplayLower) || bankNameLower.includes(formatKeyLower);
     });
 
     if (!matchingBankAccount) {

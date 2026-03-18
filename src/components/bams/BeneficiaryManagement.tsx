@@ -158,32 +158,37 @@ export function BeneficiaryManagement() {
     return map;
   }, [bankAdditions]);
 
-  // Build map: bank_key → Set of beneficiary_ids already added
-  // We need to know which bank_account_ids correspond to which bank_key
-  // For now we match by bank_display_name in activeBanks matching bank_name
-  const bankKeyAdditionMap = useMemo(() => {
-    const map = new Map<string, Set<string>>(); // bank_key → Set<beneficiary_id>
-    if (!bankAdditions || !activeBanks || !bulkFormats) return map;
-
-    // Build bank_account_id → bank_name mapping
-    const bankIdToName = new Map<string, string>();
-    activeBanks.forEach((b) => bankIdToName.set(b.id, b.bank_name));
-
-    // Build bank_display_name → bank_key mapping
-    const displayNameToKey = new Map<string, string>();
-    bulkFormats.forEach((f) => displayNameToKey.set(f.bank_display_name, f.bank_key));
-
-    bankAdditions.forEach((ba) => {
-      const bankName = bankIdToName.get(ba.bank_account_id);
-      if (!bankName) return;
-      // Try to find matching format key - we store by bank_account_id, so each addition is per-bank-account
-      // For the export filter, we use the bank_account_id directly
-      const existingBanks = map.get(ba.bank_account_id) || new Set();
-      existingBanks.add(ba.beneficiary_id);
-      map.set(ba.bank_account_id, existingBanks);
+  // Build map: bank_account_id → Set of beneficiary_ids already added
+  const additionsByBankAccountId = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    bankAdditions?.forEach((ba) => {
+      const existing = map.get(ba.bank_account_id) || new Set<string>();
+      existing.add(ba.beneficiary_id);
+      map.set(ba.bank_account_id, existing);
     });
     return map;
-  }, [bankAdditions, activeBanks, bulkFormats]);
+  }, [bankAdditions]);
+
+  const matchesBankFormat = (
+    bank: { bank_name: string; account_name: string },
+    format: BankBulkFormat
+  ) => {
+    const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const bankName = normalize(bank.bank_name || "");
+    const accountName = normalize(bank.account_name || "");
+    const key = normalize(format.bank_key || "");
+    const display = normalize(format.bank_display_name || "");
+
+    const includesToken = (token: string) =>
+      bankName.includes(token) || accountName.includes(token);
+
+    // Handle aliases like "PSB BANK" and full name variants
+    if (key === "psb") {
+      return includesToken("psb") || (includesToken("punjab") && includesToken("sind"));
+    }
+
+    return (display && includesToken(display)) || (key && includesToken(key));
+  };
 
   // Filter beneficiaries
   const filtered = useMemo(() => {
@@ -324,27 +329,17 @@ export function BeneficiaryManagement() {
 
     const count = parseInt(exportRowCount) || 10;
 
-    // Find the bank account(s) that match this format's bank
-    // Get all bank_account_ids that have been added for this bank's format
+    const matchingBankAccountIds = new Set(
+      (activeBanks || [])
+        .filter((ba) => matchesBankFormat(ba, selectedFormat))
+        .map((ba) => ba.id)
+    );
+
     const addedBeneficiaryIds = new Set<string>();
-    if (activeBanks && bankAdditions) {
-      // For per-bank export filtering, we find bank accounts matching this bank format
-      // and collect all beneficiary_ids already added to ANY of those accounts
-      activeBanks.forEach((ba) => {
-        // Match by bank name containing the format's bank_display_name or key
-        const matchesPSB = selectedFormat.bank_key === "PSB" && 
-          (ba.bank_name.includes("Punjab") && ba.bank_name.includes("Sind"));
-        // Generic match: bank_display_name in bank_name
-        const matchesGeneric = ba.bank_name.toLowerCase().includes(selectedFormat.bank_display_name.toLowerCase());
-        
-        if (matchesPSB || matchesGeneric) {
-          const additions = bankKeyAdditionMap.get(ba.id);
-          if (additions) {
-            additions.forEach((bId) => addedBeneficiaryIds.add(bId));
-          }
-        }
-      });
-    }
+    matchingBankAccountIds.forEach((bankAccountId) => {
+      const additions = additionsByBankAccountId.get(bankAccountId);
+      if (additions) additions.forEach((bId) => addedBeneficiaryIds.add(bId));
+    });
 
     // Filter: only beneficiaries NOT yet added to this bank
     const eligible = (beneficiaries || []).filter((b) => !addedBeneficiaryIds.has(b.id));
@@ -389,18 +384,14 @@ export function BeneficiaryManagement() {
     if (!selectedFormat) return;
 
     // Find matching bank account for this format
-    const matchingBankAccount = activeBanks?.find((ba) => {
-      const bankNameLower = ba.bank_name.toLowerCase();
-      const formatKeyLower = selectedFormat.bank_key.toLowerCase();
-      const formatDisplayLower = selectedFormat.bank_display_name.toLowerCase();
-      if (selectedFormat.bank_key === "PSB") {
-        return bankNameLower.includes("psb") || (bankNameLower.includes("punjab") && bankNameLower.includes("sind"));
-      }
-      return bankNameLower.includes(formatDisplayLower) || bankNameLower.includes(formatKeyLower);
-    });
+    const matchingBankAccount = activeBanks?.find((ba) => matchesBankFormat(ba, selectedFormat));
 
     if (!matchingBankAccount) {
-      toast({ title: "Error", description: `No active bank account found for ${selectedFormat.bank_display_name}. Please ensure you have an active PSB account in the system.`, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: `No active bank account found for ${selectedFormat.bank_display_name}. Please ensure you have an active account for this bank in the system.`,
+        variant: "destructive",
+      });
       return;
     }
 

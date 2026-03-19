@@ -474,8 +474,59 @@ export default function TerminalOperatorDetail() {
       setPayerLockData(payerLocks);
       setPayerOrderHistory(orderHistoryMap);
       const srMap = new Map<string, string>();
-      (sizeRangesRes.data || []).forEach((r: any) => srMap.set(r.id, r.name));
+      const srDetailMap = new Map<string, any>();
+      (sizeRangesRes.data || []).forEach((r: any) => {
+        srMap.set(r.id, r.name);
+        srDetailMap.set(r.id, r);
+      });
       setSizeRangeNames(srMap);
+      setSizeRangeDetails(srDetailMap);
+
+      // Fetch live eligible orders from binance_order_history matching payer's active size range assignments
+      const activePayerAssigns = (payerAssignRes.data || []).filter((a: any) => a.is_active);
+      if (activePayerAssigns.length > 0 && (roleType === 'payer' || roleType === 'hybrid')) {
+        try {
+          // Get recent non-terminal orders from order history (last 24h)
+          const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
+          const { data: recentOrders } = await supabase
+            .from('binance_order_history')
+            .select('order_number, total_price, amount, unit_price, asset, fiat_unit, trade_type, order_status, counter_part_nick_name, create_time, pay_method_name')
+            .eq('trade_type', 'BUY')
+            .in('order_status', ['TRADING', 'BUYER_PAYED', 'APPEAL'])
+            .gte('create_time', cutoffTime)
+            .order('create_time', { ascending: false })
+            .limit(100);
+
+          if (recentOrders && recentOrders.length > 0) {
+            // Filter by payer's assigned size ranges and ad_ids
+            const eligibleOrders = recentOrders.filter((order: any) => {
+              const totalPrice = parseFloat(order.total_price || '0');
+              return activePayerAssigns.some((assign: any) => {
+                if (assign.assignment_type === 'ad_id' && assign.ad_id) {
+                  return true; // Ad-based assignments match differently (at runtime via advNo)
+                }
+                if (assign.assignment_type === 'size_range' && assign.size_range_id) {
+                  const range = srDetailMap.get(assign.size_range_id);
+                  if (range) {
+                    const min = range.min_amount || 0;
+                    const max = range.max_amount || Infinity;
+                    return totalPrice >= min && totalPrice <= max;
+                  }
+                }
+                return false;
+              });
+            });
+            setLiveEligibleOrders(eligibleOrders);
+          } else {
+            setLiveEligibleOrders([]);
+          }
+        } catch (e) {
+          console.error('Failed to fetch live eligible orders:', e);
+          setLiveEligibleOrders([]);
+        }
+      } else {
+        setLiveEligibleOrders([]);
+      }
 
       const m: OperatorMetric = {
         userId,

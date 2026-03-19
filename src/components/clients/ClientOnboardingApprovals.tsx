@@ -859,7 +859,7 @@ export function ClientOnboardingApprovals() {
               {/* Client Details */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Order Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Client Name:</span> {selectedApproval.client_name}
                   </div>

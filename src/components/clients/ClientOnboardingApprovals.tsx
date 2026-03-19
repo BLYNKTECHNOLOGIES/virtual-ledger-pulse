@@ -809,7 +809,7 @@ export function ClientOnboardingApprovals() {
 
                   <div className="bg-white rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {selectedApproval.client_phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {selectedApproval.client_email || 'N/A'}</div>

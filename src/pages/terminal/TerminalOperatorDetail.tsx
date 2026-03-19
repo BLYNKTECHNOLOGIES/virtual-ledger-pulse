@@ -935,6 +935,89 @@ export default function TerminalOperatorDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Live Eligible Orders - for payers, show orders matching their assignment scope */}
+          {isPayer && liveEligibleOrders.length > 0 && (
+            <Card className="border-border bg-card border-l-2 border-l-amber-500">
+              <CardContent className="p-3 sm:p-4">
+                <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5 text-amber-500" /> Current Eligible Orders
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] ml-1">{liveEligibleOrders.length}</Badge>
+                </h4>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Counterparty</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Asset</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Payment</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {liveEligibleOrders.slice(0, 20).map((order: any, i: number) => {
+                        const statusColor = order.order_status === 'BUYER_PAYED' ? 'text-blue-400 border-blue-400/30' 
+                          : order.order_status === 'APPEAL' ? 'text-destructive border-destructive/30' 
+                          : 'text-amber-400 border-amber-400/30';
+                        return (
+                          <tr key={order.order_number || i} className="border-b border-border/50 hover:bg-muted/20">
+                            <td className="py-1 px-1.5 font-mono text-[9px]">...{order.order_number?.slice(-8)}</td>
+                            <td className="py-1 px-1.5 text-[9px]">{order.counter_part_nick_name || '—'}</td>
+                            <td className="py-1 px-1.5 text-right font-medium">₹{parseFloat(order.total_price || '0').toLocaleString()}</td>
+                            <td className="py-1 px-1.5 text-[9px]">{order.asset || 'USDT'}</td>
+                            <td className="py-1 px-1.5">
+                              <Badge variant="outline" className={`text-[8px] ${statusColor}`}>
+                                {order.order_status === 'BUYER_PAYED' ? 'Paid' : order.order_status === 'TRADING' ? 'Trading' : order.order_status}
+                              </Badge>
+                            </td>
+                            <td className="py-1 px-1.5 text-[9px] text-muted-foreground hidden sm:table-cell">{order.pay_method_name || '—'}</td>
+                            <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden sm:table-cell">
+                              {order.create_time ? new Date(order.create_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {liveEligibleOrders.length > 20 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 20 of {liveEligibleOrders.length}</p>
+                  )}
+                </div>
+                <div className="mt-2 text-[9px] text-muted-foreground">
+                  Orders from the last 24h matching this payer's assigned size ranges
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Assignment scope info when no data */}
+          {isPayer && payerAssignData.filter((a: any) => a.is_active).length > 0 && m.paymentsMade === 0 && payerLockData.length === 0 && (
+            <Card className="border-border bg-card border-l-2 border-l-blue-500">
+              <CardContent className="p-3 sm:p-4">
+                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-blue-500" /> Assignment Scope
+                </h4>
+                <p className="text-[10px] text-muted-foreground mb-2">
+                  This payer has active assignments but hasn't processed any orders yet. Performance metrics will populate once they start handling orders.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {payerAssignData.filter((a: any) => a.is_active).map((a: any) => {
+                    const rangeName = a.size_range_id ? sizeRangeNames.get(a.size_range_id) : a.ad_id;
+                    const rangeDetail = a.size_range_id ? sizeRangeDetails.get(a.size_range_id) : null;
+                    return (
+                      <Badge key={a.id} variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400">
+                        {a.assignment_type === 'size_range' ? '📏' : '📢'} {rangeName || a.id.slice(0, 8)}
+                        {rangeDetail && ` (₹${rangeDetail.min_amount?.toLocaleString()}–₹${rangeDetail.max_amount?.toLocaleString()})`}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ASSIGNMENTS TAB */}

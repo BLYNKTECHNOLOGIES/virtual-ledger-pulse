@@ -920,7 +920,7 @@ export function ClientOnboardingApprovals() {
                   </div>
                 </div>
 
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label htmlFor="purpose_of_buying">Purpose of Buying</Label>
                   <Textarea
                     id="purpose_of_buying"

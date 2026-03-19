@@ -1218,11 +1218,73 @@ export default function TerminalOperatorDetail() {
 
         {/* ORDERS TAB */}
         <TabsContent value="orders" className="space-y-3 mt-3">
-          {recentAssignments.length > 0 ? (
+          {/* Payer-specific: show enriched lock orders */}
+          {isPayer && payerLockData.length > 0 && (
             <Card className="border-border bg-card">
               <CardContent className="p-3">
                 <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5 text-primary" /> All Assignments ({recentAssignments.length})
+                  <Lock className="h-3.5 w-3.5 text-primary" /> Payer Order History ({payerLockData.length})
+                </h4>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Counterparty</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Payment</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Lock Status</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Locked</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden md:table-cell">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payerLockData
+                        .sort((a: any, b: any) => new Date(b.locked_at || b.created_at).getTime() - new Date(a.locked_at || a.created_at).getTime())
+                        .slice(0, 50)
+                        .map((lock: any, i: number) => {
+                          const hist = payerOrderHistory.get(lock.order_number);
+                          const lockDuration = lock.status === 'completed' && lock.locked_at && lock.completed_at
+                            ? ((new Date(lock.completed_at).getTime() - new Date(lock.locked_at).getTime()) / 60000)
+                            : null;
+                          return (
+                            <tr key={lock.id || i} className="border-b border-border/50 hover:bg-muted/20">
+                              <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
+                              <td className="py-1 px-1.5 text-[9px]">{hist?.counter_part_nick_name || '—'}</td>
+                              <td className="py-1 px-1.5 text-[9px] hidden sm:table-cell">{hist?.pay_method_name || '—'}</td>
+                              <td className="py-1 px-1.5 text-right font-medium">
+                                {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString()}` : '—'}
+                              </td>
+                              <td className="py-1 px-1.5">
+                                <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                                  {lock.status}
+                                </Badge>
+                              </td>
+                              <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden sm:table-cell">
+                                {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden md:table-cell">
+                                {lockDuration != null ? `${Math.round(lockDuration * 10) / 10}m` : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                  {payerLockData.length > 50 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 50 of {payerLockData.length}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Operator assignments table */}
+          {recentAssignments.length > 0 && (
+            <Card className="border-border bg-card">
+              <CardContent className="p-3">
+                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5 text-primary" /> {isPayer ? 'Operator Assignments' : 'All Assignments'} ({recentAssignments.length})
                 </h4>
                 <div className="overflow-x-auto -mx-1">
                   <table className="w-full text-[10px] sm:text-[11px]">
@@ -1263,8 +1325,10 @@ export default function TerminalOperatorDetail() {
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            <div className="text-center py-8 text-xs text-muted-foreground">No assignments found.</div>
+          )}
+
+          {recentAssignments.length === 0 && payerLockData.length === 0 && (
+            <div className="text-center py-8 text-xs text-muted-foreground">No order data found.</div>
           )}
         </TabsContent>
       </Tabs>

@@ -527,15 +527,20 @@ export function ClientOnboardingApprovals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingApprovals.map((approval) => (
+                {pendingApprovals.map((entry) => {
+                  const approval = entry.primary;
+                  return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
                       {approval.client_name}
+                      {entry.orderCount > 1 && (
+                        <Badge variant="outline" className="ml-2 text-xs">{entry.orderCount} orders</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>₹{approval.order_amount.toLocaleString()}</div>
-                        <div className="text-gray-500">{new Date(approval.order_date).toLocaleDateString()}</div>
+                        <div>₹{entry.totalAmount.toLocaleString()}</div>
+                        <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -580,7 +585,7 @@ export function ClientOnboardingApprovals() {
                           View
                         </Button>
                       ) : (
-                        <span className="text-gray-400">No VKYC</span>
+                        <span className="text-muted-foreground">No VKYC</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -609,7 +614,7 @@ export function ClientOnboardingApprovals() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleReject(approval.id, 'Insufficient documentation')}
+                            onClick={() => handleRejectAll(entry.allIds, 'Insufficient documentation')}
                           >
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
@@ -618,7 +623,8 @@ export function ClientOnboardingApprovals() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {pendingApprovals.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">

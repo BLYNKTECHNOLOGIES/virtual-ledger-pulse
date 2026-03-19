@@ -426,6 +426,13 @@ export function ClientOnboardingApprovals() {
     rejectClientMutation.mutate({ id, reason });
   };
 
+  // Reject all duplicate approval records for the same client
+  const handleRejectAll = (ids: string[], reason: string) => {
+    for (const id of ids) {
+      rejectClientMutation.mutate({ id, reason });
+    }
+  };
+
   const handleViewOrder = async (salesOrderId: string | undefined) => {
     if (!salesOrderId) {
       toast({ title: "No linked order", description: "This approval has no associated sales order", variant: "destructive" });

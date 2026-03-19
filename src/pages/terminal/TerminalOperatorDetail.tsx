@@ -290,9 +290,24 @@ export default function TerminalOperatorDetail() {
       const cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
       const buyOrders = userAssignments.filter(a => a.trade_type === 'BUY');
       const sellOrders = userAssignments.filter(a => a.trade_type === 'SELL');
-      const totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
-      const buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
-      const sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      let totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      let buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      let sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+
+      // For payers: enrich volume from order history if assignments have no volume
+      const roleType = getRoleType(roleName);
+      if ((roleType === 'payer' || roleType === 'hybrid') && totalVol === 0 && orderHistoryMap.size > 0) {
+        let enrichedBuyVol = 0;
+        let enrichedSellVol = 0;
+        orderHistoryMap.forEach((h) => {
+          const price = parseFloat(h.total_price || '0');
+          if (h.trade_type === 'BUY') enrichedBuyVol += price;
+          else enrichedSellVol += price;
+        });
+        totalVol = enrichedBuyVol + enrichedSellVol;
+        buyVol = enrichedBuyVol;
+        sellVol = enrichedSellVol;
+      }
 
       // Payer logs indexed
       const payerLogByOrder = new Map<string, Date>();

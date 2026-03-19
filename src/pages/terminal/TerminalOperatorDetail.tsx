@@ -554,8 +554,14 @@ export default function TerminalOperatorDetail() {
     { range: '50K-1L', count: 0 },
     { range: '1L+', count: 0 },
   ];
-  recentAssignments.forEach(a => {
-    const p = Number(a.total_price) || 0;
+  // For payers, use enriched lock data; for operators, use assignments
+  const volumeSource = isPayer && payerLockData.length > 0
+    ? payerLockData.map(l => {
+        const hist = payerOrderHistory.get(l.order_number);
+        return hist ? parseFloat(hist.total_price || '0') : 0;
+      })
+    : recentAssignments.map(a => Number(a.total_price) || 0);
+  volumeSource.forEach(p => {
     if (p < 10000) volumeBuckets[0].count++;
     else if (p < 50000) volumeBuckets[1].count++;
     else if (p < 100000) volumeBuckets[2].count++;

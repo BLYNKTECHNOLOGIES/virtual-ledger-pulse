@@ -339,17 +339,29 @@ export default function TerminalOperatorDetail() {
         }
       }
 
-      // Payer lock-to-payment times
+      // Payer lock-to-payment times - enriched with binance_order_history amounts
       const lockToPayTimes: number[] = [];
       let payerPaymentVolume = 0;
       for (const lock of payerLocks) {
+        const histOrder = orderHistoryMap.get(lock.order_number);
+        const lockAmount = histOrder ? parseFloat(histOrder.total_price || '0') : 0;
+        
         if (lock.status === 'completed' && lock.locked_at && lock.completed_at) {
           const lockAt = new Date(lock.locked_at);
           const compAt = new Date(lock.completed_at);
           const diffMin = (compAt.getTime() - lockAt.getTime()) / 60000;
           if (diffMin > 0 && diffMin < 1440) lockToPayTimes.push(diffMin);
         }
-        if ((lock as any).total_price) payerPaymentVolume += Number((lock as any).total_price) || 0;
+        if (lock.status === 'completed') payerPaymentVolume += lockAmount;
+      }
+      
+      // Also compute volume from marked_paid logs if lock volume is zero
+      if (payerPaymentVolume === 0) {
+        const paidOrderNums = payerLogs.filter((l: any) => l.action === 'marked_paid').map((l: any) => l.order_number);
+        for (const on of paidOrderNums) {
+          const histOrder = orderHistoryMap.get(on);
+          if (histOrder) payerPaymentVolume += parseFloat(histOrder.total_price || '0');
+        }
       }
 
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;

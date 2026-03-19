@@ -473,7 +473,25 @@ export function ClientOnboardingApprovals() {
     window.open(url, '_blank');
   };
 
-  const pendingApprovals = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  // Deduplicate pending approvals by client_name — show each client once with aggregated order info
+  const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; allIds: string[]; totalAmount: number; orderCount: number }>();
+  for (const a of allPending) {
+    const key = a.client_name.trim().toLowerCase();
+    const existing = pendingByClient.get(key);
+    if (existing) {
+      existing.allIds.push(a.id);
+      existing.totalAmount += a.order_amount;
+      existing.orderCount += 1;
+      // Keep the latest record as primary
+      if (new Date(a.created_at) > new Date(existing.primary.created_at)) {
+        existing.primary = a;
+      }
+    } else {
+      pendingByClient.set(key, { primary: a, allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
+    }
+  }
+  const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
   return (

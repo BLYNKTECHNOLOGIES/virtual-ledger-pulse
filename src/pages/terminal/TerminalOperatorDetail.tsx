@@ -999,28 +999,41 @@ export default function TerminalOperatorDetail() {
                     <thead>
                       <tr className="border-b border-border text-muted-foreground">
                         <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Counterparty</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
                         <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
-                        <th className="text-left py-1.5 px-1.5 font-medium">Time</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Locked At</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Completed</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {payerLockData.slice(0, 15).map((lock, i) => (
-                        <tr key={lock.id || i} className="border-b border-border/50">
-                          <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
-                          <td className="py-1 px-1.5">
-                            <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
-                              {lock.status}
-                            </Badge>
-                          </td>
-                          <td className="py-1 px-1.5 text-muted-foreground text-[9px]">
-                            {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                        </tr>
-                      ))}
+                      {payerLockData.slice(0, 20).map((lock, i) => {
+                        const hist = payerOrderHistory.get(lock.order_number);
+                        return (
+                          <tr key={lock.id || i} className="border-b border-border/50">
+                            <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
+                            <td className="py-1 px-1.5 text-[9px]">{hist?.counter_part_nick_name || '—'}</td>
+                            <td className="py-1 px-1.5 text-right font-medium">
+                              {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString()}` : '—'}
+                            </td>
+                            <td className="py-1 px-1.5">
+                              <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                                {lock.status}
+                              </Badge>
+                            </td>
+                            <td className="py-1 px-1.5 text-muted-foreground text-[9px]">
+                              {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden sm:table-cell">
+                              {lock.completed_at ? new Date(lock.completed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
-                  {payerLockData.length > 15 && (
-                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 15 of {payerLockData.length}</p>
+                  {payerLockData.length > 20 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 20 of {payerLockData.length}</p>
                   )}
                 </div>
               </CardContent>

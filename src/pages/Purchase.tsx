@@ -61,15 +61,26 @@ export default function Purchase() {
       const nowUTC = Date.now();
       const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
 
-      const [{ data, error }, smallBuysConfig] = await Promise.all([
+      // Fetch sync records and small buys config in parallel
+      // Inline the small_buys_config query for robustness (avoid as-any cast issues)
+      const [{ data, error }, { data: sbData }] = await Promise.all([
         supabase
           .from('terminal_purchase_sync')
           .select('id, order_data, sync_status')
           .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']),
-        getSmallBuysConfig(),
+        supabase
+          .from('small_buys_config' as any)
+          .select('is_enabled, min_amount, max_amount')
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (error) throw error;
+
+      const sbConfig = sbData as any;
+      const sbEnabled = sbConfig?.is_enabled === true;
+      const sbMin = sbEnabled ? Number(sbConfig.min_amount || 0) : 0;
+      const sbMax = sbEnabled ? Number(sbConfig.max_amount || 0) : 0;
 
       // Filter by today's orders using order create_time from order_data
       // and exclude small buys (those belong to Small Buys tab, not Terminal Sync tab)
@@ -78,9 +89,9 @@ export default function Purchase() {
         const createTime = od?.create_time ? Number(od.create_time) : 0;
         if (createTime < midnightISTinUTC) return false;
 
-        if (smallBuysConfig?.is_enabled) {
+        if (sbEnabled && sbMax > 0) {
           const totalPrice = parseFloat(od?.total_price || '0');
-          if (totalPrice >= smallBuysConfig.min_amount && totalPrice <= smallBuysConfig.max_amount) {
+          if (totalPrice >= sbMin && totalPrice <= sbMax) {
             return false;
           }
         }

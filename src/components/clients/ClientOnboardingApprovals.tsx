@@ -263,7 +263,7 @@ export function ClientOnboardingApprovals() {
         }
       }
 
-      // Update approval record
+      // Update this approval record
       const { error: updateError } = await supabase
         .from('client_onboarding_approvals')
         .update({
@@ -281,6 +281,22 @@ export function ClientOnboardingApprovals() {
       if (updateError) {
         console.error('Failed to update approval record:', updateError);
         throw updateError;
+      }
+
+      // Also approve all other pending records for the same client name
+      const { error: batchError } = await supabase
+        .from('client_onboarding_approvals')
+        .update({
+          approval_status: 'APPROVED',
+          reviewed_at: new Date().toISOString(),
+          compliance_notes: 'Auto-approved with primary record'
+        })
+        .eq('approval_status', 'PENDING')
+        .ilike('client_name', approval.client_name.trim())
+        .neq('id', id);
+
+      if (batchError) {
+        console.error('Failed to batch-approve sibling records:', batchError);
       }
     },
     onSuccess: (_, variables) => {

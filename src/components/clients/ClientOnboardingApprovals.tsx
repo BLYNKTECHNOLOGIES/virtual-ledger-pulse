@@ -957,7 +957,7 @@ export function ClientOnboardingApprovals() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label htmlFor="compliance_notes">Compliance Notes</Label>
                   <Textarea
                     id="compliance_notes"

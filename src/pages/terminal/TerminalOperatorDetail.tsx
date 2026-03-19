@@ -210,6 +210,7 @@ export default function TerminalOperatorDetail() {
   const [payerAssignData, setPayerAssignData] = useState<any[]>([]);
   const [operatorAssignData, setOperatorAssignData] = useState<any[]>([]);
   const [payerLockData, setPayerLockData] = useState<any[]>([]);
+  const [payerOrderHistory, setPayerOrderHistory] = useState<Map<string, any>>(new Map());
   const [sizeRangeNames, setSizeRangeNames] = useState<Map<string, string>>(new Map());
   const [activeTab, setActiveTab] = useState('overview');
   const [trendDays, setTrendDays] = useState('7');
@@ -246,6 +247,31 @@ export default function TerminalOperatorDetail() {
       const actionLogs = actionLogsRes.data || [];
       const payerLocks = payerLocksRes.data || [];
 
+      // Cross-reference payer locks & logs with binance_order_history for actual amounts
+      const allPayerOrderNumbers = [
+        ...new Set([
+          ...payerLocks.map((l: any) => l.order_number),
+          ...payerLogs.map((l: any) => l.order_number),
+        ].filter(Boolean))
+      ];
+      
+      let orderHistoryMap = new Map<string, any>();
+      if (allPayerOrderNumbers.length > 0) {
+        // Fetch in batches of 50
+        for (let i = 0; i < allPayerOrderNumbers.length; i += 50) {
+          const batch = allPayerOrderNumbers.slice(i, i + 50);
+          const { data: historyData } = await supabase
+            .from('binance_order_history')
+            .select('order_number, total_price, amount, unit_price, asset, fiat_unit, trade_type, order_status, counter_part_nick_name, create_time, pay_method_name')
+            .in('order_number', batch);
+          if (historyData) {
+            for (const h of historyData) {
+              orderHistoryMap.set(h.order_number, h);
+            }
+          }
+        }
+      }
+
       // Get role name
       let roleName = 'Operator';
       if (userRolesRes.data && userRolesRes.data.length > 0) {
@@ -264,9 +290,23 @@ export default function TerminalOperatorDetail() {
       const cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
       const buyOrders = userAssignments.filter(a => a.trade_type === 'BUY');
       const sellOrders = userAssignments.filter(a => a.trade_type === 'SELL');
-      const totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
-      const buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
-      const sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      let totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      let buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+      let sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
+
+      // For payers: enrich volume from order history if assignments have no volume
+      if ((roleType === 'payer' || roleType === 'hybrid') && totalVol === 0 && orderHistoryMap.size > 0) {
+        let enrichedBuyVol = 0;
+        let enrichedSellVol = 0;
+        orderHistoryMap.forEach((h) => {
+          const price = parseFloat(h.total_price || '0');
+          if (h.trade_type === 'BUY') enrichedBuyVol += price;
+          else enrichedSellVol += price;
+        });
+        totalVol = enrichedBuyVol + enrichedSellVol;
+        buyVol = enrichedBuyVol;
+        sellVol = enrichedSellVol;
+      }
 
       // Payer logs indexed
       const payerLogByOrder = new Map<string, Date>();
@@ -314,17 +354,29 @@ export default function TerminalOperatorDetail() {
         }
       }
 
-      // Payer lock-to-payment times
+      // Payer lock-to-payment times - enriched with binance_order_history amounts
       const lockToPayTimes: number[] = [];
       let payerPaymentVolume = 0;
       for (const lock of payerLocks) {
+        const histOrder = orderHistoryMap.get(lock.order_number);
+        const lockAmount = histOrder ? parseFloat(histOrder.total_price || '0') : 0;
+        
         if (lock.status === 'completed' && lock.locked_at && lock.completed_at) {
           const lockAt = new Date(lock.locked_at);
           const compAt = new Date(lock.completed_at);
           const diffMin = (compAt.getTime() - lockAt.getTime()) / 60000;
           if (diffMin > 0 && diffMin < 1440) lockToPayTimes.push(diffMin);
         }
-        if ((lock as any).total_price) payerPaymentVolume += Number((lock as any).total_price) || 0;
+        if (lock.status === 'completed') payerPaymentVolume += lockAmount;
+      }
+      
+      // Also compute volume from marked_paid logs if lock volume is zero
+      if (payerPaymentVolume === 0) {
+        const paidOrderNums = payerLogs.filter((l: any) => l.action === 'marked_paid').map((l: any) => l.order_number);
+        for (const on of paidOrderNums) {
+          const histOrder = orderHistoryMap.get(on);
+          if (histOrder) payerPaymentVolume += parseFloat(histOrder.total_price || '0');
+        }
       }
 
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
@@ -341,7 +393,13 @@ export default function TerminalOperatorDetail() {
       const todayCompletedArr = todayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
       const todayVol = todayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       const todayPayments = payerPaymentLogs.filter(l => new Date(l.created_at) >= todayStart).length;
-      const todayPayerVol = payerLocks.filter(l => new Date(l.locked_at || l.created_at) >= todayStart).reduce((s, l) => s + (Number((l as any).total_price) || 0), 0);
+      // Compute today's payer volume from enriched order history
+      const todayPayerVol = payerLocks
+        .filter((l: any) => new Date(l.locked_at || l.created_at) >= todayStart)
+        .reduce((s: number, l: any) => {
+          const hist = orderHistoryMap.get(l.order_number);
+          return s + (hist ? parseFloat(hist.total_price || '0') : 0);
+        }, 0);
 
       // Peak hour
       const hourCounts = new Array(24).fill(0);
@@ -385,10 +443,16 @@ export default function TerminalOperatorDetail() {
         const dayEnd = endOfDay(d);
         const dayAssignments = userAssignments.filter(a => { const dt = new Date(a.created_at); return dt >= dayStart && dt <= dayEnd; });
         const dayPayments = payerPaymentLogs.filter(l => { const dt = new Date(l.created_at); return dt >= dayStart && dt <= dayEnd; });
+        // Compute payer volume from enriched order history
+        const dayPayerVol = dayPayments.reduce((s: number, l: any) => {
+          const hist = orderHistoryMap.get(l.order_number);
+          return s + (hist ? parseFloat(hist.total_price || '0') : 0);
+        }, 0);
+        const assignmentVol = dayAssignments.reduce((s: number, a: any) => s + (Number(a.total_price) || 0), 0);
         trends.push({
           date: format(d, 'dd MMM'),
           orders: dayAssignments.length,
-          volume: dayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0),
+          volume: dayPayerVol > 0 ? dayPayerVol : assignmentVol,
           completed: dayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled').length,
           cancelled: dayAssignments.filter(a => a.assignment_type === 'cancelled').length,
           payments: dayPayments.length,
@@ -406,6 +470,7 @@ export default function TerminalOperatorDetail() {
       setPayerAssignData(payerAssignRes.data || []);
       setOperatorAssignData(operatorAssignRes.data || []);
       setPayerLockData(payerLocks);
+      setPayerOrderHistory(orderHistoryMap);
       const srMap = new Map<string, string>();
       (sizeRangesRes.data || []).forEach((r: any) => srMap.set(r.id, r.name));
       setSizeRangeNames(srMap);
@@ -503,8 +568,14 @@ export default function TerminalOperatorDetail() {
     { range: '50K-1L', count: 0 },
     { range: '1L+', count: 0 },
   ];
-  recentAssignments.forEach(a => {
-    const p = Number(a.total_price) || 0;
+  // For payers, use enriched lock data; for operators, use assignments
+  const volumeSource = isPayer && payerLockData.length > 0
+    ? payerLockData.map(l => {
+        const hist = payerOrderHistory.get(l.order_number);
+        return hist ? parseFloat(hist.total_price || '0') : 0;
+      })
+    : recentAssignments.map(a => Number(a.total_price) || 0);
+  volumeSource.forEach(p => {
     if (p < 10000) volumeBuckets[0].count++;
     else if (p < 50000) volumeBuckets[1].count++;
     else if (p < 100000) volumeBuckets[2].count++;
@@ -948,28 +1019,41 @@ export default function TerminalOperatorDetail() {
                     <thead>
                       <tr className="border-b border-border text-muted-foreground">
                         <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Counterparty</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
                         <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
-                        <th className="text-left py-1.5 px-1.5 font-medium">Time</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Locked At</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Completed</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {payerLockData.slice(0, 15).map((lock, i) => (
-                        <tr key={lock.id || i} className="border-b border-border/50">
-                          <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
-                          <td className="py-1 px-1.5">
-                            <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
-                              {lock.status}
-                            </Badge>
-                          </td>
-                          <td className="py-1 px-1.5 text-muted-foreground text-[9px]">
-                            {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                          </td>
-                        </tr>
-                      ))}
+                      {payerLockData.slice(0, 20).map((lock, i) => {
+                        const hist = payerOrderHistory.get(lock.order_number);
+                        return (
+                          <tr key={lock.id || i} className="border-b border-border/50">
+                            <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
+                            <td className="py-1 px-1.5 text-[9px]">{hist?.counter_part_nick_name || '—'}</td>
+                            <td className="py-1 px-1.5 text-right font-medium">
+                              {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString()}` : '—'}
+                            </td>
+                            <td className="py-1 px-1.5">
+                              <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                                {lock.status}
+                              </Badge>
+                            </td>
+                            <td className="py-1 px-1.5 text-muted-foreground text-[9px]">
+                              {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden sm:table-cell">
+                              {lock.completed_at ? new Date(lock.completed_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
-                  {payerLockData.length > 15 && (
-                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 15 of {payerLockData.length}</p>
+                  {payerLockData.length > 20 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 20 of {payerLockData.length}</p>
                   )}
                 </div>
               </CardContent>
@@ -1148,11 +1232,73 @@ export default function TerminalOperatorDetail() {
 
         {/* ORDERS TAB */}
         <TabsContent value="orders" className="space-y-3 mt-3">
-          {recentAssignments.length > 0 ? (
+          {/* Payer-specific: show enriched lock orders */}
+          {isPayer && payerLockData.length > 0 && (
             <Card className="border-border bg-card">
               <CardContent className="p-3">
                 <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5 text-primary" /> All Assignments ({recentAssignments.length})
+                  <Lock className="h-3.5 w-3.5 text-primary" /> Payer Order History ({payerLockData.length})
+                </h4>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Counterparty</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Payment</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Lock Status</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Locked</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden md:table-cell">Duration</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payerLockData
+                        .sort((a: any, b: any) => new Date(b.locked_at || b.created_at).getTime() - new Date(a.locked_at || a.created_at).getTime())
+                        .slice(0, 50)
+                        .map((lock: any, i: number) => {
+                          const hist = payerOrderHistory.get(lock.order_number);
+                          const lockDuration = lock.status === 'completed' && lock.locked_at && lock.completed_at
+                            ? ((new Date(lock.completed_at).getTime() - new Date(lock.locked_at).getTime()) / 60000)
+                            : null;
+                          return (
+                            <tr key={lock.id || i} className="border-b border-border/50 hover:bg-muted/20">
+                              <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
+                              <td className="py-1 px-1.5 text-[9px]">{hist?.counter_part_nick_name || '—'}</td>
+                              <td className="py-1 px-1.5 text-[9px] hidden sm:table-cell">{hist?.pay_method_name || '—'}</td>
+                              <td className="py-1 px-1.5 text-right font-medium">
+                                {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString()}` : '—'}
+                              </td>
+                              <td className="py-1 px-1.5">
+                                <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
+                                  {lock.status}
+                                </Badge>
+                              </td>
+                              <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden sm:table-cell">
+                                {new Date(lock.locked_at || lock.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </td>
+                              <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden md:table-cell">
+                                {lockDuration != null ? `${Math.round(lockDuration * 10) / 10}m` : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                  {payerLockData.length > 50 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 50 of {payerLockData.length}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Operator assignments table */}
+          {recentAssignments.length > 0 && (
+            <Card className="border-border bg-card">
+              <CardContent className="p-3">
+                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5 text-primary" /> {isPayer ? 'Operator Assignments' : 'All Assignments'} ({recentAssignments.length})
                 </h4>
                 <div className="overflow-x-auto -mx-1">
                   <table className="w-full text-[10px] sm:text-[11px]">
@@ -1193,8 +1339,10 @@ export default function TerminalOperatorDetail() {
                 </div>
               </CardContent>
             </Card>
-          ) : (
-            <div className="text-center py-8 text-xs text-muted-foreground">No assignments found.</div>
+          )}
+
+          {recentAssignments.length === 0 && payerLockData.length === 0 && (
+            <div className="text-center py-8 text-xs text-muted-foreground">No order data found.</div>
           )}
         </TabsContent>
       </Tabs>

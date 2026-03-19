@@ -212,6 +212,8 @@ export default function TerminalOperatorDetail() {
   const [payerLockData, setPayerLockData] = useState<any[]>([]);
   const [payerOrderHistory, setPayerOrderHistory] = useState<Map<string, any>>(new Map());
   const [sizeRangeNames, setSizeRangeNames] = useState<Map<string, string>>(new Map());
+  const [sizeRangeDetails, setSizeRangeDetails] = useState<Map<string, any>>(new Map());
+  const [liveEligibleOrders, setLiveEligibleOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [trendDays, setTrendDays] = useState('7');
 
@@ -472,8 +474,59 @@ export default function TerminalOperatorDetail() {
       setPayerLockData(payerLocks);
       setPayerOrderHistory(orderHistoryMap);
       const srMap = new Map<string, string>();
-      (sizeRangesRes.data || []).forEach((r: any) => srMap.set(r.id, r.name));
+      const srDetailMap = new Map<string, any>();
+      (sizeRangesRes.data || []).forEach((r: any) => {
+        srMap.set(r.id, r.name);
+        srDetailMap.set(r.id, r);
+      });
       setSizeRangeNames(srMap);
+      setSizeRangeDetails(srDetailMap);
+
+      // Fetch live eligible orders from binance_order_history matching payer's active size range assignments
+      const activePayerAssigns = (payerAssignRes.data || []).filter((a: any) => a.is_active);
+      if (activePayerAssigns.length > 0 && (roleType === 'payer' || roleType === 'hybrid')) {
+        try {
+          // Get recent non-terminal orders from order history (last 24h)
+          const cutoffTime = Date.now() - 24 * 60 * 60 * 1000;
+          const { data: recentOrders } = await supabase
+            .from('binance_order_history')
+            .select('order_number, total_price, amount, unit_price, asset, fiat_unit, trade_type, order_status, counter_part_nick_name, create_time, pay_method_name')
+            .eq('trade_type', 'BUY')
+            .in('order_status', ['TRADING', 'BUYER_PAYED', 'APPEAL'])
+            .gte('create_time', cutoffTime)
+            .order('create_time', { ascending: false })
+            .limit(100);
+
+          if (recentOrders && recentOrders.length > 0) {
+            // Filter by payer's assigned size ranges and ad_ids
+            const eligibleOrders = recentOrders.filter((order: any) => {
+              const totalPrice = parseFloat(order.total_price || '0');
+              return activePayerAssigns.some((assign: any) => {
+                if (assign.assignment_type === 'ad_id' && assign.ad_id) {
+                  return true; // Ad-based assignments match differently (at runtime via advNo)
+                }
+                if (assign.assignment_type === 'size_range' && assign.size_range_id) {
+                  const range = srDetailMap.get(assign.size_range_id);
+                  if (range) {
+                    const min = range.min_amount || 0;
+                    const max = range.max_amount || Infinity;
+                    return totalPrice >= min && totalPrice <= max;
+                  }
+                }
+                return false;
+              });
+            });
+            setLiveEligibleOrders(eligibleOrders);
+          } else {
+            setLiveEligibleOrders([]);
+          }
+        } catch (e) {
+          console.error('Failed to fetch live eligible orders:', e);
+          setLiveEligibleOrders([]);
+        }
+      } else {
+        setLiveEligibleOrders([]);
+      }
 
       const m: OperatorMetric = {
         userId,
@@ -646,7 +699,7 @@ export default function TerminalOperatorDetail() {
                 <StatMini icon={Banknote} label="Payment Volume" value={fmtVol(m.payerPaymentVolume || m.totalVolume)} color="text-green-500" />
                 <StatMini icon={Lock} label="Locks Completed" value={`${m.payerLocksCompleted}/${m.payerLocksTotal}`} color="text-cyan-500" />
                 <StatMini icon={Timer} label="Avg Lock→Pay" value={formatDuration(m.payerAvgLockToPayMin)} color="text-blue-500" />
-                <StatMini icon={Activity} label="Active Locks" value={m.payerLocksActive} color="text-amber-500" />
+                <StatMini icon={Activity} label={liveEligibleOrders.length > 0 ? 'Eligible Orders' : 'Active Locks'} value={liveEligibleOrders.length > 0 ? liveEligibleOrders.length : m.payerLocksActive} color="text-amber-500" />
               </div>
 
               {/* Payer timing cards */}
@@ -882,6 +935,89 @@ export default function TerminalOperatorDetail() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Live Eligible Orders - for payers, show orders matching their assignment scope */}
+          {isPayer && liveEligibleOrders.length > 0 && (
+            <Card className="border-border bg-card border-l-2 border-l-amber-500">
+              <CardContent className="p-3 sm:p-4">
+                <h4 className="text-xs font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5 text-amber-500" /> Current Eligible Orders
+                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] ml-1">{liveEligibleOrders.length}</Badge>
+                </h4>
+                <div className="overflow-x-auto -mx-1">
+                  <table className="w-full text-[10px] sm:text-[11px]">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="text-left py-1.5 px-1.5 font-medium">Order</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Counterparty</th>
+                        <th className="text-right py-1.5 px-1.5 font-medium">Amount</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Asset</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium">Status</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Payment</th>
+                        <th className="text-left py-1.5 px-1.5 font-medium hidden sm:table-cell">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {liveEligibleOrders.slice(0, 20).map((order: any, i: number) => {
+                        const statusColor = order.order_status === 'BUYER_PAYED' ? 'text-blue-400 border-blue-400/30' 
+                          : order.order_status === 'APPEAL' ? 'text-destructive border-destructive/30' 
+                          : 'text-amber-400 border-amber-400/30';
+                        return (
+                          <tr key={order.order_number || i} className="border-b border-border/50 hover:bg-muted/20">
+                            <td className="py-1 px-1.5 font-mono text-[9px]">...{order.order_number?.slice(-8)}</td>
+                            <td className="py-1 px-1.5 text-[9px]">{order.counter_part_nick_name || '—'}</td>
+                            <td className="py-1 px-1.5 text-right font-medium">₹{parseFloat(order.total_price || '0').toLocaleString()}</td>
+                            <td className="py-1 px-1.5 text-[9px]">{order.asset || 'USDT'}</td>
+                            <td className="py-1 px-1.5">
+                              <Badge variant="outline" className={`text-[8px] ${statusColor}`}>
+                                {order.order_status === 'BUYER_PAYED' ? 'Paid' : order.order_status === 'TRADING' ? 'Trading' : order.order_status}
+                              </Badge>
+                            </td>
+                            <td className="py-1 px-1.5 text-[9px] text-muted-foreground hidden sm:table-cell">{order.pay_method_name || '—'}</td>
+                            <td className="py-1 px-1.5 text-muted-foreground text-[9px] hidden sm:table-cell">
+                              {order.create_time ? new Date(order.create_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {liveEligibleOrders.length > 20 && (
+                    <p className="text-center text-[9px] text-muted-foreground mt-1.5">Showing 20 of {liveEligibleOrders.length}</p>
+                  )}
+                </div>
+                <div className="mt-2 text-[9px] text-muted-foreground">
+                  Orders from the last 24h matching this payer's assigned size ranges
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Assignment scope info when no data */}
+          {isPayer && payerAssignData.filter((a: any) => a.is_active).length > 0 && m.paymentsMade === 0 && payerLockData.length === 0 && (
+            <Card className="border-border bg-card border-l-2 border-l-blue-500">
+              <CardContent className="p-3 sm:p-4">
+                <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-blue-500" /> Assignment Scope
+                </h4>
+                <p className="text-[10px] text-muted-foreground mb-2">
+                  This payer has active assignments but hasn't processed any orders yet. Performance metrics will populate once they start handling orders.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {payerAssignData.filter((a: any) => a.is_active).map((a: any) => {
+                    const rangeName = a.size_range_id ? sizeRangeNames.get(a.size_range_id) : a.ad_id;
+                    const rangeDetail = a.size_range_id ? sizeRangeDetails.get(a.size_range_id) : null;
+                    return (
+                      <Badge key={a.id} variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400">
+                        {a.assignment_type === 'size_range' ? '📏' : '📢'} {rangeName || a.id.slice(0, 8)}
+                        {rangeDetail && ` (₹${rangeDetail.min_amount?.toLocaleString()}–₹${rangeDetail.max_amount?.toLocaleString()})`}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ASSIGNMENTS TAB */}

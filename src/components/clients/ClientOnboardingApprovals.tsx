@@ -768,7 +768,7 @@ export function ClientOnboardingApprovals() {
                   {existingClientTransactions.length > 0 && (
                     <div className="bg-white rounded-md p-3 border border-orange-200">
                       <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
-                      <div className="overflow-x-auto">
+                      <div className="w-full">
                         <table className="w-full text-xs">
                           <thead>
                             <tr className="border-b text-muted-foreground">

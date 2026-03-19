@@ -722,7 +722,7 @@ export function ClientOnboardingApprovals() {
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="w-[96vw] max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="md:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
           </DialogHeader>
@@ -743,7 +743,7 @@ export function ClientOnboardingApprovals() {
                   {/* Existing client details */}
                    <div className="bg-white rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {existingClientMatch.email || 'N/A'}</div>
@@ -768,8 +768,8 @@ export function ClientOnboardingApprovals() {
                   {existingClientTransactions.length > 0 && (
                     <div className="bg-white rounded-md p-3 border border-orange-200">
                       <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
+                      <div className="w-full">
+                        <table className="w-full text-xs table-fixed">
                           <thead>
                             <tr className="border-b text-muted-foreground">
                               <th className="text-left py-1 pr-2">Order #</th>
@@ -809,7 +809,7 @@ export function ClientOnboardingApprovals() {
 
                   <div className="bg-white rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {selectedApproval.client_phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {selectedApproval.client_email || 'N/A'}</div>
@@ -859,7 +859,7 @@ export function ClientOnboardingApprovals() {
               {/* Client Details */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Order Information</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="font-medium">Client Name:</span> {selectedApproval.client_name}
                   </div>
@@ -881,8 +881,8 @@ export function ClientOnboardingApprovals() {
               </div>
 
               {/* Compliance Form */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
                   <Label htmlFor="proposed_monthly_limit">
                     Monthly Transaction Limit (₹) {approvalMode !== 'merge' && '*'}
                     {approvalMode === 'merge' && existingClientMatch?.monthly_limit && (
@@ -920,7 +920,7 @@ export function ClientOnboardingApprovals() {
                   </div>
                 </div>
 
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label htmlFor="purpose_of_buying">Purpose of Buying</Label>
                   <Textarea
                     id="purpose_of_buying"
@@ -957,7 +957,7 @@ export function ClientOnboardingApprovals() {
                   />
                 </div>
 
-                <div className="col-span-2">
+                <div className="md:col-span-2">
                   <Label htmlFor="compliance_notes">Compliance Notes</Label>
                   <Textarea
                     id="compliance_notes"

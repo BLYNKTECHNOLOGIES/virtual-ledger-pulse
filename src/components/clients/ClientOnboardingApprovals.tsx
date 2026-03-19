@@ -743,7 +743,7 @@ export function ClientOnboardingApprovals() {
                   {/* Existing client details */}
                    <div className="bg-white rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
-                    <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {existingClientMatch.email || 'N/A'}</div>

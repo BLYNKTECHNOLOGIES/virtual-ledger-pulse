@@ -24,7 +24,7 @@ import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { useToast } from "@/hooks/use-toast";
-import { getSmallBuysConfig } from "@/hooks/useSmallBuysSync";
+
 
 export default function Purchase() {
   const navigate = useNavigate();

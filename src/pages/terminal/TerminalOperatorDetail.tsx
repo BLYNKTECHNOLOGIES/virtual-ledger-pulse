@@ -450,6 +450,7 @@ export default function TerminalOperatorDetail() {
       setPayerAssignData(payerAssignRes.data || []);
       setOperatorAssignData(operatorAssignRes.data || []);
       setPayerLockData(payerLocks);
+      setPayerOrderHistory(orderHistoryMap);
       const srMap = new Map<string, string>();
       (sizeRangesRes.data || []).forEach((r: any) => srMap.set(r.id, r.name));
       setSizeRangeNames(srMap);

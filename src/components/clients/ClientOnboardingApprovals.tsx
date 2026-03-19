@@ -722,7 +722,7 @@ export function ClientOnboardingApprovals() {
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="!md:max-w-none w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="md:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
           </DialogHeader>

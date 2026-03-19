@@ -722,7 +722,7 @@ export function ClientOnboardingApprovals() {
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[96vw] max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
           </DialogHeader>
@@ -820,7 +820,7 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* Action buttons */}
-                   <div className="flex gap-3">
+                   <div className="flex flex-wrap gap-3">
                     <Button
                       variant={approvalMode === 'merge' ? 'default' : 'outline'}
                       size="sm"

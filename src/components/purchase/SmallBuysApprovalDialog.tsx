@@ -261,7 +261,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
         const feeAmt = parseFloat(gatewayFeeAmount);
         const { error: feeError } = await supabase.from('bank_transactions').insert({
           bank_account_id: gatewayFeeBankId,
-          transaction_type: 'Expense',
+          transaction_type: 'EXPENSE',
           amount: feeAmt,
           category: 'finance_banking_compliance',
           description: `Processing fee – Payout gateway fee for ${orderNumber} (${record.asset_code}, ${record.order_count} orders)`,

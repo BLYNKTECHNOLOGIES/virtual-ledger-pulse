@@ -769,7 +769,7 @@ export function ClientOnboardingApprovals() {
                     <div className="bg-white rounded-md p-3 border border-orange-200">
                       <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
                       <div className="w-full">
-                        <table className="w-full text-xs">
+                        <table className="w-full text-xs table-fixed">
                           <thead>
                             <tr className="border-b text-muted-foreground">
                               <th className="text-left py-1 pr-2">Order #</th>

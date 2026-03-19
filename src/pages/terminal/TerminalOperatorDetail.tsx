@@ -295,7 +295,6 @@ export default function TerminalOperatorDetail() {
       let sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
 
       // For payers: enrich volume from order history if assignments have no volume
-      const roleType = getRoleType(roleName);
       if ((roleType === 'payer' || roleType === 'hybrid') && totalVol === 0 && orderHistoryMap.size > 0) {
         let enrichedBuyVol = 0;
         let enrichedSellVol = 0;

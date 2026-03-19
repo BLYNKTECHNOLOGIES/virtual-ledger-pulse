@@ -429,10 +429,16 @@ export default function TerminalOperatorDetail() {
         const dayEnd = endOfDay(d);
         const dayAssignments = userAssignments.filter(a => { const dt = new Date(a.created_at); return dt >= dayStart && dt <= dayEnd; });
         const dayPayments = payerPaymentLogs.filter(l => { const dt = new Date(l.created_at); return dt >= dayStart && dt <= dayEnd; });
+        // Compute payer volume from enriched order history
+        const dayPayerVol = dayPayments.reduce((s: number, l: any) => {
+          const hist = orderHistoryMap.get(l.order_number);
+          return s + (hist ? parseFloat(hist.total_price || '0') : 0);
+        }, 0);
+        const assignmentVol = dayAssignments.reduce((s: number, a: any) => s + (Number(a.total_price) || 0), 0);
         trends.push({
           date: format(d, 'dd MMM'),
           orders: dayAssignments.length,
-          volume: dayAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0),
+          volume: dayPayerVol > 0 ? dayPayerVol : assignmentVol,
           completed: dayAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled').length,
           cancelled: dayAssignments.filter(a => a.assignment_type === 'cancelled').length,
           payments: dayPayments.length,

@@ -212,6 +212,8 @@ export default function TerminalOperatorDetail() {
   const [payerLockData, setPayerLockData] = useState<any[]>([]);
   const [payerOrderHistory, setPayerOrderHistory] = useState<Map<string, any>>(new Map());
   const [sizeRangeNames, setSizeRangeNames] = useState<Map<string, string>>(new Map());
+  const [sizeRangeDetails, setSizeRangeDetails] = useState<Map<string, any>>(new Map());
+  const [liveEligibleOrders, setLiveEligibleOrders] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [trendDays, setTrendDays] = useState('7');
 

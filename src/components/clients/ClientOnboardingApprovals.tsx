@@ -263,7 +263,7 @@ export function ClientOnboardingApprovals() {
         }
       }
 
-      // Update approval record
+      // Update this approval record
       const { error: updateError } = await supabase
         .from('client_onboarding_approvals')
         .update({
@@ -281,6 +281,22 @@ export function ClientOnboardingApprovals() {
       if (updateError) {
         console.error('Failed to update approval record:', updateError);
         throw updateError;
+      }
+
+      // Also approve all other pending records for the same client name
+      const { error: batchError } = await supabase
+        .from('client_onboarding_approvals')
+        .update({
+          approval_status: 'APPROVED',
+          reviewed_at: new Date().toISOString(),
+          compliance_notes: 'Auto-approved with primary record'
+        })
+        .eq('approval_status', 'PENDING')
+        .ilike('client_name', approval.client_name.trim())
+        .neq('id', id);
+
+      if (batchError) {
+        console.error('Failed to batch-approve sibling records:', batchError);
       }
     },
     onSuccess: (_, variables) => {
@@ -426,6 +442,13 @@ export function ClientOnboardingApprovals() {
     rejectClientMutation.mutate({ id, reason });
   };
 
+  // Reject all duplicate approval records for the same client
+  const handleRejectAll = (ids: string[], reason: string) => {
+    for (const id of ids) {
+      rejectClientMutation.mutate({ id, reason });
+    }
+  };
+
   const handleViewOrder = async (salesOrderId: string | undefined) => {
     if (!salesOrderId) {
       toast({ title: "No linked order", description: "This approval has no associated sales order", variant: "destructive" });
@@ -473,7 +496,25 @@ export function ClientOnboardingApprovals() {
     window.open(url, '_blank');
   };
 
-  const pendingApprovals = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  // Deduplicate pending approvals by client_name — show each client once with aggregated order info
+  const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; allIds: string[]; totalAmount: number; orderCount: number }>();
+  for (const a of allPending) {
+    const key = a.client_name.trim().toLowerCase();
+    const existing = pendingByClient.get(key);
+    if (existing) {
+      existing.allIds.push(a.id);
+      existing.totalAmount += a.order_amount;
+      existing.orderCount += 1;
+      // Keep the latest record as primary
+      if (new Date(a.created_at) > new Date(existing.primary.created_at)) {
+        existing.primary = a;
+      }
+    } else {
+      pendingByClient.set(key, { primary: a, allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
+    }
+  }
+  const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
   return (
@@ -509,15 +550,20 @@ export function ClientOnboardingApprovals() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingApprovals.map((approval) => (
+                {pendingApprovals.map((entry) => {
+                  const approval = entry.primary;
+                  return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
                       {approval.client_name}
+                      {entry.orderCount > 1 && (
+                        <Badge variant="outline" className="ml-2 text-xs">{entry.orderCount} orders</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>₹{approval.order_amount.toLocaleString()}</div>
-                        <div className="text-gray-500">{new Date(approval.order_date).toLocaleDateString()}</div>
+                        <div>₹{entry.totalAmount.toLocaleString()}</div>
+                        <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -562,7 +608,7 @@ export function ClientOnboardingApprovals() {
                           View
                         </Button>
                       ) : (
-                        <span className="text-gray-400">No VKYC</span>
+                        <span className="text-muted-foreground">No VKYC</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -591,7 +637,7 @@ export function ClientOnboardingApprovals() {
                           <Button
                             size="sm"
                             variant="destructive"
-                            onClick={() => handleReject(approval.id, 'Insufficient documentation')}
+                            onClick={() => handleRejectAll(entry.allIds, 'Insufficient documentation')}
                           >
                             <XCircle className="h-3 w-3 mr-1" />
                             Reject
@@ -600,7 +646,8 @@ export function ClientOnboardingApprovals() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {pendingApprovals.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-gray-500">

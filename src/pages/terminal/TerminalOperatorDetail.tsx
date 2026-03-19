@@ -699,7 +699,7 @@ export default function TerminalOperatorDetail() {
                 <StatMini icon={Banknote} label="Payment Volume" value={fmtVol(m.payerPaymentVolume || m.totalVolume)} color="text-green-500" />
                 <StatMini icon={Lock} label="Locks Completed" value={`${m.payerLocksCompleted}/${m.payerLocksTotal}`} color="text-cyan-500" />
                 <StatMini icon={Timer} label="Avg Lock→Pay" value={formatDuration(m.payerAvgLockToPayMin)} color="text-blue-500" />
-                <StatMini icon={Activity} label="Active Locks" value={m.payerLocksActive} color="text-amber-500" />
+                <StatMini icon={Activity} label={liveEligibleOrders.length > 0 ? 'Eligible Orders' : 'Active Locks'} value={liveEligibleOrders.length > 0 ? liveEligibleOrders.length : m.payerLocksActive} color="text-amber-500" />
               </div>
 
               {/* Payer timing cards */}

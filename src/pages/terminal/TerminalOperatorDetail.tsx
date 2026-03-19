@@ -246,6 +246,31 @@ export default function TerminalOperatorDetail() {
       const actionLogs = actionLogsRes.data || [];
       const payerLocks = payerLocksRes.data || [];
 
+      // Cross-reference payer locks & logs with binance_order_history for actual amounts
+      const allPayerOrderNumbers = [
+        ...new Set([
+          ...payerLocks.map((l: any) => l.order_number),
+          ...payerLogs.map((l: any) => l.order_number),
+        ].filter(Boolean))
+      ];
+      
+      let orderHistoryMap = new Map<string, any>();
+      if (allPayerOrderNumbers.length > 0) {
+        // Fetch in batches of 50
+        for (let i = 0; i < allPayerOrderNumbers.length; i += 50) {
+          const batch = allPayerOrderNumbers.slice(i, i + 50);
+          const { data: historyData } = await supabase
+            .from('binance_order_history')
+            .select('order_number, total_price, amount, unit_price, asset, fiat_unit, trade_type, order_status, counter_part_nick_name, create_time, pay_method_name')
+            .in('order_number', batch);
+          if (historyData) {
+            for (const h of historyData) {
+              orderHistoryMap.set(h.order_number, h);
+            }
+          }
+        }
+      }
+
       // Get role name
       let roleName = 'Operator';
       if (userRolesRes.data && userRolesRes.data.length > 0) {

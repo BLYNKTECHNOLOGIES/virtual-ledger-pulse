@@ -215,7 +215,7 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
 
         // Auto-upsert into beneficiary_records so it appears immediately
         // Don't wait for order approval — Binance strips details after completion
-        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4) {
+        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4 && !paymentInfo.accountNo.includes('@')) {
           try {
             await supabase.rpc('upsert_beneficiary_record' as any, {
               p_account_number: paymentInfo.accountNo.trim(),

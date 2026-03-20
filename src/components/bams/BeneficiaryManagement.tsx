@@ -131,7 +131,10 @@ export function BeneficiaryManagement() {
         .select("*")
         .order("last_seen_at", { ascending: false });
       if (error) throw error;
-      return data as unknown as BeneficiaryRecord[];
+      // Filter out UPI-style accounts (contain '@') — only bank transfer/IMPS records belong here
+      return (data as unknown as BeneficiaryRecord[]).filter(
+        (r) => !r.account_number?.includes('@')
+      );
     },
   });
 

@@ -54,9 +54,21 @@ function isBinancePayMovement(movement: any): boolean {
   );
 }
 
-function isQueueEligibleMovement(movement: any): boolean {
+function isQueueEligibleMovement(movement: any, p2pOrderIds?: Set<string>): boolean {
   if (!movement) return false;
-  if (isBinancePayMovement(movement)) return false;
+
+  // For Binance Pay movements, only skip if they match a known P2P order
+  // (those are already handled by terminal_sales_sync).
+  // Genuine Pay transfers (to other users) should be queued.
+  if (isBinancePayMovement(movement)) {
+    const payOrderId = String(movement.tx_id || movement.raw_data?.orderId || "");
+    // If we have a P2P order lookup set, check against it
+    if (p2pOrderIds && payOrderId) {
+      // If this pay movement matches a known P2P order, skip it
+      if (p2pOrderIds.has(payOrderId)) return false;
+    }
+    // If no P2P match, treat as legitimate Pay transfer — check completion status below
+  }
 
   const movementType = String(movement.movement_type || "").toLowerCase();
   const status = String(movement.status ?? "");

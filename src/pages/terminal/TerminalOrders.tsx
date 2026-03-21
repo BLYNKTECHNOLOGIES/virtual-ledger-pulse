@@ -484,6 +484,7 @@ export default function TerminalOrders() {
     queryKey: ['binance-stale-active-status-recheck', staleRecheckOrderNumbers.join(',')],
     queryFn: async () => {
       const next: Record<string, string> = {};
+      const stillBuyerPayed: string[] = []; // Orders that getOrderDetail still reports as BUYER_PAYED
 
       for (const orderNumber of staleRecheckOrderNumbers) {
         try {
@@ -491,12 +492,58 @@ export default function TerminalOrders() {
           const detail = response?.data || response;
           const rawStatus = detail?.orderStatus ?? detail?.status;
           if (rawStatus === undefined || rawStatus === null) continue;
-          next[orderNumber] = normaliseBinanceStatus(rawStatus);
+          const normalised = normaliseBinanceStatus(rawStatus);
+          next[orderNumber] = normalised;
+          // getOrderDetail returns stale status 4 (BUYER_PAYED) for appeal-completed orders.
+          // Track these for cross-verification via order history API.
+          if (normalised === 'BUYER_PAYED' || normalised === 'BUYER_PAID') {
+            stillBuyerPayed.push(orderNumber);
+          }
         } catch {
           // Best-effort recheck only
         }
 
         await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+
+      // Cross-verify stuck BUYER_PAYED orders against listUserOrderHistory
+      // which correctly returns "COMPLETED" for appeal-resolved orders.
+      if (stillBuyerPayed.length > 0) {
+        try {
+          const tradeTypes = ['BUY', 'SELL'];
+          const completedFromHistory = new Set<string>();
+
+          for (const tradeType of tradeTypes) {
+            // Scan recent completed order history pages to find these orders
+            for (let page = 1; page <= 3; page++) {
+              const histResp = await callBinanceAds('getOrderHistory', {
+                tradeType,
+                page,
+                rows: 50,
+              });
+              const histData = histResp?.data || histResp;
+              const orders = Array.isArray(histData) ? histData : (histData?.data || []);
+              for (const ho of orders) {
+                const on = String(ho.orderNumber || '');
+                const hs = String(ho.orderStatus || '').toUpperCase();
+                if (stillBuyerPayed.includes(on) && (hs === 'COMPLETED' || hs.includes('COMPLETED'))) {
+                  completedFromHistory.add(on);
+                }
+              }
+              await new Promise((r) => setTimeout(r, 120));
+              // Stop paginating if we found all stuck orders
+              if (stillBuyerPayed.every(o => completedFromHistory.has(o))) break;
+            }
+            if (stillBuyerPayed.every(o => completedFromHistory.has(o))) break;
+          }
+
+          // Override status for orders confirmed completed via history API
+          for (const orderNumber of completedFromHistory) {
+            next[orderNumber] = 'COMPLETED';
+          }
+        } catch {
+          // Best-effort cross-verification
+        }
       }
 
       return next;

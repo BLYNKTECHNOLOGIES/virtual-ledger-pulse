@@ -381,6 +381,25 @@ export default function TerminalOperatorDetail() {
         }
       }
 
+      // Merge payer lock timing into main timing metrics for comprehensive view
+      // Payment turnout: use lock-to-pay times if assignment-based times are empty
+      const mergedPaymentTimes = paymentTimes.length > 0 ? paymentTimes : lockToPayTimes;
+      
+      // Handle times: merge completed payer locks as handle time data
+      const mergedHandleTimes = handleTimes.length > 0 ? handleTimes : lockToPayTimes;
+      
+      // Release times: also compute from payer locks + release logs
+      for (const lock of payerLocks) {
+        if (lock.status === 'completed' && lock.completed_at) {
+          const paidAt = new Date(lock.completed_at);
+          const releasedAt = releaseLogByOrder.get(lock.order_number);
+          if (releasedAt && releasedAt > paidAt) {
+            const diffMin = (releasedAt.getTime() - paidAt.getTime()) / 60000;
+            if (diffMin > 0 && diffMin < 1440) releaseTimes.push(diffMin);
+          }
+        }
+      }
+
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
       const median = (arr: number[]) => {
         if (arr.length === 0) return null;
@@ -542,12 +561,12 @@ export default function TerminalOperatorDetail() {
         sellCount: sellOrders.length,
         buyVolume: buyVol,
         sellVolume: sellVol,
-        avgPaymentTimeMin: avg(paymentTimes),
+        avgPaymentTimeMin: avg(mergedPaymentTimes),
         avgReleaseTimeMin: avg(releaseTimes),
-        avgTotalHandleTimeMin: avg(handleTimes),
-        fastestHandleTimeMin: handleTimes.length > 0 ? Math.round(Math.min(...handleTimes) * 10) / 10 : null,
-        slowestHandleTimeMin: handleTimes.length > 0 ? Math.round(Math.max(...handleTimes) * 10) / 10 : null,
-        medianHandleTimeMin: median(handleTimes),
+        avgTotalHandleTimeMin: avg(mergedHandleTimes),
+        fastestHandleTimeMin: mergedHandleTimes.length > 0 ? Math.round(Math.min(...mergedHandleTimes) * 10) / 10 : null,
+        slowestHandleTimeMin: mergedHandleTimes.length > 0 ? Math.round(Math.max(...mergedHandleTimes) * 10) / 10 : null,
+        medianHandleTimeMin: median(mergedHandleTimes),
         todayHandled: todayAssignments.length,
         todayCompleted: todayCompletedArr.length,
         todayVolume: todayVol,

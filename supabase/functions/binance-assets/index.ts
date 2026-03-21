@@ -54,9 +54,21 @@ function isBinancePayMovement(movement: any): boolean {
   );
 }
 
-function isQueueEligibleMovement(movement: any): boolean {
+function isQueueEligibleMovement(movement: any, p2pOrderIds?: Set<string>): boolean {
   if (!movement) return false;
-  if (isBinancePayMovement(movement)) return false;
+
+  // For Binance Pay movements, only skip if they match a known P2P order
+  // (those are already handled by terminal_sales_sync).
+  // Genuine Pay transfers (to other users) should be queued.
+  if (isBinancePayMovement(movement)) {
+    const payOrderId = String(movement.tx_id || movement.raw_data?.orderId || "");
+    // If we have a P2P order lookup set, check against it
+    if (p2pOrderIds && payOrderId) {
+      // If this pay movement matches a known P2P order, skip it
+      if (p2pOrderIds.has(payOrderId)) return false;
+    }
+    // If no P2P match, treat as legitimate Pay transfer — check completion status below
+  }
 
   const movementType = String(movement.movement_type || "").toLowerCase();
   const status = String(movement.status ?? "");
@@ -788,6 +800,14 @@ serve(async (req) => {
           .gte("movement_time", dynamicCutoff)
           .order("movement_time", { ascending: false });
 
+        // Build a set of known P2P order numbers so we can distinguish
+        // P2P releases (skip) from genuine Pay transfers (queue).
+        const { data: p2pOrders } = await sb
+          .from("binance_order_history")
+          .select("order_number");
+        const p2pOrderIds = new Set((p2pOrders || []).map((o: any) => String(o.order_number)));
+        console.log(`checkNewMovements: loaded ${p2pOrderIds.size} known P2P order numbers for filtering`);
+
         let skippedExisting = 0;
         let skippedInternalPay = 0;
         let skippedIncomplete = 0;
@@ -799,13 +819,17 @@ serve(async (req) => {
             return false;
           }
 
-          // Skip internal Binance Pay/P2P releases already handled in terminal sync
+          // Skip Binance Pay movements that match known P2P orders
           if (isBinancePayMovement(m)) {
-            skippedInternalPay += 1;
-            return false;
+            const payOrderId = String(m.tx_id || m.raw_data?.orderId || "");
+            if (payOrderId && p2pOrderIds.has(payOrderId)) {
+              skippedInternalPay += 1;
+              return false;
+            }
+            // Not a P2P order — fall through to eligibility check
           }
 
-          if (!isQueueEligibleMovement(m)) {
+          if (!isQueueEligibleMovement(m, p2pOrderIds)) {
             skippedIncomplete += 1;
             return false;
           }

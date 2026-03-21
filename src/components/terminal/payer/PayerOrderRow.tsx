@@ -285,6 +285,36 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
               onChange={handleUploadAndMarkPaid}
             />
 
+            {/* Copy Payment String */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[10px] gap-1 px-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                const phone = (order.orderNumber || '').slice(0, 10);
+                const amount = Math.floor(Number(order.totalPrice || 0)).toString();
+                let upiId = '';
+                let name = '';
+                const methods = hasResolvedOverride
+                  ? [{ fields: [{ fieldName: 'UPI ID', fieldValue: altUpiRequest.updated_upi_id }, { fieldName: 'Name', fieldValue: altUpiRequest.updated_upi_name }] }]
+                  : payMethods;
+                for (const m of (methods || [])) {
+                  for (const f of (m.fields || [])) {
+                    const fn = (f.fieldName || '').toLowerCase();
+                    if (!upiId && (fn.includes('upi') || fn.includes('id') || fn.includes('vpa'))) upiId = f.fieldValue || '';
+                    if (!name && (fn.includes('name') || fn.includes('holder'))) name = f.fieldValue || '';
+                  }
+                }
+                const str = `${phone}|${upiId}|${name}|${amount}|0717`;
+                navigator.clipboard.writeText(str);
+                toast.success('Payment string copied');
+              }}
+            >
+              <ClipboardCopy className="h-3 w-3" />
+              Copy Info
+            </Button>
+
             {/* Request Another UPI */}
             <Button
               variant="outline"

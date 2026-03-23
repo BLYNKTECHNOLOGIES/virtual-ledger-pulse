@@ -301,9 +301,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
               Add Note
             </Button>
           </PermissionGate>
-          <Button size="sm" variant="outline">
-            Communication Log
-          </Button>
+          <CommunicationLogDialog clientId={activeClientId!} />
         </div>
       </CardContent>
     </Card>

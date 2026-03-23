@@ -43,12 +43,12 @@ export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps
     queryKey: ['client-communication-logs', clientId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('client_communication_logs')
+        .from('client_communication_logs' as any)
         .select('*')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data as any[];
     },
     enabled: open && !!clientId,
   });
@@ -59,14 +59,14 @@ export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps
       
       const { data: userData } = await supabase.auth.getUser();
       const { error } = await supabase
-        .from('client_communication_logs')
+        .from('client_communication_logs' as any)
         .insert({
           client_id: clientId,
           communication_type: type,
           subject: subject.trim() || null,
           content: content.trim(),
           logged_by: userData?.user?.email || 'Unknown',
-        });
+        } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -131,7 +131,7 @@ export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps
             <p className="text-sm text-muted-foreground text-center py-4">No communication logs yet.</p>
           )}
 
-          {logs?.map(log => (
+          {logs?.map((log: any) => (
             <div key={log.id} className="border rounded-lg p-3 space-y-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

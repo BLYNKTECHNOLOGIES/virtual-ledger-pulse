@@ -409,9 +409,9 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             <Button 
               onClick={handleSubmit} 
               className="w-full"
-              disabled={createTransactionMutation.isPending}
+              disabled={createTransactionMutation.isPending || uploadingBill}
             >
-              {createTransactionMutation.isPending ? "Recording..." : "Record Transaction"}
+              {createTransactionMutation.isPending || uploadingBill ? "Recording..." : "Record Transaction"}
             </Button>
           </div>
         </div>

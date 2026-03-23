@@ -1170,6 +1170,62 @@ export type Database = {
         }
         Relationships: []
       }
+      client_limit_requests: {
+        Row: {
+          client_id: string
+          client_name: string | null
+          created_at: string | null
+          expected_usage: string | null
+          id: string
+          increase_percentage: number | null
+          justification: string | null
+          previous_limit: number | null
+          requested_at: string | null
+          requested_by: string | null
+          requested_limit: number
+          risk_assessment: string | null
+          status: string | null
+        }
+        Insert: {
+          client_id: string
+          client_name?: string | null
+          created_at?: string | null
+          expected_usage?: string | null
+          id?: string
+          increase_percentage?: number | null
+          justification?: string | null
+          previous_limit?: number | null
+          requested_at?: string | null
+          requested_by?: string | null
+          requested_limit: number
+          risk_assessment?: string | null
+          status?: string | null
+        }
+        Update: {
+          client_id?: string
+          client_name?: string | null
+          created_at?: string | null
+          expected_usage?: string | null
+          id?: string
+          increase_percentage?: number | null
+          justification?: string | null
+          previous_limit?: number | null
+          requested_at?: string | null
+          requested_by?: string | null
+          requested_limit?: number
+          risk_assessment?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_limit_requests_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_onboarding_approvals: {
         Row: {
           aadhar_back_url: string | null

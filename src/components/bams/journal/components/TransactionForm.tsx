@@ -55,6 +55,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     mutationFn: async (transactionData: typeof formData) => {
       const amount = parseFloat(transactionData.amount);
 
+      // Validate bill attachment
+      if (!billFile) {
+        throw new ValidationError('Bill/receipt attachment is mandatory for all transactions');
+      }
+
       // Validate bank account balance for expense transactions
       if (transactionData.transactionType === 'EXPENSE') {
         try {
@@ -67,12 +72,32 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         }
       }
 
-       // Get full category label for storage (Category > SubCategory)
+       // Upload bill file
+       setUploadingBill(true);
+       const fileExt = billFile.name.split('.').pop();
+       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+       const filePath = `bills/${fileName}`;
+
+       const { error: uploadError } = await supabase.storage
+         .from('transaction-bills')
+         .upload(filePath, billFile);
+
+       if (uploadError) {
+         setUploadingBill(false);
+         throw new Error('Failed to upload bill: ' + uploadError.message);
+       }
+
+       const { data: publicUrlData } = supabase.storage
+         .from('transaction-bills')
+         .getPublicUrl(filePath);
+
+       setUploadingBill(false);
+
+       // Get full category label for storage
        const categoryLabel = transactionData.category && transactionData.subCategory
          ? getFullCategoryLabel(transactionData.category, transactionData.subCategory)
         : null;
 
-       // Only use user.id if it's a valid UUID, otherwise set to null
        const createdBy = user?.id && isUuid(user.id) ? user.id : null;
  
       const { data, error } = await supabase
@@ -86,6 +111,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
            created_by: createdBy,
+           bill_url: publicUrlData.publicUrl,
         })
         .select()
         .single();

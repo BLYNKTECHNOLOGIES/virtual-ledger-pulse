@@ -138,6 +138,8 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         date: undefined,
         referenceNumber: "",
       });
+      setBillFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     },
     onError: (error: any) => {
       const message = error instanceof ValidationError ? error.message : (error.message || "Failed to record transaction");

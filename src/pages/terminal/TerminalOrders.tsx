@@ -453,7 +453,7 @@ export default function TerminalOrders() {
 
   // Some Binance "active" rows can remain stale for older orders.
   // Revalidate older active-like orders via getOrderDetail (authoritative single-order status).
-  const staleRecheckOrderNumbers = useMemo(() => {
+  const staleRecheckCandidates = useMemo(() => {
     const now = Date.now();
     const maxOrders = 30;
     const minAgeMs = 30 * 60 * 1000; // 30 minutes (reduced from 6h to catch stale statuses faster)
@@ -477,16 +477,21 @@ export default function TerminalOrders() {
     return activeLike
       .sort((a: any, b: any) => (a?.createTime || 0) - (b?.createTime || 0))
       .slice(0, maxOrders)
-      .map((o: any) => String(o.orderNumber));
+      .map((o: any) => ({
+        orderNumber: String(o.orderNumber),
+        createTime: Number(o?.createTime || 0),
+        tradeType: (String(o?.tradeType || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY') as 'BUY' | 'SELL',
+      }));
   }, [rawOrders]);
 
   const { data: staleDetailStatusMap = {} } = useQuery({
-    queryKey: ['binance-stale-active-status-recheck', staleRecheckOrderNumbers.join(',')],
+    queryKey: ['binance-stale-active-status-recheck', staleRecheckCandidates.map(c => `${c.orderNumber}:${c.createTime}`).join(',')],
     queryFn: async () => {
       const next: Record<string, string> = {};
-      const stillBuyerPayed: string[] = []; // Orders that getOrderDetail still reports as BUYER_PAYED
+      const stillActiveLike: Array<{ orderNumber: string; createTime: number; tradeType: 'BUY' | 'SELL' }> = [];
 
-      for (const orderNumber of staleRecheckOrderNumbers) {
+      for (const candidate of staleRecheckCandidates) {
+        const { orderNumber } = candidate;
         try {
           const response = await callBinanceAds('getOrderDetail', { orderNumber });
           const detail = response?.data || response;
@@ -494,10 +499,10 @@ export default function TerminalOrders() {
           if (rawStatus === undefined || rawStatus === null) continue;
           const normalised = normaliseBinanceStatus(rawStatus);
           next[orderNumber] = normalised;
-          // getOrderDetail returns stale status 4 (BUYER_PAYED) for appeal-completed orders.
-          // Track these for cross-verification via order history API.
-          if (normalised === 'BUYER_PAYED' || normalised === 'BUYER_PAID') {
-            stillBuyerPayed.push(orderNumber);
+          // getOrderDetail can stay stale (BUYER_PAYED/APPEAL) for appeal-resolved orders.
+          // Track these for targeted cross-verification via order history API.
+          if (normalised === 'BUYER_PAYED' || normalised === 'BUYER_PAID' || normalised === 'APPEAL' || normalised === 'DISPUTE') {
+            stillActiveLike.push(candidate);
           }
         } catch {
           // Best-effort recheck only
@@ -506,40 +511,69 @@ export default function TerminalOrders() {
         await new Promise((resolve) => setTimeout(resolve, 120));
       }
 
-      // Cross-verify stuck BUYER_PAYED orders against listUserOrderHistory
-      // which correctly returns "COMPLETED" for appeal-resolved orders.
-      if (stillBuyerPayed.length > 0) {
+      // Cross-verify stale active-like orders against listUserOrderHistory using
+      // tight per-order time windows. This catches old appeal-resolved orders
+      // that are no longer present in first-page history.
+      if (stillActiveLike.length > 0) {
         try {
-          const tradeTypes = ['BUY', 'SELL'];
-          const completedFromHistory = new Set<string>();
+          for (const candidate of stillActiveLike) {
+            const windows = [
+              {
+                startTimestamp: Math.max(0, candidate.createTime - 6 * 60 * 60 * 1000),
+                endTimestamp: candidate.createTime + 6 * 60 * 60 * 1000,
+              },
+              {
+                startTimestamp: Math.max(0, candidate.createTime - 24 * 60 * 60 * 1000),
+                endTimestamp: candidate.createTime + 24 * 60 * 60 * 1000,
+              },
+            ];
 
-          for (const tradeType of tradeTypes) {
-            // Scan recent completed order history pages to find these orders
-            for (let page = 1; page <= 3; page++) {
+            let matched = false;
+
+            for (const w of windows) {
               const histResp = await callBinanceAds('getOrderHistory', {
-                tradeType,
-                page,
+                tradeType: candidate.tradeType,
+                page: 1,
+                rows: 50,
+                startTimestamp: w.startTimestamp,
+                endTimestamp: w.endTimestamp,
+              });
+
+              const histData = histResp?.data || histResp;
+              const orders = Array.isArray(histData) ? histData : (histData?.data || []);
+              const hit = (orders || []).find((ho: any) => String(ho?.orderNumber || '') === candidate.orderNumber);
+
+              if (hit) {
+                const hs = normaliseBinanceStatus(hit?.orderStatus);
+                if (hs.includes('COMPLETED') || hs.includes('CANCEL') || hs.includes('EXPIRED') || hs.includes('APPEAL') || hs.includes('DISPUTE')) {
+                  next[candidate.orderNumber] = hs;
+                }
+                matched = true;
+                break;
+              }
+
+              await new Promise((r) => setTimeout(r, 120));
+            }
+
+            if (!matched) {
+              // Fallback: check first page without timestamps in case API ignores narrow windows
+              const histResp = await callBinanceAds('getOrderHistory', {
+                tradeType: candidate.tradeType,
+                page: 1,
                 rows: 50,
               });
               const histData = histResp?.data || histResp;
               const orders = Array.isArray(histData) ? histData : (histData?.data || []);
-              for (const ho of orders) {
-                const on = String(ho.orderNumber || '');
-                const hs = String(ho.orderStatus || '').toUpperCase();
-                if (stillBuyerPayed.includes(on) && (hs === 'COMPLETED' || hs.includes('COMPLETED'))) {
-                  completedFromHistory.add(on);
+              const hit = (orders || []).find((ho: any) => String(ho?.orderNumber || '') === candidate.orderNumber);
+              if (hit) {
+                const hs = normaliseBinanceStatus(hit?.orderStatus);
+                if (hs.includes('COMPLETED') || hs.includes('CANCEL') || hs.includes('EXPIRED') || hs.includes('APPEAL') || hs.includes('DISPUTE')) {
+                  next[candidate.orderNumber] = hs;
                 }
               }
-              await new Promise((r) => setTimeout(r, 120));
-              // Stop paginating if we found all stuck orders
-              if (stillBuyerPayed.every(o => completedFromHistory.has(o))) break;
             }
-            if (stillBuyerPayed.every(o => completedFromHistory.has(o))) break;
-          }
 
-          // Override status for orders confirmed completed via history API
-          for (const orderNumber of completedFromHistory) {
-            next[orderNumber] = 'COMPLETED';
+            await new Promise((r) => setTimeout(r, 120));
           }
         } catch {
           // Best-effort cross-verification
@@ -548,7 +582,7 @@ export default function TerminalOrders() {
 
       return next;
     },
-    enabled: staleRecheckOrderNumbers.length > 0,
+    enabled: staleRecheckCandidates.length > 0,
     staleTime: 15 * 1000,
     refetchInterval: 30 * 1000, // Recheck every 30s for faster stale resolution
   });
@@ -586,15 +620,16 @@ export default function TerminalOrders() {
   const displayOrders: P2POrderRecord[] = useMemo(() => {
     const TERMINAL_STATUSES = ['COMPLETED', 'CANCELLED', 'APPEAL', 'EXPIRED'];
     // Define status progression order — higher index = more advanced
-    const STATUS_RANK: Record<string, number> = {
+      const STATUS_RANK: Record<string, number> = {
       'PENDING': 0,
       'TRADING': 1,
       'BUYER_PAYED': 2,
       'BUYER_PAID': 2,
-      'COMPLETED': 3,
-      'CANCELLED': 3,
-      'APPEAL': 3,
-      'EXPIRED': 3,
+        'APPEAL': 2,
+        'DISPUTE': 2,
+        'COMPLETED': 3,
+        'CANCELLED': 3,
+        'EXPIRED': 3,
     };
     const getRank = (s: string): number => {
       const upper = (s || '').toUpperCase();

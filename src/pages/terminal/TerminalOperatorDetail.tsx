@@ -288,26 +288,45 @@ export default function TerminalOperatorDetail() {
 
       // Core stats from assignments
       const active = userAssignments.filter(a => a.is_active);
-      const completed = userAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
-      const cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
+      let completed = userAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
+      let cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
       const buyOrders = userAssignments.filter(a => a.trade_type === 'BUY');
       const sellOrders = userAssignments.filter(a => a.trade_type === 'SELL');
       let totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       let buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       let sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
 
-      // For payers: enrich volume from order history if assignments have no volume
-      if ((roleType === 'payer' || roleType === 'hybrid') && totalVol === 0 && orderHistoryMap.size > 0) {
+      // For payers: enrich stats from order history if assignments don't capture completions
+      if ((roleType === 'payer' || roleType === 'hybrid' || roleType === 'admin') && orderHistoryMap.size > 0) {
+        // Count completed/cancelled from binance order history for payer's handled orders
+        const assignmentOrderNums = new Set(userAssignments.map(a => a.order_number));
+        let enrichedCompleted = 0;
+        let enrichedCancelled = 0;
         let enrichedBuyVol = 0;
         let enrichedSellVol = 0;
         orderHistoryMap.forEach((h) => {
           const price = parseFloat(h.total_price || '0');
+          if (!assignmentOrderNums.has(h.order_number)) {
+            // Orders handled via payer logs but not in assignments
+            if (h.order_status === 'COMPLETED') enrichedCompleted++;
+            if (h.order_status === 'CANCELLED') enrichedCancelled++;
+          }
           if (h.trade_type === 'BUY') enrichedBuyVol += price;
           else enrichedSellVol += price;
         });
-        totalVol = enrichedBuyVol + enrichedSellVol;
-        buyVol = enrichedBuyVol;
-        sellVol = enrichedSellVol;
+        // Add payer-log-only completions
+        if (completed.length === 0 && enrichedCompleted > 0) {
+          completed = [...completed, ...Array(enrichedCompleted).fill({ _enriched: true })];
+        }
+        if (cancelled.length === 0 && enrichedCancelled > 0) {
+          cancelled = [...cancelled, ...Array(enrichedCancelled).fill({ _enriched: true })];
+        }
+        // Enrich volume
+        if (totalVol === 0) {
+          totalVol = enrichedBuyVol + enrichedSellVol;
+          buyVol = enrichedBuyVol;
+          sellVol = enrichedSellVol;
+        }
       }
 
       // Payer logs indexed
@@ -371,7 +390,28 @@ export default function TerminalOperatorDetail() {
         }
         if (lock.status === 'completed') payerPaymentVolume += lockAmount;
       }
-      
+
+      // Compute timing directly from payer logs + binance_order_history
+      // This captures payment actions even without assignment records
+      const payerLogPaymentTimes: number[] = [];
+      const payerLogHandleTimes: number[] = [];
+      for (const log of payerPaymentLogs) {
+        const hist = orderHistoryMap.get(log.order_number);
+        if (hist && hist.create_time) {
+          const orderCreatedAt = new Date(hist.create_time);
+          const paidAt = new Date(log.created_at);
+          const diffMin = (paidAt.getTime() - orderCreatedAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) payerLogPaymentTimes.push(diffMin);
+        }
+        // If order is completed, compute full handle time (order creation → completion not available, use paid time as proxy)
+        if (hist && hist.order_status === 'COMPLETED' && hist.create_time) {
+          const orderCreatedAt = new Date(hist.create_time);
+          const paidAt = new Date(log.created_at);
+          const diffMin = (paidAt.getTime() - orderCreatedAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) payerLogHandleTimes.push(diffMin);
+        }
+      }
+
       // Also compute volume from marked_paid logs if lock volume is zero
       if (payerPaymentVolume === 0) {
         const paidOrderNums = payerLogs.filter((l: any) => l.action === 'marked_paid').map((l: any) => l.order_number);
@@ -381,14 +421,12 @@ export default function TerminalOperatorDetail() {
         }
       }
 
-      // Merge payer lock timing into main timing metrics for comprehensive view
-      // Payment turnout: use lock-to-pay times if assignment-based times are empty
-      const mergedPaymentTimes = paymentTimes.length > 0 ? paymentTimes : lockToPayTimes;
+      // Merge timing: prioritize assignment-based, then lock-based, then payer-log-based
+      const mergedPaymentTimes = paymentTimes.length > 0 ? paymentTimes : (lockToPayTimes.length > 0 ? lockToPayTimes : payerLogPaymentTimes);
       
-      // Handle times: merge completed payer locks as handle time data
-      const mergedHandleTimes = handleTimes.length > 0 ? handleTimes : lockToPayTimes;
+      const mergedHandleTimes = handleTimes.length > 0 ? handleTimes : (lockToPayTimes.length > 0 ? lockToPayTimes : payerLogHandleTimes);
       
-      // Release times: also compute from payer locks + release logs
+      // Release times: also compute from payer locks + release logs, and from payer payment logs
       for (const lock of payerLocks) {
         if (lock.status === 'completed' && lock.completed_at) {
           const paidAt = new Date(lock.completed_at);
@@ -399,7 +437,17 @@ export default function TerminalOperatorDetail() {
           }
         }
       }
-
+      // Also check payer payment logs for release timing
+      if (releaseTimes.length === 0) {
+        for (const log of payerPaymentLogs) {
+          const paidAt = new Date(log.created_at);
+          const releasedAt = releaseLogByOrder.get(log.order_number);
+          if (releasedAt && releasedAt > paidAt) {
+            const diffMin = (releasedAt.getTime() - paidAt.getTime()) / 60000;
+            if (diffMin > 0 && diffMin < 1440) releaseTimes.push(diffMin);
+          }
+        }
+      }
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
       const median = (arr: number[]) => {
         if (arr.length === 0) return null;
@@ -547,17 +595,24 @@ export default function TerminalOperatorDetail() {
         setLiveEligibleOrders([]);
       }
 
+      // For payers/admins: ordersHandled should include unique orders from payer logs
+      const allHandledOrderNums = new Set([
+        ...userAssignments.map(a => a.order_number),
+        ...payerPaymentLogs.map(l => l.order_number),
+      ].filter(Boolean));
+      const effectiveOrdersHandled = Math.max(userAssignments.length, allHandledOrderNums.size);
+
       const m: OperatorMetric = {
         userId,
         displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username,
         roleName,
         roleType,
-        ordersHandled: userAssignments.length,
+        ordersHandled: effectiveOrdersHandled,
         ordersCompleted: completed.length,
         ordersCancelled: cancelled.length,
         totalVolume: totalVol,
         activeLoad: active.length,
-        buyCount: buyOrders.length,
+        buyCount: Math.max(buyOrders.length, allHandledOrderNums.size),
         sellCount: sellOrders.length,
         buyVolume: buyVol,
         sellVolume: sellVol,

@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee, CreditCard, Settings } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
 import { EditClientDetailsDialog } from "./EditClientDetailsDialog";
@@ -13,6 +14,7 @@ import { RequestLimitIncreaseDialog } from "./RequestLimitIncreaseDialog";
 import { CosmosSettingsDialog } from "./CosmosSettingsDialog";
 import { KYCDocumentsDialog } from "./KYCDocumentsDialog";
 import { PermissionGate } from "@/components/PermissionGate";
+import { toast } from "sonner";
 
 interface ClientOverviewPanelProps {
   clientId?: string;

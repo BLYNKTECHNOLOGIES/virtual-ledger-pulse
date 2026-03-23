@@ -807,6 +807,7 @@ export type Database = {
         Row: {
           amount: number
           bank_account_id: string
+          bill_url: string | null
           category: string | null
           client_id: string | null
           created_at: string
@@ -823,6 +824,7 @@ export type Database = {
         Insert: {
           amount: number
           bank_account_id: string
+          bill_url?: string | null
           category?: string | null
           client_id?: string | null
           created_at?: string
@@ -839,6 +841,7 @@ export type Database = {
         Update: {
           amount?: number
           bank_account_id?: string
+          bill_url?: string | null
           category?: string | null
           client_id?: string | null
           created_at?: string

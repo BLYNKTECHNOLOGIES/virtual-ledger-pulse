@@ -150,12 +150,17 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       });
   }, [open, syncRecord]);
 
-  // Track client master data for conflict detection
+  // Track client master data for conflict detection AND auto-fill empty form fields
   useEffect(() => {
     if (!linkedClientId) { setClientMasterPhone(''); setClientMasterState(''); return; }
     const client = allClients.find(c => c.id === linkedClientId);
-    setClientMasterPhone(client?.phone || '');
-    setClientMasterState(client?.state || '');
+    const masterPhone = client?.phone || '';
+    const masterState = client?.state || '';
+    setClientMasterPhone(masterPhone);
+    setClientMasterState(masterState);
+    // Auto-fill form fields from client master if they are still empty
+    if (masterPhone) setContactNumber(prev => prev || masterPhone);
+    if (masterState) setClientState(prev => prev || masterState);
   }, [linkedClientId, allClients]);
 
   // Build conflict items

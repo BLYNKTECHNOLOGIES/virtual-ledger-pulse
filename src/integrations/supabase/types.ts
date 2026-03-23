@@ -1173,6 +1173,44 @@ export type Database = {
         }
         Relationships: []
       }
+      client_communication_logs: {
+        Row: {
+          client_id: string
+          communication_type: string
+          content: string
+          created_at: string
+          id: string
+          logged_by: string | null
+          subject: string | null
+        }
+        Insert: {
+          client_id: string
+          communication_type?: string
+          content: string
+          created_at?: string
+          id?: string
+          logged_by?: string | null
+          subject?: string | null
+        }
+        Update: {
+          client_id?: string
+          communication_type?: string
+          content?: string
+          created_at?: string
+          id?: string
+          logged_by?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_communication_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_limit_requests: {
         Row: {
           client_id: string

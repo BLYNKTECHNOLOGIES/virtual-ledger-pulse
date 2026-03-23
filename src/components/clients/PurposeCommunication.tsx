@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { PermissionGate } from "@/components/PermissionGate";
+import { CommunicationLogDialog } from "@/components/clients/CommunicationLogDialog";
 
 interface PurposeCommunicationProps {
   clientId?: string;
@@ -301,9 +302,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
               Add Note
             </Button>
           </PermissionGate>
-          <Button size="sm" variant="outline">
-            Communication Log
-          </Button>
+          <CommunicationLogDialog clientId={activeClientId!} />
         </div>
       </CardContent>
     </Card>

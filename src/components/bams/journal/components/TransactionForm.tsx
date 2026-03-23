@@ -347,15 +347,63 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             />
           </div>
 
+           <div className="lg:col-span-2">
+             <Label htmlFor="billAttachment">Bill / Receipt Attachment *</Label>
+             <div className="mt-1">
+               {billFile ? (
+                 <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                   <FileText className="h-4 w-4 text-primary" />
+                   <span className="text-sm truncate flex-1">{billFile.name}</span>
+                   <Button
+                     type="button"
+                     variant="ghost"
+                     size="sm"
+                     className="h-6 w-6 p-0"
+                     onClick={() => {
+                       setBillFile(null);
+                       if (fileInputRef.current) fileInputRef.current.value = '';
+                     }}
+                   >
+                     <X className="h-3 w-3" />
+                   </Button>
+                 </div>
+               ) : (
+                 <div
+                   className="flex items-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 transition-colors"
+                   onClick={() => fileInputRef.current?.click()}
+                 >
+                   <Upload className="h-4 w-4 text-muted-foreground" />
+                   <span className="text-sm text-muted-foreground">Click to upload bill (PDF, JPG, PNG)</span>
+                 </div>
+               )}
+               <input
+                 ref={fileInputRef}
+                 type="file"
+                 className="hidden"
+                 accept="image/jpeg,image/png,image/webp,application/pdf"
+                 onChange={(e) => {
+                   const file = e.target.files?.[0];
+                   if (file) {
+                     if (file.size > 10 * 1024 * 1024) {
+                       toast({ title: "Error", description: "File size must be under 10MB", variant: "destructive" });
+                       return;
+                     }
+                     setBillFile(file);
+                   }
+                 }}
+               />
+             </div>
+           </div>
+
            <div className="lg:col-span-3">
-             <Label htmlFor="description">Description (optional)</Label>
-            <Textarea
-              id="description"
-               placeholder="Describe the transaction..."
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-            />
-          </div>
+              <Label htmlFor="description">Description (optional)</Label>
+             <Textarea
+               id="description"
+                placeholder="Describe the transaction..."
+               value={formData.description}
+               onChange={(e) => setFormData({...formData, description: e.target.value})}
+             />
+           </div>
 
            <div className="lg:col-span-3 mt-2">
             <Button 

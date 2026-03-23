@@ -595,17 +595,24 @@ export default function TerminalOperatorDetail() {
         setLiveEligibleOrders([]);
       }
 
+      // For payers/admins: ordersHandled should include unique orders from payer logs
+      const allHandledOrderNums = new Set([
+        ...userAssignments.map(a => a.order_number),
+        ...payerPaymentLogs.map(l => l.order_number),
+      ].filter(Boolean));
+      const effectiveOrdersHandled = Math.max(userAssignments.length, allHandledOrderNums.size);
+
       const m: OperatorMetric = {
         userId,
         displayName: user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.username,
         roleName,
         roleType,
-        ordersHandled: userAssignments.length,
+        ordersHandled: effectiveOrdersHandled,
         ordersCompleted: completed.length,
         ordersCancelled: cancelled.length,
         totalVolume: totalVol,
         activeLoad: active.length,
-        buyCount: buyOrders.length,
+        buyCount: Math.max(buyOrders.length, allHandledOrderNums.size),
         sellCount: sellOrders.length,
         buyVolume: buyVol,
         sellVolume: sellVol,

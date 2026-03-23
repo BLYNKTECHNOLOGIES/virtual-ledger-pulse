@@ -26,6 +26,9 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [billFile, setBillFile] = useState<File | null>(null);
+  const [uploadingBill, setUploadingBill] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     bankAccountId: "",
     transactionType: "",

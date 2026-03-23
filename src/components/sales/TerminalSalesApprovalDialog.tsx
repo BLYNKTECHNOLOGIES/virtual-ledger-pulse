@@ -194,23 +194,27 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     }
   };
 
-  // Reset state and fetch verified name when dialog opens
+  // Reset state and fetch verified name when dialog opens or when record changes
+  const syncRecordId = syncRecord?.id;
   useEffect(() => {
-    setLinkedClientId(syncRecord?.client_id || '');
+    const currentSync = syncRecord;
+    const orderData = currentSync?.order_data || {};
+
+    setLinkedClientId(currentSync?.client_id || '');
     setLinkedClientName('');
     // Pre-fill from sync record's stored terminal data (captured during order flow)
-    setContactNumber(syncRecord?.contact_number || '');
-    setClientState(syncRecord?.state || '');
+    setContactNumber(currentSync?.contact_number || '');
+    setClientState(currentSync?.state || '');
     setEnrichedName(null);
     setClientAutoMatched(false);
     setShowClientDropdown(false);
 
-    if (!open || !syncRecord) return;
+    if (!open || !currentSync) return;
 
-    const maskedNickname = od.counterparty_nickname || syncRecord?.counterparty_name;
-    const orderNumber = od.order_number || syncRecord?.binance_order_number;
-    const hasVerifiedName = !!od.verified_name;
-    const needsContactLookup = !syncRecord?.contact_number && !syncRecord?.state;
+    const maskedNickname = orderData.counterparty_nickname || currentSync.counterparty_name;
+    const orderNumber = orderData.order_number || currentSync.binance_order_number;
+    const hasVerifiedName = !!orderData.verified_name;
+    const needsContactLookup = !currentSync.contact_number && !currentSync.state;
 
     if (orderNumber) {
       supabase.functions.invoke('binance-ads', {
@@ -226,9 +230,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             .from('terminal_sales_sync')
             .update({
               counterparty_name: buyerRealName,
-              order_data: { ...od, verified_name: buyerRealName },
+              order_data: { ...orderData, verified_name: buyerRealName },
             })
-            .eq('id', syncRecord.id)
+            .eq('id', currentSync.id)
             .then(() => {
               queryClient.invalidateQueries({ queryKey: ['terminal_sales_sync'] });
             });
@@ -245,7 +249,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     } else if (needsContactLookup && maskedNickname) {
       lookupContact([maskedNickname]);
     }
-  }, [syncRecord, open]);
+  }, [open, syncRecordId]);
 
   // Fetch sales payment methods
   const { data: paymentMethods = [] } = useQuery({

@@ -480,7 +480,7 @@ export default function TerminalOrders() {
       .map((o: any) => ({
         orderNumber: String(o.orderNumber),
         createTime: Number(o?.createTime || 0),
-        tradeType: String(o?.tradeType || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY',
+        tradeType: (String(o?.tradeType || '').toUpperCase() === 'SELL' ? 'SELL' : 'BUY') as 'BUY' | 'SELL',
       }));
   }, [rawOrders]);
 

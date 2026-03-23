@@ -30,6 +30,18 @@ interface Props {
   onSuccess: () => void;
 }
 
+const normalizeIndianState = (value?: string | null): string => {
+  if (!value) return '';
+  const cleaned = value.trim().replace(/\s+/g, ' ');
+  if (!cleaned) return '';
+
+  const matchedState = INDIAN_STATES_AND_UTS.find(
+    (state) => state.toLowerCase() === cleaned.toLowerCase()
+  );
+
+  return matchedState || '';
+};
+
 export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, onSuccess }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -45,7 +57,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   );
   const [remarks, setRemarks] = useState('');
   const [contactNumber, setContactNumber] = useState(syncRecord?.contact_number || '');
-  const [clientState, setClientState] = useState(syncRecord?.state || '');
+  const [clientState, setClientState] = useState(normalizeIndianState(syncRecord?.state));
   const [linkedClientId, setLinkedClientId] = useState(syncRecord?.client_id || '');
   const [linkedClientName, setLinkedClientName] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
@@ -115,9 +127,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setLinkedClientId(exactMatch.id);
       setLinkedClientName(exactMatch.name);
       setClientAutoMatched(true);
-      const isApprovedClient = exactMatch.buyer_approval_status === 'APPROVED';
+      const isApprovedClient = String(exactMatch.buyer_approval_status || '').toUpperCase() === 'APPROVED';
       if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
-      if (!clientState && exactMatch.state && isApprovedClient) setClientState(exactMatch.state);
+      if (!clientState && exactMatch.state && isApprovedClient) {
+        const normalizedState = normalizeIndianState(exactMatch.state);
+        if (normalizedState) setClientState(normalizedState);
+      }
     } else if (exactMatches.length > 1) {
       // Multiple clients with same name — force operator to choose
       console.warn(`[SalesApproval] Multiple clients found for "${displayName}" — requires manual selection`);
@@ -127,7 +142,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setShowClientDropdown(true);
     }
     // Don't blank out contact/state when no client match — counterparty data may already be filled
-  }, [open, displayName, allClients]);
+  }, [open, displayName, allClients, linkedClientId, clientAutoMatched, contactNumber, clientState]);
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {
@@ -141,7 +156,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       .maybeSingle()
       .then(({ data }) => {
         const phone = data?.contact_number || '';
-        const state = data?.state || '';
+        const state = normalizeIndianState(data?.state);
         setCounterpartyPhone(phone);
         setCounterpartyState(state);
         // Pre-fill form fields from terminal-captured data (highest priority)
@@ -155,12 +170,17 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     if (!linkedClientId) { setClientMasterPhone(''); setClientMasterState(''); return; }
     const client = allClients.find(c => c.id === linkedClientId);
     const masterPhone = client?.phone || '';
-    const masterState = client?.state || '';
+    const masterState = normalizeIndianState(client?.state);
     setClientMasterPhone(masterPhone);
     setClientMasterState(masterState);
-    // Auto-fill form fields from client master if they are still empty
+    // Auto-fill form fields from client master if empty or non-standard (not in state list)
     if (masterPhone) setContactNumber(prev => prev || masterPhone);
-    if (masterState) setClientState(prev => prev || masterState);
+    if (masterState) {
+      setClientState(prev => {
+        const normalizedPrev = normalizeIndianState(prev);
+        return normalizedPrev || masterState;
+      });
+    }
   }, [linkedClientId, allClients]);
 
   // Build conflict items
@@ -189,8 +209,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     if (exactFound?.contact_number) {
       setContactNumber(prev => prev || exactFound.contact_number!);
     }
-    if (exactFound?.state) {
-      setClientState(prev => prev || exactFound.state!);
+    const normalizedState = normalizeIndianState(exactFound?.state);
+    if (normalizedState) {
+      setClientState(prev => prev || normalizedState);
     }
   };
 
@@ -204,7 +225,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     setLinkedClientName('');
     // Pre-fill from sync record's stored terminal data (captured during order flow)
     setContactNumber(currentSync?.contact_number || '');
-    setClientState(currentSync?.state || '');
+    setClientState(normalizeIndianState(currentSync?.state));
     setEnrichedName(null);
     setClientAutoMatched(false);
     setShowClientDropdown(false);
@@ -294,8 +315,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     // Auto-populate state ONLY if the client actually has a state saved AND is APPROVED
     // Never infer or cross-populate from other sources
     if (client.phone && !contactNumber) setContactNumber(client.phone);
-    if (client.state && client.buyer_approval_status === 'APPROVED') setClientState(client.state);
-    else if (!client.state) setClientState(''); // Clear state if client has none
+    const normalizedClientState = normalizeIndianState(client.state);
+    if (normalizedClientState && String(client.buyer_approval_status || '').toUpperCase() === 'APPROVED') {
+      setClientState(normalizedClientState);
+    } else if (!normalizedClientState) {
+      setClientState(''); // Clear state if client has none
+    }
     toast({ title: "Client Linked", description: `${client.name} selected as buyer client` });
   };
 

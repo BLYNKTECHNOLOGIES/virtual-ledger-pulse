@@ -3,8 +3,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee, CreditCard, Settings } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
 import { EditClientDetailsDialog } from "./EditClientDetailsDialog";
@@ -13,6 +14,7 @@ import { RequestLimitIncreaseDialog } from "./RequestLimitIncreaseDialog";
 import { CosmosSettingsDialog } from "./CosmosSettingsDialog";
 import { KYCDocumentsDialog } from "./KYCDocumentsDialog";
 import { PermissionGate } from "@/components/PermissionGate";
+import { toast } from "sonner";
 
 interface ClientOverviewPanelProps {
   clientId?: string;
@@ -23,6 +25,7 @@ interface ClientOverviewPanelProps {
 export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientOverviewPanelProps) {
   const params = useParams();
   const activeClientId = clientId || params.clientId;
+  const queryClient = useQueryClient();
 
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -245,10 +248,37 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">Risk Appetite</label>
-            <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
-              {client.risk_appetite}
-            </Badge>
+            <label className="text-sm font-medium text-muted-foreground">Risk Appetite</label>
+            <Select
+              value={client.risk_appetite || 'MEDIUM'}
+              onValueChange={async (value) => {
+                const { error } = await supabase
+                  .from('clients')
+                  .update({ risk_appetite: value })
+                  .eq('id', client.id);
+                if (error) {
+                  toast.error('Failed to update risk level');
+                } else {
+                  toast.success(`Risk level updated to ${value}`);
+                  queryClient.invalidateQueries({ queryKey: ['client', activeClientId] });
+                }
+              }}
+            >
+              <SelectTrigger className="w-[140px] h-8 mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="LOW">
+                  <span className="text-green-600 font-medium">LOW</span>
+                </SelectItem>
+                <SelectItem value="MEDIUM">
+                  <span className="text-orange-600 font-medium">MEDIUM</span>
+                </SelectItem>
+                <SelectItem value="HIGH">
+                  <span className="text-red-600 font-medium">HIGH</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client Type</label>

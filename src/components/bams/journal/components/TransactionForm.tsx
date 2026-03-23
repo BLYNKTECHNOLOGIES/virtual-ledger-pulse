@@ -1,4 +1,4 @@
- import { useState, useMemo } from "react";
+ import { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { CalendarIcon, TrendingUp, TrendingDown, Upload, X, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,9 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [billFile, setBillFile] = useState<File | null>(null);
+  const [uploadingBill, setUploadingBill] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     bankAccountId: "",
     transactionType: "",
@@ -52,6 +55,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     mutationFn: async (transactionData: typeof formData) => {
       const amount = parseFloat(transactionData.amount);
 
+      // Validate bill attachment
+      if (!billFile) {
+        throw new ValidationError('Bill/receipt attachment is mandatory for all transactions');
+      }
+
       // Validate bank account balance for expense transactions
       if (transactionData.transactionType === 'EXPENSE') {
         try {
@@ -64,12 +72,32 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         }
       }
 
-       // Get full category label for storage (Category > SubCategory)
+       // Upload bill file
+       setUploadingBill(true);
+       const fileExt = billFile.name.split('.').pop();
+       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+       const filePath = `bills/${fileName}`;
+
+       const { error: uploadError } = await supabase.storage
+         .from('transaction-bills')
+         .upload(filePath, billFile);
+
+       if (uploadError) {
+         setUploadingBill(false);
+         throw new Error('Failed to upload bill: ' + uploadError.message);
+       }
+
+       const { data: publicUrlData } = supabase.storage
+         .from('transaction-bills')
+         .getPublicUrl(filePath);
+
+       setUploadingBill(false);
+
+       // Get full category label for storage
        const categoryLabel = transactionData.category && transactionData.subCategory
          ? getFullCategoryLabel(transactionData.category, transactionData.subCategory)
         : null;
 
-       // Only use user.id if it's a valid UUID, otherwise set to null
        const createdBy = user?.id && isUuid(user.id) ? user.id : null;
  
       const { data, error } = await supabase
@@ -83,6 +111,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
            created_by: createdBy,
+           bill_url: publicUrlData.publicUrl,
         })
         .select()
         .single();
@@ -109,6 +138,8 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         date: undefined,
         referenceNumber: "",
       });
+      setBillFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     },
     onError: (error: any) => {
       const message = error instanceof ValidationError ? error.message : (error.message || "Failed to record transaction");
@@ -136,6 +167,16 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       toast({
         title: "Error",
          description: "Please select both category and sub-category",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Bill attachment is mandatory
+    if (!billFile) {
+      toast({
+        title: "Error",
+        description: "Bill/receipt attachment is mandatory for all transactions",
         variant: "destructive"
       });
       return;
@@ -306,23 +347,71 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
             />
           </div>
 
+           <div className="lg:col-span-2">
+             <Label htmlFor="billAttachment">Bill / Receipt Attachment *</Label>
+             <div className="mt-1">
+               {billFile ? (
+                 <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">
+                   <FileText className="h-4 w-4 text-primary" />
+                   <span className="text-sm truncate flex-1">{billFile.name}</span>
+                   <Button
+                     type="button"
+                     variant="ghost"
+                     size="sm"
+                     className="h-6 w-6 p-0"
+                     onClick={() => {
+                       setBillFile(null);
+                       if (fileInputRef.current) fileInputRef.current.value = '';
+                     }}
+                   >
+                     <X className="h-3 w-3" />
+                   </Button>
+                 </div>
+               ) : (
+                 <div
+                   className="flex items-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:border-primary/50 transition-colors"
+                   onClick={() => fileInputRef.current?.click()}
+                 >
+                   <Upload className="h-4 w-4 text-muted-foreground" />
+                   <span className="text-sm text-muted-foreground">Click to upload bill (PDF, JPG, PNG)</span>
+                 </div>
+               )}
+               <input
+                 ref={fileInputRef}
+                 type="file"
+                 className="hidden"
+                 accept="image/jpeg,image/png,image/webp,application/pdf"
+                 onChange={(e) => {
+                   const file = e.target.files?.[0];
+                   if (file) {
+                     if (file.size > 10 * 1024 * 1024) {
+                       toast({ title: "Error", description: "File size must be under 10MB", variant: "destructive" });
+                       return;
+                     }
+                     setBillFile(file);
+                   }
+                 }}
+               />
+             </div>
+           </div>
+
            <div className="lg:col-span-3">
-             <Label htmlFor="description">Description (optional)</Label>
-            <Textarea
-              id="description"
-               placeholder="Describe the transaction..."
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-            />
-          </div>
+              <Label htmlFor="description">Description (optional)</Label>
+             <Textarea
+               id="description"
+                placeholder="Describe the transaction..."
+               value={formData.description}
+               onChange={(e) => setFormData({...formData, description: e.target.value})}
+             />
+           </div>
 
            <div className="lg:col-span-3 mt-2">
             <Button 
               onClick={handleSubmit} 
               className="w-full"
-              disabled={createTransactionMutation.isPending}
+              disabled={createTransactionMutation.isPending || uploadingBill}
             >
-              {createTransactionMutation.isPending ? "Recording..." : "Record Transaction"}
+              {createTransactionMutation.isPending || uploadingBill ? "Recording..." : "Record Transaction"}
             </Button>
           </div>
         </div>

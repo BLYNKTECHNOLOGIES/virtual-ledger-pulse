@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { TrendingUp, Calculator } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface RequestLimitIncreaseDialogProps {
   open: boolean;
@@ -15,6 +17,7 @@ interface RequestLimitIncreaseDialogProps {
 
 export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: RequestLimitIncreaseDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -40,46 +43,62 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
     e.preventDefault();
     if (!client?.id) return;
 
+    const newLimit = parseFloat(formData.requestedLimit);
+    if (isNaN(newLimit) || newLimit <= 0) {
+      toast({ title: "Invalid limit", description: "Please enter a valid limit amount.", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Here you would typically send this to a backend API or create a request record
-      // For now, we'll just show a success message
-      
-      const requestData = {
-        client_id: client.id,
-        client_name: client.name,
-        current_limit: formData.currentLimit,
-        requested_limit: parseFloat(formData.requestedLimit),
-        increase_percentage: parseFloat(increasePecentage),
-        justification: formData.justification,
-        expected_usage: formData.expectedUsage,
-        risk_assessment: formData.riskAssessment,
-        requested_at: new Date().toISOString(),
-        status: 'PENDING'
-      };
+      // 1. Save the request record for audit trail
+      const { error: insertError } = await supabase
+        .from('client_limit_requests' as any)
+        .insert({
+          client_id: client.id,
+          client_name: client.name,
+          previous_limit: formData.currentLimit,
+          requested_limit: newLimit,
+          increase_percentage: parseFloat(increasePecentage),
+          justification: formData.justification || null,
+          expected_usage: formData.expectedUsage || null,
+          risk_assessment: formData.riskAssessment || null,
+          status: 'APPROVED',
+        });
 
-      
+      if (insertError) throw insertError;
+
+      // 2. Update the client's monthly_limit
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update({ monthly_limit: newLimit })
+        .eq('id', client.id);
+
+      if (updateError) throw updateError;
+
+      // Invalidate queries to refresh UI
+      queryClient.invalidateQueries({ queryKey: ['client', client.id] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
 
       toast({
-        title: "Request Submitted",
-        description: `Limit increase request for ₹${parseFloat(formData.requestedLimit).toLocaleString()} has been submitted for review.`,
+        title: "Limit Updated",
+        description: `Monthly limit updated to ₹${newLimit.toLocaleString()} for ${client.name}.`,
       });
 
       onOpenChange(false);
       
-      // Reset form
       setFormData({
-        currentLimit: client?.monthly_limit || 0,
+        currentLimit: newLimit,
         requestedLimit: "",
         justification: "",
         expectedUsage: "",
         riskAssessment: "",
       });
     } catch (error) {
-      console.error("Error submitting request:", error);
+      console.error("Error updating limit:", error);
       toast({
         title: "Error",
-        description: "Failed to submit request. Please try again.",
+        description: "Failed to update limit. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -98,7 +117,6 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Current Limit Display */}
           <div className="bg-muted/50 p-4 rounded-md">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -112,7 +130,6 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
             </div>
           </div>
 
-          {/* Request Details */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="requestedLimit">Requested New Limit (₹)</Label>
@@ -177,7 +194,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Submit Request"}
+              {isSubmitting ? "Updating..." : "Update Limit"}
             </Button>
           </div>
         </form>

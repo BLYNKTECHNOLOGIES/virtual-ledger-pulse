@@ -184,6 +184,7 @@ export function ClientOnboardingApprovals() {
             monthly_limit: parseFloat(clientData.proposed_monthly_limit),
             buying_purpose: clientData.purpose_of_buying,
             risk_appetite: clientData.risk_assessment,
+            operator_notes: clientData.compliance_notes || undefined,
             state: clientData.client_state || approval.client_state || undefined,
             phone: approval.client_phone || undefined,
             email: approval.client_email || undefined,
@@ -216,6 +217,7 @@ export function ClientOnboardingApprovals() {
               monthly_limit: parseFloat(clientData.proposed_monthly_limit),
               buying_purpose: clientData.purpose_of_buying,
               risk_appetite: clientData.risk_assessment,
+              operator_notes: clientData.compliance_notes || undefined,
               state: clientData.client_state || approval.client_state || undefined
             })
             .eq('id', existingByContact.id);
@@ -240,6 +242,7 @@ export function ClientOnboardingApprovals() {
               first_order_value: approval.order_amount,
               buying_purpose: clientData.purpose_of_buying,
               risk_appetite: clientData.risk_assessment,
+              operator_notes: clientData.compliance_notes || null,
               assigned_operator: 'Compliance Team',
               date_of_onboarding: new Date().toISOString().split('T')[0],
               client_id: generateClientId(),

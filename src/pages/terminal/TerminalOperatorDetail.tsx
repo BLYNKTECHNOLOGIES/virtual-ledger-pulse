@@ -288,26 +288,45 @@ export default function TerminalOperatorDetail() {
 
       // Core stats from assignments
       const active = userAssignments.filter(a => a.is_active);
-      const completed = userAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
-      const cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
+      let completed = userAssignments.filter(a => !a.is_active && a.assignment_type !== 'cancelled');
+      let cancelled = userAssignments.filter(a => a.assignment_type === 'cancelled');
       const buyOrders = userAssignments.filter(a => a.trade_type === 'BUY');
       const sellOrders = userAssignments.filter(a => a.trade_type === 'SELL');
       let totalVol = userAssignments.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       let buyVol = buyOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
       let sellVol = sellOrders.reduce((s, a) => s + (Number(a.total_price) || 0), 0);
 
-      // For payers: enrich volume from order history if assignments have no volume
-      if ((roleType === 'payer' || roleType === 'hybrid') && totalVol === 0 && orderHistoryMap.size > 0) {
+      // For payers: enrich stats from order history if assignments don't capture completions
+      if ((roleType === 'payer' || roleType === 'hybrid' || roleType === 'admin') && orderHistoryMap.size > 0) {
+        // Count completed/cancelled from binance order history for payer's handled orders
+        const assignmentOrderNums = new Set(userAssignments.map(a => a.order_number));
+        let enrichedCompleted = 0;
+        let enrichedCancelled = 0;
         let enrichedBuyVol = 0;
         let enrichedSellVol = 0;
         orderHistoryMap.forEach((h) => {
           const price = parseFloat(h.total_price || '0');
+          if (!assignmentOrderNums.has(h.order_number)) {
+            // Orders handled via payer logs but not in assignments
+            if (h.order_status === 'COMPLETED') enrichedCompleted++;
+            if (h.order_status === 'CANCELLED') enrichedCancelled++;
+          }
           if (h.trade_type === 'BUY') enrichedBuyVol += price;
           else enrichedSellVol += price;
         });
-        totalVol = enrichedBuyVol + enrichedSellVol;
-        buyVol = enrichedBuyVol;
-        sellVol = enrichedSellVol;
+        // Add payer-log-only completions
+        if (completed.length === 0 && enrichedCompleted > 0) {
+          completed = [...completed, ...Array(enrichedCompleted).fill({ _enriched: true })];
+        }
+        if (cancelled.length === 0 && enrichedCancelled > 0) {
+          cancelled = [...cancelled, ...Array(enrichedCancelled).fill({ _enriched: true })];
+        }
+        // Enrich volume
+        if (totalVol === 0) {
+          totalVol = enrichedBuyVol + enrichedSellVol;
+          buyVol = enrichedBuyVol;
+          sellVol = enrichedSellVol;
+        }
       }
 
       // Payer logs indexed

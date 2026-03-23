@@ -371,7 +371,28 @@ export default function TerminalOperatorDetail() {
         }
         if (lock.status === 'completed') payerPaymentVolume += lockAmount;
       }
-      
+
+      // Compute timing directly from payer logs + binance_order_history
+      // This captures payment actions even without assignment records
+      const payerLogPaymentTimes: number[] = [];
+      const payerLogHandleTimes: number[] = [];
+      for (const log of payerPaymentLogs) {
+        const hist = orderHistoryMap.get(log.order_number);
+        if (hist && hist.create_time) {
+          const orderCreatedAt = new Date(hist.create_time);
+          const paidAt = new Date(log.created_at);
+          const diffMin = (paidAt.getTime() - orderCreatedAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) payerLogPaymentTimes.push(diffMin);
+        }
+        // If order is completed, compute full handle time (order creation → completion not available, use paid time as proxy)
+        if (hist && hist.order_status === 'COMPLETED' && hist.create_time) {
+          const orderCreatedAt = new Date(hist.create_time);
+          const paidAt = new Date(log.created_at);
+          const diffMin = (paidAt.getTime() - orderCreatedAt.getTime()) / 60000;
+          if (diffMin > 0 && diffMin < 1440) payerLogHandleTimes.push(diffMin);
+        }
+      }
+
       // Also compute volume from marked_paid logs if lock volume is zero
       if (payerPaymentVolume === 0) {
         const paidOrderNums = payerLogs.filter((l: any) => l.action === 'marked_paid').map((l: any) => l.order_number);
@@ -381,14 +402,12 @@ export default function TerminalOperatorDetail() {
         }
       }
 
-      // Merge payer lock timing into main timing metrics for comprehensive view
-      // Payment turnout: use lock-to-pay times if assignment-based times are empty
-      const mergedPaymentTimes = paymentTimes.length > 0 ? paymentTimes : lockToPayTimes;
+      // Merge timing: prioritize assignment-based, then lock-based, then payer-log-based
+      const mergedPaymentTimes = paymentTimes.length > 0 ? paymentTimes : (lockToPayTimes.length > 0 ? lockToPayTimes : payerLogPaymentTimes);
       
-      // Handle times: merge completed payer locks as handle time data
-      const mergedHandleTimes = handleTimes.length > 0 ? handleTimes : lockToPayTimes;
+      const mergedHandleTimes = handleTimes.length > 0 ? handleTimes : (lockToPayTimes.length > 0 ? lockToPayTimes : payerLogHandleTimes);
       
-      // Release times: also compute from payer locks + release logs
+      // Release times: also compute from payer locks + release logs, and from payer payment logs
       for (const lock of payerLocks) {
         if (lock.status === 'completed' && lock.completed_at) {
           const paidAt = new Date(lock.completed_at);
@@ -399,7 +418,17 @@ export default function TerminalOperatorDetail() {
           }
         }
       }
-
+      // Also check payer payment logs for release timing
+      if (releaseTimes.length === 0) {
+        for (const log of payerPaymentLogs) {
+          const paidAt = new Date(log.created_at);
+          const releasedAt = releaseLogByOrder.get(log.order_number);
+          if (releasedAt && releasedAt > paidAt) {
+            const diffMin = (releasedAt.getTime() - paidAt.getTime()) / 60000;
+            if (diffMin > 0 && diffMin < 1440) releaseTimes.push(diffMin);
+          }
+        }
+      }
       const avg = (arr: number[]) => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
       const median = (arr: number[]) => {
         if (arr.length === 0) return null;

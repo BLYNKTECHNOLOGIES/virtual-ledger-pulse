@@ -1,0 +1,1 @@
+ALTER TABLE public.client_limit_requests ADD COLUMN IF NOT EXISTS requested_by text;

@@ -25,6 +25,7 @@ interface ClientOverviewPanelProps {
 export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientOverviewPanelProps) {
   const params = useParams();
   const activeClientId = clientId || params.clientId;
+  const queryClient = useQueryClient();
 
   // Dialog states
   const [showEditDialog, setShowEditDialog] = useState(false);

@@ -172,6 +172,16 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       return;
     }
 
+    // Bill attachment is mandatory
+    if (!billFile) {
+      toast({
+        title: "Error",
+        description: "Bill/receipt attachment is mandatory for all transactions",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const amount = parseFloat(formData.amount);
     if (amount <= 0) {
       toast({

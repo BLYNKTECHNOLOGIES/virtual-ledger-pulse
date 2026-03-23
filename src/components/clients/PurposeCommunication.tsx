@@ -169,9 +169,30 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium text-gray-600">Purpose of Buying</label>
-          <Badge variant="outline" className="text-blue-600 border-blue-200 bg-blue-50 ml-2">
-            {client.buying_purpose || 'Not specified'}
-          </Badge>
+          <div className="mt-1">
+            {client.buying_purpose ? (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">{client.buying_purpose}</p>
+              </div>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground border-muted">
+                Not specified
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-gray-600">Compliance Notes</label>
+          <div className="mt-1">
+            {client.operator_notes ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">{client.operator_notes}</p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No compliance notes recorded during onboarding.</p>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2">

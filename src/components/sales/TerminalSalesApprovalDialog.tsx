@@ -42,6 +42,8 @@ const normalizeIndianState = (value?: string | null): string => {
   return matchedState || '';
 };
 
+const hasTextValue = (value?: string | null): boolean => Boolean(value && value.trim().length > 0);
+
 export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, onSuccess }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -174,7 +176,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     setClientMasterPhone(masterPhone);
     setClientMasterState(masterState);
     // Auto-fill form fields from client master if empty or non-standard (not in state list)
-    if (masterPhone) setContactNumber(prev => prev || masterPhone);
+    if (masterPhone) setContactNumber(prev => (hasTextValue(prev) ? prev : masterPhone));
     if (masterState) {
       setClientState(prev => {
         const normalizedPrev = normalizeIndianState(prev);
@@ -220,12 +222,21 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   useEffect(() => {
     const currentSync = syncRecord;
     const orderData = currentSync?.order_data || {};
+    const currentLinkedClientId = currentSync?.client_id || '';
+    const linkedClientFromCache = currentLinkedClientId
+      ? allClients.find(c => c.id === currentLinkedClientId)
+      : null;
 
-    setLinkedClientId(currentSync?.client_id || '');
-    setLinkedClientName('');
+    const normalizedSyncState = normalizeIndianState(currentSync?.state);
+    const normalizedLinkedClientState = normalizeIndianState(linkedClientFromCache?.state);
+
+    setLinkedClientId(currentLinkedClientId);
+    setLinkedClientName(linkedClientFromCache?.name || '');
     // Pre-fill from sync record's stored terminal data (captured during order flow)
-    setContactNumber(currentSync?.contact_number || '');
-    setClientState(normalizeIndianState(currentSync?.state));
+    // IMPORTANT: fall back to linked client master when sync values are blank.
+    // This prevents the reset effect from wiping already-known client data.
+    setContactNumber((currentSync?.contact_number || linkedClientFromCache?.phone || '').trim());
+    setClientState(normalizedSyncState || normalizedLinkedClientState);
     setEnrichedName(null);
     setClientAutoMatched(false);
     setShowClientDropdown(false);

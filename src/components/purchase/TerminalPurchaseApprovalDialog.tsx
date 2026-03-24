@@ -310,8 +310,25 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
       let result: any;
       let rpcError: any;
+      const orderNumber = od.order_number || syncRecord?.binance_order_number || `TRM-${Date.now()}`;
 
-      if (isMultiplePayments) {
+      // Recovery path for historical partial approvals:
+      // if a purchase order already exists for this terminal order, reuse it.
+      const { data: existingPurchase } = await supabase
+        .from('purchase_orders')
+        .select('id, terminal_sync_id')
+        .or(`terminal_sync_id.eq.${syncRecord.id},order_number.eq.${orderNumber}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingPurchase?.terminal_sync_id && existingPurchase.terminal_sync_id !== syncRecord.id) {
+        throw new Error('This order is already linked to another terminal sync record. Please refresh the queue.');
+      }
+
+      if (existingPurchase?.id) {
+        result = { success: true, purchase_order_id: existingPurchase.id, recovered: true };
+      } else if (isMultiplePayments) {
         const splitPaymentsJson = paymentSplits.map(s => ({
           bank_account_id: s.bank_account_id,
           amount: parseFloat(s.amount)
@@ -325,7 +342,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         // Convert settlement date to IST date to avoid UTC date truncation
         const istOrderDate = new Date(settlementDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const rpcParams = {
-          p_order_number: od.order_number || `TRM-${Date.now()}`,
+          p_order_number: orderNumber,
           p_supplier_name: syncRecord.counterparty_name,
           p_order_date: istOrderDate,
           p_total_amount: totalAmount,
@@ -354,7 +371,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         // Convert settlement date to IST date to avoid UTC date truncation
         const istOrderDate2 = new Date(settlementDate).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
         const rpcParams = {
-          p_order_number: od.order_number || `TRM-${Date.now()}`,
+          p_order_number: orderNumber,
           p_supplier_name: syncRecord.counterparty_name,
           p_order_date: istOrderDate2,
           p_total_amount: totalAmount,

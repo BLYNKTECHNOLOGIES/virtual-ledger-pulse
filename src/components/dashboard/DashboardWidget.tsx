@@ -359,32 +359,10 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
         );
 
       case 'gross-profit':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-green-600">View P&L Tab</div>
-            <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
-            <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">See Accounting</Badge>
-          </div>
-        );
+        return <GrossProfitWidgetContent />;
 
       case 'compliance-alerts':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Compliance Alerts</h4>
-              <Bell className="h-5 w-5 text-red-500" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-sm text-gray-700">All compliance items up to date</span>
-              </div>
-            </div>
-          </div>
-        );
+        return <ComplianceAlertsWidgetContent />;
 
       case 'kyc-overview':
         return (
@@ -398,16 +376,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
         );
 
       case 'payroll-summary':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Payroll Summary</h4>
-              <CreditCard className="h-5 w-5 text-teal-500" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-teal-50 rounded-lg">
-                <span className="text-sm text-gray-700">View payroll details in HRMS → Payroll tab</span>
-              </div>
+        return <PayrollSummaryWidgetContent />;
             </div>
           </div>
         );

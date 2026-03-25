@@ -564,6 +564,9 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
 
       case 'shift-reconciliation':
         return <ShiftReconciliationWidget />;
+
+      case 'wallet-balance':
+        return <WalletBalanceWidgetContent />;
       
       default:
         return (

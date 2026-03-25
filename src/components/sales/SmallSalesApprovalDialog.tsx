@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { getCurrentUserId } from '@/lib/system-action-logger';
+import { requireCurrentUserId } from '@/lib/system-action-logger';
 import { fetchCoinMarketRate } from '@/hooks/useCoinMarketRate';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 
@@ -64,7 +64,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         marketRate = 1.0;
       }
 
-      const userId = getCurrentUserId();
+      const userId = await requireCurrentUserId();
 
       // Generate SM order number using a simple counter approach
       const { count } = await supabase
@@ -147,7 +147,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
   const rejectMutation = useMutation({
     mutationFn: async () => {
-      const userId = getCurrentUserId();
+      const userId = await requireCurrentUserId();
       await supabase
         .from('small_sales_sync')
         .update({

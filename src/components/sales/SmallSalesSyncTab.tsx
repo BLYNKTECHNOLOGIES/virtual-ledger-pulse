@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { syncSmallSales } from '@/hooks/useSmallSalesSync';
 import { SmallSalesApprovalDialog } from './SmallSalesApprovalDialog';
-import { getCurrentUserId } from '@/lib/system-action-logger';
+import { requireCurrentUserId } from '@/lib/system-action-logger';
 
 export function SmallSalesSyncTab() {
   const { toast } = useToast();

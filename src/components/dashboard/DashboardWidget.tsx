@@ -88,6 +88,116 @@ function WalletBalanceWidgetContent() {
     </div>
   );
 }
+function GrossProfitWidgetContent() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_gross_profit_real'],
+    queryFn: async () => {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
+      const [{ data: sales }, { data: purchases }] = await Promise.all([
+        supabase.from('sales_orders').select('total_amount').gte('created_at', thirtyDaysAgo),
+        supabase.from('purchase_orders').select('total_amount').gte('created_at', thirtyDaysAgo),
+      ]);
+      const totalSales = (sales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const totalPurchases = (purchases || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      return { profit: totalSales - totalPurchases, totalSales, totalPurchases };
+    },
+    staleTime: 60000,
+  });
+  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
+  const profit = data?.profit || 0;
+  return (
+    <div className="text-center p-6">
+      <div className={`text-3xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        ₹{(Math.abs(profit) / 100000).toFixed(2)}L
+      </div>
+      <p className="text-sm text-muted-foreground mt-1">Gross Profit (30d)</p>
+      <div className="flex justify-center gap-4 mt-3 text-xs text-muted-foreground">
+        <span>Sales: ₹{((data?.totalSales || 0) / 100000).toFixed(1)}L</span>
+        <span>Cost: ₹{((data?.totalPurchases || 0) / 100000).toFixed(1)}L</span>
+      </div>
+    </div>
+  );
+}
+
+function ComplianceAlertsWidgetContent() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_compliance_alerts_real'],
+    queryFn: async () => {
+      const [{ count: pendingKyc }, { count: expDocs }, { data: pendingCases }] = await Promise.all([
+        supabase.from('client_onboarding_approvals').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
+        supabase.from('compliance_documents').select('id', { count: 'exact', head: true }).eq('status', 'expired'),
+        supabase.from('bank_cases').select('id').eq('status', 'open').limit(100),
+      ]);
+      return { pendingKyc: pendingKyc || 0, expiredDocs: expDocs || 0, openCases: (pendingCases || []).length };
+    },
+    staleTime: 30000,
+  });
+  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
+  const total = (data?.pendingKyc || 0) + (data?.expiredDocs || 0) + (data?.openCases || 0);
+  const alerts = [
+    { label: 'Pending KYC Approvals', count: data?.pendingKyc || 0, color: 'bg-amber-500' },
+    { label: 'Expired Documents', count: data?.expiredDocs || 0, color: 'bg-red-500' },
+    { label: 'Open Bank Cases', count: data?.openCases || 0, color: 'bg-blue-500' },
+  ];
+  return (
+    <div className="p-4 space-y-2.5">
+      {total === 0 ? (
+        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+          <div className="w-2 h-2 bg-green-500 rounded-full" />
+          <span className="text-sm text-foreground">All compliance items up to date</span>
+        </div>
+      ) : (
+        alerts.filter(a => a.count > 0).map(a => (
+          <div key={a.label} className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
+            <div className={`w-2 h-2 ${a.color} rounded-full flex-shrink-0`} />
+            <span className="text-sm text-foreground flex-1">{a.label}</span>
+            <Badge variant="outline" className="text-[10px]">{a.count}</Badge>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function PayrollSummaryWidgetContent() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_payroll_summary_real'],
+    queryFn: async () => {
+      const [{ count: totalEmp }, { data: recentPayroll }] = await Promise.all([
+        supabase.from('hr_employees').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        (supabase as any).from('hr_payroll_runs').select('id, month, year, status, total_amount').order('created_at', { ascending: false }).limit(1),
+      ]);
+      const latest = recentPayroll?.[0] || null;
+      return { totalEmployees: totalEmp || 0, latest };
+    },
+    staleTime: 60000,
+  });
+  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">Active Employees</span>
+        <span className="text-lg font-bold text-foreground">{data?.totalEmployees || 0}</span>
+      </div>
+      {data?.latest ? (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Last Run</span>
+            <span className="text-sm font-medium text-foreground">{data.latest.month}/{data.latest.year}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Amount</span>
+            <span className="text-sm font-semibold text-foreground">₹{Number(data.latest.total_amount || 0).toLocaleString()}</span>
+          </div>
+          <Badge variant="outline" className="w-full justify-center">{data.latest.status || 'N/A'}</Badge>
+        </>
+      ) : (
+        <p className="text-xs text-muted-foreground text-center py-2">No payroll runs yet</p>
+      )}
+    </div>
+  );
+}
+
 
 interface Widget {
   id: string;
@@ -359,32 +469,10 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
         );
 
       case 'gross-profit':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-2xl font-bold text-green-600">View P&L Tab</div>
-            <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
-            <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">See Accounting</Badge>
-          </div>
-        );
+        return <GrossProfitWidgetContent />;
 
       case 'compliance-alerts':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Compliance Alerts</h4>
-              <Bell className="h-5 w-5 text-red-500" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <span className="text-sm text-gray-700">All compliance items up to date</span>
-              </div>
-            </div>
-          </div>
-        );
+        return <ComplianceAlertsWidgetContent />;
 
       case 'kyc-overview':
         return (
@@ -398,19 +486,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
         );
 
       case 'payroll-summary':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Payroll Summary</h4>
-              <CreditCard className="h-5 w-5 text-teal-500" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-teal-50 rounded-lg">
-                <span className="text-sm text-gray-700">View payroll details in HRMS → Payroll tab</span>
-              </div>
-            </div>
-          </div>
-        );
+        return <PayrollSummaryWidgetContent />;
 
       case 'shift-reconciliation':
         return <ShiftReconciliationWidget />;

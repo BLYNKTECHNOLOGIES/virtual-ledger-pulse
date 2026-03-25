@@ -600,9 +600,12 @@ export default function Dashboard() {
     }
   };
 
+  // ── Compute adaptive col classes for current layout ──
+  const adaptiveColClasses = useMemo(() => getAdaptiveColClasses(visibleWidgetIds), [visibleWidgetIds]);
+
   // ── Render any widget ──
   const renderWidget = (widgetId: string) => {
-    const colClass = getColClass(widgetId);
+    const colClass = adaptiveColClasses[widgetId] || getColClass(widgetId);
     const def = widgetRegistry.get(widgetId);
     const label = def?.name || widgetId;
 

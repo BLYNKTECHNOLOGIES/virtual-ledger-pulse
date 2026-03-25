@@ -133,11 +133,11 @@ const dynamicWidgets: WidgetType[] = [
   // Sales
   { id: 'total-revenue', name: 'Total Revenue', description: 'Total sales revenue for the selected period', icon: DollarSign, category: 'Sales', size: 'small', requiredPermissions: ['sales_view'] },
   { id: 'sales-orders-count', name: 'Sales Orders Count', description: 'Number of sales orders in the period', icon: ShoppingCart, category: 'Sales', size: 'small', requiredPermissions: ['sales_view'] },
-  { id: 'revenue-chart', name: 'Revenue Chart', description: 'Revenue trends and analytics over time', icon: BarChart3, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
+  
   // Purchase
   { id: 'total-purchases', name: 'Total Purchases', description: 'Total purchase spending for the selected period', icon: HandCoins, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
   { id: 'purchase-orders-count', name: 'Purchase Orders Count', description: 'Number of purchase orders in the period', icon: Receipt, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
-  { id: 'pending-settlements', name: 'Pending Settlements', description: 'Purchase orders awaiting payment settlement', icon: Clock, category: 'Purchase', size: 'medium', requiredPermissions: ['purchase_view'] },
+  
   // Clients
   { id: 'total-clients', name: 'Total Clients', description: 'Overview of all registered clients', icon: Users, category: 'Clients', size: 'small', requiredPermissions: ['clients_view'] },
   { id: 'verified-clients', name: 'Verified Clients', description: 'KYC-verified client count', icon: UserCheck, category: 'Clients', size: 'small', requiredPermissions: ['clients_view'] },

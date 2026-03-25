@@ -199,6 +199,7 @@ function PayrollSummaryWidgetContent() {
 }
 
 
+interface Widget {
   id: string;
   name: string;
   description: string;

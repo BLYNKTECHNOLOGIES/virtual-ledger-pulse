@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
+import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSection";
 import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
@@ -60,8 +61,9 @@ function sizeToSpan(size?: string): number {
   return 3; // small
 }
 
-function getWidgetSpan(widgetId: string): number {
-  // Check explicit config first
+function getWidgetSpan(widgetId: string, customSpans?: Record<string, number>): number {
+  // Custom user-set span takes priority
+  if (customSpans && customSpans[widgetId] !== undefined) return customSpans[widgetId];
   if (GRID_SPAN[widgetId] !== undefined) return GRID_SPAN[widgetId];
   // Then check registry gridSpan or size
   const def = widgetRegistry.get(widgetId);
@@ -79,7 +81,7 @@ function getColClass(widgetId: string): string {
 }
 
 // Calculate adaptive spans so widgets fill rows (12-col grid)
-function getAdaptiveColClasses(widgetIds: string[]): Record<string, string> {
+function getAdaptiveColClasses(widgetIds: string[], customSpans?: Record<string, number>): Record<string, string> {
   const result: Record<string, string> = {};
   let i = 0;
   while (i < widgetIds.length) {
@@ -88,7 +90,7 @@ function getAdaptiveColClasses(widgetIds: string[]): Record<string, string> {
     let rowTotal = 0;
     let j = i;
     while (j < widgetIds.length) {
-      const span = getWidgetSpan(widgetIds[j]);
+      const span = getWidgetSpan(widgetIds[j], customSpans);
       if (span >= 12) {
         // Full-width widget gets its own row
         if (rowWidgets.length === 0) {
@@ -170,7 +172,23 @@ export default function Dashboard() {
     return [...DEFAULT_ACTIVE_WIDGETS];
   });
 
-  // Persist
+  // ── Custom widget sizes ──
+  const spansStorageKey = useMemo(() => `dashboardWidgetSpans_${userId}`, [userId]);
+  const [customSpans, setCustomSpans] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(`dashboardWidgetSpans_${userId}`);
+    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+    return {};
+  });
+
+  const handleResizeWidget = useCallback((widgetId: string, span: WidgetSize) => {
+    setCustomSpans(prev => {
+      const next = { ...prev, [widgetId]: span };
+      localStorage.setItem(spansStorageKey, JSON.stringify(next));
+      return next;
+    });
+  }, [spansStorageKey]);
+
+  // Persist active widgets
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(activeWidgetIds));
   }, [activeWidgetIds, storageKey]);
@@ -315,9 +333,11 @@ export default function Dashboard() {
 
   const handleResetDashboard = () => {
     setActiveWidgetIds([...DEFAULT_ACTIVE_WIDGETS]);
+    setCustomSpans({});
     // Clean up old storage
     localStorage.removeItem(`dashboardItemOrder_${userId}`);
     localStorage.removeItem(`dashboardWidgets_${userId}`);
+    localStorage.removeItem(spansStorageKey);
     toast({ title: "Dashboard Reset", description: "Dashboard has been reset to default layout." });
   };
 
@@ -601,13 +621,14 @@ export default function Dashboard() {
   };
 
   // ── Compute adaptive col classes for current layout ──
-  const adaptiveColClasses = useMemo(() => getAdaptiveColClasses(visibleWidgetIds), [visibleWidgetIds]);
+  const adaptiveColClasses = useMemo(() => getAdaptiveColClasses(visibleWidgetIds, customSpans), [visibleWidgetIds, customSpans]);
 
   // ── Render any widget ──
   const renderWidget = (widgetId: string) => {
     const colClass = adaptiveColClasses[widgetId] || getColClass(widgetId);
     const def = widgetRegistry.get(widgetId);
     const label = def?.name || widgetId;
+    const currentSpan = getWidgetSpan(widgetId, customSpans);
 
     // Check if it's a built-in section
     const isBuiltIn = builtInWidgets.some(w => w.id === widgetId);
@@ -624,6 +645,8 @@ export default function Dashboard() {
           className={colClass}
           isEditMode={isEditMode}
           onRemove={() => handleRemoveWidget(widgetId)}
+          currentSpan={currentSpan}
+          onResize={(span) => handleResizeWidget(widgetId, span)}
         >
           {content}
         </DraggableDashboardSection>
@@ -641,6 +664,8 @@ export default function Dashboard() {
           className={colClass}
           isEditMode={isEditMode}
           onRemove={() => handleRemoveWidget(widgetId)}
+          currentSpan={currentSpan}
+          onResize={(span) => handleResizeWidget(widgetId, span)}
         >
           <DashboardWidget
             widget={def}

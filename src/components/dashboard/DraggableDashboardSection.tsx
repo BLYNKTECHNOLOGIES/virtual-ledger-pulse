@@ -1,7 +1,16 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X } from "lucide-react";
+import { GripVertical, X, Columns2, Columns3, Columns4, Maximize2 } from "lucide-react";
 import { ReactNode } from "react";
+
+export type WidgetSize = 3 | 4 | 6 | 8 | 12;
+
+const SIZE_OPTIONS: { span: WidgetSize; label: string; icon: any; shortLabel: string }[] = [
+  { span: 3, label: '1/4 width', icon: Columns4, shortLabel: 'S' },
+  { span: 4, label: '1/3 width', icon: Columns3, shortLabel: 'M' },
+  { span: 6, label: '1/2 width', icon: Columns2, shortLabel: 'L' },
+  { span: 12, label: 'Full width', icon: Maximize2, shortLabel: 'XL' },
+];
 
 interface DraggableDashboardSectionProps {
   id: string;
@@ -11,9 +20,11 @@ interface DraggableDashboardSectionProps {
   className?: string;
   isEditMode?: boolean;
   onRemove?: () => void;
+  currentSpan?: number;
+  onResize?: (span: WidgetSize) => void;
 }
 
-export function DraggableDashboardSection({ id, children, isDraggable, label, className = '', isEditMode, onRemove }: DraggableDashboardSectionProps) {
+export function DraggableDashboardSection({ id, children, isDraggable, label, className = '', isEditMode, onRemove, currentSpan, onResize }: DraggableDashboardSectionProps) {
   const {
     attributes,
     listeners,
@@ -54,6 +65,28 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
       {isEditMode && label && (
         <div className="absolute -top-3 left-3 z-10 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded-full border border-amber-200">
           {label}
+        </div>
+      )}
+      {/* Resize controls — bottom-right in edit mode */}
+      {isEditMode && onResize && (
+        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 bg-white border border-gray-200 rounded-full shadow-lg px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {SIZE_OPTIONS.map(opt => {
+            const isActive = currentSpan === opt.span;
+            return (
+              <button
+                key={opt.span}
+                onClick={(e) => { e.stopPropagation(); onResize(opt.span); }}
+                className={`px-2 py-0.5 text-[10px] font-semibold rounded-full transition-colors ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                }`}
+                title={opt.label}
+              >
+                {opt.shortLabel}
+              </button>
+            );
+          })}
         </div>
       )}
       {children}

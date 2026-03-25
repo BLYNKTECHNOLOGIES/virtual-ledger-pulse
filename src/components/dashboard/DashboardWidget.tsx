@@ -45,6 +45,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import {
+  CustomerGrowthWidget, RecentOrdersWidget, DailyActivityWidget, QuickStatsWidget,
+  ExpenseBreakdownWidget, EarningsRateWidget, ProfitMarginWidget, PerformanceOverviewWidget,
+  ConversionRateWidget, GrowthRateWidget, CashFlowWidget, ExpenseTrendsWidget,
+  PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget
+} from "./widgets/RealDataWidgets";
 
 function WalletBalanceWidgetContent() {
   const { data: wallets, isLoading } = useQuery({

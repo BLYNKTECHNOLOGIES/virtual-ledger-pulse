@@ -40,7 +40,7 @@ const DEFAULT_ACTIVE_WIDGETS = [
   'stock-inventory',
 ];
 
-// Grid span config for each widget
+// Grid span config for built-in widgets
 const GRID_SPAN: Record<string, number> = {
   'metric-total-sales': 3,
   'metric-sales-orders': 3,
@@ -53,12 +53,87 @@ const GRID_SPAN: Record<string, number> = {
   'stock-inventory': 12,
 };
 
+// Map widget size to grid span
+function sizeToSpan(size?: string): number {
+  if (size === 'large') return 12;
+  if (size === 'medium') return 6;
+  return 3; // small
+}
+
+function getWidgetSpan(widgetId: string): number {
+  // Check explicit config first
+  if (GRID_SPAN[widgetId] !== undefined) return GRID_SPAN[widgetId];
+  // Then check registry gridSpan or size
+  const def = widgetRegistry.get(widgetId);
+  if (def?.gridSpan) return def.gridSpan;
+  return sizeToSpan(def?.size);
+}
+
 function getColClass(widgetId: string): string {
-  const span = GRID_SPAN[widgetId] || 3;
-  if (span === 3) return 'col-span-6 lg:col-span-3';
+  const span = getWidgetSpan(widgetId);
+  if (span <= 3) return 'col-span-6 lg:col-span-3';
   if (span === 4) return 'col-span-12 lg:col-span-4';
+  if (span === 6) return 'col-span-12 lg:col-span-6';
   if (span === 8) return 'col-span-12 lg:col-span-8';
   return 'col-span-12';
+}
+
+// Calculate adaptive spans so widgets fill rows (12-col grid)
+function getAdaptiveColClasses(widgetIds: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  let i = 0;
+  while (i < widgetIds.length) {
+    // Collect widgets for this row
+    const rowWidgets: { id: string; span: number }[] = [];
+    let rowTotal = 0;
+    let j = i;
+    while (j < widgetIds.length) {
+      const span = getWidgetSpan(widgetIds[j]);
+      if (span >= 12) {
+        // Full-width widget gets its own row
+        if (rowWidgets.length === 0) {
+          rowWidgets.push({ id: widgetIds[j], span: 12 });
+          j++;
+        }
+        break;
+      }
+      if (rowTotal + span > 12 && rowWidgets.length > 0) break;
+      rowWidgets.push({ id: widgetIds[j], span });
+      rowTotal += span;
+      j++;
+    }
+
+    // If row doesn't fill 12 cols, distribute remaining space
+    if (rowWidgets.length > 0 && rowTotal < 12 && rowTotal > 0) {
+      const firstWidget = rowWidgets[0];
+      if (firstWidget.span >= 12) {
+        // Full-width, no change
+      } else {
+        // Distribute extra space proportionally
+        const extra = 12 - rowTotal;
+        const extraPerWidget = Math.floor(extra / rowWidgets.length);
+        let remainder = extra - extraPerWidget * rowWidgets.length;
+        for (const w of rowWidgets) {
+          w.span += extraPerWidget;
+          if (remainder > 0) { w.span += 1; remainder--; }
+        }
+      }
+    }
+
+    for (const w of rowWidgets) {
+      const s = w.span;
+      if (s <= 3) result[w.id] = 'col-span-6 lg:col-span-3';
+      else if (s === 4) result[w.id] = 'col-span-12 lg:col-span-4';
+      else if (s === 5) result[w.id] = 'col-span-12 lg:col-span-5';
+      else if (s === 6) result[w.id] = 'col-span-12 lg:col-span-6';
+      else if (s === 7) result[w.id] = 'col-span-12 lg:col-span-7';
+      else if (s === 8) result[w.id] = 'col-span-12 lg:col-span-8';
+      else if (s === 9) result[w.id] = 'col-span-12 lg:col-span-9';
+      else result[w.id] = 'col-span-12';
+    }
+    i = j;
+  }
+  return result;
 }
 
 export default function Dashboard() {
@@ -525,9 +600,12 @@ export default function Dashboard() {
     }
   };
 
+  // ── Compute adaptive col classes for current layout ──
+  const adaptiveColClasses = useMemo(() => getAdaptiveColClasses(visibleWidgetIds), [visibleWidgetIds]);
+
   // ── Render any widget ──
   const renderWidget = (widgetId: string) => {
-    const colClass = getColClass(widgetId);
+    const colClass = adaptiveColClasses[widgetId] || getColClass(widgetId);
     const def = widgetRegistry.get(widgetId);
     const label = def?.name || widgetId;
 

@@ -205,7 +205,7 @@ export default function Dashboard() {
   const visibleWidgetIds = useMemo(() => {
     return activeWidgetIds.filter(id => {
       const def = widgetRegistry.get(id);
-      if (!def) return true; // unknown widget, keep it
+      if (!def) return false; // widget no longer exists in registry, remove it
       if (!def.requiredPermissions || def.requiredPermissions.length === 0) return true;
       return hasAnyPermission(def.requiredPermissions);
     });

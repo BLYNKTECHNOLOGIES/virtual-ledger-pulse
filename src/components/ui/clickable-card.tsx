@@ -52,7 +52,7 @@ export function ClickableCard({
 
   if (!to || disabled) {
     return (
-      <div className={className} {...props}>
+      <div className={cn("h-full", className)} {...props}>
         {children}
       </div>
     );

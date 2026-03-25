@@ -83,9 +83,15 @@ export function SmallSalesSyncTab() {
   // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const userId = await requireCurrentUserId();
       const { error } = await supabase
         .from('small_sales_sync')
-        .update({ sync_status: 'rejected' })
+        .update({
+          sync_status: 'rejected',
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: reason,
+        })
         .eq('id', id);
       if (error) throw error;
     },

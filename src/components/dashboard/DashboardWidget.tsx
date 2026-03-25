@@ -42,6 +42,46 @@ import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterW
 import { ShiftReconciliationWidget } from "./ShiftReconciliationWidget";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+
+function WalletBalanceWidgetContent() {
+  const { data: wallets, isLoading } = useQuery({
+    queryKey: ['dashboard_wallet_balance_widget'],
+    queryFn: async () => {
+      const data = await fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, current_balance');
+      return data || [];
+    },
+    refetchInterval: 15000,
+  });
+
+  const totalBalance = (wallets || []).reduce((sum, w) => sum + (Number(w.current_balance) || 0), 0);
+
+  if (isLoading) {
+    return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
+  }
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="text-center">
+        <p className="text-2xl font-bold text-foreground">{totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</p>
+        <p className="text-xs text-muted-foreground mt-1">Total across {(wallets || []).length} wallets</p>
+      </div>
+      <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+        {(wallets || []).filter(w => Number(w.current_balance) > 0).map((w: any) => (
+          <div key={w.id} className="flex items-center justify-between text-sm px-2 py-1.5 rounded-lg bg-muted/50">
+            <span className="text-muted-foreground truncate">{w.wallet_name}</span>
+            <span className="font-medium text-foreground">{Number(w.current_balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          </div>
+        ))}
+        {(wallets || []).filter(w => Number(w.current_balance) > 0).length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">No wallet balances</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface Widget {
   id: string;
@@ -564,6 +604,9 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
 
       case 'shift-reconciliation':
         return <ShiftReconciliationWidget />;
+
+      case 'wallet-balance':
+        return <WalletBalanceWidgetContent />;
       
       default:
         return (

@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
+import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSection";
 import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";

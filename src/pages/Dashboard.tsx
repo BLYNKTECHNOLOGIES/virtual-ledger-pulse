@@ -81,7 +81,7 @@ function getColClass(widgetId: string): string {
 }
 
 // Calculate adaptive spans so widgets fill rows (12-col grid)
-function getAdaptiveColClasses(widgetIds: string[]): Record<string, string> {
+function getAdaptiveColClasses(widgetIds: string[], customSpans?: Record<string, number>): Record<string, string> {
   const result: Record<string, string> = {};
   let i = 0;
   while (i < widgetIds.length) {
@@ -90,7 +90,7 @@ function getAdaptiveColClasses(widgetIds: string[]): Record<string, string> {
     let rowTotal = 0;
     let j = i;
     while (j < widgetIds.length) {
-      const span = getWidgetSpan(widgetIds[j]);
+      const span = getWidgetSpan(widgetIds[j], customSpans);
       if (span >= 12) {
         // Full-width widget gets its own row
         if (rowWidgets.length === 0) {

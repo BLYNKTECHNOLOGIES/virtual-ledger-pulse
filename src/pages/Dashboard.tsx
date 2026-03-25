@@ -621,13 +621,14 @@ export default function Dashboard() {
   };
 
   // ── Compute adaptive col classes for current layout ──
-  const adaptiveColClasses = useMemo(() => getAdaptiveColClasses(visibleWidgetIds), [visibleWidgetIds]);
+  const adaptiveColClasses = useMemo(() => getAdaptiveColClasses(visibleWidgetIds, customSpans), [visibleWidgetIds, customSpans]);
 
   // ── Render any widget ──
   const renderWidget = (widgetId: string) => {
     const colClass = adaptiveColClasses[widgetId] || getColClass(widgetId);
     const def = widgetRegistry.get(widgetId);
     const label = def?.name || widgetId;
+    const currentSpan = getWidgetSpan(widgetId, customSpans);
 
     // Check if it's a built-in section
     const isBuiltIn = builtInWidgets.some(w => w.id === widgetId);
@@ -644,6 +645,8 @@ export default function Dashboard() {
           className={colClass}
           isEditMode={isEditMode}
           onRemove={() => handleRemoveWidget(widgetId)}
+          currentSpan={currentSpan}
+          onResize={(span) => handleResizeWidget(widgetId, span)}
         >
           {content}
         </DraggableDashboardSection>
@@ -661,6 +664,8 @@ export default function Dashboard() {
           className={colClass}
           isEditMode={isEditMode}
           onRemove={() => handleRemoveWidget(widgetId)}
+          currentSpan={currentSpan}
+          onResize={(span) => handleResizeWidget(widgetId, span)}
         >
           <DashboardWidget
             widget={def}

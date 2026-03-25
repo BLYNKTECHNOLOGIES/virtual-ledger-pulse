@@ -197,20 +197,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
     switch (widget.id) {
       case 'revenue-chart':
         return <ExchangeChart />;
-      
-      case 'customer-chart':
-        return (
-          <div className="p-4">
-            <div className="h-32 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-center justify-center mb-4">
-              <LineChart className="h-16 w-16 text-blue-500" />
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">+24.5%</div>
-              <p className="text-sm text-gray-600">Customer Growth</p>
-            </div>
-          </div>
-        );
-      
+
       case 'total-clients':
         return (
           <div className="text-center p-6">
@@ -222,7 +209,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
             <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">+3.2% this month</Badge>
           </div>
         );
-      
+
       case 'total-revenue':
         return (
           <div className="text-center p-6">
@@ -233,224 +220,14 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
             <p className="text-sm text-gray-600 mt-1">This Month</p>
             <div className="flex items-center justify-center gap-1 mt-3">
               <ArrowUpRight className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-green-600 font-medium">+12.5%</span>
-            </div>
-          </div>
-        );
-      
-      case 'inventory-status':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <div className="text-2xl font-bold">{metrics?.totalProducts || 2847}</div>
-                <p className="text-sm text-gray-600">Total Products</p>
-              </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                <Package className="h-6 w-6 text-white" />
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">In Stock</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-2 bg-gray-200 rounded-full">
-                    <div className="w-14 h-2 bg-green-500 rounded-full"></div>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">85%</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Low Stock</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-2 bg-gray-200 rounded-full">
-                    <div className="w-3 h-2 bg-yellow-500 rounded-full"></div>
-                  </div>
-                  <span className="text-sm font-medium text-yellow-600">12%</span>
-                </div>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Out of Stock</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-2 bg-gray-200 rounded-full">
-                    <div className="w-1 h-2 bg-red-500 rounded-full"></div>
-                  </div>
-                  <span className="text-sm font-medium text-red-600">3%</span>
-                </div>
-              </div>
+              <span className="text-sm text-green-600 font-medium">Selected Period</span>
             </div>
           </div>
         );
 
-      case 'earnings-rate':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Earnings Rate</h4>
-              <div className="flex gap-2">
-                <Badge variant="outline" className="text-xs">Daily</Badge>
-                <Badge className="text-xs bg-blue-600">Weekly</Badge>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="text-center">
-                <div className="text-lg font-bold text-blue-600">+₹6,127.80</div>
-                <p className="text-xs text-gray-600">Today's Earnings</p>
-              </div>
-              <div className="h-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg flex items-end justify-center gap-1 p-2">
-                {[40, 65, 45, 80, 60, 90, 75].map((height, i) => (
-                  <div key={i} className="bg-gradient-to-t from-blue-500 to-purple-500 rounded-sm w-3" style={{ height: `${height}%` }}></div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'expense-details':
-        return (
-          <div className="p-4">
-            <h4 className="font-semibold text-gray-900 mb-4">Expense Details</h4>
-            <div className="space-y-3">
-              {[
-                { name: 'Online Shopping', desc: 'Vestibulum condimentum', amount: '₹1,780', color: 'bg-green-500' },
-                { name: 'Coffee Shop', desc: 'Per inceptos himenaeos', amount: '₹470.00', color: 'bg-yellow-500' },
-                { name: 'House Bills', desc: 'Proin pellentesque varius', amount: '₹1,200', color: 'bg-blue-500' },
-                { name: 'Concert Ticket', desc: 'Turpis proin a porttitor', amount: '₹230.00', color: 'bg-purple-500' },
-                { name: 'Car Expenses', desc: 'Vivamus sed dolor dictum', amount: '₹640.00', color: 'bg-cyan-500' }
-              ].map((expense, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${expense.color}`}></div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{expense.name}</p>
-                    <p className="text-xs text-gray-500 truncate">{expense.desc}</p>
-                  </div>
-                  <div className="text-sm font-medium text-gray-900">{expense.amount}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-      case 'quick-stats':
-        return (
-          <div className="p-4">
-            <h4 className="font-semibold text-gray-900 mb-4">Quick Stats</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-xl font-bold text-blue-600">24</div>
-                <p className="text-xs text-gray-600">New Orders</p>
-              </div>
-              <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-xl font-bold text-green-600">18</div>
-                <p className="text-xs text-gray-600">Completed</p>
-              </div>
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <div className="text-xl font-bold text-purple-600">156</div>
-                <p className="text-xs text-gray-600">Total Sales</p>
-              </div>
-              <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <div className="text-xl font-bold text-orange-600">92%</div>
-                <p className="text-xs text-gray-600">Success Rate</p>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'recent-orders':
-        return (
-          <div className="p-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Order #1234</p>
-                  <p className="text-sm text-gray-600">John Doe - ₹5,000</p>
-                </div>
-                <Badge variant="outline">Pending</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Order #1235</p>
-                  <p className="text-sm text-gray-600">Jane Smith - ₹12,000</p>
-                </div>
-                <Badge className="bg-green-100 text-green-800">Completed</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Order #1236</p>
-                  <p className="text-sm text-gray-600">Mike Johnson - ₹8,500</p>
-                </div>
-                <Badge variant="outline">Processing</Badge>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'daily-activity':
-        return (
-          <div className="p-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center">
-                <div className="text-xl font-bold text-blue-600">{metrics?.totalSales || 0}</div>
-                <p className="text-xs text-gray-600">Sales Today</p>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-green-600">{metrics?.totalPurchases || 0}</div>
-                <p className="text-xs text-gray-600">Purchases</p>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-purple-600">15</div>
-                <p className="text-xs text-gray-600">New Leads</p>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-orange-600">8</div>
-                <p className="text-xs text-gray-600">Tasks Done</p>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'upcoming-tasks':
-        return (
-          <div className="p-4">
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                <div>
-                  <p className="text-sm font-medium">KYC Review - Urgent</p>
-                  <p className="text-xs text-gray-600">Due in 2 hours</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                <div>
-                  <p className="text-sm font-medium">Client Meeting</p>
-                  <p className="text-xs text-gray-600">Tomorrow 10:00 AM</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <div>
-                  <p className="text-sm font-medium">Monthly Report</p>
-                  <p className="text-xs text-gray-600">Due in 3 days</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'profit-margin':
-        return (
-          <div className="text-center p-4">
-            <div className="text-3xl font-bold text-green-600">23.5%</div>
-            <p className="text-sm text-gray-600 mt-1">Profit Margin</p>
-            <Badge className="bg-green-100 text-green-800 mt-2">+2.1% vs last month</Badge>
-          </div>
-        );
-      
       case 'bank-balance-filter':
         return <BankBalanceFilterWidget compact className="border-0 shadow-none bg-transparent" />;
 
-      // ── New widget renderers ──
       case 'sales-orders-count':
         return (
           <div className="text-center p-6">
@@ -607,7 +384,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
 
       case 'wallet-balance':
         return <WalletBalanceWidgetContent />;
-      
+
       default:
         return (
           <div className="p-6 text-center">

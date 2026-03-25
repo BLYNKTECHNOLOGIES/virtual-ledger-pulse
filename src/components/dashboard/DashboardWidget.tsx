@@ -377,9 +377,6 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
 
       case 'payroll-summary':
         return <PayrollSummaryWidgetContent />;
-            </div>
-          </div>
-        );
 
       case 'shift-reconciliation':
         return <ShiftReconciliationWidget />;

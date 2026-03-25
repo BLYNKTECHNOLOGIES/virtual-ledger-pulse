@@ -45,6 +45,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import {
+  CustomerGrowthWidget, RecentOrdersWidget, DailyActivityWidget, QuickStatsWidget,
+  ExpenseBreakdownWidget, EarningsRateWidget, ProfitMarginWidget, PerformanceOverviewWidget,
+  ConversionRateWidget, GrowthRateWidget, CashFlowWidget, ExpenseTrendsWidget,
+  PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget
+} from "./widgets/RealDataWidgets";
 
 function WalletBalanceWidgetContent() {
   const { data: wallets, isLoading } = useQuery({
@@ -198,6 +204,9 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
       case 'revenue-chart':
         return <ExchangeChart />;
 
+      case 'customer-chart':
+        return <CustomerGrowthWidget />;
+
       case 'total-clients':
         return (
           <div className="text-center p-6">
@@ -206,7 +215,6 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
             </div>
             <div className="text-3xl font-bold text-gray-900">{metrics?.totalClients || 0}</div>
             <p className="text-sm text-gray-600 mt-1">Active Clients</p>
-            <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">+3.2% this month</Badge>
           </div>
         );
 
@@ -217,13 +225,51 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
               <DollarSign className="h-8 w-8 text-white" />
             </div>
             <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalRevenue || metrics?.totalSales || 0) / 100000).toFixed(1)}L</div>
-            <p className="text-sm text-gray-600 mt-1">This Month</p>
-            <div className="flex items-center justify-center gap-1 mt-3">
-              <ArrowUpRight className="h-4 w-4 text-green-600" />
-              <span className="text-sm text-green-600 font-medium">Selected Period</span>
-            </div>
+            <p className="text-sm text-gray-600 mt-1">Selected Period</p>
           </div>
         );
+
+      case 'inventory-status':
+        return <InventoryStatusWidget />;
+
+      case 'earnings-rate':
+        return <EarningsRateWidget />;
+
+      case 'expense-details':
+        return <ExpenseBreakdownWidget />;
+
+      case 'quick-stats':
+        return <QuickStatsWidget metrics={metrics} />;
+
+      case 'recent-orders':
+        return <RecentOrdersWidget />;
+
+      case 'daily-activity':
+        return <DailyActivityWidget />;
+
+      case 'upcoming-tasks':
+        return <UpcomingTasksWidget />;
+
+      case 'profit-margin':
+        return <ProfitMarginWidget />;
+
+      case 'performance-overview':
+        return <PerformanceOverviewWidget metrics={metrics} />;
+
+      case 'conversion-rate':
+        return <ConversionRateWidget metrics={metrics} />;
+
+      case 'growth-rate':
+        return <GrowthRateWidget />;
+
+      case 'cash-flow':
+        return <CashFlowWidget />;
+
+      case 'expense-trends':
+        return <ExpenseTrendsWidget />;
+
+      case 'team-status':
+        return <TeamStatusWidget />;
 
       case 'bank-balance-filter':
         return <BankBalanceFilterWidget compact className="border-0 shadow-none bg-transparent" />;
@@ -264,20 +310,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
         );
 
       case 'pending-settlements':
-        return (
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-semibold text-gray-900">Pending Settlements</h4>
-              <Clock className="h-5 w-5 text-amber-500" />
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
-                <span className="text-sm text-gray-700">Awaiting Payment</span>
-                <Badge className="bg-amber-100 text-amber-800">Check Purchase Tab</Badge>
-              </div>
-            </div>
-          </div>
-        );
+        return <PendingSettlementsWidget />;
 
       case 'verified-clients':
         return (

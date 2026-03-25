@@ -61,8 +61,9 @@ function sizeToSpan(size?: string): number {
   return 3; // small
 }
 
-function getWidgetSpan(widgetId: string): number {
-  // Check explicit config first
+function getWidgetSpan(widgetId: string, customSpans?: Record<string, number>): number {
+  // Custom user-set span takes priority
+  if (customSpans && customSpans[widgetId] !== undefined) return customSpans[widgetId];
   if (GRID_SPAN[widgetId] !== undefined) return GRID_SPAN[widgetId];
   // Then check registry gridSpan or size
   const def = widgetRegistry.get(widgetId);

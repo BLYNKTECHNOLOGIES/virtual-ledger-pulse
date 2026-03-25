@@ -172,7 +172,23 @@ export default function Dashboard() {
     return [...DEFAULT_ACTIVE_WIDGETS];
   });
 
-  // Persist
+  // ── Custom widget sizes ──
+  const spansStorageKey = useMemo(() => `dashboardWidgetSpans_${userId}`, [userId]);
+  const [customSpans, setCustomSpans] = useState<Record<string, number>>(() => {
+    const saved = localStorage.getItem(`dashboardWidgetSpans_${userId}`);
+    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+    return {};
+  });
+
+  const handleResizeWidget = useCallback((widgetId: string, span: WidgetSize) => {
+    setCustomSpans(prev => {
+      const next = { ...prev, [widgetId]: span };
+      localStorage.setItem(spansStorageKey, JSON.stringify(next));
+      return next;
+    });
+  }, [spansStorageKey]);
+
+  // Persist active widgets
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(activeWidgetIds));
   }, [activeWidgetIds, storageKey]);

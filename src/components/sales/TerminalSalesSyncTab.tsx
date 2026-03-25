@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import { TerminalSalesApprovalDialog } from "./TerminalSalesApprovalDialog";
 import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
-import { getCurrentUserId } from "@/lib/system-action-logger";
+import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { usePermissions } from "@/hooks/usePermissions";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -210,13 +210,13 @@ export function TerminalSalesSyncTab() {
   // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const userId = getCurrentUserId();
+      const userId = await requireCurrentUserId();
       const { error } = await supabase
         .from('terminal_sales_sync')
         .update({
           sync_status: 'rejected',
           rejection_reason: reason,
-          reviewed_by: userId || null,
+          reviewed_by: userId,
           reviewed_at: new Date().toISOString(),
         })
         .eq('id', id);

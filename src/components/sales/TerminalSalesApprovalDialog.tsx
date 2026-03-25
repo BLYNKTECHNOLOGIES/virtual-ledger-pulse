@@ -13,7 +13,7 @@ import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import { requireCurrentUserId } from "@/lib/system-action-logger";
 
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -373,7 +373,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // Approval mutation
   const approveMutation = useMutation({
     mutationFn: async () => {
-      const userId = await getCurrentUserIdAsync();
+      const userId = await requireCurrentUserId();
 
       if (!paymentMethodId) {
         throw new Error("Please select a payment method");
@@ -436,7 +436,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             settlement_status: isGateway ? 'PENDING' : 'DIRECT',
             is_off_market: false,
             description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
-            created_by: userId || null,
+            created_by: userId,
             source: 'terminal',
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
@@ -509,7 +509,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           client_id: linkedClientId || null,
           contact_number: contactNumber || null,
           state: clientState || null,
-          reviewed_by: userId || null,
+          reviewed_by: userId,
           reviewed_at: new Date().toISOString(),
         })
         .eq('id', syncRecord.id);
@@ -523,7 +523,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             counterparty_nickname: od.counterparty_nickname || syncRecord.counterparty_name,
             contact_number: contactNumber || null,
             state: clientState || null,
-            collected_by: userId || undefined,
+            collected_by: userId,
             updated_at: new Date().toISOString(),
           }, { onConflict: 'counterparty_nickname' });
       }

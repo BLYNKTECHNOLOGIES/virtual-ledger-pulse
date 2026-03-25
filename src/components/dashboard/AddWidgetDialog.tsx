@@ -134,7 +134,6 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'total-revenue', name: 'Total Revenue', description: 'Total sales revenue for the selected period', icon: DollarSign, category: 'Sales', size: 'small', requiredPermissions: ['sales_view'] },
   { id: 'sales-orders-count', name: 'Sales Orders Count', description: 'Number of sales orders in the period', icon: ShoppingCart, category: 'Sales', size: 'small', requiredPermissions: ['sales_view'] },
   { id: 'revenue-chart', name: 'Revenue Chart', description: 'Revenue trends and analytics over time', icon: BarChart3, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
-  { id: 'recent-orders', name: 'Recent Sales Orders', description: 'Latest sales orders and their status', icon: FileText, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
   // Purchase
   { id: 'total-purchases', name: 'Total Purchases', description: 'Total purchase spending for the selected period', icon: HandCoins, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
   { id: 'purchase-orders-count', name: 'Purchase Orders Count', description: 'Number of purchase orders in the period', icon: Receipt, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
@@ -142,9 +141,7 @@ const dynamicWidgets: WidgetType[] = [
   // Clients
   { id: 'total-clients', name: 'Total Clients', description: 'Overview of all registered clients', icon: Users, category: 'Clients', size: 'small', requiredPermissions: ['clients_view'] },
   { id: 'verified-clients', name: 'Verified Clients', description: 'KYC-verified client count', icon: UserCheck, category: 'Clients', size: 'small', requiredPermissions: ['clients_view'] },
-  { id: 'customer-chart', name: 'Customer Growth', description: 'Customer acquisition trends over time', icon: LineChart, category: 'Clients', size: 'large', requiredPermissions: ['clients_view'] },
   // Stock
-  { id: 'inventory-status', name: 'Asset Inventory', description: 'Current stock levels and wallet holdings', icon: Package, category: 'Stock', size: 'medium', requiredPermissions: ['stock_view'] },
   { id: 'stock-value', name: 'Stock Value (INR)', description: 'Total value of crypto holdings in INR', icon: Layers, category: 'Stock', size: 'small', requiredPermissions: ['stock_view'] },
   { id: 'wallet-balance', name: 'Wallet Balance', description: 'Aggregated wallet balances across all wallets', icon: Wallet, category: 'Stock', size: 'small', requiredPermissions: ['stock_view'] },
   // Banking
@@ -152,27 +149,14 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'bank-balance-filter', name: 'Bank Balance Filter', description: 'View combined balance of selected active bank accounts', icon: Building, category: 'Banking', size: 'medium', requiredPermissions: ['bams_view'] },
   { id: 'total-cash', name: 'Total Cash', description: 'Banks + Stock combined value', icon: Banknote, category: 'Banking', size: 'small', requiredPermissions: ['bams_view'] },
   // PNL
-  { id: 'profit-margin', name: 'Profit Margin', description: 'Current profit margin percentage', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
   { id: 'gross-profit', name: 'Gross Profit', description: 'Gross profit from sales vs purchase cost', icon: Target, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
-  { id: 'earnings-rate', name: 'Earnings Rate', description: 'Daily/weekly earnings overview with mini chart', icon: TrendingUp, category: 'PNL', size: 'medium', requiredPermissions: ['accounting_view'] },
-  { id: 'cash-flow', name: 'Cash Flow', description: 'Income vs expenses over the selected period', icon: ArrowUpRight, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
-  { id: 'expense-trends', name: 'Expense Trends', description: 'Expense patterns and category breakdown', icon: TrendingDown, category: 'PNL', size: 'medium', requiredPermissions: ['accounting_view'] },
-  { id: 'expense-details', name: 'Expense Breakdown', description: 'Detailed expense categories', icon: CreditCard, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
-  // Statistics
-  { id: 'performance-overview', name: 'Performance Overview', description: 'Overall business performance metrics', icon: PieChart, category: 'Statistics', size: 'large', requiredPermissions: ['statistics_view'] },
-  { id: 'conversion-rate', name: 'Conversion Rate', description: 'Lead to customer conversion rate', icon: ArrowUpRight, category: 'Statistics', size: 'small', requiredPermissions: ['statistics_view'] },
-  { id: 'growth-rate', name: 'Growth Rate', description: 'Business growth rate overview', icon: TrendingUp, category: 'Statistics', size: 'small', requiredPermissions: ['statistics_view'] },
-  // Activity
-  { id: 'daily-activity', name: 'Daily Activity', description: 'Today\'s business activity summary', icon: Activity, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
-  { id: 'quick-stats', name: 'Quick Stats', description: 'Key performance indicators at a glance', icon: Zap, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
-  { id: 'upcoming-tasks', name: 'Upcoming Tasks', description: 'Tasks and reminders', icon: Calendar, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
   // Compliance
   { id: 'compliance-alerts', name: 'Compliance Alerts', description: 'Pending compliance items and alerts', icon: AlertTriangle, category: 'Compliance', size: 'medium', requiredPermissions: ['compliance_view'] },
   { id: 'kyc-overview', name: 'KYC Overview', description: 'KYC approval status summary', icon: Shield, category: 'Compliance', size: 'small', requiredPermissions: ['kyc_approvals_view'] },
-  // HRMS
-  { id: 'team-status', name: 'Team Status', description: 'Employee attendance and availability', icon: UserCheck, category: 'HRMS', size: 'medium', requiredPermissions: ['hrms_view'] },
   // Payroll
   { id: 'payroll-summary', name: 'Payroll Summary', description: 'Current month payroll overview', icon: Calculator, category: 'Payroll', size: 'medium', requiredPermissions: ['payroll_view'] },
+  // Shift
+  { id: 'shift-reconciliation', name: 'Shift Reconciliation', description: 'Current shift reconciliation status', icon: FileText, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
 ];
 
 // Combined list for the dialog

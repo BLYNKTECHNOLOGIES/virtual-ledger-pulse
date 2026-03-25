@@ -62,7 +62,7 @@ export function ClickableCard({
     <div
       onClick={handleClick}
       className={cn(
-        "cursor-pointer transition-all duration-200 group relative",
+        "cursor-pointer transition-all duration-200 group relative h-full",
         "hover:ring-2 hover:ring-primary/20 hover:ring-offset-2",
         className
       )}

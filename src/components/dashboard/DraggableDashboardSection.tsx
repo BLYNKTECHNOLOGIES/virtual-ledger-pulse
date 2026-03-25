@@ -42,7 +42,7 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`relative group ${className} ${isDragging ? 'ring-2 ring-blue-400 rounded-xl' : ''} ${isEditMode ? 'ring-1 ring-dashed ring-amber-300 rounded-xl' : ''}`}>
+    <div ref={setNodeRef} style={style} className={`relative group h-full ${className} ${isDragging ? 'ring-2 ring-blue-400 rounded-xl' : ''} ${isEditMode ? 'ring-1 ring-dashed ring-amber-300 rounded-xl' : ''}`}>
       {isDraggable && (
         <div
           {...attributes}

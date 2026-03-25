@@ -821,7 +821,7 @@ export default function Dashboard() {
       {/* Widget Grid */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className={`grid grid-cols-12 gap-3 md:gap-6 ${canDrag ? 'pl-4' : ''}`}>
+          <div className={`grid grid-cols-12 gap-3 md:gap-6 auto-rows-auto items-stretch ${canDrag ? 'pl-4' : ''}`}>
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>

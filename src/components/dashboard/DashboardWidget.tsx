@@ -626,7 +626,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className={getSizeClasses(widget.size)}>
+    <div ref={setNodeRef} style={style} {...attributes} className={`h-full ${getSizeClasses(widget.size)}`}>
       <Card className={`h-full bg-white shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-gray-100 ${isDraggable ? 'ring-2 ring-blue-200 cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-xl' : ''}`}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-gray-50 to-gray-100">
           <div className="flex items-center gap-2">

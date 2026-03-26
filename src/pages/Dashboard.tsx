@@ -148,58 +148,65 @@ export default function Dashboard() {
   const { isDashboardRearrangeMode: isRearrangeMode, setIsDashboardRearrangeMode: setIsRearrangeMode } = useSidebarEdit();
   const { toast } = useToast();
 
-  // ── Unified active widget list (ordered IDs) ──
-  const storageKey = useMemo(() => `dashboardActiveWidgets_${userId}`, [userId]);
+  // ── Unified active widget list (ordered IDs) — per-user persistence ──
+  const storageKey = useMemo(() => userId !== 'default' ? `dashboardActiveWidgets_${userId}` : null, [userId]);
+  const spansStorageKey = useMemo(() => userId !== 'default' ? `dashboardWidgetSpans_${userId}` : null, [userId]);
 
-  const [activeWidgetIds, setActiveWidgetIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem(`dashboardActiveWidgets_${userId}`);
-    if (saved) {
-      try { return JSON.parse(saved); } catch { /* fall through */ }
-    }
-    // Migration: check old format
-    const oldOrder = localStorage.getItem(`dashboardItemOrder_${userId}`);
-    const oldWidgets = localStorage.getItem(`dashboardWidgets_${userId}`);
-    if (oldOrder || oldWidgets) {
-      const ids = oldOrder ? JSON.parse(oldOrder) : [...DEFAULT_ACTIVE_WIDGETS];
-      if (oldWidgets) {
-        const widgets = JSON.parse(oldWidgets) as { id: string }[];
-        widgets.forEach(w => {
-          if (!ids.includes(w.id)) ids.push(w.id);
-        });
+  const readWidgetIds = useCallback((key: string | null): string[] => {
+    if (!key) return [...DEFAULT_ACTIVE_WIDGETS];
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) return JSON.parse(saved);
+      // Migration: check old format
+      const uid = key.replace('dashboardActiveWidgets_', '');
+      const oldOrder = localStorage.getItem(`dashboardItemOrder_${uid}`);
+      const oldWidgets = localStorage.getItem(`dashboardWidgets_${uid}`);
+      if (oldOrder || oldWidgets) {
+        const ids = oldOrder ? JSON.parse(oldOrder) : [...DEFAULT_ACTIVE_WIDGETS];
+        if (oldWidgets) {
+          const widgets = JSON.parse(oldWidgets) as { id: string }[];
+          widgets.forEach(w => { if (!ids.includes(w.id)) ids.push(w.id); });
+        }
+        // Persist migrated data under new key
+        localStorage.setItem(key, JSON.stringify(ids));
+        localStorage.removeItem(`dashboardItemOrder_${uid}`);
+        localStorage.removeItem(`dashboardWidgets_${uid}`);
+        return ids;
       }
-      return ids;
-    }
+    } catch { /* ignore */ }
     return [...DEFAULT_ACTIVE_WIDGETS];
-  });
+  }, []);
 
-  // ── Custom widget sizes ──
-  const spansStorageKey = useMemo(() => `dashboardWidgetSpans_${userId}`, [userId]);
-  const [customSpans, setCustomSpans] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem(`dashboardWidgetSpans_${userId}`);
-    if (saved) try { return JSON.parse(saved); } catch { /* ignore */ }
+  const readSpans = useCallback((key: string | null): Record<string, number> => {
+    if (!key) return {};
+    try {
+      const saved = localStorage.getItem(key);
+      if (saved) return JSON.parse(saved);
+    } catch { /* ignore */ }
     return {};
-  });
+  }, []);
+
+  const [activeWidgetIds, setActiveWidgetIds] = useState<string[]>(() => readWidgetIds(storageKey));
+  const [customSpans, setCustomSpans] = useState<Record<string, number>>(() => readSpans(spansStorageKey));
+
+  // Re-load both when the authenticated user changes (e.g. login, page refresh)
+  useEffect(() => {
+    setActiveWidgetIds(readWidgetIds(storageKey));
+    setCustomSpans(readSpans(spansStorageKey));
+  }, [storageKey, spansStorageKey, readWidgetIds, readSpans]);
 
   const handleResizeWidget = useCallback((widgetId: string, span: WidgetSize) => {
     setCustomSpans(prev => {
       const next = { ...prev, [widgetId]: span };
-      localStorage.setItem(spansStorageKey, JSON.stringify(next));
+      if (spansStorageKey) localStorage.setItem(spansStorageKey, JSON.stringify(next));
       return next;
     });
   }, [spansStorageKey]);
 
-  // Persist active widgets
+  // Persist active widgets whenever they change (only for real users)
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(activeWidgetIds));
+    if (storageKey) localStorage.setItem(storageKey, JSON.stringify(activeWidgetIds));
   }, [activeWidgetIds, storageKey]);
-
-  // Reload on user change
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try { setActiveWidgetIds(JSON.parse(saved)); } catch { /* ignore */ }
-    }
-  }, [storageKey]);
 
   // Filter by permissions
   const visibleWidgetIds = useMemo(() => {

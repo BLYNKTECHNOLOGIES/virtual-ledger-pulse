@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { format, subDays, startOfDay, endOfDay, subMonths } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import {
   Users, TrendingUp, TrendingDown, ArrowUpRight, Package, DollarSign,
   Clock, FileText, Activity, Zap, Calendar, ShoppingCart, CreditCard,

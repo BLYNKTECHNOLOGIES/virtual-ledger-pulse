@@ -344,7 +344,7 @@ export default function Dashboard() {
     // Clean up old storage
     localStorage.removeItem(`dashboardItemOrder_${userId}`);
     localStorage.removeItem(`dashboardWidgets_${userId}`);
-    localStorage.removeItem(spansStorageKey);
+    if (spansStorageKey) localStorage.removeItem(spansStorageKey);
     toast({ title: "Dashboard Reset", description: "Dashboard has been reset to default layout." });
   };
 

@@ -37,7 +37,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { ExchangeChart } from "./ExchangeChart";
 import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
 import { ShiftReconciliationWidget } from "./ShiftReconciliationWidget";
 import { useSortable } from "@dnd-kit/sortable";
@@ -49,8 +48,10 @@ import {
   CustomerGrowthWidget, RecentOrdersWidget, DailyActivityWidget, QuickStatsWidget,
   ExpenseBreakdownWidget, EarningsRateWidget, ProfitMarginWidget, PerformanceOverviewWidget,
   ConversionRateWidget, GrowthRateWidget, CashFlowWidget, ExpenseTrendsWidget,
-  PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget
+  PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget,
+  RevenueChartWidget
 } from "./widgets/RealDataWidgets";
+import type { WidgetType } from "./AddWidgetDialog";
 
 function WalletBalanceWidgetContent() {
   const { data: wallets, isLoading } = useQuery({
@@ -78,225 +79,78 @@ function WalletBalanceWidgetContent() {
         {(wallets || []).filter(w => Number(w.current_balance) > 0).map((w: any) => (
           <div key={w.id} className="flex items-center justify-between text-sm px-2 py-1.5 rounded-lg bg-muted/50">
             <span className="text-muted-foreground truncate">{w.wallet_name}</span>
-            <span className="font-medium text-foreground">{Number(w.current_balance).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span className="font-semibold text-foreground">{Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           </div>
         ))}
-        {(wallets || []).filter(w => Number(w.current_balance) > 0).length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-2">No wallet balances</p>
-        )}
       </div>
     </div>
   );
-}
-function GrossProfitWidgetContent() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['widget_gross_profit_real'],
-    queryFn: async () => {
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
-      const [{ data: sales }, { data: purchases }] = await Promise.all([
-        supabase.from('sales_orders').select('total_amount').gte('created_at', thirtyDaysAgo),
-        supabase.from('purchase_orders').select('total_amount').gte('created_at', thirtyDaysAgo),
-      ]);
-      const totalSales = (sales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const totalPurchases = (purchases || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      return { profit: totalSales - totalPurchases, totalSales, totalPurchases };
-    },
-    staleTime: 60000,
-  });
-  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
-  const profit = data?.profit || 0;
-  return (
-    <div className="text-center p-6">
-      <div className={`text-3xl font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-        ₹{(Math.abs(profit) / 100000).toFixed(2)}L
-      </div>
-      <p className="text-sm text-muted-foreground mt-1">Gross Profit (30d)</p>
-      <div className="flex justify-center gap-4 mt-3 text-xs text-muted-foreground">
-        <span>Sales: ₹{((data?.totalSales || 0) / 100000).toFixed(1)}L</span>
-        <span>Cost: ₹{((data?.totalPurchases || 0) / 100000).toFixed(1)}L</span>
-      </div>
-    </div>
-  );
-}
-
-function ComplianceAlertsWidgetContent() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['widget_compliance_alerts_real'],
-    queryFn: async () => {
-      const [{ count: pendingKyc }, { count: expDocs }, { data: pendingCases }] = await Promise.all([
-        supabase.from('client_onboarding_approvals').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
-        supabase.from('compliance_documents').select('id', { count: 'exact', head: true }).eq('status', 'expired'),
-        supabase.from('bank_cases').select('id').eq('status', 'open').limit(100),
-      ]);
-      return { pendingKyc: pendingKyc || 0, expiredDocs: expDocs || 0, openCases: (pendingCases || []).length };
-    },
-    staleTime: 30000,
-  });
-  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
-  const total = (data?.pendingKyc || 0) + (data?.expiredDocs || 0) + (data?.openCases || 0);
-  const alerts = [
-    { label: 'Pending KYC Approvals', count: data?.pendingKyc || 0, color: 'bg-amber-500' },
-    { label: 'Expired Documents', count: data?.expiredDocs || 0, color: 'bg-red-500' },
-    { label: 'Open Bank Cases', count: data?.openCases || 0, color: 'bg-blue-500' },
-  ];
-  return (
-    <div className="p-4 space-y-2.5">
-      {total === 0 ? (
-        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-          <div className="w-2 h-2 bg-green-500 rounded-full" />
-          <span className="text-sm text-foreground">All compliance items up to date</span>
-        </div>
-      ) : (
-        alerts.filter(a => a.count > 0).map(a => (
-          <div key={a.label} className="flex items-center gap-3 p-2.5 bg-muted/50 rounded-lg">
-            <div className={`w-2 h-2 ${a.color} rounded-full flex-shrink-0`} />
-            <span className="text-sm text-foreground flex-1">{a.label}</span>
-            <Badge variant="outline" className="text-[10px]">{a.count}</Badge>
-          </div>
-        ))
-      )}
-    </div>
-  );
-}
-
-function PayrollSummaryWidgetContent() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['widget_payroll_summary_real'],
-    queryFn: async () => {
-      const [{ count: totalEmp }, { data: recentPayroll }] = await Promise.all([
-        supabase.from('hr_employees').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        (supabase as any).from('hr_payroll_runs').select('id, month, year, status, total_amount').order('created_at', { ascending: false }).limit(1),
-      ]);
-      const latest = recentPayroll?.[0] || null;
-      return { totalEmployees: totalEmp || 0, latest };
-    },
-    staleTime: 60000,
-  });
-  if (isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
-  return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">Active Employees</span>
-        <span className="text-lg font-bold text-foreground">{data?.totalEmployees || 0}</span>
-      </div>
-      {data?.latest ? (
-        <>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Last Run</span>
-            <span className="text-sm font-medium text-foreground">{data.latest.month}/{data.latest.year}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Amount</span>
-            <span className="text-sm font-semibold text-foreground">₹{Number(data.latest.total_amount || 0).toLocaleString()}</span>
-          </div>
-          <Badge variant="outline" className="w-full justify-center">{data.latest.status || 'N/A'}</Badge>
-        </>
-      ) : (
-        <p className="text-xs text-muted-foreground text-center py-2">No payroll runs yet</p>
-      )}
-    </div>
-  );
-}
-
-
-interface Widget {
-  id: string;
-  name: string;
-  description: string;
-  icon: any;
-  category: string;
-  size: 'small' | 'medium' | 'large';
 }
 
 interface DashboardWidgetProps {
-  widget: Widget;
+  widget: WidgetType;
   onRemove: (widgetId: string) => void;
-  onMove: (widgetId: string, direction: 'up' | 'down') => void;
+  onMove: (widgetId: string, direction: "up" | "down") => void;
   metrics?: any;
   isDraggable?: boolean;
 }
 
-const iconMap: Record<string, any> = {
-  'revenue-chart': BarChart3,
-  'total-clients': Users,
-  'inventory-status': Package,
-  'recent-orders': FileText,
-  'daily-activity': Activity,
-  'upcoming-tasks': Calendar,
-  'profit-margin': TrendingUp,
-  'customer-chart': LineChart,
-  'earnings-rate': TrendingUp,
-  'performance-overview': PieChart,
-  'total-revenue': DollarSign,
-  'conversion-rate': ArrowUpRight,
-  'growth-rate': TrendingUp,
-  'order-status': ShoppingCart,
-  'expense-details': CreditCard,
-  'live-notifications': Bell,
-  'quick-stats': Zap,
-  'real-time-data': Globe,
-  'time-tracker': Timer,
-  'team-status': UserCheck,
-  'schedule-overview': Clock,
-  'wallet-balance': Wallet,
-  'payment-methods': CreditCard,
-  'cash-flow': ArrowUpRight,
-  'expense-trends': TrendingDown,
-  'bank-balance-filter': Building,
-  // New widget icons
-  'sales-orders-count': ShoppingCart,
-  'total-purchases': DollarSign,
-  'purchase-orders-count': FileText,
-  'pending-settlements': Clock,
-  'verified-clients': UserCheck,
-  'stock-value': Package,
-  'bank-balance-total': Building,
-  'total-cash': Wallet,
-  'gross-profit': TrendingUp,
-  'compliance-alerts': Bell,
-  'kyc-overview': UserCheck,
-  'payroll-summary': CreditCard,
-  'shift-reconciliation': FileText,
+const widgetIconMap: Record<string, any> = {
+  "revenue-chart": BarChart3,
+  "pending-settlements": Clock,
+  "cash-flow": ArrowUpRight,
+  "expense-trends": TrendingDown,
+  "wallet-balance": Wallet,
+  "team-status": UserCheck,
 };
 
-function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = false }: DashboardWidgetProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: widget.id, disabled: !isDraggable });
+const getSizeClasses = (size: WidgetType["size"]) => {
+  if (size === "small") return "col-span-12 sm:col-span-6 lg:col-span-3";
+  if (size === "medium") return "col-span-12 lg:col-span-6";
+  return "col-span-12";
+};
+
+const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true }: DashboardWidgetProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: widget.id,
+    disabled: !isDraggable,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : undefined,
   };
 
-  const IconComponent = iconMap[widget.id as keyof typeof iconMap] || widget.icon || BarChart3;
+  const IconComponent = widget.icon || widgetIconMap[widget.id] || BarChart3;
 
-  const getSizeClasses = (size: string) => {
-    switch (size) {
-      case 'small': return 'col-span-1';
-      case 'medium': return 'col-span-1 md:col-span-2';
-      case 'large': return 'col-span-1 md:col-span-2 lg:col-span-3';
-      default: return 'col-span-1';
-    }
+  const GrossProfitWidgetContent = () => {
+    const gross = (metrics?.totalRevenue || metrics?.totalSales || 0) - (metrics?.totalSpending || 0);
+    return (
+      <div className="text-center p-4">
+        <div className="text-3xl font-bold text-gray-900">₹{Number(gross).toLocaleString()}</div>
+        <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
+      </div>
+    );
   };
+
+  const ComplianceAlertsWidgetContent = () => (
+    <div className="text-center p-4">
+      <div className="text-3xl font-bold text-gray-900">{metrics?.pendingActions || 0}</div>
+      <p className="text-sm text-gray-600 mt-1">Compliance Alerts</p>
+    </div>
+  );
+
+  const PayrollSummaryWidgetContent = () => (
+    <div className="text-center p-4">
+      <div className="text-3xl font-bold text-gray-900">{metrics?.employees || 0}</div>
+      <p className="text-sm text-gray-600 mt-1">Payroll Summary</p>
+    </div>
+  );
 
   const getCategoryGradient = (category: string) => {
     const gradients: Record<string, string> = {
-      'Analytics': 'from-blue-500 to-cyan-500',
-      'Metrics': 'from-green-500 to-emerald-500',
-      'Operations': 'from-orange-500 to-red-500',
-      'Activity': 'from-purple-500 to-pink-500',
-      'Productivity': 'from-indigo-500 to-blue-500',
-      'Financial': 'from-emerald-500 to-teal-500',
       'Sales': 'from-green-500 to-emerald-500',
-      'Purchase': 'from-orange-500 to-amber-500',
+      'Purchase': 'from-orange-500 to-red-500',
       'Clients': 'from-blue-500 to-indigo-500',
       'Stock': 'from-amber-500 to-yellow-500',
       'Banking': 'from-emerald-500 to-green-500',
@@ -312,7 +166,7 @@ function DashboardWidget({ widget, onRemove, onMove, metrics, isDraggable = fals
   const renderWidgetContent = () => {
     switch (widget.id) {
       case 'revenue-chart':
-        return <ExchangeChart />;
+        return <RevenueChartWidget />;
 
       case 'customer-chart':
         return <CustomerGrowthWidget />;

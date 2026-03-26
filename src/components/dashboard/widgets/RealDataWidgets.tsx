@@ -233,6 +233,95 @@ export function ExpenseBreakdownWidget() {
   );
 }
 
+// ── Revenue Chart Widget (daily sales revenue for last 7 days) ──
+export function RevenueChartWidget() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_revenue_chart'],
+    queryFn: async () => {
+      const days = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = subDays(new Date(), i);
+        days.push({ label: format(d, 'EEE'), date: format(d, 'yyyy-MM-dd') });
+      }
+
+      const { data: orders, error } = await supabase
+        .from('sales_orders')
+        .select('order_date, total_amount')
+        .gte('order_date', days[0].date)
+        .lte('order_date', days[days.length - 1].date);
+
+      if (error) throw error;
+
+      const dayMap: Record<string, { revenue: number; count: number }> = {};
+      days.forEach((d) => {
+        dayMap[d.date] = { revenue: 0, count: 0 };
+      });
+
+      (orders || []).forEach((o: any) => {
+        if (!dayMap[o.order_date]) return;
+        dayMap[o.order_date].revenue += Number(o.total_amount || 0);
+        dayMap[o.order_date].count += 1;
+      });
+
+      const chartData = days.map((d) => ({
+        name: d.label,
+        revenue: dayMap[d.date].revenue,
+        orders: dayMap[d.date].count,
+      }));
+
+      const totalRevenue = chartData.reduce((s, d) => s + d.revenue, 0);
+      const totalOrders = chartData.reduce((s, d) => s + d.orders, 0);
+      const todayRevenue = chartData[chartData.length - 1]?.revenue || 0;
+
+      return {
+        chartData,
+        totalRevenue,
+        totalOrders,
+        todayRevenue,
+        avgOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+      };
+    },
+    staleTime: 60000,
+    refetchInterval: 60000,
+  });
+
+  if (isLoading) return <WidgetLoader />;
+
+  const hasData = (data?.totalRevenue || 0) > 0;
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-lg bg-muted/50 p-2">
+          <p className="text-[10px] text-muted-foreground">7D Revenue</p>
+          <p className="text-sm font-bold text-foreground">₹{(data?.totalRevenue || 0).toLocaleString()}</p>
+        </div>
+        <div className="rounded-lg bg-muted/50 p-2">
+          <p className="text-[10px] text-muted-foreground">Today</p>
+          <p className="text-sm font-bold text-foreground">₹{(data?.todayRevenue || 0).toLocaleString()}</p>
+        </div>
+        <div className="rounded-lg bg-muted/50 p-2">
+          <p className="text-[10px] text-muted-foreground">Avg / Order</p>
+          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.avgOrderValue || 0).toLocaleString()}</p>
+        </div>
+      </div>
+
+      {hasData ? (
+        <ResponsiveContainer width="100%" height={140}>
+          <BarChart data={data?.chartData || []}>
+            <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <p className="text-sm text-muted-foreground text-center py-6">No sales revenue in last 7 days</p>
+      )}
+    </div>
+  );
+}
+
 // ── Earnings Rate Widget (daily sales for last 7 days) ──
 export function EarningsRateWidget() {
   const { data, isLoading } = useQuery({

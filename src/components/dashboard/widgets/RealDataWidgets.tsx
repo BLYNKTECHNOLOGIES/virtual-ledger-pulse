@@ -461,35 +461,66 @@ export function TeamStatusWidget() {
       const today = format(new Date(), 'yyyy-MM-dd');
       const [{ count: totalEmp }, { data: attendance }] = await Promise.all([
         supabase.from('hr_employees').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('hr_attendance').select('attendance_status').eq('attendance_date', today),
+        supabase.from('hr_attendance')
+          .select('check_in, check_out, attendance_status, hr_employees!hr_attendance_employee_id_fkey(first_name, last_name)')
+          .eq('attendance_date', today),
       ]);
-      const present = (attendance || []).filter((a: any) => a.attendance_status === 'present' || a.attendance_status === 'late').length;
-      const absent = (attendance || []).filter((a: any) => a.attendance_status === 'absent').length;
-      const late = (attendance || []).filter((a: any) => a.attendance_status === 'late').length;
-      return { total: totalEmp || 0, present, absent, late };
+      const all = attendance || [];
+      const present = all.filter((a: any) => a.attendance_status === 'present' || a.attendance_status === 'late').length;
+      const absent = all.filter((a: any) => a.attendance_status === 'absent').length;
+      const late = all.filter((a: any) => a.attendance_status === 'late').length;
+      const activeNow = all
+        .filter((a: any) => a.check_in && !a.check_out)
+        .map((a: any) => ({
+          name: `${a.hr_employees?.first_name || ''} ${a.hr_employees?.last_name || ''}`.trim(),
+          checkIn: a.check_in,
+        }));
+      return { total: totalEmp || 0, present, absent, late, activeNow };
     },
     staleTime: 30000,
+    refetchInterval: 60000,
   });
 
   if (isLoading) return <WidgetLoader />;
 
   return (
-    <div className="p-4 grid grid-cols-2 gap-3">
-      <div className="text-center p-2.5 bg-blue-50 rounded-lg">
-        <div className="text-xl font-bold text-blue-600">{data?.total || 0}</div>
-        <p className="text-[10px] text-gray-600">Total Staff</p>
+    <div className="p-4 space-y-3">
+      <div className="grid grid-cols-4 gap-2">
+        <div className="text-center p-2 bg-blue-50 rounded-lg">
+          <div className="text-lg font-bold text-blue-600">{data?.total || 0}</div>
+          <p className="text-[10px] text-muted-foreground">Total</p>
+        </div>
+        <div className="text-center p-2 bg-green-50 rounded-lg">
+          <div className="text-lg font-bold text-green-600">{data?.present || 0}</div>
+          <p className="text-[10px] text-muted-foreground">Present</p>
+        </div>
+        <div className="text-center p-2 bg-red-50 rounded-lg">
+          <div className="text-lg font-bold text-red-600">{data?.absent || 0}</div>
+          <p className="text-[10px] text-muted-foreground">Absent</p>
+        </div>
+        <div className="text-center p-2 bg-amber-50 rounded-lg">
+          <div className="text-lg font-bold text-amber-600">{data?.late || 0}</div>
+          <p className="text-[10px] text-muted-foreground">Late</p>
+        </div>
       </div>
-      <div className="text-center p-2.5 bg-green-50 rounded-lg">
-        <div className="text-xl font-bold text-green-600">{data?.present || 0}</div>
-        <p className="text-[10px] text-gray-600">Present</p>
-      </div>
-      <div className="text-center p-2.5 bg-red-50 rounded-lg">
-        <div className="text-xl font-bold text-red-600">{data?.absent || 0}</div>
-        <p className="text-[10px] text-gray-600">Absent</p>
-      </div>
-      <div className="text-center p-2.5 bg-amber-50 rounded-lg">
-        <div className="text-xl font-bold text-amber-600">{data?.late || 0}</div>
-        <p className="text-[10px] text-gray-600">Late</p>
+
+      <div>
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-xs font-semibold text-foreground">Currently In Office ({data?.activeNow?.length || 0})</span>
+        </div>
+        <div className="max-h-32 overflow-y-auto space-y-1">
+          {(data?.activeNow || []).length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-2">No one currently checked in</p>
+          ) : (
+            (data?.activeNow || []).map((emp: any, i: number) => (
+              <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 bg-muted/50 rounded">
+                <span className="font-medium text-foreground">{emp.name || 'Unknown'}</span>
+                <span className="text-muted-foreground">{emp.checkIn?.slice(0, 5)}</span>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

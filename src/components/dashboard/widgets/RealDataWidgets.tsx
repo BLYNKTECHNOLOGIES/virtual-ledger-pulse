@@ -167,9 +167,11 @@ export function ExpenseBreakdownWidget() {
         .lte('transaction_date', monthEnd)
         .order('transaction_date', { ascending: false })
         .limit(500);
+      const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const catMap: Record<string, number> = {};
       (data || []).forEach((t: any) => {
         const cat = t.category || 'Uncategorized';
+        if (excludeCategories.includes(cat)) return;
         catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount));
       });
       const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);

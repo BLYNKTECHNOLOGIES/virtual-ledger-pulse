@@ -86,7 +86,83 @@ function WalletBalanceWidgetContent() {
     </div>
   );
 }
-...
+
+interface DashboardWidgetProps {
+  widget: WidgetType;
+  onRemove: (widgetId: string) => void;
+  onMove: (widgetId: string, direction: "up" | "down") => void;
+  metrics?: any;
+  isDraggable?: boolean;
+}
+
+const widgetIconMap: Record<string, any> = {
+  "revenue-chart": BarChart3,
+  "pending-settlements": Clock,
+  "cash-flow": ArrowUpRight,
+  "expense-trends": TrendingDown,
+  "wallet-balance": Wallet,
+  "team-status": UserCheck,
+};
+
+const getSizeClasses = (size: WidgetType["size"]) => {
+  if (size === "small") return "col-span-12 sm:col-span-6 lg:col-span-3";
+  if (size === "medium") return "col-span-12 lg:col-span-6";
+  return "col-span-12";
+};
+
+const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true }: DashboardWidgetProps) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: widget.id,
+    disabled: !isDraggable,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const IconComponent = widget.icon || widgetIconMap[widget.id] || BarChart3;
+
+  const GrossProfitWidgetContent = () => {
+    const gross = (metrics?.totalRevenue || metrics?.totalSales || 0) - (metrics?.totalSpending || 0);
+    return (
+      <div className="text-center p-4">
+        <div className="text-3xl font-bold text-gray-900">₹{Number(gross).toLocaleString()}</div>
+        <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
+      </div>
+    );
+  };
+
+  const ComplianceAlertsWidgetContent = () => (
+    <div className="text-center p-4">
+      <div className="text-3xl font-bold text-gray-900">{metrics?.pendingActions || 0}</div>
+      <p className="text-sm text-gray-600 mt-1">Compliance Alerts</p>
+    </div>
+  );
+
+  const PayrollSummaryWidgetContent = () => (
+    <div className="text-center p-4">
+      <div className="text-3xl font-bold text-gray-900">{metrics?.employees || 0}</div>
+      <p className="text-sm text-gray-600 mt-1">Payroll Summary</p>
+    </div>
+  );
+
+  const getCategoryGradient = (category: string) => {
+    const gradients: Record<string, string> = {
+      'Sales': 'from-green-500 to-emerald-500',
+      'Purchase': 'from-orange-500 to-red-500',
+      'Clients': 'from-blue-500 to-indigo-500',
+      'Stock': 'from-amber-500 to-yellow-500',
+      'Banking': 'from-emerald-500 to-green-500',
+      'PNL': 'from-purple-500 to-violet-500',
+      'Statistics': 'from-indigo-500 to-blue-500',
+      'Compliance': 'from-red-500 to-rose-500',
+      'HRMS': 'from-pink-500 to-rose-500',
+      'Payroll': 'from-teal-500 to-cyan-500',
+    };
+    return gradients[category] || 'from-gray-500 to-gray-600';
+  };
+
   const renderWidgetContent = () => {
     switch (widget.id) {
       case 'revenue-chart':

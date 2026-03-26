@@ -493,17 +493,18 @@ export function CashFlowWidget() {
       }
       const { data: txns } = await supabase
         .from('bank_transactions')
-        .select('amount, transaction_type, transaction_date')
+        .select('amount, transaction_type, transaction_date, category')
         .gte('transaction_date', days[0].date)
         .lte('transaction_date', days[days.length - 1].date);
       
       const dayMap: Record<string, { income: number; expense: number }> = {};
       days.forEach(d => { dayMap[d.date] = { income: 0, expense: 0 }; });
+      const excludeCats = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       (txns || []).forEach((t: any) => {
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
         if (t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN') entry.income += Math.abs(Number(t.amount));
-        else if (t.transaction_type === 'EXPENSE') entry.expense += Math.abs(Number(t.amount));
+        else if (t.transaction_type === 'EXPENSE' && !excludeCats.includes(t.category || '')) entry.expense += Math.abs(Number(t.amount));
       });
       const chartData = days.map(d => ({ name: d.label, income: dayMap[d.date].income, expense: dayMap[d.date].expense }));
       const totalIncome = chartData.reduce((s, d) => s + d.income, 0);

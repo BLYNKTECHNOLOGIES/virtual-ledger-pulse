@@ -244,7 +244,7 @@ export function ExpenseBreakdownWidget() {
               {data!.recentItems.map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-xs py-1">
                   <span className="text-muted-foreground truncate max-w-[60%]">{item.desc}</span>
-                  <span className="font-medium text-foreground">₹{item.amount.toLocaleString()}</span>
+                  <span className="font-medium text-foreground">₹{Math.round(item.amount).toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -316,11 +316,11 @@ export function RevenueChartWidget() {
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-muted/50 p-2">
           <p className="text-[10px] text-muted-foreground">7D Revenue</p>
-          <p className="text-sm font-bold text-foreground">₹{(data?.totalRevenue || 0).toLocaleString()}</p>
+          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.totalRevenue || 0).toLocaleString()}</p>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">
           <p className="text-[10px] text-muted-foreground">Today</p>
-          <p className="text-sm font-bold text-foreground">₹{(data?.todayRevenue || 0).toLocaleString()}</p>
+          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.todayRevenue || 0).toLocaleString()}</p>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">
           <p className="text-[10px] text-muted-foreground">Avg / Order</p>
@@ -333,7 +333,7 @@ export function RevenueChartWidget() {
           <BarChart data={data?.chartData || []}>
             <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
             <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -370,13 +370,13 @@ export function EarningsRateWidget() {
   return (
     <div className="p-4">
       <div className="text-center mb-3">
-        <div className="text-lg font-bold text-blue-600">₹{todayEarnings.toLocaleString()}</div>
+        <div className="text-lg font-bold text-blue-600">₹{Math.round(todayEarnings).toLocaleString()}</div>
         <p className="text-xs text-gray-500">Today's Sales</p>
       </div>
       <ResponsiveContainer width="100%" height={80}>
         <BarChart data={data || []}>
           <XAxis dataKey="name" fontSize={9} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+          <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
           <Bar dataKey="amount" fill="#3B82F6" radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
@@ -408,7 +408,7 @@ export function ProfitMarginWidget() {
     <div className="text-center p-4">
       <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{data?.margin}%</div>
       <p className="text-sm text-gray-500 mt-1">Profit Margin (30d)</p>
-      <p className="text-xs text-gray-400 mt-2">Profit: ₹{(data?.profit || 0).toLocaleString()}</p>
+      <p className="text-xs text-gray-400 mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString()}</p>
     </div>
   );
 }
@@ -561,7 +561,7 @@ export function CashFlowWidget() {
           <BarChart data={data?.chartData || []}>
             <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
             <Bar dataKey="income" fill="#10B981" radius={[3, 3, 0, 0]} name="Income" />
             <Bar dataKey="expense" fill="#EF4444" radius={[3, 3, 0, 0]} name="Expense" />
           </BarChart>
@@ -608,7 +608,7 @@ export function ExpenseTrendsWidget() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-muted-foreground">This Month</p>
-          <p className="text-lg font-bold text-foreground">₹{(data?.currentMonth || 0).toLocaleString()}</p>
+          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentMonth || 0).toLocaleString()}</p>
         </div>
         {data?.change !== 0 && (
           <div className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>

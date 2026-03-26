@@ -415,36 +415,138 @@ export function ProfitMarginWidget() {
 
 // ── Performance Overview Widget ──
 export function PerformanceOverviewWidget({ metrics }: { metrics?: any }) {
-  const pieData = [
-    { name: 'Sales', value: metrics?.totalSales || 0 },
-    { name: 'Purchases', value: metrics?.totalSpending || 0 },
-    { name: 'Bank Balance', value: metrics?.bankBalance || 0 },
-  ].filter(d => d.value > 0);
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_performance_overview_v2'],
+    queryFn: async () => {
+      const now = new Date();
+      const thisMonthStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1)).toISOString();
+      const lastMonthStart = startOfDay(new Date(now.getFullYear(), now.getMonth() - 1, 1)).toISOString();
+      const lastMonthEnd = endOfDay(new Date(now.getFullYear(), now.getMonth(), 0)).toISOString();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
+
+      const [
+        { data: thisSales },
+        { data: lastSales },
+        { data: thisPurchaseOrders },
+        { data: lastPurchaseOrders },
+        { count: totalClients },
+        { count: activeClients },
+      ] = await Promise.all([
+        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', thisMonthStart),
+        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd),
+        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', thisMonthStart),
+        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd),
+        supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
+        supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
+      ]);
+
+      // This month purchase items
+      const thisPOIds = (thisPurchaseOrders || []).map((po: any) => po.id);
+      const lastPOIds = (lastPurchaseOrders || []).map((po: any) => po.id);
+
+      let thisPurchaseTotal = 0;
+      let lastPurchaseTotal = 0;
+
+      if (thisPOIds.length > 0) {
+        const { data: items } = await supabase.from('purchase_order_items').select('total_price').in('purchase_order_id', thisPOIds);
+        thisPurchaseTotal = (items || []).reduce((s, i: any) => s + Number(i.total_price || 0), 0);
+      }
+      if (lastPOIds.length > 0) {
+        const { data: items } = await supabase.from('purchase_order_items').select('total_price').in('purchase_order_id', lastPOIds);
+        lastPurchaseTotal = (items || []).reduce((s, i: any) => s + Number(i.total_price || 0), 0);
+      }
+
+      const thisSalesTotal = (thisSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const lastSalesTotal = (lastSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const thisSalesQty = (thisSales || []).reduce((s, o: any) => s + Number(o.quantity || 0), 0);
+      const lastSalesQty = (lastSales || []).reduce((s, o: any) => s + Number(o.quantity || 0), 0);
+
+      const thisGrossProfit = thisSalesTotal - thisPurchaseTotal;
+      const lastGrossProfit = lastSalesTotal - lastPurchaseTotal;
+      const profitMargin = thisSalesTotal > 0 ? (thisGrossProfit / thisSalesTotal) * 100 : 0;
+      const revenueGrowth = lastSalesTotal > 0 ? ((thisSalesTotal - lastSalesTotal) / lastSalesTotal) * 100 : 0;
+      const orderCount = (thisSales || []).length;
+
+      return {
+        thisSalesTotal,
+        thisPurchaseTotal,
+        thisGrossProfit,
+        lastGrossProfit,
+        profitMargin,
+        revenueGrowth,
+        thisSalesQty,
+        lastSalesQty,
+        orderCount,
+        totalClients: totalClients || 0,
+        newClients: activeClients || 0,
+      };
+    },
+    staleTime: 60000,
+  });
+
+  if (isLoading) return <WidgetLoader />;
+
+  const profitGrowth = (data?.lastGrossProfit || 0) > 0
+    ? ((((data?.thisGrossProfit || 0) - (data?.lastGrossProfit || 0)) / (data?.lastGrossProfit || 1)) * 100).toFixed(1)
+    : '0.0';
+
+  const kpis = [
+    {
+      label: 'Revenue',
+      value: `₹${((data?.thisSalesTotal || 0) / 100000).toFixed(1)}L`,
+      change: data?.revenueGrowth || 0,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      label: 'Gross Profit',
+      value: `₹${((data?.thisGrossProfit || 0) / 100000).toFixed(1)}L`,
+      change: Number(profitGrowth),
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+    },
+    {
+      label: 'Profit Margin',
+      value: `${(data?.profitMargin || 0).toFixed(1)}%`,
+      change: null,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+    },
+    {
+      label: 'Volume Traded',
+      value: `${((data?.thisSalesQty || 0)).toLocaleString('en-IN', { maximumFractionDigits: 0 })} USDT`,
+      change: (data?.lastSalesQty || 0) > 0 ? (((data?.thisSalesQty || 0) - (data?.lastSalesQty || 0)) / (data?.lastSalesQty || 1)) * 100 : null,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+    },
+  ];
 
   return (
     <div className="p-4">
-      {pieData.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-4">No data available</p>
-      ) : (
-        <div className="flex items-center gap-4">
-          <ResponsiveContainer width="50%" height={140}>
-            <RechartsPieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" stroke="none">
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-            </RechartsPieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2">
-            {pieData.map((d, i) => (
-              <div key={d.name} className="flex items-center gap-2 text-sm">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                <span className="text-gray-600">{d.name}</span>
-                <span className="font-semibold text-gray-900">₹{(d.value / 100000).toFixed(1)}L</span>
+      <div className="grid grid-cols-2 gap-3">
+        {kpis.map((kpi) => (
+          <div key={kpi.label} className={`${kpi.bgColor} rounded-lg p-3`}>
+            <p className="text-xs text-muted-foreground mb-1">{kpi.label}</p>
+            <p className={`text-lg font-bold ${kpi.color}`}>{kpi.value}</p>
+            {kpi.change !== null && (
+              <div className="flex items-center gap-1 mt-1">
+                {kpi.change >= 0 ? (
+                  <TrendingUp className="h-3 w-3 text-green-500" />
+                ) : (
+                  <TrendingDown className="h-3 w-3 text-red-500" />
+                )}
+                <span className={`text-xs ${kpi.change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% MoM
+                </span>
               </div>
-            ))}
+            )}
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
+        <span>{data?.orderCount || 0} orders this month</span>
+        <span>{data?.totalClients || 0} clients ({data?.newClients || 0} new in 30d)</span>
+      </div>
     </div>
   );
 }

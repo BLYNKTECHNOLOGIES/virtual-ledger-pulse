@@ -161,7 +161,7 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'expense-details', name: 'Expense Breakdown', description: 'Bank transaction expenses by category', icon: CreditCard, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
   { id: 'expense-trends', name: 'Expense Trends', description: 'Monthly expense trends from bank transactions', icon: TrendingDown, category: 'PNL', size: 'medium', requiredPermissions: ['accounting_view'] },
   // Statistics
-  { id: 'performance-overview', name: 'Performance Overview', description: 'Sales, purchases & bank balance distribution', icon: PieChart, category: 'Statistics', size: 'large', requiredPermissions: ['statistics_view'] },
+  { id: 'performance-overview', name: 'Performance Overview', description: 'Revenue, profit, margin & volume KPIs with MoM trends', icon: PieChart, category: 'Statistics', size: 'large', requiredPermissions: ['statistics_view'] },
   { id: 'quick-stats', name: 'Quick Stats', description: 'Key business metrics at a glance', icon: Zap, category: 'Statistics', size: 'medium', requiredPermissions: ['dashboard_view'] },
   // Activity
   { id: 'daily-activity', name: 'Daily Activity', description: "Today's sales, purchases & new clients", icon: Activity, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },

@@ -49,7 +49,7 @@ import {
   ExpenseBreakdownWidget, EarningsRateWidget, ProfitMarginWidget, PerformanceOverviewWidget,
   ConversionRateWidget, GrowthRateWidget, CashFlowWidget, ExpenseTrendsWidget,
   PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget,
-  RevenueChartWidget
+  RevenueChartWidget, TerminalSalesApprovalWidget, TerminalPurchaseApprovalWidget
 } from "./widgets/RealDataWidgets";
 import type { WidgetType } from "./AddWidgetDialog";
 
@@ -234,6 +234,12 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'team-status':
         return <TeamStatusWidget />;
+
+      case 'terminal-sales-approval':
+        return <TerminalSalesApprovalWidget />;
+
+      case 'terminal-purchase-approval':
+        return <TerminalPurchaseApprovalWidget />;
 
       case 'bank-balance-filter':
         return <BankBalanceFilterWidget compact className="border-0 shadow-none bg-transparent" />;

@@ -176,7 +176,7 @@ export function ExpenseBreakdownWidget() {
       });
       const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);
       const totalExpense = categories.reduce((s, c) => s + c.amount, 0);
-      const recentItems = (data || []).slice(0, 5).map((t: any) => ({
+      const recentItems = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).slice(0, 5).map((t: any) => ({
         desc: t.description || t.category || 'Expense',
         amount: Math.abs(Number(t.amount)),
         date: t.transaction_date,

@@ -51,6 +51,7 @@ import {
   PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget,
   RevenueChartWidget
 } from "./widgets/RealDataWidgets";
+import type { WidgetType } from "./AddWidgetDialog";
 
 function WalletBalanceWidgetContent() {
   const { data: wallets, isLoading } = useQuery({

@@ -352,10 +352,14 @@ export function EarningsRateWidget() {
       const days = [];
       for (let i = 6; i >= 0; i--) {
         const d = subDays(new Date(), i);
-        days.push({ label: format(d, 'EEE'), start: startOfDay(d).toISOString(), end: endOfDay(d).toISOString() });
+        days.push({ label: format(d, 'EEE'), date: format(d, 'yyyy-MM-dd') });
       }
       const results = await Promise.all(days.map(async day => {
-        const { data } = await supabase.from('sales_orders').select('total_amount').gte('created_at', day.start).lte('created_at', day.end);
+        const { data } = await supabase
+          .from('sales_orders')
+          .select('total_amount')
+          .eq('status', 'COMPLETED')
+          .eq('order_date', day.date);
         const total = (data || []).reduce((s: number, o: any) => s + Number(o.total_amount || 0), 0);
         return { name: day.label, amount: total };
       }));
@@ -370,13 +374,13 @@ export function EarningsRateWidget() {
   return (
     <div className="p-4">
       <div className="text-center mb-3">
-        <div className="text-lg font-bold text-blue-600">₹{Math.round(todayEarnings).toLocaleString()}</div>
-        <p className="text-xs text-gray-500">Today's Sales</p>
+        <div className="text-lg font-bold text-blue-600">₹{Math.round(todayEarnings).toLocaleString('en-IN')}</div>
+        <p className="text-xs text-muted-foreground">Today's Sales</p>
       </div>
       <ResponsiveContainer width="100%" height={80}>
         <BarChart data={data || []}>
           <XAxis dataKey="name" fontSize={9} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+          <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11 }} />
           <Bar dataKey="amount" fill="#3B82F6" radius={[3, 3, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>

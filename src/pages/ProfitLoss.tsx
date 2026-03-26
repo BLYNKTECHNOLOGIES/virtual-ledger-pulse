@@ -228,7 +228,7 @@ export default function ProfitLoss() {
         .from('bank_transactions')
         .select('id, amount, category, description, transaction_date')
         .eq('transaction_type', 'EXPENSE')
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 

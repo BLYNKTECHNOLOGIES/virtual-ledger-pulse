@@ -427,7 +427,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-slate-600 text-sm font-medium">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{(metrics?.totalSales || 0).toLocaleString()}</div>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString()}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-green-500" />
                       <span className="text-sm font-medium text-slate-500">Selected Period</span>
@@ -496,7 +496,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
                     <p className="text-slate-600 text-sm font-medium">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{(metrics?.totalCash || 0).toLocaleString()}</div>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString()}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-amber-500" />
                       <span className="text-sm font-medium text-slate-500">Banks + Stock</span>

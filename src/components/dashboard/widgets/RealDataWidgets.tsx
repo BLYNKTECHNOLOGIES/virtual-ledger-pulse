@@ -156,31 +156,79 @@ export function ExpenseBreakdownWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_expense_breakdown'],
     queryFn: async () => {
-      const { data } = await supabase.from('bank_transactions').select('category, amount, transaction_type').eq('transaction_type', 'EXPENSE').order('created_at', { ascending: false }).limit(500);
+      const now = new Date();
+      const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
+      const { data } = await supabase
+        .from('bank_transactions')
+        .select('category, amount, description, transaction_date')
+        .eq('transaction_type', 'EXPENSE')
+        .gte('transaction_date', monthStart)
+        .lte('transaction_date', monthEnd)
+        .order('transaction_date', { ascending: false })
+        .limit(500);
       const catMap: Record<string, number> = {};
       (data || []).forEach((t: any) => {
         const cat = t.category || 'Uncategorized';
         catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount));
       });
-      return Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 6);
+      const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);
+      const totalExpense = categories.reduce((s, c) => s + c.amount, 0);
+      const recentItems = (data || []).slice(0, 5).map((t: any) => ({
+        desc: t.description || t.category || 'Expense',
+        amount: Math.abs(Number(t.amount)),
+        date: t.transaction_date,
+      }));
+      return { categories, totalExpense, recentItems, month: format(now, 'MMMM yyyy') };
     },
     staleTime: 60000,
   });
 
   if (isLoading) return <WidgetLoader />;
 
+  const hasData = (data?.categories?.length || 0) > 0;
+
   return (
-    <div className="p-4 space-y-2.5">
-      {(data || []).length === 0 && <p className="text-sm text-gray-400 text-center py-4">No expense data</p>}
-      {(data || []).map((e, i) => (
-        <div key={e.name} className="flex items-center gap-3">
-          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{e.name}</p>
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{data?.month}</span>
+        <span className="text-lg font-bold text-foreground">₹{(data?.totalExpense || 0).toLocaleString()}</span>
+      </div>
+      {!hasData && <p className="text-sm text-muted-foreground text-center py-4">No expenses this month</p>}
+      {hasData && (
+        <>
+          <div className="space-y-2">
+            {data!.categories.map((e, i) => {
+              const pct = data!.totalExpense > 0 ? (e.amount / data!.totalExpense) * 100 : 0;
+              return (
+                <div key={e.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="font-medium text-foreground truncate max-w-[140px]">{e.name}</span>
+                    </div>
+                    <span className="font-semibold text-foreground">₹{e.amount.toLocaleString()}</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="text-sm font-semibold text-gray-900">₹{e.amount.toLocaleString()}</div>
-        </div>
-      ))}
+          {(data?.recentItems?.length || 0) > 0 && (
+            <div className="pt-2 border-t border-border">
+              <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">RECENT</p>
+              {data!.recentItems.map((item, i) => (
+                <div key={i} className="flex items-center justify-between text-xs py-1">
+                  <span className="text-muted-foreground truncate max-w-[60%]">{item.desc}</span>
+                  <span className="font-medium text-foreground">₹{item.amount.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

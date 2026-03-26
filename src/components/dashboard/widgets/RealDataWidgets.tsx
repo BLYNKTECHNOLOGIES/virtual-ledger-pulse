@@ -78,7 +78,7 @@ export function RecentOrdersWidget() {
             <p className="text-xs text-gray-500 truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-sm font-semibold text-gray-900">₹{Number(o.total_amount).toLocaleString()}</p>
+            <p className="text-sm font-semibold text-gray-900">₹{Math.round(Number(o.total_amount)).toLocaleString()}</p>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.status || 'Pending'}</Badge>
           </div>
         </div>
@@ -214,7 +214,7 @@ export function ExpenseBreakdownWidget() {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{data?.month}</span>
-        <span className="text-lg font-bold text-foreground">₹{(data?.totalExpense || 0).toLocaleString()}</span>
+        <span className="text-lg font-bold text-foreground">₹{Math.round(data?.totalExpense || 0).toLocaleString()}</span>
       </div>
       {!hasData && <p className="text-sm text-muted-foreground text-center py-4">No expenses this month</p>}
       {hasData && (
@@ -229,7 +229,7 @@ export function ExpenseBreakdownWidget() {
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                       <span className="font-medium text-foreground truncate max-w-[140px]">{e.name}</span>
                     </div>
-                    <span className="font-semibold text-foreground">₹{e.amount.toLocaleString()}</span>
+                    <span className="font-semibold text-foreground">₹{Math.round(e.amount).toLocaleString()}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />

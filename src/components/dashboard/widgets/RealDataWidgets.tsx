@@ -390,14 +390,36 @@ export function ProfitMarginWidget() {
     queryKey: ['widget_profit_margin'],
     queryFn: async () => {
       const start = startOfDay(subDays(new Date(), 30)).toISOString();
-      const [{ data: sales }, { data: purchases }] = await Promise.all([
-        supabase.from('sales_orders').select('total_amount').gte('created_at', start),
-        supabase.from('purchase_orders').select('total_amount').gte('created_at', start),
+
+      // Use pagination to get ALL rows beyond the 1000-row default limit
+      const fetchAll = async (table: string, column: string, filters: Record<string, any> = {}) => {
+        let allData: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        while (true) {
+          let query = supabase.from(table).select(column).gte('created_at', start).eq('status', 'COMPLETED').range(from, from + batchSize - 1);
+          for (const [key, val] of Object.entries(filters)) {
+            query = query.eq(key, val);
+          }
+          const { data: batch } = await query;
+          if (!batch || batch.length === 0) break;
+          allData = allData.concat(batch);
+          if (batch.length < batchSize) break;
+          from += batchSize;
+        }
+        return allData;
+      };
+
+      const [sales, purchases] = await Promise.all([
+        fetchAll('sales_orders', 'total_amount'),
+        fetchAll('purchase_orders', 'total_amount'),
       ]);
-      const totalSales = (sales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const totalPurchases = (purchases || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const margin = totalSales > 0 ? ((totalSales - totalPurchases) / totalSales * 100) : 0;
-      return { margin: margin.toFixed(1), totalSales, totalPurchases, profit: totalSales - totalPurchases };
+
+      const totalSales = sales.reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const totalPurchases = purchases.reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const profit = totalSales - totalPurchases;
+      const margin = totalSales > 0 ? (profit / totalSales * 100) : 0;
+      return { margin: margin.toFixed(1), totalSales, totalPurchases, profit };
     },
     staleTime: 60000,
   });
@@ -407,8 +429,8 @@ export function ProfitMarginWidget() {
   return (
     <div className="text-center p-4">
       <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{data?.margin}%</div>
-      <p className="text-sm text-gray-500 mt-1">Profit Margin (30d)</p>
-      <p className="text-xs text-gray-400 mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString()}</p>
+      <p className="text-sm text-muted-foreground mt-1">Profit Margin (30d)</p>
+      <p className="text-xs text-muted-foreground mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString('en-IN')}</p>
     </div>
   );
 }

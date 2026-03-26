@@ -346,9 +346,11 @@ export function StatisticsTab() {
       }));
 
       // Expense breakdown by category
+      const excludeExpenseCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const expenseByCategory = new Map<string, number>();
       expenses?.forEach(exp => {
         const cat = exp.category || 'Other';
+        if (excludeExpenseCategories.includes(cat)) return;
         expenseByCategory.set(cat, (expenseByCategory.get(cat) || 0) + Number(exp.amount || 0));
       });
       const expenseBreakdown = Array.from(expenseByCategory.entries())

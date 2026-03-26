@@ -564,9 +564,10 @@ export function ExpenseTrendsWidget() {
         const e = format(endOfMonth(d), 'yyyy-MM-dd');
         months.push({ label: format(d, 'MMM'), start: s, end: e });
       }
+      const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const results = await Promise.all(months.map(async m => {
-        const { data } = await supabase.from('bank_transactions').select('amount').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
-        const total = (data || []).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+        const { data } = await supabase.from('bank_transactions').select('amount, category').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
+        const total = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
         return { name: m.label, expense: total };
       }));
       const currentMonth = results[results.length - 1]?.expense || 0;

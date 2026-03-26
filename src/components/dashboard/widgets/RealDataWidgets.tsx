@@ -398,35 +398,65 @@ export function CashFlowWidget() {
       const days = [];
       for (let i = 6; i >= 0; i--) {
         const d = subDays(new Date(), i);
-        days.push({ label: format(d, 'EEE'), start: startOfDay(d).toISOString(), end: endOfDay(d).toISOString() });
+        days.push({ label: format(d, 'EEE'), date: format(d, 'yyyy-MM-dd') });
       }
-      const results = await Promise.all(days.map(async day => {
-        const { data: txns } = await supabase.from('bank_transactions').select('amount, transaction_type').gte('transaction_date', day.start.split('T')[0]).lte('transaction_date', day.end.split('T')[0]);
-        let income = 0, expense = 0;
-        (txns || []).forEach((t: any) => {
-          if (t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN') income += Math.abs(Number(t.amount));
-          else if (t.transaction_type === 'EXPENSE') expense += Math.abs(Number(t.amount));
-        });
-        return { name: day.label, income, expense };
-      }));
-      return results;
+      const { data: txns } = await supabase
+        .from('bank_transactions')
+        .select('amount, transaction_type, transaction_date')
+        .gte('transaction_date', days[0].date)
+        .lte('transaction_date', days[days.length - 1].date);
+      
+      const dayMap: Record<string, { income: number; expense: number }> = {};
+      days.forEach(d => { dayMap[d.date] = { income: 0, expense: 0 }; });
+      (txns || []).forEach((t: any) => {
+        const entry = dayMap[t.transaction_date];
+        if (!entry) return;
+        if (t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN') entry.income += Math.abs(Number(t.amount));
+        else if (t.transaction_type === 'EXPENSE') entry.expense += Math.abs(Number(t.amount));
+      });
+      const chartData = days.map(d => ({ name: d.label, income: dayMap[d.date].income, expense: dayMap[d.date].expense }));
+      const totalIncome = chartData.reduce((s, d) => s + d.income, 0);
+      const totalExpense = chartData.reduce((s, d) => s + d.expense, 0);
+      return { chartData, totalIncome, totalExpense, net: totalIncome - totalExpense };
     },
     staleTime: 60000,
   });
 
   if (isLoading) return <WidgetLoader />;
 
+  const hasData = (data?.totalIncome || 0) > 0 || (data?.totalExpense || 0) > 0;
+
   return (
-    <div className="p-4">
-      <ResponsiveContainer width="100%" height={160}>
-        <BarChart data={data || []}>
-          <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-          <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-          <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
-          <Bar dataKey="income" fill="#10B981" radius={[3, 3, 0, 0]} name="Income" />
-          <Bar dataKey="expense" fill="#EF4444" radius={[3, 3, 0, 0]} name="Expense" />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="p-4 space-y-3">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="bg-green-50 rounded-lg p-2">
+          <p className="text-xs text-muted-foreground">Income</p>
+          <p className="text-sm font-bold text-green-600">₹{((data?.totalIncome || 0) / 1000).toFixed(1)}k</p>
+        </div>
+        <div className="bg-red-50 rounded-lg p-2">
+          <p className="text-xs text-muted-foreground">Expense</p>
+          <p className="text-sm font-bold text-red-600">₹{((data?.totalExpense || 0) / 1000).toFixed(1)}k</p>
+        </div>
+        <div className="bg-blue-50 rounded-lg p-2">
+          <p className="text-xs text-muted-foreground">Net</p>
+          <p className={`text-sm font-bold ${(data?.net || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {(data?.net || 0) >= 0 ? '+' : ''}₹{((data?.net || 0) / 1000).toFixed(1)}k
+          </p>
+        </div>
+      </div>
+      {hasData ? (
+        <ResponsiveContainer width="100%" height={140}>
+          <BarChart data={data?.chartData || []}>
+            <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Bar dataKey="income" fill="#10B981" radius={[3, 3, 0, 0]} name="Income" />
+            <Bar dataKey="expense" fill="#EF4444" radius={[3, 3, 0, 0]} name="Expense" />
+          </BarChart>
+        </ResponsiveContainer>
+      ) : (
+        <p className="text-sm text-muted-foreground text-center py-6">No transactions in last 7 days</p>
+      )}
     </div>
   );
 }
@@ -439,29 +469,51 @@ export function ExpenseTrendsWidget() {
       const months = [];
       for (let i = 5; i >= 0; i--) {
         const d = subMonths(new Date(), i);
-        months.push({ label: format(d, 'MMM'), start: startOfDay(new Date(d.getFullYear(), d.getMonth(), 1)).toISOString().split('T')[0], end: endOfDay(new Date(d.getFullYear(), d.getMonth() + 1, 0)).toISOString().split('T')[0] });
+        const s = format(startOfMonth(d), 'yyyy-MM-dd');
+        const e = format(endOfMonth(d), 'yyyy-MM-dd');
+        months.push({ label: format(d, 'MMM'), start: s, end: e });
       }
       const results = await Promise.all(months.map(async m => {
         const { data } = await supabase.from('bank_transactions').select('amount').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
         const total = (data || []).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
         return { name: m.label, expense: total };
       }));
-      return results;
+      const currentMonth = results[results.length - 1]?.expense || 0;
+      const prevMonth = results[results.length - 2]?.expense || 0;
+      const change = prevMonth > 0 ? ((currentMonth - prevMonth) / prevMonth) * 100 : 0;
+      return { chartData: results, currentMonth, change };
     },
     staleTime: 60000,
   });
 
   if (isLoading) return <WidgetLoader />;
 
+  const hasData = (data?.chartData || []).some(d => d.expense > 0);
+
   return (
-    <div className="p-4">
-      <ResponsiveContainer width="100%" height={120}>
-        <RechartsLineChart data={data || []}>
-          <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
-          <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
-        </RechartsLineChart>
-      </ResponsiveContainer>
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">This Month</p>
+          <p className="text-lg font-bold text-foreground">₹{(data?.currentMonth || 0).toLocaleString()}</p>
+        </div>
+        {data?.change !== 0 && (
+          <div className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+            {(data?.change || 0) > 0 ? '↑' : '↓'} {Math.abs(data?.change || 0).toFixed(1)}%
+          </div>
+        )}
+      </div>
+      {hasData ? (
+        <ResponsiveContainer width="100%" height={100}>
+          <RechartsLineChart data={data?.chartData || []}>
+            <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      ) : (
+        <p className="text-sm text-muted-foreground text-center py-4">No expense data in last 6 months</p>
+      )}
     </div>
   );
 }

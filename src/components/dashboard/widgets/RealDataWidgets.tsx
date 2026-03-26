@@ -127,25 +127,46 @@ export function DailyActivityWidget() {
 
 // ── Quick Stats Widget ──
 export function QuickStatsWidget({ metrics }: { metrics?: any }) {
-  const completionRate = metrics?.totalSalesOrders ? ((metrics.totalSalesOrders > 0 ? ((metrics.totalSalesOrders - (metrics.pendingOrders || 0)) / metrics.totalSalesOrders) * 100 : 0)).toFixed(0) : '—';
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_quick_stats'],
+    queryFn: async () => {
+      const [salesRes, purchaseRes, verifiedRes, totalRes] = await Promise.all([
+        supabase.from('sales_orders').select('id', { count: 'exact', head: true }),
+        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }),
+        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED'),
+        supabase.from('clients').select('id', { count: 'exact', head: true }),
+      ]);
+      return {
+        orders: salesRes.count || 0,
+        purchases: purchaseRes.count || 0,
+        verifiedClients: verifiedRes.count || 0,
+        totalClients: totalRes.count || 0,
+      };
+    },
+    staleTime: 60000,
+  });
+
+  if (isLoading) return <WidgetLoader />;
+
+  const stats = data || { orders: 0, purchases: 0, verifiedClients: 0, totalClients: 0 };
 
   return (
     <div className="p-4 grid grid-cols-2 gap-3">
-      <div className="text-center p-3 bg-blue-50 rounded-lg">
-        <div className="text-xl font-bold text-blue-600">{metrics?.totalSalesOrders || 0}</div>
-        <p className="text-xs text-gray-600">Orders</p>
+      <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+        <div className="text-xl font-bold text-blue-600">{stats.orders.toLocaleString()}</div>
+        <p className="text-xs text-muted-foreground">Orders</p>
       </div>
-      <div className="text-center p-3 bg-green-50 rounded-lg">
-        <div className="text-xl font-bold text-green-600">{metrics?.verifiedClients || 0}</div>
-        <p className="text-xs text-gray-600">Verified Clients</p>
+      <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+        <div className="text-xl font-bold text-green-600">{stats.verifiedClients.toLocaleString()}</div>
+        <p className="text-xs text-muted-foreground">Verified Clients</p>
       </div>
-      <div className="text-center p-3 bg-purple-50 rounded-lg">
-        <div className="text-xl font-bold text-purple-600">{metrics?.totalClients || 0}</div>
-        <p className="text-xs text-gray-600">Total Clients</p>
+      <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+        <div className="text-xl font-bold text-purple-600">{stats.totalClients.toLocaleString()}</div>
+        <p className="text-xs text-muted-foreground">Total Clients</p>
       </div>
-      <div className="text-center p-3 bg-orange-50 rounded-lg">
-        <div className="text-xl font-bold text-orange-600">{metrics?.totalPurchases || 0}</div>
-        <p className="text-xs text-gray-600">Purchases</p>
+      <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
+        <div className="text-xl font-bold text-orange-600">{stats.purchases.toLocaleString()}</div>
+        <p className="text-xs text-muted-foreground">Purchases</p>
       </div>
     </div>
   );

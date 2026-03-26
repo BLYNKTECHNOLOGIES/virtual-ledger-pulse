@@ -609,22 +609,35 @@ export function ExpenseTrendsWidget() {
   );
 }
 
-// ── Pending Settlements Widget (from sales settlement queue) ──
+// ── Pending Settlements Widget (grouped by payment gateway) ──
 export function PendingSettlementsWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_pending_settlements'],
     queryFn: async () => {
       const { data: orders, count, error } = await supabase
         .from('sales_orders')
-        .select('id, order_number, client_name, total_amount, order_date, settlement_status, payment_status', { count: 'exact' })
-        .eq('settlement_status', 'PENDING')
-        .order('order_date', { ascending: false })
-        .limit(6);
+        .select('id, total_amount, sales_payment_method_id, sales_payment_methods!sales_orders_sales_payment_method_id_fkey(type, nickname, payment_gateway)', { count: 'exact' })
+        .eq('settlement_status', 'PENDING');
 
       if (error) throw error;
 
       const totalAmount = (orders || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-      return { orders: orders || [], total: count || 0, totalAmount };
+
+      // Group by payment method
+      const groupMap: Record<string, { name: string; count: number; amount: number; isGateway: boolean }> = {};
+      (orders || []).forEach((o: any) => {
+        const pm = o.sales_payment_methods;
+        const key = o.sales_payment_method_id || '_unassigned';
+        const label = pm?.nickname || pm?.type || 'Unassigned';
+        if (!groupMap[key]) {
+          groupMap[key] = { name: label, count: 0, amount: 0, isGateway: !!pm?.payment_gateway };
+        }
+        groupMap[key].count += 1;
+        groupMap[key].amount += Number(o.total_amount || 0);
+      });
+
+      const groups = Object.values(groupMap).sort((a, b) => b.amount - a.amount);
+      return { groups, total: count || 0, totalAmount };
     },
     refetchInterval: 30000,
     staleTime: 30000,
@@ -643,20 +656,20 @@ export function PendingSettlementsWidget() {
       </div>
 
       <div className="space-y-2 max-h-40 overflow-y-auto">
-        {(data?.orders || []).length === 0 && (
+        {(data?.groups || []).length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-3">No pending settlements</p>
         )}
 
-        {(data?.orders || []).map((o: any) => (
-          <div key={o.id} className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-foreground truncate">{o.order_number}</p>
-              <p className="text-[10px] text-muted-foreground truncate">{o.client_name} • {o.order_date}</p>
+        {(data?.groups || []).map((g, i) => (
+          <div key={i} className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
+            <div className="min-w-0 flex items-center gap-2">
+              <div className={`h-2 w-2 rounded-full ${g.isGateway ? 'bg-primary' : 'bg-muted-foreground/50'}`} />
+              <div>
+                <p className="text-xs font-semibold text-foreground truncate">{g.name}</p>
+                <p className="text-[10px] text-muted-foreground">{g.count} order{g.count !== 1 ? 's' : ''}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs font-semibold text-foreground">₹{Number(o.total_amount || 0).toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground">{o.payment_status || 'N/A'}</p>
-            </div>
+            <p className="text-xs font-semibold text-foreground">₹{g.amount.toLocaleString()}</p>
           </div>
         ))}
       </div>

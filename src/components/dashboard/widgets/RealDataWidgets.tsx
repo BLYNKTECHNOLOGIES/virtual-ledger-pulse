@@ -1007,3 +1007,119 @@ function WidgetLoader() {
     </div>
   );
 }
+
+// ── Terminal Sales Approval Widget ──
+export function TerminalSalesApprovalWidget() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_terminal_sales_approval'],
+    queryFn: async () => {
+      const { data: records } = await supabase
+        .from('terminal_sales_sync' as any)
+        .select('sync_status, id, counterparty_name, order_data, synced_at')
+        .order('synced_at', { ascending: false });
+      const all = (records || []) as any[];
+      const pending = all.filter(r => r.sync_status === 'synced_pending_approval');
+      const clientMapping = all.filter(r => r.sync_status === 'client_mapping_pending');
+      const approved = all.filter(r => r.sync_status === 'approved');
+      const rejected = all.filter(r => r.sync_status === 'rejected');
+      return { pending, clientMapping, approved, rejected, recentPending: pending.slice(0, 5) };
+    },
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+
+  if (isLoading) return <WidgetLoader />;
+
+  const statuses = [
+    { label: 'Pending Approval', count: data?.pending.length || 0, color: 'bg-amber-100 text-amber-800' },
+    { label: 'Client Mapping', count: data?.clientMapping.length || 0, color: 'bg-blue-100 text-blue-800' },
+    { label: 'Approved', count: data?.approved.length || 0, color: 'bg-green-100 text-green-800' },
+    { label: 'Rejected', count: data?.rejected.length || 0, color: 'bg-red-100 text-red-800' },
+  ];
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        {statuses.map(s => (
+          <div key={s.label} className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+            <span className="text-xs text-muted-foreground">{s.label}</span>
+            <Badge variant="secondary" className={`${s.color} text-xs font-bold`}>{s.count}</Badge>
+          </div>
+        ))}
+      </div>
+      {(data?.recentPending?.length || 0) > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
+          {data?.recentPending.map((r: any) => {
+            const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+            const amount = orderData?.totalPrice || orderData?.amount || '—';
+            return (
+              <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
+                <span className="font-medium truncate max-w-[120px]">{r.counterparty_name || 'Unknown'}</span>
+                <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Terminal Purchase Approval Widget ──
+export function TerminalPurchaseApprovalWidget() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['widget_terminal_purchase_approval'],
+    queryFn: async () => {
+      const { data: records } = await supabase
+        .from('terminal_purchase_sync' as any)
+        .select('sync_status, id, counterparty_name, order_data, synced_at')
+        .order('synced_at', { ascending: false });
+      const all = (records || []) as any[];
+      const pending = all.filter(r => r.sync_status === 'synced_pending_approval');
+      const clientMapping = all.filter(r => r.sync_status === 'client_mapping_pending');
+      const approved = all.filter(r => r.sync_status === 'approved');
+      const rejected = all.filter(r => r.sync_status === 'rejected');
+      return { pending, clientMapping, approved, rejected, recentPending: pending.slice(0, 5) };
+    },
+    staleTime: 30000,
+    refetchInterval: 30000,
+  });
+
+  if (isLoading) return <WidgetLoader />;
+
+  const statuses = [
+    { label: 'Pending Approval', count: data?.pending.length || 0, color: 'bg-amber-100 text-amber-800' },
+    { label: 'Client Mapping', count: data?.clientMapping.length || 0, color: 'bg-blue-100 text-blue-800' },
+    { label: 'Approved', count: data?.approved.length || 0, color: 'bg-green-100 text-green-800' },
+    { label: 'Rejected', count: data?.rejected.length || 0, color: 'bg-red-100 text-red-800' },
+  ];
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        {statuses.map(s => (
+          <div key={s.label} className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+            <span className="text-xs text-muted-foreground">{s.label}</span>
+            <Badge variant="secondary" className={`${s.color} text-xs font-bold`}>{s.count}</Badge>
+          </div>
+        ))}
+      </div>
+      {(data?.recentPending?.length || 0) > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
+          {data?.recentPending.map((r: any) => {
+            const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+            const amount = orderData?.totalPrice || orderData?.amount || '—';
+            return (
+              <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
+                <span className="font-medium truncate max-w-[120px]">{r.counterparty_name || 'Unknown'}</span>
+                <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

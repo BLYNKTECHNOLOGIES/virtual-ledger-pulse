@@ -174,6 +174,9 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'team-status', name: 'Team Status', description: "Today's employee attendance summary", icon: UserCheck, category: 'HRMS', size: 'medium', requiredPermissions: ['hrms_view'] },
   // Payroll
   { id: 'payroll-summary', name: 'Payroll Summary', description: 'Current month payroll overview', icon: Calculator, category: 'Payroll', size: 'medium', requiredPermissions: ['payroll_view'] },
+  // Terminal
+  { id: 'terminal-sales-approval', name: 'Terminal Sales Approval', description: 'Pending terminal sell order approvals with status counts', icon: ShoppingCart, category: 'Activity', size: 'medium', requiredPermissions: ['terminal_view'] },
+  { id: 'terminal-purchase-approval', name: 'Terminal Purchase Approval', description: 'Pending terminal buy order approvals with status counts', icon: Package, category: 'Activity', size: 'medium', requiredPermissions: ['terminal_view'] },
 ];
 
 // Combined list for the dialog

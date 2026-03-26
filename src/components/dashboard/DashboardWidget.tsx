@@ -49,7 +49,7 @@ import {
   ExpenseBreakdownWidget, EarningsRateWidget, ProfitMarginWidget, PerformanceOverviewWidget,
   ConversionRateWidget, GrowthRateWidget, CashFlowWidget, ExpenseTrendsWidget,
   PendingSettlementsWidget, TeamStatusWidget, InventoryStatusWidget, UpcomingTasksWidget,
-  RevenueChartWidget
+  RevenueChartWidget, TerminalSalesApprovalWidget, TerminalPurchaseApprovalWidget
 } from "./widgets/RealDataWidgets";
 import type { WidgetType } from "./AddWidgetDialog";
 

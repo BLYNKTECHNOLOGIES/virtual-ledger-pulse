@@ -607,34 +607,54 @@ export function ExpenseTrendsWidget() {
   );
 }
 
-// ── Pending Settlements Widget (real data) ──
+// ── Pending Settlements Widget (from sales settlement queue) ──
 export function PendingSettlementsWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_pending_settlements'],
     queryFn: async () => {
-      const { data, count } = await supabase.from('purchase_orders').select('id, order_number, supplier_name, total_amount, status', { count: 'exact' }).in('status', ['PENDING', 'APPROVED']).order('created_at', { ascending: false }).limit(5);
-      return { orders: data || [], total: count || 0 };
+      const { data: orders, count, error } = await supabase
+        .from('sales_orders')
+        .select('id, order_number, client_name, total_amount, order_date, settlement_status, payment_status', { count: 'exact' })
+        .eq('settlement_status', 'PENDING')
+        .order('order_date', { ascending: false })
+        .limit(6);
+
+      if (error) throw error;
+
+      const totalAmount = (orders || []).reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
+      return { orders: orders || [], total: count || 0, totalAmount };
     },
     refetchInterval: 30000,
+    staleTime: 30000,
   });
 
   if (isLoading) return <WidgetLoader />;
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-medium text-gray-600">Pending</span>
-        <Badge className="bg-amber-100 text-amber-800">{data?.total || 0} orders</Badge>
+    <div className="p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs text-muted-foreground">Pending settlements</p>
+          <p className="text-lg font-bold text-foreground">{data?.total || 0}</p>
+        </div>
+        <Badge className="bg-muted text-foreground border-border">₹{(data?.totalAmount || 0).toLocaleString()}</Badge>
       </div>
-      <div className="space-y-2">
-        {(data?.orders || []).length === 0 && <p className="text-xs text-gray-400 text-center py-2">No pending settlements</p>}
+
+      <div className="space-y-2 max-h-40 overflow-y-auto">
+        {(data?.orders || []).length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-3">No pending settlements</p>
+        )}
+
         {(data?.orders || []).map((o: any) => (
-          <div key={o.id} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+          <div key={o.id} className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
             <div className="min-w-0">
-              <p className="text-xs font-medium text-gray-900 truncate">{o.order_number}</p>
-              <p className="text-[10px] text-gray-500 truncate">{o.supplier_name}</p>
+              <p className="text-xs font-semibold text-foreground truncate">{o.order_number}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{o.client_name} • {o.order_date}</p>
             </div>
-            <span className="text-xs font-semibold text-gray-900">₹{Number(o.total_amount).toLocaleString()}</span>
+            <div className="text-right">
+              <p className="text-xs font-semibold text-foreground">₹{Number(o.total_amount || 0).toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground">{o.payment_status || 'N/A'}</p>
+            </div>
           </div>
         ))}
       </div>

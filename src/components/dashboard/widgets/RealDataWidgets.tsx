@@ -710,19 +710,47 @@ export function TeamStatusWidget() {
       const [{ count: totalEmp }, { data: attendance }] = await Promise.all([
         supabase.from('hr_employees').select('id', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('hr_attendance')
-          .select('check_in, check_out, attendance_status, hr_employees!hr_attendance_employee_id_fkey(first_name, last_name)')
+          .select('employee_id, check_in, check_out, attendance_status, hr_employees!hr_attendance_employee_id_fkey(first_name, last_name)')
           .eq('attendance_date', today),
       ]);
       const all = attendance || [];
-      const present = all.filter((a: any) => a.attendance_status === 'present' || a.attendance_status === 'late').length;
-      const absent = all.filter((a: any) => a.attendance_status === 'absent').length;
-      const late = all.filter((a: any) => a.attendance_status === 'late').length;
-      const activeNow = all
-        .filter((a: any) => a.check_in && !a.check_out)
-        .map((a: any) => ({
-          name: `${a.hr_employees?.first_name || ''} ${a.hr_employees?.last_name || ''}`.trim(),
-          checkIn: a.check_in,
-        }));
+
+      // Consolidate multiple punches per employee: first check-in, last check-out
+      const byEmployee = new Map<string, { name: string; firstCheckIn: string | null; lastCheckOut: string | null; statuses: string[] }>();
+      for (const a of all as any[]) {
+        const empId = a.employee_id;
+        if (!empId) continue;
+        const existing = byEmployee.get(empId);
+        const name = `${a.hr_employees?.first_name || ''} ${a.hr_employees?.last_name || ''}`.trim();
+        if (!existing) {
+          byEmployee.set(empId, {
+            name,
+            firstCheckIn: a.check_in || null,
+            lastCheckOut: a.check_out || null,
+            statuses: a.attendance_status ? [a.attendance_status] : [],
+          });
+        } else {
+          // Keep earliest check-in
+          if (a.check_in && (!existing.firstCheckIn || a.check_in < existing.firstCheckIn)) {
+            existing.firstCheckIn = a.check_in;
+          }
+          // Keep latest check-out
+          if (a.check_out && (!existing.lastCheckOut || a.check_out > existing.lastCheckOut)) {
+            existing.lastCheckOut = a.check_out;
+          }
+          if (a.attendance_status) existing.statuses.push(a.attendance_status);
+        }
+      }
+
+      const consolidated = Array.from(byEmployee.values());
+      const present = consolidated.filter(e => e.statuses.includes('present') || e.statuses.includes('late')).length;
+      const absent = consolidated.filter(e => e.statuses.includes('absent') && !e.statuses.includes('present') && !e.statuses.includes('late')).length;
+      const late = consolidated.filter(e => e.statuses.includes('late')).length;
+      // Currently in office: has checked in but last check-out is null (still inside)
+      const activeNow = consolidated
+        .filter(e => e.firstCheckIn && !e.lastCheckOut)
+        .map(e => ({ name: e.name, checkIn: e.firstCheckIn }));
+
       return { total: totalEmp || 0, present, absent, late, activeNow };
     },
     staleTime: 30000,

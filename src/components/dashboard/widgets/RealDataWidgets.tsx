@@ -391,17 +391,17 @@ export function ProfitMarginWidget() {
     queryFn: async () => {
       const start = startOfDay(subDays(new Date(), 30)).toISOString();
 
-      // Use pagination to get ALL rows beyond the 1000-row default limit
-      const fetchAll = async (table: string, column: string, filters: Record<string, any> = {}) => {
+      const fetchAllAmounts = async (table: 'sales_orders' | 'purchase_orders') => {
         let allData: any[] = [];
         let from = 0;
         const batchSize = 1000;
         while (true) {
-          let query = supabase.from(table).select(column).gte('created_at', start).eq('status', 'COMPLETED').range(from, from + batchSize - 1);
-          for (const [key, val] of Object.entries(filters)) {
-            query = query.eq(key, val);
-          }
-          const { data: batch } = await query;
+          const { data: batch } = await supabase
+            .from(table)
+            .select('total_amount')
+            .gte('created_at', start)
+            .eq('status', 'COMPLETED')
+            .range(from, from + batchSize - 1);
           if (!batch || batch.length === 0) break;
           allData = allData.concat(batch);
           if (batch.length < batchSize) break;
@@ -411,8 +411,8 @@ export function ProfitMarginWidget() {
       };
 
       const [sales, purchases] = await Promise.all([
-        fetchAll('sales_orders', 'total_amount'),
-        fetchAll('purchase_orders', 'total_amount'),
+        fetchAllAmounts('sales_orders'),
+        fetchAllAmounts('purchase_orders'),
       ]);
 
       const totalSales = sales.reduce((s, o: any) => s + Number(o.total_amount || 0), 0);

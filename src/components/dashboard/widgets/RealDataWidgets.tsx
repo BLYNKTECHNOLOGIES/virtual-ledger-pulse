@@ -165,8 +165,7 @@ export function ExpenseBreakdownWidget() {
         .eq('transaction_type', 'EXPENSE')
         .gte('transaction_date', monthStart)
         .lte('transaction_date', monthEnd)
-        .order('transaction_date', { ascending: false })
-        .limit(500);
+        .order('transaction_date', { ascending: false });
       const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const catMap: Record<string, number> = {};
       (data || []).forEach((t: any) => {
@@ -175,7 +174,7 @@ export function ExpenseBreakdownWidget() {
         catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount));
       });
       const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);
-      const totalExpense = categories.reduce((s, c) => s + c.amount, 0);
+      const totalExpense = Object.values(catMap).reduce((s, v) => s + v, 0);
       const recentItems = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).slice(0, 5).map((t: any) => ({
         desc: t.description || t.category || 'Expense',
         amount: Math.abs(Number(t.amount)),

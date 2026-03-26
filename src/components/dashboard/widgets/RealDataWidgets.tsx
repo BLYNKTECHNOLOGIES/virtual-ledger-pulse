@@ -665,7 +665,7 @@ export function PendingSettlementsWidget() {
         {(data?.groups || []).map((g, i) => (
           <div key={i} className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
             <div className="min-w-0 flex items-center gap-2">
-              <div className={`h-2 w-2 rounded-full ${g.isGateway ? 'bg-primary' : 'bg-muted-foreground/50'}`} />
+              <div className="h-2 w-2 rounded-full bg-primary" />
               <div>
                 <p className="text-xs font-semibold text-foreground truncate">{g.name}</p>
                 <p className="text-[10px] text-muted-foreground">{g.count} order{g.count !== 1 ? 's' : ''}</p>

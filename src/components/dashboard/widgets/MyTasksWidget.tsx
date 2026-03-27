@@ -95,83 +95,63 @@ export function MyTasksWidget() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            {urgentTasks.map(task => {
-              const isExpanded = expandedTaskId === task.id;
-              return (
-                <div key={task.id} className="rounded border border-border overflow-hidden">
-                  {/* Task row */}
-                  <div className="flex items-center gap-2 p-2 hover:bg-muted/50 transition-colors text-sm">
-                    <TaskPriorityBadge priority={task.priority} />
-                    <button
-                      className="flex-1 text-left truncate"
-                      onClick={() => { setSelectedTaskId(task.id); setDetailOpen(true); }}
-                    >
-                      {task.title}
-                    </button>
-                    {task.due_date && isPast(new Date(task.due_date)) && (
-                      <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
-                    )}
-                    {task.due_date && (
-                      <span className="text-[10px] text-muted-foreground shrink-0">
-                        {format(new Date(task.due_date), 'MMM d')}
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => toggleExpand(task.id, e)}
-                      className="p-1 rounded hover:bg-muted shrink-0"
-                    >
-                      {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                    </button>
-                  </div>
-
-                  {/* Expanded actions */}
-                  {isExpanded && (
-                    <div className="px-3 pb-3 pt-1 bg-muted/30 space-y-2 border-t border-border">
-                      {/* Status change */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground font-medium w-12">Status</span>
-                        <Select
-                          value={task.status}
-                          onValueChange={(val) => handleStatusChange(task, val)}
-                        >
-                          <SelectTrigger className="h-7 text-xs flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {STATUS_OPTIONS.map(opt => (
-                              <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      {/* Quick comment */}
-                      <div className="flex items-center gap-1.5">
-                        <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <Input
-                          value={commentText[task.id] || ''}
-                          onChange={(e) => setCommentText(prev => ({ ...prev, [task.id]: e.target.value }))}
-                          placeholder="Add a comment..."
-                          className="h-7 text-xs flex-1"
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment(task.id); }}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => handleAddComment(task.id)}
-                          disabled={!commentText[task.id]?.trim() || addComment.isPending}
-                        >
-                          <Send className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
+          <div className="space-y-1.5">
+            {urgentTasks.map(task => (
+              <div key={task.id} className="rounded border border-border p-2 space-y-1.5">
+                {/* Task title row */}
+                <div className="flex items-center gap-2 text-sm">
+                  <TaskPriorityBadge priority={task.priority} />
+                  <button
+                    className="flex-1 text-left truncate"
+                    onClick={() => { setSelectedTaskId(task.id); setDetailOpen(true); }}
+                  >
+                    {task.title}
+                  </button>
+                  {task.due_date && isPast(new Date(task.due_date)) && (
+                    <AlertTriangle className="h-3 w-3 text-destructive shrink-0" />
+                  )}
+                  {task.due_date && (
+                    <span className="text-[10px] text-muted-foreground shrink-0">
+                      {format(new Date(task.due_date), 'MMM d')}
+                    </span>
                   )}
                 </div>
-              );
-            })}
+                {/* Inline status + comment */}
+                <div className="flex items-center gap-1.5">
+                  <Select
+                    value={task.status}
+                    onValueChange={(val) => handleStatusChange(task, val)}
+                  >
+                    <SelectTrigger className="h-6 text-[10px] w-[90px] shrink-0">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map(opt => (
+                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={commentText[task.id] || ''}
+                    onChange={(e) => setCommentText(prev => ({ ...prev, [task.id]: e.target.value }))}
+                    placeholder="Add a comment..."
+                    className="h-6 text-[10px] flex-1"
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment(task.id); }}
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 shrink-0"
+                    onClick={() => handleAddComment(task.id)}
+                    disabled={!commentText[task.id]?.trim() || addComment.isPending}
+                  >
+                    <Send className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
 
           <button

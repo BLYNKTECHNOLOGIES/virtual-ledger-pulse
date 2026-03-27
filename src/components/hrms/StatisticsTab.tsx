@@ -121,10 +121,22 @@ export function StatisticsTab() {
         return createdDate >= prevPeriodStart && createdDate <= prevPeriodEnd;
       }) || [];
 
-      // Fetch employees
-      const { data: employees } = await supabase
-        .from('employees')
-        .select('id, name, department, status, salary, created_at, designation, email');
+      // Fetch employees from hr_employees (source of truth)
+      const { data: hrEmployees } = await supabase
+        .from('hr_employees')
+        .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info(department_id, job_role, departments(name))');
+      
+      // Map to compatible format
+      const employees = hrEmployees?.map(e => ({
+        id: e.id,
+        name: `${e.first_name} ${e.last_name || ''}`.trim(),
+        department: (e.hr_employee_work_info as any)?.[0]?.departments?.name || 'N/A',
+        status: e.is_active ? 'ACTIVE' : 'INACTIVE',
+        salary: Number(e.total_salary || 0),
+        created_at: e.created_at,
+        designation: (e.hr_employee_work_info as any)?.[0]?.job_role || 'N/A',
+        email: e.email
+      })) || [];
 
       // Fetch client onboarding approvals
       const { data: onboardingApprovals } = await supabase

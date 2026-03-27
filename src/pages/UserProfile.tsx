@@ -387,9 +387,10 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
   );
 }
 export default function UserProfile() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('profile');
 

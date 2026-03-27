@@ -22,6 +22,27 @@ const emptyCompany: CompanyInfo = {
   accountNumber: "",
 };
 
+const COMPANY_STORAGE_KEY = "invoice_active_company";
+const SIGNATORY_STORAGE_KEY = "invoice_active_signatory";
+
+function loadPersistedCompany(): CompanyInfo {
+  try {
+    const raw = localStorage.getItem(COMPANY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : emptyCompany;
+  } catch {
+    return emptyCompany;
+  }
+}
+
+function loadPersistedSignatory(): SignatoryConfig {
+  try {
+    const raw = localStorage.getItem(SIGNATORY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : { enabled: false, name: "", signatureDataUrl: null };
+  } catch {
+    return { enabled: false, name: "", signatureDataUrl: null };
+  }
+}
+
 const defaultGST: GSTConfig = {
   enabled: false,
   rate: 18,

@@ -34,20 +34,31 @@ export function EmployeeInformationTab() {
     queryKey: ['employees_info'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('employees')
-        .select('*')
+        .from('hr_employees')
+        .select('id, first_name, last_name, badge_id, email, phone, is_active, total_salary, created_at, hr_employee_work_info(department_id, job_role, joining_date, departments(name))')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Employee[];
+      return data?.map(e => ({
+        id: e.id,
+        name: `${e.first_name} ${e.last_name || ''}`.trim(),
+        employee_id: e.badge_id || '',
+        email: e.email || '',
+        phone: e.phone || undefined,
+        department: (e.hr_employee_work_info as any)?.[0]?.departments?.name || 'N/A',
+        designation: (e.hr_employee_work_info as any)?.[0]?.job_role || 'N/A',
+        date_of_joining: (e.hr_employee_work_info as any)?.[0]?.joining_date || e.created_at,
+        salary: Number(e.total_salary || 0),
+        status: e.is_active ? 'ACTIVE' : 'INACTIVE'
+      })) as Employee[];
     },
   });
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (employeeId: string) => {
       const { error } = await supabase
-        .from('employees')
-        .delete()
+        .from('hr_employees')
+        .update({ is_active: false })
         .eq('id', employeeId);
       
       if (error) throw error;

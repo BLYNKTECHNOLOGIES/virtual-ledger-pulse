@@ -8,7 +8,7 @@ import { useMyTaskCounts, useTasks, useUpdateTask, type Task } from '@/hooks/use
 import { useAddTaskComment } from '@/hooks/useTaskComments';
 import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 import { TaskPriorityBadge } from '@/components/tasks/TaskPriorityBadge';
-import { CheckSquare, AlertTriangle, ArrowRight, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckSquare, AlertTriangle, ArrowRight, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format, isPast } from 'date-fns';
 import { toast } from 'sonner';

@@ -65,8 +65,8 @@ export function EmployeeInformationTab() {
     },
     onSuccess: () => {
       toast({
-        title: "Employee Deleted",
-        description: "Employee has been deleted successfully.",
+        title: "Employee Deactivated",
+        description: "Employee has been deactivated successfully.",
       });
       queryClient.invalidateQueries({ queryKey: ['employees_info'] });
     },

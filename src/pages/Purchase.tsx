@@ -31,7 +31,10 @@ export default function Purchase() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
-  const [activeTab, setActiveTab] = useState("buy_orders");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'buy_orders';
+  });
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();

@@ -97,7 +97,33 @@ export const createSellerClient = async (
   contactNumber?: string
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
+    // Check by name first
     const existingClient = await findClientByName(supplierName);
+    
+    // If no name match, also check by phone number
+    if (!existingClient && contactNumber?.trim() && contactNumber.trim().length >= 10) {
+      const { data: phoneMatch } = await supabase
+        .from('clients')
+        .select('id, client_id, name, phone, is_seller, seller_approval_status')
+        .eq('is_deleted', false)
+        .eq('phone', contactNumber.trim())
+        .limit(1)
+        .single();
+      if (phoneMatch) {
+        console.log(`[createSellerClient] Found existing client by phone ${contactNumber}: ${phoneMatch.name} (${phoneMatch.client_id})`);
+        const updates: Record<string, any> = {};
+        if (!phoneMatch.is_seller) {
+          updates.is_seller = true;
+          if (!phoneMatch.seller_approval_status || phoneMatch.seller_approval_status === 'NOT_APPLICABLE') {
+            updates.seller_approval_status = 'PENDING';
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('clients').update(updates).eq('id', phoneMatch.id);
+        }
+        return { id: phoneMatch.id, client_id: phoneMatch.client_id };
+      }
+    }
     if (existingClient) {
       const updates: Record<string, string> = {};
       if (contactNumber && !existingClient.phone) updates.phone = contactNumber;

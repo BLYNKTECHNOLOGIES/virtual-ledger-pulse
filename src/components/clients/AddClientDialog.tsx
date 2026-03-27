@@ -178,6 +178,42 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {duplicateWarning && !duplicateAcknowledged && (
+            <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="space-y-2">
+                <p className="font-semibold text-amber-800 dark:text-amber-300">Possible duplicate client detected!</p>
+                {duplicateWarning.phoneMatches.length > 0 && (
+                  <div>
+                    <span className="text-xs font-medium">Same phone number:</span>
+                    <ul className="text-xs mt-1 space-y-0.5">
+                      {duplicateWarning.phoneMatches.map(m => (
+                        <li key={m.id}>• {m.name} ({m.client_id}) — {m.client_type}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {duplicateWarning.nameMatches.length > 0 && (
+                  <div>
+                    <span className="text-xs font-medium">Same name:</span>
+                    <ul className="text-xs mt-1 space-y-0.5">
+                      {duplicateWarning.nameMatches.map(m => (
+                        <li key={m.id}>• {m.name} ({m.client_id}) — {m.phone || 'No phone'}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => { setDuplicateWarning(null); }}>
+                    Go Back & Edit
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => { setDuplicateAcknowledged(true); setDuplicateWarning(null); }}>
+                    Create Anyway
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Client Name */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

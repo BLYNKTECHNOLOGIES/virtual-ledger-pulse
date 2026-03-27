@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, LineChart, Line, AreaChart, Area, Legend } from "recharts";
 import { 
   TrendingUp, Users, DollarSign, ShoppingCart, Building, 
   FileBarChart, UserCheck, Download, BarChart3, ArrowUp, ArrowDown, Briefcase,
@@ -820,7 +820,7 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
+                  <RechartsPieChart>
                     <Pie
                       data={[
                         { name: "Verified", value: kycStats.verified },
@@ -838,7 +838,7 @@ export function StatisticsTab() {
                       <Cell fill="hsl(0, 84%, 60%)" />
                     </Pie>
                     <Tooltip />
-                  </PieChart>
+                  </RechartsPieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -1209,28 +1209,38 @@ export function StatisticsTab() {
               </CardContent>
             </Card>
 
-            {/* Department Distribution */}
+            {/* Expense Breakdown Pie Chart */}
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Building className="h-5 w-5 text-orange-600" />
-                  Department Distribution
+                  <BarChart3 className="h-5 w-5 text-orange-600" />
+                  Expense Distribution
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {departmentData.length > 0 ? (
+                {expenseBreakdown.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={departmentData} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-                      <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" width={100} />
-                      <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px" }} />
-                      <Bar dataKey="count" fill="hsl(var(--primary))" name="Employees" />
-                    </BarChart>
+                    <RechartsPieChart>
+                      <Pie
+                        data={expenseBreakdown.slice(0, 8).map((e, i) => ({ name: e.category, value: e.amount, fill: CHART_COLORS[i % CHART_COLORS.length] }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={100}
+                        dataKey="value"
+                        label={({ name, percent }) => `${(name as string).split('>').pop()?.trim().slice(0, 15)} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={false}
+                      >
+                        {expenseBreakdown.slice(0, 8).map((_, i) => (
+                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => formatCurrency(Number(v))} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} />
+                    </RechartsPieChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="py-8 text-center text-muted-foreground">
-                    No employee data available
+                    No expenses in selected period
                   </div>
                 )}
               </CardContent>

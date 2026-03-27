@@ -22,6 +22,27 @@ const emptyCompany: CompanyInfo = {
   accountNumber: "",
 };
 
+const COMPANY_STORAGE_KEY = "invoice_active_company";
+const SIGNATORY_STORAGE_KEY = "invoice_active_signatory";
+
+function loadPersistedCompany(): CompanyInfo {
+  try {
+    const raw = localStorage.getItem(COMPANY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : emptyCompany;
+  } catch {
+    return emptyCompany;
+  }
+}
+
+function loadPersistedSignatory(): SignatoryConfig {
+  try {
+    const raw = localStorage.getItem(SIGNATORY_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : { enabled: false, name: "", signatureDataUrl: null };
+  } catch {
+    return { enabled: false, name: "", signatureDataUrl: null };
+  }
+}
+
 const defaultGST: GSTConfig = {
   enabled: false,
   rate: 18,
@@ -37,9 +58,20 @@ const defaultSignatory: SignatoryConfig = {
 
 const InvoiceCreatorPage = () => {
   const [records, setRecords] = useState<OrderRecord[]>([]);
-  const [company, setCompany] = useState<CompanyInfo>(emptyCompany);
+  const [company, setCompany] = useState<CompanyInfo>(loadPersistedCompany);
   const [gst, setGst] = useState<GSTConfig>(defaultGST);
-  const [signatory, setSignatory] = useState<SignatoryConfig>(defaultSignatory);
+  const [signatory, setSignatory] = useState<SignatoryConfig>(loadPersistedSignatory);
+
+  // Persist company & signatory to localStorage on change
+  const handleCompanyChange = useCallback((c: CompanyInfo) => {
+    setCompany(c);
+    localStorage.setItem(COMPANY_STORAGE_KEY, JSON.stringify(c));
+  }, []);
+
+  const handleSignatoryChange = useCallback((s: SignatoryConfig) => {
+    setSignatory(s);
+    localStorage.setItem(SIGNATORY_STORAGE_KEY, JSON.stringify(s));
+  }, []);
   const [generating, setGenerating] = useState(false);
   const [category, setCategory] = useState<InvoiceCategory>("it_services");
   const [fiNote, setFiNote] = useState(DEFAULT_FI_NOTE);
@@ -189,10 +221,10 @@ const InvoiceCreatorPage = () => {
       )}
 
       {/* Company & Payment Details */}
-      <CompanyForm company={company} onChange={setCompany} />
+      <CompanyForm company={company} onChange={handleCompanyChange} />
 
       {/* Signatory */}
-      <SignatorySettings signatory={signatory} onChange={setSignatory} />
+      <SignatorySettings signatory={signatory} onChange={handleSignatoryChange} />
 
       {/* FI Note */}
       {isFinancial && (

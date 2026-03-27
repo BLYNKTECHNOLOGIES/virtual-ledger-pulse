@@ -31,6 +31,7 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
   const [recurrenceTime, setRecurrenceTime] = useState('09:00');
   const [tags, setTags] = useState('');
   const [spectatorIds, setSpectatorIds] = useState<string[]>([]);
+  const [reminderHours, setReminderHours] = useState('');
 
   const { data: users } = useUsers();
   const createTask = useCreateTask();
@@ -40,6 +41,7 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
     setTitle(''); setDescription(''); setPriority('medium'); setAssigneeId('');
     setDueDate(''); setDueTime(''); setIsRecurring(false); setRecurrenceType('daily');
     setRecurrenceDays([]); setRecurrenceTime('09:00'); setTags(''); setSpectatorIds([]);
+    setReminderHours('');
   };
 
   const handleSubmit = async () => {
@@ -63,6 +65,7 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
         recurrence_days: isRecurring && recurrenceType === 'weekly' ? recurrenceDays : undefined,
         recurrence_time: isRecurring ? recurrenceTime : undefined,
         spectator_ids: spectatorIds.length ? spectatorIds : undefined,
+        reminder_hours_before: reminderHours ? parseInt(reminderHours) : undefined,
       });
       toast({ title: 'Task created successfully' });
       resetForm();
@@ -145,6 +148,12 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
               <Label>Due Time</Label>
               <Input type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} />
             </div>
+          </div>
+
+          <div>
+            <Label>Reminder (hours before due)</Label>
+            <Input type="number" min="1" value={reminderHours} onChange={e => setReminderHours(e.target.value)} placeholder="e.g. 2, 6, 48" />
+            <p className="text-xs text-muted-foreground mt-1">Get notified X hours before due date</p>
           </div>
 
           <div>

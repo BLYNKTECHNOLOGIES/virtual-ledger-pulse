@@ -100,11 +100,14 @@ Deno.serve(async (req) => {
     // Fetch recipient emails from users table
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name')
+      .select('id, email, first_name, last_name, username')
       .in('id', recipientUserIds);
 
     if (usersError || !users?.length) {
-      return new Response(JSON.stringify({ error: 'No valid recipients found' }), { status: 400, headers: corsHeaders });
+      return new Response(
+        JSON.stringify({ error: usersError?.message || 'No valid recipients found' }),
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     const today = new Date().toISOString().split('T')[0];

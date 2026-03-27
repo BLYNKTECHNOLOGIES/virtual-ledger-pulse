@@ -82,7 +82,7 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Create New Task</DialogTitle>
             <TaskTemplateActions
@@ -95,6 +95,7 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
               }}
             />
           </div>
+        </DialogHeader>
 
         <div className="space-y-4">
           <div>

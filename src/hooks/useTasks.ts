@@ -55,11 +55,11 @@ const from = (table: string) => supabase.from(table as any);
 async function fetchUserMap(userIds: Set<string>): Promise<Record<string, string>> {
   if (userIds.size === 0) return {};
   const { data } = await from('users')
-    .select('id, full_name, username')
+    .select('id, first_name, last_name, username')
     .in('id', Array.from(userIds));
   const map: Record<string, string> = {};
   ((data as any[]) || []).forEach((u: any) => {
-    map[u.id] = u.full_name || u.username || 'Unknown';
+    map[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Unknown';
   });
   return map;
 }
@@ -481,11 +481,16 @@ export function useUsers() {
     queryKey: ['erp-all-users'],
     queryFn: async () => {
       const { data, error } = await from('users')
-        .select('id, full_name, username, email')
-        .eq('is_active', true)
-        .order('full_name');
+        .select('id, first_name, last_name, username, email')
+        .neq('status', 'inactive')
+        .order('first_name');
       if (error) throw error;
-      return ((data as any[]) || []) as unknown as { id: string; full_name: string; username: string; email: string }[];
+      return ((data as any[]) || []).map((u: any) => ({
+        id: u.id,
+        full_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username,
+        username: u.username,
+        email: u.email,
+      }));
     },
   });
 }

@@ -449,8 +449,14 @@ export default function Dashboard() {
                     <p className="text-slate-600 text-sm font-medium">Total Sales</p>
                     <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                      {(metrics?.salesGrowth ?? 0) >= 0 ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
+                      )}
+                      <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}% vs prev period
+                      </span>
                     </div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
@@ -472,8 +478,14 @@ export default function Dashboard() {
                     <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
                     <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-purple-500" />
-                      <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                      {(metrics?.ordersGrowth ?? 0) >= 0 ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
+                      )}
+                      <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}% vs prev period
+                      </span>
                     </div>
                   </div>
                   <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">

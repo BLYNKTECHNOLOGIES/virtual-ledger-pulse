@@ -709,31 +709,51 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
 }
 
 // ── Cash Flow Widget ──
+// Income = Gross Profit from PNL (daily_gross_profit_history), Expense = operational bank expenses
 export function CashFlowWidget() {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_cash_flow'],
+    queryKey: ['widget_cash_flow_pnl'],
     queryFn: async () => {
       const days = [];
       for (let i = 6; i >= 0; i--) {
         const d = subDays(new Date(), i);
         days.push({ label: format(d, 'EEE'), date: format(d, 'yyyy-MM-dd') });
       }
+
+      // Fetch gross profit (income) from daily_gross_profit_history
+      const { data: gpData } = await supabase
+        .from('daily_gross_profit_history')
+        .select('snapshot_date, gross_profit')
+        .gte('snapshot_date', days[0].date)
+        .lte('snapshot_date', days[days.length - 1].date);
+
+      // Fetch expenses from bank_transactions
       const { data: txns } = await supabase
         .from('bank_transactions')
         .select('amount, transaction_type, transaction_date, category')
+        .eq('transaction_type', 'EXPENSE')
         .gte('transaction_date', days[0].date)
         .lte('transaction_date', days[days.length - 1].date);
-      
+
       const dayMap: Record<string, { income: number; expense: number }> = {};
       days.forEach(d => { dayMap[d.date] = { income: 0, expense: 0 }; });
+
+      // Map gross profit as income
+      (gpData || []).forEach((gp: any) => {
+        const entry = dayMap[gp.snapshot_date];
+        if (entry) entry.income += Math.max(0, Number(gp.gross_profit) || 0);
+      });
+
+      // Map operational expenses (excluding Purchase, OPENING_BALANCE, ADJUSTMENT)
       const excludeExpenseCats = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
-      const excludeIncomeCats = ['Purchase', 'Sales', 'Stock Purchase', 'Stock Sale', 'Trade', 'Trading', 'Payment Gateway Settlement', 'Settlement', 'OPENING_BALANCE', 'ADJUSTMENT'];
       (txns || []).forEach((t: any) => {
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
-        if (t.transaction_type === 'INCOME' && !excludeIncomeCats.includes(t.category || '')) entry.income += Math.abs(Number(t.amount));
-        else if (t.transaction_type === 'EXPENSE' && !excludeExpenseCats.includes(t.category || '')) entry.expense += Math.abs(Number(t.amount));
+        if (!excludeExpenseCats.includes(t.category || '')) {
+          entry.expense += Math.abs(Number(t.amount));
+        }
       });
+
       const chartData = days.map(d => ({ name: d.label, income: dayMap[d.date].income, expense: dayMap[d.date].expense }));
       const totalIncome = chartData.reduce((s, d) => s + d.income, 0);
       const totalExpense = chartData.reduce((s, d) => s + d.expense, 0);
@@ -750,7 +770,7 @@ export function CashFlowWidget() {
     <div className="p-4 space-y-3">
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="bg-green-50 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Income</p>
+          <p className="text-xs text-muted-foreground">Gross Profit</p>
           <p className="text-sm font-bold text-green-600">₹{((data?.totalIncome || 0) / 1000).toFixed(1)}k</p>
         </div>
         <div className="bg-red-50 rounded-lg p-2">
@@ -770,12 +790,12 @@ export function CashFlowWidget() {
             <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11 }} />
-            <Bar dataKey="income" fill="#10B981" radius={[3, 3, 0, 0]} name="Income" />
+            <Bar dataKey="income" fill="#10B981" radius={[3, 3, 0, 0]} name="Gross Profit" />
             <Bar dataKey="expense" fill="#EF4444" radius={[3, 3, 0, 0]} name="Expense" />
           </BarChart>
         </ResponsiveContainer>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-6">No transactions in last 7 days</p>
+        <p className="text-sm text-muted-foreground text-center py-6">No data in last 7 days</p>
       )}
     </div>
   );

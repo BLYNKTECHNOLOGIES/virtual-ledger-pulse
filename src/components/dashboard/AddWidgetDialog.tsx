@@ -150,7 +150,7 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'bank-balance-total', name: 'Total Bank Balance', description: 'Combined balance across all active bank accounts', icon: Landmark, category: 'Banking', size: 'small', requiredPermissions: ['bams_view'] },
   { id: 'bank-balance-filter', name: 'Bank Balance Filter', description: 'View combined balance of selected active bank accounts', icon: Building, category: 'Banking', size: 'medium', requiredPermissions: ['bams_view'] },
   { id: 'total-cash', name: 'Total Cash', description: 'Banks + Stock combined value', icon: Banknote, category: 'Banking', size: 'small', requiredPermissions: ['bams_view'] },
-  { id: 'cash-flow', name: 'Cash Flow', description: 'Daily income vs expenses from bank transactions', icon: ArrowUpRight, category: 'Banking', size: 'large', requiredPermissions: ['bams_view'] },
+  { id: 'cash-flow', name: 'Cash Flow', description: 'Gross profit (PNL) vs operational expenses', icon: ArrowUpRight, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
   // PNL
   { id: 'profit-margin', name: 'Profit Margin', description: 'Profit margin from sales vs purchase cost (30d)', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
   { id: 'gross-profit', name: 'Gross Profit', description: 'Gross profit from sales vs purchase cost', icon: Target, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },

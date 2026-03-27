@@ -1041,12 +1041,44 @@ export function TeamStatusWidget() {
 // ── Inventory Status Widget ──
 export function InventoryStatusWidget() {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_inventory_status'],
+    queryKey: ['widget_inventory_status_inr'],
     queryFn: async () => {
-      const { data: wallets } = await supabase.from('wallet_asset_balances').select('asset_code, balance');
+      const [{ data: wallets }, { data: positions }] = await Promise.all([
+        supabase.from('wallet_asset_balances').select('asset_code, balance'),
+        supabase.from('wallet_asset_positions' as any).select('asset_code, avg_cost_usdt'),
+      ]);
+
+      // Get USDT/INR rate
+      let usdtInrRate = 84.5;
+      try {
+        const { data: rateData } = await supabase.functions.invoke('fetch-usdt-rate');
+        if (rateData?.rate) usdtInrRate = rateData.rate;
+      } catch {}
+
+      // Aggregate balances
       const totals: Record<string, number> = {};
       (wallets || []).forEach((w: any) => { totals[w.asset_code] = (totals[w.asset_code] || 0) + Number(w.balance || 0); });
-      return Object.entries(totals).map(([code, balance]) => ({ code, balance })).sort((a, b) => b.balance - a.balance);
+
+      // Build WAC map (avg across wallets per asset)
+      const wacMap: Record<string, number> = {};
+      (positions || []).forEach((p: any) => {
+        if (!wacMap[p.asset_code] && Number(p.avg_cost_usdt) > 0) {
+          wacMap[p.asset_code] = Number(p.avg_cost_usdt);
+        }
+      });
+
+      return Object.entries(totals)
+        .map(([code, balance]) => {
+          let inrValue = 0;
+          if (code === 'USDT') {
+            inrValue = balance * usdtInrRate;
+          } else {
+            const avgCostUsdt = wacMap[code] || 0;
+            inrValue = balance * avgCostUsdt * usdtInrRate;
+          }
+          return { code, balance, inrValue };
+        })
+        .sort((a, b) => b.inrValue - a.inrValue);
     },
     staleTime: 30000,
   });
@@ -1055,11 +1087,21 @@ export function InventoryStatusWidget() {
 
   return (
     <div className="p-4 space-y-2.5">
-      {(data || []).length === 0 && <p className="text-sm text-gray-400 text-center py-4">No assets</p>}
-      {(data || []).slice(0, 5).map(a => (
+      {(data || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No assets</p>}
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wide pb-1 border-b border-border">
+        <span>Asset</span>
+        <div className="flex gap-6">
+          <span className="w-20 text-right">Qty</span>
+          <span className="w-24 text-right">Value (₹)</span>
+        </div>
+      </div>
+      {(data || []).slice(0, 6).map(a => (
         <div key={a.code} className="flex items-center justify-between">
-          <span className="text-sm text-gray-700 font-medium">{a.code}</span>
-          <span className="text-sm font-semibold text-gray-900">{a.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <span className="text-sm font-medium text-foreground">{a.code}</span>
+          <div className="flex gap-6">
+            <span className="text-sm font-semibold text-foreground w-20 text-right">{a.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            <span className="text-sm text-muted-foreground w-24 text-right">₹{Math.round(a.inrValue).toLocaleString('en-IN')}</span>
+          </div>
         </div>
       ))}
     </div>

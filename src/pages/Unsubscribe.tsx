@@ -75,7 +75,7 @@ export default function Unsubscribe() {
 
           {status === 'success' && (
             <>
-              <CheckCircle className="h-10 w-10 text-green-500 mx-auto" />
+              <CheckCircle className="h-10 w-10 text-primary mx-auto" />
               <h2 className="text-xl font-semibold">Unsubscribed</h2>
               <p className="text-sm text-muted-foreground">
                 You will no longer receive email notifications.

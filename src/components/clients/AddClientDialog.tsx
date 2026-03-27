@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { checkClientDuplicates, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -24,6 +26,8 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ phoneMatches: DuplicateMatch[]; nameMatches: DuplicateMatch[] } | null>(null);
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
 
   // Auto-generate client ID
   const generateClientId = () => {
@@ -90,6 +94,20 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+
+    // Check for duplicates before inserting
+    if (!duplicateAcknowledged) {
+      try {
+        const dupes = await checkClientDuplicates(formData.name, formData.phone);
+        if (dupes.phoneMatches.length > 0 || dupes.nameMatches.length > 0) {
+          setDuplicateWarning(dupes);
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Duplicate check failed, proceeding:', e);
+      }
+    }
 
     try {
       const { error } = await supabase

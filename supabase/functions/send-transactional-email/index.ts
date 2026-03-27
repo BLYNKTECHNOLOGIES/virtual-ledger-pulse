@@ -1,6 +1,7 @@
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
@@ -297,10 +298,13 @@ Deno.serve(async (req) => {
       ? template.subject(templateData)
       : template.subject
 
-  // 5. Send email via SMTP (Mailgun HTTP API)
+  // 5. Send email via SMTP
+  const smtpHost = Deno.env.get('SMTP_HOST')
+  const smtpUser = Deno.env.get('SMTP_USER')
   const smtpPass = Deno.env.get('SMTP_PASS')
-  if (!smtpPass) {
-    console.error('SMTP_PASS not configured')
+
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    console.error('SMTP credentials not configured')
     return new Response(JSON.stringify({ error: 'Email sending not configured' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -316,44 +320,24 @@ Deno.serve(async (req) => {
   })
 
   try {
-    const formData = new FormData()
-    formData.append('from', `${SITE_NAME} <noreply@${FROM_DOMAIN}>`)
-    formData.append('to', effectiveRecipient)
-    formData.append('subject', resolvedSubject)
-    formData.append('html', html)
-    formData.append('text', plainText)
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: 587,
+        tls: true,
+        auth: { username: smtpUser, password: smtpPass },
+      },
+    })
 
-    const mailgunResponse = await fetch(
-      `https://api.mailgun.net/v3/${SENDER_DOMAIN}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + btoa(`api:${smtpPass}`),
-        },
-        body: formData,
-      }
-    )
+    await client.send({
+      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      to: effectiveRecipient,
+      subject: resolvedSubject,
+      content: plainText,
+      html,
+    })
 
-    if (!mailgunResponse.ok) {
-      const errorBody = await mailgunResponse.text()
-      console.error('Mailgun API error', { status: mailgunResponse.status, body: errorBody })
-
-      await supabase.from('email_send_log').insert({
-        message_id: messageId,
-        template_name: templateName,
-        recipient_email: effectiveRecipient,
-        status: 'failed',
-        error_message: `Mailgun error: ${mailgunResponse.status} - ${errorBody}`,
-      })
-
-      return new Response(JSON.stringify({ error: 'Failed to send email', details: errorBody }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
-    const result = await mailgunResponse.json()
-    console.log('Email sent successfully', { templateName, effectiveRecipient, id: result.id })
+    await client.close()
 
     await supabase.from('email_send_log').insert({
       message_id: messageId,
@@ -362,13 +346,15 @@ Deno.serve(async (req) => {
       status: 'sent',
     })
 
+    console.log('Email sent successfully via SMTP', { templateName, effectiveRecipient })
+
     return new Response(
       JSON.stringify({ success: true, sent: true }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (sendError) {
     const errMsg = sendError instanceof Error ? sendError.message : 'Unknown error'
-    console.error('Email send failed', { error: errMsg })
+    console.error('SMTP send failed', { error: errMsg })
 
     await supabase.from('email_send_log').insert({
       message_id: messageId,

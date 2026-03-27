@@ -10,6 +10,7 @@ import { TerminalLayout } from './components/terminal/TerminalLayout';
 import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import UtilityHub from './pages/UtilityHub';
 import Tasks from './pages/Tasks';
+import Unsubscribe from './pages/Unsubscribe';
 import { LoginPage } from './components/website/pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
@@ -679,6 +680,11 @@ const router = createBrowserRouter([
       </QueryProvider>
     ),
   },
+   // Public unsubscribe route
+    {
+      path: "/unsubscribe",
+      element: <Unsubscribe />,
+    },
    // Catch-all route for 404 errors
     {
       path: "*",

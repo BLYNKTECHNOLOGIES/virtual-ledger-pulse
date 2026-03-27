@@ -181,8 +181,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'expense-details':
         return <ExpenseBreakdownWidget />;
 
-      case 'quick-stats':
-        return <QuickStatsWidget metrics={metrics} dateRange={dateRange} />;
 
       case 'recent-orders':
         return <RecentOrdersWidget />;

@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
     let sentCount = 0;
     const errors: string[] = [];
 
-    for (const recipient of users) {
+    for (const recipient of uniqueUsers) {
       if (!recipient.email) continue;
 
       const { data: existing } = await supabase

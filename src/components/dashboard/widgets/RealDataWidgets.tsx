@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -221,8 +222,10 @@ export function ExpenseBreakdownWidget() {
 
   const hasData = (data?.categories?.length || 0) > 0;
 
+  const navigate = useNavigate();
+
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3 cursor-pointer" onClick={() => navigate('/statistics?tab=financial')}>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{data?.month}</span>
         <span className="text-lg font-bold text-foreground">₹{Math.round(data?.totalExpense || 0).toLocaleString('en-IN')}</span>

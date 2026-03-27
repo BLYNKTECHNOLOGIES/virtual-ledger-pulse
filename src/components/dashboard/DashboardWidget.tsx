@@ -171,16 +171,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'customer-chart':
         return <CustomerGrowthWidget />;
 
-      case 'total-clients':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">{metrics?.totalClients || 0}</div>
-            <p className="text-sm text-gray-600 mt-1">Active Clients</p>
-          </div>
-        );
 
 
       case 'inventory-status':

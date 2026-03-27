@@ -152,7 +152,6 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'purchase-orders-count', name: 'Purchase Orders Count', description: 'Number of purchase orders in the period', icon: Receipt, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
   { id: 'pending-settlements', name: 'Pending Settlements', description: 'Purchase orders awaiting payment settlement', icon: Clock, category: 'Purchase', size: 'medium', requiredPermissions: ['purchase_view'] },
   // Clients
-  { id: 'total-clients', name: 'Total Clients', description: 'Overview of all registered clients', icon: Users, category: 'Clients', size: 'small', requiredPermissions: ['clients_view'] },
   { id: 'customer-chart', name: 'Customer Growth', description: 'Client acquisition trend over 6 months', icon: LineChart, category: 'Clients', size: 'large', requiredPermissions: ['clients_view'] },
   // Stock
   { id: 'inventory-status', name: 'Asset Holdings', description: 'Current asset balances across wallets', icon: Package, category: 'Stock', size: 'medium', requiredPermissions: ['stock_view'] },

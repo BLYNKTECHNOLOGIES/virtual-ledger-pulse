@@ -763,26 +763,48 @@ export function CashFlowWidget() {
 
 // ── Expense Trends Widget ──
 export function ExpenseTrendsWidget() {
+  const [viewMode, setViewMode] = useState<'month' | 'day'>('month');
+
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_expense_trends'],
+    queryKey: ['widget_expense_trends', viewMode],
     queryFn: async () => {
-      const months = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = subMonths(new Date(), i);
-        const s = format(startOfMonth(d), 'yyyy-MM-dd');
-        const e = format(endOfMonth(d), 'yyyy-MM-dd');
-        months.push({ label: format(d, 'MMM'), start: s, end: e });
-      }
       const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
-      const results = await Promise.all(months.map(async m => {
-        const { data } = await supabase.from('bank_transactions').select('amount, category').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
-        const total = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
-        return { name: m.label, expense: total };
-      }));
-      const currentMonth = results[results.length - 1]?.expense || 0;
-      const prevMonth = results[results.length - 2]?.expense || 0;
-      const change = prevMonth > 0 ? ((currentMonth - prevMonth) / prevMonth) * 100 : 0;
-      return { chartData: results, currentMonth, change };
+
+      if (viewMode === 'month') {
+        const months = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = subMonths(new Date(), i);
+          const s = format(startOfMonth(d), 'yyyy-MM-dd');
+          const e = format(endOfMonth(d), 'yyyy-MM-dd');
+          months.push({ label: format(d, 'MMM'), start: s, end: e });
+        }
+        const results = await Promise.all(months.map(async m => {
+          const { data } = await supabase.from('bank_transactions').select('amount, category').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
+          const total = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          return { name: m.label, expense: total };
+        }));
+        const currentMonth = results[results.length - 1]?.expense || 0;
+        const prevMonth = results[results.length - 2]?.expense || 0;
+        const change = prevMonth > 0 ? ((currentMonth - prevMonth) / prevMonth) * 100 : 0;
+        return { chartData: results, currentValue: currentMonth, change, periodLabel: 'This Month' };
+      } else {
+        // Daily view: last 14 days
+        const days = [];
+        for (let i = 13; i >= 0; i--) {
+          const d = subDays(new Date(), i);
+          const dateStr = format(d, 'yyyy-MM-dd');
+          days.push({ label: format(d, 'dd MMM'), start: dateStr, end: dateStr });
+        }
+        const results = await Promise.all(days.map(async day => {
+          const { data } = await supabase.from('bank_transactions').select('amount, category').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start);
+          const total = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          return { name: day.label, expense: total };
+        }));
+        const today = results[results.length - 1]?.expense || 0;
+        const yesterday = results[results.length - 2]?.expense || 0;
+        const change = yesterday > 0 ? ((today - yesterday) / yesterday) * 100 : 0;
+        return { chartData: results, currentValue: today, change, periodLabel: 'Today' };
+      }
     },
     staleTime: 60000,
   });
@@ -795,14 +817,30 @@ export function ExpenseTrendsWidget() {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-muted-foreground">This Month</p>
-          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentMonth || 0).toLocaleString('en-IN')}</p>
+          <p className="text-xs text-muted-foreground">{data?.periodLabel || 'This Month'}</p>
+          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentValue || 0).toLocaleString('en-IN')}</p>
         </div>
-        {data?.change !== 0 && (
-          <div className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-            {(data?.change || 0) > 0 ? '↑' : '↓'} {Math.abs(data?.change || 0).toFixed(1)}%
+        <div className="flex items-center gap-2">
+          {data?.change !== 0 && (
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+              {(data?.change || 0) > 0 ? '↑' : '↓'} {Math.abs(data?.change || 0).toFixed(1)}%
+            </span>
+          )}
+          <div className="flex rounded-md border border-border overflow-hidden text-[10px]">
+            <button
+              onClick={() => setViewMode('month')}
+              className={`px-2 py-0.5 transition-colors ${viewMode === 'month' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+            >
+              Month
+            </button>
+            <button
+              onClick={() => setViewMode('day')}
+              className={`px-2 py-0.5 transition-colors ${viewMode === 'day' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+            >
+              Day
+            </button>
           </div>
-        )}
+        </div>
       </div>
       {hasData ? (
         <ResponsiveContainer width="100%" height={100}>
@@ -813,7 +851,7 @@ export function ExpenseTrendsWidget() {
           </RechartsLineChart>
         </ResponsiveContainer>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-4">No expense data in last 6 months</p>
+        <p className="text-sm text-muted-foreground text-center py-4">No expense data available</p>
       )}
     </div>
   );

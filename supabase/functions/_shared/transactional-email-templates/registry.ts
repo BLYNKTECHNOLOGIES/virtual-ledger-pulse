@@ -10,7 +10,9 @@ export interface TemplateEntry {
 }
 
 import { template as taskNotification } from './task-notification.tsx'
+import { template as taskSpectatorNotification } from './task-spectator-notification.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'task-notification': taskNotification,
+  'task-spectator-notification': taskSpectatorNotification,
 }

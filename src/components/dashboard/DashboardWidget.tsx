@@ -371,8 +371,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             </DropdownMenuContent>
           </DropdownMenu>
         </CardHeader>
-        <CardContent className={`p-0 w-full ${widget.size === 'small' ? 'min-h-[180px] flex items-center justify-center' : ''}`}>
-          {renderWidgetContent()}
+        <CardContent className={`p-0 ${widget.size === 'small' ? 'min-h-[180px] flex flex-col items-stretch justify-center' : ''}`}>
+          <div className="w-full">{renderWidgetContent()}</div>
         </CardContent>
       </Card>
     </div>

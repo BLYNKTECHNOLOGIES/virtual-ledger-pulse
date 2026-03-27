@@ -154,28 +154,37 @@ export default function Dashboard() {
   const spansStorageKey = useMemo(() => userId !== 'default' ? `dashboardWidgetSpans_${userId}` : null, [userId]);
 
   const readWidgetIds = useCallback((key: string | null): string[] => {
-    if (!key) return [...DEFAULT_ACTIVE_WIDGETS];
+    let ids: string[] = [...DEFAULT_ACTIVE_WIDGETS];
+    if (!key) return ids;
     try {
       const saved = localStorage.getItem(key);
-      if (saved) return JSON.parse(saved);
-      // Migration: check old format
-      const uid = key.replace('dashboardActiveWidgets_', '');
-      const oldOrder = localStorage.getItem(`dashboardItemOrder_${uid}`);
-      const oldWidgets = localStorage.getItem(`dashboardWidgets_${uid}`);
-      if (oldOrder || oldWidgets) {
-        const ids = oldOrder ? JSON.parse(oldOrder) : [...DEFAULT_ACTIVE_WIDGETS];
-        if (oldWidgets) {
-          const widgets = JSON.parse(oldWidgets) as { id: string }[];
-          widgets.forEach(w => { if (!ids.includes(w.id)) ids.push(w.id); });
+      if (saved) {
+        ids = JSON.parse(saved);
+      } else {
+        // Migration: check old format
+        const uid = key.replace('dashboardActiveWidgets_', '');
+        const oldOrder = localStorage.getItem(`dashboardItemOrder_${uid}`);
+        const oldWidgets = localStorage.getItem(`dashboardWidgets_${uid}`);
+        if (oldOrder || oldWidgets) {
+          ids = oldOrder ? JSON.parse(oldOrder) : [...DEFAULT_ACTIVE_WIDGETS];
+          if (oldWidgets) {
+            const widgets = JSON.parse(oldWidgets) as { id: string }[];
+            widgets.forEach(w => { if (!ids.includes(w.id)) ids.push(w.id); });
+          }
+          localStorage.removeItem(`dashboardItemOrder_${uid}`);
+          localStorage.removeItem(`dashboardWidgets_${uid}`);
         }
-        // Persist migrated data under new key
-        localStorage.setItem(key, JSON.stringify(ids));
-        localStorage.removeItem(`dashboardItemOrder_${uid}`);
-        localStorage.removeItem(`dashboardWidgets_${uid}`);
-        return ids;
       }
     } catch { /* ignore */ }
-    return [...DEFAULT_ACTIVE_WIDGETS];
+    // Deduplicate while preserving order
+    const seen = new Set<string>();
+    ids = ids.filter(id => {
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    if (key) localStorage.setItem(key, JSON.stringify(ids));
+    return ids;
   }, []);
 
   const readSpans = useCallback((key: string | null): Record<string, number> => {

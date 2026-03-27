@@ -20,7 +20,6 @@ export interface Task {
   tags: string[] | null;
   created_at: string;
   updated_at: string;
-  // joined
   creator_name?: string;
   assignee_name?: string;
 }
@@ -44,6 +43,21 @@ export interface TaskSpectator {
   user_name?: string;
 }
 
+// Helper to query untyped tables
+const from = (table: string) => supabase.from(table as any);
+
+async function fetchUserMap(userIds: Set<string>): Promise<Record<string, string>> {
+  if (userIds.size === 0) return {};
+  const { data } = await from('users')
+    .select('id, full_name, username')
+    .in('id', Array.from(userIds));
+  const map: Record<string, string> = {};
+  ((data as any[]) || []).forEach((u: any) => {
+    map[u.id] = u.full_name || u.username || 'Unknown';
+  });
+  return map;
+}
+
 export function useTasks(filters?: {
   status?: string;
   priority?: string;
@@ -57,10 +71,7 @@ export function useTasks(filters?: {
   return useQuery({
     queryKey: ['erp-tasks', filters],
     queryFn: async () => {
-      let query = supabase
-        .from('erp_tasks' as any)
-        .select('*')
-        .order('created_at', { ascending: false });
+      let query = from('erp_tasks').select('*').order('created_at', { ascending: false });
 
       if (filters?.status && filters.status !== 'all') {
         query = query.eq('status', filters.status);
@@ -84,37 +95,25 @@ export function useTasks(filters?: {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Fetch user names for creator and assignee
-      const tasks = (data || []) as any[];
+      const tasks = ((data as any[]) || []) as any[];
       const userIds = new Set<string>();
       tasks.forEach(t => {
         if (t.created_by) userIds.add(t.created_by);
         if (t.assignee_id) userIds.add(t.assignee_id);
       });
+      const userMap = await fetchUserMap(userIds);
 
-      let userMap: Record<string, string> = {};
-      if (userIds.size > 0) {
-        const { data: users } = await supabase
-          .from('users' as any)
-          .select('id, full_name, username')
-          .in('id', Array.from(userIds));
-        (users || []).forEach((u: any) => {
-          userMap[u.id] = u.full_name || u.username || 'Unknown';
-        });
-      }
-
-      // Filter by visibility: creator, assignee, spectator, or admin
-      const isAdmin = user?.roles?.some((r: string) => 
+      // Visibility filter
+      const isAdmin = user?.roles?.some((r: string) =>
         r.toLowerCase() === 'admin' || r.toLowerCase() === 'super admin'
       );
 
       let spectatorTaskIds: Set<string> = new Set();
       if (user?.id && !isAdmin) {
-        const { data: specs } = await supabase
-          .from('erp_task_spectators' as any)
+        const { data: specs } = await from('erp_task_spectators')
           .select('task_id')
           .eq('user_id', user.id);
-        (specs || []).forEach((s: any) => spectatorTaskIds.add(s.task_id));
+        ((specs as any[]) || []).forEach((s: any) => spectatorTaskIds.add(s.task_id));
       }
 
       const filtered = tasks.filter((t: any) => {
@@ -140,33 +139,19 @@ export function useTaskDetail(taskId: string | null) {
     queryKey: ['erp-task-detail', taskId],
     queryFn: async () => {
       if (!taskId) return null;
-      const { data, error } = await supabase
-        .from('erp_tasks' as any)
-        .select('*')
-        .eq('id', taskId)
-        .single();
+      const { data, error } = await from('erp_tasks').select('*').eq('id', taskId).single();
       if (error) throw error;
+      const d = data as any;
 
-      // Get user names
       const userIds = new Set<string>();
-      if (data.created_by) userIds.add(data.created_by);
-      if (data.assignee_id) userIds.add(data.assignee_id);
-
-      let userMap: Record<string, string> = {};
-      if (userIds.size > 0) {
-        const { data: users } = await supabase
-          .from('users' as any)
-          .select('id, full_name, username')
-          .in('id', Array.from(userIds));
-        (users || []).forEach((u: any) => {
-          userMap[u.id] = u.full_name || u.username || 'Unknown';
-        });
-      }
+      if (d.created_by) userIds.add(d.created_by);
+      if (d.assignee_id) userIds.add(d.assignee_id);
+      const userMap = await fetchUserMap(userIds);
 
       return {
-        ...data,
-        creator_name: userMap[data.created_by] || 'Unknown',
-        assignee_name: data.assignee_id ? (userMap[data.assignee_id] || 'Unknown') : 'Unassigned',
+        ...d,
+        creator_name: userMap[d.created_by] || 'Unknown',
+        assignee_name: d.assignee_id ? (userMap[d.assignee_id] || 'Unknown') : 'Unassigned',
       } as Task;
     },
     enabled: !!taskId,
@@ -178,31 +163,19 @@ export function useTaskAssignments(taskId: string | null) {
     queryKey: ['erp-task-assignments', taskId],
     queryFn: async () => {
       if (!taskId) return [];
-      const { data, error } = await supabase
-        .from('erp_task_assignments' as any)
-        .select('*')
-        .eq('task_id', taskId)
-        .order('assigned_at', { ascending: true });
+      const { data, error } = await from('erp_task_assignments')
+        .select('*').eq('task_id', taskId).order('assigned_at', { ascending: true });
       if (error) throw error;
 
+      const items = (data as any[]) || [];
       const userIds = new Set<string>();
-      (data || []).forEach((a: any) => {
+      items.forEach((a: any) => {
         if (a.from_user_id) userIds.add(a.from_user_id);
         if (a.to_user_id) userIds.add(a.to_user_id);
       });
+      const userMap = await fetchUserMap(userIds);
 
-      let userMap: Record<string, string> = {};
-      if (userIds.size > 0) {
-        const { data: users } = await supabase
-          .from('users' as any)
-          .select('id, full_name, username')
-          .in('id', Array.from(userIds));
-        (users || []).forEach((u: any) => {
-          userMap[u.id] = u.full_name || u.username || 'Unknown';
-        });
-      }
-
-      return (data || []).map((a: any) => ({
+      return items.map((a: any) => ({
         ...a,
         from_user_name: a.from_user_id ? (userMap[a.from_user_id] || 'Unknown') : 'System',
         to_user_name: a.to_user_id ? (userMap[a.to_user_id] || 'Unknown') : 'Unknown',
@@ -217,27 +190,15 @@ export function useTaskSpectators(taskId: string | null) {
     queryKey: ['erp-task-spectators', taskId],
     queryFn: async () => {
       if (!taskId) return [];
-      const { data, error } = await supabase
-        .from('erp_task_spectators' as any)
-        .select('*')
-        .eq('task_id', taskId);
+      const { data, error } = await from('erp_task_spectators').select('*').eq('task_id', taskId);
       if (error) throw error;
 
+      const items = (data as any[]) || [];
       const userIds = new Set<string>();
-      (data || []).forEach((s: any) => { if (s.user_id) userIds.add(s.user_id); });
+      items.forEach((s: any) => { if (s.user_id) userIds.add(s.user_id); });
+      const userMap = await fetchUserMap(userIds);
 
-      let userMap: Record<string, string> = {};
-      if (userIds.size > 0) {
-        const { data: users } = await supabase
-          .from('users' as any)
-          .select('id, full_name, username')
-          .in('id', Array.from(userIds));
-        (users || []).forEach((u: any) => {
-          userMap[u.id] = u.full_name || u.username || 'Unknown';
-        });
-      }
-
-      return (data || []).map((s: any) => ({
+      return items.map((s: any) => ({
         ...s,
         user_name: userMap[s.user_id] || 'Unknown',
       })) as TaskSpectator[];
@@ -265,57 +226,39 @@ export function useCreateTask() {
       spectator_ids?: string[];
     }) => {
       const { spectator_ids, ...taskData } = task;
-
-      const { data, error } = await supabase
-        .from('erp_tasks' as any)
+      const { data, error } = await from('erp_tasks')
         .insert({ ...taskData, created_by: user?.id })
-        .select()
-        .single();
+        .select().single();
       if (error) throw error;
+      const d = data as any;
 
-      // Insert assignment chain entry
       if (task.assignee_id) {
-        await supabase.from('erp_task_assignments' as any).insert({
-          task_id: data.id,
-          from_user_id: user?.id,
-          to_user_id: task.assignee_id,
+        await from('erp_task_assignments').insert({
+          task_id: d.id, from_user_id: user?.id, to_user_id: task.assignee_id,
         });
       }
 
-      // Insert spectators
       if (spectator_ids?.length) {
-        await supabase.from('erp_task_spectators' as any).insert(
-          spectator_ids.map(uid => ({
-            task_id: data.id,
-            user_id: uid,
-            added_by: user?.id,
-          }))
+        await from('erp_task_spectators').insert(
+          spectator_ids.map(uid => ({ task_id: d.id, user_id: uid, added_by: user?.id }))
         );
       }
 
-      // Activity log
-      await supabase.from('erp_task_activity_log' as any).insert({
-        task_id: data.id,
-        user_id: user?.id,
-        action: 'task_created',
+      await from('erp_task_activity_log').insert({
+        task_id: d.id, user_id: user?.id, action: 'task_created',
         details: { title: task.title, assignee_id: task.assignee_id },
       });
 
-      // Notification for assignee
       if (task.assignee_id && task.assignee_id !== user?.id) {
-        await supabase.from('terminal_notifications' as any).insert({
-          user_id: task.assignee_id,
-          title: 'New Task Assigned',
-          message: `You have been assigned: "${task.title}"`,
-          notification_type: 'task_assigned',
+        await from('terminal_notifications').insert({
+          user_id: task.assignee_id, title: 'New Task Assigned',
+          message: `You have been assigned: "${task.title}"`, notification_type: 'task_assigned',
         });
       }
 
-      return data;
+      return d;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['erp-tasks'] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['erp-tasks'] }); },
   });
 }
 
@@ -327,81 +270,44 @@ export function useUpdateTask() {
     mutationFn: async ({ taskId, updates, oldTask }: {
       taskId: string;
       updates: Partial<{
-        title: string;
-        description: string;
-        status: string;
-        priority: string;
-        assignee_id: string;
-        due_date: string;
-        tags: string[];
-        completed_at: string;
+        title: string; description: string; status: string; priority: string;
+        assignee_id: string; due_date: string; tags: string[]; completed_at: string;
       }>;
       oldTask?: Task;
     }) => {
-      // If status changed to completed, set completed_at
       if (updates.status === 'completed' && !updates.completed_at) {
         updates.completed_at = new Date().toISOString();
       }
 
-      const { error } = await supabase
-        .from('erp_tasks' as any)
-        .update(updates)
-        .eq('id', taskId);
+      const { error } = await from('erp_tasks').update(updates).eq('id', taskId);
       if (error) throw error;
 
-      // Log activity for each change
       const activities: any[] = [];
 
       if (updates.status && oldTask?.status !== updates.status) {
-        activities.push({
-          task_id: taskId,
-          user_id: user?.id,
-          action: 'status_changed',
-          details: { from: oldTask?.status, to: updates.status },
-        });
+        activities.push({ task_id: taskId, user_id: user?.id, action: 'status_changed', details: { from: oldTask?.status, to: updates.status } });
       }
       if (updates.priority && oldTask?.priority !== updates.priority) {
-        activities.push({
-          task_id: taskId,
-          user_id: user?.id,
-          action: 'priority_changed',
-          details: { from: oldTask?.priority, to: updates.priority },
-        });
+        activities.push({ task_id: taskId, user_id: user?.id, action: 'priority_changed', details: { from: oldTask?.priority, to: updates.priority } });
       }
       if (updates.assignee_id && oldTask?.assignee_id !== updates.assignee_id) {
-        // Assignment chain
-        await supabase.from('erp_task_assignments' as any).insert({
-          task_id: taskId,
-          from_user_id: oldTask?.assignee_id || user?.id,
-          to_user_id: updates.assignee_id,
+        await from('erp_task_assignments').insert({
+          task_id: taskId, from_user_id: oldTask?.assignee_id || user?.id, to_user_id: updates.assignee_id,
         });
-        activities.push({
-          task_id: taskId,
-          user_id: user?.id,
-          action: 'reassigned',
-          details: { from: oldTask?.assignee_id, to: updates.assignee_id },
-        });
-        // Notify new assignee
+        activities.push({ task_id: taskId, user_id: user?.id, action: 'reassigned', details: { from: oldTask?.assignee_id, to: updates.assignee_id } });
         if (updates.assignee_id !== user?.id) {
-          await supabase.from('terminal_notifications' as any).insert({
-            user_id: updates.assignee_id,
-            title: 'Task Reassigned to You',
-            message: `Task "${oldTask?.title || ''}" has been reassigned to you`,
-            notification_type: 'task_reassigned',
+          await from('terminal_notifications').insert({
+            user_id: updates.assignee_id, title: 'Task Reassigned to You',
+            message: `Task "${oldTask?.title || ''}" has been reassigned to you`, notification_type: 'task_reassigned',
           });
         }
       }
       if (updates.due_date && oldTask?.due_date !== updates.due_date) {
-        activities.push({
-          task_id: taskId,
-          user_id: user?.id,
-          action: 'due_date_changed',
-          details: { from: oldTask?.due_date, to: updates.due_date },
-        });
+        activities.push({ task_id: taskId, user_id: user?.id, action: 'due_date_changed', details: { from: oldTask?.due_date, to: updates.due_date } });
       }
 
       if (activities.length > 0) {
-        await supabase.from('erp_task_activity_log' as any).insert(activities);
+        await from('erp_task_activity_log').insert(activities);
       }
     },
     onSuccess: () => {
@@ -414,18 +320,12 @@ export function useUpdateTask() {
 
 export function useDeleteTask() {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('erp_tasks' as any)
-        .delete()
-        .eq('id', taskId);
+      const { error } = await from('erp_tasks').delete().eq('id', taskId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['erp-tasks'] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['erp-tasks'] }); },
   });
 }
 
@@ -435,31 +335,19 @@ export function useAddSpectator() {
 
   return useMutation({
     mutationFn: async ({ taskId, userId }: { taskId: string; userId: string }) => {
-      const { error } = await supabase
-        .from('erp_task_spectators' as any)
-        .insert({ task_id: taskId, user_id: userId, added_by: user?.id });
+      const { error } = await from('erp_task_spectators').insert({ task_id: taskId, user_id: userId, added_by: user?.id });
       if (error) throw error;
 
-      await supabase.from('erp_task_activity_log' as any).insert({
-        task_id: taskId,
-        user_id: user?.id,
-        action: 'spectator_added',
-        details: { spectator_id: userId },
-      });
+      await from('erp_task_activity_log').insert({ task_id: taskId, user_id: user?.id, action: 'spectator_added', details: { spectator_id: userId } });
 
-      // Notify spectator
       if (userId !== user?.id) {
-        await supabase.from('terminal_notifications' as any).insert({
-          user_id: userId,
-          title: 'Added as Spectator',
-          message: 'You have been added as a spectator to a task',
-          notification_type: 'task_spectator_added',
+        await from('terminal_notifications').insert({
+          user_id: userId, title: 'Added as Spectator',
+          message: 'You have been added as a spectator to a task', notification_type: 'task_spectator_added',
         });
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['erp-task-spectators'] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['erp-task-spectators'] }); },
   });
 }
 
@@ -469,23 +357,11 @@ export function useRemoveSpectator() {
 
   return useMutation({
     mutationFn: async ({ taskId, userId }: { taskId: string; userId: string }) => {
-      const { error } = await supabase
-        .from('erp_task_spectators' as any)
-        .delete()
-        .eq('task_id', taskId)
-        .eq('user_id', userId);
+      const { error } = await from('erp_task_spectators').delete().eq('task_id', taskId).eq('user_id', userId);
       if (error) throw error;
-
-      await supabase.from('erp_task_activity_log' as any).insert({
-        task_id: taskId,
-        user_id: user?.id,
-        action: 'spectator_removed',
-        details: { spectator_id: userId },
-      });
+      await from('erp_task_activity_log').insert({ task_id: taskId, user_id: user?.id, action: 'spectator_removed', details: { spectator_id: userId } });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['erp-task-spectators'] });
-    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['erp-task-spectators'] }); },
   });
 }
 
@@ -493,13 +369,12 @@ export function useUsers() {
   return useQuery({
     queryKey: ['erp-all-users'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users' as any)
+      const { data, error } = await from('users')
         .select('id, full_name, username, email')
         .eq('is_active', true)
         .order('full_name');
       if (error) throw error;
-      return (data || []) as { id: string; full_name: string; username: string; email: string }[];
+      return ((data as any[]) || []) as unknown as { id: string; full_name: string; username: string; email: string }[];
     },
   });
 }
@@ -511,9 +386,7 @@ export function useMyTaskCounts() {
     queryKey: ['erp-task-counts', user?.id],
     queryFn: async () => {
       if (!user?.id) return { open: 0, in_progress: 0, overdue: 0 };
-
-      const { data, error } = await supabase
-        .from('erp_tasks' as any)
+      const { data, error } = await from('erp_tasks')
         .select('status, due_date')
         .eq('assignee_id', user.id)
         .neq('status', 'completed');
@@ -521,12 +394,11 @@ export function useMyTaskCounts() {
 
       const now = new Date().toISOString();
       let open = 0, in_progress = 0, overdue = 0;
-      (data || []).forEach((t: any) => {
+      ((data as any[]) || []).forEach((t: any) => {
         if (t.status === 'open') open++;
         if (t.status === 'in_progress') in_progress++;
         if (t.due_date && t.due_date < now) overdue++;
       });
-
       return { open, in_progress, overdue };
     },
     enabled: !!user?.id,

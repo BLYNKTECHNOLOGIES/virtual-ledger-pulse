@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { sendTaskEmail } from '@/utils/taskEmail';
 
 export interface Task {
   id: string;
@@ -265,22 +266,26 @@ export function useCreateTask() {
           message: `You have been assigned: "${task.title}"`, notification_type: 'task_assigned',
         });
 
-        // Fire-and-forget email notification
-        try {
-          const creatorName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
-          supabase.functions.invoke('send-task-email', {
-            body: {
-              eventType: 'task_assigned',
-              taskId: d.id,
-              taskTitle: task.title,
-              taskDescription: task.description,
-              assignedByName: creatorName,
-              dueDate: task.due_date,
-              status: 'open',
-              recipientUserIds: [task.assignee_id],
-            },
+        // Fire-and-forget email notification via transactional email
+        const creatorName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+        const { data: assigneeData } = await from('users')
+          .select('email, first_name, last_name, username')
+          .eq('id', task.assignee_id)
+          .single();
+        const assignee = assigneeData as any;
+        if (assignee?.email) {
+          sendTaskEmail({
+            eventType: 'task_assigned',
+            taskId: d.id,
+            taskTitle: task.title,
+            taskDescription: task.description,
+            assignedByName: creatorName,
+            dueDate: task.due_date,
+            status: 'open',
+            recipientEmail: assignee.email,
+            recipientName: [assignee.first_name, assignee.last_name].filter(Boolean).join(' ') || assignee.username,
           });
-        } catch {}
+        }
       }
 
       return d;
@@ -336,22 +341,26 @@ export function useUpdateTask() {
             message: `Task "${oldTask?.title || ''}" has been reassigned to you`, notification_type: 'task_reassigned',
           });
 
-          // Fire-and-forget email notification
-          try {
-            const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
-            supabase.functions.invoke('send-task-email', {
-              body: {
-                eventType: 'task_reassigned',
-                taskId: taskId,
-                taskTitle: oldTask?.title || '',
-                taskDescription: oldTask?.description,
-                assignedByName: reassignerName,
-                dueDate: oldTask?.due_date || updates.due_date,
-                status: updates.status || oldTask?.status,
-                recipientUserIds: [updates.assignee_id],
-              },
+          // Fire-and-forget email notification via transactional email
+          const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+          const { data: reassigneeData } = await from('users')
+            .select('email, first_name, last_name, username')
+            .eq('id', updates.assignee_id)
+            .single();
+          const reassignee = reassigneeData as any;
+          if (reassignee?.email) {
+            sendTaskEmail({
+              eventType: 'task_reassigned',
+              taskId: taskId,
+              taskTitle: oldTask?.title || '',
+              taskDescription: oldTask?.description || undefined,
+              assignedByName: reassignerName,
+              dueDate: oldTask?.due_date || updates.due_date,
+              status: updates.status || oldTask?.status,
+              recipientEmail: reassignee.email,
+              recipientName: [reassignee.first_name, reassignee.last_name].filter(Boolean).join(' ') || reassignee.username,
             });
-          } catch {}
+          }
         }
       }
       if (updates.due_date && oldTask?.due_date !== updates.due_date) {

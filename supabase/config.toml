@@ -1,91 +1,83 @@
 project_id = "vagiqbespusdxsbqpvbo"
 
 [api]
-enabled = true
-port = 54321
-schemas = ["public", "graphql_public"]
-extra_search_path = ["public", "extensions"]
-max_rows = 1000
-
-[db]
-port = 54322
-
-[studio]
-enabled = true
-port = 54323
-
-[inbucket]
-enabled = true
-port = 54324
-
-[storage]
-enabled = true
-port = 54325
+  enabled = true
+  extra_search_path = ["public", "extensions"]
+  max_rows = 1000
+  port = 54321
+  schemas = ["public", "graphql_public"]
 
 [auth]
-enabled = true
-port = 54326
-site_url = "http://localhost:3000"
-additional_redirect_urls = ["https://localhost:3000"]
-jwt_expiry = 3600
-enable_signup = true
+  additional_redirect_urls = ["https://localhost:3000"]
+  enable_signup = true
+  enabled = true
+  jwt_expiry = 3600
+  port = 54326
+  site_url = "http://localhost:3000"
 
-[functions.reset-payment-limits]
-verify_jwt = false
+[db]
+  port = 54322
 
-[functions.risk-detection]
-verify_jwt = false
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.auto-pay-engine]
+    verify_jwt = false
+  [functions.auto-price-engine]
+    verify_jwt = false
+  [functions.auto-reply-engine]
+    verify_jwt = false
+  [functions.binance-ads]
+    verify_jwt = false
+  [functions.binance-assets]
+    verify_jwt = false
+  [functions.biometric-webhook]
+    verify_jwt = false
+  [functions.capture-beneficiaries]
+    verify_jwt = false
+  [functions.enrich-order-names]
+    verify_jwt = false
+  [functions.erp-balance-snapshot]
+    verify_jwt = false
+  [functions.fetch-usdt-rate]
+    verify_jwt = false
+  [functions.generate-case-id]
+    verify_jwt = false
+  [functions.reconciliation-scan]
+    verify_jwt = false
+  [functions.reset-password-with-otp]
+    verify_jwt = false
+  [functions.reset-payment-limits]
+    verify_jwt = false
+  [functions.risk-detection]
+    verify_jwt = false
+  [functions.send-password-reset-otp]
+    verify_jwt = false
+  [functions.snapshot-asset-value]
+    verify_jwt = false
+  [functions.snapshot-daily-profit]
+    verify_jwt = false
+  [functions.terminal-webauthn]
+    verify_jwt = false
+  [functions.verify-password-reset-otp]
+    verify_jwt = false
+  [functions.send-transactional-email]
+    verify_jwt = true
+  [functions.preview-transactional-email]
+    verify_jwt = false
+  [functions.handle-email-unsubscribe]
+    verify_jwt = false
+  [functions.handle-email-suppression]
+    verify_jwt = false
 
-[functions.generate-case-id]
-verify_jwt = false
+[inbucket]
+  enabled = true
+  port = 54324
 
-[functions.send-password-reset-otp]
-verify_jwt = false
+[storage]
+  enabled = true
+  port = 54325
 
-[functions.verify-password-reset-otp]
-verify_jwt = false
-
-[functions.reset-password-with-otp]
-verify_jwt = false
-
-[functions.snapshot-daily-profit]
-verify_jwt = false
-
-[functions.fetch-usdt-rate]
-verify_jwt = false
-
-[functions.binance-ads]
-verify_jwt = false
-
-[functions.auto-reply-engine]
-verify_jwt = false
-
-[functions.binance-assets]
-verify_jwt = false
-
-[functions.reconciliation-scan]
-verify_jwt = false
-
-[functions.enrich-order-names]
-verify_jwt = false
-
-[functions.snapshot-asset-value]
-verify_jwt = false
-
-[functions.biometric-webhook]
-verify_jwt = false
-
-[functions.terminal-webauthn]
-verify_jwt = false
-
-[functions.auto-price-engine]
-verify_jwt = false
-
-[functions.erp-balance-snapshot]
-verify_jwt = false
-
-[functions.auto-pay-engine]
-verify_jwt = false
-
-[functions.capture-beneficiaries]
-verify_jwt = false
+[studio]
+  enabled = true
+  port = 54323

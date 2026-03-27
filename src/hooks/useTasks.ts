@@ -20,6 +20,11 @@ export interface Task {
   tags: string[] | null;
   created_at: string;
   updated_at: string;
+  is_pinned?: boolean;
+  pinned_at?: string | null;
+  first_response_at?: string | null;
+  escalation_hours?: number | null;
+  escalation_user_id?: string | null;
   creator_name?: string;
   assignee_name?: string;
 }
@@ -146,6 +151,7 @@ export function useTaskDetail(taskId: string | null) {
       const userIds = new Set<string>();
       if (d.created_by) userIds.add(d.created_by);
       if (d.assignee_id) userIds.add(d.assignee_id);
+      if (d.escalation_user_id) userIds.add(d.escalation_user_id);
       const userMap = await fetchUserMap(userIds);
 
       return {
@@ -224,6 +230,8 @@ export function useCreateTask() {
       recurrence_days?: number[];
       recurrence_time?: string;
       spectator_ids?: string[];
+      escalation_hours?: number;
+      escalation_user_id?: string;
     }) => {
       const { spectator_ids, ...taskData } = task;
       const { data, error } = await from('erp_tasks')
@@ -272,6 +280,8 @@ export function useUpdateTask() {
       updates: Partial<{
         title: string; description: string; status: string; priority: string;
         assignee_id: string; due_date: string; tags: string[]; completed_at: string;
+        is_pinned: boolean; pinned_at: string | null;
+        escalation_hours: number | null; escalation_user_id: string | null;
       }>;
       oldTask?: Task;
     }) => {
@@ -279,7 +289,13 @@ export function useUpdateTask() {
         updates.completed_at = new Date().toISOString();
       }
 
-      const { error } = await from('erp_tasks').update(updates).eq('id', taskId);
+      // SLA: track first_response_at when status changes from 'open' for the first time
+      const extraUpdates: any = {};
+      if (updates.status && updates.status !== 'open' && oldTask?.status === 'open' && !oldTask?.first_response_at) {
+        extraUpdates.first_response_at = new Date().toISOString();
+      }
+
+      const { error } = await from('erp_tasks').update({ ...updates, ...extraUpdates }).eq('id', taskId);
       if (error) throw error;
 
       const activities: any[] = [];
@@ -315,6 +331,65 @@ export function useUpdateTask() {
       queryClient.invalidateQueries({ queryKey: ['erp-task-detail'] });
       queryClient.invalidateQueries({ queryKey: ['erp-task-assignments'] });
     },
+  });
+}
+
+export function useTogglePin() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ taskId, currentlyPinned }: { taskId: string; currentlyPinned: boolean }) => {
+      const { error } = await from('erp_tasks').update({
+        is_pinned: !currentlyPinned,
+        pinned_at: !currentlyPinned ? new Date().toISOString() : null,
+      }).eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['erp-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-task-detail'] });
+    },
+  });
+}
+
+export function useDuplicateTask() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (sourceTask: Task) => {
+      const { data, error } = await from('erp_tasks')
+        .insert({
+          title: `${sourceTask.title} (Copy)`,
+          description: sourceTask.description,
+          priority: sourceTask.priority,
+          assignee_id: sourceTask.assignee_id,
+          due_date: sourceTask.due_date,
+          tags: sourceTask.tags,
+          created_by: user?.id,
+          status: 'open',
+          escalation_hours: sourceTask.escalation_hours,
+          escalation_user_id: sourceTask.escalation_user_id,
+        })
+        .select().single();
+      if (error) throw error;
+      const d = data as any;
+
+      if (sourceTask.assignee_id) {
+        await from('erp_task_assignments').insert({
+          task_id: d.id, from_user_id: user?.id, to_user_id: sourceTask.assignee_id,
+        });
+      }
+
+      await from('erp_task_activity_log').insert({
+        task_id: d.id, user_id: user?.id, action: 'task_created',
+        details: { title: d.title, duplicated_from: sourceTask.id },
+      });
+
+      return d;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['erp-tasks'] }); },
   });
 }
 

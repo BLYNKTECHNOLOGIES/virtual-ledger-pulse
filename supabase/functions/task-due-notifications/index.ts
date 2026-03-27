@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     // Get non-completed tasks with due dates
     const { data: tasks, error } = await supabase
       .from('erp_tasks')
-      .select('id, title, assignee_id, due_date, status')
+      .select('id, title, assignee_id, due_date, status, escalation_hours, escalation_user_id')
       .neq('status', 'completed')
       .not('due_date', 'is', null)
       .not('assignee_id', 'is', null)
@@ -50,12 +50,46 @@ Deno.serve(async (req) => {
 
       if (existing && existing.length > 0) continue;
 
+      // Standard due soon / overdue notification
       notifications.push({
         user_id: task.assignee_id,
         title: isOverdue ? '⚠️ Task Overdue' : '⏰ Task Due Soon',
         message: `${isOverdue ? 'Overdue' : 'Due soon'}: "${task.title}" [${task.id.substring(0, 8)}]`,
         notification_type: notifType,
       });
+
+      // Escalation: if overdue and escalation configured
+      if (isOverdue && task.escalation_hours && task.escalation_user_id) {
+        const overdueHours = (now.getTime() - dueDate.getTime()) / (1000 * 60 * 60);
+        if (overdueHours >= task.escalation_hours) {
+          // Check if escalation already sent
+          const { data: escExisting } = await supabase
+            .from('terminal_notifications')
+            .select('id')
+            .eq('user_id', task.escalation_user_id)
+            .eq('notification_type', 'task_escalated')
+            .gte('created_at', `${today}T00:00:00`)
+            .ilike('message', `%${task.id.substring(0, 8)}%`)
+            .limit(1);
+
+          if (!escExisting || escExisting.length === 0) {
+            notifications.push({
+              user_id: task.escalation_user_id,
+              title: '🚨 Task Escalation',
+              message: `Task "${task.title}" has been overdue for ${Math.floor(overdueHours)}h and requires attention [${task.id.substring(0, 8)}]`,
+              notification_type: 'task_escalated',
+            });
+
+            // Log escalation activity
+            await supabase.from('erp_task_activity_log').insert({
+              task_id: task.id,
+              user_id: null,
+              action: 'task_escalated',
+              details: { escalated_to: task.escalation_user_id, overdue_hours: Math.floor(overdueHours) },
+            });
+          }
+        }
+      }
     }
 
     if (notifications.length > 0) {

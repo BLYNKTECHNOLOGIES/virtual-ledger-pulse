@@ -25,6 +25,7 @@ export interface Task {
   first_response_at?: string | null;
   escalation_hours?: number | null;
   escalation_user_id?: string | null;
+  reminder_hours_before?: number | null;
   creator_name?: string;
   assignee_name?: string;
 }
@@ -232,6 +233,7 @@ export function useCreateTask() {
       spectator_ids?: string[];
       escalation_hours?: number;
       escalation_user_id?: string;
+      reminder_hours_before?: number;
     }) => {
       const { spectator_ids, ...taskData } = task;
       const { data, error } = await from('erp_tasks')

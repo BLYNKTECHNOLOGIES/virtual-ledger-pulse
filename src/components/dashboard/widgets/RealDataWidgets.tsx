@@ -1277,7 +1277,7 @@ export function TerminalSalesApprovalWidget() {
           <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
           {data?.recentPending.map((r: any) => {
             const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
-            const amount = orderData?.totalPrice || orderData?.amount || '—';
+            const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
             return (
               <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
                 <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>

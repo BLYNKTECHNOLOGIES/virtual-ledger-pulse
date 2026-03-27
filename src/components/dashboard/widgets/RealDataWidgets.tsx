@@ -1222,6 +1222,10 @@ function WidgetLoader() {
 
 // ── Terminal Sales Approval Widget ──
 export function TerminalSalesApprovalWidget() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [approvalRecord, setApprovalRecord] = useState<any>(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ['widget_terminal_sales_approval'],
     queryFn: async () => {
@@ -1230,7 +1234,7 @@ export function TerminalSalesApprovalWidget() {
         { data: recentPending },
       ] = await Promise.all([
         supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
-        supabase.from('terminal_sales_sync' as any).select('id, counterparty_name, order_data').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
+        supabase.from('terminal_sales_sync' as any).select('*').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
       ]);
       return { pending: pending || 0, recentPending: (recentPending || []) as any[] };
     },
@@ -1242,7 +1246,10 @@ export function TerminalSalesApprovalWidget() {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+      <div
+        className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+        onClick={() => navigate('/sales?tab=terminal-sync')}
+      >
         <span className="text-sm font-medium text-foreground">Pending Approval</span>
         <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-sm font-bold">{data?.pending || 0}</Badge>
       </div>
@@ -1254,12 +1261,33 @@ export function TerminalSalesApprovalWidget() {
             const amount = orderData?.totalPrice || orderData?.amount || '—';
             return (
               <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
-                <span className="font-medium truncate max-w-[120px]">{r.counterparty_name || 'Unknown'}</span>
-                <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px] text-green-700 border-green-300 hover:bg-green-50"
+                    onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
+                  >
+                    Approve
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
+      )}
+      {approvalRecord && (
+        <TerminalSalesApprovalDialogLazy
+          open={!!approvalRecord}
+          onOpenChange={(open) => { if (!open) setApprovalRecord(null); }}
+          syncRecord={approvalRecord}
+          onSuccess={() => {
+            setApprovalRecord(null);
+            queryClient.invalidateQueries({ queryKey: ['widget_terminal_sales_approval'] });
+          }}
+        />
       )}
     </div>
   );
@@ -1267,6 +1295,10 @@ export function TerminalSalesApprovalWidget() {
 
 // ── Terminal Purchase Approval Widget ──
 export function TerminalPurchaseApprovalWidget() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [approvalRecord, setApprovalRecord] = useState<any>(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ['widget_terminal_purchase_approval'],
     queryFn: async () => {
@@ -1275,7 +1307,7 @@ export function TerminalPurchaseApprovalWidget() {
         { data: recentPending },
       ] = await Promise.all([
         supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
-        supabase.from('terminal_purchase_sync' as any).select('id, counterparty_name, order_data').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
+        supabase.from('terminal_purchase_sync' as any).select('*').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
       ]);
       return { pending: pending || 0, recentPending: (recentPending || []) as any[] };
     },
@@ -1287,7 +1319,10 @@ export function TerminalPurchaseApprovalWidget() {
 
   return (
     <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+      <div
+        className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+        onClick={() => navigate('/purchase?tab=terminal_sync')}
+      >
         <span className="text-sm font-medium text-foreground">Pending Approval</span>
         <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-sm font-bold">{data?.pending || 0}</Badge>
       </div>
@@ -1299,12 +1334,33 @@ export function TerminalPurchaseApprovalWidget() {
             const amount = orderData?.totalPrice || orderData?.amount || '—';
             return (
               <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
-                <span className="font-medium truncate max-w-[120px]">{r.counterparty_name || 'Unknown'}</span>
-                <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-[10px] text-green-700 border-green-300 hover:bg-green-50"
+                    onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
+                  >
+                    Approve
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
+      )}
+      {approvalRecord && (
+        <TerminalPurchaseApprovalDialogLazy
+          open={!!approvalRecord}
+          onOpenChange={(open) => { if (!open) setApprovalRecord(null); }}
+          syncRecord={approvalRecord}
+          onSuccess={() => {
+            setApprovalRecord(null);
+            queryClient.invalidateQueries({ queryKey: ['widget_terminal_purchase_approval'] });
+          }}
+        />
       )}
     </div>
   );

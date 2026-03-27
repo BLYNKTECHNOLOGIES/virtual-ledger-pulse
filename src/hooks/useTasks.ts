@@ -260,19 +260,26 @@ export function useCreateTask() {
         details: { title: task.title, assignee_id: task.assignee_id },
       });
 
-      if (task.assignee_id && task.assignee_id !== user?.id) {
-        await from('terminal_notifications').insert({
-          user_id: task.assignee_id, title: 'New Task Assigned',
-          message: `You have been assigned: "${task.title}"`, notification_type: 'task_assigned',
-        });
+      if (task.assignee_id) {
+        if (task.assignee_id !== user?.id) {
+          await from('terminal_notifications').insert({
+            user_id: task.assignee_id,
+            title: 'New Task Assigned',
+            message: `You have been assigned: "${task.title}"`,
+            notification_type: 'task_assigned',
+          });
+        }
 
-        // Fire-and-forget email notification via transactional email
-        const creatorName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+        const creatorName =
+          [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+          user?.username ||
+          'Someone';
         const { data: assigneeData } = await from('users')
           .select('email, first_name, last_name, username')
           .eq('id', task.assignee_id)
           .single();
         const assignee = assigneeData as any;
+
         if (assignee?.email) {
           sendTaskEmail({
             eventType: 'task_assigned',
@@ -283,7 +290,10 @@ export function useCreateTask() {
             dueDate: task.due_date,
             status: 'open',
             recipientEmail: assignee.email,
-            recipientName: [assignee.first_name, assignee.last_name].filter(Boolean).join(' ') || assignee.username,
+            recipientName:
+              [assignee.first_name, assignee.last_name].filter(Boolean).join(' ') ||
+              assignee.username,
+            recipientUserId: task.assignee_id,
           });
         }
       }
@@ -340,27 +350,27 @@ export function useUpdateTask() {
             user_id: updates.assignee_id, title: 'Task Reassigned to You',
             message: `Task "${oldTask?.title || ''}" has been reassigned to you`, notification_type: 'task_reassigned',
           });
+        }
 
-          // Fire-and-forget email notification via transactional email
-          const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
-          const { data: reassigneeData } = await from('users')
-            .select('email, first_name, last_name, username')
-            .eq('id', updates.assignee_id)
-            .single();
-          const reassignee = reassigneeData as any;
-          if (reassignee?.email) {
-            sendTaskEmail({
-              eventType: 'task_reassigned',
-              taskId: taskId,
-              taskTitle: oldTask?.title || '',
-              taskDescription: oldTask?.description || undefined,
-              assignedByName: reassignerName,
-              dueDate: oldTask?.due_date || updates.due_date,
-              status: updates.status || oldTask?.status,
-              recipientEmail: reassignee.email,
-              recipientName: [reassignee.first_name, reassignee.last_name].filter(Boolean).join(' ') || reassignee.username,
-            });
-          }
+        const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+        const { data: reassigneeData } = await from('users')
+          .select('email, first_name, last_name, username')
+          .eq('id', updates.assignee_id)
+          .single();
+        const reassignee = reassigneeData as any;
+        if (reassignee?.email) {
+          sendTaskEmail({
+            eventType: 'task_reassigned',
+            taskId: taskId,
+            taskTitle: oldTask?.title || '',
+            taskDescription: oldTask?.description || undefined,
+            assignedByName: reassignerName,
+            dueDate: oldTask?.due_date || updates.due_date,
+            status: updates.status || oldTask?.status,
+            recipientEmail: reassignee.email,
+            recipientName: [reassignee.first_name, reassignee.last_name].filter(Boolean).join(' ') || reassignee.username,
+            recipientUserId: updates.assignee_id,
+          });
         }
       }
       if (updates.due_date && oldTask?.due_date !== updates.due_date) {

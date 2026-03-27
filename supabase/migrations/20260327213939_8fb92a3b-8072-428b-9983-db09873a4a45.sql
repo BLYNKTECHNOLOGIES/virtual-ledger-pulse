@@ -1,0 +1,1 @@
+UPDATE clients SET is_deleted = true, deleted_at = now() WHERE id = 'dc631363-77e2-4263-8ea0-3ed9371901a6' AND client_id = 'UB9YDI';

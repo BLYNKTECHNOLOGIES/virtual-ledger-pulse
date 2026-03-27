@@ -38,13 +38,19 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
     queryKey: ['review_employees'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('employees')
-        .select('id, name, employee_id, department, designation')
-        .eq('status', 'ACTIVE')
-        .order('name');
+        .from('hr_employees')
+        .select('id, first_name, last_name, badge_id, hr_employee_work_info(department_id, job_role, departments(name))')
+        .eq('is_active', true)
+        .order('first_name');
       
       if (error) throw error;
-      return data;
+      return data?.map(e => ({
+        id: e.id,
+        name: `${e.first_name} ${e.last_name || ''}`.trim(),
+        employee_id: e.badge_id,
+        department: (e.hr_employee_work_info as any)?.[0]?.departments?.name || 'N/A',
+        designation: (e.hr_employee_work_info as any)?.[0]?.job_role || 'N/A'
+      }));
     },
   });
 

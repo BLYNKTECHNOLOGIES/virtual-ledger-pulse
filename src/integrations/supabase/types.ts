@@ -12745,6 +12745,8 @@ export type Database = {
         | "bams_destructive"
         | "clients_destructive"
         | "stock_destructive"
+        | "utility_view"
+        | "utility_manage"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
       terminal_permission:
@@ -12982,6 +12984,8 @@ export const Constants = {
         "bams_destructive",
         "clients_destructive",
         "stock_destructive",
+        "utility_view",
+        "utility_manage",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],

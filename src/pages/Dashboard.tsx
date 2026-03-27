@@ -231,29 +231,40 @@ export default function Dashboard() {
   const { data: metrics, refetch: refetchMetrics } = useQuery({
     queryKey: ['dashboard_metrics', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
-      const { data: salesData } = await supabase
-        .from('sales_orders')
-        .select('total_amount, created_at')
-        .gte('created_at', startOfDay(startDate).toISOString())
-        .lte('created_at', endOfDay(endDate).toISOString());
+      // Calculate previous period of equal length
+      const periodMs = endOfDay(endDate).getTime() - startOfDay(startDate).getTime();
+      const prevEnd = new Date(startOfDay(startDate).getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - periodMs);
 
-      const { data: purchaseData } = await supabase
-        .from('purchase_orders')
-        .select('total_amount, created_at')
-        .gte('created_at', startOfDay(startDate).toISOString())
-        .lte('created_at', endOfDay(endDate).toISOString());
-
-      const { data: clientsData } = await supabase.from('clients').select('id').eq('kyc_status', 'VERIFIED');
-      const { data: totalClientsData } = await supabase.from('clients').select('id');
-
-      const { data: bankData } = await supabase
-        .from('bank_accounts')
-        .select('balance, lien_amount')
-        .eq('status', 'ACTIVE')
-        .is('dormant_at', null);
-
-      const { data: productsData } = await supabase.from('products').select('code, cost_price');
-      const { data: walletAssetBalances } = await supabase.from('wallet_asset_balances').select('asset_code, balance');
+      const [
+        { data: salesData },
+        { data: purchaseData },
+        { data: prevSalesData },
+        { data: prevPurchaseData },
+        { data: clientsData },
+        { data: totalClientsData },
+        { data: bankData },
+        { data: productsData },
+        { data: walletAssetBalances },
+      ] = await Promise.all([
+        supabase.from('sales_orders').select('total_amount, created_at')
+          .gte('created_at', startOfDay(startDate).toISOString())
+          .lte('created_at', endOfDay(endDate).toISOString()),
+        supabase.from('purchase_orders').select('total_amount, created_at')
+          .gte('created_at', startOfDay(startDate).toISOString())
+          .lte('created_at', endOfDay(endDate).toISOString()),
+        supabase.from('sales_orders').select('total_amount')
+          .gte('created_at', prevStart.toISOString())
+          .lte('created_at', prevEnd.toISOString()),
+        supabase.from('purchase_orders').select('total_amount')
+          .gte('created_at', prevStart.toISOString())
+          .lte('created_at', prevEnd.toISOString()),
+        supabase.from('clients').select('id').eq('kyc_status', 'VERIFIED'),
+        supabase.from('clients').select('id'),
+        supabase.from('bank_accounts').select('balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null),
+        supabase.from('products').select('code, cost_price'),
+        supabase.from('wallet_asset_balances').select('asset_code, balance'),
+      ]);
 
       const totalSalesOrders = salesData?.length || 0;
       const totalSales = salesData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
@@ -261,6 +272,14 @@ export default function Dashboard() {
       const totalSpending = purchaseData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
       const verifiedClients = clientsData?.length || 0;
       const totalClients = totalClientsData?.length || 0;
+
+      // Previous period metrics
+      const prevTotalSalesOrders = prevSalesData?.length || 0;
+      const prevTotalSales = prevSalesData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
+
+      // Growth rates
+      const salesGrowth = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales) * 100 : (totalSales > 0 ? 100 : 0);
+      const ordersGrowth = prevTotalSalesOrders > 0 ? ((totalSalesOrders - prevTotalSalesOrders) / prevTotalSalesOrders) * 100 : (totalSalesOrders > 0 ? 100 : 0);
 
       const bankBalance = bankData?.reduce((sum, a) => sum + (Number(a.balance) - Number(a.lien_amount || 0)), 0) || 0;
 
@@ -273,7 +292,7 @@ export default function Dashboard() {
       const stockValue = Object.entries(assetTotals).reduce((sum, [code, balance]) => sum + (balance * (costPriceMap[code] || 0)), 0);
       const totalCash = bankBalance + stockValue;
 
-      return { totalSalesOrders, totalSales, totalPurchases, totalSpending, verifiedClients, totalClients, totalCash, bankBalance, stockValue, totalRevenue: totalSales };
+      return { totalSalesOrders, totalSales, totalPurchases, totalSpending, verifiedClients, totalClients, totalCash, bankBalance, stockValue, totalRevenue: totalSales, salesGrowth, ordersGrowth };
     },
   });
 

@@ -323,14 +323,17 @@ Deno.serve(async (req) => {
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
-        port: 587,
+        port: 465,
         tls: true,
         auth: { username: smtpUser, password: smtpPass },
       },
     })
 
+    // Gmail requires from address to match authenticated user or be an alias
+    const fromAddress = smtpUser
+
     await client.send({
-      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+      from: `${SITE_NAME} <${fromAddress}>`,
       to: effectiveRecipient,
       subject: resolvedSubject,
       content: plainText,

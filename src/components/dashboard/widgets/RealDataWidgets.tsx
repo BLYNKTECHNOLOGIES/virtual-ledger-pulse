@@ -726,12 +726,13 @@ export function CashFlowWidget() {
       
       const dayMap: Record<string, { income: number; expense: number }> = {};
       days.forEach(d => { dayMap[d.date] = { income: 0, expense: 0 }; });
-      const excludeCats = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
+      const excludeExpenseCats = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
+      const excludeIncomeCats = ['Purchase', 'Sales', 'Stock Purchase', 'Stock Sale', 'Trade', 'Trading', 'Payment Gateway Settlement', 'Settlement', 'OPENING_BALANCE', 'ADJUSTMENT'];
       (txns || []).forEach((t: any) => {
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
-        if (t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN') entry.income += Math.abs(Number(t.amount));
-        else if (t.transaction_type === 'EXPENSE' && !excludeCats.includes(t.category || '')) entry.expense += Math.abs(Number(t.amount));
+        if ((t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN') && !excludeIncomeCats.includes(t.category || '')) entry.income += Math.abs(Number(t.amount));
+        else if (t.transaction_type === 'EXPENSE' && !excludeExpenseCats.includes(t.category || '')) entry.expense += Math.abs(Number(t.amount));
       });
       const chartData = days.map(d => ({ name: d.label, income: dayMap[d.date].income, expense: dayMap[d.date].expense }));
       const totalIncome = chartData.reduce((s, d) => s + d.income, 0);

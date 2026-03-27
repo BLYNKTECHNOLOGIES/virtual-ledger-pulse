@@ -111,7 +111,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           transaction_date: transactionData.date ? format(transactionData.date, 'yyyy-MM-dd') : null,
           reference_number: transactionData.referenceNumber || null,
            created_by: createdBy,
-           bill_url: publicUrlData.publicUrl,
+           bill_url: billUrl,
         })
         .select()
         .single();

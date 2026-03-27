@@ -70,16 +70,16 @@ function WalletBalanceWidgetContent() {
   }
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="text-center">
+    <div className="p-4 flex flex-col h-full">
+      <div className="text-center mb-3">
         <p className="text-2xl font-bold text-foreground">{totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</p>
         <p className="text-xs text-muted-foreground mt-1">Total across {(wallets || []).length} wallets</p>
       </div>
-      <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+      <div className="space-y-1 flex-1 overflow-y-auto">
         {(wallets || []).filter(w => Number(w.current_balance) > 0).map((w: any) => (
-          <div key={w.id} className="flex items-center justify-between text-sm px-2 py-1.5 rounded-lg bg-muted/50">
-            <span className="text-muted-foreground truncate">{w.wallet_name}</span>
-            <span className="font-semibold text-foreground">{Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          <div key={w.id} className="flex items-center justify-between text-sm px-3 py-2 rounded-lg bg-muted/50">
+            <span className="text-muted-foreground font-medium truncate mr-2">{w.wallet_name}</span>
+            <span className="font-semibold text-foreground whitespace-nowrap">{Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           </div>
         ))}
       </div>

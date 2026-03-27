@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,11 @@ const CHART_COLORS = [
 ];
 
 export function StatisticsTab() {
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last30days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last30days"));
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "overview");
 
   const getDateRange = () => {
     if (dateRange?.from && dateRange?.to) {

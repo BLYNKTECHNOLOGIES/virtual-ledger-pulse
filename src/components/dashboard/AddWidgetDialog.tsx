@@ -116,17 +116,6 @@ export const builtInWidgets: WidgetType[] = [
     gridSpan: 4,
   },
   {
-    id: 'stock-inventory',
-    name: 'Asset Inventory',
-    description: 'Crypto asset holdings with wallet distribution',
-    icon: Package,
-    category: 'Core Sections',
-    size: 'large',
-    requiredPermissions: ['stock_view'],
-    isBuiltIn: true,
-    gridSpan: 12,
-  },
-  {
     id: 'my-tasks',
     name: 'My Tasks',
     description: 'Your assigned tasks with counts and quick access',

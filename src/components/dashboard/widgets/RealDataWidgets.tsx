@@ -126,15 +126,25 @@ export function DailyActivityWidget() {
 }
 
 // ── Quick Stats Widget ──
-export function QuickStatsWidget({ metrics }: { metrics?: any }) {
+export function QuickStatsWidget({ metrics, dateRange }: { metrics?: any; dateRange?: { from?: Date; to?: Date } }) {
+  const fromISO = dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined;
+  const toISO = dateRange?.to ? endOfDay(dateRange.to).toISOString() : undefined;
+
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_quick_stats'],
+    queryKey: ['widget_quick_stats', fromISO, toISO],
     queryFn: async () => {
+      let salesQuery = supabase.from('sales_orders').select('id', { count: 'exact', head: true });
+      let purchaseQuery = supabase.from('purchase_orders').select('id', { count: 'exact', head: true });
+      const verifiedQuery = supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED');
+      const totalQuery = supabase.from('clients').select('id', { count: 'exact', head: true });
+
+      if (fromISO && toISO) {
+        salesQuery = salesQuery.gte('created_at', fromISO).lte('created_at', toISO);
+        purchaseQuery = purchaseQuery.gte('created_at', fromISO).lte('created_at', toISO);
+      }
+
       const [salesRes, purchaseRes, verifiedRes, totalRes] = await Promise.all([
-        supabase.from('sales_orders').select('id', { count: 'exact', head: true }),
-        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }),
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED'),
-        supabase.from('clients').select('id', { count: 'exact', head: true }),
+        salesQuery, purchaseQuery, verifiedQuery, totalQuery,
       ]);
       return {
         orders: salesRes.count || 0,

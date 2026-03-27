@@ -18,16 +18,20 @@ interface Step1BasicInfoProps {
 export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
   // Fetch employees for RM dropdown
   const { data: employees } = useQuery({
-    queryKey: ['employees'],
+    queryKey: ['hr_employees_rm'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('employees')
-        .select('id, name, employee_id')
-        .eq('status', 'ACTIVE')
-        .order('name');
+        .from('hr_employees')
+        .select('id, first_name, last_name, badge_id')
+        .eq('is_active', true)
+        .order('first_name');
       
       if (error) throw error;
-      return data;
+      return data?.map(e => ({
+        id: e.id,
+        name: `${e.first_name} ${e.last_name || ''}`.trim(),
+        employee_id: e.badge_id
+      }));
     },
   });
 

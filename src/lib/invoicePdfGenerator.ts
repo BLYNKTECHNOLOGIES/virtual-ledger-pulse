@@ -337,7 +337,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
       doc.text(item.quantity.toFixed(0), colR.qty - 1, rowY, { align: "right" });
       doc.text(unitLabel, colX.unit + columnWidths.unit / 2, rowY, { align: "center" });
-      doc.text(formatINR(taxableValue), colR.price - 1, rowY, { align: "right" });
+      doc.text(formatINR(item.rate), colR.price - 1, rowY, { align: "right" });
 
       if (hasGst) {
         if (gst.type === "IGST") {
@@ -440,17 +440,18 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
     setColor(t.colors.bodyText);
 
-    // ── Amount In Words (left side) ──
-    const wordsStartY = y - 20;
+    // ── Amount In Words (left side, aligned with Sub Total) ──
+    const wordsStartY = y - (hasGst ? (gst.type === "IGST" ? 15 : 20) : 10);
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
+    setColor(t.colors.bodyText);
     doc.text("Invoice Amount In Words", marginL, wordsStartY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     const wordsText = numberToWords(totalWithTax);
-    const wordsLines = doc.splitTextToSize(wordsText, pageW / 2 - marginL - 5);
+    const wordsLines = doc.splitTextToSize(wordsText, pageW / 2 - marginL - 10);
     wordsLines.forEach((line: string, i: number) => {
-      doc.text(line, marginL, wordsStartY + 4 + i * 3.5);
+      doc.text(line, marginL, wordsStartY + 5 + i * 3.5);
     });
 
     y += 2;

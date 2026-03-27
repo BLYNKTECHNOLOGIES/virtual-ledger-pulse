@@ -17,6 +17,7 @@ import { ShiftReconciliationWidget } from "@/components/dashboard/ShiftReconcili
 import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
 import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
+import { MyTasksWidget } from "@/components/dashboard/widgets/MyTasksWidget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";

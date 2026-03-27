@@ -154,7 +154,7 @@ export function KYCDetailsDialog({ open, onOpenChange, kycRequest }: KYCDetailsD
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Order Amount</p>
-                <p className="font-medium">₹{(kycRequest.order_amount || kycRequest.orderAmount)?.toLocaleString()}</p>
+                <p className="font-medium">₹{(kycRequest.order_amount || kycRequest.orderAmount)?.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">Purpose of Buying</p>

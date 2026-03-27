@@ -215,7 +215,7 @@ export function SettlementSummary() {
       }
       toast({
         title: "Settlement Reversed",
-        description: `₹${result.reversed_amount?.toLocaleString()} reversed. ${result.restored_count} order(s) moved back to pending settlements.`,
+        description: `₹${result.reversed_amount?.toLocaleString('en-IN')} reversed. ${result.restored_count} order(s) moved back to pending settlements.`,
       });
       setReverseDialogOpen(false);
       setSelectedReverseSettlement(null);
@@ -264,7 +264,7 @@ export function SettlementSummary() {
             <div className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-green-600" />
               <span className="text-2xl font-bold text-green-600">
-                ₹{stats.totalSettled.toLocaleString()}
+                ₹{stats.totalSettled.toLocaleString('en-IN')}
               </span>
             </div>
           </CardContent>
@@ -292,7 +292,7 @@ export function SettlementSummary() {
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-red-600" />
               <span className="text-2xl font-bold text-red-600">
-                ₹{stats.totalMdrDeducted.toLocaleString()}
+                ₹{stats.totalMdrDeducted.toLocaleString('en-IN')}
               </span>
             </div>
           </CardContent>
@@ -306,7 +306,7 @@ export function SettlementSummary() {
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-purple-600" />
               <span className="text-2xl font-bold text-purple-600">
-                ₹{stats.averageSettlementAmount.toLocaleString()}
+                ₹{stats.averageSettlementAmount.toLocaleString('en-IN')}
               </span>
             </div>
           </CardContent>
@@ -400,12 +400,12 @@ export function SettlementSummary() {
                       </div>
                     </TableCell>
                     <TableCell>{settlement.settlement_items.length}</TableCell>
-                    <TableCell>₹{settlement.total_amount.toLocaleString()}</TableCell>
+                    <TableCell>₹{settlement.total_amount.toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-red-600">
-                      ₹{settlement.mdr_amount.toLocaleString()}
+                      ₹{settlement.mdr_amount.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell className="font-semibold text-green-600">
-                      ₹{settlement.net_amount.toLocaleString()}
+                      ₹{settlement.net_amount.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
                       {format(new Date(settlement.settlement_date), 'MMM dd, yyyy')}
@@ -481,12 +481,12 @@ export function SettlementSummary() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Net Amount:</span>
-                <span className="font-medium text-green-600">₹{selectedReverseSettlement.net_amount.toLocaleString()}</span>
+                <span className="font-medium text-green-600">₹{selectedReverseSettlement.net_amount.toLocaleString('en-IN')}</span>
               </div>
               {selectedReverseSettlement.mdr_amount > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">MDR Expense to reverse:</span>
-                  <span className="font-medium text-red-600">₹{selectedReverseSettlement.mdr_amount.toLocaleString()}</span>
+                  <span className="font-medium text-red-600">₹{selectedReverseSettlement.mdr_amount.toLocaleString('en-IN')}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
@@ -494,8 +494,8 @@ export function SettlementSummary() {
                 <span className="font-medium">{selectedReverseSettlement.settlement_items.length}</span>
               </div>
               <div className="bg-orange-50 border border-orange-200 rounded-md p-3 text-sm text-orange-800">
-                <strong>Warning:</strong> The bank balance will be debited by ₹{selectedReverseSettlement.net_amount.toLocaleString()}
-                {selectedReverseSettlement.mdr_amount > 0 && ` and MDR expense of ₹${selectedReverseSettlement.mdr_amount.toLocaleString()} will be reversed`}.
+                <strong>Warning:</strong> The bank balance will be debited by ₹{selectedReverseSettlement.net_amount.toLocaleString('en-IN')}
+                {selectedReverseSettlement.mdr_amount > 0 && ` and MDR expense of ₹${selectedReverseSettlement.mdr_amount.toLocaleString('en-IN')} will be reversed`}.
                 All associated orders will move back to Pending Settlements.
               </div>
             </div>

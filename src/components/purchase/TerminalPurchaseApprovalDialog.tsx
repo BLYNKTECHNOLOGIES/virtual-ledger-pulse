@@ -555,15 +555,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                 <LockedField label="Order Number" value={od.order_number} />
                 <LockedField label="Order Date" value={orderDate} />
                 <LockedField label="Asset" value={od.asset || 'USDT'} />
-                <LockedField label="Quantity" value={`${Number(od.amount || 0).toLocaleString()} ${assetCode}`} />
+                <LockedField label="Quantity" value={`${Number(od.amount || 0).toLocaleString('en-IN')} ${assetCode}`} />
                 <LockedField label="Price Per Unit" value={`₹${Number(od.unit_price || 0).toLocaleString('en-IN')}`} />
                 <LockedField label="Total Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
                 <LockedField
                   label="Commission/Fee"
                   value={
                     isNonUsdt && coinUsdtRate && coinUsdtRate > 0
-                      ? `${Number(od.commission || 0).toLocaleString()} ${assetCode} ≈ ${formatSmartDecimal(Number(od.commission || 0) * coinUsdtRate, 4)} USDT`
-                      : `${Number(od.commission || 0).toLocaleString()} USDT`
+                      ? `${Number(od.commission || 0).toLocaleString('en-IN')} ${assetCode} ≈ ${formatSmartDecimal(Number(od.commission || 0) * coinUsdtRate, 4)} USDT`
+                      : `${Number(od.commission || 0).toLocaleString('en-IN')} USDT`
                   }
                 />
                 <LockedField label="Wallet" value={od.wallet_name || '—'} />

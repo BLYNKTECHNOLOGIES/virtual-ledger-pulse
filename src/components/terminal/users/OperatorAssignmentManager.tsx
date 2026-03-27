@@ -92,7 +92,7 @@ export function OperatorAssignmentManager() {
       for (const a of assignments) {
         if (a.assignment_type === 'size_range' && a.size_range) {
           const key = a.size_range_id || a.size_range?.id || 'unknown';
-          const label = `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString()}–${(a.size_range.max_amount ?? 0).toLocaleString()})`;
+          const label = `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString('en-IN')}–${(a.size_range.max_amount ?? 0).toLocaleString('en-IN')})`;
           if (!groups.has(key)) groups.set(key, { label, assignments: [] });
           groups.get(key)!.assignments.push(a);
         } else {
@@ -178,7 +178,7 @@ export function OperatorAssignmentManager() {
                     <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select range..." /></SelectTrigger>
                     <SelectContent>
                       {sizeRanges.map((r: any) => (
-                        <SelectItem key={r.id} value={r.id} className="text-xs">{r.name} ({(r.min_amount ?? 0).toLocaleString()} – {(r.max_amount ?? 0).toLocaleString()})</SelectItem>
+                        <SelectItem key={r.id} value={r.id} className="text-xs">{r.name} ({(r.min_amount ?? 0).toLocaleString('en-IN')} – {(r.max_amount ?? 0).toLocaleString('en-IN')})</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -279,7 +279,7 @@ export function OperatorAssignmentManager() {
                                 <TableCell className="py-2">
                                   <span className="text-xs text-muted-foreground">
                                     {a.assignment_type === 'size_range' && a.size_range
-                                      ? `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString()}–${(a.size_range.max_amount ?? 0).toLocaleString()})`
+                                      ? `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString('en-IN')}–${(a.size_range.max_amount ?? 0).toLocaleString('en-IN')})`
                                       : a.ad_id || '—'}
                                   </span>
                                 </TableCell>

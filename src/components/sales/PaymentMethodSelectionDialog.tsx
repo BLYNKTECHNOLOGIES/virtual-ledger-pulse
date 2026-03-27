@@ -110,7 +110,7 @@ export function PaymentMethodSelectionDialog({
             </span>
           </div>
           <Badge variant="outline" className="text-green-600">
-            Available: ₹{(method.payment_limit - method.current_usage).toLocaleString()}
+            Available: ₹{(method.payment_limit - method.current_usage).toLocaleString('en-IN')}
           </Badge>
         </div>
 
@@ -188,7 +188,7 @@ export function PaymentMethodSelectionDialog({
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Select Payment Method - {clientName} (₹{orderAmount.toLocaleString()})
+            Select Payment Method - {clientName} (₹{orderAmount.toLocaleString('en-IN')})
           </DialogTitle>
         </DialogHeader>
 

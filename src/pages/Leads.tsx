@@ -377,9 +377,9 @@ export default function Leads() {
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="text-right">₹{(lead.estimated_order_value || 0).toLocaleString()}</TableCell>
+                <TableCell className="text-right">₹{(lead.estimated_order_value || 0).toLocaleString('en-IN')}</TableCell>
                 <TableCell className="text-right">
-                  {lead.price_quoted > 0 ? `₹${Number(lead.price_quoted).toLocaleString()}` : "-"}
+                  {lead.price_quoted > 0 ? `₹${Number(lead.price_quoted).toLocaleString('en-IN')}` : "-"}
                 </TableCell>
                 <TableCell>
                   {lead.contact_channel

@@ -139,7 +139,7 @@ export function ResolveQueryDialog({ open, onOpenChange, query, onSuccess }: Res
           <div className="bg-gray-50 p-4 rounded">
             <p className="text-sm font-medium mb-2">Query Details:</p>
             <p className="font-semibold">{query.kyc_approval_requests?.counterparty_name}</p>
-            <p className="text-sm text-gray-600">Amount: ₹{query.kyc_approval_requests?.order_amount?.toLocaleString()}</p>
+            <p className="text-sm text-gray-600">Amount: ₹{query.kyc_approval_requests?.order_amount?.toLocaleString('en-IN')}</p>
             
             {query.manual_query && (
               <div className="mt-3 p-3 bg-purple-50 rounded border-l-4 border-purple-400">

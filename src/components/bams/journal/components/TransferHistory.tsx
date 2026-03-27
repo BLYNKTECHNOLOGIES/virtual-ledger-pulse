@@ -128,7 +128,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <div className="font-semibold text-lg">₹{parseFloat(transfer.amount.toString()).toLocaleString()}</div>
+                      <div className="font-semibold text-lg">₹{parseFloat(transfer.amount.toString()).toLocaleString('en-IN')}</div>
                       <div className="flex items-center gap-1 text-green-600 text-sm">
                         <Check className="h-3 w-3" />
                         Completed
@@ -158,7 +158,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Contra Entry</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the transfer of <strong>₹{deleteTarget ? parseFloat(deleteTarget.amount.toString()).toLocaleString() : ''}</strong> from{' '}
+              This will delete the transfer of <strong>₹{deleteTarget ? parseFloat(deleteTarget.amount.toString()).toLocaleString('en-IN') : ''}</strong> from{' '}
               <strong>{deleteTarget?.bank_accounts?.account_name}</strong> to{' '}
               <strong>{deleteTarget?.related_account_name}</strong> and reverse the bank balances.
               This action cannot be undone.

@@ -421,7 +421,7 @@ export function TerminalUsersList() {
                         >
                           <Ruler className="h-2.5 w-2.5" />
                           {pa.type === 'size_range' && pa.rangeName
-                            ? `${pa.rangeName} (₹${(pa.rangeMin ?? 0).toLocaleString()}–${pa.rangeMax !== null ? `₹${(pa.rangeMax ?? 0).toLocaleString()}` : '∞'})`
+                            ? `${pa.rangeName} (₹${(pa.rangeMin ?? 0).toLocaleString('en-IN')}–${pa.rangeMax !== null ? `₹${(pa.rangeMax ?? 0).toLocaleString('en-IN')}` : '∞'})`
                             : pa.type === 'ad_id' && pa.adId
                               ? `Ad: ${pa.adId.slice(0, 8)}…`
                               : 'Unknown'}

@@ -1008,7 +1008,7 @@ export function CaseGenerator() {
                                   {caseItem.amount_involved > 0 && (
                                     <span className="flex items-center gap-1">
                                       <DollarSign className="h-4 w-4" />
-                                      ₹{caseItem.amount_involved?.toLocaleString()}
+                                      ₹{caseItem.amount_involved?.toLocaleString('en-IN')}
                                     </span>
                                   )}
                                   <span className="flex items-center gap-1">
@@ -1086,7 +1086,7 @@ export function CaseGenerator() {
                                   {caseItem.amount_involved > 0 && (
                                     <span className="flex items-center gap-1">
                                       <DollarSign className="h-4 w-4" />
-                                      ₹{caseItem.amount_involved?.toLocaleString()}
+                                      ₹{caseItem.amount_involved?.toLocaleString('en-IN')}
                                     </span>
                                   )}
                                   <span className="flex items-center gap-1">
@@ -1174,7 +1174,7 @@ export function CaseGenerator() {
                 {selectedCase.amount_involved > 0 && (
                   <div>
                     <Label className="text-sm font-medium text-muted-foreground">Amount Involved</Label>
-                    <p className="mt-1 font-semibold">₹{selectedCase.amount_involved?.toLocaleString()}</p>
+                    <p className="mt-1 font-semibold">₹{selectedCase.amount_involved?.toLocaleString('en-IN')}</p>
                   </div>
                 )}
               </div>

@@ -95,7 +95,7 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
                       {t.created_by_user?.first_name || t.created_by_user?.username || '—'}
                     </TableCell>
                     <TableCell className="text-right font-medium text-destructive">
-                      -₹{Number(t.amount).toLocaleString()}
+                      -₹{Number(t.amount).toLocaleString('en-IN')}
                     </TableCell>
                   </TableRow>
                 ))

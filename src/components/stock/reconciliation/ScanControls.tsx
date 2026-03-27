@@ -58,7 +58,7 @@ export function ScanControls({ onScan, isScanning, lastScan }: Props) {
             <>
               <div className="flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" />
-                <span>{new Date(lastScan.started_at).toLocaleString()}</span>
+                <span>{new Date(lastScan.started_at).toLocaleString('en-IN')}</span>
               </div>
               <Badge variant="secondary" className="text-xs">
                 {lastScan.findings_count} findings

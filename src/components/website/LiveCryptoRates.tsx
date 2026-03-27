@@ -189,7 +189,7 @@ export function LiveCryptoRates() {
     } else if (marketCap >= 1e6) {
       return `$${(marketCap / 1e6).toFixed(2)}M`;
     }
-    return `$${marketCap.toLocaleString()}`;
+    return `$${marketCap.toLocaleString('en-IN')}`;
   };
 
   if (loading) {

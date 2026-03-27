@@ -76,7 +76,7 @@ export default function AssetPage() {
             <td className="px-4 py-3 text-gray-500">{a.serial_number || "—"}</td>
             <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(a.status)}`}>{a.status}</span></td>
             <td className="px-4 py-3 text-gray-500 capitalize">{a.condition}</td>
-            <td className="px-4 py-3">₹{(a.purchase_cost || 0).toLocaleString()}</td>
+            <td className="px-4 py-3">₹{(a.purchase_cost || 0).toLocaleString('en-IN')}</td>
             <td className="px-4 py-3"><div className="flex gap-1"><Button size="sm" variant="ghost" onClick={() => { setEditId(a.id); setForm({ name: a.name, asset_type: a.asset_type, serial_number: a.serial_number || "", status: a.status, purchase_cost: a.purchase_cost || 0, condition: a.condition || "good", notes: a.notes || "" }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5" /></Button><Button size="sm" variant="ghost" className="text-red-600" onClick={() => deleteMutation.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button></div></td>
           </tr>
         ))}</tbody></table>

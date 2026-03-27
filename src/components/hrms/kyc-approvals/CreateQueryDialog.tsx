@@ -115,7 +115,7 @@ export function CreateQueryDialog({ open, onOpenChange, kycRequest, onSuccess }:
           <div className="bg-gray-50 p-3 rounded">
             <p className="text-sm font-medium">KYC Request for:</p>
             <p className="font-semibold">{kycRequest.counterparty_name}</p>
-            <p className="text-sm text-gray-600">Amount: ₹{kycRequest.order_amount?.toLocaleString()}</p>
+            <p className="text-sm text-gray-600">Amount: ₹{kycRequest.order_amount?.toLocaleString('en-IN')}</p>
           </div>
 
           <div className="space-y-4">

@@ -269,7 +269,7 @@ export function ExpensesIncomesTab() {
                      <div className="text-right">
                     <div className={`font-semibold text-lg ${getTransactionColor(transaction.transaction_type)}`}>
                       {transaction.transaction_type === 'EXPENSE' ? '-' : '+'}
-                      ₹{parseFloat(transaction.amount.toString()).toLocaleString()}
+                      ₹{parseFloat(transaction.amount.toString()).toLocaleString('en-IN')}
                     </div>
                        <div className="text-xs text-muted-foreground">
                          {transaction.created_by_user 
@@ -294,7 +294,7 @@ export function ExpensesIncomesTab() {
            <AlertDialogHeader>
              <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
              <AlertDialogDescription>
-               Are you sure you want to delete this {transactionToDelete?.transaction_type?.toLowerCase()} entry of ₹{transactionToDelete?.amount?.toLocaleString()}? 
+               Are you sure you want to delete this {transactionToDelete?.transaction_type?.toLowerCase()} entry of ₹{transactionToDelete?.amount?.toLocaleString('en-IN')}? 
                This will reverse the bank balance adjustment. This action cannot be undone.
              </AlertDialogDescription>
            </AlertDialogHeader>

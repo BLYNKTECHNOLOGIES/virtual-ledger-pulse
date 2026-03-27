@@ -565,7 +565,7 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>₹{entry.totalAmount.toLocaleString()}</div>
+                        <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
                         <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>
                       </div>
                     </TableCell>
@@ -692,7 +692,7 @@ export function ClientOnboardingApprovals() {
               {reviewedApprovals.map((approval) => (
                 <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-red-50' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
-                  <TableCell>₹{approval.order_amount.toLocaleString()}</TableCell>
+                  <TableCell>₹{approval.order_amount.toLocaleString('en-IN')}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
                   <TableCell>{approval.reviewed_by || '-'}</TableCell>
                   <TableCell>
@@ -701,7 +701,7 @@ export function ClientOnboardingApprovals() {
                   <TableCell>
                     {approval.approval_status === 'APPROVED' ? (
                       <span className="text-sm text-muted-foreground">
-                        Limit: ₹{approval.proposed_monthly_limit?.toLocaleString() || '-'}
+                        Limit: ₹{approval.proposed_monthly_limit?.toLocaleString('en-IN') || '-'}
                       </span>
                     ) : approval.approval_status === 'REJECTED' ? (
                       <span className="text-sm text-destructive">
@@ -753,9 +753,9 @@ export function ClientOnboardingApprovals() {
                       <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">PAN:</span> {existingClientMatch.pan_card_number || 'N/A'}</div>
                       <div><span className="text-muted-foreground">KYC:</span> {existingClientMatch.kyc_status}</div>
-                      <div><span className="text-muted-foreground">Monthly Limit:</span> {existingClientMatch.monthly_limit ? `₹${existingClientMatch.monthly_limit.toLocaleString()}` : 'N/A'}</div>
-                      <div><span className="text-muted-foreground">Used This Month:</span> ₹{existingClientMatch.current_month_used?.toLocaleString() || '0'}</div>
-                      <div><span className="text-muted-foreground">First Order:</span> {existingClientMatch.first_order_value ? `₹${existingClientMatch.first_order_value.toLocaleString()}` : 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Monthly Limit:</span> {existingClientMatch.monthly_limit ? `₹${existingClientMatch.monthly_limit.toLocaleString('en-IN')}` : 'N/A'}</div>
+                      <div><span className="text-muted-foreground">Used This Month:</span> ₹{existingClientMatch.current_month_used?.toLocaleString('en-IN') || '0'}</div>
+                      <div><span className="text-muted-foreground">First Order:</span> {existingClientMatch.first_order_value ? `₹${existingClientMatch.first_order_value.toLocaleString('en-IN')}` : 'N/A'}</div>
                       <div><span className="text-muted-foreground">Buyer:</span> {existingClientMatch.is_buyer ? 'Yes' : 'No'}</div>
                       <div><span className="text-muted-foreground">Seller:</span> {existingClientMatch.is_seller ? 'Yes' : 'No'}</div>
                       <div><span className="text-muted-foreground">Client Type:</span> {existingClientMatch.client_type || 'N/A'}</div>
@@ -792,9 +792,9 @@ export function ClientOnboardingApprovals() {
                                 <td className="py-1 pr-2 font-mono">{tx.order_number}</td>
                                 <td className="py-1 pr-2">{new Date(tx.order_date).toLocaleDateString('en-IN')}</td>
                                 <td className="py-1 pr-2 capitalize">{tx.sale_type || 'N/A'}</td>
-                                <td className="py-1 pr-2 text-right">₹{tx.total_amount?.toLocaleString()}</td>
+                                <td className="py-1 pr-2 text-right">₹{tx.total_amount?.toLocaleString('en-IN')}</td>
                                 <td className="py-1 pr-2 text-right">{tx.quantity}</td>
-                                <td className="py-1 pr-2 text-right">₹{tx.price_per_unit?.toLocaleString()}</td>
+                                <td className="py-1 pr-2 text-right">₹{tx.price_per_unit?.toLocaleString('en-IN')}</td>
                                 <td className="py-1 pr-2">{tx.client_phone || '-'}</td>
                                 <td className="py-1 pr-2">{tx.client_state || '-'}</td>
                                 <td className="py-1">
@@ -817,7 +817,7 @@ export function ClientOnboardingApprovals() {
                       <div><span className="text-muted-foreground">Phone:</span> {selectedApproval.client_phone || 'N/A'}</div>
                       <div><span className="text-muted-foreground">Email:</span> {selectedApproval.client_email || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {selectedApproval.client_state || 'N/A'}</div>
-                      <div><span className="text-muted-foreground">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString()}</div>
+                      <div><span className="text-muted-foreground">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}</div>
                       <div><span className="text-muted-foreground">Order Date:</span> {new Date(selectedApproval.order_date).toLocaleDateString()}</div>
                     </div>
                   </div>
@@ -867,7 +867,7 @@ export function ClientOnboardingApprovals() {
                     <span className="font-medium">Client Name:</span> {selectedApproval.client_name}
                   </div>
                   <div>
-                    <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString()}
+                    <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
                   </div>
                   <div>
                     <span className="font-medium">Email:</span> {selectedApproval.client_email}

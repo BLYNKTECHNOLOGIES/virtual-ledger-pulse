@@ -696,7 +696,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString()}</strong>
+                Available Balance in Selected Wallet: <strong>{selectedWalletBalance.toLocaleString('en-IN')}</strong>
                 {selectedWalletFee > 0 && !isOffMarket && (
                   <span className="ml-2 text-muted-foreground">
                     (Platform Fee: {selectedWalletFee}%)
@@ -787,7 +787,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                     
                     return (
                       <SelectItem key={method.id} value={method.id}>
-                        {displayLabel} - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
+                        {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
                       </SelectItem>
                     );
                   })}

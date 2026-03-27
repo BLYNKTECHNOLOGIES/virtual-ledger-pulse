@@ -163,7 +163,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Total Amount</label>
-              <p className="text-sm font-medium">₹{Number(order.total_amount).toLocaleString()}</p>
+              <p className="text-sm font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Quantity</label>
@@ -171,7 +171,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Price per Unit</label>
-              <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</p>
+              <p className="text-sm">₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Product</label>

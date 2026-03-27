@@ -1040,7 +1040,7 @@ export default function TerminalOperatorDetail() {
                           <tr key={order.order_number || i} className="border-b border-border/50 hover:bg-muted/20">
                             <td className="py-1 px-1.5 font-mono text-[9px]">...{order.order_number?.slice(-8)}</td>
                             <td className="py-1 px-1.5 text-[9px]">{order.counter_part_nick_name || '—'}</td>
-                            <td className="py-1 px-1.5 text-right font-medium">₹{parseFloat(order.total_price || '0').toLocaleString()}</td>
+                            <td className="py-1 px-1.5 text-right font-medium">₹{parseFloat(order.total_price || '0').toLocaleString('en-IN')}</td>
                             <td className="py-1 px-1.5 text-[9px]">{order.asset || 'USDT'}</td>
                             <td className="py-1 px-1.5">
                               <Badge variant="outline" className={`text-[8px] ${statusColor}`}>
@@ -1084,7 +1084,7 @@ export default function TerminalOperatorDetail() {
                     return (
                       <Badge key={a.id} variant="outline" className="text-[9px] gap-1 border-blue-500/30 text-blue-400">
                         {a.assignment_type === 'size_range' ? '📏' : '📢'} {rangeName || a.id.slice(0, 8)}
-                        {rangeDetail && ` (₹${rangeDetail.min_amount?.toLocaleString()}–₹${rangeDetail.max_amount?.toLocaleString()})`}
+                        {rangeDetail && ` (₹${rangeDetail.min_amount?.toLocaleString('en-IN')}–₹${rangeDetail.max_amount?.toLocaleString('en-IN')})`}
                       </Badge>
                     );
                   })}
@@ -1244,7 +1244,7 @@ export default function TerminalOperatorDetail() {
                             <td className="py-1 px-1.5 font-mono text-[9px]">...{lock.order_number?.slice(-8)}</td>
                             <td className="py-1 px-1.5 text-[9px]">{hist?.counter_part_nick_name || '—'}</td>
                             <td className="py-1 px-1.5 text-right font-medium">
-                              {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString()}` : '—'}
+                              {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString('en-IN')}` : '—'}
                             </td>
                             <td className="py-1 px-1.5">
                               <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
@@ -1410,7 +1410,7 @@ export default function TerminalOperatorDetail() {
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Volume']} />
+                    <ReTooltip contentStyle={{ fontSize: 10, backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8 }} formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']} />
                     <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1477,7 +1477,7 @@ export default function TerminalOperatorDetail() {
                               <td className="py-1 px-1.5 text-[9px]">{hist?.counter_part_nick_name || '—'}</td>
                               <td className="py-1 px-1.5 text-[9px] hidden sm:table-cell">{hist?.pay_method_name || '—'}</td>
                               <td className="py-1 px-1.5 text-right font-medium">
-                                {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString()}` : '—'}
+                                {hist ? `₹${parseFloat(hist.total_price || '0').toLocaleString('en-IN')}` : '—'}
                               </td>
                               <td className="py-1 px-1.5">
                                 <Badge variant="outline" className={`text-[8px] ${lock.status === 'completed' ? 'text-green-500 border-green-500/30' : 'text-amber-400 border-amber-400/30'}`}>
@@ -1530,7 +1530,7 @@ export default function TerminalOperatorDetail() {
                               {a.trade_type || 'N/A'}
                             </Badge>
                           </td>
-                          <td className="py-1 px-1.5 text-right font-medium">₹{Number(a.total_price || 0).toLocaleString()}</td>
+                          <td className="py-1 px-1.5 text-right font-medium">₹{Number(a.total_price || 0).toLocaleString('en-IN')}</td>
                           <td className="py-1 px-1.5">
                             <Badge variant="outline" className={`text-[8px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : a.assignment_type === 'cancelled' ? 'text-destructive border-destructive/30' : 'text-green-500 border-green-500/30'}`}>
                               {a.is_active ? 'Active' : a.assignment_type === 'cancelled' ? 'Cancelled' : 'Done'}

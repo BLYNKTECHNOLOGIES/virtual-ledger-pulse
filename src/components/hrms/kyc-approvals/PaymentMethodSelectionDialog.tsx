@@ -167,7 +167,7 @@ export function PaymentMethodSelectionDialog({
         <div className="space-y-4">
           <div className="p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Order Amount:</strong> ₹{orderAmount.toLocaleString()}
+              <strong>Order Amount:</strong> ₹{orderAmount.toLocaleString('en-IN')}
             </p>
           </div>
 
@@ -245,7 +245,7 @@ export function PaymentMethodSelectionDialog({
                               {method.risk_category}
                             </Badge>
                             <p className="text-sm text-gray-500 mt-1">
-                              Available: ₹{getAvailableLimit(method).toLocaleString()}
+                              Available: ₹{getAvailableLimit(method).toLocaleString('en-IN')}
                             </p>
                           </div>
                         </div>

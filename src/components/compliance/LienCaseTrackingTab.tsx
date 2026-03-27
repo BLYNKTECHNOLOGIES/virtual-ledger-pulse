@@ -356,7 +356,7 @@ export function LienCaseTrackingTab() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 {Number(lien.amount) > 0 && (
                   <div>
-                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Amount:</span> ₹{Number(lien.amount).toLocaleString()}
+                    <span className={lien.status === 'Resolved' ? 'text-green-600' : 'text-red-600'}>Amount:</span> ₹{Number(lien.amount).toLocaleString('en-IN')}
                   </div>
                 )}
                 <div>

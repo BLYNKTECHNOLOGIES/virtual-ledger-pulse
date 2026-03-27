@@ -115,14 +115,14 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-600">First Order Value</label>
-            <p className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString()}</p>
+            <p className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString('en-IN')}</p>
             {firstOrder && (
               <p className="text-xs text-gray-500">Order #{firstOrder.order_number}</p>
             )}
           </div>
           <div>
             <label className="text-sm font-medium text-gray-600">Current Monthly Limit</label>
-            <p className="text-lg font-semibold">₹{monthlyLimit.toLocaleString()}</p>
+            <p className="text-lg font-semibold">₹{monthlyLimit.toLocaleString('en-IN')}</p>
           </div>
         </div>
 
@@ -133,8 +133,8 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
           </div>
           <Progress value={usedPercentage} className="h-2" />
           <div className="flex justify-between text-sm text-gray-500 mt-1">
-            <span>Used: ₹{currentMonthUsed.toLocaleString()}</span>
-            <span>Remaining: ₹{remainingLimit.toLocaleString()}</span>
+            <span>Used: ₹{currentMonthUsed.toLocaleString('en-IN')}</span>
+            <span>Remaining: ₹{remainingLimit.toLocaleString('en-IN')}</span>
           </div>
         </div>
 

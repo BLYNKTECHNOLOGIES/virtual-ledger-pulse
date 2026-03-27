@@ -66,14 +66,14 @@ export function FindingDetailDrawer({ finding, open, onClose, onFeedback }: Prop
               <p className="text-xs font-medium text-muted-foreground mb-2">Terminal Data</p>
               <div className="space-y-2">
                 <Row label="Reference" value={finding.terminal_ref || '-'} mono />
-                <Row label="Amount" value={finding.terminal_amount != null ? `₹${Number(finding.terminal_amount).toLocaleString()}` : '-'} />
+                <Row label="Amount" value={finding.terminal_amount != null ? `₹${Number(finding.terminal_amount).toLocaleString('en-IN')}` : '-'} />
               </div>
             </Card>
             <Card className="p-3">
               <p className="text-xs font-medium text-muted-foreground mb-2">ERP Data</p>
               <div className="space-y-2">
                 <Row label="Reference" value={finding.erp_ref || '-'} mono />
-                <Row label="Amount" value={finding.erp_amount != null ? `₹${Number(finding.erp_amount).toLocaleString()}` : '-'} />
+                <Row label="Amount" value={finding.erp_amount != null ? `₹${Number(finding.erp_amount).toLocaleString('en-IN')}` : '-'} />
               </div>
             </Card>
           </div>
@@ -83,7 +83,7 @@ export function FindingDetailDrawer({ finding, open, onClose, onFeedback }: Prop
             <Card className="p-3 bg-red-50 border-red-200">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-red-700">Variance</span>
-                <span className="text-lg font-bold text-red-700">₹{Number(finding.variance).toLocaleString()}</span>
+                <span className="text-lg font-bold text-red-700">₹{Number(finding.variance).toLocaleString('en-IN')}</span>
               </div>
             </Card>
           )}
@@ -125,7 +125,7 @@ export function FindingDetailDrawer({ finding, open, onClose, onFeedback }: Prop
           {/* Timestamp */}
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5" />
-            <span>Detected: {new Date(finding.created_at).toLocaleString()}</span>
+            <span>Detected: {new Date(finding.created_at).toLocaleString('en-IN')}</span>
           </div>
 
           <Separator />

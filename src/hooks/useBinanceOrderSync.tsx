@@ -203,7 +203,7 @@ export function useSyncOrderHistory() {
     },
     onSuccess: async ({ count, duration, type }) => {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';
-      toast.success(`${label}: ${count.toLocaleString()} orders in ${(duration / 1000).toFixed(0)}s`);
+      toast.success(`${label}: ${count.toLocaleString('en-IN')} orders in ${(duration / 1000).toFixed(0)}s`);
       
       // Post-sync: capture seller payment details from active BUY orders (before they complete)
       try {

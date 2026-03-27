@@ -128,15 +128,15 @@ export function FindingsGrid({ findings, isLoading, onFeedback, onSelect }: Prop
                     {f.erp_ref || '-'}
                   </TableCell>
                   <TableCell className="text-xs text-right font-mono">
-                    {f.terminal_amount != null ? `₹${Number(f.terminal_amount).toLocaleString()}` : '-'}
+                    {f.terminal_amount != null ? `₹${Number(f.terminal_amount).toLocaleString('en-IN')}` : '-'}
                   </TableCell>
                   <TableCell className="text-xs text-right font-mono">
-                    {f.erp_amount != null ? `₹${Number(f.erp_amount).toLocaleString()}` : '-'}
+                    {f.erp_amount != null ? `₹${Number(f.erp_amount).toLocaleString('en-IN')}` : '-'}
                   </TableCell>
                   <TableCell className="text-xs text-right font-mono">
                     {f.variance != null ? (
                       <span className={Number(f.variance) > 0 ? 'text-red-600 font-semibold' : ''}>
-                        ₹{Number(f.variance).toLocaleString()}
+                        ₹{Number(f.variance).toLocaleString('en-IN')}
                       </span>
                     ) : '-'}
                   </TableCell>

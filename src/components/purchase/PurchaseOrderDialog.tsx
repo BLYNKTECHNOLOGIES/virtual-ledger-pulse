@@ -339,7 +339,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
                             }
                           </span>
                           <span className="text-xs text-gray-500">
-                            Available: ₹{getAvailableLimit(method.id).toLocaleString()} / ₹{method.payment_limit.toLocaleString()}
+                            Available: ₹{getAvailableLimit(method.id).toLocaleString('en-IN')} / ₹{method.payment_limit.toLocaleString('en-IN')}
                           </span>
                         </div>
                       </SelectItem>
@@ -449,7 +449,7 @@ export function PurchaseOrderDialog({ open, onOpenChange }: PurchaseOrderDialogP
               </div>
               {formData.purchase_payment_method_id && (
                 <div className="text-sm text-gray-600">
-                  Available Limit: ₹{getAvailableLimit(formData.purchase_payment_method_id).toLocaleString()}
+                  Available Limit: ₹{getAvailableLimit(formData.purchase_payment_method_id).toLocaleString('en-IN')}
                 </div>
               )}
             </div>

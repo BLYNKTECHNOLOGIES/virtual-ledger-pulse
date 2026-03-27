@@ -197,9 +197,9 @@ export function TaxationComplianceTab() {
                         </TableCell>
                         <TableCell>{record.purchase_orders?.supplier_name}</TableCell>
                         <TableCell>{record.pan_number}</TableCell>
-                        <TableCell>₹{record.total_amount.toLocaleString()}</TableCell>
-                        <TableCell>₹{record.tds_amount.toLocaleString()}</TableCell>
-                        <TableCell>₹{record.net_payable_amount.toLocaleString()}</TableCell>
+                        <TableCell>₹{record.total_amount.toLocaleString('en-IN')}</TableCell>
+                        <TableCell>₹{record.tds_amount.toLocaleString('en-IN')}</TableCell>
+                        <TableCell>₹{record.net_payable_amount.toLocaleString('en-IN')}</TableCell>
                         <TableCell>{getFinancialQuarter(record.deduction_date)}</TableCell>
                         <TableCell>
                           <Badge variant="destructive">Pending</Badge>
@@ -248,8 +248,8 @@ export function TaxationComplianceTab() {
                         </TableCell>
                         <TableCell>{record.purchase_orders?.supplier_name}</TableCell>
                         <TableCell>{record.pan_number}</TableCell>
-                        <TableCell>₹{record.total_amount.toLocaleString()}</TableCell>
-                        <TableCell>₹{record.tds_amount.toLocaleString()}</TableCell>
+                        <TableCell>₹{record.total_amount.toLocaleString('en-IN')}</TableCell>
+                        <TableCell>₹{record.tds_amount.toLocaleString('en-IN')}</TableCell>
                         <TableCell>{record.tds_certificate_number}</TableCell>
                         <TableCell>{getFinancialQuarter(record.deduction_date)}</TableCell>
                         <TableCell>

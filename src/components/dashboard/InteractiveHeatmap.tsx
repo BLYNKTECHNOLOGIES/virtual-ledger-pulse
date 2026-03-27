@@ -155,7 +155,7 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
 
   const getMetricValue = (value: number) => {
     if (selectedMetric === 'sales') {
-      return `₹${value.toLocaleString()}`;
+      return `₹${value.toLocaleString('en-IN')}`;
     }
     return value.toString();
   };

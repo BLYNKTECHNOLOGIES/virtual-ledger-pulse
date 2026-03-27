@@ -78,7 +78,7 @@ export function RecentOrdersWidget() {
             <p className="text-xs text-gray-500 truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-sm font-semibold text-gray-900">₹{Math.round(Number(o.total_amount)).toLocaleString()}</p>
+            <p className="text-sm font-semibold text-gray-900">₹{Math.round(Number(o.total_amount)).toLocaleString('en-IN')}</p>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.status || 'Pending'}</Badge>
           </div>
         </div>
@@ -153,19 +153,19 @@ export function QuickStatsWidget({ metrics }: { metrics?: any }) {
   return (
     <div className="p-4 grid grid-cols-2 gap-3">
       <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-        <div className="text-xl font-bold text-blue-600">{stats.orders.toLocaleString()}</div>
+        <div className="text-xl font-bold text-blue-600">{stats.orders.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Orders</p>
       </div>
       <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
-        <div className="text-xl font-bold text-green-600">{stats.verifiedClients.toLocaleString()}</div>
+        <div className="text-xl font-bold text-green-600">{stats.verifiedClients.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Verified Clients</p>
       </div>
       <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
-        <div className="text-xl font-bold text-purple-600">{stats.totalClients.toLocaleString()}</div>
+        <div className="text-xl font-bold text-purple-600">{stats.totalClients.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Total Clients</p>
       </div>
       <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
-        <div className="text-xl font-bold text-orange-600">{stats.purchases.toLocaleString()}</div>
+        <div className="text-xl font-bold text-orange-600">{stats.purchases.toLocaleString('en-IN')}</div>
         <p className="text-xs text-muted-foreground">Purchases</p>
       </div>
     </div>
@@ -214,7 +214,7 @@ export function ExpenseBreakdownWidget() {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{data?.month}</span>
-        <span className="text-lg font-bold text-foreground">₹{Math.round(data?.totalExpense || 0).toLocaleString()}</span>
+        <span className="text-lg font-bold text-foreground">₹{Math.round(data?.totalExpense || 0).toLocaleString('en-IN')}</span>
       </div>
       {!hasData && <p className="text-sm text-muted-foreground text-center py-4">No expenses this month</p>}
       {hasData && (
@@ -229,7 +229,7 @@ export function ExpenseBreakdownWidget() {
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
                       <span className="font-medium text-foreground truncate max-w-[140px]">{e.name}</span>
                     </div>
-                    <span className="font-semibold text-foreground">₹{Math.round(e.amount).toLocaleString()}</span>
+                    <span className="font-semibold text-foreground">₹{Math.round(e.amount).toLocaleString('en-IN')}</span>
                   </div>
                   <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                     <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
@@ -244,7 +244,7 @@ export function ExpenseBreakdownWidget() {
               {data!.recentItems.map((item, i) => (
                 <div key={i} className="flex items-center justify-between text-xs py-1">
                   <span className="text-muted-foreground truncate max-w-[60%]">{item.desc}</span>
-                  <span className="font-medium text-foreground">₹{Math.round(item.amount).toLocaleString()}</span>
+                  <span className="font-medium text-foreground">₹{Math.round(item.amount).toLocaleString('en-IN')}</span>
                 </div>
               ))}
             </div>
@@ -316,15 +316,15 @@ export function RevenueChartWidget() {
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-muted/50 p-2">
           <p className="text-[10px] text-muted-foreground">7D Revenue</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.totalRevenue || 0).toLocaleString()}</p>
+          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.totalRevenue || 0).toLocaleString('en-IN')}</p>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">
           <p className="text-[10px] text-muted-foreground">Today</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.todayRevenue || 0).toLocaleString()}</p>
+          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.todayRevenue || 0).toLocaleString('en-IN')}</p>
         </div>
         <div className="rounded-lg bg-muted/50 p-2">
           <p className="text-[10px] text-muted-foreground">Avg / Order</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.avgOrderValue || 0).toLocaleString()}</p>
+          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.avgOrderValue || 0).toLocaleString('en-IN')}</p>
         </div>
       </div>
 
@@ -333,7 +333,7 @@ export function RevenueChartWidget() {
           <BarChart data={data?.chartData || []}>
             <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11 }} />
             <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -689,7 +689,7 @@ export function CashFlowWidget() {
           <BarChart data={data?.chartData || []}>
             <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11 }} />
             <Bar dataKey="income" fill="#10B981" radius={[3, 3, 0, 0]} name="Income" />
             <Bar dataKey="expense" fill="#EF4444" radius={[3, 3, 0, 0]} name="Expense" />
           </BarChart>
@@ -736,7 +736,7 @@ export function ExpenseTrendsWidget() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-muted-foreground">This Month</p>
-          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentMonth || 0).toLocaleString()}</p>
+          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentMonth || 0).toLocaleString('en-IN')}</p>
         </div>
         {data?.change !== 0 && (
           <div className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
@@ -748,7 +748,7 @@ export function ExpenseTrendsWidget() {
         <ResponsiveContainer width="100%" height={100}>
           <RechartsLineChart data={data?.chartData || []}>
             <XAxis dataKey="name" fontSize={10} tick={{ fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString()}`} contentStyle={{ fontSize: 11 }} />
+            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11 }} />
             <Line type="monotone" dataKey="expense" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
           </RechartsLineChart>
         </ResponsiveContainer>
@@ -804,7 +804,7 @@ export function PendingSettlementsWidget() {
           <p className="text-xs text-muted-foreground">Pending settlements</p>
           <p className="text-lg font-bold text-foreground">{data?.total || 0}</p>
         </div>
-        <Badge className="bg-muted text-foreground border-border">₹{(data?.totalAmount || 0).toLocaleString()}</Badge>
+        <Badge className="bg-muted text-foreground border-border">₹{(data?.totalAmount || 0).toLocaleString('en-IN')}</Badge>
       </div>
 
       <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -821,7 +821,7 @@ export function PendingSettlementsWidget() {
                 <p className="text-[10px] text-muted-foreground">{g.count} order{g.count !== 1 ? 's' : ''}</p>
               </div>
             </div>
-            <p className="text-xs font-semibold text-foreground">₹{g.amount.toLocaleString()}</p>
+            <p className="text-xs font-semibold text-foreground">₹{g.amount.toLocaleString('en-IN')}</p>
           </div>
         ))}
       </div>

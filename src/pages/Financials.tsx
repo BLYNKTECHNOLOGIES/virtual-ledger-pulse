@@ -129,7 +129,7 @@ export default function Financials() {
   });
 
   const formatCurrency = (amount: number) => {
-    return `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString()}`;
+    return `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString('en-IN')}`;
   };
 
   return (
@@ -340,7 +340,7 @@ export default function Financials() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis tickFormatter={(value) => `₹${(value / 1000)}K`} />
-                      <Tooltip formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Amount']} />
+                      <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Amount']} />
                       <Area type="monotone" dataKey="value" stroke="#059669" fill="#059669" fillOpacity={0.6} />
                     </AreaChart>
                   </ResponsiveContainer>

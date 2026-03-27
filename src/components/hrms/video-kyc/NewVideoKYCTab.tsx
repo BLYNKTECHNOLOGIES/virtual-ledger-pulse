@@ -119,7 +119,7 @@ export function NewVideoKYCTab() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Order Amount</p>
-                    <p className="font-medium">₹{kyc.order_amount.toLocaleString()}</p>
+                    <p className="font-medium">₹{kyc.order_amount.toLocaleString('en-IN')}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Purpose</p>

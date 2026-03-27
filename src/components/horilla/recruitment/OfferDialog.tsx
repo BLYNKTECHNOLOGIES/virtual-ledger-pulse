@@ -170,7 +170,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                     <div>
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-gray-400" />
-                        <span className="text-lg font-bold text-gray-900">₹{Number(offer.offered_salary).toLocaleString()}</span>
+                        <span className="text-lg font-bold text-gray-900">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_STYLES[offer.status] || "bg-gray-100 text-gray-600"}`}>
                           {offer.status}
                         </span>

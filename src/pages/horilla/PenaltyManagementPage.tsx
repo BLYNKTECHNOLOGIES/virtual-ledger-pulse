@@ -253,7 +253,7 @@ export default function PenaltyManagementPage() {
         {[
           { label: "Total Penalties", value: penalties.length, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
           { label: "Penalty Days", value: `${totalPenaltyDays} days`, icon: Clock, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "Fixed Amount", value: `₹${totalPenaltyAmount.toLocaleString()}`, icon: Gavel, color: "text-amber-600", bg: "bg-amber-50" },
+          { label: "Fixed Amount", value: `₹${totalPenaltyAmount.toLocaleString('en-IN')}`, icon: Gavel, color: "text-amber-600", bg: "bg-amber-50" },
           { label: "Applied to Payroll", value: `${appliedCount}/${penalties.length}`, icon: FileText, color: "text-green-600", bg: "bg-green-50" },
         ].map((s) => (
           <Card key={s.label}>
@@ -322,7 +322,7 @@ export default function PenaltyManagementPage() {
                         <TableCell className="max-w-[200px] truncate text-sm">{p.penalty_reason}</TableCell>
                         <TableCell>{p.late_count || "—"}</TableCell>
                         <TableCell className="text-orange-600 font-medium">{p.penalty_days > 0 ? `${p.penalty_days} day${p.penalty_days > 1 ? "s" : ""}` : "—"}</TableCell>
-                        <TableCell className="text-red-600 font-medium">{p.penalty_amount > 0 ? `₹${Number(p.penalty_amount).toLocaleString()}` : "—"}</TableCell>
+                        <TableCell className="text-red-600 font-medium">{p.penalty_amount > 0 ? `₹${Number(p.penalty_amount).toLocaleString('en-IN')}` : "—"}</TableCell>
                         <TableCell>
                           {p.is_applied ? (
                             <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Applied</span>
@@ -384,7 +384,7 @@ export default function PenaltyManagementPage() {
                           {r.late_count_min}{r.late_count_max ? `–${r.late_count_max}` : "+"} lates
                         </TableCell>
                         <TableCell className="font-medium text-red-600">
-                          {r.penalty_type === "days" ? `${r.penalty_value} day${r.penalty_value > 1 ? "s" : ""} salary` : `₹${Number(r.penalty_value).toLocaleString()}`}
+                          {r.penalty_type === "days" ? `${r.penalty_value} day${r.penalty_value > 1 ? "s" : ""} salary` : `₹${Number(r.penalty_value).toLocaleString('en-IN')}`}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-[250px] truncate">{r.description || "—"}</TableCell>
                         <TableCell>

@@ -320,7 +320,7 @@ export function TerminalSalesSyncTab() {
                       )}
                     </TableCell>
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-xs">{Number(od?.amount || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-xs">₹{Number(od?.unit_price || 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell>
                       <div className="flex flex-col gap-0.5">

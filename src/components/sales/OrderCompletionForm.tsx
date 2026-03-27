@@ -292,7 +292,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                 </div>
                 <div>
                   <span className="font-medium">Order Amount:</span>
-                  <p>₹{order?.total_amount?.toLocaleString()}</p>
+                  <p>₹{order?.total_amount?.toLocaleString('en-IN')}</p>
                 </div>
                 <div>
                   <span className="font-medium">USDT Amount:</span>
@@ -308,7 +308,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   </div>
                   <div className="text-sm space-y-1">
                     <div>Name: {selectedWallet.wallet_name}</div>
-                    <div>Balance: {selectedWallet.current_balance?.toLocaleString()} USDT</div>
+                    <div>Balance: {selectedWallet.current_balance?.toLocaleString('en-IN')} USDT</div>
                     <div>Address: {typeof selectedWallet.wallet_address === 'string' && selectedWallet.wallet_address.length > 16 ? `${selectedWallet.wallet_address.substring(0, 10)}...${selectedWallet.wallet_address.substring(selectedWallet.wallet_address.length - 6)}` : 'N/A'}</div>
                   </div>
                 </div>
@@ -395,7 +395,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                   <span className="font-medium text-green-800">Final Amount</span>
                 </div>
                 <div className="text-lg font-bold text-green-800">
-                  ₹{totalAmount.toLocaleString()}
+                  ₹{totalAmount.toLocaleString('en-IN')}
                 </div>
               </div>
             </CardContent>

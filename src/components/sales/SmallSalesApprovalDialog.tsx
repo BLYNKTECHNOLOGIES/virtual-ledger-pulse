@@ -193,11 +193,11 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
             </div>
             <div>
               <span className="text-muted-foreground">Avg Price</span>
-              <p className="font-medium">₹{Number(record.avg_price).toLocaleString()}</p>
+              <p className="font-medium">₹{Number(record.avg_price).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Total Amount</span>
-              <p className="font-semibold text-primary">₹{Number(record.total_amount).toLocaleString()}</p>
+              <p className="font-semibold text-primary">₹{Number(record.total_amount).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Total Fee</span>

@@ -495,7 +495,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
                       />
                       <span>{sr.name}</span>
                       <Badge variant="secondary" className="text-[10px] ml-auto">
-                        ₹{sr.min_amount.toLocaleString()} – {sr.max_amount ? `₹${sr.max_amount.toLocaleString()}` : '∞'}
+                        ₹{sr.min_amount.toLocaleString('en-IN')} – {sr.max_amount ? `₹${sr.max_amount.toLocaleString('en-IN')}` : '∞'}
                       </Badge>
                     </label>
                   ))}

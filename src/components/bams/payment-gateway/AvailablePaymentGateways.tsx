@@ -190,7 +190,7 @@ export function AvailablePaymentGateways() {
                     <span className="text-muted-foreground">Payment Limit</span>
                     <div className="flex items-center gap-1">
                       <DollarSign className="h-3 w-3" />
-                      <span className="font-medium">₹{gateway.payment_limit.toLocaleString()}</span>
+                      <span className="font-medium">₹{gateway.payment_limit.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                   
@@ -198,7 +198,7 @@ export function AvailablePaymentGateways() {
                     <span className="text-muted-foreground">Current Usage</span>
                     <div className="flex items-center gap-1">
                       <DollarSign className="h-3 w-3" />
-                      <span className="font-medium">₹{gateway.current_usage.toLocaleString()}</span>
+                      <span className="font-medium">₹{gateway.current_usage.toLocaleString('en-IN')}</span>
                     </div>
                   </div>
                   

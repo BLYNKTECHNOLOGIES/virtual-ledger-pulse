@@ -266,7 +266,7 @@ export default function SalaryStructureTemplates() {
                                     ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
                                     : i.calculation_type === "percentage"
                                     ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic Pay" : "Total Salary"}`
-                                    : `₹${Number(i.value).toLocaleString()} (Fixed)`}
+                                    : `₹${Number(i.value).toLocaleString('en-IN')} (Fixed)`}
                                 </span>
                               </div>
                             ))}
@@ -287,7 +287,7 @@ export default function SalaryStructureTemplates() {
                                     ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
                                     : i.calculation_type === "percentage"
                                     ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic Pay" : "Total Salary"}`
-                                    : `₹${Number(i.value).toLocaleString()} (Fixed)`}
+                                    : `₹${Number(i.value).toLocaleString('en-IN')} (Fixed)`}
                                 </span>
                               </div>
                             ))}

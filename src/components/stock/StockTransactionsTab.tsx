@@ -558,7 +558,7 @@ export function StockTransactionsTab() {
     onSuccess: (result) => {
       toast({ 
         title: "Transaction Deleted", 
-        description: `Transaction deleted and wallet balance reversed by ${Math.abs(result?.reversed_amount || 0).toLocaleString()} USDT` 
+        description: `Transaction deleted and wallet balance reversed by ${Math.abs(result?.reversed_amount || 0).toLocaleString('en-IN')} USDT` 
       });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
@@ -1150,7 +1150,7 @@ export function StockTransactionsTab() {
               Are you sure you want to delete this transaction? This will:
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Delete the transaction record</li>
-                <li>Reverse the wallet balance by <strong>{transactionToDelete?.amount?.toLocaleString() || transactionToDelete?.quantity?.toLocaleString()} USDT</strong></li>
+                <li>Reverse the wallet balance by <strong>{transactionToDelete?.amount?.toLocaleString('en-IN') || transactionToDelete?.quantity?.toLocaleString('en-IN')} USDT</strong></li>
                 {transactionToDelete?.reference_type === 'MANUAL_TRANSFER' && (
                   <li>Delete all related transfer transactions (including fee if any)</li>
                 )}

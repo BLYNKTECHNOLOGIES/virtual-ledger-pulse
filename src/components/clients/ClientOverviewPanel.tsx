@@ -233,7 +233,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
             <label className="text-sm font-medium text-gray-600">First Order Value</label>
             <div className="flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-gray-400" />
-              <span className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString()}</span>
+              <span className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString('en-IN')}</span>
             </div>
             {firstOrder && (
               <p className="text-xs text-gray-500">Order #{firstOrder.order_number} on {new Date(firstOrder.order_date).toLocaleDateString()}</p>
@@ -305,11 +305,11 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-600">Monthly Limit</label>
-              <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString() || 'Not set'}</p>
+              <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString('en-IN') || 'Not set'}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-600">Current Month Used</label>
-              <p className="text-sm font-medium">₹{client.current_month_used?.toLocaleString() || '0'}</p>
+              <p className="text-sm font-medium">₹{client.current_month_used?.toLocaleString('en-IN') || '0'}</p>
             </div>
           </div>
         )}
@@ -317,7 +317,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-sm font-medium text-gray-600">Total Trade Volume</label>
-            <p className="text-lg font-semibold text-purple-600">₹{totalTradeVolume.toLocaleString()}</p>
+            <p className="text-lg font-semibold text-purple-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-gray-600">KYC Status</label>

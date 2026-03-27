@@ -274,7 +274,7 @@ export default function HorillaDashboard() {
                     <p className="text-xs text-gray-500">{r.employee_count || 0} employees</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">₹{(r.total_net || 0).toLocaleString()}</p>
+                    <p className="text-sm font-semibold text-gray-900">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                       r.status === "completed" ? "bg-green-100 text-green-700" :
                       r.status === "processing" ? "bg-blue-100 text-blue-700" :

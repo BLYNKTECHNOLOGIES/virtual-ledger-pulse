@@ -22,3 +22,15 @@ export function matchesWordPrefix(searchTerm: string, text: string): boolean {
   const words = text.toLowerCase().split(/\s+/).filter(Boolean);
   return words.some(word => word.startsWith(normalizedSearch));
 }
+
+/**
+ * Format a number using the Indian numbering system (e.g., 1,00,000).
+ * Use this for all currency/amount displays in the ERP.
+ */
+export function formatIndianNumber(value: number | null | undefined, decimals?: number): string {
+  if (value == null || isNaN(value)) return '0';
+  return value.toLocaleString('en-IN', {
+    minimumFractionDigits: decimals ?? 0,
+    maximumFractionDigits: decimals ?? 2,
+  });
+}

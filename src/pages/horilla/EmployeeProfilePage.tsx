@@ -41,7 +41,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
   if (!deposit) return null;
 
   const progress = deposit.total_deposit_amount > 0 ? Math.round((deposit.collected_amount / deposit.total_deposit_amount) * 100) : 0;
-  const modeLabel = deposit.deduction_mode === "one_time" ? "One-Time" : deposit.deduction_mode === "percentage" ? `${deposit.deduction_value}% of Salary` : `₹${Number(deposit.deduction_value).toLocaleString()}/month`;
+  const modeLabel = deposit.deduction_mode === "one_time" ? "One-Time" : deposit.deduction_mode === "percentage" ? `${deposit.deduction_value}% of Salary` : `₹${Number(deposit.deduction_value).toLocaleString('en-IN')}/month`;
 
   const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund" };
   const txTypeColor: Record<string, string> = { collection: "text-green-600", penalty_deduction: "text-red-600", replenishment: "text-blue-600", ff_refund: "text-purple-600" };
@@ -55,15 +55,15 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-xs text-muted-foreground">Total Deposit</p>
-            <p className="text-sm font-semibold">₹{Number(deposit.total_deposit_amount).toLocaleString()}</p>
+            <p className="text-sm font-semibold">₹{Number(deposit.total_deposit_amount).toLocaleString('en-IN')}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Collected</p>
-            <p className="text-sm font-semibold text-green-600">₹{Number(deposit.collected_amount).toLocaleString()}</p>
+            <p className="text-sm font-semibold text-green-600">₹{Number(deposit.collected_amount).toLocaleString('en-IN')}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Current Balance</p>
-            <p className="text-sm font-semibold text-purple-600">₹{Number(deposit.current_balance).toLocaleString()}</p>
+            <p className="text-sm font-semibold text-purple-600">₹{Number(deposit.current_balance).toLocaleString('en-IN')}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Deduction Mode</p>
@@ -96,7 +96,7 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
                     <span className="text-muted-foreground">{t.transaction_date}</span>
                   </div>
                   <span className={`font-medium ${Number(t.amount) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                    {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString()}
+                    {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString('en-IN')}
                   </span>
                 </div>
               ))}
@@ -840,7 +840,7 @@ export default function EmployeeProfilePage() {
                     <div><p className="text-xs text-muted-foreground">Company</p><p className="text-sm text-foreground">{workInfo?.company_name || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString()}` : "None"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Basic Salary</p><p className="text-sm text-foreground">{workInfo?.basic_salary ? `₹${Number(workInfo.basic_salary).toLocaleString('en-IN')}` : "None"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Experience (years)</p><p className="text-sm text-foreground">{workInfo?.experience_years?.toString() || "None"}</p></div>
                   </div>
                 </div>
@@ -876,7 +876,7 @@ export default function EmployeeProfilePage() {
                   <div key={note.id} className="border border-border rounded-lg p-4 flex items-start justify-between">
                     <div>
                       <p className="text-sm text-foreground whitespace-pre-wrap">{note.description}</p>
-                      <p className="text-xs text-muted-foreground mt-2">{new Date(note.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-muted-foreground mt-2">{new Date(note.created_at).toLocaleString('en-IN')}</p>
                     </div>
                     <button
                       onClick={() => deleteNoteMutation.mutate(note.id)}
@@ -1035,10 +1035,10 @@ export default function EmployeeProfilePage() {
                     {(payslips || []).map(ps => (
                       <tr key={ps.id} className="border-b border-border/50">
                         <td className="py-2.5 px-3 text-foreground">{ps.payment_date || "Pending"}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">₹{Number(ps.gross_salary).toLocaleString()}</td>
-                        <td className="py-2.5 px-3 text-green-600">₹{Number(ps.total_earnings).toLocaleString()}</td>
-                        <td className="py-2.5 px-3 text-red-600">₹{Number(ps.total_deductions).toLocaleString()}</td>
-                        <td className="py-2.5 px-3 text-foreground font-semibold">₹{Number(ps.net_salary).toLocaleString()}</td>
+                        <td className="py-2.5 px-3 text-muted-foreground">₹{Number(ps.gross_salary).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 px-3 text-green-600">₹{Number(ps.total_earnings).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 px-3 text-red-600">₹{Number(ps.total_deductions).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 px-3 text-foreground font-semibold">₹{Number(ps.net_salary).toLocaleString('en-IN')}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{ps.working_days ?? "—"}</td>
                         <td className="py-2.5 px-3">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${

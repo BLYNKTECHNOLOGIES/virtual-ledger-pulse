@@ -276,12 +276,12 @@ export default function SalaryStructureAssignments() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right text-sm">
-                        <p className="text-gray-500">Total Salary: <span className="font-medium text-gray-900">₹{(Number(emp.total_salary) || 0).toLocaleString()}</span></p>
+                        <p className="text-gray-500">Total Salary: <span className="font-medium text-gray-900">₹{(Number(emp.total_salary) || 0).toLocaleString('en-IN')}</span></p>
                         {breakdown && (
                           <>
-                            <p className="text-green-700">Earnings: ₹{breakdown.totalEarnings.toLocaleString()}</p>
-                            <p className="text-red-600">Deductions: ₹{breakdown.totalDeductions.toLocaleString()}</p>
-                            <p className="font-bold text-gray-900">Net: ₹{breakdown.net.toLocaleString()}</p>
+                            <p className="text-green-700">Earnings: ₹{breakdown.totalEarnings.toLocaleString('en-IN')}</p>
+                            <p className="text-red-600">Deductions: ₹{breakdown.totalDeductions.toLocaleString('en-IN')}</p>
+                            <p className="font-bold text-gray-900">Net: ₹{breakdown.net.toLocaleString('en-IN')}</p>
                           </>
                         )}
                       </div>
@@ -303,7 +303,7 @@ export default function SalaryStructureAssignments() {
                                 {e.name} <span className="text-xs text-gray-400">({e.code})</span>
                                 {e.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
                               </span>
-                              <span className="font-medium">{e.isVariable ? '—' : `₹${e.amount.toLocaleString()}`}</span>
+                              <span className="font-medium">{e.isVariable ? '—' : `₹${e.amount.toLocaleString('en-IN')}`}</span>
                             </div>
                           ))}
                         </div>
@@ -318,7 +318,7 @@ export default function SalaryStructureAssignments() {
                                 {d.name} <span className="text-xs text-gray-400">({d.code})</span>
                                 {d.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
                               </span>
-                              <span className="font-medium">{d.isVariable ? '—' : `₹${d.amount.toLocaleString()}`}</span>
+                              <span className="font-medium">{d.isVariable ? '—' : `₹${d.amount.toLocaleString('en-IN')}`}</span>
                             </div>
                           ))}
                         </div>
@@ -379,7 +379,7 @@ export default function SalaryStructureAssignments() {
 
               return (
                 <div className="border rounded-lg p-3 bg-gray-50">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">PREVIEW (for ₹{totalSalary.toLocaleString()} total salary)</p>
+                  <p className="text-xs font-semibold text-gray-600 mb-2">PREVIEW (for ₹{totalSalary.toLocaleString('en-IN')} total salary)</p>
                   <div className="space-y-1 text-sm">
                     {items.map((i: any, idx: number) => {
                       const comp = i.hr_salary_components;
@@ -397,7 +397,7 @@ export default function SalaryStructureAssignments() {
                       return (
                         <div key={idx} className={`flex justify-between px-2 py-1 rounded ${comp.component_type === "deduction" ? "text-red-700" : "text-green-700"}`}>
                           <span>{comp.name} ({typeLabel})</span>
-                          <span className="font-medium">{comp.component_type === "deduction" ? "−" : "+"}₹{amount.toLocaleString()}</span>
+                          <span className="font-medium">{comp.component_type === "deduction" ? "−" : "+"}₹{amount.toLocaleString('en-IN')}</span>
                         </div>
                       );
                     })}

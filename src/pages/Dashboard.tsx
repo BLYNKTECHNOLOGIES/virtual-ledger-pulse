@@ -427,7 +427,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-slate-600 text-sm font-medium">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString()}</div>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-green-500" />
                       <span className="text-sm font-medium text-slate-500">Selected Period</span>
@@ -496,7 +496,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
                     <p className="text-slate-600 text-sm font-medium">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString()}</div>
+                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-amber-500" />
                       <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
@@ -543,7 +543,7 @@ export default function Dashboard() {
                   </div>
                   <div className="text-right">
                     <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-emerald-600' : 'text-muted-foreground'}`}>
-                      {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString()}
+                      {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
                     </p>
                     <p className="text-xs text-muted-foreground">{activity.reference}</p>
                   </div>
@@ -587,7 +587,7 @@ export default function Dashboard() {
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
-                            <span className="text-lg font-bold">{asset.total_stock.toLocaleString()} {asset.unit}</span>
+                            <span className="text-lg font-bold">{asset.total_stock.toLocaleString('en-IN')} {asset.unit}</span>
                           </div>
                           {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
                             <div className="space-y-2">
@@ -596,7 +596,7 @@ export default function Dashboard() {
                                 <div key={idx} className="flex items-center justify-between text-sm">
                                   <span className="text-muted-foreground">{dist.name}</span>
                                   <div className="flex items-center gap-2">
-                                    <span className="font-medium">{dist.quantity.toLocaleString()}</span>
+                                    <span className="font-medium">{dist.quantity.toLocaleString('en-IN')}</span>
                                     <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
                                   </div>
                                 </div>

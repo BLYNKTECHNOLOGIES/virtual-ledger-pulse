@@ -30,7 +30,7 @@ export function KYCTimelineDialog({ open, onOpenChange, kycRequest }: KYCTimelin
       date: new Date(kycRequest.created_at).toLocaleDateString(),
       status: "CREATED",
       title: "KYC Request Submitted",
-      description: `KYC request submitted for ${kycRequest.counterparty_name} with order amount ₹${kycRequest.order_amount?.toLocaleString()}`,
+      description: `KYC request submitted for ${kycRequest.counterparty_name} with order amount ₹${kycRequest.order_amount?.toLocaleString('en-IN')}`,
       icon: FileText,
       color: "text-blue-600"
     });

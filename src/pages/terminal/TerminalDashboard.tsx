@@ -145,7 +145,7 @@ export default function TerminalDashboard() {
           <TimePeriodFilter value={period} onChange={setPeriod} />
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Database className="h-3 w-3" />
-            <span>{orders.length.toLocaleString()} orders</span>
+            <span>{orders.length.toLocaleString('en-IN')} orders</span>
             <span className="text-muted-foreground/50">·</span>
             <span>{lastSyncLabel}</span>
           </div>

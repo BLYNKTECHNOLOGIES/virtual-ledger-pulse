@@ -492,7 +492,7 @@ export function LegalActionsTab() {
                         {action.estimated_cost > 0 && (
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-3 w-3" />
-                            <span className="font-medium">Est. Cost:</span> ₹{Number(action.estimated_cost).toLocaleString()}
+                            <span className="font-medium">Est. Cost:</span> ₹{Number(action.estimated_cost).toLocaleString('en-IN')}
                           </div>
                         )}
                       </div>
@@ -597,13 +597,13 @@ export function LegalActionsTab() {
                           {action.estimated_cost > 0 && (
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-3 w-3" />
-                              <span className="font-medium">Est. Cost:</span> ₹{Number(action.estimated_cost).toLocaleString()}
+                              <span className="font-medium">Est. Cost:</span> ₹{Number(action.estimated_cost).toLocaleString('en-IN')}
                             </div>
                           )}
                           {action.actual_cost > 0 && (
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-3 w-3" />
-                              <span className="font-medium">Actual Cost:</span> ₹{Number(action.actual_cost).toLocaleString()}
+                              <span className="font-medium">Actual Cost:</span> ₹{Number(action.actual_cost).toLocaleString('en-IN')}
                             </div>
                           )}
                         </div>
@@ -897,13 +897,13 @@ export function LegalActionsTab() {
                     {selectedAction.estimated_cost > 0 && (
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">Estimated Cost:</span> ₹{Number(selectedAction.estimated_cost).toLocaleString()}
+                        <span className="font-medium">Estimated Cost:</span> ₹{Number(selectedAction.estimated_cost).toLocaleString('en-IN')}
                       </div>
                     )}
                     {selectedAction.actual_cost > 0 && (
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">Actual Cost:</span> ₹{Number(selectedAction.actual_cost).toLocaleString()}
+                        <span className="font-medium">Actual Cost:</span> ₹{Number(selectedAction.actual_cost).toLocaleString('en-IN')}
                       </div>
                     )}
                   </div>
@@ -923,8 +923,8 @@ export function LegalActionsTab() {
 
               <div className="text-xs text-gray-400 border-t pt-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div>Created: {new Date(selectedAction.created_at).toLocaleString()}</div>
-                  <div>Last Updated: {new Date(selectedAction.updated_at).toLocaleString()}</div>
+                  <div>Created: {new Date(selectedAction.created_at).toLocaleString('en-IN')}</div>
+                  <div>Last Updated: {new Date(selectedAction.updated_at).toLocaleString('en-IN')}</div>
                 </div>
               </div>
             </div>

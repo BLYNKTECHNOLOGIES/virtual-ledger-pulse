@@ -230,7 +230,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
                     <span className="text-sm text-muted-foreground ml-2">
-                      (₹{parseFloat(account.balance.toString()).toLocaleString()})
+                      (₹{parseFloat(account.balance.toString()).toLocaleString('en-IN')})
                     </span>
                   </SelectItem>
                 ))}

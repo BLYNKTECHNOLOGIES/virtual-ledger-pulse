@@ -277,7 +277,7 @@ export function SellerOnboardingApprovals() {
                         </td>
                         <td className="py-3 px-4">
                           {firstOrder?.total_amount 
-                            ? `₹${firstOrder.total_amount.toLocaleString()}` 
+                            ? `₹${firstOrder.total_amount.toLocaleString('en-IN')}` 
                             : '-'}
                         </td>
                         <td className="py-3 px-4">{getStatusBadge(seller.kyc_status)}</td>

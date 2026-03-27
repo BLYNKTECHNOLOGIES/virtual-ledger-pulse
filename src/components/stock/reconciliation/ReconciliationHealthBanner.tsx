@@ -49,7 +49,7 @@ export function ReconciliationHealthBanner({ lastScan, isLoading, counts }: Prop
         {lastScan && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5" />
-            <span>Last scan: {new Date(lastScan.started_at).toLocaleString()}</span>
+            <span>Last scan: {new Date(lastScan.started_at).toLocaleString('en-IN')}</span>
           </div>
         )}
       </div>

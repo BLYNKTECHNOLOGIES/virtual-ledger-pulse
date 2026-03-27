@@ -60,7 +60,7 @@ export function UserPayingOptionsDialog({
         <div className="space-y-4">
           <div className="p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Order Amount:</strong> ₹{orderAmount.toLocaleString()}
+              <strong>Order Amount:</strong> ₹{orderAmount.toLocaleString('en-IN')}
             </p>
             <p className="text-sm text-blue-600 mt-1">
               Status: User is currently paying

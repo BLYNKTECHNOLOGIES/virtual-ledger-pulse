@@ -632,10 +632,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                 <LockedField label="Order Number" value={od.order_number} />
                 <LockedField label="Order Date" value={orderDate} />
                 <LockedField label="Asset" value={od.asset || 'USDT'} />
-                <LockedField label="Quantity Sold" value={`${Number(od.amount || 0).toLocaleString()} USDT`} />
+                <LockedField label="Quantity Sold" value={`${Number(od.amount || 0).toLocaleString('en-IN')} USDT`} />
                 <LockedField label="Price Per Unit" value={`₹${Number(od.unit_price || 0).toLocaleString('en-IN')}`} />
                 <LockedField label="Total Amount" value={`₹${totalAmount.toLocaleString('en-IN')}`} />
-                <LockedField label="Commission/Fee" value={`${Number(od.commission || 0).toLocaleString()} USDT`} />
+                <LockedField label="Commission/Fee" value={`${Number(od.commission || 0).toLocaleString('en-IN')} USDT`} />
                 <LockedField label="Wallet" value={od.wallet_name || '—'} />
                 <LockedField label="Buyer Name" value={displayName} />
                 <LockedField label="Payment Method" value={od.pay_method || '—'} />

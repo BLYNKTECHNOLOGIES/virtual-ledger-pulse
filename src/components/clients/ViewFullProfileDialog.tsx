@@ -245,15 +245,15 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Monthly Limit</label>
-                <p className="text-lg font-semibold">₹{client.monthly_limit?.toLocaleString() || 'Not set'}</p>
+                <p className="text-lg font-semibold">₹{client.monthly_limit?.toLocaleString('en-IN') || 'Not set'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Current Month Used</label>
-                <p className="text-lg font-semibold">₹{client.current_month_used?.toLocaleString() || '0'}</p>
+                <p className="text-lg font-semibold">₹{client.current_month_used?.toLocaleString('en-IN') || '0'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
-                <p className="text-lg font-semibold text-green-600">₹{client.first_order_value?.toLocaleString() || '0'}</p>
+                <p className="text-lg font-semibold text-green-600">₹{client.first_order_value?.toLocaleString('en-IN') || '0'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Client Value Score</label>
@@ -277,11 +277,11 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Total Volume</label>
-                <p className="text-2xl font-bold text-green-600">₹{totalVolume.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">₹{totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Average Order Value</label>
-                <p className="text-2xl font-bold text-purple-600">₹{avgOrderValue.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-purple-600">₹{avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
             </CardContent>
           </Card>

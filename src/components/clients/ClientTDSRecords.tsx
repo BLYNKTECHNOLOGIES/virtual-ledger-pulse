@@ -174,7 +174,7 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
               <span className="text-xs font-medium">Total TDS Deducted</span>
             </div>
             <p className="text-lg font-bold text-orange-700">
-              ₹{stats.totalTdsDeducted.toLocaleString()}
+              ₹{stats.totalTdsDeducted.toLocaleString('en-IN')}
             </p>
           </div>
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
@@ -220,11 +220,11 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">{record.order_number}</TableCell>
                     <TableCell>{record.pan_number}</TableCell>
-                    <TableCell>₹{record.total_amount?.toLocaleString()}</TableCell>
+                    <TableCell>₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>
                     <TableCell className="text-orange-600 font-medium">
-                      ₹{record.tds_amount?.toLocaleString()}
+                      ₹{record.tds_amount?.toLocaleString('en-IN')}
                     </TableCell>
-                    <TableCell>₹{record.net_payable_amount?.toLocaleString()}</TableCell>
+                    <TableCell>₹{record.net_payable_amount?.toLocaleString('en-IN')}</TableCell>
                     <TableCell>{getFinancialQuarter(record.deduction_date)}</TableCell>
                     <TableCell>
                       {record.tds_certificate_number ? (

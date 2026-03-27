@@ -146,7 +146,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   }, {} as Record<string, { feesINR: number; feesUSDT: number; count: number }>);
 
   const formatCurrency = (amount: number) => {
-    return `₹${amount.toFixed(2).toLocaleString()}`;
+    return `₹${amount.toFixed(2).toLocaleString('en-IN')}`;
   };
 
   const formatUSDT = (amount: number) => {

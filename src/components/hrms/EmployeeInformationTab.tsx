@@ -162,7 +162,7 @@ export function EmployeeInformationTab() {
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
                           <DollarSign className="h-4 w-4 text-gray-400" />
-                          ₹{employee.salary.toLocaleString()}
+                          ₹{employee.salary.toLocaleString('en-IN')}
                         </div>
                       </td>
                       <td className="py-3 px-4">

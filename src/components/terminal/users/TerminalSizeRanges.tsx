@@ -151,7 +151,7 @@ export function TerminalSizeRanges() {
                     {r.name}
                   </Badge>
                   <span className="text-sm text-muted-foreground font-mono">
-                    ₹{r.min_amount.toLocaleString()} – {r.max_amount !== null ? `₹${r.max_amount.toLocaleString()}` : '∞'}
+                    ₹{r.min_amount.toLocaleString('en-IN')} – {r.max_amount !== null ? `₹${r.max_amount.toLocaleString('en-IN')}` : '∞'}
                   </span>
                   <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0.5">
                     <TypeIcon className={`h-3 w-3 ${typeConf.color}`} />

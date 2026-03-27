@@ -123,19 +123,19 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium text-gray-600">Monthly Purchase Value</label>
-          <p className="text-2xl font-bold text-green-600">₹{monthlyPurchaseValue.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-green-600">₹{monthlyPurchaseValue.toLocaleString('en-IN')}</p>
           <p className="text-xs text-gray-500">{currentMonthOrders.length} orders this month</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-gray-600">Client Value (3%)</label>
-          <p className="text-xl font-semibold text-purple-600">₹{clientValue.toLocaleString()}</p>
+          <p className="text-xl font-semibold text-purple-600">₹{clientValue.toLocaleString('en-IN')}</p>
           <p className="text-sm text-gray-500">Indicates priority level</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-gray-600">Total Lifetime Value</label>
-          <p className="text-lg font-semibold text-blue-600">₹{totalLifetimeValue.toLocaleString()}</p>
+          <p className="text-lg font-semibold text-blue-600">₹{totalLifetimeValue.toLocaleString('en-IN')}</p>
           <p className="text-xs text-gray-500">{orders?.length || 0} total orders</p>
         </div>
 

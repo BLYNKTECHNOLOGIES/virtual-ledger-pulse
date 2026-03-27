@@ -510,7 +510,7 @@ export function PurchaseManagement() {
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-medium text-center">
-                              ₹{parseInt(formData.minLimit || "200").toLocaleString()}
+                              ₹{parseInt(formData.minLimit || "200").toLocaleString('en-IN')}
                             </span>
                           </div>
                         </div>
@@ -555,7 +555,7 @@ export function PurchaseManagement() {
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-medium text-center">
-                              ₹{parseInt(formData.maxLimit || "10000000").toLocaleString()}
+                              ₹{parseInt(formData.maxLimit || "10000000").toLocaleString('en-IN')}
                             </span>
                           </div>
                         </div>
@@ -720,7 +720,7 @@ export function PurchaseManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              ₹{getTotalAvailableUPI().toLocaleString()}
+              ₹{getTotalAvailableUPI().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {purchaseMethods.filter(m => m.type === "UPI" && m.isActive).length} active UPI methods
@@ -737,7 +737,7 @@ export function PurchaseManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ₹{getTotalAvailableBankTransfer().toLocaleString()}
+              ₹{getTotalAvailableBankTransfer().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {purchaseMethods.filter(m => m.type === "Bank Transfer" && m.isActive).length} active bank accounts
@@ -754,7 +754,7 @@ export function PurchaseManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString()}
+              ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               Combined purchasing power
@@ -809,10 +809,10 @@ export function PurchaseManagement() {
                         <span className="text-sm text-gray-400">Not linked</span>
                       )}
                     </TableCell>
-                    <TableCell>₹{method.paymentLimit.toLocaleString()}</TableCell>
-                    <TableCell>₹{method.currentUsage.toLocaleString()}</TableCell>
+                    <TableCell>₹{method.paymentLimit.toLocaleString('en-IN')}</TableCell>
+                    <TableCell>₹{method.currentUsage.toLocaleString('en-IN')}</TableCell>
                     <TableCell className={availableLimit === 0 ? "text-red-600 font-medium" : ""}>
-                      ₹{availableLimit.toLocaleString()}
+                      ₹{availableLimit.toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

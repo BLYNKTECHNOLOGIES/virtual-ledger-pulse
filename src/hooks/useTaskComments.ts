@@ -89,15 +89,14 @@ export function useAddTaskComment() {
         // Fire-and-forget email notification for mentions
         if (mentionedOthers.length) {
           try {
-            supabase.functions.invoke('send-task-email', {
-              body: {
-                eventType: 'task_mention',
-                taskId,
-                taskTitle: `Task Comment`,
-                taskDescription: content.substring(0, 200),
-                assignedByName: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone',
-                recipientUserIds: mentionedOthers,
-              },
+            const { sendTaskEmail } = await import('@/utils/taskEmail');
+            sendTaskEmail({
+              eventType: 'task_mention',
+              taskId,
+              taskTitle: `Task Comment`,
+              taskDescription: content.substring(0, 200),
+              assignedByName: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone',
+              ccUserIds: mentionedOthers,
             });
           } catch {}
         }

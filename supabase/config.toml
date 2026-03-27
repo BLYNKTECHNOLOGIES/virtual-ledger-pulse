@@ -69,8 +69,6 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.handle-email-suppression]
     verify_jwt = false
-  [functions.send-task-email]
-    verify_jwt = false
   [functions.task-due-notifications]
     verify_jwt = false
   [functions.verify-binance-keys]

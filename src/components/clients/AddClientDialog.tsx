@@ -68,6 +68,8 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       pan_card_number: '',
       date_of_onboarding: new Date(),
     });
+    setDuplicateWarning(null);
+    setDuplicateAcknowledged(false);
   };
 
   const validateForm = () => {

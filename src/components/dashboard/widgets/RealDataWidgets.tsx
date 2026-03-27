@@ -1282,7 +1282,7 @@ export function TerminalSalesApprovalWidget() {
         </div>
       )}
       {approvalRecord && (
-        <TerminalSalesApprovalDialogLazy
+        <TerminalSalesApprovalDialog
           open={!!approvalRecord}
           onOpenChange={(open) => { if (!open) setApprovalRecord(null); }}
           syncRecord={approvalRecord}
@@ -1355,7 +1355,7 @@ export function TerminalPurchaseApprovalWidget() {
         </div>
       )}
       {approvalRecord && (
-        <TerminalPurchaseApprovalDialogLazy
+        <TerminalPurchaseApprovalDialog
           open={!!approvalRecord}
           onOpenChange={(open) => { if (!open) setApprovalRecord(null); }}
           syncRecord={approvalRecord}

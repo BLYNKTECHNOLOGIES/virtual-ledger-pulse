@@ -1232,14 +1232,30 @@ export function TerminalSalesApprovalWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_terminal_sales_approval'],
     queryFn: async () => {
-      const [
-        { count: pending },
-        { data: recentPending },
-      ] = await Promise.all([
-        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
-        supabase.from('terminal_sales_sync' as any).select('*').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
-      ]);
-      return { pending: pending || 0, recentPending: (recentPending || []) as any[] };
+      // Fetch all pending records, then apply same filters as TerminalSalesSyncTab
+      const { data: allPending } = await supabase
+        .from('terminal_sales_sync' as any)
+        .select('*')
+        .eq('sync_status', 'synced_pending_approval')
+        .order('synced_at', { ascending: false });
+
+      const { getSmallSalesConfig } = await import('@/hooks/useSmallSalesSync');
+      const smallConfig = await getSmallSalesConfig();
+      const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+      const cutoffTime = Date.now() - LOOKBACK_MS;
+
+      const filtered = (allPending || []).filter((r: any) => {
+        const od = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+        const createTime = Number(od?.create_time || 0);
+        if (createTime > 0 && createTime < cutoffTime) return false;
+        if (smallConfig?.is_enabled) {
+          const tp = parseFloat(od?.total_price || '0');
+          if (tp >= smallConfig.min_amount && tp <= smallConfig.max_amount) return false;
+        }
+        return true;
+      });
+
+      return { pending: filtered.length, recentPending: filtered.slice(0, 5) as any[] };
     },
     staleTime: 30000,
     refetchInterval: 30000,
@@ -1261,7 +1277,7 @@ export function TerminalSalesApprovalWidget() {
           <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
           {data?.recentPending.map((r: any) => {
             const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
-            const amount = orderData?.totalPrice || orderData?.amount || '—';
+            const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
             return (
               <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
                 <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>
@@ -1305,14 +1321,30 @@ export function TerminalPurchaseApprovalWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_terminal_purchase_approval'],
     queryFn: async () => {
-      const [
-        { count: pending },
-        { data: recentPending },
-      ] = await Promise.all([
-        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
-        supabase.from('terminal_purchase_sync' as any).select('*').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
-      ]);
-      return { pending: pending || 0, recentPending: (recentPending || []) as any[] };
+      // Fetch all pending records, then apply same filters as TerminalSyncTab (purchase)
+      const { data: allPending } = await supabase
+        .from('terminal_purchase_sync' as any)
+        .select('*')
+        .eq('sync_status', 'synced_pending_approval')
+        .order('synced_at', { ascending: false });
+
+      const { getSmallBuysConfig } = await import('@/hooks/useSmallBuysSync');
+      const sbConfig = await getSmallBuysConfig();
+      const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+      const cutoffTime = Date.now() - LOOKBACK_MS;
+
+      const filtered = (allPending || []).filter((r: any) => {
+        const od = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+        const createTime = Number(od?.create_time || 0);
+        if (createTime > 0 && createTime < cutoffTime) return false;
+        if (sbConfig?.is_enabled) {
+          const tp = parseFloat(od?.total_price || '0');
+          if (tp >= sbConfig.min_amount && tp <= sbConfig.max_amount) return false;
+        }
+        return true;
+      });
+
+      return { pending: filtered.length, recentPending: filtered.slice(0, 5) as any[] };
     },
     staleTime: 30000,
     refetchInterval: 30000,
@@ -1334,7 +1366,7 @@ export function TerminalPurchaseApprovalWidget() {
           <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
           {data?.recentPending.map((r: any) => {
             const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
-            const amount = orderData?.totalPrice || orderData?.amount || '—';
+            const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
             return (
               <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
                 <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>

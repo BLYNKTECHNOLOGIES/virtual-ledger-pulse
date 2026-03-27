@@ -244,17 +244,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'bank-balance-filter':
         return <BankBalanceFilterWidget compact className="border-0 shadow-none bg-transparent" />;
 
-      case 'sales-orders-count':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShoppingCart className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">{metrics?.totalSalesOrders || 0}</div>
-            <p className="text-sm text-gray-600 mt-1">Sales Orders</p>
-            <Badge className="mt-3 bg-purple-100 text-purple-800 border-purple-200">Current Period</Badge>
-          </div>
-        );
 
       case 'total-purchases':
         return (

@@ -192,7 +192,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
         return <UpcomingTasksWidget />;
 
       case 'profit-margin':
-        return <ProfitMarginWidget />;
+        return <ProfitMarginWidget dateRange={dateRange} />;
 
       case 'performance-overview':
         return <PerformanceOverviewWidget metrics={metrics} dateRange={dateRange} />;

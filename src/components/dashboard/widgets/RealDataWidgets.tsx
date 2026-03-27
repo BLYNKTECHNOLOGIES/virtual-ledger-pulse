@@ -403,11 +403,15 @@ export function EarningsRateWidget() {
 }
 
 // ── Profit Margin Widget ──
-export function ProfitMarginWidget() {
+export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; to?: Date } }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_profit_margin'],
+    queryKey: ['widget_profit_margin', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
-      const start = startOfDay(subDays(new Date(), 30)).toISOString();
+      const now = new Date();
+      const periodStart = dateRange?.from ? startOfDay(dateRange.from) : startOfDay(subDays(now, 30));
+      const periodEnd = dateRange?.to ? endOfDay(dateRange.to) : endOfDay(now);
+      const start = periodStart.toISOString();
+      const end = periodEnd.toISOString();
 
       const fetchAllAmounts = async (table: 'sales_orders' | 'purchase_orders') => {
         let allData: any[] = [];
@@ -418,6 +422,7 @@ export function ProfitMarginWidget() {
             .from(table)
             .select('total_amount')
             .gte('created_at', start)
+            .lte('created_at', end)
             .eq('status', 'COMPLETED')
             .range(from, from + batchSize - 1);
           if (!batch || batch.length === 0) break;
@@ -437,7 +442,8 @@ export function ProfitMarginWidget() {
       const totalPurchases = purchases.reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
       const profit = totalSales - totalPurchases;
       const margin = totalSales > 0 ? (profit / totalSales * 100) : 0;
-      return { margin: margin.toFixed(1), totalSales, totalPurchases, profit };
+      const periodLabel = dateRange?.from ? `${format(periodStart, 'dd MMM')} - ${format(periodEnd, 'dd MMM')}` : 'Last 30d';
+      return { margin: margin.toFixed(1), totalSales, totalPurchases, profit, periodLabel };
     },
     staleTime: 60000,
   });
@@ -447,7 +453,7 @@ export function ProfitMarginWidget() {
   return (
     <div className="text-center p-4">
       <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{data?.margin}%</div>
-      <p className="text-sm text-muted-foreground mt-1">Profit Margin (30d)</p>
+      <p className="text-sm text-muted-foreground mt-1">Profit Margin ({data?.periodLabel})</p>
       <p className="text-xs text-muted-foreground mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString('en-IN')}</p>
     </div>
   );

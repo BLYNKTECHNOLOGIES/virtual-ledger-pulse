@@ -126,6 +126,11 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Deduplicate by email so a user doesn't get duplicate notifications
+    const uniqueUsers = Array.from(
+      new Map((users || []).filter((u) => !!u.email).map((u) => [u.email?.toLowerCase(), u])).values()
+    );
+
     const today = new Date().toISOString().split("T")[0];
     let sentCount = 0;
     const errors: string[] = [];

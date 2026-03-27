@@ -24,7 +24,6 @@ export function MyTasksWidget() {
   const { data: tasks } = useTasks({ status: 'all', showCompleted: false });
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const updateTask = useUpdateTask();

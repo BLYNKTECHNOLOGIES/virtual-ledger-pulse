@@ -221,10 +221,10 @@ const InvoiceCreatorPage = () => {
       )}
 
       {/* Company & Payment Details */}
-      <CompanyForm company={company} onChange={setCompany} />
+      <CompanyForm company={company} onChange={handleCompanyChange} />
 
       {/* Signatory */}
-      <SignatorySettings signatory={signatory} onChange={setSignatory} />
+      <SignatorySettings signatory={signatory} onChange={handleSignatoryChange} />
 
       {/* FI Note */}
       {isFinancial && (

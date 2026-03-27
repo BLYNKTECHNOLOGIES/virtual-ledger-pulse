@@ -50,7 +50,10 @@ export default function Sales() {
   const [selectedOrderForUserPaying, setSelectedOrderForUserPaying] = useState<any>(null);
   const [selectedOrderForAlternativeMethod, setSelectedOrderForAlternativeMethod] = useState<any>(null);
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("pending");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'pending';
+  });
 
   // Fetch accurate counts for tab badges (not limited by default 1000 row cap)
   const { data: orderCounts } = useQuery({

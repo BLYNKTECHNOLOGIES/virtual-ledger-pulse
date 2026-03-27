@@ -1367,6 +1367,25 @@ export default function UserProfile() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Logout */}
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <LogOut className="h-5 w-5" /> Log Out
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">Sign out of your account. You will need to log in again to access the system.</p>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => { logout(); navigate('/'); }}
+              >
+                <LogOut className="h-4 w-4 mr-2" /> Log Out
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

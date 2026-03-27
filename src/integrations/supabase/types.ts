@@ -1772,6 +1772,39 @@ export type Database = {
         }
         Relationships: []
       }
+      email_notification_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          recipient_email: string | null
+          recipient_user_id: string
+          status: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          recipient_email?: string | null
+          recipient_user_id: string
+          status?: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          recipient_email?: string | null
+          recipient_user_id?: string
+          status?: string
+          task_id?: string
+        }
+        Relationships: []
+      }
       employee_offboarding: {
         Row: {
           assets_returned: boolean | null
@@ -12317,6 +12350,7 @@ export type Database = {
         }
         Returns: string
       }
+      date_trunc_day_immutable: { Args: { ts: string }; Returns: string }
       debug_client_usage_drift: {
         Args: never
         Returns: {

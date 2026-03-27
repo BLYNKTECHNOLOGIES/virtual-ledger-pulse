@@ -711,7 +711,7 @@ export default function Dashboard() {
                 onPresetChange={setDatePreset}
                 className="w-full md:w-auto md:min-w-[200px]"
               />
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+              <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pt-2 pb-1 -mx-4 px-4 md:mx-0 md:px-0">
                 <Button
                   variant="outline"
                   size="sm"

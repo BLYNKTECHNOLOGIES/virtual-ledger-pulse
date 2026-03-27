@@ -23,6 +23,8 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ phoneMatches: DuplicateMatch[]; nameMatches: DuplicateMatch[] } | null>(null);
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
 
   // Auto-generate client ID
   const generateClientId = () => {

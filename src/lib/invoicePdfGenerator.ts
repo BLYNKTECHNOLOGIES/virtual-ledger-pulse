@@ -506,6 +506,46 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 8;
     }
 
+    // ── Transaction Reference (USDT Sales) ──
+    const isUsdtSales = invoice.category === "usdt_sales";
+    if (isUsdtSales && invoice.items.length > 0) {
+      const utrs = invoice.items.map(it => it.utrReference).filter(Boolean);
+      const platforms = [...new Set(invoice.items.map(it => it.platform).filter(Boolean))];
+
+      if (utrs.length > 0 || platforms.length > 0) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        setColor(t.colors.primaryDark);
+        doc.text("Transaction Reference", marginL, y);
+        y += 6;
+
+        doc.setFontSize(8.5);
+        setColor(t.colors.bodyText);
+        const refLabelX = marginL + 2;
+        const refValX = marginL + 52;
+
+        if (platforms.length > 0) {
+          doc.setFont("helvetica", "normal");
+          doc.text("Platform:", refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(platforms.join(", "), refValX, y);
+          y += 5;
+        }
+
+        if (utrs.length > 0) {
+          doc.setFont("helvetica", "normal");
+          doc.text("UTR No.:", refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          const utrText = utrs.join(", ");
+          const utrLines = doc.splitTextToSize(utrText, contentW - 55);
+          utrLines.forEach((line: string, i: number) => {
+            doc.text(line, refValX, y + i * 4);
+          });
+          y += utrLines.length * 4 + 3;
+        }
+      }
+    }
+
     // ── Terms / Note ──
     const invoiceNote = isFinancial ? (note || "") : "";
     if (invoiceNote) {

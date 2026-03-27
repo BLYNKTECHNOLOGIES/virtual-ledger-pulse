@@ -52,6 +52,8 @@ const availablePermissions = [
   { id: "shift_reconciliation_approve", name: "Shift Reconciliation Approve", description: "Approve or reject shift reconciliation records" },
   { id: "stock_conversion_approve", name: "Stock Conversion Approve", description: "Approve stock/product conversions" },
   { id: "stock_conversion_create", name: "Stock Conversion Create", description: "Create stock/product conversions" },
+  { id: "utility_view", name: "Utility View", description: "View utility tools and features" },
+  { id: "utility_manage", name: "Utility Manage", description: "Manage utility tools and settings" },
 ];
 
 export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {

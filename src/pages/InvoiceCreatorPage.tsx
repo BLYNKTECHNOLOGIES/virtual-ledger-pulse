@@ -85,7 +85,9 @@ const InvoiceCreatorPage = () => {
     a.href = url;
     a.download = category === "financial_intermediation"
       ? "fi_invoice_template.csv"
-      : "invoice_template.csv";
+      : category === "usdt_sales"
+        ? "usdt_sales_template.csv"
+        : "invoice_template.csv";
     a.click();
     URL.revokeObjectURL(url);
   }, [category]);
@@ -93,6 +95,7 @@ const InvoiceCreatorPage = () => {
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
   const invoiceCount = new Set(records.map(r => r.invoiceNumber)).size;
   const isFinancial = category === "financial_intermediation";
+  const isUsdtSales = category === "usdt_sales";
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -155,9 +158,14 @@ const InvoiceCreatorPage = () => {
                     icon: Receipt,
                   },
                 ]
-              : [
-                  { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
-                ]),
+              : isUsdtSales
+                ? [
+                    { label: "Total USDT Qty", value: records.reduce((s, r) => s + r.quantity, 0).toLocaleString(), icon: Receipt },
+                    { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
+                  ]
+                : [
+                    { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
+                  ]),
             { label: "Unique Buyers", value: new Set(records.map(r => r.buyerName)).size.toString(), icon: FileText },
             { label: "Invoices (grouped)", value: invoiceCount.toString(), icon: FileText },
           ].map((stat) => (

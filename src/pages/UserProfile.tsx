@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast as sonnerToast } from 'sonner';
+import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 
 interface BankAccount {
   id: string;
@@ -843,8 +844,9 @@ export default function UserProfile() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="tasks">My Tasks</TabsTrigger>
           <TabsTrigger value="salary">Salary & PF</TabsTrigger>
           <TabsTrigger value="banking">Banking</TabsTrigger>
           <TabsTrigger value="leaves">Leaves</TabsTrigger>
@@ -922,6 +924,11 @@ export default function UserProfile() {
               </Card>
             </div>
           )}
+        </TabsContent>
+
+        {/* ═══════ My Tasks Tab ═══════ */}
+        <TabsContent value="tasks" className="space-y-6">
+          <UserProfileTasks />
         </TabsContent>
 
         {/* ═══════ Salary & PF Tab ═══════ */}

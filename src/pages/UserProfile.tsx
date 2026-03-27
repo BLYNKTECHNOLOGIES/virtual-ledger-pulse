@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +41,8 @@ import {
   Upload,
   Plus,
   Pencil,
-  Trash2
+  Trash2,
+  LogOut
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast as sonnerToast } from 'sonner';
@@ -386,9 +387,10 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
   );
 }
 export default function UserProfile() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -1365,6 +1367,25 @@ export default function UserProfile() {
                   </ul>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Logout */}
+          <Card className="border-destructive/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <LogOut className="h-5 w-5" /> Log Out
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">Sign out of your account. You will need to log in again to access the system.</p>
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => { logout(); navigate('/'); }}
+              >
+                <LogOut className="h-4 w-4 mr-2" /> Log Out
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

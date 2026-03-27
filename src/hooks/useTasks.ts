@@ -281,6 +281,7 @@ export function useCreateTask() {
         const assignee = assigneeData as any;
 
         if (assignee?.email) {
+          // Only send to assignee — creator should NOT receive the assigned email
           sendTaskEmail({
             eventType: 'task_assigned',
             taskId: d.id,
@@ -293,8 +294,44 @@ export function useCreateTask() {
             recipientName:
               [assignee.first_name, assignee.last_name].filter(Boolean).join(' ') || assignee.username,
             recipientUserId: task.assignee_id,
-            ccUserIds: user?.id && user.id !== task.assignee_id ? [user.id] : [],
+            ccUserIds: [],
           });
+        }
+
+        // Send spectator notifications
+        if (spectator_ids?.length) {
+          const assigneeName =
+            [assignee?.first_name, assignee?.last_name].filter(Boolean).join(' ') || assignee?.username || 'Someone';
+
+          const { data: spectatorUsersData } = await from('users')
+            .select('id, email, first_name, last_name, username')
+            .in('id', spectator_ids);
+          const spectatorUsers = (spectatorUsersData || []) as any[];
+
+          if (spectatorUsers.length) {
+            for (const spec of spectatorUsers) {
+              if (!spec.email) continue;
+              const specName = [spec.first_name, spec.last_name].filter(Boolean).join(' ') || spec.username;
+              const today = new Date().toISOString().split('T')[0];
+
+              supabase.functions.invoke('send-transactional-email', {
+                body: {
+                  templateName: 'task-spectator-notification',
+                  recipientEmail: spec.email,
+                  idempotencyKey: `task-spectator-${d.id}-${spec.email}-${today}`,
+                  templateData: {
+                    taskTitle: task.title,
+                    taskDescription: task.description,
+                    assignedToName: assigneeName,
+                    assignedByName: creatorName,
+                    dueDate: task.due_date,
+                    status: 'open',
+                    recipientName: specName,
+                  },
+                },
+              }).catch(() => {});
+            }
+          }
         }
       }
 

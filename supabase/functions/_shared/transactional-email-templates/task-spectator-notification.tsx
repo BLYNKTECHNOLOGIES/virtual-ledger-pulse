@@ -4,7 +4,6 @@ import * as React from 'npm:react@18.3.1'
 
 import {
   Body,
-  Button,
   Container,
   Head,
   Heading,
@@ -18,35 +17,26 @@ import type { TemplateEntry } from './registry.ts'
 
 const SITE_NAME = 'BLYNK Virtual Technologies'
 
-interface TaskNotificationProps {
-  eventType?: string
+interface TaskSpectatorNotificationProps {
   taskTitle?: string
   taskDescription?: string
+  assignedToName?: string
   assignedByName?: string
   dueDate?: string
   status?: string
   recipientName?: string
 }
 
-const eventHeaders: Record<string, string> = {
-  task_assigned: '📋 New Task Assigned',
-  task_reassigned: '🔄 Task Reassigned',
-  task_overdue: '⚠️ Task Overdue',
-  task_due_soon: '⏰ Task Due Soon',
-  task_mention: '💬 You Were Mentioned',
-}
-
-const TaskNotificationEmail = ({
-  eventType = 'task_assigned',
+const TaskSpectatorNotificationEmail = ({
   taskTitle = 'Untitled Task',
   taskDescription,
+  assignedToName,
   assignedByName,
   dueDate,
   status,
   recipientName,
-}: TaskNotificationProps) => {
-  const header = eventHeaders[eventType] || 'Task Update'
-  const previewText = `${header}: ${taskTitle}`
+}: TaskSpectatorNotificationProps) => {
+  const previewText = `👁️ You've been added as a spectator: ${taskTitle}`
   const statusLabel = status?.replace('_', ' ').toUpperCase() || ''
   const formattedDue = dueDate
     ? new Date(dueDate).toLocaleString('en-IN', {
@@ -71,11 +61,15 @@ const TaskNotificationEmail = ({
           </Section>
 
           <Section style={content}>
-            <Heading style={h1}>{header}</Heading>
+            <Heading style={h1}>👁️ You Are a Spectator</Heading>
 
             {recipientName && (
               <Text style={text}>Hi {recipientName},</Text>
             )}
+
+            <Text style={text}>
+              You have been added as a <strong>spectator</strong> on the following task. You will receive updates but are not required to take action.
+            </Text>
 
             {/* Task card */}
             <Section style={taskCard}>
@@ -90,13 +84,14 @@ const TaskNotificationEmail = ({
             </Section>
 
             {/* Meta info */}
-            {formattedDue && (
-              <Text style={meta}>📅 Due: <strong>{formattedDue}</strong></Text>
+            {assignedToName && (
+              <Text style={meta}>👤 Assigned to: <strong>{assignedToName}</strong></Text>
             )}
             {assignedByName && (
-              <Text style={meta}>
-                👤 {eventType === 'task_reassigned' ? 'Reassigned' : 'Assigned'} by: <strong>{assignedByName}</strong>
-              </Text>
+              <Text style={meta}>📝 Created by: <strong>{assignedByName}</strong></Text>
+            )}
+            {formattedDue && (
+              <Text style={meta}>📅 Due: <strong>{formattedDue}</strong></Text>
             )}
             {statusLabel && (
               <Text style={meta}>Status: <strong>{statusLabel}</strong></Text>
@@ -106,7 +101,7 @@ const TaskNotificationEmail = ({
 
             <Text style={footer}>
               This is an automated notification from {SITE_NAME} ERP.
-              Please log in to view full details and take action.
+              You are receiving this because you were added as a spectator on this task.
             </Text>
           </Section>
         </Container>
@@ -116,26 +111,18 @@ const TaskNotificationEmail = ({
 }
 
 export const template = {
-  component: TaskNotificationEmail,
-  subject: (data: Record<string, any>) => {
-    const subjects: Record<string, string> = {
-      task_assigned: `📋 New Task Assigned: ${data.taskTitle || 'Task'}`,
-      task_reassigned: `🔄 Task Reassigned: ${data.taskTitle || 'Task'}`,
-      task_overdue: `⚠️ Task Overdue: ${data.taskTitle || 'Task'}`,
-      task_due_soon: `⏰ Task Due Soon: ${data.taskTitle || 'Task'}`,
-      task_mention: `💬 You were mentioned: ${data.taskTitle || 'Task'}`,
-    }
-    return subjects[data.eventType] || `Task Update: ${data.taskTitle || 'Task'}`
-  },
-  displayName: 'Task Notification',
+  component: TaskSpectatorNotificationEmail,
+  subject: (data: Record<string, any>) =>
+    `👁️ Spectator: ${data.taskTitle || 'Task'}`,
+  displayName: 'Task Spectator Notification',
   previewData: {
-    eventType: 'task_assigned',
     taskTitle: 'Complete Q1 Financial Report',
     taskDescription: 'Please review and finalize the quarterly financial report for stakeholder review.',
+    assignedToName: 'Abhishek',
     assignedByName: 'Shubham Singh',
-    dueDate: '2026-04-01T23:59:00',
+    dueDate: '2026-04-01T18:30:00',
     status: 'open',
-    recipientName: 'Abhishek',
+    recipientName: 'Ravi',
   },
 } satisfies TemplateEntry
 
@@ -168,7 +155,7 @@ const text = {
 }
 const taskCard = {
   backgroundColor: '#f8f9fa',
-  borderLeft: '4px solid #4361ee',
+  borderLeft: '4px solid #f59e0b',
   padding: '16px',
   borderRadius: '0 6px 6px 0',
   margin: '16px 0',

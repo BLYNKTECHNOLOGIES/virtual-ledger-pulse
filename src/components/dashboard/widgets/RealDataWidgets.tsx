@@ -1227,18 +1227,12 @@ export function TerminalSalesApprovalWidget() {
     queryFn: async () => {
       const [
         { count: pending },
-        { count: clientMapping },
-        { count: approved },
-        { count: rejected },
         { data: recentPending },
       ] = await Promise.all([
         supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
-        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'client_mapping_pending'),
-        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'approved'),
-        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'rejected'),
         supabase.from('terminal_sales_sync' as any).select('id, counterparty_name, order_data').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
       ]);
-      return { pending: pending || 0, clientMapping: clientMapping || 0, approved: approved || 0, rejected: rejected || 0, recentPending: (recentPending || []) as any[] };
+      return { pending: pending || 0, recentPending: (recentPending || []) as any[] };
     },
     staleTime: 30000,
     refetchInterval: 30000,
@@ -1246,22 +1240,11 @@ export function TerminalSalesApprovalWidget() {
 
   if (isLoading) return <WidgetLoader />;
 
-  const statuses = [
-    { label: 'Pending Approval', count: data?.pending || 0, color: 'bg-amber-100 text-amber-800' },
-    { label: 'Client Mapping', count: data?.clientMapping || 0, color: 'bg-blue-100 text-blue-800' },
-    { label: 'Approved', count: data?.approved || 0, color: 'bg-green-100 text-green-800' },
-    { label: 'Rejected', count: data?.rejected || 0, color: 'bg-red-100 text-red-800' },
-  ];
-
   return (
     <div className="p-4 space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        {statuses.map(s => (
-          <div key={s.label} className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
-            <span className="text-xs text-muted-foreground">{s.label}</span>
-            <Badge variant="secondary" className={`${s.color} text-xs font-bold`}>{s.count}</Badge>
-          </div>
-        ))}
+      <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+        <span className="text-sm font-medium text-foreground">Pending Approval</span>
+        <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-sm font-bold">{data?.pending || 0}</Badge>
       </div>
       {(data?.recentPending?.length || 0) > 0 && (
         <div className="space-y-1.5">
@@ -1289,18 +1272,12 @@ export function TerminalPurchaseApprovalWidget() {
     queryFn: async () => {
       const [
         { count: pending },
-        { count: clientMapping },
-        { count: approved },
-        { count: rejected },
         { data: recentPending },
       ] = await Promise.all([
         supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
-        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'client_mapping_pending'),
-        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'approved'),
-        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'rejected'),
         supabase.from('terminal_purchase_sync' as any).select('id, counterparty_name, order_data').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
       ]);
-      return { pending: pending || 0, clientMapping: clientMapping || 0, approved: approved || 0, rejected: rejected || 0, recentPending: (recentPending || []) as any[] };
+      return { pending: pending || 0, recentPending: (recentPending || []) as any[] };
     },
     staleTime: 30000,
     refetchInterval: 30000,
@@ -1308,22 +1285,11 @@ export function TerminalPurchaseApprovalWidget() {
 
   if (isLoading) return <WidgetLoader />;
 
-  const statuses = [
-    { label: 'Pending Approval', count: data?.pending || 0, color: 'bg-amber-100 text-amber-800' },
-    { label: 'Client Mapping', count: data?.clientMapping || 0, color: 'bg-blue-100 text-blue-800' },
-    { label: 'Approved', count: data?.approved || 0, color: 'bg-green-100 text-green-800' },
-    { label: 'Rejected', count: data?.rejected || 0, color: 'bg-red-100 text-red-800' },
-  ];
-
   return (
     <div className="p-4 space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        {statuses.map(s => (
-          <div key={s.label} className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
-            <span className="text-xs text-muted-foreground">{s.label}</span>
-            <Badge variant="secondary" className={`${s.color} text-xs font-bold`}>{s.count}</Badge>
-          </div>
-        ))}
+      <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50">
+        <span className="text-sm font-medium text-foreground">Pending Approval</span>
+        <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-sm font-bold">{data?.pending || 0}</Badge>
       </div>
       {(data?.recentPending?.length || 0) > 0 && (
         <div className="space-y-1.5">

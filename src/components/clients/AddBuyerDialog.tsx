@@ -82,6 +82,8 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       operator_notes: '',
     });
     setCurrentStep(1);
+    setDuplicateWarning(null);
+    setDuplicateAcknowledged(false);
   };
 
   const uploadFile = async (file: File, bucket: string, path: string) => {
@@ -168,6 +170,20 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
     if (!validateStep(4)) return;
 
     setIsSubmitting(true);
+
+    // Check for duplicates before inserting
+    if (!duplicateAcknowledged) {
+      try {
+        const dupes = await checkClientDuplicates(formData.name, formData.phone);
+        if (dupes.phoneMatches.length > 0 || dupes.nameMatches.length > 0) {
+          setDuplicateWarning(dupes);
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Duplicate check failed, proceeding:', e);
+      }
+    }
 
     try {
       // Upload KYC documents

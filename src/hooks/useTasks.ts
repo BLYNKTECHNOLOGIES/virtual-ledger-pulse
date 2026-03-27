@@ -55,11 +55,11 @@ const from = (table: string) => supabase.from(table as any);
 async function fetchUserMap(userIds: Set<string>): Promise<Record<string, string>> {
   if (userIds.size === 0) return {};
   const { data } = await from('users')
-    .select('id, full_name, username')
+    .select('id, first_name, last_name, username')
     .in('id', Array.from(userIds));
   const map: Record<string, string> = {};
   ((data as any[]) || []).forEach((u: any) => {
-    map[u.id] = u.full_name || u.username || 'Unknown';
+    map[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Unknown';
   });
   return map;
 }

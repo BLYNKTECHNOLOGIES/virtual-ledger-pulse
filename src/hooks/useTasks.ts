@@ -267,7 +267,7 @@ export function useCreateTask() {
 
         // Fire-and-forget email notification
         try {
-          const creatorName = user?.full_name || user?.username || 'Someone';
+          const creatorName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
           supabase.functions.invoke('send-task-email', {
             body: {
               eventType: 'task_assigned',
@@ -338,7 +338,7 @@ export function useUpdateTask() {
 
           // Fire-and-forget email notification
           try {
-            const reassignerName = user?.full_name || user?.username || 'Someone';
+            const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
             supabase.functions.invoke('send-task-email', {
               body: {
                 eventType: 'task_reassigned',

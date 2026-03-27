@@ -95,7 +95,7 @@ export function useAddTaskComment() {
                 taskId,
                 taskTitle: `Task Comment`,
                 taskDescription: content.substring(0, 200),
-                assignedByName: user?.full_name || user?.username || 'Someone',
+                assignedByName: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone',
                 recipientUserIds: mentionedOthers,
               },
             });

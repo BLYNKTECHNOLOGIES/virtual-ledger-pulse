@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -101,6 +102,44 @@ Deno.serve(async (req) => {
         .from('terminal_notifications')
         .insert(notifications);
       if (insertError) throw insertError;
+    }
+
+    // Send email notifications for due-soon and overdue tasks
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASS');
+    const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp.gmail.com';
+
+    if (smtpUser && smtpPass && notifications.length > 0) {
+      try {
+        // Collect assignee IDs that need email
+        const emailTasks = (tasks || []).filter(t => {
+          const dueDate = new Date(t.due_date);
+          const isOverdue = dueDate < now;
+          const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+          const reminderH = t.reminder_hours_before || 24;
+          return isOverdue || (!isOverdue && hoursUntilDue <= reminderH);
+        });
+
+        for (const task of emailTasks) {
+          const dueDate = new Date(task.due_date);
+          const isOverdue = dueDate < now;
+          const eventType = isOverdue ? 'task_overdue' : 'task_due_soon';
+
+          // Use internal invoke to send-task-email
+          await supabase.functions.invoke('send-task-email', {
+            body: {
+              eventType,
+              taskId: task.id,
+              taskTitle: task.title,
+              dueDate: task.due_date,
+              status: task.status,
+              recipientUserIds: [task.assignee_id],
+            },
+          });
+        }
+      } catch (emailErr) {
+        console.error('Email notification error:', emailErr);
+      }
     }
 
     return new Response(

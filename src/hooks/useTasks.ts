@@ -264,6 +264,23 @@ export function useCreateTask() {
           user_id: task.assignee_id, title: 'New Task Assigned',
           message: `You have been assigned: "${task.title}"`, notification_type: 'task_assigned',
         });
+
+        // Fire-and-forget email notification
+        try {
+          const creatorName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+          supabase.functions.invoke('send-task-email', {
+            body: {
+              eventType: 'task_assigned',
+              taskId: d.id,
+              taskTitle: task.title,
+              taskDescription: task.description,
+              assignedByName: creatorName,
+              dueDate: task.due_date,
+              status: 'open',
+              recipientUserIds: [task.assignee_id],
+            },
+          });
+        } catch {}
       }
 
       return d;
@@ -318,6 +335,23 @@ export function useUpdateTask() {
             user_id: updates.assignee_id, title: 'Task Reassigned to You',
             message: `Task "${oldTask?.title || ''}" has been reassigned to you`, notification_type: 'task_reassigned',
           });
+
+          // Fire-and-forget email notification
+          try {
+            const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+            supabase.functions.invoke('send-task-email', {
+              body: {
+                eventType: 'task_reassigned',
+                taskId: taskId,
+                taskTitle: oldTask?.title || '',
+                taskDescription: oldTask?.description,
+                assignedByName: reassignerName,
+                dueDate: oldTask?.due_date || updates.due_date,
+                status: updates.status || oldTask?.status,
+                recipientUserIds: [updates.assignee_id],
+              },
+            });
+          } catch {}
         }
       }
       if (updates.due_date && oldTask?.due_date !== updates.due_date) {

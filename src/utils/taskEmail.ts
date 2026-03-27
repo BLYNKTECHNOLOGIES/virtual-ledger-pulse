@@ -12,6 +12,7 @@ interface SendTaskEmailParams {
   status?: string;
   recipientEmail: string;
   recipientName?: string;
+  recipientUserId?: string;
 }
 
 export async function sendTaskEmail({
@@ -23,23 +24,36 @@ export async function sendTaskEmail({
   dueDate,
   status,
   recipientEmail,
-  recipientName,
+  recipientUserId,
 }: SendTaskEmailParams) {
   try {
-    await supabase.functions.invoke('send-transactional-email', {
+    let userId = recipientUserId;
+
+    // If no userId provided, look it up from email
+    if (!userId && recipientEmail) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', recipientEmail)
+        .single();
+      userId = userData?.id;
+    }
+
+    if (!userId) {
+      console.warn('Task email: recipient user not found', recipientEmail);
+      return;
+    }
+
+    await supabase.functions.invoke('send-task-email', {
       body: {
-        templateName: 'task-notification',
-        recipientEmail,
-        idempotencyKey: `task-${eventType}-${taskId}-${new Date().toISOString().split('T')[0]}`,
-        templateData: {
-          eventType,
-          taskTitle,
-          taskDescription,
-          assignedByName,
-          dueDate,
-          status,
-          recipientName,
-        },
+        eventType,
+        taskId,
+        taskTitle,
+        taskDescription,
+        assignedByName,
+        dueDate,
+        status,
+        recipientUserIds: [userId],
       },
     });
   } catch (err) {

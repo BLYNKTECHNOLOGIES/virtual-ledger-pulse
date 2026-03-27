@@ -58,9 +58,20 @@ const defaultSignatory: SignatoryConfig = {
 
 const InvoiceCreatorPage = () => {
   const [records, setRecords] = useState<OrderRecord[]>([]);
-  const [company, setCompany] = useState<CompanyInfo>(emptyCompany);
+  const [company, setCompany] = useState<CompanyInfo>(loadPersistedCompany);
   const [gst, setGst] = useState<GSTConfig>(defaultGST);
-  const [signatory, setSignatory] = useState<SignatoryConfig>(defaultSignatory);
+  const [signatory, setSignatory] = useState<SignatoryConfig>(loadPersistedSignatory);
+
+  // Persist company & signatory to localStorage on change
+  const handleCompanyChange = useCallback((c: CompanyInfo) => {
+    setCompany(c);
+    localStorage.setItem(COMPANY_STORAGE_KEY, JSON.stringify(c));
+  }, []);
+
+  const handleSignatoryChange = useCallback((s: SignatoryConfig) => {
+    setSignatory(s);
+    localStorage.setItem(SIGNATORY_STORAGE_KEY, JSON.stringify(s));
+  }, []);
   const [generating, setGenerating] = useState(false);
   const [category, setCategory] = useState<InvoiceCategory>("it_services");
   const [fiNote, setFiNote] = useState(DEFAULT_FI_NOTE);

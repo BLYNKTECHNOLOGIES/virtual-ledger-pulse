@@ -43,7 +43,8 @@ export function usePermissions() {
           'erp_destructive', 'terminal_destructive', 'bams_destructive',
           'clients_destructive', 'stock_destructive',
           'shift_reconciliation_approve',
-          'utility_view', 'utility_manage'
+          'utility_view', 'utility_manage',
+          'tasks_view', 'tasks_manage'
         ];
         setPermissions(adminPermissions);
         localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
@@ -79,9 +80,10 @@ export function usePermissions() {
             'statistics_view', 'statistics_manage',
             'erp_destructive', 'terminal_destructive', 'bams_destructive',
             'clients_destructive', 'stock_destructive',
-            'shift_reconciliation_approve',
-            'utility_view', 'utility_manage'
-          ];
+             'shift_reconciliation_approve',
+             'utility_view', 'utility_manage',
+             'tasks_view', 'tasks_manage'
+           ];
           setPermissions(adminPermissions);
           localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
         } else {

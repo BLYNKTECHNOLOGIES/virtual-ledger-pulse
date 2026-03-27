@@ -44,26 +44,35 @@ export function AddEmployeeDialog({ open, onOpenChange }: AddEmployeeDialogProps
     setIsSubmitting(true);
     try {
       const employeeData = {
-        name,
+        first_name: name.split(' ')[0],
+        last_name: name.split(' ').slice(1).join(' ') || null,
         email,
-        phone: phone || "",
-        department,
-        designation,
-        employee_id: `EMP${Date.now()}`,
-        date_of_joining: dateOfJoining ? dateOfJoining.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        salary: salary ? parseFloat(salary) : 50000,
-        status: 'ACTIVE' as const,
-        user_id: crypto.randomUUID()
+        phone: phone || null,
+        badge_id: `EMP${Date.now()}`,
+        total_salary: salary ? parseFloat(salary) : 50000,
+        is_active: true,
       };
 
-      const { error } = await supabase
-        .from('employees')
-        .insert(employeeData);
+      const { data: newEmployee, error } = await (supabase as any)
+        .from('hr_employees')
+        .insert(employeeData)
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Create work info with department and designation
+      await (supabase as any)
+        .from('hr_employee_work_info')
+        .insert({
+          employee_id: newEmployee.id,
+          job_role: designation,
+          joining_date: dateOfJoining ? dateOfJoining.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        });
+
       toast.success("Employee added successfully!");
-      queryClient.invalidateQueries({ queryKey: ['employees_data'] });
+      queryClient.invalidateQueries({ queryKey: ['employees_info'] });
+      queryClient.invalidateQueries({ queryKey: ['hr_employees'] });
       onOpenChange(false);
       
       // Reset form

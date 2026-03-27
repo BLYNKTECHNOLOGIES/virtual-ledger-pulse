@@ -553,21 +553,11 @@ export default function UserProfile() {
     enabled: !!hrEmployee?.id,
   });
 
-  // ─── Also keep the old employee lookup for salary/banking/etc ───
-  const { data: employeeData } = useQuery({
-    queryKey: ['employee_profile', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from('employees')
-        .select(`*, departments(name, icon), positions(title)`)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      if (error) return null;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  // ─── Legacy employees query removed — hr_employees is the source of truth ───
+  const employeeData = hrEmployee ? {
+    ...hrEmployee,
+    name: `${hrEmployee.first_name} ${hrEmployee.last_name || ''}`.trim(),
+  } : null;
 
   // ─── Bank accounts ───
   const { data: bankAccounts = [] } = useQuery({

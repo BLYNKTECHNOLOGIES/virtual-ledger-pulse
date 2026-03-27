@@ -231,29 +231,40 @@ export default function Dashboard() {
   const { data: metrics, refetch: refetchMetrics } = useQuery({
     queryKey: ['dashboard_metrics', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
-      const { data: salesData } = await supabase
-        .from('sales_orders')
-        .select('total_amount, created_at')
-        .gte('created_at', startOfDay(startDate).toISOString())
-        .lte('created_at', endOfDay(endDate).toISOString());
+      // Calculate previous period of equal length
+      const periodMs = endOfDay(endDate).getTime() - startOfDay(startDate).getTime();
+      const prevEnd = new Date(startOfDay(startDate).getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - periodMs);
 
-      const { data: purchaseData } = await supabase
-        .from('purchase_orders')
-        .select('total_amount, created_at')
-        .gte('created_at', startOfDay(startDate).toISOString())
-        .lte('created_at', endOfDay(endDate).toISOString());
-
-      const { data: clientsData } = await supabase.from('clients').select('id').eq('kyc_status', 'VERIFIED');
-      const { data: totalClientsData } = await supabase.from('clients').select('id');
-
-      const { data: bankData } = await supabase
-        .from('bank_accounts')
-        .select('balance, lien_amount')
-        .eq('status', 'ACTIVE')
-        .is('dormant_at', null);
-
-      const { data: productsData } = await supabase.from('products').select('code, cost_price');
-      const { data: walletAssetBalances } = await supabase.from('wallet_asset_balances').select('asset_code, balance');
+      const [
+        { data: salesData },
+        { data: purchaseData },
+        { data: prevSalesData },
+        { data: prevPurchaseData },
+        { data: clientsData },
+        { data: totalClientsData },
+        { data: bankData },
+        { data: productsData },
+        { data: walletAssetBalances },
+      ] = await Promise.all([
+        supabase.from('sales_orders').select('total_amount, created_at')
+          .gte('created_at', startOfDay(startDate).toISOString())
+          .lte('created_at', endOfDay(endDate).toISOString()),
+        supabase.from('purchase_orders').select('total_amount, created_at')
+          .gte('created_at', startOfDay(startDate).toISOString())
+          .lte('created_at', endOfDay(endDate).toISOString()),
+        supabase.from('sales_orders').select('total_amount')
+          .gte('created_at', prevStart.toISOString())
+          .lte('created_at', prevEnd.toISOString()),
+        supabase.from('purchase_orders').select('total_amount')
+          .gte('created_at', prevStart.toISOString())
+          .lte('created_at', prevEnd.toISOString()),
+        supabase.from('clients').select('id').eq('kyc_status', 'VERIFIED'),
+        supabase.from('clients').select('id'),
+        supabase.from('bank_accounts').select('balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null),
+        supabase.from('products').select('code, cost_price'),
+        supabase.from('wallet_asset_balances').select('asset_code, balance'),
+      ]);
 
       const totalSalesOrders = salesData?.length || 0;
       const totalSales = salesData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
@@ -261,6 +272,14 @@ export default function Dashboard() {
       const totalSpending = purchaseData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
       const verifiedClients = clientsData?.length || 0;
       const totalClients = totalClientsData?.length || 0;
+
+      // Previous period metrics
+      const prevTotalSalesOrders = prevSalesData?.length || 0;
+      const prevTotalSales = prevSalesData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
+
+      // Growth rates
+      const salesGrowth = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales) * 100 : (totalSales > 0 ? 100 : 0);
+      const ordersGrowth = prevTotalSalesOrders > 0 ? ((totalSalesOrders - prevTotalSalesOrders) / prevTotalSalesOrders) * 100 : (totalSalesOrders > 0 ? 100 : 0);
 
       const bankBalance = bankData?.reduce((sum, a) => sum + (Number(a.balance) - Number(a.lien_amount || 0)), 0) || 0;
 
@@ -273,7 +292,7 @@ export default function Dashboard() {
       const stockValue = Object.entries(assetTotals).reduce((sum, [code, balance]) => sum + (balance * (costPriceMap[code] || 0)), 0);
       const totalCash = bankBalance + stockValue;
 
-      return { totalSalesOrders, totalSales, totalPurchases, totalSpending, verifiedClients, totalClients, totalCash, bankBalance, stockValue, totalRevenue: totalSales };
+      return { totalSalesOrders, totalSales, totalPurchases, totalSpending, verifiedClients, totalClients, totalCash, bankBalance, stockValue, totalRevenue: totalSales, salesGrowth, ordersGrowth };
     },
   });
 
@@ -430,8 +449,14 @@ export default function Dashboard() {
                     <p className="text-slate-600 text-sm font-medium">Total Sales</p>
                     <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-green-500" />
-                      <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                      {(metrics?.salesGrowth ?? 0) >= 0 ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
+                      )}
+                      <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}% vs prev period
+                      </span>
                     </div>
                   </div>
                   <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
@@ -453,8 +478,14 @@ export default function Dashboard() {
                     <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
                     <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
                     <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-purple-500" />
-                      <span className="text-sm font-medium text-slate-500">Selected Period</span>
+                      {(metrics?.ordersGrowth ?? 0) >= 0 ? (
+                        <ArrowUpIcon className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
+                      )}
+                      <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                        {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}% vs prev period
+                      </span>
                     </div>
                   </div>
                   <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">

@@ -373,6 +373,56 @@ export function useUpdateTask() {
 
       if (updates.status && oldTask?.status !== updates.status) {
         activities.push({ task_id: taskId, user_id: user?.id, action: 'status_changed', details: { from: oldTask?.status, to: updates.status } });
+
+        // On completion: send email to creator + spectators, NOT assignee
+        if (updates.status === 'completed' && oldTask) {
+          const completedByName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
+          const completedAt = updates.completed_at || new Date().toISOString();
+          const today = new Date().toISOString().split('T')[0];
+
+          // Collect recipients: creator + spectators (exclude assignee)
+          const recipientIds: string[] = [];
+          if (oldTask.created_by && oldTask.created_by !== oldTask.assignee_id) {
+            recipientIds.push(oldTask.created_by);
+          }
+
+          const { data: specData } = await from('erp_task_spectators')
+            .select('user_id')
+            .eq('task_id', taskId);
+          const spectatorIds = (specData || []).map((s: any) => s.user_id).filter((id: string) => id !== oldTask.assignee_id);
+          recipientIds.push(...spectatorIds);
+
+          const uniqueIds = [...new Set(recipientIds)];
+          if (uniqueIds.length) {
+            const { data: recipientUsersData } = await from('users')
+              .select('id, email, first_name, last_name, username')
+              .in('id', uniqueIds);
+            const recipientUsers = (recipientUsersData || []) as any[];
+
+            for (const ru of recipientUsers) {
+              if (!ru.email) continue;
+              const ruName = [ru.first_name, ru.last_name].filter(Boolean).join(' ') || ru.username;
+              const isSpectator = spectatorIds.includes(ru.id);
+
+              supabase.functions.invoke('send-transactional-email', {
+                body: {
+                  templateName: 'task-completed',
+                  recipientEmail: ru.email,
+                  idempotencyKey: `task-completed-${taskId}-${ru.email}-${today}`,
+                  templateData: {
+                    taskTitle: oldTask.title,
+                    taskDescription: oldTask.description,
+                    completedByName,
+                    dueDate: oldTask.due_date,
+                    completedAt,
+                    recipientName: ruName,
+                    recipientRole: isSpectator ? 'spectator' : 'creator',
+                  },
+                },
+              }).catch(() => {});
+            }
+          }
+        }
       }
       if (updates.priority && oldTask?.priority !== updates.priority) {
         activities.push({ task_id: taskId, user_id: user?.id, action: 'priority_changed', details: { from: oldTask?.priority, to: updates.priority } });

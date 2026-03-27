@@ -182,16 +182,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
           </div>
         );
 
-      case 'total-revenue':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalRevenue || metrics?.totalSales || 0) / 100000).toFixed(1)}L</div>
-            <p className="text-sm text-gray-600 mt-1">Current Period</p>
-          </div>
-        );
 
       case 'inventory-status':
         return <InventoryStatusWidget />;

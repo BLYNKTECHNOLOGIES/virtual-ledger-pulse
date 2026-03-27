@@ -283,7 +283,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text("HSN/SAC", colX.sac + columnWidths.sac / 2, headerY, { align: "center" });
     doc.text("Quantity", colX.qty + columnWidths.qty / 2, headerY, { align: "center" });
     doc.text("Unit", colX.unit + columnWidths.unit / 2, headerY, { align: "center" });
-    doc.text("Price/unit", colX.price + columnWidths.price / 2, headerY, { align: "center" });
+    doc.text("Price/unit", colR.price - 1, headerY, { align: "right" });
     if (hasGst) {
       doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst + columnWidths.igst / 2, headerY, { align: "center" });
     }
@@ -512,37 +512,36 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       const utrs = invoice.items.map(it => it.utrReference).filter(Boolean);
       const platforms = [...new Set(invoice.items.map(it => it.platform).filter(Boolean))];
 
-      if (utrs.length > 0 || platforms.length > 0) {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        setColor(t.colors.primaryDark);
-        doc.text("Transaction Reference", marginL, y);
-        y += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      setColor(t.colors.primaryDark);
+      doc.text("Transaction Reference", marginL, y);
+      y += 6;
 
-        doc.setFontSize(8.5);
-        setColor(t.colors.bodyText);
-        const refLabelX = marginL + 2;
-        const refValX = marginL + 52;
+      doc.setFontSize(8.5);
+      setColor(t.colors.bodyText);
+      const refLabelX = marginL + 2;
+      const refValX = marginL + 52;
 
-        if (platforms.length > 0) {
-          doc.setFont("helvetica", "normal");
-          doc.text("Platform:", refLabelX, y);
-          doc.setFont("helvetica", "bold");
-          doc.text(platforms.join(", "), refValX, y);
-          y += 5;
-        }
+      doc.setFont("helvetica", "normal");
+      doc.text("Platform:", refLabelX, y);
+      doc.setFont("helvetica", "bold");
+      doc.text(platforms.length > 0 ? platforms.join(", ") : "N/A", refValX, y);
+      y += 5;
 
-        if (utrs.length > 0) {
-          doc.setFont("helvetica", "normal");
-          doc.text("UTR No.:", refLabelX, y);
-          doc.setFont("helvetica", "bold");
-          const utrText = utrs.join(", ");
-          const utrLines = doc.splitTextToSize(utrText, contentW - 55);
-          utrLines.forEach((line: string, i: number) => {
-            doc.text(line, refValX, y + i * 4);
-          });
-          y += utrLines.length * 4 + 3;
-        }
+      doc.setFont("helvetica", "normal");
+      doc.text("UTR No.:", refLabelX, y);
+      doc.setFont("helvetica", "bold");
+      if (utrs.length > 0) {
+        const utrText = utrs.join(", ");
+        const utrLines = doc.splitTextToSize(utrText, contentW - 55);
+        utrLines.forEach((line: string, i: number) => {
+          doc.text(line, refValX, y + i * 4);
+        });
+        y += utrLines.length * 4 + 3;
+      } else {
+        doc.text("N/A", refValX, y);
+        y += 8;
       }
     }
 

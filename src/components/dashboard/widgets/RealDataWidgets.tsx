@@ -452,73 +452,112 @@ export function ProfitMarginWidget() {
 // ── Performance Overview Widget ──
 export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: any; dateRange?: { from?: Date; to?: Date } }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_performance_overview_v2', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryKey: ['widget_performance_overview_v3', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       const now = new Date();
-      // Use selected date range or fallback to current month
       const periodStart = dateRange?.from ? startOfDay(dateRange.from) : startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
       const periodEnd = dateRange?.to ? endOfDay(dateRange.to) : endOfDay(now);
+      const startStr = format(periodStart, 'yyyy-MM-dd');
+      const endStr = format(periodEnd, 'yyyy-MM-dd');
 
-      // Calculate equivalent previous period
+      // Previous period of equal length
       const periodMs = periodEnd.getTime() - periodStart.getTime();
       const prevEnd = new Date(periodStart.getTime() - 1);
       const prevStart = new Date(prevEnd.getTime() - periodMs);
+      const prevStartStr = format(prevStart, 'yyyy-MM-dd');
+      const prevEndStr = format(prevEnd, 'yyyy-MM-dd');
 
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
 
+      // Excluded legacy non-USDT orders (same as P&L)
+      const excludedOrderIds = [
+        '1fd66952-bf77-4bf4-a183-4c0fbc34510f',
+        '937f087e-6b2a-4328-a2dd-0166e0682c5b',
+        '4f90519e-6d47-43c4-8206-9278927c788f',
+      ];
+
+      // Fetch current & previous period data in parallel
       const [
         { data: thisSales },
         { data: lastSales },
         { data: thisPurchaseOrders },
         { data: lastPurchaseOrders },
+        { data: thisUsdtFees },
+        { data: lastUsdtFees },
         { count: totalClients },
         { count: activeClients },
       ] = await Promise.all([
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', periodStart.toISOString()).lte('created_at', periodEnd.toISOString()),
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', prevStart.toISOString()).lte('created_at', prevEnd.toISOString()),
-        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', periodStart.toISOString()).lte('created_at', periodEnd.toISOString()),
-        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', prevStart.toISOString()).lte('created_at', prevEnd.toISOString()),
+        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
+        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
+        supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
+        supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
+        supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
+          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+          .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59'),
+        supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
+          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+          .gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59'),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
       ]);
 
-      // This month purchase items
-      const thisPOIds = (thisPurchaseOrders || []).map((po: any) => po.id);
-      const lastPOIds = (lastPurchaseOrders || []).map((po: any) => po.id);
+      // Helper: compute gross profit using P&L logic (NPM * Sales Qty)
+      const computeGrossProfit = async (
+        salesData: any[] | null,
+        purchaseOrders: any[] | null,
+        usdtFees: any[] | null
+      ) => {
+        const sales = salesData || [];
+        const totalSalesValue = sales.reduce((s: number, o: any) => s + (Number(o.quantity || 0) * Number(o.price_per_unit || 0)), 0);
+        const totalSalesQty = sales.reduce((s: number, o: any) => s + Number(o.quantity || 0), 0);
+        const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
-      let thisPurchaseTotal = 0;
-      let lastPurchaseTotal = 0;
+        // Fetch purchase items
+        const poIds = (purchaseOrders || []).map((po: any) => po.id).filter((id: string) => !excludedOrderIds.includes(id));
+        let totalPurchaseValue = 0;
+        let totalPurchaseQty = 0;
 
-      if (thisPOIds.length > 0) {
-        const { data: items } = await supabase.from('purchase_order_items').select('total_price').in('purchase_order_id', thisPOIds);
-        thisPurchaseTotal = (items || []).reduce((s, i: any) => s + Number(i.total_price || 0), 0);
-      }
-      if (lastPOIds.length > 0) {
-        const { data: items } = await supabase.from('purchase_order_items').select('total_price').in('purchase_order_id', lastPOIds);
-        lastPurchaseTotal = (items || []).reduce((s, i: any) => s + Number(i.total_price || 0), 0);
-      }
+        if (poIds.length > 0) {
+          const { data: items } = await supabase.from('purchase_order_items')
+            .select('purchase_order_id, quantity, unit_price, products!inner(code)')
+            .in('purchase_order_id', poIds);
+          (items || []).forEach((item: any) => {
+            const qty = Number(item.quantity || 0);
+            const unitPrice = Number(item.unit_price || 0);
+            totalPurchaseValue += qty * unitPrice;
+            totalPurchaseQty += qty;
+          });
+        }
 
-      const thisSalesTotal = (thisSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const lastSalesTotal = (lastSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const thisSalesQty = (thisSales || []).reduce((s, o: any) => s + Number(o.quantity || 0), 0);
-      const lastSalesQty = (lastSales || []).reduce((s, o: any) => s + Number(o.quantity || 0), 0);
+        // Effective purchase rate (adjusted for USDT fees)
+        const totalFees = (usdtFees || []).reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+        const netPurchaseQty = totalPurchaseQty - totalFees;
+        const avgPurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
+        const effectivePurchaseRate = netPurchaseQty > 0 ? totalPurchaseValue / netPurchaseQty : avgPurchaseRate;
 
-      const thisGrossProfit = thisSalesTotal - thisPurchaseTotal;
-      const lastGrossProfit = lastSalesTotal - lastPurchaseTotal;
-      const profitMargin = thisSalesTotal > 0 ? (thisGrossProfit / thisSalesTotal) * 100 : 0;
-      const revenueGrowth = lastSalesTotal > 0 ? ((thisSalesTotal - lastSalesTotal) / lastSalesTotal) * 100 : 0;
-      const orderCount = (thisSales || []).length;
+        // NPM-based gross profit (matching P&L)
+        const npm = avgSalesRate - effectivePurchaseRate;
+        const grossProfit = npm * totalSalesQty;
+        const profitMargin = totalSalesValue > 0 ? (grossProfit / totalSalesValue) * 100 : 0;
+
+        return { totalSalesValue, totalSalesQty, grossProfit, profitMargin };
+      };
+
+      const thisResult = await computeGrossProfit(thisSales, thisPurchaseOrders as any, thisUsdtFees);
+      const lastResult = await computeGrossProfit(lastSales, lastPurchaseOrders as any, lastUsdtFees);
+
+      const revenueGrowth = lastResult.totalSalesValue > 0
+        ? ((thisResult.totalSalesValue - lastResult.totalSalesValue) / lastResult.totalSalesValue) * 100 : 0;
 
       return {
-        thisSalesTotal,
-        thisPurchaseTotal,
-        thisGrossProfit,
-        lastGrossProfit,
-        profitMargin,
+        thisSalesTotal: thisResult.totalSalesValue,
+        thisGrossProfit: thisResult.grossProfit,
+        lastGrossProfit: lastResult.grossProfit,
+        profitMargin: thisResult.profitMargin,
         revenueGrowth,
-        thisSalesQty,
-        lastSalesQty,
-        orderCount,
+        thisSalesQty: thisResult.totalSalesQty,
+        lastSalesQty: lastResult.totalSalesQty,
+        orderCount: (thisSales || []).length,
         totalClients: totalClients || 0,
         newClients: activeClients || 0,
       };

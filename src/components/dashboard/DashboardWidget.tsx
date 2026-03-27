@@ -189,7 +189,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
               <DollarSign className="h-8 w-8 text-white" />
             </div>
             <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalRevenue || metrics?.totalSales || 0) / 100000).toFixed(1)}L</div>
-            <p className="text-sm text-gray-600 mt-1">Selected Period</p>
+            <p className="text-sm text-gray-600 mt-1">Current Period</p>
           </div>
         );
 
@@ -252,7 +252,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             </div>
             <div className="text-3xl font-bold text-gray-900">{metrics?.totalSalesOrders || 0}</div>
             <p className="text-sm text-gray-600 mt-1">Sales Orders</p>
-            <Badge className="mt-3 bg-purple-100 text-purple-800 border-purple-200">Selected Period</Badge>
+            <Badge className="mt-3 bg-purple-100 text-purple-800 border-purple-200">Current Period</Badge>
           </div>
         );
 

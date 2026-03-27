@@ -104,14 +104,9 @@ Deno.serve(async (req) => {
       if (insertError) throw insertError;
     }
 
-    // Send email notifications for due-soon and overdue tasks
-    const smtpUser = Deno.env.get('SMTP_USER');
-    const smtpPass = Deno.env.get('SMTP_PASS');
-    const smtpHost = Deno.env.get('SMTP_HOST') || 'smtp.gmail.com';
-
-    if (smtpUser && smtpPass && notifications.length > 0) {
+    // Send email notifications for due-soon and overdue tasks via transactional email
+    if (notifications.length > 0) {
       try {
-        // Collect assignee IDs that need email
         const emailTasks = (tasks || []).filter(t => {
           const dueDate = new Date(t.due_date);
           const isOverdue = dueDate < now;
@@ -125,17 +120,29 @@ Deno.serve(async (req) => {
           const isOverdue = dueDate < now;
           const eventType = isOverdue ? 'task_overdue' : 'task_due_soon';
 
-          // Use internal invoke to send-task-email
-          await supabase.functions.invoke('send-task-email', {
-            body: {
-              eventType,
-              taskId: task.id,
-              taskTitle: task.title,
-              dueDate: task.due_date,
-              status: task.status,
-              recipientUserIds: [task.assignee_id],
-            },
-          });
+          // Fetch assignee email
+          const { data: assigneeData } = await supabase
+            .from('users')
+            .select('email, first_name, last_name, username')
+            .eq('id', task.assignee_id)
+            .single();
+
+          if (assigneeData?.email) {
+            await supabase.functions.invoke('send-transactional-email', {
+              body: {
+                templateName: 'task-notification',
+                recipientEmail: assigneeData.email,
+                idempotencyKey: `task-${eventType}-${task.id}-${new Date().toISOString().split('T')[0]}`,
+                templateData: {
+                  eventType,
+                  taskTitle: task.title,
+                  dueDate: task.due_date,
+                  status: task.status,
+                  recipientName: [assigneeData.first_name, assigneeData.last_name].filter(Boolean).join(' ') || assigneeData.username,
+                },
+              },
+            });
+          }
         }
       } catch (emailErr) {
         console.error('Email notification error:', emailErr);

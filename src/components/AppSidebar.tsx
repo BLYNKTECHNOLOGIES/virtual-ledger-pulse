@@ -195,7 +195,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: Wrench,
         color: "text-gray-600",
         bgColor: "bg-gray-100",
-        permissions: ["dashboard_view"]
+        permissions: ["utility_view"]
       }
     ]
   }

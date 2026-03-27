@@ -9,6 +9,7 @@ import TerminalOperatorDetail from './pages/terminal/TerminalOperatorDetail';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import UtilityHub from './pages/UtilityHub';
+import Tasks from './pages/Tasks';
 import { LoginPage } from './components/website/pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
@@ -330,6 +331,20 @@ const router = createBrowserRouter([
            <AuthCheck>
              <Layout>
                <UserProfile />
+             </Layout>
+           </AuthCheck>
+         </AuthProvider>
+       </QueryProvider>
+     ),
+   },
+   {
+     path: "/tasks",
+     element: (
+       <QueryProvider>
+         <AuthProvider>
+           <AuthCheck>
+             <Layout>
+               <Tasks />
              </Layout>
            </AuthCheck>
          </AuthProvider>

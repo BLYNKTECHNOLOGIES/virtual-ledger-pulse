@@ -37,6 +37,7 @@ const moreNavItems: MobileNavItem[] = [
   { title: "P&L", url: "/profit-loss", icon: TrendingUp, permissions: ["accounting_view", "accounting_manage"] },
   { title: "Financials", url: "/financials", icon: Package, permissions: ["accounting_view", "accounting_manage"] },
   { title: "Statistics", url: "/statistics", icon: TrendingUp, permissions: ["statistics_view", "statistics_manage"] },
+  { title: "Tasks", url: "/tasks", icon: Users, permissions: ["tasks_view", "tasks_manage"] },
 ];
 
 export function MobileBottomNav() {

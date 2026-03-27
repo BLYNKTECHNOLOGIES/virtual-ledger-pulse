@@ -329,7 +329,6 @@ Deno.serve(async (req) => {
       },
     })
 
-    // Gmail requires from address to match authenticated user or be an alias
     const fromAddress = smtpUser
 
     await client.send({

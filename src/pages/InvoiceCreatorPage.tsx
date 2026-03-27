@@ -158,9 +158,14 @@ const InvoiceCreatorPage = () => {
                     icon: Receipt,
                   },
                 ]
-              : [
-                  { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
-                ]),
+              : isUsdtSales
+                ? [
+                    { label: "Total USDT Qty", value: records.reduce((s, r) => s + r.quantity, 0).toLocaleString(), icon: Receipt },
+                    { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
+                  ]
+                : [
+                    { label: "Total Amount", value: `₹${totalAmount.toLocaleString()}`, icon: Receipt },
+                  ]),
             { label: "Unique Buyers", value: new Set(records.map(r => r.buyerName)).size.toString(), icon: FileText },
             { label: "Invoices (grouped)", value: invoiceCount.toString(), icon: FileText },
           ].map((stat) => (

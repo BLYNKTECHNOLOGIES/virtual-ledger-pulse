@@ -9,6 +9,14 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
   const lines = csvText.trim().split("\n");
   if (lines.length < 2) return { records: [], gst: { enabled: false, rate: 18, type: "IGST", inclusive: false } };
 
+  const headerFields = parseCSVLine(lines[0]).map(normalizeHeaderKey);
+  const getFieldByHeader = (cols: string[], keys: string[], fallbackIndex: number): string => {
+    const normalizedKeys = keys.map(normalizeHeaderKey);
+    const byHeaderIndex = headerFields.findIndex((h) => normalizedKeys.includes(h));
+    if (byHeaderIndex >= 0) return cols[byHeaderIndex]?.trim() || "";
+    return cols[fallbackIndex]?.trim() || "";
+  };
+
   const records: OrderRecord[] = [];
   let detectedGst: GSTConfig = { enabled: false, rate: 18, type: "IGST", inclusive: false };
   let gstDetected = false;
@@ -89,16 +97,19 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       });
     } else if (category === "usdt_sales") {
       // USDT Sales columns: Invoice Number, Description, Quantity (USDT), Rate (INR per USDT), Amount (INR),
-      //                     Buyer Name, Buyer Address, Buyer Contact, Date
-      const invoiceNumber = cols[0]?.trim() || "";
-      const description = cols[1]?.trim() || "USDT Sale";
-      const quantity = parseFloat(cols[2]?.trim()) || 0;
-      const rate = parseFloat(cols[3]?.trim()) || 0;
-      const amount = parseFloat(cols[4]?.trim()) || quantity * rate;
-      const buyerName = cols[5]?.trim() || "";
-      const buyerAddress = cols[6]?.trim() || "";
-      const buyerContact = cols[7]?.trim() || "";
-      const date = cols[8]?.trim() || "";
+      //                     Buyer Name, Buyer Address, Buyer Contact, Date, UTR No., Platform
+      // Header-aware parsing supports CSVs exported from different sheets/orders.
+      const invoiceNumber = getFieldByHeader(cols, ["invoice_number", "invoice_no", "invoice"], 0);
+      const description = getFieldByHeader(cols, ["description", "item_name", "item"], 1) || "USDT Sale";
+      const quantity = parseFloat(getFieldByHeader(cols, ["quantity_usdt", "quantity", "qty_usdt", "qty"], 2)) || 0;
+      const rate = parseFloat(getFieldByHeader(cols, ["rate_inr_per_usdt", "rate", "price_unit", "price_per_unit"], 3)) || 0;
+      const amount = parseFloat(getFieldByHeader(cols, ["amount_inr", "amount", "total_amount"], 4)) || quantity * rate;
+      const buyerName = getFieldByHeader(cols, ["buyer_name", "customer_name", "name"], 5);
+      const buyerAddress = getFieldByHeader(cols, ["buyer_address", "customer_address", "address"], 6);
+      const buyerContact = getFieldByHeader(cols, ["buyer_contact", "contact", "phone", "mobile"], 7);
+      const date = getFieldByHeader(cols, ["date", "invoice_date", "transaction_date"], 8);
+      const utrReference = getFieldByHeader(cols, ["utr_no", "utr_number", "utr", "utr_reference", "payment_reference"], 9);
+      const platform = getFieldByHeader(cols, ["platform", "exchange", "source_platform"], 10);
 
       // No GST for USDT sales
       if (!gstDetected) {
@@ -112,6 +123,8 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         invoiceNumber, description, hsnSac: "", quantity, rate, amount,
         buyerName, buyerAddress, buyerGstin: "", buyerContact, date,
         unit: "USDT",
+        utrReference,
+        platform,
       });
     } else {
       // IT Services columns: Invoice Number, Description, HSN/SAC, Quantity, Rate, Amount,
@@ -151,6 +164,16 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
   }
 
   return { records, gst: detectedGst };
+}
+
+function normalizeHeaderKey(value: string): string {
+  return value
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function parseCSVLine(line: string): string[] {

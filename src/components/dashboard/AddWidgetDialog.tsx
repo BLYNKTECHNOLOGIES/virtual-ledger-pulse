@@ -170,7 +170,7 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'expense-trends', name: 'Expense Trends', description: 'Monthly expense trends from bank transactions', icon: TrendingDown, category: 'PNL', size: 'medium', requiredPermissions: ['accounting_view'] },
   // Statistics
   { id: 'performance-overview', name: 'Performance Overview', description: 'Revenue, profit, margin & volume KPIs with MoM trends', icon: PieChart, category: 'Statistics', size: 'large', requiredPermissions: ['statistics_view'] },
-  { id: 'quick-stats', name: 'Quick Stats', description: 'Key business metrics at a glance', icon: Zap, category: 'Statistics', size: 'medium', requiredPermissions: ['dashboard_view'] },
+  
   // Activity
   { id: 'daily-activity', name: 'Daily Activity', description: "Today's sales, purchases & new clients", icon: Activity, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
   { id: 'upcoming-tasks', name: 'Pending Actions', description: 'Pending KYC approvals, leave requests & onboarding', icon: Calendar, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },

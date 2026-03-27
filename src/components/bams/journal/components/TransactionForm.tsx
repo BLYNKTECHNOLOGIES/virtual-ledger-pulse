@@ -55,10 +55,6 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     mutationFn: async (transactionData: typeof formData) => {
       const amount = parseFloat(transactionData.amount);
 
-      // Validate bill attachment
-      if (!billFile) {
-        throw new ValidationError('Bill/receipt attachment is mandatory for all transactions');
-      }
 
       // Validate bank account balance for expense transactions
       if (transactionData.transactionType === 'EXPENSE') {
@@ -172,15 +168,6 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       return;
     }
 
-    // Bill attachment is mandatory
-    if (!billFile) {
-      toast({
-        title: "Error",
-        description: "Bill/receipt attachment is mandatory for all transactions",
-        variant: "destructive"
-      });
-      return;
-    }
 
     const amount = parseFloat(formData.amount);
     if (amount <= 0) {
@@ -348,7 +335,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
            <div className="lg:col-span-2">
-             <Label htmlFor="billAttachment">Bill / Receipt Attachment *</Label>
+             <Label htmlFor="billAttachment"><Label htmlFor="billAttachment">Bill / Receipt Attachment</Label></Label>
              <div className="mt-1">
                {billFile ? (
                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">

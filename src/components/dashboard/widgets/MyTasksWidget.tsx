@@ -65,10 +65,6 @@ export function MyTasksWidget() {
     );
   };
 
-  const toggleExpand = (taskId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedTaskId(prev => prev === taskId ? null : taskId);
-  };
 
   return (
     <>

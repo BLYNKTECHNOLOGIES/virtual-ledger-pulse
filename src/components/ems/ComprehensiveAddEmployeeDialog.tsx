@@ -213,8 +213,8 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
     },
     onSuccess: (result) => {
       console.log('✅ Mutation successful:', result);
-      queryClient.invalidateQueries({ queryKey: ['employees_data'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employees_info'] });
+      queryClient.invalidateQueries({ queryKey: ['hr_employees'] });
       toast({
         title: "Success!",
         description: "Employee registered successfully!",

@@ -163,7 +163,7 @@ const dynamicWidgets: WidgetType[] = [
   // Activity
   { id: 'daily-activity', name: 'Daily Activity', description: "Today's sales, purchases & new clients", icon: Activity, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
   { id: 'upcoming-tasks', name: 'Pending Actions', description: 'Pending KYC approvals, leave requests & onboarding', icon: Calendar, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
-  { id: 'shift-reconciliation', name: 'Shift Reconciliation', description: 'Current shift reconciliation status', icon: FileText, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
+  
   // Compliance
   { id: 'compliance-alerts', name: 'Compliance Alerts', description: 'Pending compliance items and alerts', icon: AlertTriangle, category: 'Compliance', size: 'medium', requiredPermissions: ['compliance_view'] },
   { id: 'kyc-overview', name: 'KYC Overview', description: 'KYC approval status summary', icon: Shield, category: 'Compliance', size: 'small', requiredPermissions: ['kyc_approvals_view'] },

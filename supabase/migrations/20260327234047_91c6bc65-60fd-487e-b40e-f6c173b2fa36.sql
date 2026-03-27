@@ -1,0 +1,2 @@
+-- Fix lowercase 'approved' status to 'COMPLETED' for consistency
+UPDATE sales_orders SET status = 'COMPLETED', updated_at = now() WHERE id = 'a0df9041-6b79-4d40-a72e-db872d27f652' AND status = 'approved';

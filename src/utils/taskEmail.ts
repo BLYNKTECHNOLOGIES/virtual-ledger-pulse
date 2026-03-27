@@ -26,20 +26,28 @@ export async function sendTaskEmail({
   recipientName,
 }: SendTaskEmailParams) {
   try {
-    await supabase.functions.invoke('send-transactional-email', {
+    // First, look up the user ID from the email to use the SMTP-based send-task-email function
+    const { data: userData } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', recipientEmail)
+      .single();
+
+    if (!userData?.id) {
+      console.warn('Task email: recipient user not found for email', recipientEmail);
+      return;
+    }
+
+    await supabase.functions.invoke('send-task-email', {
       body: {
-        templateName: 'task-notification',
-        recipientEmail,
-        idempotencyKey: `task-${eventType}-${taskId}-${new Date().toISOString().split('T')[0]}`,
-        templateData: {
-          eventType,
-          taskTitle,
-          taskDescription,
-          assignedByName,
-          dueDate,
-          status,
-          recipientName,
-        },
+        eventType,
+        taskId,
+        taskTitle,
+        taskDescription,
+        assignedByName,
+        dueDate,
+        status,
+        recipientUserIds: [userData.id],
       },
     });
   } catch (err) {

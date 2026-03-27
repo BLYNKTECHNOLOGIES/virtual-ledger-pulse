@@ -1140,33 +1140,64 @@ export function InventoryStatusWidget() {
 
 // ── Upcoming Tasks (Pending Approvals) ──
 export function UpcomingTasksWidget() {
+  const { permissions } = usePermissions();
+
+  const hasClientsView = permissions.includes('clients_view');
+  const hasHrmsView = permissions.includes('hrms_view');
+
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_upcoming_tasks'],
+    queryKey: ['widget_upcoming_tasks', hasClientsView, hasHrmsView],
     queryFn: async () => {
-      const [{ count: pendingKyc }, { count: pendingLeave }, { count: pendingOnboard }] = await Promise.all([
-        supabase.from('client_onboarding_approvals').select('id', { count: 'exact', head: true }).eq('approval_status', 'pending'),
-        supabase.from('hr_leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-        supabase.from('hr_candidates').select('id', { count: 'exact', head: true }).eq('start_onboard', true).eq('hired', false),
-      ]);
-      return [
-        { label: 'KYC Approvals', count: pendingKyc || 0, color: 'bg-red-500', urgency: pendingKyc && pendingKyc > 0 ? 'Urgent' : 'Clear' },
-        { label: 'Leave Requests', count: pendingLeave || 0, color: 'bg-yellow-500', urgency: pendingLeave && pendingLeave > 0 ? 'Pending' : 'Clear' },
-        { label: 'Onboarding', count: pendingOnboard || 0, color: 'bg-blue-500', urgency: 'In Progress' },
-      ];
+      const items: { label: string; count: number; color: string; urgency: string }[] = [];
+
+      if (hasClientsView) {
+        const { count: pendingKyc } = await supabase
+          .from('client_onboarding_approvals')
+          .select('id', { count: 'exact', head: true })
+          .eq('approval_status', 'pending');
+        items.push({
+          label: 'KYC Approvals',
+          count: pendingKyc || 0,
+          color: 'bg-red-500',
+          urgency: pendingKyc && pendingKyc > 0 ? 'Urgent' : 'Clear',
+        });
+      }
+
+      if (hasHrmsView) {
+        const [{ count: pendingLeave }, { count: pendingOnboard }] = await Promise.all([
+          supabase.from('hr_leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('hr_candidates').select('id', { count: 'exact', head: true }).eq('start_onboard', true).eq('hired', false),
+        ]);
+        items.push(
+          { label: 'Leave Requests', count: pendingLeave || 0, color: 'bg-yellow-500', urgency: pendingLeave && pendingLeave > 0 ? 'Pending' : 'Clear' },
+          { label: 'Onboarding', count: pendingOnboard || 0, color: 'bg-blue-500', urgency: 'In Progress' },
+        );
+      }
+
+      return items;
     },
     staleTime: 30000,
+    enabled: hasClientsView || hasHrmsView,
   });
 
   if (isLoading) return <WidgetLoader />;
 
+  if (!data || data.length === 0) {
+    return (
+      <div className="p-4 text-center text-sm text-muted-foreground">
+        No pending actions for your role
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 space-y-3">
-      {(data || []).map(t => (
+      {data.map(t => (
         <div key={t.label} className="flex items-center gap-3">
           <div className={`w-2 h-2 ${t.color} rounded-full flex-shrink-0`} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">{t.label}</p>
-            <p className="text-xs text-gray-500">{t.count > 0 ? `${t.count} ${t.urgency.toLowerCase()}` : 'All clear'}</p>
+            <p className="text-sm font-medium text-foreground">{t.label}</p>
+            <p className="text-xs text-muted-foreground">{t.count > 0 ? `${t.count} ${t.urgency.toLowerCase()}` : 'All clear'}</p>
           </div>
           {t.count > 0 && <Badge variant="outline" className="text-[10px]">{t.count}</Badge>}
         </div>

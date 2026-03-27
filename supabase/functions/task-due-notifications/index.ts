@@ -21,11 +21,10 @@ Deno.serve(async (req) => {
     // Get non-completed tasks with due dates
     const { data: tasks, error } = await supabase
       .from('erp_tasks')
-      .select('id, title, assignee_id, due_date, status, escalation_hours, escalation_user_id')
+      .select('id, title, assignee_id, due_date, status, escalation_hours, escalation_user_id, reminder_hours_before')
       .neq('status', 'completed')
       .not('due_date', 'is', null)
-      .not('assignee_id', 'is', null)
-      .lte('due_date', in24h.toISOString());
+      .not('assignee_id', 'is', null);
 
     if (error) throw error;
 
@@ -34,6 +33,11 @@ Deno.serve(async (req) => {
     for (const task of (tasks || [])) {
       const dueDate = new Date(task.due_date);
       const isOverdue = dueDate < now;
+      const hoursUntilDue = (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const reminderH = task.reminder_hours_before || 24;
+      const isDueSoon = !isOverdue && hoursUntilDue <= reminderH;
+
+      if (!isOverdue && !isDueSoon) continue;
 
       // Check if we already sent this notification today
       const notifType = isOverdue ? 'task_overdue' : 'task_due_soon';

@@ -10,6 +10,7 @@ import { TaskStatusBadge } from './TaskStatusBadge';
 import { TaskAssignmentChain } from './TaskAssignmentChain';
 import { TaskComments } from './TaskComments';
 import { TaskActivityLog } from './TaskActivityLog';
+import { TaskAttachments } from './TaskAttachments';
 import { useTaskDetail, useTaskAssignments, useTaskSpectators, useUpdateTask, useUsers, useAddSpectator, useRemoveSpectator, type Task } from '@/hooks/useTasks';
 import { format, isPast, differenceInHours } from 'date-fns';
 import { Calendar, User, Users, Clock, AlertTriangle, X } from 'lucide-react';
@@ -200,7 +201,10 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
 
             <Separator />
 
-            {/* Comments & Activity */}
+            {/* Attachments */}
+            <TaskAttachments taskId={taskId} />
+
+            <Separator />
             <Tabs defaultValue="comments">
               <TabsList className="w-full">
                 <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>

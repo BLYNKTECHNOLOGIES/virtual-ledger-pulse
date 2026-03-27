@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useCreateTask, useUsers } from '@/hooks/useTasks';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { TaskTemplateActions } from './TaskTemplateActions';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -83,7 +84,18 @@ export function TaskFormDialog({ open, onOpenChange }: TaskFormDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Create New Task</DialogTitle>
+            <TaskTemplateActions
+              currentTask={{ title, description, priority, tags }}
+              onLoadTemplate={(t) => {
+                setTitle(t.title);
+                setDescription(t.description);
+                setPriority(t.priority);
+                setTags(t.tags.join(', '));
+              }}
+            />
+          </div>
         </DialogHeader>
 
         <div className="space-y-4">

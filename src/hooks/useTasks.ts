@@ -291,9 +291,9 @@ export function useCreateTask() {
             status: 'open',
             recipientEmail: assignee.email,
             recipientName:
-              [assignee.first_name, assignee.last_name].filter(Boolean).join(' ') ||
-              assignee.username,
+              [assignee.first_name, assignee.last_name].filter(Boolean).join(' ') || assignee.username,
             recipientUserId: task.assignee_id,
+            ccUserIds: user?.id && user.id !== task.assignee_id ? [user.id] : [],
           });
         }
       }

@@ -39,7 +39,6 @@ const DEFAULT_ACTIVE_WIDGETS = [
   'metric-total-sales', 'metric-sales-orders', 'metric-total-clients', 'metric-total-cash',
   'action-required', 'quick-links',
   'heatmap', 'recent-activity',
-  'stock-inventory',
 ];
 
 // Grid span config for built-in widgets
@@ -52,7 +51,6 @@ const GRID_SPAN: Record<string, number> = {
   'quick-links': 12,
   'heatmap': 8,
   'recent-activity': 4,
-  'stock-inventory': 12,
 };
 
 // Map widget size to grid span

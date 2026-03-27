@@ -660,24 +660,33 @@ export function ConversionRateWidget({ metrics }: { metrics?: any }) {
 }
 
 // ── Growth Rate Widget ──
-export function GrowthRateWidget() {
+export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?: Date } }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_growth_rate'],
+    queryKey: ['widget_growth_rate', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       const now = new Date();
-      const thisMonthStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1)).toISOString();
-      const lastMonthStart = startOfDay(new Date(now.getFullYear(), now.getMonth() - 1, 1)).toISOString();
-      const lastMonthEnd = endOfDay(new Date(now.getFullYear(), now.getMonth(), 0)).toISOString();
+      const periodStart = dateRange?.from ? startOfDay(dateRange.from) : startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
+      const periodEnd = dateRange?.to ? endOfDay(dateRange.to) : endOfDay(now);
+      const startStr = format(periodStart, 'yyyy-MM-dd');
+      const endStr = format(periodEnd, 'yyyy-MM-dd');
 
-      const [{ data: thisSales }, { data: lastSales }] = await Promise.all([
-        supabase.from('sales_orders').select('total_amount').gte('created_at', thisMonthStart),
-        supabase.from('sales_orders').select('total_amount').gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd),
+      const periodMs = periodEnd.getTime() - periodStart.getTime();
+      const prevEnd = new Date(periodStart.getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - periodMs);
+      const prevStartStr = format(prevStart, 'yyyy-MM-dd');
+      const prevEndStr = format(prevEnd, 'yyyy-MM-dd');
+
+      const [{ data: currentSales }, { data: previousSales }] = await Promise.all([
+        supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
+        supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
       ]);
 
-      const thisTotal = (thisSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const lastTotal = (lastSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const growth = lastTotal > 0 ? ((thisTotal - lastTotal) / lastTotal * 100) : 0;
-      return { growth: growth.toFixed(1), thisTotal, lastTotal };
+      const currentTotal = (currentSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const previousTotal = (previousSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
+      const growth = previousTotal > 0 ? ((currentTotal - previousTotal) / previousTotal) * 100 : 0;
+      const periodLabel = dateRange?.from ? `${format(periodStart, 'dd MMM')} - ${format(periodEnd, 'dd MMM')}` : 'This Month';
+
+      return { growth: growth.toFixed(1), currentTotal, previousTotal, periodLabel };
     },
     staleTime: 60000,
   });
@@ -690,10 +699,10 @@ export function GrowthRateWidget() {
       <div className={`text-3xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
         {isPositive ? '+' : ''}{data?.growth}%
       </div>
-      <p className="text-sm text-gray-500 mt-1">Revenue Growth (MoM)</p>
+      <p className="text-sm text-gray-500 mt-1">Revenue Growth ({data?.periodLabel})</p>
       <div className="flex items-center justify-center gap-1 mt-2">
         {isPositive ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
-        <span className="text-xs text-gray-400">vs last month</span>
+        <span className="text-xs text-gray-400">vs previous period</span>
       </div>
     </div>
   );

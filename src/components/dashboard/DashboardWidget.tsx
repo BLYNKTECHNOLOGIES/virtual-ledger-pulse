@@ -199,7 +199,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
 
       case 'growth-rate':
-        return <GrowthRateWidget />;
+        return <GrowthRateWidget dateRange={dateRange} />;
 
       case 'cash-flow':
         return <CashFlowWidget />;

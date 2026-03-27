@@ -731,7 +731,7 @@ export function CashFlowWidget() {
       (txns || []).forEach((t: any) => {
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
-        if ((t.transaction_type === 'INCOME' || t.transaction_type === 'TRANSFER_IN') && !excludeIncomeCats.includes(t.category || '')) entry.income += Math.abs(Number(t.amount));
+        if (t.transaction_type === 'INCOME' && !excludeIncomeCats.includes(t.category || '')) entry.income += Math.abs(Number(t.amount));
         else if (t.transaction_type === 'EXPENSE' && !excludeExpenseCats.includes(t.category || '')) entry.expense += Math.abs(Number(t.amount));
       });
       const chartData = days.map(d => ({ name: d.label, income: dayMap[d.date].income, expense: dayMap[d.date].expense }));

@@ -75,9 +75,8 @@ export function useAddTaskComment() {
 
       // Notify mentioned users
       if (mentions?.length) {
-        const notifications = mentions
-          .filter(uid => uid !== user?.id)
-          .map(uid => ({
+        const mentionedOthers = mentions.filter(uid => uid !== user?.id);
+        const notifications = mentionedOthers.map(uid => ({
             user_id: uid,
             title: 'Mentioned in Task Comment',
             message: `You were mentioned in a task comment`,
@@ -85,6 +84,22 @@ export function useAddTaskComment() {
           }));
         if (notifications.length) {
           await supabase.from('terminal_notifications' as any).insert(notifications);
+        }
+
+        // Fire-and-forget email notification for mentions
+        if (mentionedOthers.length) {
+          try {
+            supabase.functions.invoke('send-task-email', {
+              body: {
+                eventType: 'task_mention',
+                taskId,
+                taskTitle: `Task Comment`,
+                taskDescription: content.substring(0, 200),
+                assignedByName: user?.full_name || user?.username || 'Someone',
+                recipientUserIds: mentionedOthers,
+              },
+            });
+          } catch {}
         }
       }
     },

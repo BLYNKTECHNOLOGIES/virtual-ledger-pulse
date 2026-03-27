@@ -11947,6 +11947,7 @@ export type Database = {
         }
         Returns: string
       }
+      archive_old_attendance_data: { Args: never; Returns: Json }
       assign_terminal_order: {
         Args: {
           p_asset?: string

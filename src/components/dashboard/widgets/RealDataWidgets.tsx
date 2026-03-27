@@ -218,11 +218,11 @@ export function ExpenseBreakdownWidget() {
     staleTime: 60000,
   });
 
+  const navigate = useNavigate();
+
   if (isLoading) return <WidgetLoader />;
 
   const hasData = (data?.categories?.length || 0) > 0;
-
-  const navigate = useNavigate();
 
   return (
     <div className="p-4 space-y-3 cursor-pointer" onClick={() => navigate('/statistics?tab=financial')}>

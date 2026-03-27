@@ -9,6 +9,14 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
   const lines = csvText.trim().split("\n");
   if (lines.length < 2) return { records: [], gst: { enabled: false, rate: 18, type: "IGST", inclusive: false } };
 
+  const headerFields = parseCSVLine(lines[0]).map(normalizeHeaderKey);
+  const getFieldByHeader = (cols: string[], keys: string[], fallbackIndex: number): string => {
+    const normalizedKeys = keys.map(normalizeHeaderKey);
+    const byHeaderIndex = headerFields.findIndex((h) => normalizedKeys.includes(h));
+    if (byHeaderIndex >= 0) return cols[byHeaderIndex]?.trim() || "";
+    return cols[fallbackIndex]?.trim() || "";
+  };
+
   const records: OrderRecord[] = [];
   let detectedGst: GSTConfig = { enabled: false, rate: 18, type: "IGST", inclusive: false };
   let gstDetected = false;
@@ -151,6 +159,16 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
   }
 
   return { records, gst: detectedGst };
+}
+
+function normalizeHeaderKey(value: string): string {
+  return value
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\(.*?\)/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function parseCSVLine(line: string): string[] {

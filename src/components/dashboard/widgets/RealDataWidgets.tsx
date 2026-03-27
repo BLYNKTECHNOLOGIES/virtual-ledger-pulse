@@ -512,9 +512,14 @@ export function PerformanceOverviewWidget({ metrics }: { metrics?: any }) {
 
   if (isLoading) return <WidgetLoader />;
 
-  const profitGrowth = (data?.lastGrossProfit || 0) > 0
-    ? ((((data?.thisGrossProfit || 0) - (data?.lastGrossProfit || 0)) / (data?.lastGrossProfit || 1)) * 100).toFixed(1)
-    : '0.0';
+  // For MoM growth on gross profit, use absolute value of last period as denominator
+  // to avoid misleading percentages when base is negative or near-zero
+  const lastGP = data?.lastGrossProfit || 0;
+  const thisGP = data?.thisGrossProfit || 0;
+  const gpDenominator = Math.abs(lastGP);
+  const profitGrowth = gpDenominator > 0
+    ? (((thisGP - lastGP) / gpDenominator) * 100).toFixed(1)
+    : (thisGP !== 0 ? (thisGP > 0 ? '100.0' : '-100.0') : '0.0');
 
   const kpis = [
     {

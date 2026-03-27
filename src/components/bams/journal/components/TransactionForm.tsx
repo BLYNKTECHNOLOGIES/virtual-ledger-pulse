@@ -68,26 +68,30 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         }
       }
 
-       // Upload bill file
-       setUploadingBill(true);
-       const fileExt = billFile.name.split('.').pop();
-       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-       const filePath = `bills/${fileName}`;
+       // Upload bill file if provided
+       let billUrl: string | null = null;
+       if (billFile) {
+         setUploadingBill(true);
+         const fileExt = billFile.name.split('.').pop();
+         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+         const filePath = `bills/${fileName}`;
 
-       const { error: uploadError } = await supabase.storage
-         .from('transaction-bills')
-         .upload(filePath, billFile);
+         const { error: uploadError } = await supabase.storage
+           .from('transaction-bills')
+           .upload(filePath, billFile);
 
-       if (uploadError) {
+         if (uploadError) {
+           setUploadingBill(false);
+           throw new Error('Failed to upload bill: ' + uploadError.message);
+         }
+
+         const { data: publicUrlData } = supabase.storage
+           .from('transaction-bills')
+           .getPublicUrl(filePath);
+
+         billUrl = publicUrlData.publicUrl;
          setUploadingBill(false);
-         throw new Error('Failed to upload bill: ' + uploadError.message);
        }
-
-       const { data: publicUrlData } = supabase.storage
-         .from('transaction-bills')
-         .getPublicUrl(filePath);
-
-       setUploadingBill(false);
 
        // Get full category label for storage
        const categoryLabel = transactionData.category && transactionData.subCategory

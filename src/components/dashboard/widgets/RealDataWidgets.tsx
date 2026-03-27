@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { TerminalSalesApprovalDialog } from "@/components/sales/TerminalSalesApprovalDialog";
+import { TerminalPurchaseApprovalDialog } from "@/components/purchase/TerminalPurchaseApprovalDialog";
 import { format, subDays, startOfDay, endOfDay, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import {
   Users, TrendingUp, TrendingDown, ArrowUpRight, Package, DollarSign,

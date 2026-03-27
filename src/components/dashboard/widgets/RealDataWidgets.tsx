@@ -126,15 +126,25 @@ export function DailyActivityWidget() {
 }
 
 // ── Quick Stats Widget ──
-export function QuickStatsWidget({ metrics }: { metrics?: any }) {
+export function QuickStatsWidget({ metrics, dateRange }: { metrics?: any; dateRange?: { from?: Date; to?: Date } }) {
+  const fromISO = dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined;
+  const toISO = dateRange?.to ? endOfDay(dateRange.to).toISOString() : undefined;
+
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_quick_stats'],
+    queryKey: ['widget_quick_stats', fromISO, toISO],
     queryFn: async () => {
+      let salesQuery = supabase.from('sales_orders').select('id', { count: 'exact', head: true });
+      let purchaseQuery = supabase.from('purchase_orders').select('id', { count: 'exact', head: true });
+      const verifiedQuery = supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED');
+      const totalQuery = supabase.from('clients').select('id', { count: 'exact', head: true });
+
+      if (fromISO && toISO) {
+        salesQuery = salesQuery.gte('created_at', fromISO).lte('created_at', toISO);
+        purchaseQuery = purchaseQuery.gte('created_at', fromISO).lte('created_at', toISO);
+      }
+
       const [salesRes, purchaseRes, verifiedRes, totalRes] = await Promise.all([
-        supabase.from('sales_orders').select('id', { count: 'exact', head: true }),
-        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }),
-        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED'),
-        supabase.from('clients').select('id', { count: 'exact', head: true }),
+        salesQuery, purchaseQuery, verifiedQuery, totalQuery,
       ]);
       return {
         orders: salesRes.count || 0,
@@ -440,14 +450,20 @@ export function ProfitMarginWidget() {
 }
 
 // ── Performance Overview Widget ──
-export function PerformanceOverviewWidget({ metrics }: { metrics?: any }) {
+export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: any; dateRange?: { from?: Date; to?: Date } }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_performance_overview_v2'],
+    queryKey: ['widget_performance_overview_v2', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       const now = new Date();
-      const thisMonthStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1)).toISOString();
-      const lastMonthStart = startOfDay(new Date(now.getFullYear(), now.getMonth() - 1, 1)).toISOString();
-      const lastMonthEnd = endOfDay(new Date(now.getFullYear(), now.getMonth(), 0)).toISOString();
+      // Use selected date range or fallback to current month
+      const periodStart = dateRange?.from ? startOfDay(dateRange.from) : startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
+      const periodEnd = dateRange?.to ? endOfDay(dateRange.to) : endOfDay(now);
+
+      // Calculate equivalent previous period
+      const periodMs = periodEnd.getTime() - periodStart.getTime();
+      const prevEnd = new Date(periodStart.getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - periodMs);
+
       const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000).toISOString();
 
       const [
@@ -458,10 +474,10 @@ export function PerformanceOverviewWidget({ metrics }: { metrics?: any }) {
         { count: totalClients },
         { count: activeClients },
       ] = await Promise.all([
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', thisMonthStart),
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd),
-        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', thisMonthStart),
-        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', lastMonthStart).lte('created_at', lastMonthEnd),
+        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', periodStart.toISOString()).lte('created_at', periodEnd.toISOString()),
+        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('created_at', prevStart.toISOString()).lte('created_at', prevEnd.toISOString()),
+        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', periodStart.toISOString()).lte('created_at', periodEnd.toISOString()),
+        supabase.from('purchase_orders').select('id').eq('status', 'COMPLETED').gte('created_at', prevStart.toISOString()).lte('created_at', prevEnd.toISOString()),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
       ]);

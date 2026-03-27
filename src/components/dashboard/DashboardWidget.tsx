@@ -93,6 +93,7 @@ interface DashboardWidgetProps {
   onMove: (widgetId: string, direction: "up" | "down") => void;
   metrics?: any;
   isDraggable?: boolean;
+  dateRange?: { from?: Date; to?: Date };
 }
 
 const widgetIconMap: Record<string, any> = {
@@ -110,7 +111,7 @@ const getSizeClasses = (size: WidgetType["size"]) => {
   return "col-span-12";
 };
 
-const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true }: DashboardWidgetProps) => {
+const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true, dateRange }: DashboardWidgetProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.id,
     disabled: !isDraggable,
@@ -181,7 +182,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
         return <ExpenseBreakdownWidget />;
 
       case 'quick-stats':
-        return <QuickStatsWidget metrics={metrics} />;
+        return <QuickStatsWidget metrics={metrics} dateRange={dateRange} />;
 
       case 'recent-orders':
         return <RecentOrdersWidget />;
@@ -196,7 +197,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
         return <ProfitMarginWidget />;
 
       case 'performance-overview':
-        return <PerformanceOverviewWidget metrics={metrics} />;
+        return <PerformanceOverviewWidget metrics={metrics} dateRange={dateRange} />;
 
 
       case 'growth-rate':

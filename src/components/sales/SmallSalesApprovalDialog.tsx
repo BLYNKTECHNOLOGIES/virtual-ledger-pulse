@@ -66,6 +66,14 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
       const userId = await requireCurrentUserId();
 
+      // Resolve product_id from asset code
+      const { data: productRow } = await supabase
+        .from('products')
+        .select('id')
+        .eq('code', assetCode)
+        .single();
+      if (!productRow) throw new Error(`Product not found for asset: ${assetCode}`);
+
       // Generate SM order number using a simple counter approach
       const { count } = await supabase
         .from('small_sales_sync')
@@ -89,6 +97,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           total_amount: record.total_amount,
           quantity: record.total_quantity,
           price_per_unit: record.avg_price,
+          product_id: productRow.id,
           fee_percentage: 0,
           fee_amount: record.total_fee,
           net_amount: Number(record.total_amount) - Number(record.total_fee),
@@ -96,13 +105,12 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           settlement_status: isGateway ? 'PENDING' : 'DIRECT',
           status: 'approved',
           platform: 'Binance',
-          asset: record.asset_code,
           wallet_id: record.wallet_id,
           source: 'terminal_small_sales',
           sale_type: 'small_sale',
           description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
           market_rate_usdt: marketRate,
-        } as any)
+        })
         .select('id')
         .single();
 

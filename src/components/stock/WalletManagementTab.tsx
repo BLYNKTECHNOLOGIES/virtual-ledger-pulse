@@ -308,7 +308,7 @@ export function WalletManagementTab() {
     onSuccess: (result) => {
       toast({ 
         title: "Transaction Deleted", 
-        description: `Transaction deleted and wallet balance reversed by ${Math.abs(result?.reversed_amount || 0).toLocaleString()} USDT` 
+        description: `Transaction deleted and wallet balance reversed by ${Math.abs(result?.reversed_amount || 0).toLocaleString('en-IN')} USDT` 
       });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions_live'] });
@@ -653,7 +653,7 @@ export function WalletManagementTab() {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalBalance.toLocaleString()} USDT</div>
+            <div className="text-2xl font-bold">{totalBalance.toLocaleString('en-IN')} USDT</div>
           </CardContent>
         </Card>
         <Card>
@@ -726,7 +726,7 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5">
-                        <span>{(wallet.current_balance ?? 0).toLocaleString()}</span>
+                        <span>{(wallet.current_balance ?? 0).toLocaleString('en-IN')}</span>
                         {apiLinkedWalletId === wallet.id && binanceUsdtBalance !== undefined && (() => {
                           const diff = binanceUsdtBalance - (wallet.current_balance ?? 0);
                           if (Math.abs(diff) <= 5) return null;
@@ -839,12 +839,12 @@ export function WalletManagementTab() {
                         {transaction.transaction_type}
                       </Badge>
                     </TableCell>
-                    <TableCell>{(transaction.amount ?? 0).toLocaleString()}</TableCell>
+                    <TableCell>{(transaction.amount ?? 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{transaction.reference_type}</Badge>
                     </TableCell>
                     <TableCell>{transaction.description}</TableCell>
-                    <TableCell>{(transaction.balance_after ?? 0).toLocaleString()}</TableCell>
+                    <TableCell>{(transaction.balance_after ?? 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell>
                       {(transaction as any).created_by_user && (transaction as any).created_by_user.username ? (
                         <ClickableUser
@@ -905,7 +905,7 @@ export function WalletManagementTab() {
               Are you sure you want to delete this transaction? This will:
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Delete the transaction record</li>
-                <li>Reverse the wallet balance by <strong>{transactionToDelete?.amount?.toLocaleString()} USDT</strong></li>
+                <li>Reverse the wallet balance by <strong>{transactionToDelete?.amount?.toLocaleString('en-IN')} USDT</strong></li>
                 {transactionToDelete?.reference_type === 'MANUAL_TRANSFER' && (
                   <li>Delete all related transfer transactions (including fee if any)</li>
                 )}

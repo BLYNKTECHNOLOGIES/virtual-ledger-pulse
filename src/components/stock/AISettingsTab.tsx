@@ -146,7 +146,7 @@ export function AISettingsTab() {
                         {scan.findings_count} findings ({scan.critical_count || 0} critical)
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        by {scan.triggered_by} • {new Date(scan.started_at).toLocaleString()}
+                        by {scan.triggered_by} • {new Date(scan.started_at).toLocaleString('en-IN')}
                       </p>
                     </div>
                   </div>

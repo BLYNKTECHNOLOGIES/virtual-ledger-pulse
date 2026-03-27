@@ -98,7 +98,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
 
       toast({
         title: "Limit Updated",
-        description: `Monthly limit updated to ₹${newLimit.toLocaleString()} for ${client.name}.`,
+        description: `Monthly limit updated to ₹${newLimit.toLocaleString('en-IN')} for ${client.name}.`,
       });
 
       onOpenChange(false);
@@ -132,11 +132,11 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">Current Monthly Limit</Label>
-                <p className="text-2xl font-bold text-primary">₹{formData.currentLimit.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-primary">₹{formData.currentLimit.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Current Month Used</Label>
-                <p className="text-2xl font-bold text-green-600">₹{client?.current_month_used?.toLocaleString() || '0'}</p>
+                <p className="text-2xl font-bold text-green-600">₹{client?.current_month_used?.toLocaleString('en-IN') || '0'}</p>
               </div>
             </div>
           </div>
@@ -155,7 +155,7 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
               {formData.requestedLimit && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calculator className="h-4 w-4" />
-                  <span>Increase: {increasePecentage}% (₹{(parseFloat(formData.requestedLimit) - formData.currentLimit).toLocaleString()})</span>
+                  <span>Increase: {increasePecentage}% (₹{(parseFloat(formData.requestedLimit) - formData.currentLimit).toLocaleString('en-IN')})</span>
                 </div>
               )}
             </div>
@@ -211,9 +211,9 @@ export function RequestLimitIncreaseDialog({ open, onOpenChange, client }: Reque
                     </div>
 
                     <div className="flex items-center gap-3 text-sm">
-                      <span className="text-muted-foreground">₹{Number(record.previous_limit || 0).toLocaleString()}</span>
+                      <span className="text-muted-foreground">₹{Number(record.previous_limit || 0).toLocaleString('en-IN')}</span>
                       <span className="text-muted-foreground">→</span>
-                      <span className="font-semibold">₹{Number(record.requested_limit || 0).toLocaleString()}</span>
+                      <span className="font-semibold">₹{Number(record.requested_limit || 0).toLocaleString('en-IN')}</span>
                     </div>
 
                     {record.requested_by && (

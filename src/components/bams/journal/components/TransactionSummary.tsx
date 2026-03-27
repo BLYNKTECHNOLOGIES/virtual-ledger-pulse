@@ -33,7 +33,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
               "text-3xl font-bold",
               totalIncomes - totalExpenses >= 0 ? "text-green-700" : "text-red-700"
             )}>
-              ₹{(totalIncomes - totalExpenses).toLocaleString()}
+              ₹{(totalIncomes - totalExpenses).toLocaleString('en-IN')}
             </div>
             <p className="text-sm text-gray-600 mt-1">Net Balance</p>
           </div>
@@ -48,7 +48,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">₹{totalIncomes.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-700">₹{totalIncomes.toLocaleString('en-IN')}</div>
             <p className="text-xs text-green-600">
               {transactions?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t)).length || 0} transactions
             </p>
@@ -61,7 +61,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
             <TrendingDown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-700">₹{totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-700">₹{totalExpenses.toLocaleString('en-IN')}</div>
             <p className="text-xs text-red-600">
               {transactions?.filter(t => t.transaction_type === "EXPENSE").length || 0} transactions
             </p>

@@ -201,7 +201,7 @@ export function SettlementReviewDialog({
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-blue-600" />
                   <span className="text-lg font-bold text-blue-600">
-                    ₹{settlement.total_amount.toLocaleString()}
+                    ₹{settlement.total_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
               </CardContent>
@@ -215,7 +215,7 @@ export function SettlementReviewDialog({
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-red-600" />
                   <span className="text-lg font-bold text-red-600">
-                    ₹{settlement.mdr_amount.toLocaleString()}
+                    ₹{settlement.mdr_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
@@ -232,7 +232,7 @@ export function SettlementReviewDialog({
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4 text-green-600" />
                   <span className="text-lg font-bold text-green-600">
-                    ₹{settlement.net_amount.toLocaleString()}
+                    ₹{settlement.net_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
               </CardContent>
@@ -331,7 +331,7 @@ export function SettlementReviewDialog({
                       <TableCell>
                         {format(new Date(item.sales_orders.order_date), 'MMM dd, yyyy')}
                       </TableCell>
-                      <TableCell>₹{item.amount.toLocaleString()}</TableCell>
+                      <TableCell>₹{item.amount.toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <Badge variant="outline">
                           Payment Gateway
@@ -362,16 +362,16 @@ export function SettlementReviewDialog({
                 </div>
                 <div className="flex justify-between">
                   <span>Total Transaction Amount:</span>
-                  <span className="font-medium">₹{settlement.total_amount.toLocaleString()}</span>
+                  <span className="font-medium">₹{settlement.total_amount.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex justify-between text-red-600">
                   <span>Less: MDR Charges ({settlement.mdr_rate}%):</span>
-                  <span className="font-medium">-₹{settlement.mdr_amount.toLocaleString()}</span>
+                  <span className="font-medium">-₹{settlement.mdr_amount.toLocaleString('en-IN')}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-green-600 font-semibold">
                   <span>Net Settlement Amount:</span>
-                  <span>₹{settlement.net_amount.toLocaleString()}</span>
+                  <span>₹{settlement.net_amount.toLocaleString('en-IN')}</span>
                 </div>
               </div>
             </CardContent>

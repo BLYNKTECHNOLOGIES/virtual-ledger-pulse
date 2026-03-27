@@ -582,9 +582,9 @@ export default function PayrollDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Runs", value: runs.length, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Gross", value: `₹${totalGross.toLocaleString()}`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Total Deductions", value: `₹${totalDeductions.toLocaleString()}`, icon: TrendingDown, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Total Net Pay", value: `₹${totalNet.toLocaleString()}`, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Total Gross", value: `₹${totalGross.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Total Deductions", value: `₹${totalDeductions.toLocaleString('en-IN')}`, icon: TrendingDown, color: "text-red-600", bg: "bg-red-50" },
+          { label: "Total Net Pay", value: `₹${totalNet.toLocaleString('en-IN')}`, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
@@ -618,9 +618,9 @@ export default function PayrollDashboardPage() {
                     <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
                     <td className="px-4 py-3">{r.run_date}</td>
                     <td className="px-4 py-3">{r.employee_count || 0}</td>
-                    <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-red-600">₹{(r.total_deductions || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 font-semibold">₹{(r.total_net || 0).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-red-600">₹{(r.total_deductions || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 font-semibold">₹{(r.total_net || 0).toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         {r.is_locked && (

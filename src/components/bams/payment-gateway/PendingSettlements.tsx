@@ -376,7 +376,7 @@ export function PendingSettlements() {
 
       toast({
         title: "Success",
-        description: `Settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}`,
+        description: `Settled ₹${settlementAmount.toLocaleString('en-IN')} to ${selectedBankAcc?.account_name}`,
       });
 
       // Invalidate caches so expense entries appear in Expenses tab
@@ -442,7 +442,7 @@ export function PendingSettlements() {
 
       toast({
         title: "Success",
-        description: `Successfully settled ₹${settlementAmount.toLocaleString()} to ${selectedBankAcc?.account_name}${mdrDeduction > 0 ? ` (MDR expense: ₹${mdrDeduction.toLocaleString()})` : ''}`,
+        description: `Successfully settled ₹${settlementAmount.toLocaleString('en-IN')} to ${selectedBankAcc?.account_name}${mdrDeduction > 0 ? ` (MDR expense: ₹${mdrDeduction.toLocaleString('en-IN')})` : ''}`,
       });
 
       // Reset form
@@ -545,17 +545,17 @@ export function PendingSettlements() {
                       <span>₹{selectedSales.reduce((sum, saleId) => {
                         const sale = pendingSales.find(s => s.id === saleId);
                         return sum + (sale?.total_amount || 0);
-                      }, 0).toLocaleString()}</span>
+                      }, 0).toLocaleString('en-IN')}</span>
                     </div>
                     {deductMdr && (
                                 <div className="flex justify-between text-sm text-destructive">
                                         <span>MDR Charges:</span>
-                                        <span>-₹{getMdrAmount().toLocaleString()}</span>
+                                        <span>-₹{getMdrAmount().toLocaleString('en-IN')}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold border-t pt-2">
                       <span>Net Settlement:</span>
-                      <span>₹{calculateSettlementAmount().toLocaleString()}</span>
+                      <span>₹{calculateSettlementAmount().toLocaleString('en-IN')}</span>
                     </div>
                   </div>
 
@@ -616,7 +616,7 @@ export function PendingSettlements() {
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <p className="font-semibold">₹{gatewayGroup.totalAmount.toLocaleString()}</p>
+                        <p className="font-semibold">₹{gatewayGroup.totalAmount.toLocaleString('en-IN')}</p>
                         <p className="text-sm text-muted-foreground">{gatewayGroup.sales.length} transactions</p>
                       </div>
                       <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
@@ -671,7 +671,7 @@ export function PendingSettlements() {
                                     <Calendar className="h-4 w-4 text-muted-foreground" />
                                     <span className="font-semibold text-sm">{dateGroup.date}</span>
                                     <Badge variant="secondary" className="text-xs">{dateGroup.sales.length} txn</Badge>
-                                    <span className="text-sm font-medium text-muted-foreground">₹{dateGroup.totalAmount.toLocaleString()}</span>
+                                    <span className="text-sm font-medium text-muted-foreground">₹{dateGroup.totalAmount.toLocaleString('en-IN')}</span>
                                   </div>
                                   <ViewOnlyWrapper isViewOnly={!hasPermission('bams_manage')}>
                                     <Button
@@ -703,7 +703,7 @@ export function PendingSettlements() {
                                   </TableCell>
                                   <TableCell className="font-medium">{sale.order_number}</TableCell>
                                   <TableCell>{sale.client_name}</TableCell>
-                                  <TableCell>₹{sale.total_amount.toLocaleString()}</TableCell>
+                                  <TableCell>₹{sale.total_amount.toLocaleString('en-IN')}</TableCell>
                                   <TableCell>
                                     {settlementBank ? (
                                       <div className="flex items-center gap-1">

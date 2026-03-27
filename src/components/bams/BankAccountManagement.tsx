@@ -802,13 +802,13 @@ export function BankAccountManagement() {
                           <TableCell>{account.IFSC}</TableCell>
                           <TableCell>{account.branch || "-"}</TableCell>
                           <TableCell className={(account.balance as number) < 0 ? "text-red-600 font-bold" : ""}>
-                            ₹{((account.balance as number) || 0).toLocaleString()}
+                            ₹{((account.balance as number) || 0).toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell className="text-orange-600 font-medium">
-                            ₹{((account.lien_amount || 0) as number).toLocaleString()}
+                            ₹{((account.lien_amount || 0) as number).toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell className="text-green-600 font-bold">
-                            ₹{(((account.balance as number) || 0) - ((account.lien_amount || 0) as number)).toLocaleString()}
+                            ₹{(((account.balance as number) || 0) - ((account.lien_amount || 0) as number)).toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell>
                             <Badge variant={account.status === "ACTIVE" ? "default" : "destructive"}>
@@ -907,10 +907,10 @@ export function BankAccountManagement() {
                         <TableCell>{account.bank_name}</TableCell>
                         <TableCell>{account.account_number}</TableCell>
                         <TableCell className="text-muted-foreground">
-                          ₹{((account.balance as number) || 0).toLocaleString()}
+                          ₹{((account.balance as number) || 0).toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          ₹{((account.lien_amount || 0) as number).toLocaleString()}
+                          ₹{((account.lien_amount || 0) as number).toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell>
                           {account.dormant_at ? (
@@ -977,7 +977,7 @@ export function BankAccountManagement() {
                         <TableCell className="font-medium">{account.account_name}</TableCell>
                         <TableCell>{account.bank_name}</TableCell>
                         <TableCell>{account.account_number}</TableCell>
-                        <TableCell>₹{account.final_balance.toLocaleString()}</TableCell>
+                        <TableCell>₹{account.final_balance.toLocaleString('en-IN')}</TableCell>
                         <TableCell>{new Date(account.closure_date).toLocaleDateString()}</TableCell>
                         <TableCell className="max-w-xs truncate" title={account.closure_reason}>
                           {account.closure_reason}
@@ -1039,7 +1039,7 @@ export function BankAccountManagement() {
                         <TableCell>{account.IFSC}</TableCell>
                         <TableCell>{account.branch || "-"}</TableCell>
                         <TableCell className={account.balance < 0 ? "text-red-600 font-bold" : ""}>
-                          ₹{account.balance.toLocaleString()}
+                          ₹{account.balance.toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
@@ -1117,7 +1117,7 @@ export function BankAccountManagement() {
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800 text-sm space-y-2">
                 <p><strong>Account:</strong> {accountToDormant?.account_name} ({accountToDormant?.bank_name})</p>
-                <p><strong>Current Balance:</strong> ₹{accountToDormant?.balance?.toLocaleString()}</p>
+                <p><strong>Current Balance:</strong> ₹{accountToDormant?.balance?.toLocaleString('en-IN')}</p>
                 <p className="mt-2">Once marked dormant:</p>
                 <ul className="list-disc ml-4 space-y-1">
                   <li>Account will be excluded from all future transactions</li>

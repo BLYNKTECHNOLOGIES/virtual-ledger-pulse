@@ -201,11 +201,11 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               </div>
               <div>
                 <label className="text-sm font-medium text-green-700">Total Volume</label>
-                <p className="text-2xl font-bold text-green-600">₹{buyStats.totalVolume.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-green-600">₹{buyStats.totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-green-700">Avg Order Value</label>
-                <p className="text-lg font-semibold text-green-600">₹{buyStats.avgOrderValue.toLocaleString()}</p>
+                <p className="text-lg font-semibold text-green-600">₹{buyStats.avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-green-700">First Order</label>
@@ -232,11 +232,11 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
               </div>
               <div>
                 <label className="text-sm font-medium text-orange-700">Total Volume</label>
-                <p className="text-2xl font-bold text-orange-600">₹{sellStats.totalVolume.toLocaleString()}</p>
+                <p className="text-2xl font-bold text-orange-600">₹{sellStats.totalVolume.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-orange-700">Avg Order Value</label>
-                <p className="text-lg font-semibold text-orange-600">₹{sellStats.avgOrderValue.toLocaleString()}</p>
+                <p className="text-lg font-semibold text-orange-600">₹{sellStats.avgOrderValue.toLocaleString('en-IN')}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-orange-700">First Order</label>
@@ -259,7 +259,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <label className="text-sm font-medium text-indigo-700">Total Trade Volume</label>
-              <p className="text-2xl font-bold text-indigo-600">₹{totalTradeVolume.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-indigo-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
             </div>
             <div>
               <label className="text-sm font-medium text-indigo-700">Total Orders</label>

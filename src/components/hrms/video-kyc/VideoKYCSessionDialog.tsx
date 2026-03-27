@@ -307,7 +307,7 @@ export function VideoKYCSessionDialog({ open, onOpenChange, kycRequest, onSucces
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-500">Order Amount</Label>
-                    <p className="font-medium">₹{kycRequest.order_amount?.toLocaleString()}</p>
+                    <p className="font-medium">₹{kycRequest.order_amount?.toLocaleString('en-IN')}</p>
                   </div>
                   <div>
                     <Label className="text-sm font-medium text-gray-500">Purpose</Label>

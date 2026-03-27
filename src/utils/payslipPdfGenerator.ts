@@ -328,7 +328,7 @@ export const generatePayslipPDF = (data: PayslipData) => {
             <div class="attendance-grid">
               <div class="attendance-item">
                 <div class="attendance-label">Gross Wages</div>
-                <div class="attendance-value currency">₹${payslip.gross_wages.toLocaleString()}</div>
+                <div class="attendance-value currency">₹${payslip.gross_wages.toLocaleString('en-IN')}</div>
               </div>
               <div class="attendance-item">
                 <div class="attendance-label">Total Working Days</div>
@@ -353,42 +353,42 @@ export const generatePayslipPDF = (data: PayslipData) => {
               <div class="section-header">Earnings</div>
               <div class="amount-row">
                 <span>Basic</span>
-                <span class="currency">₹${payslip.basic_salary.toLocaleString()}</span>
+                <span class="currency">₹${payslip.basic_salary.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>HRA</span>
-                <span class="currency">₹${payslip.hra.toLocaleString()}</span>
+                <span class="currency">₹${payslip.hra.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>Conveyance Allowance</span>
-                <span class="currency">₹${payslip.conveyance_allowance.toLocaleString()}</span>
+                <span class="currency">₹${payslip.conveyance_allowance.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>Medical Allowance</span>
-                <span class="currency">₹${payslip.medical_allowance.toLocaleString()}</span>
+                <span class="currency">₹${payslip.medical_allowance.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>Other Allowances</span>
-                <span class="currency">₹${payslip.other_allowances.toLocaleString()}</span>
+                <span class="currency">₹${payslip.other_allowances.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>Total Earnings</span>
-                <span class="currency">₹${payslip.total_earnings.toLocaleString()}</span>
+                <span class="currency">₹${payslip.total_earnings.toLocaleString('en-IN')}</span>
               </div>
             </div>
             <div class="deductions">
               <div class="section-header">Deductions</div>
               <div class="amount-row">
                 <span>EPF</span>
-                <span class="currency">₹${payslip.epf.toLocaleString()}</span>
+                <span class="currency">₹${payslip.epf.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>ESI</span>
-                <span class="currency">₹${payslip.esi.toLocaleString()}</span>
+                <span class="currency">₹${payslip.esi.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span>Professional Tax</span>
-                <span class="currency">₹${payslip.professional_tax.toLocaleString()}</span>
+                <span class="currency">₹${payslip.professional_tax.toLocaleString('en-IN')}</span>
               </div>
               <div class="amount-row">
                 <span></span>
@@ -400,13 +400,13 @@ export const generatePayslipPDF = (data: PayslipData) => {
               </div>
               <div class="amount-row">
                 <span>Total Deductions</span>
-                <span class="currency">₹${payslip.total_deductions.toLocaleString()}</span>
+                <span class="currency">₹${payslip.total_deductions.toLocaleString('en-IN')}</span>
               </div>
             </div>
           </div>
 
           <div class="net-salary">
-            <strong>Net Salary: <span class="currency">₹${payslip.net_salary.toLocaleString()}</span></strong>
+            <strong>Net Salary: <span class="currency">₹${payslip.net_salary.toLocaleString('en-IN')}</span></strong>
           </div>
 
           <div class="signature-section">

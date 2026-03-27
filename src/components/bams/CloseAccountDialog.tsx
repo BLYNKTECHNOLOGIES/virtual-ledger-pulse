@@ -249,14 +249,14 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
               <p className="font-medium">{account.account_name}</p>
               <p className="text-sm text-muted-foreground">{account.bank_name}</p>
               <p className="text-sm text-muted-foreground">Account: {account.account_number}</p>
-              <p className="text-sm">Final Balance: ₹{account.balance.toLocaleString()}</p>
+              <p className="text-sm">Final Balance: ₹{account.balance.toLocaleString('en-IN')}</p>
             </div>
 
             {account.balance > 0 && (
               <div>
                 <Label htmlFor="settlement">Settlement Account (Optional)</Label>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Select an account to transfer the remaining balance of ₹{account.balance.toLocaleString()}
+                  Select an account to transfer the remaining balance of ₹{account.balance.toLocaleString('en-IN')}
                 </p>
                 <Select value={settlementAccountId} onValueChange={setSettlementAccountId}>
                   <SelectTrigger>

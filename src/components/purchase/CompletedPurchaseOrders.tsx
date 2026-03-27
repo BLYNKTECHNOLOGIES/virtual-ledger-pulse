@@ -235,7 +235,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
         <div className="grid grid-cols-2 gap-2 text-sm mb-3">
           <div>
             <span className="text-gray-500">Amount:</span>
-            <p className="font-medium">₹{order.total_amount?.toLocaleString()}</p>
+            <p className="font-medium">₹{order.total_amount?.toLocaleString('en-IN')}</p>
           </div>
           <div>
             <span className="text-gray-500">Quantity:</span>
@@ -355,12 +355,12 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
                           )}
                         </TableCell>
                         <TableCell>{getWalletName(order)}</TableCell>
-                        <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
+                        <TableCell className="font-medium">₹{order.total_amount?.toLocaleString('en-IN')}</TableCell>
                         <TableCell>
                           {formatSmartDecimal(order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || order.quantity || 0)}
                         </TableCell>
                         <TableCell>
-                          ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString() || Number(order.price_per_unit || order.total_amount).toLocaleString()}
+                          ₹{order.purchase_order_items?.[0]?.unit_price?.toLocaleString('en-IN') || Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell>
                           <Badge className="bg-green-100 text-green-800">Completed</Badge>

@@ -83,11 +83,11 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
         </div>
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Rate (₹)</Label>
-          <p className="text-lg">₹{selectedOrder.rate?.toLocaleString() || selectedOrder.price_per_unit?.toLocaleString()}</p>
+          <p className="text-lg">₹{selectedOrder.rate?.toLocaleString('en-IN') || selectedOrder.price_per_unit?.toLocaleString('en-IN')}</p>
         </div>
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Total Amount</Label>
-          <p className="text-xl font-bold text-green-600">₹{selectedOrder.total_amount?.toLocaleString()}</p>
+          <p className="text-xl font-bold text-green-600">₹{selectedOrder.total_amount?.toLocaleString('en-IN')}</p>
         </div>
         <div>
           <Label className="text-sm font-medium text-muted-foreground">Platform</Label>
@@ -350,7 +350,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
                 {order.quantity}
               </TableCell>
               <TableCell className="font-semibold">
-                ₹{order.total_amount?.toLocaleString()}
+                ₹{order.total_amount?.toLocaleString('en-IN')}
               </TableCell>
               <TableCell>
                 {isBuyOrder 

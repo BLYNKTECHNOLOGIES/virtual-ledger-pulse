@@ -94,7 +94,7 @@ export function PayerMyAssignments() {
                       <Layers className="h-3 w-3 shrink-0" />
                       <span className="font-medium">
                         {range
-                          ? `${range.name} (₹${Number(range.min_amount).toLocaleString()} – ₹${Number(range.max_amount).toLocaleString()})`
+                          ? `${range.name} (₹${Number(range.min_amount).toLocaleString('en-IN')} – ₹${Number(range.max_amount).toLocaleString('en-IN')})`
                           : 'Unknown Range'}
                       </span>
                     </>

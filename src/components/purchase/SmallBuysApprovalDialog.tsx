@@ -344,11 +344,11 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
             </div>
             <div>
               <span className="text-muted-foreground">Avg Price</span>
-              <p className="font-medium">₹{Number(record.avg_price).toLocaleString()}</p>
+              <p className="font-medium">₹{Number(record.avg_price).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Total Amount</span>
-              <p className="font-semibold text-primary">₹{Number(record.total_amount).toLocaleString()}</p>
+              <p className="font-semibold text-primary">₹{Number(record.total_amount).toLocaleString('en-IN')}</p>
             </div>
             <div>
               <span className="text-muted-foreground">Total Fee</span>
@@ -430,8 +430,8 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
 
           {tdsOption !== 'none' && (
             <div className="flex items-center gap-4 text-sm">
-              <span className="text-muted-foreground">TDS: ₹{tdsAmount.toLocaleString()}</span>
-              <span className="font-semibold">Net Payable: ₹{netPayable.toLocaleString()}</span>
+              <span className="text-muted-foreground">TDS: ₹{tdsAmount.toLocaleString('en-IN')}</span>
+              <span className="font-semibold">Net Payable: ₹{netPayable.toLocaleString('en-IN')}</span>
             </div>
           )}
 
@@ -544,8 +544,8 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
               <CardContent className="p-3 space-y-3">
                 {/* Status bar */}
                 <div className="flex items-center justify-between text-xs">
-                  <span>Net Payable: <strong>₹{netPayable.toLocaleString()}</strong></span>
-                  <span>Allocated: <strong>₹{splitAllocation.totalAllocated.toLocaleString()}</strong></span>
+                  <span>Net Payable: <strong>₹{netPayable.toLocaleString('en-IN')}</strong></span>
+                  <span>Allocated: <strong>₹{splitAllocation.totalAllocated.toLocaleString('en-IN')}</strong></span>
                   <Badge variant={Math.abs(splitAllocation.remaining) <= 0.01 ? 'default' : 'destructive'} className="text-xs">
                     Remaining: ₹{splitAllocation.remaining.toFixed(2)}
                   </Badge>

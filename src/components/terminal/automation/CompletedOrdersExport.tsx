@@ -454,7 +454,7 @@ export function CompletedOrdersExport() {
           {isFetched && (
             <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border">
               <Badge variant="secondary" className="text-xs">
-                {orders.length.toLocaleString()} completed orders
+                {orders.length.toLocaleString('en-IN')} completed orders
               </Badge>
               <Badge variant="outline" className="text-xs text-trade-buy">
                 {buyCount} Buy

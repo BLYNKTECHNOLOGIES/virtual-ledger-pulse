@@ -138,7 +138,7 @@ export function AccountStatusTab() {
           </div>
         </div>
         <p className={`text-sm mb-2 ${textColors.balance}`}>
-          Balance: ₹{Number(account.balance).toLocaleString()}
+          Balance: ₹{Number(account.balance).toLocaleString('en-IN')}
         </p>
       </div>
     );
@@ -181,7 +181,7 @@ export function AccountStatusTab() {
         ? 'text-destructive/90' 
         : 'text-muted-foreground'
       }`}>
-        Balance: ₹{Number(account.balance).toLocaleString()}
+        Balance: ₹{Number(account.balance).toLocaleString('en-IN')}
       </p>
       {account.status !== 'ACTIVE' && !isUnderInvestigation && (
         <Button 
@@ -249,7 +249,7 @@ export function AccountStatusTab() {
                         <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">Under Investigation</Badge>
                       </div>
                     </div>
-                    <p className={`text-sm mb-2 ${textColors.balance}`}>Balance: ₹{Number(account.balance).toLocaleString()}</p>
+                    <p className={`text-sm mb-2 ${textColors.balance}`}>Balance: ₹{Number(account.balance).toLocaleString('en-IN')}</p>
                   </div>
                 );
               })}
@@ -273,7 +273,7 @@ export function AccountStatusTab() {
                     </div>
                     <Badge variant="default">{account.status}</Badge>
                   </div>
-                  <p className="text-sm mb-2 text-muted-foreground">Balance: ₹{Number(account.balance).toLocaleString()}</p>
+                  <p className="text-sm mb-2 text-muted-foreground">Balance: ₹{Number(account.balance).toLocaleString('en-IN')}</p>
                 </div>
               ))}
             </div>
@@ -296,7 +296,7 @@ export function AccountStatusTab() {
                     </div>
                     <Badge variant="destructive">{account.status}</Badge>
                   </div>
-                  <p className="text-sm mb-2 text-destructive/90">Balance: ₹{Number(account.balance).toLocaleString()}</p>
+                  <p className="text-sm mb-2 text-destructive/90">Balance: ₹{Number(account.balance).toLocaleString('en-IN')}</p>
                   <Button size="sm" variant="outline" className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50" onClick={() => handleStartInvestigation(account)}>
                     Start Investigation
                   </Button>

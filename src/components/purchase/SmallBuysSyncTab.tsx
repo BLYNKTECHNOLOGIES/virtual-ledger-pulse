@@ -169,8 +169,8 @@ export function SmallBuysSyncTab() {
                         {getStatusBadge(record.sync_status)}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {record.order_count} orders • ₹{Number(record.total_amount).toLocaleString()} •
-                        Avg ₹{Number(record.avg_price).toLocaleString()}
+                        {record.order_count} orders • ₹{Number(record.total_amount).toLocaleString('en-IN')} •
+                        Avg ₹{Number(record.avg_price).toLocaleString('en-IN')}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {record.time_window_start && format(new Date(record.time_window_start), 'dd MMM HH:mm')} –{' '}
@@ -211,7 +211,7 @@ export function SmallBuysSyncTab() {
                           <div key={m.id} className="flex items-center justify-between text-xs p-2 bg-background rounded">
                             <span className="font-mono">{m.binance_order_number}</span>
                             <span>{od?.amount} {od?.asset}</span>
-                            <span>₹{Number(od?.total_price || 0).toLocaleString()}</span>
+                            <span>₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</span>
                           </div>
                         );
                       })}

@@ -314,9 +314,9 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                       )}
                     </TableCell>
                     <TableCell>
-                      {Number(ad.surplusAmount || 0).toLocaleString()} {ad.asset}
+                      {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}
                       <div className="text-xs text-muted-foreground">
-                        / {Number(ad.initAmount || 0).toLocaleString()} total
+                        / {Number(ad.initAmount || 0).toLocaleString('en-IN')} total
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">

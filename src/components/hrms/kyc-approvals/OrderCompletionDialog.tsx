@@ -226,7 +226,7 @@ export function OrderCompletionDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="p-4 bg-green-50 rounded-lg">
             <p className="text-sm text-green-800">
-              <strong>Payment Completed:</strong> ₹{orderAmount.toLocaleString()}
+              <strong>Payment Completed:</strong> ₹{orderAmount.toLocaleString('en-IN')}
             </p>
           </div>
 

@@ -307,7 +307,7 @@ export default function CandidateProfilePage() {
               <div key={n.id} className="border border-gray-100 rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium text-gray-700">{n.note_by || "System"}</span>
-                  <span className="text-[10px] text-gray-400">{new Date(n.created_at).toLocaleString()}</span>
+                  <span className="text-[10px] text-gray-400">{new Date(n.created_at).toLocaleString('en-IN')}</span>
                 </div>
                 <p className="text-sm text-gray-600">{n.note}</p>
               </div>
@@ -393,7 +393,7 @@ export default function CandidateProfilePage() {
             ) : offers.map((offer: any) => (
               <div key={offer.id} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-gray-900">₹{Number(offer.offered_salary).toLocaleString()}</span>
+                  <span className="text-lg font-bold text-gray-900">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${OFFER_STYLES[offer.status] || "bg-gray-100 text-gray-600"}`}>
                     {offer.status}
                   </span>
@@ -424,7 +424,7 @@ export default function CandidateProfilePage() {
               {offers.filter((o: any) => o.status === "accepted").map((o: any) => (
                 <div key={o.id} className="relative">
                   <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-white" />
-                  <p className="text-sm text-gray-700">Offer accepted — ₹{Number(o.offered_salary).toLocaleString()}</p>
+                  <p className="text-sm text-gray-700">Offer accepted — ₹{Number(o.offered_salary).toLocaleString('en-IN')}</p>
                   <p className="text-xs text-gray-400">{o.accepted_at ? new Date(o.accepted_at).toLocaleDateString() : ""}</p>
                 </div>
               ))}

@@ -310,7 +310,7 @@ export function StockAdjustmentTab() {
                   <SelectContent>
                     {products?.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} ({product.code}) - Stock: {parseFloat(product.current_stock_quantity.toString()).toLocaleString()} {product.unit_of_measurement}
+                        {product.name} ({product.code}) - Stock: {parseFloat(product.current_stock_quantity.toString()).toLocaleString('en-IN')} {product.unit_of_measurement}
                       </SelectItem>
                     ))}
                   </SelectContent>

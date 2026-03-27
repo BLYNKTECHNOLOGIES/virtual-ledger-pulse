@@ -339,7 +339,7 @@ export function PaymentMethodManagement() {
     if (!Number.isFinite(minLimit) || minLimit < LIMIT_MIN) {
       toast({
         title: "Validation Error",
-        description: `Minimum limit must be at least ₹${LIMIT_MIN.toLocaleString()}.`,
+        description: `Minimum limit must be at least ₹${LIMIT_MIN.toLocaleString('en-IN')}.`,
         variant: "destructive",
       });
       return;
@@ -681,7 +681,7 @@ export function PaymentMethodManagement() {
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-medium text-center">
-                              ₹{parseInt(formData.minLimit || `${LIMIT_MIN}`).toLocaleString()}
+                              ₹{parseInt(formData.minLimit || `${LIMIT_MIN}`).toLocaleString('en-IN')}
                             </span>
                           </div>
                         </div>
@@ -726,7 +726,7 @@ export function PaymentMethodManagement() {
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-medium text-center">
-                              ₹{parseInt(formData.maxLimit || `${LIMIT_MAX}`).toLocaleString()}
+                              ₹{parseInt(formData.maxLimit || `${LIMIT_MAX}`).toLocaleString('en-IN')}
                             </span>
                           </div>
                         </div>
@@ -990,10 +990,10 @@ export function PaymentMethodManagement() {
                         {method.risk_category}
                       </Badge>
                     </TableCell>
-                    <TableCell>₹{method.payment_limit.toLocaleString()}</TableCell>
+                    <TableCell>₹{method.payment_limit.toLocaleString('en-IN')}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span>₹{method.current_usage.toLocaleString()}</span>
+                        <span>₹{method.current_usage.toLocaleString('en-IN')}</span>
                         <span className="text-xs text-gray-500">
                           ({((method.current_usage / method.payment_limit) * 100).toFixed(1)}%)
                         </span>

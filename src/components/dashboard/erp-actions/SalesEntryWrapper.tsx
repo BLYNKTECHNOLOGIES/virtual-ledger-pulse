@@ -549,7 +549,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             <Alert>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                Available Balance: <strong>{selectedWalletBalance.toLocaleString()}</strong>
+                Available Balance: <strong>{selectedWalletBalance.toLocaleString('en-IN')}</strong>
                 {selectedWalletFee > 0 && !isOffMarket && (
                   <span className="ml-2 text-muted-foreground">(Platform Fee: {selectedWalletFee}%)</span>
                 )}
@@ -637,7 +637,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                           : `${method.type} (${method.risk_category})`;
                     return (
                       <SelectItem key={method.id} value={method.id}>
-                        {displayLabel} - ₹{method.current_usage?.toLocaleString()}/{method.payment_limit?.toLocaleString()}
+                        {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
                       </SelectItem>
                     );
                   })}

@@ -820,7 +820,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                      <SelectContent>
                        {wallets?.map((wallet) => (
                          <SelectItem key={wallet.id} value={wallet.id}>
-                           {wallet.wallet_name} ({wallet.current_balance.toLocaleString()} USDT)
+                           {wallet.wallet_name} ({wallet.current_balance.toLocaleString('en-IN')} USDT)
                          </SelectItem>
                        ))}
                      </SelectContent>
@@ -848,9 +848,9 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h4 className="font-medium mb-2">COSMOS Limit Verification</h4>
                 <div className="text-sm space-y-1">
-                  <div>Monthly Limit: ₹{selectedClient.monthly_limit?.toLocaleString()}</div>
-                  <div>Used This Month: ₹{selectedClient.current_month_used?.toLocaleString()}</div>
-                  <div>Available: ₹{(selectedClient.monthly_limit - selectedClient.current_month_used)?.toLocaleString()}</div>
+                  <div>Monthly Limit: ₹{selectedClient.monthly_limit?.toLocaleString('en-IN')}</div>
+                  <div>Used This Month: ₹{selectedClient.current_month_used?.toLocaleString('en-IN')}</div>
+                  <div>Available: ₹{(selectedClient.monthly_limit - selectedClient.current_month_used)?.toLocaleString('en-IN')}</div>
                 </div>
                 {parseFloat(orderAmount) > (selectedClient.monthly_limit - selectedClient.current_month_used) && (
                   <Badge variant="destructive" className="mt-2">
@@ -1003,7 +1003,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
 
                 <div className="mt-3 text-sm text-gray-600">
                   <div><strong>Risk Category:</strong> {selectedPaymentMethod.risk_category}</div>
-                  <div><strong>Available Limit:</strong> ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString()}</div>
+                  <div><strong>Available Limit:</strong> ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString('en-IN')}</div>
                   {selectedPaymentMethod.current_usage >= selectedPaymentMethod.payment_limit && (
                     <Badge variant="destructive" className="mt-1">
                       <AlertTriangle className="h-3 w-3 mr-1" />

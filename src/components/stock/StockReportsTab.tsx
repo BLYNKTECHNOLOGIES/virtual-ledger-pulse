@@ -267,7 +267,7 @@ export function StockReportsTab() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{calculateTotalValue(inventoryReport || []).toLocaleString()}</div>
+            <div className="text-2xl font-bold">₹{calculateTotalValue(inventoryReport || []).toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground">Based on average buying price</p>
           </CardContent>
         </Card>
@@ -278,7 +278,7 @@ export function StockReportsTab() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{calculateMovementValue(normalizedMovements || []).toLocaleString()}</div>
+            <div className="text-2xl font-bold">₹{calculateMovementValue(normalizedMovements || []).toLocaleString('en-IN')}</div>
             <p className="text-xs text-muted-foreground">Last 30 days</p>
           </CardContent>
         </Card>

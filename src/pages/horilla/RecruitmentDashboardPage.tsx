@@ -303,7 +303,7 @@ export default function RecruitmentDashboardPage() {
                         {rec.salary_min && (
                           <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
                             <DollarSign className="h-2.5 w-2.5" />
-                            {rec.salary_min?.toLocaleString()}{rec.salary_max ? ` - ${rec.salary_max.toLocaleString()}` : ""}
+                            {rec.salary_min?.toLocaleString('en-IN')}{rec.salary_max ? ` - ${rec.salary_max.toLocaleString('en-IN')}` : ""}
                           </span>
                         )}
                       </div>

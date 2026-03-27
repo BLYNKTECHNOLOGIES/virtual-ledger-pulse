@@ -247,9 +247,9 @@ export default function PayslipsPage() {
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
                     <td className="px-4 py-3 text-gray-500">{p.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3 text-xs">{p.hr_payroll_runs?.title}</td>
-                    <td className="px-4 py-3 text-green-700 font-medium">₹{p.gross_salary?.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-red-600">₹{p.total_deductions?.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-semibold">₹{p.net_salary?.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-green-700 font-medium">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 text-red-600">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
+                    <td className="px-4 py-3 font-semibold">₹{p.net_salary?.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3">{p.present_days || 0}/{p.working_days || 0}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(p.status || "draft")}`}>{p.status || "draft"}</span>
@@ -369,12 +369,12 @@ export default function PayslipsPage() {
                   {detail.earnings_breakdown && Object.entries(detail.earnings_breakdown).map(([name, amount]) => (
                     <div key={name} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
                       <span>{name}</span>
-                      <span className="font-medium">₹{Number(amount).toLocaleString()}</span>
+                      <span className="font-medium">₹{Number(amount).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Earnings</span>
-                    <span className="text-green-700">₹{detail.total_earnings?.toLocaleString()}</span>
+                    <span className="text-green-700">₹{detail.total_earnings?.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
@@ -386,7 +386,7 @@ export default function PayslipsPage() {
                   {detail.deductions_breakdown && Object.entries(detail.deductions_breakdown).map(([name, amount]) => (
                     <div key={name} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
                       <span>{name}</span>
-                      <span className="font-medium">₹{Number(amount).toLocaleString()}</span>
+                      <span className="font-medium">₹{Number(amount).toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                   {(!detail.deductions_breakdown || Object.keys(detail.deductions_breakdown).length === 0) && (
@@ -394,7 +394,7 @@ export default function PayslipsPage() {
                   )}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Deductions</span>
-                    <span className="text-red-600">₹{detail.total_deductions?.toLocaleString()}</span>
+                    <span className="text-red-600">₹{detail.total_deductions?.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
               </div>
@@ -402,7 +402,7 @@ export default function PayslipsPage() {
               {/* Net */}
               <div className="bg-[#E8604C]/5 border border-[#E8604C]/20 rounded-lg p-3 flex justify-between items-center">
                 <span className="font-semibold text-gray-900">Net Salary</span>
-                <span className="text-xl font-bold text-[#E8604C]">₹{detail.net_salary?.toLocaleString()}</span>
+                <span className="text-xl font-bold text-[#E8604C]">₹{detail.net_salary?.toLocaleString('en-IN')}</span>
               </div>
 
               {/* Payment */}

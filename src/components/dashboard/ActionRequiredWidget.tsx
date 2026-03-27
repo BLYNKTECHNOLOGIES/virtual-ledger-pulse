@@ -45,7 +45,7 @@ export function ActionRequiredWidget() {
     newItems.forEach(item => {
       currentSet.add(item.id);
       addNotification({
-        title: `${item.movement_type === "deposit" ? "Deposit" : "Withdrawal"} — ${item.asset} ${Number(item.amount).toLocaleString()}`,
+        title: `${item.movement_type === "deposit" ? "Deposit" : "Withdrawal"} — ${item.asset} ${Number(item.amount).toLocaleString('en-IN')}`,
         description: `New ${item.movement_type} detected. ERP action required.`,
         type: "warning",
       });

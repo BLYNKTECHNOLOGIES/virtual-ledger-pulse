@@ -309,7 +309,7 @@ export function TaxManagementTab() {
     onSuccess: (result) => {
       toast({
         title: "TDS Payment Recorded",
-        description: `₹${result.amount.toLocaleString()} deducted from bank for ${result.count} PANs`,
+        description: `₹${result.amount.toLocaleString('en-IN')} deducted from bank for ${result.count} PANs`,
       });
       setSelectedRecords([]);
       setPaymentBankAccountId("");
@@ -437,7 +437,7 @@ export function TaxManagementTab() {
               <Calculator className="h-4 w-4" />
               <span className="text-sm">Total TDS Deducted</span>
             </div>
-            <p className="text-2xl font-bold">₹{totals.totalTds.toLocaleString()}</p>
+            <p className="text-2xl font-bold">₹{totals.totalTds.toLocaleString('en-IN')}</p>
           </CardContent>
         </Card>
         <Card>
@@ -446,7 +446,7 @@ export function TaxManagementTab() {
               <Receipt className="h-4 w-4" />
               <span className="text-sm">Unpaid TDS</span>
             </div>
-            <p className="text-2xl font-bold text-destructive">₹{totals.unpaidTds.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-destructive">₹{totals.unpaidTds.toLocaleString('en-IN')}</p>
           </CardContent>
         </Card>
         <Card>
@@ -455,7 +455,7 @@ export function TaxManagementTab() {
               <CheckCircle className="h-4 w-4" />
               <span className="text-sm">Paid TDS</span>
             </div>
-            <p className="text-2xl font-bold text-green-600">₹{totals.paidTds.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-green-600">₹{totals.paidTds.toLocaleString('en-IN')}</p>
           </CardContent>
         </Card>
         <Card>
@@ -481,7 +481,7 @@ export function TaxManagementTab() {
               <ViewOnlyWrapper isViewOnly={!hasPermission('accounting_manage')}>
                 <Button onClick={() => setShowPaymentDialog(true)}>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Mark Selected as Paid (₹{selectedTotal.toLocaleString()})
+                  Mark Selected as Paid (₹{selectedTotal.toLocaleString('en-IN')})
                 </Button>
               </ViewOnlyWrapper>
             )}
@@ -541,7 +541,7 @@ export function TaxManagementTab() {
                           <TableCell className="font-medium">{entry.supplier_name}</TableCell>
                           <TableCell>{entry.pan_number}</TableCell>
                           <TableCell className="text-right font-semibold text-destructive">
-                            ₹{entry.unpaid_tds.toLocaleString()}
+                            ₹{entry.unpaid_tds.toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell>
                             <Badge variant="destructive">Unpaid</Badge>
@@ -577,7 +577,7 @@ export function TaxManagementTab() {
                           <TableCell className="font-medium">{entry.supplier_name}</TableCell>
                           <TableCell>{entry.pan_number}</TableCell>
                           <TableCell className="text-right font-semibold text-green-600">
-                            ₹{entry.paid_tds.toLocaleString()}
+                            ₹{entry.paid_tds.toLocaleString('en-IN')}
                           </TableCell>
                           <TableCell>
                             {entry.last_paid_by_username ? (
@@ -638,12 +638,12 @@ export function TaxManagementTab() {
                       <TableRow key={entry.pan_number}>
                         <TableCell className="font-medium">{entry.supplier_name}</TableCell>
                         <TableCell>{entry.pan_number}</TableCell>
-                        <TableCell className="text-right">₹{entry.total_tds.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">₹{entry.total_tds.toLocaleString('en-IN')}</TableCell>
                         <TableCell className="text-right text-green-600">
-                          ₹{entry.paid_tds.toLocaleString()}
+                          ₹{entry.paid_tds.toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell className="text-right text-destructive">
-                          ₹{entry.unpaid_tds.toLocaleString()}
+                          ₹{entry.unpaid_tds.toLocaleString('en-IN')}
                         </TableCell>
                         <TableCell>
                           {entry.unpaid_tds === 0 ? (
@@ -688,7 +688,7 @@ export function TaxManagementTab() {
               </div>
               <div className="flex justify-between text-lg">
                 <span className="font-medium">Total Amount:</span>
-                <span className="font-bold text-destructive">₹{selectedTotal.toLocaleString()}</span>
+                <span className="font-bold text-destructive">₹{selectedTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
 
@@ -703,7 +703,7 @@ export function TaxManagementTab() {
                     <SelectItem key={account.id} value={account.id}>
                       {account.account_name} - {account.bank_name}
                       <span className="text-muted-foreground ml-2">
-                        (₹{parseFloat(account.balance.toString()).toLocaleString()})
+                        (₹{parseFloat(account.balance.toString()).toLocaleString('en-IN')})
                       </span>
                     </SelectItem>
                   ))}

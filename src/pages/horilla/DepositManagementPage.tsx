@@ -251,9 +251,9 @@ export default function DepositManagementPage() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Deposits", value: `₹${totalDeposits.toLocaleString()}`, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Collected", value: `₹${totalCollected.toLocaleString()}`, icon: BadgeIndianRupee, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Current Balance", value: `₹${totalBalance.toLocaleString()}`, icon: Shield, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Total Deposits", value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-blue-600", bg: "bg-blue-50" },
+          { label: "Collected", value: `₹${totalCollected.toLocaleString('en-IN')}`, icon: BadgeIndianRupee, color: "text-green-600", bg: "bg-green-50" },
+          { label: "Current Balance", value: `₹${totalBalance.toLocaleString('en-IN')}`, icon: Shield, color: "text-purple-600", bg: "bg-purple-50" },
           { label: "Fully Collected", value: `${fullyCollected}/${deposits.length}`, icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
         ].map((s) => (
           <Card key={s.label}>
@@ -297,9 +297,9 @@ export default function DepositManagementPage() {
                         {d.hr_employees?.first_name} {d.hr_employees?.last_name}
                         <span className="text-xs text-muted-foreground ml-1">({d.hr_employees?.badge_id})</span>
                       </TableCell>
-                      <TableCell className="font-medium">₹{Number(d.total_deposit_amount).toLocaleString()}</TableCell>
-                      <TableCell className="text-green-600">₹{Number(d.collected_amount).toLocaleString()}</TableCell>
-                      <TableCell className="text-purple-600 font-medium">₹{Number(d.current_balance).toLocaleString()}</TableCell>
+                      <TableCell className="font-medium">₹{Number(d.total_deposit_amount).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-green-600">₹{Number(d.collected_amount).toLocaleString('en-IN')}</TableCell>
+                      <TableCell className="text-purple-600 font-medium">₹{Number(d.current_balance).toLocaleString('en-IN')}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Progress value={progress} className="h-2 w-20" />
@@ -308,7 +308,7 @@ export default function DepositManagementPage() {
                       </TableCell>
                       <TableCell><span className="text-xs">{modeLabel(d.deduction_mode)}</span></TableCell>
                       <TableCell className="text-sm">
-                        {d.deduction_mode === "percentage" ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString()}`}
+                        {d.deduction_mode === "percentage" ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString('en-IN')}`}
                       </TableCell>
                       <TableCell>
                         {d.is_settled ? (
@@ -412,9 +412,9 @@ export default function DepositManagementPage() {
                         </span>
                       </TableCell>
                       <TableCell className={`font-medium ${Number(t.amount) >= 0 ? "text-green-600" : "text-red-600"}`}>
-                        {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString()}
+                        {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString('en-IN')}
                       </TableCell>
-                      <TableCell className="text-sm">₹{Number(t.balance_after).toLocaleString()}</TableCell>
+                      <TableCell className="text-sm">₹{Number(t.balance_after).toLocaleString('en-IN')}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{t.description || "—"}</TableCell>
                     </TableRow>
                   ))

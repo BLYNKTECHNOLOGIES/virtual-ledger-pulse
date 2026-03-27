@@ -52,7 +52,7 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 <td className="px-4 py-3 text-right font-mono">{r.quantity}</td>
                 <td className="px-4 py-3 text-muted-foreground">{r.unit || "NOS"}</td>
                 {isFinancial && (
-                  <td className="px-4 py-3 text-right font-mono">₹{(r.transactionValue || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right font-mono">₹{(r.transactionValue || 0).toLocaleString('en-IN')}</td>
                 )}
                 {isFinancial && (
                   <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.utrReference || "-"}</td>
@@ -65,7 +65,7 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 <td className="px-4 py-3 text-right font-mono">
                   ₹{isFinancial ? (r.serviceMargin || 0).toFixed(2) : r.rate.toFixed(2)}
                 </td>
-                <td className="px-4 py-3 text-right font-semibold font-mono">₹{r.amount.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right font-semibold font-mono">₹{r.amount.toLocaleString('en-IN')}</td>
                 <td className="px-4 py-3">{r.buyerName}</td>
                 <td className="px-4 py-3 text-muted-foreground text-xs">{r.date}</td>
               </tr>

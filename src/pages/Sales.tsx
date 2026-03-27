@@ -318,7 +318,7 @@ export default function Sales() {
         <div className="grid grid-cols-2 gap-2 text-sm mb-3">
           <div>
             <span className="text-gray-500">Amount:</span>
-            <p className="font-medium">₹{Number(order.total_amount).toLocaleString()}</p>
+            <p className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
           </div>
           <div>
             <span className="text-gray-500">Quantity:</span>
@@ -446,9 +446,9 @@ export default function Sales() {
                   )}
                 </TableCell>
                 <TableCell>{order.wallet?.wallet_name || order.platform || 'Off Market'}</TableCell>
-                <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString()}</TableCell>
+                <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
                 <TableCell>{order.quantity || 1}</TableCell>
-                <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
+                <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
                 <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
                 <TableCell>
                   {order.created_by_user ? (

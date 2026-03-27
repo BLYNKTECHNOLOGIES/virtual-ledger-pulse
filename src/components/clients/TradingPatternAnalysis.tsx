@@ -126,7 +126,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
         </div>
         
         <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-purple-100 dark:border-purple-900">
-          <div className="text-3xl font-bold text-purple-600">₹{averageOrderAmount.toLocaleString()}</div>
+          <div className="text-3xl font-bold text-purple-600">₹{averageOrderAmount.toLocaleString('en-IN')}</div>
           <div className="text-sm text-muted-foreground mt-1">Average Order Amount</div>
         </div>
         

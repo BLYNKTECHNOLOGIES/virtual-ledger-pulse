@@ -225,9 +225,9 @@ export function ReviewNeededOrders({ searchTerm, dateFrom, dateTo }: { searchTer
                         return '-';
                       })()}
                     </TableCell>
-                    <TableCell className="font-medium">₹{order.total_amount?.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">₹{order.total_amount?.toLocaleString('en-IN')}</TableCell>
                     <TableCell>{order.quantity || 1}</TableCell>
-                    <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString()}</TableCell>
+                    <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
                     <TableCell>
                       <Badge className="bg-orange-100 text-orange-800">Review Needed</Badge>
                     </TableCell>

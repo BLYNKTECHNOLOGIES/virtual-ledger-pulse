@@ -636,7 +636,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                                         </div>
                                         <div className="flex items-center gap-3 text-muted-foreground">
                                           <span className="font-semibold text-foreground">₹{Number(ad.price).toLocaleString('en-IN')}</span>
-                                          <span>Qty: {Number(ad.surplusAmount || 0).toLocaleString()} {ad.asset}</span>
+                                          <span>Qty: {Number(ad.surplusAmount || 0).toLocaleString('en-IN')} {ad.asset}</span>
                                         </div>
                                       </div>
                                     </div>

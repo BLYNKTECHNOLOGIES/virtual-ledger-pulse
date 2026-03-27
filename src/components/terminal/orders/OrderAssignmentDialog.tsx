@@ -92,7 +92,7 @@ export function OrderAssignmentDialog({
         <div className="space-y-1 text-xs text-muted-foreground pb-2 border-b border-border">
           <div>Order: <span className="font-mono text-foreground">{orderNumber}</span></div>
           {tradeType && <div>Type: <Badge variant="outline" className="text-[10px] ml-1">{tradeType}</Badge></div>}
-          {totalPrice && <div>Amount: ₹{totalPrice.toLocaleString()}</div>}
+          {totalPrice && <div>Amount: ₹{totalPrice.toLocaleString('en-IN')}</div>}
         </div>
 
         {currentAssignee && (

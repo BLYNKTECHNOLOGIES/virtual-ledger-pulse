@@ -51,7 +51,7 @@ export default function AssetDashboardPage() {
     { label: "Assigned", value: statusCounts.assigned, icon: Users, color: "text-blue-600" },
     { label: "Maintenance", value: statusCounts.maintenance, icon: Wrench, color: "text-yellow-600" },
     { label: "Retired", value: statusCounts.retired, icon: Archive, color: "text-gray-500" },
-    { label: "Total Value", value: `₹${totalValue.toLocaleString()}`, icon: TrendingUp, color: "text-purple-600" },
+    { label: "Total Value", value: `₹${totalValue.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-purple-600" },
   ];
 
   return (

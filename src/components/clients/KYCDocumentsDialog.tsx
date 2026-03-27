@@ -119,7 +119,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Order Amount</label>
-                    <p className="font-semibold">₹{latestKyc.order_amount?.toLocaleString()}</p>
+                    <p className="font-semibold">₹{latestKyc.order_amount?.toLocaleString('en-IN')}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Purpose</label>

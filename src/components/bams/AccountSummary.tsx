@@ -575,7 +575,7 @@ export function AccountSummary() {
                   </CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
                     {transactionsData?.[0]?.total_count 
-                      ? `${transactionsData[0].total_count.toLocaleString()} total transactions`
+                      ? `${transactionsData[0].total_count.toLocaleString('en-IN')} total transactions`
                       : 'Loading...'}
                   </p>
                 </div>
@@ -708,7 +708,7 @@ export function AccountSummary() {
                   {transactionsData && transactionsData[0]?.total_count > 0 && (
                     <div className="flex items-center justify-between mt-4 pt-4 border-t">
                       <div className="text-sm text-muted-foreground">
-                        Showing {transactionPage * TRANSACTIONS_PER_PAGE + 1} - {Math.min((transactionPage + 1) * TRANSACTIONS_PER_PAGE, transactionsData[0]?.total_count || 0)} of {transactionsData[0]?.total_count.toLocaleString()}
+                        Showing {transactionPage * TRANSACTIONS_PER_PAGE + 1} - {Math.min((transactionPage + 1) * TRANSACTIONS_PER_PAGE, transactionsData[0]?.total_count || 0)} of {transactionsData[0]?.total_count.toLocaleString('en-IN')}
                       </div>
                       <div className="flex items-center gap-2">
                         <Button

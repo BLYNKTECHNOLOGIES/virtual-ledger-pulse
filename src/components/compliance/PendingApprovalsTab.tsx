@@ -392,7 +392,7 @@ export function PendingApprovalsTab() {
                 <h3 className="font-medium text-gray-900 mb-3">Submission Details</h3>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><span className="font-medium">Submitted by:</span> {selectedApproval.submitted_by}</p>
-                  <p><span className="font-medium">Submitted at:</span> {new Date(selectedApproval.submitted_at).toLocaleString()}</p>
+                  <p><span className="font-medium">Submitted at:</span> {new Date(selectedApproval.submitted_at).toLocaleString('en-IN')}</p>
                   <p><span className="font-medium">Duration:</span> {getDurationSinceSubmission(selectedApproval.submitted_at)}</p>
                 </div>
               </div>

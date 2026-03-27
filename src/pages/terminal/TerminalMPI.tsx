@@ -612,7 +612,7 @@ export default function TerminalMPI() {
                   <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
                   <ReTooltip
                     contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 10 }}
-                    formatter={(value: number) => [`₹${value.toLocaleString()}`, 'Volume']}
+                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Volume']}
                   />
                   <Bar dataKey="volume" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                 </BarChart>

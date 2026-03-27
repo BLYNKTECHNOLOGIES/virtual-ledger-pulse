@@ -176,7 +176,7 @@ export default function TerminalAnalytics() {
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px]">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
-        <p className="text-xs text-muted-foreground">30-day trading & ad performance · {orders.length.toLocaleString()} total orders synced</p>
+        <p className="text-xs text-muted-foreground">30-day trading & ad performance · {orders.length.toLocaleString('en-IN')} total orders synced</p>
       </div>
 
       {/* ─── KPI Cards ─── */}

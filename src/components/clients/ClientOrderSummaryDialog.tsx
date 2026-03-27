@@ -137,7 +137,7 @@ export function ClientOrderSummaryDialog({
                 <DollarSign className="h-4 w-4 text-green-500" />
                 <span className="text-sm text-muted-foreground">Total Value</span>
               </div>
-              <p className="text-2xl font-bold mt-1">₹{summary.totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold mt-1">₹{summary.totalValue.toLocaleString('en-IN')}</p>
             </CardContent>
           </Card>
           
@@ -201,7 +201,7 @@ export function ClientOrderSummaryDialog({
                         {order.description || '-'}
                       </td>
                       <td className="py-2 px-4 text-sm text-right font-medium">
-                        ₹{(order.total_amount || 0).toLocaleString()}
+                        ₹{(order.total_amount || 0).toLocaleString('en-IN')}
                       </td>
                       <td className="py-2 px-4 text-center">
                         {getStatusBadge(order.status)}

@@ -67,12 +67,12 @@ export const generateSettlementPDF = async (settlement: SettlementData) => {
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(`Total Transaction Amount: ₹${settlement.total_amount.toLocaleString()}`, 18, 115);
-  doc.text(`MDR Charges (${settlement.mdr_rate}%): -₹${settlement.mdr_amount.toLocaleString()}`, 18, 122);
+  doc.text(`Total Transaction Amount: ₹${settlement.total_amount.toLocaleString('en-IN')}`, 18, 115);
+  doc.text(`MDR Charges (${settlement.mdr_rate}%): -₹${settlement.mdr_amount.toLocaleString('en-IN')}`, 18, 122);
   
   doc.setFont("helvetica", "bold");
   doc.setTextColor(34, 197, 94);
-  doc.text(`Net Settlement Amount: ₹${settlement.net_amount.toLocaleString()}`, 18, 129);
+  doc.text(`Net Settlement Amount: ₹${settlement.net_amount.toLocaleString('en-IN')}`, 18, 129);
   doc.setTextColor(0, 0, 0);
   
   // Transaction Details Table
@@ -81,7 +81,7 @@ export const generateSettlementPDF = async (settlement: SettlementData) => {
     item.sales_orders.order_number,
     item.sales_orders.client_name,
     format(new Date(item.sales_orders.order_date), 'MMM dd, yyyy'),
-    `₹${item.amount.toLocaleString()}`,
+    `₹${item.amount.toLocaleString('en-IN')}`,
     'Payment Gateway',
     item.sales_orders.settlement_status || 'SETTLED'
   ]);
@@ -128,12 +128,12 @@ export const generateSettlementPDF = async (settlement: SettlementData) => {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text(`Total Orders: ${settlement.settlement_items.length}`, 18, summaryY + 20);
-  doc.text(`Total Transaction Amount: ₹${settlement.total_amount.toLocaleString()}`, 18, summaryY + 27);
-  doc.text(`Less: MDR Charges (${settlement.mdr_rate}%): -₹${settlement.mdr_amount.toLocaleString()}`, 18, summaryY + 34);
+  doc.text(`Total Transaction Amount: ₹${settlement.total_amount.toLocaleString('en-IN')}`, 18, summaryY + 27);
+  doc.text(`Less: MDR Charges (${settlement.mdr_rate}%): -₹${settlement.mdr_amount.toLocaleString('en-IN')}`, 18, summaryY + 34);
   
   doc.setFont("helvetica", "bold");
   doc.setTextColor(34, 197, 94);
-  doc.text(`Net Settlement Amount: ₹${settlement.net_amount.toLocaleString()}`, 18, summaryY + 41);
+  doc.text(`Net Settlement Amount: ₹${settlement.net_amount.toLocaleString('en-IN')}`, 18, summaryY + 41);
   doc.setTextColor(0, 0, 0);
   
   // Footer

@@ -123,7 +123,7 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
           </div>
           <div>
             <span className="text-gray-500">Price per Unit:</span>
-            <p className="font-medium">₹{Number(averagePricePerUnit).toLocaleString()}</p>
+            <p className="font-medium">₹{Number(averagePricePerUnit).toLocaleString('en-IN')}</p>
           </div>
           {order.created_by_user && (
             <div>
@@ -248,7 +248,7 @@ export function PurchaseOrderCard({ order, onView, onEdit, onUpdateStatus }: Pur
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-green-700">Available Limit:</span>
                     <span className="font-medium text-green-800">
-                      ₹{(order.purchase_payment_method.payment_limit - order.purchase_payment_method.current_usage).toLocaleString()}
+                      ₹{(order.purchase_payment_method.payment_limit - order.purchase_payment_method.current_usage).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </>

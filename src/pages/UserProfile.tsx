@@ -304,7 +304,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label className="text-[#00bcd4]">Gross Salary (CTC)</Label>
-            <div className="text-2xl font-bold text-green-600">₹{totalSalary.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">₹{totalSalary.toLocaleString('en-IN')}</div>
           </div>
           <Separator />
           
@@ -317,7 +317,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                 {breakdown.earnings.map((item: any, idx: number) => (
                   <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
                     <Label className="text-[#00bcd4]">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                    <span className="text-base font-semibold">₹{item.amount.toLocaleString()}</span>
+                    <span className="text-base font-semibold">₹{item.amount.toLocaleString('en-IN')}</span>
                   </div>
                 ))}
               </div>
@@ -328,7 +328,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
                   {breakdown.deductions.map((item: any, idx: number) => (
                     <div key={idx} className="flex justify-between items-center border-b border-border/50 pb-2">
                       <Label className="text-red-500">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                      <span className="text-base font-semibold text-red-600">-₹{item.amount.toLocaleString()}</span>
+                      <span className="text-base font-semibold text-red-600">-₹{item.amount.toLocaleString('en-IN')}</span>
                     </div>
                   ))}
                 </div>
@@ -337,7 +337,7 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
               <Separator />
               <div className="flex justify-between items-center pt-1">
                 <Label className="text-base font-bold">Net Pay</Label>
-                <span className="text-xl font-bold text-green-600">₹{breakdown.netPay.toLocaleString()}</span>
+                <span className="text-xl font-bold text-green-600">₹{breakdown.netPay.toLocaleString('en-IN')}</span>
               </div>
             </>
           )}
@@ -362,20 +362,20 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
               {breakdown.employerContribs.map((item: any, idx: number) => (
                 <div key={idx} className="border-b border-border/50 pb-3">
                   <Label className="text-[#00bcd4]">{item.name} <span className="text-xs text-muted-foreground">({item.calcLabel})</span></Label>
-                  <div className="text-xl font-semibold">₹{item.amount.toLocaleString()}</div>
+                  <div className="text-xl font-semibold">₹{item.amount.toLocaleString('en-IN')}</div>
                 </div>
               ))}
               <Separator />
               <div>
                 <Label>Monthly Employer Total</Label>
                 <div className="text-xl font-bold text-blue-600">
-                  ₹{breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0).toLocaleString()}
+                  ₹{breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0).toLocaleString('en-IN')}
                 </div>
               </div>
               <div>
                 <Label>Estimated Annual</Label>
                 <div className="text-lg">
-                  ₹{(breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0) * 12).toLocaleString()}
+                  ₹{(breakdown.employerContribs.reduce((s: number, i: any) => s + i.amount, 0) * 12).toLocaleString('en-IN')}
                 </div>
               </div>
             </>

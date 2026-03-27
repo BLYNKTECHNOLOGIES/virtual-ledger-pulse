@@ -353,7 +353,7 @@ export function OperatorDetailDialog({
                             </Badge>
                           </td>
                           <td className="py-1.5 px-2 text-right font-medium">
-                            ₹{Number(a.total_price || 0).toLocaleString()}
+                            ₹{Number(a.total_price || 0).toLocaleString('en-IN')}
                           </td>
                           <td className="py-1.5 px-2">
                             <Badge variant="outline" className={`text-[9px] ${a.is_active ? 'text-amber-400 border-amber-400/30' : 'text-green-500 border-green-500/30'}`}>

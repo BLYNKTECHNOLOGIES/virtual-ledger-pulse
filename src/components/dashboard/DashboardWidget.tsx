@@ -127,7 +127,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
     const gross = (metrics?.totalRevenue || metrics?.totalSales || 0) - (metrics?.totalSpending || 0);
     return (
       <div className="text-center p-4">
-        <div className="text-3xl font-bold text-gray-900">₹{Number(gross).toLocaleString()}</div>
+        <div className="text-3xl font-bold text-gray-900">₹{Number(gross).toLocaleString('en-IN')}</div>
         <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
       </div>
     );

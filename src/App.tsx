@@ -337,7 +337,6 @@ const router = createBrowserRouter([
        </QueryProvider>
      ),
    },
-   },
    {
      path: "/tasks",
      element: (

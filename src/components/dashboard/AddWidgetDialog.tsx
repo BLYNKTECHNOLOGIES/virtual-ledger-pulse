@@ -9,7 +9,7 @@ import {
   Activity, PieChart, LineChart, ShoppingCart, CreditCard, Timer, Bell, Zap, 
   Globe, TrendingDown, ArrowUpRight, Wallet, Building, UserCheck, Clock,
   Search, Scale, Shield, Banknote, Receipt, Target, Landmark, BarChart2,
-  HandCoins, Calculator, Layers, AlertTriangle, Eye, Flame, Link2, MapPin
+  HandCoins, Calculator, Layers, AlertTriangle, Eye, Flame, Link2, MapPin, CheckSquare
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -125,6 +125,17 @@ export const builtInWidgets: WidgetType[] = [
     requiredPermissions: ['stock_view'],
     isBuiltIn: true,
     gridSpan: 12,
+  },
+  {
+    id: 'my-tasks',
+    name: 'My Tasks',
+    description: 'Your assigned tasks with counts and quick access',
+    icon: CheckSquare,
+    category: 'Core Sections',
+    size: 'medium',
+    requiredPermissions: ['tasks_view'],
+    isBuiltIn: true,
+    gridSpan: 6,
   },
 ];
 

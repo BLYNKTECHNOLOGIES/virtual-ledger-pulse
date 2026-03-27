@@ -1225,16 +1225,20 @@ export function TerminalSalesApprovalWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_terminal_sales_approval'],
     queryFn: async () => {
-      const { data: records } = await supabase
-        .from('terminal_sales_sync' as any)
-        .select('sync_status, id, counterparty_name, order_data, synced_at')
-        .order('synced_at', { ascending: false });
-      const all = (records || []) as any[];
-      const pending = all.filter(r => r.sync_status === 'synced_pending_approval');
-      const clientMapping = all.filter(r => r.sync_status === 'client_mapping_pending');
-      const approved = all.filter(r => r.sync_status === 'approved');
-      const rejected = all.filter(r => r.sync_status === 'rejected');
-      return { pending, clientMapping, approved, rejected, recentPending: pending.slice(0, 5) };
+      const [
+        { count: pending },
+        { count: clientMapping },
+        { count: approved },
+        { count: rejected },
+        { data: recentPending },
+      ] = await Promise.all([
+        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
+        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'client_mapping_pending'),
+        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'approved'),
+        supabase.from('terminal_sales_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'rejected'),
+        supabase.from('terminal_sales_sync' as any).select('id, counterparty_name, order_data').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
+      ]);
+      return { pending: pending || 0, clientMapping: clientMapping || 0, approved: approved || 0, rejected: rejected || 0, recentPending: (recentPending || []) as any[] };
     },
     staleTime: 30000,
     refetchInterval: 30000,
@@ -1243,10 +1247,10 @@ export function TerminalSalesApprovalWidget() {
   if (isLoading) return <WidgetLoader />;
 
   const statuses = [
-    { label: 'Pending Approval', count: data?.pending.length || 0, color: 'bg-amber-100 text-amber-800' },
-    { label: 'Client Mapping', count: data?.clientMapping.length || 0, color: 'bg-blue-100 text-blue-800' },
-    { label: 'Approved', count: data?.approved.length || 0, color: 'bg-green-100 text-green-800' },
-    { label: 'Rejected', count: data?.rejected.length || 0, color: 'bg-red-100 text-red-800' },
+    { label: 'Pending Approval', count: data?.pending || 0, color: 'bg-amber-100 text-amber-800' },
+    { label: 'Client Mapping', count: data?.clientMapping || 0, color: 'bg-blue-100 text-blue-800' },
+    { label: 'Approved', count: data?.approved || 0, color: 'bg-green-100 text-green-800' },
+    { label: 'Rejected', count: data?.rejected || 0, color: 'bg-red-100 text-red-800' },
   ];
 
   return (
@@ -1283,16 +1287,20 @@ export function TerminalPurchaseApprovalWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_terminal_purchase_approval'],
     queryFn: async () => {
-      const { data: records } = await supabase
-        .from('terminal_purchase_sync' as any)
-        .select('sync_status, id, counterparty_name, order_data, synced_at')
-        .order('synced_at', { ascending: false });
-      const all = (records || []) as any[];
-      const pending = all.filter(r => r.sync_status === 'synced_pending_approval');
-      const clientMapping = all.filter(r => r.sync_status === 'client_mapping_pending');
-      const approved = all.filter(r => r.sync_status === 'approved');
-      const rejected = all.filter(r => r.sync_status === 'rejected');
-      return { pending, clientMapping, approved, rejected, recentPending: pending.slice(0, 5) };
+      const [
+        { count: pending },
+        { count: clientMapping },
+        { count: approved },
+        { count: rejected },
+        { data: recentPending },
+      ] = await Promise.all([
+        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'synced_pending_approval'),
+        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'client_mapping_pending'),
+        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'approved'),
+        supabase.from('terminal_purchase_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'rejected'),
+        supabase.from('terminal_purchase_sync' as any).select('id, counterparty_name, order_data').eq('sync_status', 'synced_pending_approval').order('synced_at', { ascending: false }).limit(5),
+      ]);
+      return { pending: pending || 0, clientMapping: clientMapping || 0, approved: approved || 0, rejected: rejected || 0, recentPending: (recentPending || []) as any[] };
     },
     staleTime: 30000,
     refetchInterval: 30000,
@@ -1301,10 +1309,10 @@ export function TerminalPurchaseApprovalWidget() {
   if (isLoading) return <WidgetLoader />;
 
   const statuses = [
-    { label: 'Pending Approval', count: data?.pending.length || 0, color: 'bg-amber-100 text-amber-800' },
-    { label: 'Client Mapping', count: data?.clientMapping.length || 0, color: 'bg-blue-100 text-blue-800' },
-    { label: 'Approved', count: data?.approved.length || 0, color: 'bg-green-100 text-green-800' },
-    { label: 'Rejected', count: data?.rejected.length || 0, color: 'bg-red-100 text-red-800' },
+    { label: 'Pending Approval', count: data?.pending || 0, color: 'bg-amber-100 text-amber-800' },
+    { label: 'Client Mapping', count: data?.clientMapping || 0, color: 'bg-blue-100 text-blue-800' },
+    { label: 'Approved', count: data?.approved || 0, color: 'bg-green-100 text-green-800' },
+    { label: 'Rejected', count: data?.rejected || 0, color: 'bg-red-100 text-red-800' },
   ];
 
   return (

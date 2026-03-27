@@ -8,7 +8,7 @@ import { useMyTaskCounts, useTasks, useUpdateTask, type Task } from '@/hooks/use
 import { useAddTaskComment } from '@/hooks/useTaskComments';
 import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 import { TaskPriorityBadge } from '@/components/tasks/TaskPriorityBadge';
-import { CheckSquare, AlertTriangle, ArrowRight, Send } from 'lucide-react';
+import { CheckSquare, AlertTriangle, ArrowRight, Send, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format, isPast } from 'date-fns';
 import { toast } from 'sonner';
@@ -24,6 +24,7 @@ export function MyTasksWidget() {
   const { data: tasks } = useTasks({ status: 'all', showCompleted: false });
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const updateTask = useUpdateTask();

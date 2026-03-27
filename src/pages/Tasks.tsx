@@ -9,9 +9,13 @@ import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 import { TaskPriorityBadge } from '@/components/tasks/TaskPriorityBadge';
 import { TaskStatusBadge } from '@/components/tasks/TaskStatusBadge';
 import { TaskBulkActions } from '@/components/tasks/TaskBulkActions';
-import { useTasks, useTogglePin, type Task } from '@/hooks/useTasks';
+import { useTasks, useTogglePin, useUpdateTask, type Task } from '@/hooks/useTasks';
 import { format, isPast, differenceInHours } from 'date-fns';
-import { Plus, AlertTriangle, Clock, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Star } from 'lucide-react';
+import { Plus, AlertTriangle, Clock, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Star, Bell } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 
 type SortField = 'due_date' | 'priority' | null;
@@ -34,6 +38,39 @@ export default function Tasks() {
 
   const { data: tasks, isLoading } = useTasks({ search, status, priority, showCompleted, overdue });
   const togglePin = useTogglePin();
+  const updateTask = useUpdateTask();
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const handleInlineStatusChange = async (task: Task, newStatus: string) => {
+    try {
+      await updateTask.mutateAsync({ taskId: task.id, updates: { status: newStatus }, oldTask: task });
+      toast({ title: `Status updated to ${newStatus.replace('_', ' ')}` });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+    }
+  };
+
+  const handleNudge = async (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation();
+    if (!task.assignee_id) return;
+    try {
+      const from = (table: string) => supabase.from(table as any);
+      await from('terminal_notifications').insert({
+        user_id: task.assignee_id,
+        title: '🔔 Task Reminder',
+        message: `Nudge: "${task.title}" needs your attention`,
+        notification_type: 'task_nudge',
+      });
+      await from('erp_task_activity_log').insert({
+        task_id: task.id, user_id: user?.id, action: 'nudge_sent',
+        details: { nudged_user: task.assignee_id },
+      });
+      toast({ title: 'Nudge sent to assignee' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to send nudge', variant: 'destructive' });
+    }
+  };
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -155,6 +192,7 @@ export default function Tasks() {
                     </button>
                   </TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,7 +240,28 @@ export default function Tasks() {
                       <TableCell onClick={() => openDetail(task.id)} className="text-sm">
                         {task.due_date ? format(new Date(task.due_date), 'MMM d, yyyy') : '—'}
                       </TableCell>
-                      <TableCell onClick={() => openDetail(task.id)}><TaskStatusBadge status={task.status} /></TableCell>
+                      <TableCell onClick={e => e.stopPropagation()}>
+                        <Select value={task.status} onValueChange={(val) => handleInlineStatusChange(task, val)}>
+                          <SelectTrigger className="h-7 w-[120px] text-xs border-0 bg-transparent hover:bg-muted">
+                            <TaskStatusBadge status={task.status} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell onClick={e => e.stopPropagation()} className="px-1">
+                        <button
+                          onClick={e => handleNudge(e, task)}
+                          className="p-1 rounded hover:bg-muted transition-colors"
+                          title="Nudge assignee"
+                          disabled={!task.assignee_id || task.assignee_id === user?.id}
+                        >
+                          <Bell className="h-4 w-4 text-muted-foreground/60 hover:text-muted-foreground" />
+                        </button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}

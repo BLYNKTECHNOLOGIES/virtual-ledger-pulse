@@ -2697,6 +2697,7 @@ export type Database = {
           recurrence_days: number[] | null
           recurrence_time: string | null
           recurrence_type: string | null
+          reminder_hours_before: number | null
           status: Database["public"]["Enums"]["erp_task_status"]
           tags: string[] | null
           title: string
@@ -2721,6 +2722,7 @@ export type Database = {
           recurrence_days?: number[] | null
           recurrence_time?: string | null
           recurrence_type?: string | null
+          reminder_hours_before?: number | null
           status?: Database["public"]["Enums"]["erp_task_status"]
           tags?: string[] | null
           title: string
@@ -2745,6 +2747,7 @@ export type Database = {
           recurrence_days?: number[] | null
           recurrence_time?: string | null
           recurrence_type?: string | null
+          reminder_hours_before?: number | null
           status?: Database["public"]["Enums"]["erp_task_status"]
           tags?: string[] | null
           title?: string

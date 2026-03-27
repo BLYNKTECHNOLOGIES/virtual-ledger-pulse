@@ -9,9 +9,9 @@ import { TaskDetailDialog } from '@/components/tasks/TaskDetailDialog';
 import { TaskPriorityBadge } from '@/components/tasks/TaskPriorityBadge';
 import { TaskStatusBadge } from '@/components/tasks/TaskStatusBadge';
 import { TaskBulkActions } from '@/components/tasks/TaskBulkActions';
-import { useTasks, type Task } from '@/hooks/useTasks';
+import { useTasks, useTogglePin, type Task } from '@/hooks/useTasks';
 import { format, isPast, differenceInHours } from 'date-fns';
-import { Plus, AlertTriangle, Clock, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
+import { Plus, AlertTriangle, Clock, Loader2, ArrowUp, ArrowDown, ArrowUpDown, Star } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 type SortField = 'due_date' | 'priority' | null;
@@ -33,6 +33,7 @@ export default function Tasks() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const { data: tasks, isLoading } = useTasks({ search, status, priority, showCompleted, overdue });
+  const togglePin = useTogglePin();
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
@@ -44,18 +45,32 @@ export default function Tasks() {
   };
 
   const sortedTasks = (() => {
-    if (!tasks || !sortField) return tasks || [];
-    return [...tasks].sort((a, b) => {
-      let cmp = 0;
-      if (sortField === 'due_date') {
-        const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-        const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-        cmp = da - db;
-      } else if (sortField === 'priority') {
-        cmp = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
-      }
-      return sortDir === 'desc' ? -cmp : cmp;
+    if (!tasks) return [];
+    let sorted = [...tasks];
+
+    // Sort by field if set
+    if (sortField) {
+      sorted.sort((a, b) => {
+        let cmp = 0;
+        if (sortField === 'due_date') {
+          const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+          const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+          cmp = da - db;
+        } else if (sortField === 'priority') {
+          cmp = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+        }
+        return sortDir === 'desc' ? -cmp : cmp;
+      });
+    }
+
+    // Pinned tasks always on top
+    sorted.sort((a, b) => {
+      const aPin = a.is_pinned ? 1 : 0;
+      const bPin = b.is_pinned ? 1 : 0;
+      return bPin - aPin;
     });
+
+    return sorted;
   })();
 
   const openDetail = (taskId: string) => { setSelectedTaskId(taskId); setDetailOpen(true); };
@@ -74,6 +89,11 @@ export default function Tasks() {
     } else {
       setSelectedIds(new Set(sortedTasks.map(t => t.id)));
     }
+  };
+
+  const handleTogglePin = (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation();
+    togglePin.mutate({ taskId: task.id, currentlyPinned: !!task.is_pinned });
   };
 
   const selectedTasks = sortedTasks.filter(t => selectedIds.has(t.id));
@@ -121,6 +141,7 @@ export default function Tasks() {
                       onCheckedChange={toggleAll}
                     />
                   </TableHead>
+                  <TableHead className="w-10"></TableHead>
                   <TableHead>Title</TableHead>
                   <TableHead>Assignee</TableHead>
                   <TableHead>
@@ -144,10 +165,15 @@ export default function Tasks() {
                   return (
                     <TableRow
                       key={task.id}
-                      className={`cursor-pointer ${task.status === 'completed' ? 'opacity-50' : ''}`}
+                      className={`cursor-pointer ${task.status === 'completed' ? 'opacity-50' : ''} ${task.is_pinned ? 'bg-yellow-50/50 dark:bg-yellow-950/10' : ''}`}
                     >
                       <TableCell onClick={e => e.stopPropagation()}>
                         <Checkbox checked={selectedIds.has(task.id)} onCheckedChange={() => toggleSelect(task.id)} />
+                      </TableCell>
+                      <TableCell onClick={e => handleTogglePin(e, task)} className="px-1">
+                        <button className="p-1 rounded hover:bg-muted transition-colors" title={task.is_pinned ? 'Unpin' : 'Pin'}>
+                          <Star className={`h-4 w-4 ${task.is_pinned ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/40 hover:text-muted-foreground'}`} />
+                        </button>
                       </TableCell>
                       <TableCell onClick={() => openDetail(task.id)}>
                         <div className="flex items-center gap-2">

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
@@ -11,9 +13,9 @@ import { TaskAssignmentChain } from './TaskAssignmentChain';
 import { TaskComments } from './TaskComments';
 import { TaskActivityLog } from './TaskActivityLog';
 import { TaskAttachments } from './TaskAttachments';
-import { useTaskDetail, useTaskAssignments, useTaskSpectators, useUpdateTask, useUsers, useAddSpectator, useRemoveSpectator, type Task } from '@/hooks/useTasks';
-import { format, isPast, differenceInHours } from 'date-fns';
-import { Calendar, User, Users, Clock, AlertTriangle, X } from 'lucide-react';
+import { useTaskDetail, useTaskAssignments, useTaskSpectators, useUpdateTask, useUsers, useAddSpectator, useRemoveSpectator, useTogglePin, useDuplicateTask, type Task } from '@/hooks/useTasks';
+import { format, isPast, differenceInHours, differenceInMinutes } from 'date-fns';
+import { Calendar, User, Users, Clock, AlertTriangle, X, Star, Copy, Timer, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -31,9 +33,14 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
   const updateTask = useUpdateTask();
   const addSpectator = useAddSpectator();
   const removeSpectator = useRemoveSpectator();
+  const togglePin = useTogglePin();
+  const duplicateTask = useDuplicateTask();
   const { toast } = useToast();
   const { user } = useAuth();
   const [spectatorToAdd, setSpectatorToAdd] = useState('');
+  const [showEscalation, setShowEscalation] = useState(false);
+  const [escHours, setEscHours] = useState('');
+  const [escUserId, setEscUserId] = useState('');
 
   if (!taskId) return null;
 
@@ -77,11 +84,62 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
     }
   };
 
+  const handlePin = async () => {
+    if (!task) return;
+    try {
+      await togglePin.mutateAsync({ taskId, currentlyPinned: !!task.is_pinned });
+      toast({ title: task.is_pinned ? 'Task unpinned' : 'Task pinned' });
+    } catch {
+      toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!task) return;
+    try {
+      await duplicateTask.mutateAsync(task);
+      toast({ title: 'Task duplicated' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to duplicate', variant: 'destructive' });
+    }
+  };
+
+  const handleSaveEscalation = async () => {
+    if (!task) return;
+    try {
+      await updateTask.mutateAsync({
+        taskId,
+        updates: {
+          escalation_hours: escHours ? parseInt(escHours) : null,
+          escalation_user_id: escUserId || null,
+        },
+        oldTask: task,
+      });
+      toast({ title: 'Escalation rule saved' });
+      setShowEscalation(false);
+    } catch {
+      toast({ title: 'Error', variant: 'destructive' });
+    }
+  };
+
   const isOverdue = task?.due_date && task.status !== 'completed' && isPast(new Date(task.due_date));
   const isDueSoon = task?.due_date && task.status !== 'completed' && !isOverdue && differenceInHours(new Date(task.due_date), new Date()) <= 24;
 
   const existingSpectatorIds = new Set((spectators || []).map(s => s.user_id));
   const availableSpectators = (allUsers || []).filter(u => !existingSpectatorIds.has(u.id) && u.id !== task?.assignee_id);
+
+  // SLA calculation
+  const slaResponseTime = (() => {
+    if (!task) return null;
+    const assignmentTime = assignments?.[0]?.assigned_at || task.created_at;
+    const responseTime = task.first_response_at;
+    if (!responseTime) return task.status === 'open' ? 'Awaiting response' : null;
+    const mins = differenceInMinutes(new Date(responseTime), new Date(assignmentTime));
+    if (mins < 60) return `${mins}m`;
+    const hours = Math.floor(mins / 60);
+    const remainMins = mins % 60;
+    return remainMins > 0 ? `${hours}h ${remainMins}m` : `${hours}h`;
+  })();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,6 +149,9 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
             <span className="text-lg">{isLoading ? 'Loading...' : task?.title}</span>
             {task && <TaskPriorityBadge priority={task.priority} />}
             {task && <TaskStatusBadge status={task.status} />}
+            {task?.is_pinned && (
+              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+            )}
             {isOverdue && (
               <Badge variant="destructive" className="gap-1">
                 <AlertTriangle className="h-3 w-3" /> Overdue
@@ -106,6 +167,70 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
 
         {task && (
           <div className="space-y-4">
+            {/* Quick actions row */}
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={handlePin}>
+                <Star className={`h-3.5 w-3.5 mr-1 ${task.is_pinned ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                {task.is_pinned ? 'Unpin' : 'Pin'}
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDuplicate}>
+                <Copy className="h-3.5 w-3.5 mr-1" /> Duplicate
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => {
+                setShowEscalation(!showEscalation);
+                setEscHours(task.escalation_hours?.toString() || '');
+                setEscUserId(task.escalation_user_id || '');
+              }}>
+                <ShieldAlert className="h-3.5 w-3.5 mr-1" /> Escalation
+              </Button>
+            </div>
+
+            {/* SLA Info */}
+            {slaResponseTime && (
+              <div className="flex items-center gap-2 text-sm bg-muted/50 rounded px-3 py-2">
+                <Timer className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">SLA Response Time:</span>
+                <span className="font-medium">{slaResponseTime}</span>
+              </div>
+            )}
+
+            {/* Escalation Config */}
+            {showEscalation && (
+              <div className="border rounded-lg p-3 space-y-3 bg-muted/30">
+                <h4 className="text-sm font-medium flex items-center gap-1">
+                  <ShieldAlert className="h-4 w-4" /> Escalation Rule
+                </h4>
+                <p className="text-xs text-muted-foreground">Auto-notify or reassign if task stays overdue for X hours</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Escalate after (hours)</Label>
+                    <Input type="number" value={escHours} onChange={e => setEscHours(e.target.value)} placeholder="e.g. 24" className="h-8" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Escalate to</Label>
+                    <Select value={escUserId} onValueChange={setEscUserId}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select manager" /></SelectTrigger>
+                      <SelectContent>
+                        {(allUsers || []).map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.full_name || u.username}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSaveEscalation}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowEscalation(false)}>Cancel</Button>
+                </div>
+                {task.escalation_hours && (
+                  <p className="text-xs text-muted-foreground">
+                    Current: Escalate after {task.escalation_hours}h
+                    {task.escalation_user_id && ` to ${(allUsers || []).find(u => u.id === task.escalation_user_id)?.full_name || 'user'}`}
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Description */}
             {task.description && (
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">{task.description}</p>
@@ -205,6 +330,8 @@ export function TaskDetailDialog({ taskId, open, onOpenChange }: TaskDetailDialo
             <TaskAttachments taskId={taskId} />
 
             <Separator />
+
+            {/* Comments & Activity */}
             <Tabs defaultValue="comments">
               <TabsList className="w-full">
                 <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>

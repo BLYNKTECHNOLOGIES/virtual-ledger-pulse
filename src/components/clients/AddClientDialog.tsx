@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { checkClientDuplicates, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -24,6 +26,8 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ phoneMatches: DuplicateMatch[]; nameMatches: DuplicateMatch[] } | null>(null);
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
 
   // Auto-generate client ID
   const generateClientId = () => {
@@ -64,6 +68,8 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
       pan_card_number: '',
       date_of_onboarding: new Date(),
     });
+    setDuplicateWarning(null);
+    setDuplicateAcknowledged(false);
   };
 
   const validateForm = () => {
@@ -90,6 +96,20 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
+
+    // Check for duplicates before inserting
+    if (!duplicateAcknowledged) {
+      try {
+        const dupes = await checkClientDuplicates(formData.name, formData.phone);
+        if (dupes.phoneMatches.length > 0 || dupes.nameMatches.length > 0) {
+          setDuplicateWarning(dupes);
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Duplicate check failed, proceeding:', e);
+      }
+    }
 
     try {
       const { error } = await supabase
@@ -160,6 +180,42 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
         </DialogHeader>
 
         <div className="space-y-6">
+          {duplicateWarning && !duplicateAcknowledged && (
+            <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="space-y-2">
+                <p className="font-semibold text-amber-800 dark:text-amber-300">Possible duplicate client detected!</p>
+                {duplicateWarning.phoneMatches.length > 0 && (
+                  <div>
+                    <span className="text-xs font-medium">Same phone number:</span>
+                    <ul className="text-xs mt-1 space-y-0.5">
+                      {duplicateWarning.phoneMatches.map(m => (
+                        <li key={m.id}>• {m.name} ({m.client_id}) — {m.client_type}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {duplicateWarning.nameMatches.length > 0 && (
+                  <div>
+                    <span className="text-xs font-medium">Same name:</span>
+                    <ul className="text-xs mt-1 space-y-0.5">
+                      {duplicateWarning.nameMatches.map(m => (
+                        <li key={m.id}>• {m.name} ({m.client_id}) — {m.phone || 'No phone'}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="outline" onClick={() => { setDuplicateWarning(null); }}>
+                    Go Back & Edit
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => { setDuplicateAcknowledged(true); setDuplicateWarning(null); }}>
+                    Create Anyway
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           {/* Client Name */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

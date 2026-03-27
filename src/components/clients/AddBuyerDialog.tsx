@@ -5,11 +5,13 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { Step1BasicInfo } from "./steps/Step1BasicInfo";
 import { Step2KYCDocuments } from "./steps/Step2KYCDocuments";
 import { Step3BankAccounts } from "./steps/Step3BankAccounts";
 import { Step4OperatorNotes } from "./steps/Step4OperatorNotes";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { checkClientDuplicates, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
 
 interface AddBuyerDialogProps {
   open: boolean;
@@ -21,6 +23,8 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ phoneMatches: DuplicateMatch[]; nameMatches: DuplicateMatch[] } | null>(null);
+  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
 
   // Auto-generate client ID
   const generateClientId = () => {
@@ -78,6 +82,8 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
       operator_notes: '',
     });
     setCurrentStep(1);
+    setDuplicateWarning(null);
+    setDuplicateAcknowledged(false);
   };
 
   const uploadFile = async (file: File, bucket: string, path: string) => {
@@ -164,6 +170,20 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
     if (!validateStep(4)) return;
 
     setIsSubmitting(true);
+
+    // Check for duplicates before inserting
+    if (!duplicateAcknowledged) {
+      try {
+        const dupes = await checkClientDuplicates(formData.name, formData.phone);
+        if (dupes.phoneMatches.length > 0 || dupes.nameMatches.length > 0) {
+          setDuplicateWarning(dupes);
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Duplicate check failed, proceeding:', e);
+      }
+    }
 
     try {
       // Upload KYC documents
@@ -300,6 +320,44 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
             style={{ width: `${(currentStep / 4) * 100}%` }}
           />
         </div>
+
+        {/* Duplicate Warning */}
+        {duplicateWarning && !duplicateAcknowledged && (
+          <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30 mb-4">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="space-y-2">
+              <p className="font-semibold text-amber-800 dark:text-amber-300">Possible duplicate client detected!</p>
+              {duplicateWarning.phoneMatches.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium">Same phone number:</span>
+                  <ul className="text-xs mt-1 space-y-0.5">
+                    {duplicateWarning.phoneMatches.map(m => (
+                      <li key={m.id}>• {m.name} ({m.client_id}) — {m.client_type}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {duplicateWarning.nameMatches.length > 0 && (
+                <div>
+                  <span className="text-xs font-medium">Same name:</span>
+                  <ul className="text-xs mt-1 space-y-0.5">
+                    {duplicateWarning.nameMatches.map(m => (
+                      <li key={m.id}>• {m.name} ({m.client_id}) — {m.phone || 'No phone'}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" variant="outline" onClick={() => { setDuplicateWarning(null); }}>
+                  Go Back & Edit
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => { setDuplicateAcknowledged(true); setDuplicateWarning(null); }}>
+                  Create Anyway
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Step Content */}
         <div className="min-h-[400px]">

@@ -303,11 +303,12 @@ export function useCreateTask() {
           const assigneeName =
             [assignee?.first_name, assignee?.last_name].filter(Boolean).join(' ') || assignee?.username || 'Someone';
 
-          const { data: spectatorUsers } = await from('users')
+          const { data: spectatorUsersData } = await from('users')
             .select('id, email, first_name, last_name, username')
             .in('id', spectator_ids);
+          const spectatorUsers = (spectatorUsersData || []) as any[];
 
-          if (spectatorUsers?.length) {
+          if (spectatorUsers.length) {
             for (const spec of spectatorUsers) {
               if (!spec.email) continue;
               const specName = [spec.first_name, spec.last_name].filter(Boolean).join(' ') || spec.username;

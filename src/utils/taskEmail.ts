@@ -13,6 +13,7 @@ interface SendTaskEmailParams {
   recipientEmail: string;
   recipientName?: string;
   recipientUserId?: string;
+  ccUserIds?: string[];
 }
 
 export async function sendTaskEmail({
@@ -25,6 +26,7 @@ export async function sendTaskEmail({
   status,
   recipientEmail,
   recipientUserId,
+  ccUserIds = [],
 }: SendTaskEmailParams) {
   try {
     let userId = recipientUserId;
@@ -44,6 +46,8 @@ export async function sendTaskEmail({
       return;
     }
 
+    const recipientUserIds = Array.from(new Set([userId, ...ccUserIds].filter(Boolean)));
+
     await supabase.functions.invoke('send-task-email', {
       body: {
         eventType,
@@ -53,7 +57,7 @@ export async function sendTaskEmail({
         assignedByName,
         dueDate,
         status,
-        recipientUserIds: [userId],
+        recipientUserIds,
       },
     });
   } catch (err) {

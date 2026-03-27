@@ -39,6 +39,8 @@ export interface OrderRecord {
   marginType?: MarginType;
   /** Margin percentage (when marginType is "percentage") */
   marginPercentage?: number;
+  /** Platform name (e.g., Binance) - for USDT sales */
+  platform?: string;
 }
 
 export interface InvoiceGroup {

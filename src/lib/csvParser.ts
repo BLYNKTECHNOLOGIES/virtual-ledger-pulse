@@ -190,12 +190,12 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
   if (category === "usdt_sales") {
     const headers = [
       "Invoice Number", "Description", "Quantity (USDT)", "Rate (INR per USDT)", "Amount (INR)",
-      "Buyer Name", "Buyer Address", "Buyer Contact", "Date"
+      "Buyer Name", "Buyer Address", "Buyer Contact", "Date", "UTR No.", "Platform"
     ];
     const rows = [
-      ["USDT-001", "USDT Sale", "500", "93.50", "46750", "John Doe", "123 Main Street Mumbai", "9876543210", "26/03/2026"],
-      ["USDT-001", "USDT Sale", "200", "93.75", "18750", "John Doe", "123 Main Street Mumbai", "9876543210", "26/03/2026"],
-      ["USDT-002", "USDT Sale", "1000", "93.40", "93400", "Jane Smith", "456 Park Avenue Delhi", "9123456780", "27/03/2026"],
+      ["USDT-001", "USDT Sale", "500", "93.50", "46750", "John Doe", "123 Main Street Mumbai", "9876543210", "26/03/2026", "UTIB12345678", "Binance"],
+      ["USDT-001", "USDT Sale", "200", "93.75", "18750", "John Doe", "123 Main Street Mumbai", "9876543210", "26/03/2026", "UTIB12345679", "Binance"],
+      ["USDT-002", "USDT Sale", "1000", "93.40", "93400", "Jane Smith", "456 Park Avenue Delhi", "9123456780", "27/03/2026", "HDFC98765432", "Binance"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }

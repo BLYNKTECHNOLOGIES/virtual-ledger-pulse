@@ -39,7 +39,6 @@ const DEFAULT_ACTIVE_WIDGETS = [
   'metric-total-sales', 'metric-sales-orders', 'metric-total-clients', 'metric-total-cash',
   'action-required', 'quick-links',
   'heatmap', 'recent-activity',
-  'stock-inventory',
 ];
 
 // Grid span config for built-in widgets
@@ -52,7 +51,6 @@ const GRID_SPAN: Record<string, number> = {
   'quick-links': 12,
   'heatmap': 8,
   'recent-activity': 4,
-  'stock-inventory': 12,
 };
 
 // Map widget size to grid span
@@ -600,68 +598,8 @@ export default function Dashboard() {
           </Card>
         );
 
-      case 'stock-inventory':
-        return (
-          <ClickableCard to="/stock-management" searchParams={{ tab: 'quickview' }}>
-            <Card className="bg-card border-2 border-border shadow-xl">
-              <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-emerald-700 rounded-lg shadow-md"><Package className="h-6 w-6" /></div>
-                  Asset Inventory
-                  <span className="ml-auto text-sm opacity-75">Click to view details →</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {warehouseStock?.map((asset, index) => (
-                    <Card key={asset.id || index} className="border-2 border-border hover:shadow-lg transition-all duration-300">
-                      <CardHeader className="bg-secondary border-b">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="flex items-center gap-2 text-lg">
-                            <Package className="h-5 w-5 text-muted-foreground" />
-                            {asset.name} ({asset.code})
-                          </CardTitle>
-                          <Badge className="bg-muted text-foreground">{asset.total_stock} {asset.unit}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-muted-foreground">Total Holdings</span>
-                            <span className="text-lg font-bold">{asset.total_stock.toLocaleString('en-IN')} {asset.unit}</span>
-                          </div>
-                          {asset.wallet_distribution && asset.wallet_distribution.length > 0 && (
-                            <div className="space-y-2">
-                              <span className="text-sm font-medium text-muted-foreground">Portfolio Distribution</span>
-                              {asset.wallet_distribution.slice(0, 3).map((dist: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between text-sm">
-                                  <span className="text-muted-foreground">{dist.name}</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{dist.quantity.toLocaleString('en-IN')}</span>
-                                    <span className="text-xs text-muted-foreground">({dist.percentage.toFixed(1)}%)</span>
-                                  </div>
-                                </div>
-                              ))}
-                              {asset.wallet_distribution.length > 3 && (
-                                <div className="text-xs text-muted-foreground text-center">+{asset.wallet_distribution.length - 3} more wallets</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {(!warehouseStock || warehouseStock.length === 0) && (
-                    <div className="col-span-full text-center py-12 text-muted-foreground">
-                      <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4"><Package className="h-8 w-8 opacity-50" /></div>
-                      <p className="font-medium">No asset data available</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </ClickableCard>
-        );
+
+
 
       case 'my-tasks':
         return <MyTasksWidget />;

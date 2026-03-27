@@ -30,6 +30,7 @@ export default function InvoiceCategorySelector({ category, onChange }: InvoiceC
           <SelectContent>
             <SelectItem value="it_services">IT / Software Services</SelectItem>
             <SelectItem value="financial_intermediation">Financial Intermediation Services</SelectItem>
+            <SelectItem value="usdt_sales">USDT Sales (Non-GST)</SelectItem>
           </SelectContent>
         </Select>
       </div>

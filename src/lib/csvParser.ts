@@ -87,6 +87,32 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         marginType,
         marginPercentage: marginType === "percentage" ? marginPercentage : undefined,
       });
+    } else if (category === "usdt_sales") {
+      // USDT Sales columns: Invoice Number, Description, Quantity (USDT), Rate (INR per USDT), Amount (INR),
+      //                     Buyer Name, Buyer Address, Buyer Contact, Date
+      const invoiceNumber = cols[0]?.trim() || "";
+      const description = cols[1]?.trim() || "USDT Sale";
+      const quantity = parseFloat(cols[2]?.trim()) || 0;
+      const rate = parseFloat(cols[3]?.trim()) || 0;
+      const amount = parseFloat(cols[4]?.trim()) || quantity * rate;
+      const buyerName = cols[5]?.trim() || "";
+      const buyerAddress = cols[6]?.trim() || "";
+      const buyerContact = cols[7]?.trim() || "";
+      const date = cols[8]?.trim() || "";
+
+      // No GST for USDT sales
+      if (!gstDetected) {
+        detectedGst = { enabled: false, rate: 0, type: "IGST", inclusive: false };
+        gstDetected = true;
+      }
+
+      if (!invoiceNumber || quantity <= 0) continue;
+
+      records.push({
+        invoiceNumber, description, hsnSac: "", quantity, rate, amount,
+        buyerName, buyerAddress, buyerGstin: "", buyerContact, date,
+        unit: "USDT",
+      });
     } else {
       // IT Services columns: Invoice Number, Description, HSN/SAC, Quantity, Rate, Amount,
       //                      Buyer Name, Buyer Address, Buyer GSTIN, Buyer Contact, Date,
@@ -157,6 +183,19 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
     const rows = [
       ["FI-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "80000", "UTIB12345678", "percentage", "3", "", "forward", "18", "IGST"],
       ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
+    ];
+    return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
+  }
+
+  if (category === "usdt_sales") {
+    const headers = [
+      "Invoice Number", "Description", "Quantity (USDT)", "Rate (INR per USDT)", "Amount (INR)",
+      "Buyer Name", "Buyer Address", "Buyer Contact", "Date"
+    ];
+    const rows = [
+      ["USDT-001", "USDT Sale", "500", "93.50", "46750", "John Doe", "123 Main Street Mumbai", "9876543210", "26/03/2026"],
+      ["USDT-001", "USDT Sale", "200", "93.75", "18750", "John Doe", "123 Main Street Mumbai", "9876543210", "26/03/2026"],
+      ["USDT-002", "USDT Sale", "1000", "93.40", "93400", "Jane Smith", "456 Park Avenue Delhi", "9123456780", "27/03/2026"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }

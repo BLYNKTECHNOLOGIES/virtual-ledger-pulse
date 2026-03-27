@@ -85,7 +85,9 @@ const InvoiceCreatorPage = () => {
     a.href = url;
     a.download = category === "financial_intermediation"
       ? "fi_invoice_template.csv"
-      : "invoice_template.csv";
+      : category === "usdt_sales"
+        ? "usdt_sales_template.csv"
+        : "invoice_template.csv";
     a.click();
     URL.revokeObjectURL(url);
   }, [category]);
@@ -93,6 +95,7 @@ const InvoiceCreatorPage = () => {
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
   const invoiceCount = new Set(records.map(r => r.invoiceNumber)).size;
   const isFinancial = category === "financial_intermediation";
+  const isUsdtSales = category === "usdt_sales";
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">

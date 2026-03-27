@@ -622,6 +622,9 @@ export default function Dashboard() {
           </ClickableCard>
         );
 
+      case 'my-tasks':
+        return <MyTasksWidget />;
+
       default:
         return null;
     }

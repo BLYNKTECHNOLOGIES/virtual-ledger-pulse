@@ -185,17 +185,30 @@ export const createBuyerClient = async (
   _state?: string  // Intentionally ignored — state must be entered during Buyer Approval
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
-    // Always check for existing client first
+    // Always check for existing client first (by name)
     const existingClient = await findClientByName(buyerName);
     if (existingClient) {
-      // Update missing fields on existing client — but NEVER override/set state for new clients
       const updates: Record<string, string> = {};
       if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
-      // State is NOT updated here — state can only be set by manual input during Buyer Approval
       if (Object.keys(updates).length > 0) {
         await supabase.from('clients').update(updates).eq('id', existingClient.id);
       }
       return { id: existingClient.id, client_id: existingClient.client_id };
+    }
+    
+    // Also check by phone number to prevent duplicates
+    if (contactNumber?.trim() && contactNumber.trim().length >= 10) {
+      const { data: phoneMatch } = await supabase
+        .from('clients')
+        .select('id, client_id, name, phone')
+        .eq('is_deleted', false)
+        .eq('phone', contactNumber.trim())
+        .limit(1)
+        .single();
+      if (phoneMatch) {
+        console.log(`[createBuyerClient] Found existing client by phone ${contactNumber}: ${phoneMatch.name} (${phoneMatch.client_id})`);
+        return { id: phoneMatch.id, client_id: phoneMatch.client_id };
+      }
     }
     const clientId = await generateUniqueClientId();
     const { data, error } = await supabase

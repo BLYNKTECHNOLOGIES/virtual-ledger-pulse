@@ -297,10 +297,10 @@ Deno.serve(async (req) => {
       ? template.subject(templateData)
       : template.subject
 
-  // 5. Send email via Lovable Email API
-  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')
-  if (!lovableApiKey) {
-    console.error('LOVABLE_API_KEY not configured')
+  // 5. Send email via SMTP (Mailgun HTTP API)
+  const smtpPass = Deno.env.get('SMTP_PASS')
+  if (!smtpPass) {
+    console.error('SMTP_PASS not configured')
     return new Response(JSON.stringify({ error: 'Email sending not configured' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -315,48 +315,45 @@ Deno.serve(async (req) => {
     status: 'pending',
   })
 
-  // Send directly via Lovable email API
-  const supabaseRef = (supabaseUrl || '').match(/https:\/\/([^.]+)/)?.[1] || ''
-  const emailApiUrl = `https://email.lovable.dev/api/v1/projects/${supabaseRef}/send`
-
   try {
-    const emailResponse = await fetch(emailApiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${lovableApiKey}`,
-      },
-      body: JSON.stringify({
-        to: effectiveRecipient,
-        from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-        sender_domain: SENDER_DOMAIN,
-        subject: resolvedSubject,
-        html,
-        text: plainText,
-        purpose: 'transactional',
-        label: templateName,
-        idempotency_key: idempotencyKey,
-        unsubscribe_token: unsubscribeToken,
-      }),
-    })
+    const formData = new FormData()
+    formData.append('from', `${SITE_NAME} <noreply@${FROM_DOMAIN}>`)
+    formData.append('to', effectiveRecipient)
+    formData.append('subject', resolvedSubject)
+    formData.append('html', html)
+    formData.append('text', plainText)
 
-    if (!emailResponse.ok) {
-      const errorBody = await emailResponse.text()
-      console.error('Lovable email API error', { status: emailResponse.status, body: errorBody })
+    const mailgunResponse = await fetch(
+      `https://api.mailgun.net/v3/${SENDER_DOMAIN}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + btoa(`api:${smtpPass}`),
+        },
+        body: formData,
+      }
+    )
+
+    if (!mailgunResponse.ok) {
+      const errorBody = await mailgunResponse.text()
+      console.error('Mailgun API error', { status: mailgunResponse.status, body: errorBody })
 
       await supabase.from('email_send_log').insert({
         message_id: messageId,
         template_name: templateName,
         recipient_email: effectiveRecipient,
         status: 'failed',
-        error_message: `API error: ${emailResponse.status} - ${errorBody}`,
+        error_message: `Mailgun error: ${mailgunResponse.status} - ${errorBody}`,
       })
 
-      return new Response(JSON.stringify({ error: 'Failed to send email' }), {
+      return new Response(JSON.stringify({ error: 'Failed to send email', details: errorBody }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    const result = await mailgunResponse.json()
+    console.log('Email sent successfully', { templateName, effectiveRecipient, id: result.id })
 
     await supabase.from('email_send_log').insert({
       message_id: messageId,
@@ -365,14 +362,9 @@ Deno.serve(async (req) => {
       status: 'sent',
     })
 
-    console.log('Transactional email sent', { templateName, effectiveRecipient })
-
     return new Response(
       JSON.stringify({ success: true, sent: true }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (sendError) {
     const errMsg = sendError instanceof Error ? sendError.message : 'Unknown error'

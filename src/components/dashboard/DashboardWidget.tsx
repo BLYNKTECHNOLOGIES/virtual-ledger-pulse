@@ -208,8 +208,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'performance-overview':
         return <PerformanceOverviewWidget metrics={metrics} />;
 
-      case 'conversion-rate':
-        return <ConversionRateWidget metrics={metrics} />;
 
       case 'growth-rate':
         return <GrowthRateWidget />;
@@ -259,17 +257,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'pending-settlements':
         return <PendingSettlementsWidget />;
 
-      case 'verified-clients':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserCheck className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">{metrics?.verifiedClients || 0}</div>
-            <p className="text-sm text-gray-600 mt-1">Verified Clients</p>
-            <p className="text-xs text-gray-500 mt-1">out of {metrics?.totalClients || 0} total</p>
-          </div>
-        );
 
       case 'stock-value':
         return (

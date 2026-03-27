@@ -820,7 +820,7 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={280}>
-                  <PieChart>
+                  <RechartsPieChart>
                     <Pie
                       data={[
                         { name: "Verified", value: kycStats.verified },
@@ -838,7 +838,7 @@ export function StatisticsTab() {
                       <Cell fill="hsl(0, 84%, 60%)" />
                     </Pie>
                     <Tooltip />
-                  </PieChart>
+                  </RechartsPieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -1213,7 +1213,7 @@ export function StatisticsTab() {
             <Card className="shadow-lg">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <PieChart className="h-5 w-5 text-orange-600" />
+                  <BarChart3 className="h-5 w-5 text-orange-600" />
                   Expense Distribution
                 </CardTitle>
               </CardHeader>

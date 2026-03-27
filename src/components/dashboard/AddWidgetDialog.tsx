@@ -146,7 +146,7 @@ const dynamicWidgets: WidgetType[] = [
   
   { id: 'revenue-chart', name: 'Revenue Chart', description: 'Exchange asset breakdown chart', icon: BarChart3, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
   { id: 'recent-orders', name: 'Recent Sales Orders', description: 'Latest sales orders with status and amounts', icon: FileText, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
-  { id: 'earnings-rate', name: 'Earnings Rate', description: 'Daily sales earnings for the last 7 days', icon: TrendingUp, category: 'Sales', size: 'medium', requiredPermissions: ['sales_view'] },
+  
   // Purchase
   { id: 'total-purchases', name: 'Total Purchases', description: 'Total purchase spending for the selected period', icon: HandCoins, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
   { id: 'purchase-orders-count', name: 'Purchase Orders Count', description: 'Number of purchase orders in the period', icon: Receipt, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },

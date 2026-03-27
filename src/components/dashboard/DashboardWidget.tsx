@@ -196,8 +196,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'inventory-status':
         return <InventoryStatusWidget />;
 
-      case 'earnings-rate':
-        return <EarningsRateWidget />;
 
       case 'expense-details':
         return <ExpenseBreakdownWidget />;

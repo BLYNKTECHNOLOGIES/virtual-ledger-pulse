@@ -12,6 +12,7 @@ interface SendTaskEmailParams {
   status?: string;
   recipientEmail: string;
   recipientName?: string;
+  recipientUserId?: string;
 }
 
 export async function sendTaskEmail({
@@ -23,18 +24,23 @@ export async function sendTaskEmail({
   dueDate,
   status,
   recipientEmail,
-  recipientName,
+  recipientUserId,
 }: SendTaskEmailParams) {
   try {
-    // First, look up the user ID from the email to use the SMTP-based send-task-email function
-    const { data: userData } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', recipientEmail)
-      .single();
+    let userId = recipientUserId;
 
-    if (!userData?.id) {
-      console.warn('Task email: recipient user not found for email', recipientEmail);
+    // If no userId provided, look it up from email
+    if (!userId && recipientEmail) {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', recipientEmail)
+        .single();
+      userId = userData?.id;
+    }
+
+    if (!userId) {
+      console.warn('Task email: recipient user not found', recipientEmail);
       return;
     }
 
@@ -47,7 +53,7 @@ export async function sendTaskEmail({
         assignedByName,
         dueDate,
         status,
-        recipientUserIds: [userData.id],
+        recipientUserIds: [userId],
       },
     });
   } catch (err) {

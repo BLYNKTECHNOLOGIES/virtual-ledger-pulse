@@ -455,7 +455,7 @@ export default function Dashboard() {
                         <ArrowDownIcon className="h-4 w-4 text-destructive" />
                       )}
                       <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                        {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}% vs prev period
+                        {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>
@@ -484,7 +484,7 @@ export default function Dashboard() {
                         <ArrowDownIcon className="h-4 w-4 text-destructive" />
                       )}
                       <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                        {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}% vs prev period
+                        {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}%
                       </span>
                     </div>
                   </div>

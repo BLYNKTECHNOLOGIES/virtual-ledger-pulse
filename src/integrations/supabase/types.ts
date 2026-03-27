@@ -2685,9 +2685,14 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          escalation_hours: number | null
+          escalation_user_id: string | null
+          first_response_at: string | null
           id: string
+          is_pinned: boolean | null
           is_recurring: boolean | null
           parent_task_id: string | null
+          pinned_at: string | null
           priority: Database["public"]["Enums"]["erp_task_priority"]
           recurrence_days: number[] | null
           recurrence_time: string | null
@@ -2704,9 +2709,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          escalation_hours?: number | null
+          escalation_user_id?: string | null
+          first_response_at?: string | null
           id?: string
+          is_pinned?: boolean | null
           is_recurring?: boolean | null
           parent_task_id?: string | null
+          pinned_at?: string | null
           priority?: Database["public"]["Enums"]["erp_task_priority"]
           recurrence_days?: number[] | null
           recurrence_time?: string | null
@@ -2723,9 +2733,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          escalation_hours?: number | null
+          escalation_user_id?: string | null
+          first_response_at?: string | null
           id?: string
+          is_pinned?: boolean | null
           is_recurring?: boolean | null
           parent_task_id?: string | null
+          pinned_at?: string | null
           priority?: Database["public"]["Enums"]["erp_task_priority"]
           recurrence_days?: number[] | null
           recurrence_time?: string | null
@@ -2746,6 +2761,13 @@ export type Database = {
           {
             foreignKeyName: "erp_tasks_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_tasks_escalation_user_id_fkey"
+            columns: ["escalation_user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]

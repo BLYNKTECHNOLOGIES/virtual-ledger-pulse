@@ -148,65 +148,60 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
         console.log('✅ Generated employee ID:', employeeId);
         
         const employeeData = {
-          employee_id: employeeId,
-          name: `${data.firstName} ${data.middleName} ${data.lastName}`.trim(),
+          first_name: data.firstName,
+          last_name: `${data.middleName ? data.middleName + ' ' : ''}${data.lastName}`.trim() || null,
           email: data.email,
-          phone: data.phone,
-          alternate_phone: data.alternatePhone || null,
-          department: data.department,
-          designation: data.designation,
-          date_of_joining: data.dateOfJoining?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
-          date_of_birth: data.dateOfBirth?.toISOString().split('T')[0] || null,
+          phone: data.phone || null,
+          badge_id: employeeId,
           gender: data.gender || null,
-          blood_group: data.bloodGroup || null,
+          dob: data.dateOfBirth?.toISOString().split('T')[0] || null,
           marital_status: data.maritalStatus || null,
-          current_address: data.currentAddress || null,
-          permanent_address: data.permanentAddress || null,
+          address: data.currentAddress || null,
           emergency_contact_name: data.emergencyContactName || null,
           emergency_contact_relation: data.emergencyContactRelation || null,
-          emergency_contact_number: data.emergencyContactNumber || null,
-          work_location: data.workLocation || null,
-          employee_type: data.employeeType || null,
-          probation_period: data.probationPeriod,
-          probation_duration_months: data.probationDurationMonths || null,
+          emergency_contact: data.emergencyContactNumber || null,
           pan_number: data.panNumber || null,
-          aadhaar_number: data.aadhaarNumber || null,
-          bank_account_holder_name: data.bankAccountHolderName || null,
-          bank_name: data.bankName || null,
-          account_number: data.accountNumber || null,
-          ifsc_code: data.ifscCode || null,
-          upi_id: data.upiId || null,
-          ctc: data.ctc ? parseFloat(data.ctc) : null,
+          profile_image_url: data.photoUrl || null,
+          total_salary: data.ctc ? parseFloat(data.ctc) : 50000,
           basic_salary: data.basicSalary ? parseFloat(data.basicSalary) : null,
-          allowances: data.allowances ? parseFloat(data.allowances) : null,
-          incentives: data.incentives ? parseFloat(data.incentives) : null,
-          deductions: data.deductions ? parseFloat(data.deductions) : null,
-          salary: data.ctc ? parseFloat(data.ctc) : 50000, // Default salary
-          aadhaar_card_url: data.aadhaarCardUrl || null,
-          pan_card_url: data.panCardUrl || null,
-          photo_url: data.photoUrl || null,
-          resume_url: data.resumeUrl || null,
-          offer_letter_url: data.offerLetterUrl || null,
-          other_certificates_urls: Array.isArray(data.otherCertificatesUrls) ? data.otherCertificatesUrls : [],
-          nda_acknowledged: data.ndaAcknowledged,
-          nda_acknowledged_at: data.ndaAcknowledged ? new Date().toISOString() : null,
-          handbook_acknowledged: data.handbookAcknowledged,
-          handbook_acknowledged_at: data.handbookAcknowledged ? new Date().toISOString() : null,
-          job_contract_signed: data.jobContractSigned,
-          status: 'ACTIVE' as const,
-          user_id: null // Now nullable since we removed the foreign key constraint
+          is_active: true,
         };
         
         console.log('📝 Employee data to insert:', employeeData);
         
-        const { data: insertResult, error } = await supabase
-          .from('employees')
+        const { data: insertResult, error } = await (supabase as any)
+          .from('hr_employees')
           .insert([employeeData])
           .select();
         
         if (error) {
           console.error('❌ Database error:', error);
           throw new Error(`Database error: ${error.message}`);
+        }
+
+        // Create work info record
+        if (insertResult?.[0]?.id) {
+          await (supabase as any)
+            .from('hr_employee_work_info')
+            .insert({
+              employee_id: insertResult[0].id,
+              job_role: data.designation || null,
+              joining_date: data.dateOfJoining?.toISOString().split('T')[0] || null,
+              work_type: data.workLocation || null,
+              employee_type: data.employeeType || null,
+            });
+
+          // Create bank details if provided
+          if (data.accountNumber || data.bankName) {
+            await (supabase as any)
+              .from('hr_employee_bank_details')
+              .insert({
+                employee_id: insertResult[0].id,
+                bank_name: data.bankName || null,
+                account_number: data.accountNumber || null,
+                bank_code_1: data.ifscCode || null,
+              });
+          }
         }
         
         console.log('✅ Employee inserted successfully:', insertResult);
@@ -218,8 +213,8 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
     },
     onSuccess: (result) => {
       console.log('✅ Mutation successful:', result);
-      queryClient.invalidateQueries({ queryKey: ['employees_data'] });
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employees_info'] });
+      queryClient.invalidateQueries({ queryKey: ['hr_employees'] });
       toast({
         title: "Success!",
         description: "Employee registered successfully!",

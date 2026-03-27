@@ -59,15 +59,28 @@ export default function Management() {
     queryKey: ['management_employees'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('hierarchy_level', { ascending: true })
-        .order('department', { ascending: true })
-        .order('designation', { ascending: true })
-        .order('name', { ascending: true });
+        .from('hr_employees')
+        .select('id, first_name, last_name, badge_id, email, phone, is_active, total_salary, user_id, created_at, hr_employee_work_info(department_id, job_role, joining_date, reporting_manager_id, departments(name, hierarchy_level))')
+        .eq('is_active', true)
+        .order('first_name', { ascending: true });
 
       if (error) throw error;
-      return data as Employee[];
+      return (data || []).map(e => ({
+        id: e.id,
+        name: `${e.first_name} ${e.last_name || ''}`.trim(),
+        employee_id: e.badge_id || '',
+        email: e.email || '',
+        phone: e.phone || undefined,
+        department: (e.hr_employee_work_info as any)?.[0]?.departments?.name || 'N/A',
+        designation: (e.hr_employee_work_info as any)?.[0]?.job_role || 'N/A',
+        date_of_joining: (e.hr_employee_work_info as any)?.[0]?.joining_date || e.created_at,
+        salary: Number(e.total_salary || 0),
+        status: e.is_active ? 'ACTIVE' : 'INACTIVE',
+        user_id: e.user_id || undefined,
+        hierarchy_level: (e.hr_employee_work_info as any)?.[0]?.departments?.hierarchy_level || 5,
+        reports_to: (e.hr_employee_work_info as any)?.[0]?.reporting_manager_id || undefined,
+        has_payment_rights: false,
+      })) as Employee[];
     },
   });
 

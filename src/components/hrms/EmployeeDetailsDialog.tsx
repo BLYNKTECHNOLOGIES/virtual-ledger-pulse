@@ -80,16 +80,15 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
     mutationFn: async (data: typeof formData) => {
       if (!employee) throw new Error("No employee selected");
       
-      const { error } = await supabase
-        .from('employees')
+      const { error } = await (supabase as any)
+        .from('hr_employees')
         .update({
-          name: data.name,
+          first_name: data.name.split(' ')[0],
+          last_name: data.name.split(' ').slice(1).join(' ') || null,
           email: data.email,
           phone: data.phone || null,
-          department_id: data.department_id || null,
-          position_id: data.position_id || null,
-          salary: parseFloat(data.salary),
-          status: data.status,
+          total_salary: parseFloat(data.salary) || null,
+          is_active: data.status === 'ACTIVE',
           updated_at: new Date().toISOString()
         })
         .eq('id', employee.id);

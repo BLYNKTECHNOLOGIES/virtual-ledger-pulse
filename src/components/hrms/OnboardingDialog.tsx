@@ -79,25 +79,33 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
       const tempUserId = crypto.randomUUID();
       
       const employeeData = {
-        employee_id: employeeId,
-        name: data.name,
+        first_name: data.name.split(' ')[0],
+        last_name: data.name.split(' ').slice(1).join(' ') || null,
         email: data.email,
-        phone: data.phone || '',
-        department: data.department,
-        designation: data.designation,
-        salary: data.salary ? parseFloat(data.salary) : 0,
-        shift: data.shift || '',
-        date_of_joining: data.date_of_joining,
-        onboarding_completed: true,
-        status: 'ACTIVE' as const,
-        user_id: tempUserId
+        phone: data.phone || null,
+        badge_id: employeeId,
+        total_salary: data.salary ? parseFloat(data.salary) : 0,
+        is_active: true,
       };
       
-      const { error } = await supabase
-        .from('employees')
-        .insert([employeeData]);
+      const { data: newEmployee, error } = await (supabase as any)
+        .from('hr_employees')
+        .insert([employeeData])
+        .select()
+        .single();
       
       if (error) throw error;
+
+      // Create work info if department/designation provided
+      if (data.department || data.designation) {
+        await (supabase as any)
+          .from('hr_employee_work_info')
+          .insert({
+            employee_id: newEmployee.id,
+            job_role: data.designation || null,
+            joining_date: data.date_of_joining || null,
+          });
+      }
 
       // Update applicant status to indicate they've been onboarded
       if (data.applicant_id) {
@@ -108,7 +116,8 @@ export function OnboardingDialog({ open, onOpenChange }: OnboardingDialogProps) 
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['employees'] });
+      queryClient.invalidateQueries({ queryKey: ['employees_info'] });
+      queryClient.invalidateQueries({ queryKey: ['hr_employees'] });
       queryClient.invalidateQueries({ queryKey: ['selected_applicants'] });
       toast({
         title: "Success",

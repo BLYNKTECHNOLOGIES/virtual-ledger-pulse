@@ -143,7 +143,7 @@ export const builtInWidgets: WidgetType[] = [
 const dynamicWidgets: WidgetType[] = [
   // Sales
   { id: 'total-revenue', name: 'Total Revenue', description: 'Total sales revenue for the selected period', icon: DollarSign, category: 'Sales', size: 'small', requiredPermissions: ['sales_view'] },
-  { id: 'sales-orders-count', name: 'Sales Orders Count', description: 'Number of sales orders in the period', icon: ShoppingCart, category: 'Sales', size: 'small', requiredPermissions: ['sales_view'] },
+  
   { id: 'revenue-chart', name: 'Revenue Chart', description: 'Exchange asset breakdown chart', icon: BarChart3, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
   { id: 'recent-orders', name: 'Recent Sales Orders', description: 'Latest sales orders with status and amounts', icon: FileText, category: 'Sales', size: 'large', requiredPermissions: ['sales_view'] },
   { id: 'earnings-rate', name: 'Earnings Rate', description: 'Daily sales earnings for the last 7 days', icon: TrendingUp, category: 'Sales', size: 'medium', requiredPermissions: ['sales_view'] },

@@ -724,6 +724,7 @@ export default function Dashboard() {
             onMove={() => {}}
             metrics={metrics}
             isDraggable={canDrag}
+            dateRange={dateRange ? { from: dateRange.from, to: dateRange.to } : { from: startDate, to: endDate }}
           />
         </DraggableDashboardSection>
       );

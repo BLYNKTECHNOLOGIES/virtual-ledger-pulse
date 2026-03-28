@@ -47,6 +47,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast as sonnerToast } from 'sonner';
 import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
+import AttendanceTab from '@/components/profile/AttendanceTab';
+import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
 
 interface BankAccount {
   id: string;
@@ -833,14 +835,16 @@ export default function UserProfile() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="tasks">My Tasks</TabsTrigger>
+          <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="salary">Salary & PF</TabsTrigger>
           <TabsTrigger value="banking">Banking</TabsTrigger>
           <TabsTrigger value="leaves">Leaves</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
+          <TabsTrigger value="notifications">Alerts</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -1246,6 +1250,24 @@ export default function UserProfile() {
                 </div>
               </CardContent>
             </Card>
+          )}
+        </TabsContent>
+
+        {/* ═══════ Attendance Tab ═══════ */}
+        <TabsContent value="attendance" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <AttendanceTab employeeId={hrEmployee.id} />
+          )}
+        </TabsContent>
+
+        {/* ═══════ Notifications Tab ═══════ */}
+        <TabsContent value="notifications" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <NotificationSettingsTab employeeId={hrEmployee.id} />
           )}
         </TabsContent>
 

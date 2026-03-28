@@ -5185,6 +5185,75 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_notification_log: {
+        Row: {
+          channel: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_read: boolean | null
+          message: string | null
+          notification_type: string
+          related_entity_id: string | null
+          related_entity_type: string | null
+          title: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          notification_type: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          title: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string | null
+          notification_type?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      hr_notification_preferences: {
+        Row: {
+          channel: string | null
+          created_at: string | null
+          employee_id: string
+          id: string
+          is_enabled: boolean | null
+          notification_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          is_enabled?: boolean | null
+          notification_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          is_enabled?: boolean | null
+          notification_type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       hr_notifications: {
         Row: {
           created_at: string
@@ -12324,6 +12393,29 @@ export type Database = {
           updated_at: string | null
         }
         Relationships: []
+      }
+      hr_monthly_hours_summary: {
+        Row: {
+          absent_days: number | null
+          early_out_count: number | null
+          employee_id: string | null
+          late_count: number | null
+          month: string | null
+          present_days: number | null
+          total_early_minutes: number | null
+          total_late_minutes: number | null
+          total_overtime_hours: number | null
+          total_worked_hours: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {

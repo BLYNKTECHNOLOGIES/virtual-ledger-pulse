@@ -8664,6 +8664,7 @@ export type Database = {
           amount: number
           created_at: string
           id: string
+          reversed_at: string | null
           sales_order_id: string
           settlement_id: string
         }
@@ -8671,6 +8672,7 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
+          reversed_at?: string | null
           sales_order_id: string
           settlement_id: string
         }
@@ -8678,6 +8680,7 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
+          reversed_at?: string | null
           sales_order_id?: string
           settlement_id?: string
         }

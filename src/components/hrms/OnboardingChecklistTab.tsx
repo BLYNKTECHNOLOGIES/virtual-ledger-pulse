@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { UserCheck, ClipboardList, Plus } from "lucide-react";
@@ -300,7 +301,3 @@ export function OnboardingChecklistTab() {
       </Dialog>
     </div>
   );
-}
-
-// Need to import Label
-import { Label } from "@/components/ui/label";

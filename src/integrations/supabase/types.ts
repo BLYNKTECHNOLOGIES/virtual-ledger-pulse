@@ -3946,7 +3946,6 @@ export type Database = {
           account_number: string | null
           additional_info: Json | null
           address: string | null
-          bank_code_1: string | null
           bank_code_2: string | null
           bank_name: string | null
           branch: string | null
@@ -3955,6 +3954,7 @@ export type Database = {
           created_at: string
           employee_id: string
           id: string
+          ifsc_code: string | null
           state: string | null
           updated_at: string
         }
@@ -3962,7 +3962,6 @@ export type Database = {
           account_number?: string | null
           additional_info?: Json | null
           address?: string | null
-          bank_code_1?: string | null
           bank_code_2?: string | null
           bank_name?: string | null
           branch?: string | null
@@ -3971,6 +3970,7 @@ export type Database = {
           created_at?: string
           employee_id: string
           id?: string
+          ifsc_code?: string | null
           state?: string | null
           updated_at?: string
         }
@@ -3978,7 +3978,6 @@ export type Database = {
           account_number?: string | null
           additional_info?: Json | null
           address?: string | null
-          bank_code_1?: string | null
           bank_code_2?: string | null
           bank_name?: string | null
           branch?: string | null
@@ -3987,6 +3986,7 @@ export type Database = {
           created_at?: string
           employee_id?: string
           id?: string
+          ifsc_code?: string | null
           state?: string | null
           updated_at?: string
         }

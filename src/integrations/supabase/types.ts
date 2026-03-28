@@ -4451,12 +4451,14 @@ export type Database = {
           last_name: string
           last_working_day: string | null
           marital_status: string | null
+          notice_period_end_date: string | null
           pan_number: string | null
           pf_number: string | null
           phone: string | null
           profile_image_url: string | null
           qualification: string | null
           resignation_date: string | null
+          resignation_status: string | null
           salary_structure_template_id: string | null
           salary_template_id: string | null
           separation_reason: string | null
@@ -4492,12 +4494,14 @@ export type Database = {
           last_name: string
           last_working_day?: string | null
           marital_status?: string | null
+          notice_period_end_date?: string | null
           pan_number?: string | null
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
           resignation_date?: string | null
+          resignation_status?: string | null
           salary_structure_template_id?: string | null
           salary_template_id?: string | null
           separation_reason?: string | null
@@ -4533,12 +4537,14 @@ export type Database = {
           last_name?: string
           last_working_day?: string | null
           marital_status?: string | null
+          notice_period_end_date?: string | null
           pan_number?: string | null
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
           resignation_date?: string | null
+          resignation_status?: string | null
           salary_structure_template_id?: string | null
           salary_template_id?: string | null
           separation_reason?: string | null
@@ -5923,21 +5929,30 @@ export type Database = {
       }
       hr_onboarding_task_employees: {
         Row: {
+          completed_at: string | null
           created_at: string
           employee_id: string
           id: string
+          is_completed: boolean
+          notes: string | null
           task_id: string
         }
         Insert: {
+          completed_at?: string | null
           created_at?: string
           employee_id: string
           id?: string
+          is_completed?: boolean
+          notes?: string | null
           task_id: string
         }
         Update: {
+          completed_at?: string | null
           created_at?: string
           employee_id?: string
           id?: string
+          is_completed?: boolean
+          notes?: string | null
           task_id?: string
         }
         Relationships: [
@@ -6457,6 +6472,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hr_resignation_checklist: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          is_completed: boolean
+          item_title: string
+          notes: string | null
+          template_item_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_completed?: boolean
+          item_title: string
+          notes?: string | null
+          template_item_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_completed?: boolean
+          item_title?: string
+          notes?: string | null
+          template_item_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_resignation_checklist_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_resignation_checklist_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "hr_resignation_checklist_template"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_resignation_checklist_template: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          item_title: string
+          sequence: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_title: string
+          sequence?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          item_title?: string
+          sequence?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       hr_salary_components: {
         Row: {
@@ -13484,6 +13580,14 @@ export type Database = {
       fn_calculate_working_days: {
         Args: { p_employee_id: string; p_end: string; p_start: string }
         Returns: number
+      }
+      fn_initialize_onboarding: {
+        Args: { p_employee_id: string }
+        Returns: undefined
+      }
+      fn_initialize_resignation_checklist: {
+        Args: { p_employee_id: string }
+        Returns: undefined
       }
       generate_employee_id: {
         Args: { dept: string; designation: string }

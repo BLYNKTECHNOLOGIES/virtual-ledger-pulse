@@ -49,8 +49,13 @@
 - PAYROLL-02 (payslip penalty/loan columns)
 - All DATA items (DATA-01 through DATA-08) — team handles via UI
 
-## Remaining P4
+## ✅ P4b — Resignation Workflow + Onboarding Checklist (Migration 5 + UI)
+
+| # | Item | What | Status |
+|---|------|------|--------|
+| 1 | FEAT-02 | Resignation workflow with editable checklist template + auto-deactivation | ✅ Done |
+| 2 | FEAT-06 | Onboarding checklist using existing stages/tasks tables + seeded defaults | ✅ Done |
+
+## Remaining
 - FEAT-01 (attendance regularization)
-- FEAT-02 (resignation workflow)
-- FEAT-06 (onboarding checklist)
 - GAP-04 (grace period precedence documentation)

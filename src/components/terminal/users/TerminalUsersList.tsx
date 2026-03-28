@@ -215,8 +215,8 @@ export function TerminalUsersList() {
     if (!selectedUserId || !selectedRoleId) return;
     try {
       setIsAssigning(true);
-      const sessionStr = localStorage.getItem("userSession");
-      const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+      const { getSessionUserId } = await import("@/lib/session-cache");
+      const assignedBy = getSessionUserId() || undefined;
       const { error } = await supabase.rpc("assign_terminal_role", {
         p_user_id: selectedUserId,
         p_role_id: selectedRoleId,

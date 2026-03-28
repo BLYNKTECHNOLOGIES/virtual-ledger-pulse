@@ -82,8 +82,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
     setBiometricResetDone(false);
     try {
       // Get current user's session for hierarchy check
-      const sessionStr = localStorage.getItem("userSession");
-      const myUserId = sessionStr ? JSON.parse(sessionStr).id : null;
+      const { getSessionUserId } = await import("@/lib/session-cache");
+      const myUserId = getSessionUserId();
 
       const [profileRes, usersRes, exchangeRes, sizeRes, exchMapRes, sizeMapRes, supervisorMapRes, rolesRes, userRolesRes, myRolesRes] = await Promise.all([
         supabase.from("terminal_user_profiles").select("*").eq("user_id", userId).maybeSingle(),
@@ -162,8 +162,8 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
       // Update role if changed
       if (selectedRoleId && !currentRoleIds.includes(selectedRoleId)) {
-        const sessionStr = localStorage.getItem("userSession");
-        const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+        const { getSessionUserId: getId } = await import("@/lib/session-cache");
+        const assignedBy = getId() || undefined;
         // Remove old roles
         for (const oldRoleId of currentRoleIds) {
           await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: oldRoleId });

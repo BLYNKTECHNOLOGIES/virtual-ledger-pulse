@@ -56,6 +56,7 @@ import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
 import ShiftsPage from './pages/horilla/ShiftsPage';
 import OvertimePage from './pages/horilla/OvertimePage';
 import HourAccountsPage from './pages/horilla/HourAccountsPage';
+import LateComeEarlyOutPage from './pages/horilla/LateComeEarlyOutPage';
 import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
 import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
 import LeaveTypesPage from './pages/horilla/LeaveTypesPage';
@@ -625,6 +626,7 @@ const router = createBrowserRouter([
         { path: "attendance/overtime", element: <OvertimePage /> },
         { path: "attendance/activity", element: <AttendanceActivityPage /> },
         { path: "attendance/hour-accounts", element: <HourAccountsPage /> },
+        { path: "attendance/late-early", element: <LateComeEarlyOutPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },

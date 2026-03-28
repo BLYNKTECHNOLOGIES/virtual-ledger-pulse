@@ -94,6 +94,7 @@ export default function LeaveAllocationsPage() {
           year,
           quarter,
           allocated_days: lt.max_days_per_year || 12,
+          available_days: lt.max_days_per_year || 12,
           used_days: 0,
           carry_forward_days: 0,
         }))

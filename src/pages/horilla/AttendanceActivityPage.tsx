@@ -63,7 +63,7 @@ export default function AttendanceActivityPage() {
     refetchInterval: 600000,
   });
 
-  // Fetch punch counts from hr_attendance_daily for the selected date
+  // Fetch punch counts from hr_attendance_daily for the selected date (employee_id is now UUID)
   const { data: dailyPunchCounts = {} } = useQuery({
     queryKey: ["hr_attendance_daily_punches", dateFilter],
     queryFn: async () => {
@@ -120,8 +120,8 @@ export default function AttendanceActivityPage() {
         durationMinutes = differenceInMinutes(parseISO(lastClockOut), parseISO(firstClockIn));
       }
 
-      // Get punch count from hr_attendance_daily (uses badge_id as employee_id)
-      const punchCount = (dailyPunchCounts as any)[badgeId] || records.length;
+      // Get punch count from hr_attendance_daily (now uses UUID employee_id)
+      const punchCount = (dailyPunchCounts as any)[empId] || records.length;
 
       results.push({
         employeeId: empId,

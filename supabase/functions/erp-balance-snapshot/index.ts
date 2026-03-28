@@ -270,8 +270,9 @@ Deno.serve(async (req) => {
       .update({ summary })
       .eq("id", snapshotId);
 
-    // 10. Cleanup old snapshots (30 days)
+    // 10. Cleanup old snapshots (30 days) + expired records
     await supabase.rpc("cleanup_old_snapshots");
+    await supabase.rpc("cleanup_expired_records");
 
     return new Response(
       JSON.stringify({

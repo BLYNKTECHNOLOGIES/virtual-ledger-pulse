@@ -13550,6 +13550,7 @@ export type Database = {
         Args: { account_entry: Json }
         Returns: string
       }
+      flag_stale_pending_settlements: { Args: never; Returns: number }
       fn_calculate_monthly_penalties: {
         Args: { p_month: number; p_year: number }
         Returns: {
@@ -14006,18 +14007,6 @@ export type Database = {
           p_role_name: string
         }
         Returns: boolean
-      }
-      update_settlement_bypass_all_triggers: {
-        Args: {
-          batch_id: string
-          order_ids: string[]
-          settled_timestamp: string
-        }
-        Returns: {
-          error_message: string
-          success: boolean
-          updated_id: string
-        }[]
       }
       update_settlement_raw: {
         Args: {

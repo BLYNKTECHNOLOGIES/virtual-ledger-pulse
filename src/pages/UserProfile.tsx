@@ -266,12 +266,14 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 
       const entry = { name: comp.name, code: comp.code, amount, calcLabel, type: comp.component_type };
 
-      const isEmployer = comp.name?.toLowerCase().includes('employer') ||
+      const isEmployer = comp.component_type === 'employer_contribution' ||
+        comp.name?.toLowerCase().includes('employer') ||
         ['PFC', 'ESIC'].includes(comp.code);
 
-      if (comp.component_type === "deduction") {
-        if (isEmployer) employerContribs.push(entry);
-        else deductions.push(entry);
+      if (isEmployer) {
+        employerContribs.push(entry);
+      } else if (comp.component_type === "deduction") {
+        deductions.push(entry);
       } else {
         earnings.push(entry);
       }

@@ -18,6 +18,8 @@ export const evalFormula = (formula: string, vars: Record<string, number>): numb
 };
 
 export const isEmployerComponent = (comp: any) => {
+  if (comp?.component_type === 'employer_contribution') return true;
+  // Fallback for legacy data
   const name = (comp?.name || '').toLowerCase();
   const code = (comp?.code || '').toLowerCase();
   return name.includes('employer') || code === 'pfc' || code === 'esic';

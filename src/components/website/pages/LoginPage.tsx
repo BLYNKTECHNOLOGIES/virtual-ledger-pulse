@@ -128,6 +128,13 @@ export function LoginPage() {
       }
 
       console.log('User authenticated successfully:', authenticatedUser);
+
+      // Check if user logged in with the temporary transition password
+      if (password === 'BlynkTemp2026!') {
+        setShowForcedReset(true);
+        return; // Don't redirect yet — force password change first
+      }
+
       setSuccess('Correct password, redirecting to Dashboard...');
       setTimeout(() => navigate('/dashboard'), 1500);
       

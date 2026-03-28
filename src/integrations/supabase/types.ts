@@ -12656,6 +12656,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      is_manager: { Args: { _user_id: string }; Returns: boolean }
       list_terminal_roles: {
         Args: never
         Returns: {

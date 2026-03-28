@@ -58,7 +58,7 @@
 
 ## Closed / Not Required
 - FEAT-01 (attendance regularization) — Not needed; HR handles corrections manually via payroll or manual attendance marking
-- GAP-04 (grace period precedence) — Documented: shift-level grace_period takes precedence over policy-level. No code change needed.
+- GAP-04 (grace period precedence) — ✅ Implemented: shift grace > policy grace (fallback) in `auto_track_late_early` trigger
 - PAYROLL-02 (payslip penalty/loan columns) — Skipped by decision
 - All DATA items (DATA-01 through DATA-08) — team handles via UI
 

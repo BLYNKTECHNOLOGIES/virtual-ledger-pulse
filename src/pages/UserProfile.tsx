@@ -835,11 +835,12 @@ export default function UserProfile() {
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-10">
+        <TabsList className="grid w-full grid-cols-11">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="tasks">My Tasks</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="salary">Salary & PF</TabsTrigger>
+          <TabsTrigger value="payslips">Payslips</TabsTrigger>
           <TabsTrigger value="banking">Banking</TabsTrigger>
           <TabsTrigger value="leaves">Leaves</TabsTrigger>
           <TabsTrigger value="requests">Requests</TabsTrigger>

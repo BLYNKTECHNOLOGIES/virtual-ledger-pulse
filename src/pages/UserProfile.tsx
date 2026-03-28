@@ -389,6 +389,126 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     </div>
   );
 }
+
+// ─── Employee Payslips Sub-Component (ESS — view own payslips) ───
+function EmployeePayslipsTab({ employeeId }: { employeeId: string }) {
+  const { data: payslips = [], isLoading } = useQuery({
+    queryKey: ['hr_payslips_ess', employeeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('hr_payslips')
+        .select('*, hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)')
+        .eq('employee_id', employeeId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!employeeId,
+  });
+
+  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading payslips...</p>;
+
+  if (payslips.length === 0) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Payslips Yet</h3>
+          <p className="text-muted-foreground">Your payslips will appear here once payroll is processed.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-semibold">My Payslips</h3>
+      <div className="space-y-3">
+        {payslips.map((p: any) => {
+          const earnings = p.earnings_breakdown as Record<string, number> || {};
+          const deductions = p.deductions_breakdown as Record<string, number> || {};
+          return (
+            <Card key={p.id}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="font-semibold text-foreground">{(p as any).hr_payroll_runs?.title || 'Payslip'}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      {(p as any).hr_payroll_runs?.pay_period_start} — {(p as any).hr_payroll_runs?.pay_period_end}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    p.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                  }`}>{p.status || 'draft'}</span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-3 text-center mb-4">
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase">Working Days</p>
+                    <p className="text-lg font-bold">{p.working_days || 0}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase">Present</p>
+                    <p className="text-lg font-bold text-green-600">{p.present_days || 0}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase">LOP Days</p>
+                    <p className="text-lg font-bold text-red-600">{p.lop_days || (p.working_days && p.present_days ? p.working_days - p.present_days : 0)}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-[10px] text-muted-foreground uppercase">OT Hours</p>
+                    <p className="text-lg font-bold">{p.overtime_hours || 0}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Earnings</p>
+                    {Object.entries(earnings).map(([k, v]) => (
+                      <div key={k} className="flex justify-between text-sm border-b border-border/50 py-1">
+                        <span className="text-muted-foreground">{k}</span>
+                        <span className="font-medium text-green-600">₹{Number(v).toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm font-bold pt-2">
+                      <span>Total Earnings</span>
+                      <span className="text-green-600">₹{Number(p.total_earnings).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Deductions</p>
+                    {Object.entries(deductions).map(([k, v]) => (
+                      <div key={k} className="flex justify-between text-sm border-b border-border/50 py-1">
+                        <span className="text-muted-foreground">{k}</span>
+                        <span className="font-medium text-red-600">-₹{Number(v).toLocaleString('en-IN')}</span>
+                      </div>
+                    ))}
+                    {(p.lop_deduction && Number(p.lop_deduction) > 0) && (
+                      <div className="flex justify-between text-sm border-b border-border/50 py-1">
+                        <span className="text-muted-foreground">LOP Deduction</span>
+                        <span className="font-medium text-red-600">-₹{Number(p.lop_deduction).toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm font-bold pt-2">
+                      <span>Total Deductions</span>
+                      <span className="text-red-600">-₹{Number(p.total_deductions).toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="my-3" />
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-bold">Net Pay</span>
+                  <span className="text-xl font-bold text-green-600">₹{Number(p.net_salary).toLocaleString('en-IN')}</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 export default function UserProfile() {
   const { user, refreshUser, logout } = useAuth();
   const { toast } = useToast();

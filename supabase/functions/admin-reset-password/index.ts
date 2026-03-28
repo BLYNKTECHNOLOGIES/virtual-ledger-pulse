@@ -121,12 +121,14 @@ serve(async (req) => {
       });
     }
 
-    await adminClient.rpc("admin_reset_user_password", {
-      p_user_id: userId,
-      p_new_password: newPassword,
-    }).catch((e) => {
+    try {
+      await adminClient.rpc("admin_reset_user_password", {
+        p_user_id: userId,
+        p_new_password: newPassword,
+      });
+    } catch (e: any) {
       console.warn("Legacy password hash sync skipped:", e?.message ?? e);
-    });
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

@@ -941,6 +941,9 @@ export default function UserProfile() {
           ) : (
             <EmployeePayslipsTab employeeId={hrEmployee.id} />
           )}
+        </TabsContent>
+
+        {/* ═══════ Banking Tab ═══════ */}
         <TabsContent value="banking" className="space-y-6">
           {!hrEmployee ? (
             <NoEmployeeProfile />

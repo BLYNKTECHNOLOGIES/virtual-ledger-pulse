@@ -5605,6 +5605,7 @@ export type Database = {
           payroll_run_id: string
           present_days: number | null
           status: string | null
+          tds_amount: number | null
           total_deductions: number
           total_earnings: number
           updated_at: string
@@ -5625,6 +5626,7 @@ export type Database = {
           payroll_run_id: string
           present_days?: number | null
           status?: string | null
+          tds_amount?: number | null
           total_deductions?: number
           total_earnings?: number
           updated_at?: string
@@ -5645,6 +5647,7 @@ export type Database = {
           payroll_run_id?: string
           present_days?: number | null
           status?: string | null
+          tds_amount?: number | null
           total_deductions?: number
           total_earnings?: number
           updated_at?: string

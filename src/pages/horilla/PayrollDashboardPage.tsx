@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck } from "lucide-react";
+import { computeComponentAmounts, isEmployerComponent } from "@/lib/hrms/salaryComputation";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function PayrollDashboardPage() {
@@ -92,105 +93,8 @@ export default function PayrollDashboardPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // --- Salary calc helpers (mirrored from SalaryStructureAssignments) ---
-  const toSnakeCase = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-
-  const evalFormula = (formula: string, vars: Record<string, number>): number => {
-    try {
-      let expr = formula.trim();
-      Object.keys(vars).sort((a, b) => b.length - a.length).forEach(k => {
-        expr = expr.replace(new RegExp(k, 'g'), String(vars[k]));
-      });
-      if (/^[\d\s+\-*/().]+$/.test(expr)) return new Function(`return (${expr})`)() as number;
-      return 0;
-    } catch { return 0; }
-  };
-
-  const isEmployerComponent = (comp: any) => {
-    const name = (comp?.name || '').toLowerCase();
-    const code = (comp?.code || '').toLowerCase();
-    return name.includes('employer') || code === 'pfc' || code === 'esic';
-  };
-
-  const computeComponentAmounts = (items: any[], totalSalary: number) => {
-    // Resolve basic_pay first
-    let basicPay = 0;
-    const basicItem = items.find((i: any) => i.hr_salary_components?.code === "BASIC" || i.hr_salary_components?.name?.toLowerCase().includes("basic"));
-    if (basicItem) {
-      basicPay = basicItem.calculation_type === "percentage"
-        ? (Number(basicItem.value) / 100) * totalSalary
-        : Number(basicItem.value) || 0;
-    }
-
-    // Build vars map for formulas
-    const codeAmounts: Record<string, number> = {};
-    let tempDeductions = 0, tempAllowances = 0;
-
-    items.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp || i.calculation_type === "formula" || i.is_variable) return;
-      let amount = 0;
-      if (i.calculation_type === "percentage") {
-        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
-        amount = (Number(i.value) / 100) * base;
-      } else {
-        amount = Number(i.value) || 0;
-      }
-      const code = comp.code?.toLowerCase();
-      if (code) codeAmounts[code] = amount;
-      const sn = toSnakeCase(comp.name || '');
-      if (sn && sn !== code) codeAmounts[sn] = amount;
-      if (comp.component_type === "deduction") tempDeductions += amount;
-      else tempAllowances += amount;
-    });
-
-    const vars: Record<string, number> = { total_salary: totalSalary, basic_pay: basicPay, total_deductions: tempDeductions, total_allowances: tempAllowances, ...codeAmounts };
-
-    // Resolve formula items
-    items.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp || i.calculation_type !== "formula" || !i.formula) return;
-      const amount = evalFormula(i.formula, vars);
-      const code = comp.code?.toLowerCase();
-      if (code) vars[code] = amount;
-      const sn = toSnakeCase(comp.name || '');
-      if (sn && sn !== code) vars[sn] = amount;
-      if (comp.component_type === "deduction") vars.total_deductions += amount;
-      else vars.total_allowances += amount;
-    });
-
-    // Compute final breakdown
-    const earningsBreakdown: Record<string, number> = {};
-    const deductionsBreakdown: Record<string, number> = {};
-    let totalEarnings = 0, totalDeductionsAmt = 0;
-
-    items.forEach((i: any) => {
-      const comp = i.hr_salary_components;
-      if (!comp) return;
-      if (i.is_variable) return; // Variable components are ₹0 unless overridden
-
-      let amount: number;
-      if (i.calculation_type === "formula" && i.formula) {
-        amount = evalFormula(i.formula, vars);
-      } else if (i.calculation_type === "percentage") {
-        const base = i.percentage_of === "basic_pay" ? basicPay : totalSalary;
-        amount = (Number(i.value) / 100) * base;
-      } else {
-        amount = Number(i.value) || 0;
-      }
-      amount = Math.round(amount);
-
-      if (comp.component_type === "allowance") {
-        earningsBreakdown[comp.name] = amount;
-        totalEarnings += amount;
-      } else if (comp.component_type === "deduction" && !isEmployerComponent(comp)) {
-        deductionsBreakdown[comp.name] = amount;
-        totalDeductionsAmt += amount;
-      }
-    });
-
-    return { earningsBreakdown, deductionsBreakdown, totalEarnings, totalDeductions: totalDeductionsAmt };
-  };
+  // --- Salary computation from shared utility ---
+  // (Eliminates duplicated evalFormula/computeComponentAmounts logic)
 
   // Generate payslips for a payroll run
   const generatePayslips = async (run: any) => {
@@ -199,7 +103,7 @@ export default function PayrollDashboardPage() {
       // 1. Get all active employees with their template assignment
       const { data: employees, error: empErr } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, basic_salary, total_salary, salary_structure_template_id")
+        .select("id, first_name, last_name, basic_salary, total_salary, salary_structure_template_id, filing_status_id")
         .eq("is_active", true);
       if (empErr) throw empErr;
 
@@ -300,9 +204,9 @@ export default function PayrollDashboardPage() {
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
 
-      // 7. Calculate payslips
+      // 7. Calculate payslips (use Promise.all since TDS needs async RPC call)
       const penaltyIdsToMark: string[] = [];
-      const payslips = (employees || []).map((emp: any) => {
+      const payslips = await Promise.all((employees || []).map(async (emp: any) => {
         const tmplId = emp.salary_structure_template_id;
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
         const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0, sundayWorked: 0, holidayWorked: 0 };
@@ -450,6 +354,24 @@ export default function PayrollDashboardPage() {
           empDeposit._updated = true;
         }
 
+        // --- TDS Computation ---
+        let tdsAmount = 0;
+        if (emp.filing_status_id && totalEarnings > 0) {
+          // Annualize gross earnings for tax computation
+          const annualGross = totalEarnings * 12;
+          try {
+            const { data: taxResult } = await (supabase as any)
+              .rpc("compute_annual_tax", { p_taxable_income: annualGross, p_filing_status_id: emp.filing_status_id });
+            if (taxResult && Number(taxResult) > 0) {
+              tdsAmount = Math.round(Number(taxResult) / 12); // Monthly TDS
+              deductionsBreakdown["TDS (Income Tax)"] = tdsAmount;
+              totalDeductions += tdsAmount;
+            }
+          } catch {
+            // TDS computation failed — continue without it
+          }
+        }
+
         const netSalary = totalEarnings - totalDeductions;
 
         return {
@@ -468,11 +390,12 @@ export default function PayrollDashboardPage() {
           sunday_days_worked: sundayDays,
           holiday_days_worked: holidayDays,
           penalty_amount: penaltyDeduction,
+          tds_amount: tdsAmount,
           status: "draft",
         };
-      });
+      }));
 
-      // 8. Delete existing payslips for this run and insert new ones
+      // 8. UPSERT payslips (idempotent — handles reruns without needing delete first)
       await (supabase as any).from("hr_payslips").delete().eq("payroll_run_id", run.id);
       const { error: insertErr } = await (supabase as any).from("hr_payslips").insert(payslips);
       if (insertErr) throw insertErr;

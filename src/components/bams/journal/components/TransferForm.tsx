@@ -35,13 +35,6 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
 
   const createTransferMutation = useMutation({
     mutationFn: async (transferData: typeof formData) => {
-      const fromAccount = bankAccounts?.find(acc => acc.id === transferData.fromAccountId);
-      const toAccount = bankAccounts?.find(acc => acc.id === transferData.toAccountId);
-
-      if (!fromAccount || !toAccount) {
-        throw new Error("Invalid account selection");
-      }
-
       const transferAmount = parseFloat(transferData.amount);
 
       // Validate bank account balance before proceeding
@@ -54,51 +47,21 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         throw new Error('Failed to validate bank account balance');
       }
 
-       // Only use user.id if it's a valid UUID, otherwise set to null
-       const createdBy = user?.id && isUuid(user.id) ? user.id : null;
- 
-      // Create transfer out transaction
-      const { data: transferOutData, error: transferOutError } = await supabase
-        .from('bank_transactions')
-        .insert({
-          bank_account_id: transferData.fromAccountId,
-          transaction_type: 'TRANSFER_OUT',
-          amount: transferAmount,
-          description: transferData.description || `Transfer to ${toAccount.account_name}`,
-          transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
-          reference_number: `TRF-OUT-${Date.now()}`,
-          related_account_name: toAccount.account_name,
-           created_by: createdBy,
-        })
-        .select()
-        .single();
+      // Only use user.id if it's a valid UUID, otherwise set to null
+      const createdBy = user?.id && isUuid(user.id) ? user.id : null;
 
-      if (transferOutError) throw transferOutError;
+      // Use atomic RPC — both TRANSFER_OUT and TRANSFER_IN in one DB transaction
+      const { data, error } = await supabase.rpc('create_bank_transfer', {
+        p_from_account_id: transferData.fromAccountId,
+        p_to_account_id: transferData.toAccountId,
+        p_amount: transferAmount,
+        p_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+        p_description: transferData.description || null,
+        p_created_by: createdBy,
+      });
 
-      // Create transfer in transaction
-      const { data: transferInData, error: transferInError } = await supabase
-        .from('bank_transactions')
-        .insert({
-          bank_account_id: transferData.toAccountId,
-          transaction_type: 'TRANSFER_IN',
-          amount: transferAmount,
-          description: transferData.description || `Transfer from ${fromAccount.account_name}`,
-          transaction_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : null,
-          reference_number: `TRF-IN-${Date.now()}`,
-          related_account_name: fromAccount.account_name,
-          related_transaction_id: transferOutData.id,
-           created_by: createdBy,
-        })
-        .select()
-        .single();
-
-      if (transferInError) throw transferInError;
-
-      // Update the transfer out transaction with the related transaction ID
-      await supabase
-        .from('bank_transactions')
-        .update({ related_transaction_id: transferInData.id })
-        .eq('id', transferOutData.id);
+      if (error) throw error;
+      if (data && !data.success) throw new Error(data.error || 'Transfer failed');
     },
     onSuccess: () => {
       toast({

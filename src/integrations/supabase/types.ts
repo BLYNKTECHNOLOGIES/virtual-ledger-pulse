@@ -13226,39 +13226,22 @@ export type Database = {
         }
         Returns: string
       }
-      create_manual_purchase_bypass_locks:
-        | {
-            Args: {
-              p_bank_account_id: string
-              p_contact_number: string
-              p_credit_wallet_id?: string
-              p_description: string
-              p_order_date: string
-              p_order_number: string
-              p_product_id: string
-              p_quantity: number
-              p_supplier_name: string
-              p_total_amount: number
-              p_unit_price: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_bank_account_id: string
-              p_contact_number: string
-              p_credit_wallet_id?: string
-              p_description: string
-              p_order_date: string
-              p_order_number: string
-              p_product_id: string
-              p_quantity: number
-              p_supplier_name: string
-              p_total_amount: number
-              p_unit_price: number
-            }
-            Returns: string
-          }
+      create_manual_purchase_bypass_locks: {
+        Args: {
+          p_bank_account_id: string
+          p_contact_number: string
+          p_credit_wallet_id?: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
+          p_product_id: string
+          p_quantity: number
+          p_supplier_name: string
+          p_total_amount: number
+          p_unit_price: number
+        }
+        Returns: string
+      }
       create_manual_purchase_complete: {
         Args: {
           p_bank_account_id: string

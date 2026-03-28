@@ -61,7 +61,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
       });
 
       if (error) throw error;
-      if (data && !data.success) throw new Error(data.error || 'Transfer failed');
+      if (data && typeof data === 'object' && !Array.isArray(data) && !(data as any).success) throw new Error((data as any).error || 'Transfer failed');
     },
     onSuccess: () => {
       toast({

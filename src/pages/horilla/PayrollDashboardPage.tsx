@@ -103,7 +103,7 @@ export default function PayrollDashboardPage() {
       // 1. Get all active employees with their template assignment
       const { data: employees, error: empErr } = await (supabase as any)
         .from("hr_employees")
-        .select("id, first_name, last_name, basic_salary, total_salary, salary_structure_template_id")
+        .select("id, first_name, last_name, basic_salary, total_salary, salary_structure_template_id, filing_status_id")
         .eq("is_active", true);
       if (empErr) throw empErr;
 
@@ -204,9 +204,9 @@ export default function PayrollDashboardPage() {
         attMap[a.employee_id].ot += Number(a.overtime_hours || 0);
       });
 
-      // 7. Calculate payslips
+      // 7. Calculate payslips (use Promise.all since TDS needs async RPC call)
       const penaltyIdsToMark: string[] = [];
-      const payslips = (employees || []).map((emp: any) => {
+      const payslips = await Promise.all((employees || []).map(async (emp: any) => {
         const tmplId = emp.salary_structure_template_id;
         const items = tmplId ? (templateItemsMap[tmplId] || []) : [];
         const empAtt = attMap[emp.id] || { present: 0, total: 0, ot: 0, sundayWorked: 0, holidayWorked: 0 };
@@ -354,6 +354,24 @@ export default function PayrollDashboardPage() {
           empDeposit._updated = true;
         }
 
+        // --- TDS Computation ---
+        let tdsAmount = 0;
+        if (emp.filing_status_id && totalEarnings > 0) {
+          // Annualize gross earnings for tax computation
+          const annualGross = totalEarnings * 12;
+          try {
+            const { data: taxResult } = await (supabase as any)
+              .rpc("compute_annual_tax", { p_taxable_income: annualGross, p_filing_status_id: emp.filing_status_id });
+            if (taxResult && Number(taxResult) > 0) {
+              tdsAmount = Math.round(Number(taxResult) / 12); // Monthly TDS
+              deductionsBreakdown["TDS (Income Tax)"] = tdsAmount;
+              totalDeductions += tdsAmount;
+            }
+          } catch {
+            // TDS computation failed — continue without it
+          }
+        }
+
         const netSalary = totalEarnings - totalDeductions;
 
         return {
@@ -372,11 +390,12 @@ export default function PayrollDashboardPage() {
           sunday_days_worked: sundayDays,
           holiday_days_worked: holidayDays,
           penalty_amount: penaltyDeduction,
+          tds_amount: tdsAmount,
           status: "draft",
         };
-      });
+      }));
 
-      // 8. Delete existing payslips for this run and insert new ones
+      // 8. UPSERT payslips (idempotent — handles reruns without needing delete first)
       await (supabase as any).from("hr_payslips").delete().eq("payroll_run_id", run.id);
       const { error: insertErr } = await (supabase as any).from("hr_payslips").insert(payslips);
       if (insertErr) throw insertErr;

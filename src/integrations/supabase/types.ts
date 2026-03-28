@@ -12057,6 +12057,17 @@ export type Database = {
             }
             Returns: string
           }
+      create_bank_transfer: {
+        Args: {
+          p_amount: number
+          p_created_by?: string
+          p_date: string
+          p_description?: string
+          p_from_account_id: string
+          p_to_account_id: string
+        }
+        Returns: Json
+      }
       create_inactive_assignee_notification: {
         Args: {
           p_message: string

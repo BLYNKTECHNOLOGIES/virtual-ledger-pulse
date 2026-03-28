@@ -645,6 +645,7 @@ const router = createBrowserRouter([
         { path: "payroll/salary-structure", element: <SalaryStructurePage /> },
         { path: "payroll/penalties", element: <PenaltyManagementPage /> },
         { path: "payroll/deposits", element: <DepositManagementPage /> },
+        { path: "payroll/loans", element: <LoansPage /> },
         { path: "asset", element: <AssetDashboardPage /> },
         { path: "asset/list", element: <AssetPage /> },
         { path: "asset/assignments", element: <AssetAssignmentsPage /> },

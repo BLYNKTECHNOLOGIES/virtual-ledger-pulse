@@ -1,45 +1,46 @@
 
+# HRMS Bug Fixes & Feature Implementation Status
 
-# P0 + P1 Bug Fixes — Single Migration
+## ✅ P0 + P1 — Completed (Previous Migration)
 
-## Scope (7 items)
+| # | Bug | What | Status |
+|---|-----|------|--------|
+| 1 | BUG-01 | UNIQUE on `hr_attendance_daily(employee_id, attendance_date)` | ✅ Done |
+| 2 | BUG-02 | Night Shift `is_night_shift = true` | ✅ Done |
+| 3 | BUG-03 | Leave balance reversal on `rejected` | ✅ Done |
+| 4 | BUG-05 | `is_percentage` column on salary structures | ✅ Done |
+| 5 | BUG-06 | Delete invalid ESIC rows (salary > 21000) | ✅ Done |
+| 6 | BUG-07 | Populate `basic_salary = total_salary * 0.5` | ✅ Done |
+| 7 | GAP-02 | Drop empty `hr_employee_salary` table | ✅ Done |
 
-| # | Bug | What | Type |
-|---|-----|------|------|
-| 1 | BUG-01 | Add UNIQUE on `hr_attendance_daily(employee_id, attendance_date)` | Schema |
-| 2 | BUG-02 | Set `is_night_shift = true` for "Night Shift" | Data fix |
-| 3 | BUG-03 | Fix `fn_leave_balance_on_status_change` — reverse balance on `rejected` too | Logic |
-| 4 | BUG-05 | Add `is_percentage BOOLEAN DEFAULT true` to `hr_employee_salary_structures` | Schema |
-| 5 | BUG-06 | Delete ESIC rows for employees with `total_salary > 21000` | Data fix |
-| 6 | BUG-07 | Populate `basic_salary = total_salary * 0.5` for all employees where NULL | Data fix |
-| 7 | GAP-02 | Drop empty `hr_employee_salary` table | Schema |
+## ✅ P2 — Bug & Constraint Fixes (Migration 2)
 
-## What changes and why
+| # | Item | What | Status |
+|---|------|------|--------|
+| 1 | BUG-04 | Cleaned dead status values in `update_leave_clashes_on_change` | ✅ Done |
+| 2 | GAP-01 | Status validation triggers on 8 tables | ✅ Done |
+| 3 | GAP-06 | Punch dedup unique constraint `(employee_id, punch_time)` | ✅ Done |
+| 4 | LEAVE-01 | LOP: `max_days_per_year=0`, `carry_forward=false` | ✅ Done |
+| 5 | LEAVE-02 | CO: `is_compensatory_leave=true` | ✅ Done |
+| 6 | LEAVE-05 | Half-day `total_days=0.5` enforcement trigger | ✅ Done |
+| 7 | PAYROLL-04 | Partial unique index on payroll run period | ✅ Done |
 
-**BUG-01**: No unique constraint on `(employee_id, attendance_date)` — biometric syncs can create duplicate daily records, doubling payroll working-day counts. Fix: add unique constraint.
+## ✅ P3 — Logic & Features (Migration 3)
 
-**BUG-02**: "Night Shift" (01:00–09:00) has `is_night_shift = false`. Cross-midnight attendance logic won't handle date boundaries correctly. Fix: set flag to true.
+| # | Item | What | Status |
+|---|------|------|--------|
+| 1 | FEAT-05 | `apply_salary_template()` function + `salary_template_id` column | ✅ Done |
+| 2 | FEAT-04 | `fn_calculate_monthly_penalties()` auto-calculation | ✅ Done |
+| 3 | GAP-05 | Salary revision type from `app.revision_type` session var | ✅ Done |
+| 4 | PAYROLL-01 | Payroll status state machine trigger | ✅ Done |
+| 5 | PAYROLL-03 | `fn_calculate_working_days()` function | ✅ Done |
 
-**BUG-03**: `fn_leave_balance_on_status_change` only reverses balance on `cancelled`. If an approved leave is changed to `rejected`, balance is never restored — employee permanently loses those days. Fix: add `rejected` to the reversal condition.
+## Skipped (by decision)
+- PAYROLL-02 (payslip penalty/loan columns)
 
-**BUG-05**: `hr_employee_salary_structures.amount` stores values like 12 (PFC) and 4 (ESIC) — these are percentages, not rupee amounts. No column distinguishes them. Fix: add `is_percentage` column (default true since current data is all percentages). Payroll computation already resolves amounts from templates; this column ensures the structure table is self-documenting.
-
-**BUG-06**: ESIC rows exist for employees earning above ₹21,000 (Abhishek ₹50,000, PRIYA ₹33,500, Sushil ₹23,500). Indian ESI law only applies ≤ ₹21,000. Fix: delete those 6 rows.
-
-**BUG-07**: All 26 employees have `basic_salary = NULL`. EPF calculations and the salary revision trigger depend on this field. All current templates use 50% basic. Fix: populate `basic_salary = total_salary * 0.5` where NULL and total_salary > 0.
-
-**GAP-02**: `hr_employee_salary` has 0 rows and duplicates `hr_employee_salary_structures`. Approved for removal.
-
-## Implementation
-
-Single SQL migration file containing all 7 fixes. No UI or frontend changes required — all fixes are database-level.
-
-## What is NOT included (P2+ deferred)
-- BUG-04 (dead status values in clash function)
-- GAP-01 (CHECK constraints on 8 status fields)
-- GAP-06 (punch dedup unique constraint)
-- LEAVE-01/02/05 (LOP config, CO flag, half-day enforcement)
-- PAYROLL-01/02/03/04 (state machine, payslip columns, working days, duplicate prevention)
-- All FEAT items
+## P4+ Deferred
+- FEAT-01 (attendance regularization)
+- FEAT-02 (resignation workflow)
+- FEAT-03 (payslip PDF generation)
+- FEAT-06 (onboarding checklist)
 - All DATA items (DATA-01 through DATA-08)
-

@@ -348,7 +348,7 @@ function formatESSLStamp(date: Date): string {
   return `${ist.getUTCFullYear()}-${pad(ist.getUTCMonth() + 1)}-${pad(ist.getUTCDate())} ${pad(ist.getUTCHours())}:${pad(ist.getUTCMinutes())}:${pad(ist.getUTCSeconds())}`;
 }
 
-// ─── Helper: Process attendance records ───
+// ─── Helper: Process attendance records (shift-aware, deterministic) ───
 async function processAttendance(
   supabase: any,
   badge_id: string,
@@ -356,110 +356,241 @@ async function processAttendance(
   punchDate: string,
   punch_type: string
 ) {
-  // Find employee by badge_id
+  // 1. Find employee by badge_id
   const { data: employee } = await supabase
     .from("hr_employees")
-    .select("id, badge_id, first_name, last_name")
+    .select("id, badge_id")
     .eq("badge_id", badge_id)
     .maybeSingle();
 
-  if (employee) {
-    const { data: existingActivity } = await supabase
-      .from("hr_attendance_activity")
-      .select("*")
-      .eq("employee_id", employee.id)
-      .eq("activity_date", punchDate)
-      .order("created_at", { ascending: false })
-      .limit(1)
+  if (!employee) {
+    console.log(`[ATTENDANCE] No employee found for badge_id=${badge_id}, skipping attendance processing`);
+    return;
+  }
+
+  const employeeId: string = employee.id;
+
+  // 2. Look up employee's shift via hr_employee_work_info → hr_shifts
+  const { data: workInfo } = await supabase
+    .from("hr_employee_work_info")
+    .select("shift_id")
+    .eq("employee_id", employeeId)
+    .maybeSingle();
+
+  let shiftStartTime = "09:00:00";
+  let shiftEndTime = "18:00:00";
+  let isNightShift = false;
+  let gracePeriodMinutes = 15;
+  let shiftDurationHours = 9;
+  let shiftId: string | null = null;
+
+  if (workInfo?.shift_id) {
+    const { data: shift } = await supabase
+      .from("hr_shifts")
+      .select("id, start_time, end_time, is_night_shift, grace_period_minutes, duration_hours")
+      .eq("id", workInfo.shift_id)
       .maybeSingle();
 
-    if (!existingActivity || existingActivity.clock_out) {
-      await supabase.from("hr_attendance_activity").insert({
-        employee_id: employee.id,
-        activity_date: punchDate,
-        clock_in: punchISO,
-        clock_in_note: "Via eSSL Push",
-      });
-    } else if (!existingActivity.clock_out) {
-      await supabase.from("hr_attendance_activity").update({
-        clock_out: punchISO,
-        clock_out_note: "Via eSSL Push",
-      }).eq("id", existingActivity.id);
-    }
-
-    // Update hr_attendance daily summary
-    const { data: existingAttendance } = await supabase
-      .from("hr_attendance")
-      .select("id")
-      .eq("employee_id", employee.id)
-      .eq("attendance_date", punchDate)
-      .maybeSingle();
-
-    if (!existingAttendance) {
-      await supabase.from("hr_attendance").insert({
-        employee_id: employee.id,
-        attendance_date: punchDate,
-        check_in: punchISO,
-        attendance_status: "present",
-      });
-    } else {
-      await supabase.from("hr_attendance").update({
-        check_out: punchISO,
-      }).eq("id", existingAttendance.id);
+    if (shift) {
+      shiftId = shift.id;
+      shiftStartTime = shift.start_time;
+      shiftEndTime = shift.end_time;
+      isNightShift = shift.is_night_shift ?? false;
+      gracePeriodMinutes = shift.grace_period_minutes ?? 15;
+      shiftDurationHours = shift.duration_hours ?? 9;
     }
   }
 
-  // Update hr_attendance_daily computed summary
-  const { data: dayPunches } = await supabase
+  // 3. Compute shift window for punch date (handles overnight)
+  const { windowStart, windowEnd, attendanceDate } = computeShiftWindow(
+    punchDate, shiftStartTime, shiftEndTime, isNightShift
+  );
+
+  // 4. Query ALL punches within that shift window for this employee
+  const { data: windowPunches } = await supabase
     .from("hr_attendance_punches")
-    .select("punch_time")
+    .select("id, punch_time")
     .eq("employee_id", badge_id)
-    .gte("punch_time", `${punchDate}T00:00:00`)
-    .lt("punch_time", `${punchDate}T23:59:59.999`)
+    .gte("punch_time", windowStart)
+    .lte("punch_time", windowEnd)
     .order("punch_time", { ascending: true });
 
-  if (dayPunches && dayPunches.length > 0) {
-    const firstIn = dayPunches[0].punch_time;
-    const lastOut = dayPunches[dayPunches.length - 1].punch_time;
-    const totalMs = new Date(lastOut).getTime() - new Date(firstIn).getTime();
-    const totalHours = Math.round((totalMs / 3600000) * 100) / 100;
-
-    const firstInDate = new Date(firstIn);
-    const shiftStart = new Date(firstInDate);
-    shiftStart.setHours(9, 30, 0, 0);
-    const isLate = firstInDate > shiftStart;
-    const lateByMinutes = isLate
-      ? Math.round((firstInDate.getTime() - shiftStart.getTime()) / 60000)
-      : 0;
-
-    const lastOutDate = new Date(lastOut);
-    const shiftEnd = new Date(lastOutDate);
-    shiftEnd.setHours(18, 30, 0, 0);
-    const earlyDeparture = dayPunches.length > 1 && lastOutDate < shiftEnd;
-    const earlyByMinutes = earlyDeparture
-      ? Math.round((shiftEnd.getTime() - lastOutDate.getTime()) / 60000)
-      : 0;
-
-    const status = totalHours < 4 ? "half_day" : isLate ? "late" : "present";
-
-    await supabase.from("hr_attendance_daily").upsert(
-      {
-        employee_id: badge_id,
-        attendance_date: punchDate,
-        first_in: firstIn,
-        last_out: lastOut,
-        total_hours: totalHours,
-        punch_count: dayPunches.length,
-        status,
-        is_late: isLate,
-        late_by_minutes: lateByMinutes,
-        early_departure: earlyDeparture,
-        early_by_minutes: earlyByMinutes,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "employee_id,attendance_date" }
-    );
+  if (!windowPunches || windowPunches.length === 0) {
+    console.log(`[ATTENDANCE] No punches in shift window for employee=${employeeId}, badge=${badge_id}, window=${windowStart}→${windowEnd}`);
+    return;
   }
+
+  // 5. Deterministic: First punch = check-in, Last punch = check-out
+  const firstPunch = windowPunches[0].punch_time;
+  const lastPunch = windowPunches.length > 1
+    ? windowPunches[windowPunches.length - 1].punch_time
+    : null;
+  const punchCount = windowPunches.length;
+
+  // Log intermediate punches that are ignored
+  if (windowPunches.length > 2) {
+    const ignored = windowPunches.slice(1, -1);
+    console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeId}, date=${attendanceDate}: ${ignored.map((p: any) => p.punch_time).join(", ")}`);
+  }
+
+  // 6. Shift-aware calculations
+  const firstPunchDate = new Date(firstPunch);
+  const shiftStartFull = parseTimeToDateOnDate(attendanceDate, shiftStartTime);
+  const shiftEndFull = isNightShift
+    ? parseTimeToNextDay(attendanceDate, shiftEndTime)
+    : parseTimeToDateOnDate(attendanceDate, shiftEndTime);
+
+  // Late calculation: compare first punch against shift start + grace period
+  const graceEnd = new Date(shiftStartFull.getTime() + gracePeriodMinutes * 60 * 1000);
+  const isLate = firstPunchDate > graceEnd;
+  const lateByMinutes = isLate
+    ? Math.round((firstPunchDate.getTime() - shiftStartFull.getTime()) / 60000)
+    : 0;
+
+  // Early departure calculation
+  let earlyDeparture = false;
+  let earlyByMinutes = 0;
+  let totalHours = 0;
+
+  if (lastPunch) {
+    const lastPunchDate = new Date(lastPunch);
+    earlyDeparture = lastPunchDate < shiftEndFull;
+    earlyByMinutes = earlyDeparture
+      ? Math.round((shiftEndFull.getTime() - lastPunchDate.getTime()) / 60000)
+      : 0;
+    const totalMs = lastPunchDate.getTime() - firstPunchDate.getTime();
+    totalHours = Math.round((totalMs / 3600000) * 100) / 100;
+  }
+
+  // Status determination
+  let status: string;
+  if (punchCount === 1) {
+    status = "incomplete";
+  } else if (totalHours < shiftDurationHours * 0.5) {
+    status = "half_day";
+  } else if (isLate) {
+    status = "late";
+  } else {
+    status = "present";
+  }
+
+  // 7. UPSERT hr_attendance_activity — one row per employee per shift-date
+  const { data: existingActivity } = await supabase
+    .from("hr_attendance_activity")
+    .select("id")
+    .eq("employee_id", employeeId)
+    .eq("activity_date", attendanceDate)
+    .limit(1)
+    .maybeSingle();
+
+  const activityPayload = {
+    employee_id: employeeId,
+    activity_date: attendanceDate,
+    clock_in: firstPunch,
+    clock_out: lastPunch,
+    clock_in_note: "Via eSSL Push",
+    clock_out_note: lastPunch ? "Via eSSL Push" : null,
+  };
+
+  if (existingActivity) {
+    await supabase.from("hr_attendance_activity")
+      .update(activityPayload)
+      .eq("id", existingActivity.id);
+  } else {
+    await supabase.from("hr_attendance_activity").insert(activityPayload);
+  }
+
+  // 8. UPSERT hr_attendance — uses unique constraint (employee_id, attendance_date)
+  const attendancePayload = {
+    employee_id: employeeId,
+    attendance_date: attendanceDate,
+    check_in: firstPunch,
+    check_out: lastPunch,
+    shift_id: shiftId,
+    attendance_status: status,
+    late_minutes: lateByMinutes,
+    early_leave_minutes: earlyByMinutes,
+    overtime_hours: totalHours > shiftDurationHours
+      ? Math.round((totalHours - shiftDurationHours) * 100) / 100
+      : 0,
+    updated_at: new Date().toISOString(),
+  };
+
+  await supabase.from("hr_attendance").upsert(attendancePayload, {
+    onConflict: "employee_id,attendance_date",
+  });
+
+  // 9. UPSERT hr_attendance_daily — uses unique constraint (employee_id, attendance_date)
+  await supabase.from("hr_attendance_daily").upsert(
+    {
+      employee_id: badge_id,
+      attendance_date: attendanceDate,
+      first_in: firstPunch,
+      last_out: lastPunch,
+      total_hours: totalHours,
+      punch_count: punchCount,
+      status,
+      is_late: isLate,
+      late_by_minutes: lateByMinutes,
+      early_departure: earlyDeparture,
+      early_by_minutes: earlyByMinutes,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "employee_id,attendance_date" }
+  );
+
+  console.log(`[ATTENDANCE] Processed employee=${employeeId}, date=${attendanceDate}, status=${status}, punches=${punchCount}, checkIn=${firstPunch}, checkOut=${lastPunch || "N/A"}`);
+}
+
+// ─── Helper: Compute shift window boundaries ───
+function computeShiftWindow(
+  punchDate: string,
+  startTime: string,
+  endTime: string,
+  isNightShift: boolean
+): { windowStart: string; windowEnd: string; attendanceDate: string } {
+  if (isNightShift) {
+    // Overnight shift: window starts on punchDate at startTime, ends next day at endTime
+    // But if punch is in the early morning hours (before endTime), it belongs to previous day's shift
+    const punchHour = parseInt(punchDate.split("T")?.[1]?.split(":")?.[0] || "12");
+    const endHour = parseInt(endTime.split(":")[0]);
+
+    // If we're computing from a date string (YYYY-MM-DD), check if we need to look back
+    const windowStart = `${punchDate}T${startTime}+05:30`;
+    const windowEnd = addOneDay(punchDate) + `T${endTime}+05:30`;
+
+    return {
+      windowStart,
+      windowEnd,
+      attendanceDate: punchDate, // Attendance date = shift start date
+    };
+  }
+
+  // Day shift: window is same day
+  // Add 1 hour buffer on each side to catch edge punches
+  const windowStart = `${punchDate}T${startTime}+05:30`;
+  const windowEnd = `${punchDate}T${endTime}+05:30`;
+
+  return {
+    windowStart,
+    windowEnd,
+    attendanceDate: punchDate,
+  };
+}
+
+// ─── Helper: Parse time string to Date on a specific date ───
+function parseTimeToDateOnDate(dateStr: string, timeStr: string): Date {
+  return new Date(`${dateStr}T${timeStr}+05:30`);
+}
+
+function parseTimeToNextDay(dateStr: string, timeStr: string): Date {
+  return new Date(`${addOneDay(dateStr)}T${timeStr}+05:30`);
+}
+
+function addOneDay(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().split("T")[0];
 }
 
 // ─── Helper: Update device heartbeat ───

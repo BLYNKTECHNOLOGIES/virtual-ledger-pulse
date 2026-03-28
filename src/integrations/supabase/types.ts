@@ -4675,6 +4675,67 @@ export type Database = {
           },
         ]
       }
+      hr_late_come_early_out: {
+        Row: {
+          attendance_date: string
+          attendance_id: string
+          created_at: string | null
+          early_minutes: number | null
+          employee_id: string
+          id: string
+          late_minutes: number | null
+          penalty_count: number | null
+          shift_id: string | null
+          type: string
+        }
+        Insert: {
+          attendance_date: string
+          attendance_id: string
+          created_at?: string | null
+          early_minutes?: number | null
+          employee_id: string
+          id?: string
+          late_minutes?: number | null
+          penalty_count?: number | null
+          shift_id?: string | null
+          type: string
+        }
+        Update: {
+          attendance_date?: string
+          attendance_id?: string
+          created_at?: string | null
+          early_minutes?: number | null
+          employee_id?: string
+          id?: string
+          late_minutes?: number | null
+          penalty_count?: number | null
+          shift_id?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_late_come_early_out_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "hr_attendance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_late_come_early_out_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_late_come_early_out_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_leave_allocation_requests: {
         Row: {
           approved_at: string | null
@@ -4809,6 +4870,7 @@ export type Database = {
           half_day_period: string | null
           id: string
           is_half_day: boolean | null
+          leave_clashes_count: number | null
           leave_type_id: string
           reason: string | null
           rejection_reason: string | null
@@ -4827,6 +4889,7 @@ export type Database = {
           half_day_period?: string | null
           id?: string
           is_half_day?: boolean | null
+          leave_clashes_count?: number | null
           leave_type_id: string
           reason?: string | null
           rejection_reason?: string | null
@@ -4845,6 +4908,7 @@ export type Database = {
           half_day_period?: string | null
           id?: string
           is_half_day?: boolean | null
+          leave_clashes_count?: number | null
           leave_type_id?: string
           reason?: string | null
           rejection_reason?: string | null
@@ -12165,6 +12229,7 @@ export type Database = {
             }
             Returns: string
           }
+      compute_leave_clashes: { Args: { p_request_id: string }; Returns: number }
       create_bank_transfer: {
         Args: {
           p_amount: number

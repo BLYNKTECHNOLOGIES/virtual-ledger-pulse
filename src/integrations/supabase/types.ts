@@ -1143,6 +1143,24 @@ export type Database = {
         }
         Relationships: []
       }
+      blocked_phone_numbers: {
+        Row: {
+          blocked_at: string
+          phone: string
+          reason: string
+        }
+        Insert: {
+          blocked_at?: string
+          phone: string
+          reason?: string
+        }
+        Update: {
+          blocked_at?: string
+          phone?: string
+          reason?: string
+        }
+        Relationships: []
+      }
       chat_message_senders: {
         Row: {
           created_at: string

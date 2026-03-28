@@ -1,0 +1,67 @@
+-- PHASE 4 FINAL CLEANUP: Drop all remaining old public write policies
+-- These are duplicates — new authenticated_all_* policies already exist for each table
+
+DROP POLICY IF EXISTS "Anyone can update auto pay settings" ON public.p2p_auto_pay_settings;
+DROP POLICY IF EXISTS "Anyone can delete auto reply rules" ON public.p2p_auto_reply_rules;
+DROP POLICY IF EXISTS "Anyone can update auto reply rules" ON public.p2p_auto_reply_rules;
+DROP POLICY IF EXISTS "Anyone can delete schedules" ON public.p2p_merchant_schedules;
+DROP POLICY IF EXISTS "Anyone can update schedules" ON public.p2p_merchant_schedules;
+DROP POLICY IF EXISTS "Allow all operations on pending_registrations" ON public.pending_registrations;
+DROP POLICY IF EXISTS "Allow all operations on platforms" ON public.platforms;
+DROP POLICY IF EXISTS "Allow all operations on positions" ON public.positions;
+DROP POLICY IF EXISTS "Allow all operations" ON public.products;
+DROP POLICY IF EXISTS "Allow all operations on purchase_action_timings" ON public.purchase_action_timings;
+DROP POLICY IF EXISTS "Allow all operations on purchase_order_payments" ON public.purchase_order_payments;
+DROP POLICY IF EXISTS "Allow all operations on purchase_order_reviews" ON public.purchase_order_reviews;
+DROP POLICY IF EXISTS "Allow all operations on purchase_order_status_history" ON public.purchase_order_status_history;
+DROP POLICY IF EXISTS "Allow all operations on purchase_payment_methods" ON public.purchase_payment_methods;
+DROP POLICY IF EXISTS "Allow all operations on rekyc_requests" ON public.rekyc_requests;
+DROP POLICY IF EXISTS "Allow all operations on risk_detection_logs" ON public.risk_detection_logs;
+DROP POLICY IF EXISTS "Allow all operations on risk_flags" ON public.risk_flags;
+DROP POLICY IF EXISTS "Allow all operations on sales_order_items" ON public.sales_order_items;
+DROP POLICY IF EXISTS "Allow all operations on sales_payment_methods" ON public.sales_payment_methods;
+DROP POLICY IF EXISTS "Allow all access to small_buys_config" ON public.small_buys_config;
+DROP POLICY IF EXISTS "Allow all access to small_buys_order_map" ON public.small_buys_order_map;
+DROP POLICY IF EXISTS "Allow all access to small_buys_sync" ON public.small_buys_sync;
+DROP POLICY IF EXISTS "Allow all access to small_buys_sync_log" ON public.small_buys_sync_log;
+DROP POLICY IF EXISTS "Allow all access to small_sales_config" ON public.small_sales_config;
+DROP POLICY IF EXISTS "Allow all access to small_sales_order_map" ON public.small_sales_order_map;
+DROP POLICY IF EXISTS "Allow all access to small_sales_sync" ON public.small_sales_sync;
+DROP POLICY IF EXISTS "Allow all access to small_sales_sync_log" ON public.small_sales_sync_log;
+DROP POLICY IF EXISTS "Allow authenticated update" ON public.spot_trade_history;
+DROP POLICY IF EXISTS "Allow all operations on stock_adjustments" ON public.stock_adjustments;
+DROP POLICY IF EXISTS "Allow all operations" ON public.stock_transactions;
+DROP POLICY IF EXISTS "System can manage stock transactions" ON public.stock_transactions;
+DROP POLICY IF EXISTS "Allow all operations on subsidiaries" ON public.subsidiaries;
+DROP POLICY IF EXISTS "Allow all write operations on system_functions" ON public.system_functions;
+DROP POLICY IF EXISTS "Allow all operations on system_settings" ON public.system_settings;
+DROP POLICY IF EXISTS "Allow all operations on TDS records" ON public.tds_records;
+DROP POLICY IF EXISTS "Allow all for authenticated tare" ON public.terminal_auto_reply_exclusions;
+DROP POLICY IF EXISTS "Exchange accounts manageable" ON public.terminal_exchange_accounts;
+DROP POLICY IF EXISTS "Allow all access to internal chat reads" ON public.terminal_internal_chat_reads;
+DROP POLICY IF EXISTS "Allow all access to internal messages" ON public.terminal_internal_messages;
+DROP POLICY IF EXISTS "Allow all access to terminal_operator_assignments" ON public.terminal_operator_assignments;
+DROP POLICY IF EXISTS "Terminal order assignments manageable" ON public.terminal_order_assignments;
+DROP POLICY IF EXISTS "Size ranges manageable" ON public.terminal_order_size_ranges;
+DROP POLICY IF EXISTS "Allow all for authenticated tpa" ON public.terminal_payer_assignments;
+DROP POLICY IF EXISTS "Allow all for authenticated tpol" ON public.terminal_payer_order_log;
+DROP POLICY IF EXISTS "Allow all operations on terminal_purchase_sync" ON public.terminal_purchase_sync;
+DROP POLICY IF EXISTS "Allow all access to terminal_sales_sync" ON public.terminal_sales_sync;
+DROP POLICY IF EXISTS "User exchange mappings manageable" ON public.terminal_user_exchange_mappings;
+DROP POLICY IF EXISTS "Terminal user profiles are manageable by terminal admins" ON public.terminal_user_profiles;
+DROP POLICY IF EXISTS "User size range mappings manageable" ON public.terminal_user_size_range_mappings;
+DROP POLICY IF EXISTS "Supervisor mappings manageable" ON public.terminal_user_supervisor_mappings;
+DROP POLICY IF EXISTS "App can manage terminal wallet links" ON public.terminal_wallet_links;
+DROP POLICY IF EXISTS "Anyone can update wallet asset balances" ON public.wallet_asset_balances;
+DROP POLICY IF EXISTS "Allow all operations on wallet_fee_deductions" ON public.wallet_fee_deductions;
+
+-- Add authenticated policies for tables that only had old public ones
+CREATE POLICY "authenticated_all_terminal_payer_assignments" ON public.terminal_payer_assignments FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_payer_order_log" ON public.terminal_payer_order_log FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_purchase_sync" ON public.terminal_purchase_sync FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_sales_sync" ON public.terminal_sales_sync FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_user_exchange_mappings" ON public.terminal_user_exchange_mappings FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_user_size_range_mappings" ON public.terminal_user_size_range_mappings FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_user_supervisor_mappings" ON public.terminal_user_supervisor_mappings FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_terminal_wallet_links" ON public.terminal_wallet_links FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "authenticated_all_wallet_fee_deductions" ON public.wallet_fee_deductions FOR ALL TO authenticated USING (true) WITH CHECK (true);

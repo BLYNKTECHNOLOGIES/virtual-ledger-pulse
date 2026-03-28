@@ -13950,7 +13950,7 @@ export type Database = {
           p_order_id: string
           p_order_number: string
           p_payment_method_id: string
-          p_product_code: string
+          p_product_code?: string
         }
         Returns: Json
       }

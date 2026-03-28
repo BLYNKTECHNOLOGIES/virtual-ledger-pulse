@@ -72,9 +72,17 @@ export function ResetPasswordDialog({
     setIsLoading(true);
 
     try {
-      // Get caller identity from Supabase session or localStorage fallback
-      const { data: { session } } = await supabase.auth.getSession();
-      const callerUserId = session?.user?.id || localStorage.getItem('userId') || undefined;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const savedSessionRaw = localStorage.getItem("userSession");
+      const savedSession = savedSessionRaw ? JSON.parse(savedSessionRaw) : null;
+      const callerUserId = session?.user?.id || savedSession?.user?.id;
+
+      if (!callerUserId) {
+        throw new Error("Session expired. Please log in again, then retry.");
+      }
 
       const response = await supabase.functions.invoke("admin-reset-password", {
         body: { userId, newPassword, callerUserId },

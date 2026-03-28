@@ -1,7 +1,7 @@
 
 # HRMS Bug Fixes & Feature Implementation Status
 
-## ✅ P0 + P1 — Completed (Previous Migration)
+## ✅ P0 + P1 — Completed (Migration 1)
 
 | # | Bug | What | Status |
 |---|-----|------|--------|
@@ -35,12 +35,22 @@
 | 4 | PAYROLL-01 | Payroll status state machine trigger | ✅ Done |
 | 5 | PAYROLL-03 | `fn_calculate_working_days()` function | ✅ Done |
 
+## ✅ P4a — Quick Fixes + Features (Migration 4 + UI)
+
+| # | Item | What | Status |
+|---|------|------|--------|
+| 1 | BUG-04b | Cleaned dead 'pending' from `compute_leave_clashes` trigger | ✅ Done |
+| 2 | GAP-03 | `hr_hour_accounts` TEXT columns → GENERATED from seconds | ✅ Done |
+| 3 | LEAVE-03 | Cross-year leave spanning (split deduction across year allocations) | ✅ Done |
+| 4 | LEAVE-04 | Minimum notice period (3 days max backdating) | ✅ Done |
+| 5 | FEAT-03 | Payslip PDF enhanced (company branding, employee details, attendance, TDS, LOP) | ✅ Done |
+
 ## Skipped (by decision)
 - PAYROLL-02 (payslip penalty/loan columns)
+- All DATA items (DATA-01 through DATA-08) — team handles via UI
 
-## P4+ Deferred
+## Remaining P4
 - FEAT-01 (attendance regularization)
 - FEAT-02 (resignation workflow)
-- FEAT-03 (payslip PDF generation)
 - FEAT-06 (onboarding checklist)
-- All DATA items (DATA-01 through DATA-08)
+- GAP-04 (grace period precedence documentation)

@@ -695,19 +695,18 @@ export default function UserProfile() {
     }
   });
 
-  // ─── Update password mutation ───
+  // ─── Update password mutation (via Supabase Auth) ───
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
-      if (!user?.username) throw new Error('User not found');
-      const { data: validationData, error: validationError } = await supabase.rpc('validate_user_credentials', {
-        input_username: user.username, input_password: data.currentPassword
+      if (!user?.email) throw new Error('User not found');
+      // Verify current password by attempting sign-in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: data.currentPassword
       });
-      if (validationError) throw validationError;
-      const validation = validationData?.[0];
-      if (!validation?.is_valid) throw new Error('Current password is incorrect');
-      const { error } = await (supabase.rpc as any)('update_user_password', {
-        user_id: user.id, new_password: data.newPassword
-      });
+      if (verifyError) throw new Error('Current password is incorrect');
+      // Update password via Supabase Auth
+      const { error } = await supabase.auth.updateUser({ password: data.newPassword });
       if (error) throw error;
     },
     onSuccess: () => {

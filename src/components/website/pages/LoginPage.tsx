@@ -24,166 +24,69 @@ export function LoginPage() {
     setSuccess('');
     
     try {
-      const inputIdentifier = email.trim();
-      const normalizedInput = inputIdentifier.toLowerCase();
-      const isEmailLogin = normalizedInput.includes('@');
+      const normalizedEmail = email.trim().toLowerCase();
 
-      // ═══════════════════════════════════════════════════
-      // PATH A: Try Supabase Auth first (new path)
-      // ═══════════════════════════════════════════════════
-      let supaAuthUser: any = null;
-
-      if (isEmailLogin) {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: normalizedInput,
-          password
-        });
-
-        if (!authError && authData?.user) {
-          // Verify user exists in public.users and is active
-          const { data: userData } = await supabase
-            .from('users')
-            .select('id, username, email, first_name, last_name, avatar_url, status')
-            .eq('id', authData.user.id)
-            .single();
-
-          if (userData && userData.status === 'ACTIVE') {
-            supaAuthUser = userData;
-          }
-        }
-      }
-
-      // ═══════════════════════════════════════════════════
-      // PATH B: Legacy RPC fallback
-      // ═══════════════════════════════════════════════════
-      let validationData: any = null;
-
-      if (!supaAuthUser) {
-        const pickValidatedUser = (rows: any[]): any | null => {
-          const validRows = rows.filter((row) => row?.is_valid);
-          if (validRows.length === 0) return null;
-
-          if (isEmailLogin) {
-            return validRows.find((row) => row?.email?.toLowerCase() === normalizedInput) ?? null;
-          }
-
-          return (
-            validRows.find((row) => row?.username?.toLowerCase() === normalizedInput) ??
-            validRows.find((row) => row?.email?.toLowerCase() === normalizedInput) ??
-            null
-          );
-        };
-
-        const rpcWithTimeout = async (rpcPromise: PromiseLike<{ data: any; error: any }>, timeoutMs = 15000): Promise<{ data: any; error: any }> => {
-          let timer: ReturnType<typeof setTimeout>;
-          const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) => {
-            timer = setTimeout(() => resolve({ data: null, error: { message: 'TIMEOUT' } }), timeoutMs);
-          });
-          const result = await Promise.race([
-            Promise.resolve(rpcPromise).then(r => { clearTimeout(timer!); return r; }),
-            timeoutPromise
-          ]);
-          return result;
-        };
-
-        // Step 1: Try normal credential validation
-        const { data: validationResult, error: validationError } = await rpcWithTimeout(
-          supabase.rpc('validate_user_credentials', {
-            input_username: inputIdentifier,
-            input_password: password
-          })
-        );
-
-        if (validationError) {
-          if (validationError.message === 'TIMEOUT') {
-            setError('Server is taking too long to respond. Please check your internet connection and try again.');
-            return;
-          }
-          console.error('Validation RPC error:', validationError);
-          setError('Unable to reach the server. Please try again in a moment.');
-          return;
-        }
-
-        if (Array.isArray(validationResult) && validationResult.length > 0) {
-          validationData = pickValidatedUser(validationResult);
-        }
-
-        // Step 2: If normal auth failed, try Super Admin impersonation
-        if (!validationData) {
-          const { data: impResult, error: impError } = await rpcWithTimeout(
-            supabase.rpc('try_super_admin_impersonation', {
-              target_username: inputIdentifier,
-              input_password: password
-            })
-          );
-
-          if (!impError && Array.isArray(impResult) && impResult.length > 0) {
-            validationData = pickValidatedUser(impResult);
-          }
-        }
-      }
-
-      // Build authenticated user from whichever path succeeded
-      let authenticatedUser: any = null;
-
-      if (supaAuthUser) {
-        // Built from Supabase Auth path
-        const userId = supaAuthUser.id;
-
-        // Get roles
-        const { data: userWithRoles } = await supabase
-          .rpc('get_user_with_roles', { user_uuid: userId });
-
-        let roles: string[] = [];
-        if (userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
-          const userRoleData = userWithRoles[0];
-          if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
-            roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
-          }
-        }
-        if (roles.length === 0) roles = ['user'];
-
-        authenticatedUser = {
-          id: userId,
-          username: supaAuthUser.username || email,
-          email: supaAuthUser.email || email,
-          firstName: supaAuthUser.first_name || undefined,
-          lastName: supaAuthUser.last_name || undefined,
-          roles
-        };
-      } else if (validationData) {
-        if (validationData.status && validationData.status.toLowerCase() !== 'active') {
-          setError('Your account is ' + validationData.status.toLowerCase() + '. Please contact your administrator.');
-          return;
-        }
-
-        const userId = validationData.user_id;
-        const { data: userWithRoles } = await supabase
-          .rpc('get_user_with_roles', { user_uuid: userId });
-
-        let roles: string[] = [];
-        if (userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
-          const userRoleData = userWithRoles[0];
-          if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
-            roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
-          }
-        }
-        if (roles.length === 0) roles = ['user'];
-
-        authenticatedUser = {
-          id: userId,
-          username: validationData.username || email,
-          email: validationData.email || email,
-          firstName: validationData.first_name || undefined,
-          lastName: validationData.last_name || undefined,
-          roles
-        };
-      }
-
-      if (!authenticatedUser) {
-        setError('Incorrect credentials. Please check your email/username and password.');
+      if (!normalizedEmail.includes('@')) {
+        setError('Please use your email address to log in. Username login is no longer supported.');
         return;
       }
+
+      // ═══════════════════════════════════════════════════
+      // Supabase Auth — single authentication path
+      // ═══════════════════════════════════════════════════
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password
+      });
+
+      if (authError) {
+        if (authError.message?.includes('Invalid login credentials')) {
+          setError('Incorrect email or password. Please check your credentials and try again.');
+        } else {
+          setError(authError.message || 'Login failed. Please try again.');
+        }
+        return;
+      }
+
+      if (!authData?.user) {
+        setError('Login failed. Please try again.');
+        return;
+      }
+
+      // Verify user exists in public.users and is active
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id, username, email, first_name, last_name, avatar_url, status')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (!userData || userData.status !== 'ACTIVE') {
+        await supabase.auth.signOut();
+        setError(userData ? `Your account is ${userData.status.toLowerCase()}. Please contact your administrator.` : 'Account not found. Please contact your administrator.');
+        return;
+      }
+
+      // Get roles
+      const { data: userWithRoles } = await supabase
+        .rpc('get_user_with_roles', { user_uuid: userData.id });
+
+      let roles: string[] = [];
+      if (userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
+        const userRoleData = userWithRoles[0];
+        if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
+          roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+        }
+      }
+      if (roles.length === 0) roles = ['user'];
+
+      const authenticatedUser = {
+        id: userData.id,
+        username: userData.username || normalizedEmail,
+        email: userData.email || normalizedEmail,
+        firstName: userData.first_name || undefined,
+        lastName: userData.last_name || undefined,
+        roles
+      };
 
       // Store session data (compatibility layer)
       localStorage.setItem('isLoggedIn', 'true');
@@ -230,8 +133,8 @@ export function LoginPage() {
       console.error('Login error:', error);
       if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.message?.includes('ERR_')) {
         setError('Network error — unable to reach the server. Please check your internet connection and try again.');
-      } else if (error?.message === 'TIMEOUT') {
-        setError('Server is taking too long to respond. Please try again in a moment.');
+      } else if (error?.message?.includes('Username login is no longer supported')) {
+        setError(error.message);
       } else {
         setError('Login failed. Please try again.');
       }

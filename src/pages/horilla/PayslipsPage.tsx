@@ -192,7 +192,7 @@ export default function PayslipsPage() {
     queryKey: ["hr_payslips", runFilter],
     queryFn: async () => {
       let query = (supabase as any).from("hr_payslips")
-        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)")
+        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name, designation, department, date_of_joining, pan_number, bank_name, account_number), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)")
         .order("created_at", { ascending: false });
       if (runFilter !== "all") query = query.eq("payroll_run_id", runFilter);
       const { data, error } = await query;

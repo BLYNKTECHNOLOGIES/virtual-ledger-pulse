@@ -624,6 +624,7 @@ const router = createBrowserRouter([
         { path: "attendance/shifts", element: <ShiftsPage /> },
         { path: "attendance/overtime", element: <OvertimePage /> },
         { path: "attendance/activity", element: <AttendanceActivityPage /> },
+        { path: "attendance/hour-accounts", element: <HourAccountsPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },

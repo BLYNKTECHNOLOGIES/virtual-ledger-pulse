@@ -13109,39 +13109,22 @@ export type Database = {
           old_drift: number
         }[]
       }
-      complete_sales_order_with_banking:
-        | {
-            Args: {
-              p_bank_account_id: string
-              p_client_name: string
-              p_description: string
-              p_order_date: string
-              p_order_number: string
-              p_phone: string
-              p_platform: string
-              p_price_per_unit: number
-              p_product_id: string
-              p_quantity: number
-              p_total_amount: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_bank_account_id: string
-              p_client_name: string
-              p_description?: string
-              p_order_date?: string
-              p_order_number: string
-              p_phone?: string
-              p_platform?: string
-              p_price_per_unit: number
-              p_product_id?: string
-              p_quantity: number
-              p_total_amount: number
-            }
-            Returns: string
-          }
+      complete_sales_order_with_banking: {
+        Args: {
+          p_bank_account_id: string
+          p_client_name: string
+          p_description: string
+          p_order_date: string
+          p_order_number: string
+          p_phone: string
+          p_platform: string
+          p_price_per_unit: number
+          p_product_id: string
+          p_quantity: number
+          p_total_amount: number
+        }
+        Returns: string
+      }
       compute_annual_tax: {
         Args: { p_filing_status_id: string; p_taxable_income: number }
         Returns: number

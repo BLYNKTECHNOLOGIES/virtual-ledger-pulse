@@ -13156,7 +13156,12 @@ export type Database = {
         | "tasks_view"
         | "tasks_manage"
       erp_task_priority: "low" | "medium" | "high" | "critical"
-      erp_task_status: "open" | "in_progress" | "completed"
+      erp_task_status:
+        | "open"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+        | "on_hold"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
       terminal_permission:
@@ -13400,7 +13405,13 @@ export const Constants = {
         "tasks_manage",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
-      erp_task_status: ["open", "in_progress", "completed"],
+      erp_task_status: [
+        "open",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "on_hold",
+      ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],
       terminal_permission: [

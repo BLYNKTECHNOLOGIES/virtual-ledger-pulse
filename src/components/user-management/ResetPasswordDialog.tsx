@@ -72,31 +72,32 @@ export function ResetPasswordDialog({
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.rpc("admin_reset_user_password", {
-        p_user_id: userId,
-        p_new_password: newPassword,
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await supabase.functions.invoke("admin-reset-password", {
+        body: { userId, newPassword },
       });
 
-      if (error) {
-        console.error("Password reset RPC error:", error);
-        throw error;
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to reset password");
       }
 
-      if (data === true) {
-        setIsLoading(false);
-        toast({
-          title: "✅ Password Reset Successful",
-          description: `Password has been successfully reset for ${userName}`,
-        });
-        resetForm();
-        // Small delay so user sees the success toast before dialog closes
-        setTimeout(() => {
-          onOpenChange(false);
-        }, 1500);
-        return;
-      } else {
-        throw new Error("User not found or password could not be updated");
+      const result = response.data;
+      if (result?.error) {
+        throw new Error(result.error);
       }
+
+      setIsLoading(false);
+      toast({
+        title: "✅ Password Reset Successful",
+        description: `Password has been successfully reset for ${userName}`,
+      });
+      resetForm();
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 1500);
+      return;
     } catch (error: any) {
       console.error("Password reset error:", error);
       setIsLoading(false);

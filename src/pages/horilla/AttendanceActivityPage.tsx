@@ -267,62 +267,66 @@ export default function AttendanceActivityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header — stacks on mobile */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clock In / Out Activity</h1>
-          <p className="text-sm text-gray-500">Real-time attendance activity tracking</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Clock In / Out Activity</h1>
+          <p className="text-sm text-muted-foreground">Real-time attendance activity tracking</p>
         </div>
-        <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
+        <Button onClick={() => setShowClockIn(true)} className="bg-[#E8604C] hover:bg-[#d4553f] w-full sm:w-auto flex-shrink-0">
           <Plus className="h-4 w-4 mr-2" /> Clock In
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stats — 2 cols mobile, 4 cols desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           { label: "Employees Today", value: consolidated.length, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Currently In", value: currentlyIn, icon: LogIn, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Clocked Out", value: clockedOut, icon: LogOut, color: "text-gray-600", bg: "bg-gray-50" },
+          { label: "Clocked Out", value: clockedOut, icon: LogOut, color: "text-muted-foreground", bg: "bg-muted/50" },
           { label: "Total Hours", value: `${totalHours.toFixed(1)}h`, icon: Timer, color: "text-orange-600", bg: "bg-orange-50" },
         ].map((s) => (
           <Card key={s.label}>
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+            <CardContent className="p-3 sm:p-4 flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${s.bg} shrink-0`}><s.icon className={`h-4 w-4 sm:h-5 sm:w-5 ${s.color}`} /></div>
+              <div><p className="text-lg sm:text-2xl font-bold">{s.value}</p><p className="text-[10px] sm:text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="flex gap-3 flex-wrap">
-        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+      {/* Filters — stacks on mobile */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-full sm:w-44" />
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
 
-      <Card>
+      {/* Desktop table — hidden on mobile */}
+      <Card className="hidden md:block">
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
-                {["Employee", "Badge", "First Clock In", "Last Clock Out", "Effective Duration", "Punches", "Note", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                {["Employee", "Badge", "First Clock In", "Last Clock Out", "Duration", "Punches", "Note", "Actions"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : queryError ? (
-                <tr><td colSpan={8} className="text-center py-8 text-red-500">Error loading data. Please refresh the page.</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-destructive">Error loading data. Please refresh.</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">No activity records for this date</td></tr>
+                <tr><td colSpan={8} className="text-center py-8 text-muted-foreground">No activity records for this date</td></tr>
               ) : (
                 filtered.map((c) => (
-                  <tr key={c.employeeId} className="border-b hover:bg-gray-50">
+                  <tr key={c.employeeId} className="border-b hover:bg-muted/20">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{c.employeeName}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.badgeId}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{c.badgeId}</td>
                     <td className="px-4 py-3">
                       <span className="text-green-600 font-medium">{formatTime(c.firstClockIn)}</span>
                     </td>
@@ -334,14 +338,14 @@ export default function AttendanceActivityPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 font-semibold">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</td>
-                    <td className="px-4 py-3 text-gray-500">{c.punchCount}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{c.note}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{c.punchCount}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{c.note}</td>
                     <td className="px-4 py-3">
                       {c.isActive && (
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-red-600 hover:bg-red-50 h-7 text-xs"
+                          className="text-destructive hover:bg-destructive/10 h-7 text-xs"
                           onClick={() => clockOutMutation.mutate({ id: c.latestActivityId, employeeId: c.employeeId })}
                         >
                           <LogOut className="h-3 w-3 mr-1" /> Clock Out
@@ -356,8 +360,69 @@ export default function AttendanceActivityPage() {
         </CardContent>
       </Card>
 
+      {/* Mobile card layout — shown on mobile only */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+        ) : queryError ? (
+          <div className="text-center py-8 text-destructive text-sm">Error loading data.</div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">No activity records for this date</div>
+        ) : (
+          filtered.map((c) => (
+            <Card key={c.employeeId} className="overflow-hidden">
+              <CardContent className="p-4">
+                {/* Top row: name + status */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-foreground truncate">{c.employeeName}</p>
+                    <p className="text-xs text-muted-foreground">{c.badgeId}</p>
+                  </div>
+                  {c.isActive ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 animate-pulse shrink-0">Active</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground shrink-0">Done</span>
+                  )}
+                </div>
+
+                {/* Time row */}
+                <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">In</p>
+                    <p className="text-sm font-semibold text-green-600">{formatTime(c.firstClockIn)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Out</p>
+                    <p className="text-sm font-semibold text-red-600">{c.isActive ? "—" : formatTime(c.lastClockOut)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Duration</p>
+                    <p className="text-sm font-semibold">{c.isActive ? "—" : formatDuration(c.durationMinutes)}</p>
+                  </div>
+                </div>
+
+                {/* Footer: punches + action */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">{c.punchCount} punches • {c.note}</span>
+                  {c.isActive && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive hover:bg-destructive/10 h-8 text-xs"
+                      onClick={() => clockOutMutation.mutate({ id: c.latestActivityId, employeeId: c.employeeId })}
+                    >
+                      <LogOut className="h-3 w-3 mr-1" /> Clock Out
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
       <Dialog open={showClockIn} onOpenChange={setShowClockIn}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-md">
           <DialogHeader><DialogTitle>Clock In Employee</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -375,11 +440,11 @@ export default function AttendanceActivityPage() {
               <Label>Note (optional)</Label>
               <Textarea value={clockNote} onChange={(e) => setClockNote(e.target.value)} placeholder="Clock in note..." />
             </div>
-            <p className="text-xs text-gray-400">Time: {format(new Date(), "hh:mm a")} • Date: {dateFilter}</p>
+            <p className="text-xs text-muted-foreground">Time: {format(new Date(), "hh:mm a")} • Date: {dateFilter}</p>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowClockIn(false)}>Cancel</Button>
-            <Button onClick={() => clockInMutation.mutate()} disabled={!selectedEmp || clockInMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f]">
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowClockIn(false)} className="w-full sm:w-auto">Cancel</Button>
+            <Button onClick={() => clockInMutation.mutate()} disabled={!selectedEmp || clockInMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] w-full sm:w-auto">
               <LogIn className="h-4 w-4 mr-2" /> Clock In
             </Button>
           </DialogFooter>

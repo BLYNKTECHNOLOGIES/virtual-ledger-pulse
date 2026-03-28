@@ -118,14 +118,32 @@ function OrgChartNode({
     <div className="flex flex-col items-center">
       {/* The card */}
       <div
-        className={`relative rounded-md px-5 py-3 min-w-[150px] max-w-[200px] text-center transition-all select-none border
+        className={`relative rounded-lg px-4 py-3 min-w-[170px] max-w-[220px] text-center transition-all select-none border
           ${isHighlighted
             ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-lg"
             : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
       >
+        {/* Avatar */}
+        <div className="flex justify-center mb-1.5">
+          {node.profileUrl ? (
+            <img src={node.profileUrl} alt={node.name} className="h-9 w-9 rounded-full object-cover border-2 border-background shadow-sm" />
+          ) : (
+            <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center text-xs font-bold text-primary border-2 border-background shadow-sm">
+              {node.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+            </div>
+          )}
+        </div>
         <p className="text-sm font-semibold text-foreground leading-tight">{node.name}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{node.designation || "Not set"}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{node.designation || "Not set"}</p>
+        {node.department && (
+          <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-medium text-primary">{node.department}</span>
+        )}
+        {hasChildren && (
+          <span className="absolute -top-2 -right-2 z-10 h-5 min-w-[20px] px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center shadow-sm">
+            {node.children.length}
+          </span>
+        )}
 
         {hasChildren && (
           <button

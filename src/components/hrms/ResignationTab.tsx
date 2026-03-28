@@ -69,7 +69,7 @@ export function ResignationTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hr_employees")
-        .select("id, badge_id, first_name, last_name, department, designation, resignation_date, resignation_status, notice_period_end_date, last_working_day, separation_reason, is_active")
+        .select("id, badge_id, first_name, last_name, resignation_date, resignation_status, notice_period_end_date, last_working_day, separation_reason, is_active, hr_employee_work_info(department_id, job_role)")
         .not("resignation_status", "is", null)
         .order("resignation_date", { ascending: false });
       if (error) throw error;
@@ -83,7 +83,7 @@ export function ResignationTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hr_employees")
-        .select("id, badge_id, first_name, last_name, department, designation")
+        .select("id, badge_id, first_name, last_name")
         .eq("is_active", true)
         .is("resignation_status", null)
         .order("first_name");

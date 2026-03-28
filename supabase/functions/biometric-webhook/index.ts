@@ -382,21 +382,26 @@ async function processAttendance(
   badge_id: string,
   punchISO: string,
   punchDate: string,
-  punch_type: string
+  punch_type: string,
+  preResolvedEmployeeId?: string
 ) {
-  // 1. Find employee by badge_id
-  const { data: employee } = await supabase
-    .from("hr_employees")
-    .select("id, badge_id")
-    .eq("badge_id", badge_id)
-    .maybeSingle();
+  // 1. Use pre-resolved UUID if available, otherwise look up
+  let employeeId = preResolvedEmployeeId;
+  if (!employeeId) {
+    const { data: employee } = await supabase
+      .from("hr_employees")
+      .select("id")
+      .eq("badge_id", badge_id)
+      .maybeSingle();
 
-  if (!employee) {
-    console.log(`[ATTENDANCE] No employee found for badge_id=${badge_id}, skipping attendance processing`);
-    return;
+    if (!employee) {
+      console.log(`[ATTENDANCE] No employee found for badge_id=${badge_id}, skipping attendance processing`);
+      return;
+    }
+    employeeId = employee.id;
   }
 
-  const employeeId: string = employee.id;
+  const employeeIdStr: string = employeeId!;
 
   // 2. Look up employee's shift via hr_employee_work_info → hr_shifts
   const { data: workInfo } = await supabase
@@ -438,7 +443,7 @@ async function processAttendance(
   const { data: windowPunches } = await supabase
     .from("hr_attendance_punches")
     .select("id, punch_time")
-    .eq("employee_id", badge_id)
+    .eq("employee_id", employeeIdStr)
     .gte("punch_time", windowStart)
     .lte("punch_time", windowEnd)
     .order("punch_time", { ascending: true });
@@ -551,7 +556,7 @@ async function processAttendance(
   // 9. UPSERT hr_attendance_daily — uses unique constraint (employee_id, attendance_date)
   await supabase.from("hr_attendance_daily").upsert(
     {
-      employee_id: badge_id,
+      employee_id: employeeIdStr,
       attendance_date: attendanceDate,
       first_in: firstPunch,
       last_out: lastPunch,

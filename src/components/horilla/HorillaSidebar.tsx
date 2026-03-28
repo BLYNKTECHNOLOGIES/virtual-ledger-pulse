@@ -68,6 +68,7 @@ const navGroups: NavGroup[] = [
           { label: "Overtime", path: "/hrms/attendance/overtime" },
           { label: "Hour Accounts", path: "/hrms/attendance/hour-accounts" },
           { label: "Late Come / Early Out", path: "/hrms/attendance/late-early" },
+          { label: "Attendance Policies", path: "/hrms/attendance/policies" },
         ],
       },
       {
@@ -82,6 +83,7 @@ const navGroups: NavGroup[] = [
           { label: "Holidays", path: "/hrms/leave/holidays" },
           { label: "Comp-Off", path: "/hrms/leave/comp-off" },
           { label: "Accrual Plans", path: "/hrms/leave/accrual-plans" },
+          { label: "Year-End Reset", path: "/hrms/leave/year-end-reset" },
         ],
       },
     ],

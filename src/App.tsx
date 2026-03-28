@@ -58,6 +58,8 @@ import OvertimePage from './pages/horilla/OvertimePage';
 import HourAccountsPage from './pages/horilla/HourAccountsPage';
 import LateComeEarlyOutPage from './pages/horilla/LateComeEarlyOutPage';
 import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
+import LeaveAccrualPlansPage from './pages/horilla/LeaveAccrualPlansPage';
+import TaxConfigPage from './pages/horilla/TaxConfigPage';
 import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
 import LeaveTypesPage from './pages/horilla/LeaveTypesPage';
 import HolidaysPage from './pages/horilla/HolidaysPage';
@@ -634,7 +636,9 @@ const router = createBrowserRouter([
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
         { path: "leave/comp-off", element: <CompOffPage /> },
+        { path: "leave/accrual-plans", element: <LeaveAccrualPlansPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },
+        { path: "payroll/tax-config", element: <TaxConfigPage /> },
         { path: "payroll/payslips", element: <PayslipsPage /> },
         { path: "payroll/allowances", element: <SalaryComponentsPage componentType="allowance" /> },
         { path: "payroll/deductions", element: <SalaryComponentsPage componentType="deduction" /> },

@@ -64,22 +64,9 @@ export function LeavesTab() {
       const updateData: any = { status };
       if (status === "Approved") updateData.approved_at = new Date().toISOString();
       if (status === "Rejected") updateData.rejection_reason = "Rejected by admin";
+      // DB trigger (trg_leave_balance_on_status_change) handles balance deduction/restoration
       const { error } = await (supabase as any).from("hr_leave_requests").update(updateData).eq("id", id);
       if (error) throw error;
-
-      // Update allocation used_days on approval
-      if (status === "Approved") {
-        const req = leaveRequests.find((r: any) => r.id === id);
-        if (req) {
-          const empAllocs = allocations.filter((a: any) => a.employee_id === req.employee_id && a.leave_type_id === req.leave_type_id);
-          const latestAlloc = empAllocs.sort((a: any, b: any) => ((b.year || 0) * 10 + (b.quarter || 0)) - ((a.year || 0) * 10 + (a.quarter || 0)))[0];
-          if (latestAlloc) {
-            await (supabase as any).from("hr_leave_allocations")
-              .update({ used_days: latestAlloc.used_days + req.total_days })
-              .eq("id", latestAlloc.id);
-          }
-        }
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hrms_leave_requests"] });

@@ -66,6 +66,7 @@ const navGroups: NavGroup[] = [
           { label: "Summary Report", path: "/hrms/attendance/summary" },
           { label: "Shifts", path: "/hrms/attendance/shifts" },
           { label: "Overtime", path: "/hrms/attendance/overtime" },
+          { label: "Hour Accounts", path: "/hrms/attendance/hour-accounts" },
         ],
       },
       {

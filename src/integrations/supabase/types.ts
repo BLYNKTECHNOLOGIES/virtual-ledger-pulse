@@ -4528,6 +4528,62 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_hour_accounts: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          hour_account_second: number | null
+          hour_pending_second: number | null
+          id: string
+          month: string
+          month_sequence: number
+          overtime: string | null
+          overtime_second: number | null
+          pending_hours: string | null
+          updated_at: string | null
+          worked_hours: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          hour_account_second?: number | null
+          hour_pending_second?: number | null
+          id?: string
+          month: string
+          month_sequence?: number
+          overtime?: string | null
+          overtime_second?: number | null
+          pending_hours?: string | null
+          updated_at?: string | null
+          worked_hours?: string | null
+          year?: number
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          hour_account_second?: number | null
+          hour_pending_second?: number | null
+          id?: string
+          month?: string
+          month_sequence?: number
+          overtime?: string | null
+          overtime_second?: number | null
+          pending_hours?: string | null
+          updated_at?: string | null
+          worked_hours?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_interviews: {
         Row: {
           candidate_id: string
@@ -4682,36 +4738,45 @@ export type Database = {
       hr_leave_allocations: {
         Row: {
           allocated_days: number
+          available_days: number | null
           carry_forward_days: number | null
           created_at: string
           employee_id: string
+          expired_date: string | null
           id: string
           leave_type_id: string
           quarter: number
+          reset_date: string | null
           updated_at: string
           used_days: number
           year: number
         }
         Insert: {
           allocated_days?: number
+          available_days?: number | null
           carry_forward_days?: number | null
           created_at?: string
           employee_id: string
+          expired_date?: string | null
           id?: string
           leave_type_id: string
           quarter?: number
+          reset_date?: string | null
           updated_at?: string
           used_days?: number
           year?: number
         }
         Update: {
           allocated_days?: number
+          available_days?: number | null
           carry_forward_days?: number | null
           created_at?: string
           employee_id?: string
+          expired_date?: string | null
           id?: string
           leave_type_id?: string
           quarter?: number
+          reset_date?: string | null
           updated_at?: string
           used_days?: number
           year?: number
@@ -4815,44 +4880,80 @@ export type Database = {
       hr_leave_types: {
         Row: {
           carry_forward: boolean | null
+          carryforward_expire_in: number | null
+          carryforward_expire_period: string | null
+          carryforward_type: string | null
           code: string
           color: string | null
           created_at: string
+          exclude_company_leave: boolean | null
+          exclude_holiday: boolean | null
           id: string
           is_active: boolean | null
+          is_compensatory_leave: boolean | null
+          is_encashable: boolean | null
           is_paid: boolean | null
           max_carry_forward_days: number | null
           max_days_per_year: number | null
           name: string
+          require_attachment: boolean | null
           requires_approval: boolean | null
+          reset: boolean | null
+          reset_based: string | null
+          reset_day: string | null
+          reset_month: string | null
           updated_at: string
         }
         Insert: {
           carry_forward?: boolean | null
+          carryforward_expire_in?: number | null
+          carryforward_expire_period?: string | null
+          carryforward_type?: string | null
           code: string
           color?: string | null
           created_at?: string
+          exclude_company_leave?: boolean | null
+          exclude_holiday?: boolean | null
           id?: string
           is_active?: boolean | null
+          is_compensatory_leave?: boolean | null
+          is_encashable?: boolean | null
           is_paid?: boolean | null
           max_carry_forward_days?: number | null
           max_days_per_year?: number | null
           name: string
+          require_attachment?: boolean | null
           requires_approval?: boolean | null
+          reset?: boolean | null
+          reset_based?: string | null
+          reset_day?: string | null
+          reset_month?: string | null
           updated_at?: string
         }
         Update: {
           carry_forward?: boolean | null
+          carryforward_expire_in?: number | null
+          carryforward_expire_period?: string | null
+          carryforward_type?: string | null
           code?: string
           color?: string | null
           created_at?: string
+          exclude_company_leave?: boolean | null
+          exclude_holiday?: boolean | null
           id?: string
           is_active?: boolean | null
+          is_compensatory_leave?: boolean | null
+          is_encashable?: boolean | null
           is_paid?: boolean | null
           max_carry_forward_days?: number | null
           max_days_per_year?: number | null
           name?: string
+          require_attachment?: boolean | null
           requires_approval?: boolean | null
+          reset?: boolean | null
+          reset_based?: string | null
+          reset_day?: string | null
+          reset_month?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -12777,6 +12878,10 @@ export type Database = {
           p_product_code: string
         }
         Returns: Json
+      }
+      refresh_hour_accounts: {
+        Args: { p_month?: number; p_year?: number }
+        Returns: undefined
       }
       register_user_request: {
         Args: {

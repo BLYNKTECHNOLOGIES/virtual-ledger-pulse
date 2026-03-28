@@ -73,6 +73,12 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.verify-binance-keys]
     verify_jwt = false
+  [functions.admin-reset-password]
+    verify_jwt = false
+  [functions.migrate-users-to-auth]
+    verify_jwt = false
+  [functions.send-task-email]
+    verify_jwt = false
 
 [inbucket]
   enabled = true

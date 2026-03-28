@@ -21,6 +21,8 @@ export default function PayrollDashboardPage() {
   const [lockConfirm, setLockConfirm] = useState<any>(null);
   const [rerunDialog, setRerunDialog] = useState<any>(null);
   const [rerunReason, setRerunReason] = useState("");
+  const [reviewDialog, setReviewDialog] = useState<any>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["hr_payroll_runs"],
@@ -46,6 +48,25 @@ export default function PayrollDashboardPage() {
       setShowCreate(false);
       setForm({ title: "", pay_period_start: "", pay_period_end: "", notes: "" });
       toast.success("Payroll run created");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await (supabase as any).from("hr_payroll_runs").update({
+        status: "reviewed",
+        reviewed_by: (await supabase.auth.getUser()).data.user?.id || null,
+        reviewed_at: new Date().toISOString(),
+        review_notes: notes || null,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
+      toast.success("Payroll reviewed & approved");
+      setReviewDialog(null);
+      setReviewNotes("");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -515,6 +536,7 @@ export default function PayrollDashboardPage() {
     switch (status) {
       case "draft": return "bg-gray-100 text-gray-700";
       case "processing": return "bg-blue-100 text-blue-700";
+      case "reviewed": return "bg-indigo-100 text-indigo-700";
       case "completed": return "bg-green-100 text-green-700";
       case "cancelled": return "bg-red-100 text-red-700";
       default: return "bg-gray-100 text-gray-700";
@@ -598,8 +620,19 @@ export default function PayrollDashboardPage() {
                             {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><FileText className="h-3 w-3 mr-1" /> Generate</>}
                           </Button>
                         )}
-                        {/* Processing: Re-generate + Lock */}
+                        {/* Processing: Review + Re-generate */}
                         {r.status === "processing" && !r.is_locked && (
+                          <>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
+                              {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-indigo-700" onClick={() => setReviewDialog(r)}>
+                              <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
+                            </Button>
+                          </>
+                        )}
+                        {/* Reviewed: Lock or Re-generate */}
+                        {r.status === "reviewed" && !r.is_locked && (
                           <>
                             <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
                               {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}

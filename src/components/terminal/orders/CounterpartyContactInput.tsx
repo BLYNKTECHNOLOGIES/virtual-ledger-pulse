@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { isPhoneBlocked } from "@/lib/blocked-phones";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,11 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
       const trimmedState = state.trim();
       
       if (!trimmedPhone && !trimmedState) throw new Error("Enter at least one field");
+
+      // Block known operator/placeholder phones
+      if (trimmedPhone && await isPhoneBlocked(trimmedPhone)) {
+        throw new Error("This phone number is blocked — it's a known operator/placeholder number and cannot be used as a client contact.");
+      }
 
       const userId = getCurrentUserId();
 

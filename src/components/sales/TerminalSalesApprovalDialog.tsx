@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { isPhoneBlocked } from "@/lib/blocked-phones";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -418,7 +419,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           .insert({
             order_number: orderNumber,
             client_name: displayName,
-            client_phone: contactNumber || null,
+            client_phone: (contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null,
             client_state: clientState || null,
             order_date: orderDate,
             total_amount: totalAmount,
@@ -572,7 +573,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             await supabase.from('client_onboarding_approvals').insert({
               sales_order_id: salesOrder.id,
               client_name: clientRecord.name || displayName,
-              client_phone: clientRecord.phone || contactNumber || null,
+              client_phone: (clientRecord.phone && !await isPhoneBlocked(clientRecord.phone)) ? clientRecord.phone : ((contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null),
               // Pass state only if operator manually entered it in the dialog.
               // If left blank (null), Buyer Approval officer will enter it during review.
               client_state: clientState || null,

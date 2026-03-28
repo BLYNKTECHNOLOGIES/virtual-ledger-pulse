@@ -14,41 +14,96 @@ import autoTable from "jspdf-autotable";
 
 function generatePayslipPDF(detail: any) {
   const doc = new jsPDF();
-  const empName = `${detail.hr_employees?.first_name || ""} ${detail.hr_employees?.last_name || ""}`.trim();
-  const badgeId = detail.hr_employees?.badge_id || "";
-  const runTitle = detail.hr_payroll_runs?.title || "";
-  const period = `${detail.hr_payroll_runs?.pay_period_start || ""} to ${detail.hr_payroll_runs?.pay_period_end || ""}`;
+  const emp = detail.hr_employees || {};
+  const empName = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
+  const badgeId = emp.badge_id || "";
+  const run = detail.hr_payroll_runs || {};
+  const period = `${run.pay_period_start || ""} to ${run.pay_period_end || ""}`;
+  const monthLabel = run.pay_period_start
+    ? new Date(run.pay_period_start + "T00:00:00").toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    : "";
 
-  // Header
-  doc.setFillColor(232, 96, 76); // #E8604C
-  doc.rect(0, 0, 210, 36, "F");
+  const fmt = (n: number | null | undefined) => `₹${(n || 0).toLocaleString("en-IN")}`;
+  const pageW = 210;
+  const margin = 14;
+  const contentW = pageW - margin * 2;
+
+  // === Company Header ===
+  doc.setFillColor(26, 54, 93); // dark navy
+  doc.rect(0, 0, pageW, 38, "F");
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("PAYSLIP", 14, 18);
-  doc.setFontSize(10);
+  doc.text("BLYNK VIRTUAL TECHNOLOGIES PVT. LTD.", margin, 14);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(runTitle, 14, 28);
-  doc.text(period, 210 - 14, 28, { align: "right" });
-
-  // Employee info
-  doc.setTextColor(60, 60, 60);
+  doc.text("First Floor Balwant Arcade, Plot No. 15, Zone 2, Maharana Pratap Nagar, 462011, Bhopal, MP", margin, 22);
+  doc.text("CIN: U62099MP2025PTC074915 | GST: 23AANCB2572J1ZK", margin, 28);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(empName, 14, 48);
-  doc.setFont("helvetica", "normal");
+  doc.text(`Pay Slip — ${monthLabel}`, margin, 35);
+  doc.text(period, pageW - margin, 35, { align: "right" });
+
+  // === Employee Details ===
+  let y = 46;
+  doc.setTextColor(60, 60, 60);
   doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
-  doc.text(`Badge: ${badgeId}`, 14, 54);
-  doc.text(`Working Days: ${detail.present_days || 0} / ${detail.working_days || 0}`, 14, 60);
-  if (detail.overtime_hours > 0) doc.text(`Overtime: ${detail.overtime_hours}h`, 100, 60);
+  doc.setFont("helvetica", "normal");
 
-  let y = 70;
+  const empDetails = [
+    ["Employee Name", empName, "Badge ID", badgeId],
+    ["Designation", emp.designation || "-", "Department", emp.department || "-"],
+    ["Date of Joining", emp.date_of_joining ? new Date(emp.date_of_joining + "T00:00:00").toLocaleDateString("en-IN") : "-", "PAN", emp.pan_number || "-"],
+    ["Bank", emp.bank_name || "-", "Account No.", emp.account_number || "-"],
+  ];
 
-  // Earnings table
-  const earningsRows = Object.entries(detail.earnings_breakdown || {}).map(([name, amt]) => [name, `₹${Number(amt).toLocaleString("en-IN")}`]);
+  empDetails.forEach(([l1, v1, l2, v2]) => {
+    doc.setFont("helvetica", "bold");
+    doc.text(l1 + ":", margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(v1), margin + 35, y);
+    doc.setFont("helvetica", "bold");
+    doc.text(l2 + ":", margin + 105, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(v2), margin + 135, y);
+    y += 6;
+  });
+
+  // === Attendance Summary ===
+  y += 4;
+  doc.setFillColor(240, 245, 250);
+  doc.roundedRect(margin, y - 4, contentW, 20, 2, 2, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(26, 54, 93);
+
+  const workDays = detail.working_days || 0;
+  const presentDays = detail.present_days || 0;
+  const lopDays = detail.lop_days || 0;
+  const leaveDays = detail.leave_days || 0;
+  const overtimeHrs = detail.overtime_hours || 0;
+
+  const attItems = [
+    `Working Days: ${workDays}`,
+    `Present: ${presentDays}`,
+    `Leave: ${leaveDays}`,
+    `LOP: ${lopDays}`,
+  ];
+  if (overtimeHrs > 0) attItems.push(`Overtime: ${overtimeHrs}h`);
+
+  const attX = margin + 4;
+  attItems.forEach((item, i) => {
+    doc.text(item, attX + i * 36, y + 4);
+  });
+
+  doc.setFontSize(9);
+  doc.text(`Paid Days: ${presentDays}`, attX, y + 13);
+  y += 24;
+
+  // === Earnings Table ===
+  const earningsRows = Object.entries(detail.earnings_breakdown || {}).map(([name, amt]) => [name, fmt(Number(amt))]);
   if (earningsRows.length > 0) {
-    earningsRows.push(["Total Earnings", `₹${(detail.total_earnings || 0).toLocaleString("en-IN")}`]);
+    earningsRows.push(["Total Earnings", fmt(detail.total_earnings)]);
     autoTable(doc, {
       startY: y,
       head: [["Earnings", "Amount"]],
@@ -57,6 +112,7 @@ function generatePayslipPDF(detail: any) {
       headStyles: { fillColor: [34, 139, 34], textColor: 255, fontStyle: "bold", fontSize: 9 },
       bodyStyles: { fontSize: 9 },
       columnStyles: { 1: { halign: "right" } },
+      margin: { left: margin, right: margin },
       didParseCell: (data) => {
         if (data.section === "body" && data.row.index === earningsRows.length - 1) {
           data.cell.styles.fontStyle = "bold";
@@ -64,13 +120,15 @@ function generatePayslipPDF(detail: any) {
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 8;
+    y = (doc as any).lastAutoTable.finalY + 6;
   }
 
-  // Deductions table
-  const deductionRows = Object.entries(detail.deductions_breakdown || {}).map(([name, amt]) => [name, `₹${Number(amt).toLocaleString("en-IN")}`]);
+  // === Deductions Table ===
+  const deductionRows = Object.entries(detail.deductions_breakdown || {}).map(([name, amt]) => [name, fmt(Number(amt))]);
+  if (detail.tds_amount > 0) deductionRows.push(["TDS", fmt(detail.tds_amount)]);
+  if (detail.lop_deduction > 0) deductionRows.push(["LOP Deduction", fmt(detail.lop_deduction)]);
   if (deductionRows.length > 0) {
-    deductionRows.push(["Total Deductions", `₹${(detail.total_deductions || 0).toLocaleString("en-IN")}`]);
+    deductionRows.push(["Total Deductions", fmt(detail.total_deductions)]);
     autoTable(doc, {
       startY: y,
       head: [["Deductions", "Amount"]],
@@ -79,6 +137,7 @@ function generatePayslipPDF(detail: any) {
       headStyles: { fillColor: [220, 53, 69], textColor: 255, fontStyle: "bold", fontSize: 9 },
       bodyStyles: { fontSize: 9 },
       columnStyles: { 1: { halign: "right" } },
+      margin: { left: margin, right: margin },
       didParseCell: (data) => {
         if (data.section === "body" && data.row.index === deductionRows.length - 1) {
           data.cell.styles.fontStyle = "bold";
@@ -86,32 +145,33 @@ function generatePayslipPDF(detail: any) {
         }
       },
     });
-    y = (doc as any).lastAutoTable.finalY + 10;
+    y = (doc as any).lastAutoTable.finalY + 8;
   }
 
-  // Net salary box
-  doc.setFillColor(232, 96, 76);
-  doc.roundedRect(14, y, 182, 18, 3, 3, "F");
+  // === Net Salary Box ===
+  doc.setFillColor(26, 54, 93);
+  doc.roundedRect(margin, y, contentW, 18, 3, 3, "F");
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("Net Salary", 20, y + 12);
-  doc.text(`₹${(detail.net_salary || 0).toLocaleString("en-IN")}`, 190, y + 12, { align: "right" });
+  doc.text("Net Salary", margin + 6, y + 12);
+  doc.text(fmt(detail.net_salary), pageW - margin - 6, y + 12, { align: "right" });
+  y += 24;
 
-  // Payment status
+  // === Payment Status ===
   if (detail.status === "paid") {
-    y += 26;
     doc.setTextColor(34, 139, 34);
     doc.setFontSize(9);
-    doc.text(`✓ Paid${detail.payment_date ? ` on ${detail.payment_date}` : ""}${detail.payment_reference ? ` | Ref: ${detail.payment_reference}` : ""}`, 14, y);
+    doc.text(`✓ Paid${detail.payment_date ? ` on ${detail.payment_date}` : ""}${detail.payment_reference ? ` | Ref: ${detail.payment_reference}` : ""}`, margin, y);
+    y += 8;
   }
 
-  // Footer
+  // === Footer ===
   doc.setTextColor(180, 180, 180);
   doc.setFontSize(7);
-  doc.text("This is a computer-generated payslip and does not require a signature.", 105, 285, { align: "center" });
+  doc.text("This is a computer-generated payslip and does not require a signature.", pageW / 2, 285, { align: "center" });
 
-  doc.save(`Payslip_${empName.replace(/\s+/g, "_")}_${detail.hr_payroll_runs?.pay_period_end || "unknown"}.pdf`);
+  doc.save(`Payslip_${empName.replace(/\s+/g, "_")}_${run.pay_period_end || "unknown"}.pdf`);
 }
 
 export default function PayslipsPage() {
@@ -132,7 +192,7 @@ export default function PayslipsPage() {
     queryKey: ["hr_payslips", runFilter],
     queryFn: async () => {
       let query = (supabase as any).from("hr_payslips")
-        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)")
+        .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name, designation, department, date_of_joining, pan_number, bank_name, account_number), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)")
         .order("created_at", { ascending: false });
       if (runFilter !== "all") query = query.eq("payroll_run_id", runFilter);
       const { data, error } = await query;

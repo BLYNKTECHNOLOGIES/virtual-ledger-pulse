@@ -439,8 +439,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Restore session on mount
+  // Initialize session cache and restore session on mount
   useEffect(() => {
+    initSessionCache();
     restoreSessionFromStorage();
   }, []);
 

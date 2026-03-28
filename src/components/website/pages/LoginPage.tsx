@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,6 +16,7 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showForcedReset, setShowForcedReset] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,6 +128,13 @@ export function LoginPage() {
       }
 
       console.log('User authenticated successfully:', authenticatedUser);
+
+      // Check if user logged in with the temporary transition password
+      if (password === 'BlynkTemp2026!') {
+        setShowForcedReset(true);
+        return; // Don't redirect yet — force password change first
+      }
+
       setSuccess('Correct password, redirecting to Dashboard...');
       setTimeout(() => navigate('/dashboard'), 1500);
       
@@ -228,6 +237,15 @@ export function LoginPage() {
           
         </CardContent>
       </Card>
+
+      <ForcedPasswordResetDialog
+        open={showForcedReset}
+        onSuccess={() => {
+          setShowForcedReset(false);
+          setSuccess('Password updated successfully! Redirecting to Dashboard...');
+          setTimeout(() => navigate('/dashboard'), 1500);
+        }}
+      />
     </div>
   );
 }

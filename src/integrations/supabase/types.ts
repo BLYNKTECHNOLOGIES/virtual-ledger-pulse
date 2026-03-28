@@ -8210,6 +8210,7 @@ export type Database = {
           id: string
           is_flagged: boolean
           last_seen_at: string
+          monthly_volume_limit: number | null
           notes: string | null
           payment_identifiers: Json | null
           total_buy_orders: number
@@ -8225,6 +8226,7 @@ export type Database = {
           id?: string
           is_flagged?: boolean
           last_seen_at?: string
+          monthly_volume_limit?: number | null
           notes?: string | null
           payment_identifiers?: Json | null
           total_buy_orders?: number
@@ -8240,6 +8242,7 @@ export type Database = {
           id?: string
           is_flagged?: boolean
           last_seen_at?: string
+          monthly_volume_limit?: number | null
           notes?: string | null
           payment_identifiers?: Json | null
           total_buy_orders?: number
@@ -10496,6 +10499,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "shift_reconciliations_parent_reconciliation_id_fkey"
+            columns: ["parent_reconciliation_id"]
+            isOneToOne: false
+            referencedRelation: "daily_reconciliation_summary"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shift_reconciliations_parent_reconciliation_id_fkey"
             columns: ["parent_reconciliation_id"]
@@ -12990,6 +13000,45 @@ export type Database = {
           lien_amount: number | null
           status: string | null
           updated_at: string | null
+        }
+        Relationships: []
+      }
+      daily_reconciliation_summary: {
+        Row: {
+          has_mismatches: boolean | null
+          id: string | null
+          method_count: number | null
+          mismatch_count: number | null
+          recon_date: string | null
+          reviewed_at: string | null
+          shift_label: string | null
+          status: string | null
+          submitted_at: string | null
+          total_submitted_amount: number | null
+        }
+        Insert: {
+          has_mismatches?: boolean | null
+          id?: string | null
+          method_count?: never
+          mismatch_count?: number | null
+          recon_date?: never
+          reviewed_at?: string | null
+          shift_label?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          total_submitted_amount?: never
+        }
+        Update: {
+          has_mismatches?: boolean | null
+          id?: string | null
+          method_count?: never
+          mismatch_count?: number | null
+          recon_date?: never
+          reviewed_at?: string | null
+          shift_label?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          total_submitted_amount?: never
         }
         Relationships: []
       }

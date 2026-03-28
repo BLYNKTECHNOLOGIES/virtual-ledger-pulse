@@ -152,7 +152,7 @@ export function SalesPurchasesTab() {
                           <TableCell className="text-right font-medium">{formatCurrency(o.total_amount)}</TableCell>
                           <TableCell className="text-right">{formatCurrency(o.fee_amount)}</TableCell>
                           <TableCell className="text-right">{formatCurrency(o.tds_amount)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.net_amount)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(o.net_payable_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
                         </TableRow>
                       ))}

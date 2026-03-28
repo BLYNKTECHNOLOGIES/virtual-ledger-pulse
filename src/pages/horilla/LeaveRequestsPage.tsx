@@ -89,13 +89,11 @@ export default function LeaveRequestsPage() {
       // Validate balance before approving
       if (status === "approved" && request) {
         const totalDays = Number(request.total_days || 0);
-        const year = new Date(request.start_date).getFullYear();
-        const quarter = Math.ceil((new Date(request.start_date).getMonth() + 1) / 3);
 
         // Get all allocations for this employee+leave type (cumulative balance)
         const { data: allocations } = await (supabase as any)
           .from("hr_leave_allocations")
-          .select("allocated_days, used_days")
+          .select("allocated_days, used_days, available_days")
           .eq("employee_id", request.employee_id)
           .eq("leave_type_id", request.leave_type_id);
 
@@ -110,42 +108,13 @@ export default function LeaveRequestsPage() {
         }
       }
 
+      // Update status — DB trigger handles balance deduction/restoration automatically
       const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
         ...(status === "approved" ? { approved_at: new Date().toISOString() } : {}),
         ...(status === "rejected" ? { rejection_reason: "Rejected by admin" } : {}),
       }).eq("id", id);
       if (error) throw error;
-
-      // Update leave allocation balance
-      if (request && (status === "approved" || status === "cancelled")) {
-        const totalDays = Number(request.total_days || 0);
-        if (totalDays > 0) {
-          const year = new Date(request.start_date).getFullYear();
-          const quarter = Math.ceil((new Date(request.start_date).getMonth() + 1) / 3);
-
-          const { data: allocation } = await (supabase as any)
-            .from("hr_leave_allocations")
-            .select("id, used_days")
-            .eq("employee_id", request.employee_id)
-            .eq("leave_type_id", request.leave_type_id)
-            .eq("year", year)
-            .eq("quarter", quarter)
-            .maybeSingle();
-
-          if (allocation) {
-            const currentUsed = Number(allocation.used_days || 0);
-            const newUsed = status === "approved"
-              ? currentUsed + totalDays
-              : Math.max(0, currentUsed - totalDays);
-
-            await (supabase as any)
-              .from("hr_leave_allocations")
-              .update({ used_days: newUsed })
-              .eq("id", allocation.id);
-          }
-        }
-      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });

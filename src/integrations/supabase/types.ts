@@ -4269,6 +4269,7 @@ export type Database = {
           emergency_contact_relation: string | null
           esi_number: string | null
           experience: string | null
+          filing_status_id: string | null
           first_name: string
           gender: string | null
           id: string
@@ -4304,6 +4305,7 @@ export type Database = {
           emergency_contact_relation?: string | null
           esi_number?: string | null
           experience?: string | null
+          filing_status_id?: string | null
           first_name: string
           gender?: string | null
           id?: string
@@ -4339,6 +4341,7 @@ export type Database = {
           emergency_contact_relation?: string | null
           esi_number?: string | null
           experience?: string | null
+          filing_status_id?: string | null
           first_name?: string
           gender?: string | null
           id?: string
@@ -4359,6 +4362,13 @@ export type Database = {
           zip?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "hr_employees_filing_status_id_fkey"
+            columns: ["filing_status_id"]
+            isOneToOne: false
+            referencedRelation: "hr_filing_statuses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "hr_employees_salary_structure_template_id_fkey"
             columns: ["salary_structure_template_id"]
@@ -4437,6 +4447,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hr_filing_statuses: {
+        Row: {
+          based_on: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          based_on?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          based_on?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       hr_helpdesk_tickets: {
         Row: {
@@ -4732,6 +4775,126 @@ export type Database = {
             columns: ["shift_id"]
             isOneToOne: false
             referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_accrual_log: {
+        Row: {
+          accrual_date: string
+          accrual_plan_id: string
+          accrued_days: number
+          created_at: string | null
+          employee_id: string
+          id: string
+          quarter: number | null
+          year: number
+        }
+        Insert: {
+          accrual_date: string
+          accrual_plan_id: string
+          accrued_days: number
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          quarter?: number | null
+          year: number
+        }
+        Update: {
+          accrual_date?: string
+          accrual_plan_id?: string
+          accrued_days?: number
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          quarter?: number | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_accrual_log_accrual_plan_id_fkey"
+            columns: ["accrual_plan_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_accrual_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_accrual_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_leave_accrual_plans: {
+        Row: {
+          accrual_amount: number
+          accrual_period: string
+          applicable_to: string
+          created_at: string | null
+          department_id: string | null
+          effective_from: string
+          id: string
+          is_active: boolean | null
+          is_based_on_attendance: boolean | null
+          last_accrual_date: string | null
+          leave_type_id: string
+          max_accrual: number | null
+          min_attendance_days: number | null
+          name: string
+          position_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accrual_amount?: number
+          accrual_period?: string
+          applicable_to?: string
+          created_at?: string | null
+          department_id?: string | null
+          effective_from?: string
+          id?: string
+          is_active?: boolean | null
+          is_based_on_attendance?: boolean | null
+          last_accrual_date?: string | null
+          leave_type_id: string
+          max_accrual?: number | null
+          min_attendance_days?: number | null
+          name: string
+          position_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accrual_amount?: number
+          accrual_period?: string
+          applicable_to?: string
+          created_at?: string | null
+          department_id?: string | null
+          effective_from?: string
+          id?: string
+          is_active?: boolean | null
+          is_based_on_attendance?: boolean | null
+          last_accrual_date?: string | null
+          leave_type_id?: string
+          max_accrual?: number | null
+          min_attendance_days?: number | null
+          name?: string
+          position_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_accrual_plans_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_accrual_plans_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
             referencedColumns: ["id"]
           },
         ]
@@ -6288,6 +6451,47 @@ export type Database = {
           title?: string
         }
         Relationships: []
+      }
+      hr_tax_brackets: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          filing_status_id: string
+          id: string
+          max_income: number | null
+          min_income: number
+          sort_order: number | null
+          tax_rate: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          filing_status_id: string
+          id?: string
+          max_income?: number | null
+          min_income: number
+          sort_order?: number | null
+          tax_rate?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          filing_status_id?: string
+          id?: string
+          max_income?: number | null
+          min_income?: number
+          sort_order?: number | null
+          tax_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_tax_brackets_filing_status_id_fkey"
+            columns: ["filing_status_id"]
+            isOneToOne: false
+            referencedRelation: "hr_filing_statuses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       interview_schedules: {
         Row: {
@@ -12229,6 +12433,10 @@ export type Database = {
             }
             Returns: string
           }
+      compute_annual_tax: {
+        Args: { p_filing_status_id: string; p_taxable_income: number }
+        Returns: number
+      }
       compute_leave_clashes: { Args: { p_request_id: string }; Returns: number }
       create_bank_transfer: {
         Args: {
@@ -12991,6 +13199,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      run_leave_accrual: { Args: { p_accrual_date?: string }; Returns: number }
       save_terminal_role: {
         Args: {
           p_description?: string

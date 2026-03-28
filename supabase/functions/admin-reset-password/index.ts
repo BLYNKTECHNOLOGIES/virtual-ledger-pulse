@@ -1,11 +1,16 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import { createClient } from "npm:@supabase/supabase-js@2.50.0";
+import { z } from "npm:zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const BodySchema = z.object({
+  userId: z.string().uuid("Invalid userId"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,65 +18,77 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, newPassword, callerUserId } = await req.json();
-
-    if (!userId || !newPassword) {
-      return new Response(JSON.stringify({ error: "userId and newPassword are required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    if (newPassword.length < 6) {
-      return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-
-    // Determine caller identity: try JWT first, fall back to callerUserId
-    let callerId: string | null = null;
-
     const authHeader = req.headers.get("authorization");
-    if (authHeader) {
-      const { data: { user: caller } } = await adminClient.auth.getUser(
-        authHeader.replace("Bearer ", "")
-      );
-      if (caller) callerId = caller.id;
-    }
-
-    // Fallback: accept callerUserId from body (for legacy sessions)
-    if (!callerId && callerUserId) {
-      callerId = callerUserId;
-    }
-
-    if (!callerId) {
-      return new Response(JSON.stringify({ error: "Unauthorized - no caller identity" }), {
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized. Please log in again." }), {
         status: 401,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Verify caller is admin/super_admin
-    const { data: callerUser } = await adminClient
-      .from("users")
-      .select("role")
-      .eq("id", callerId)
-      .single();
+    const rawBody = await req.json();
+    const parsed = BodySchema.safeParse(rawBody);
 
-    if (!callerUser || !["super_admin", "admin"].includes(callerUser.role)) {
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({ error: parsed.error.flatten().fieldErrors }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    const { userId, newPassword } = parsed.data;
+
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      {
+        auth: { persistSession: false, autoRefreshToken: false },
+      }
+    );
+
+    const token = authHeader.replace("Bearer ", "").trim();
+    const {
+      data: { user: caller },
+      error: callerError,
+    } = await adminClient.auth.getUser(token);
+
+    if (callerError || !caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized. Please log in again." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const { data: roleRows, error: roleError } = await adminClient
+      .from("user_roles")
+      .select("roles:role_id(name)")
+      .eq("user_id", caller.id);
+
+    if (roleError) {
+      console.error("Failed to fetch caller roles:", roleError);
+      return new Response(JSON.stringify({ error: "Failed to verify permissions" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    const roleNames = (roleRows ?? [])
+      .map((row: any) => row?.roles?.name)
+      .filter(Boolean)
+      .map((name: string) => name.toLowerCase());
+
+    const isAdmin = roleNames.includes("admin") || roleNames.includes("super admin") || roleNames.includes("super_admin");
+
+    if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    // Update password in auth.users via admin API
     const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
       password: newPassword,
     });
@@ -84,13 +101,16 @@ serve(async (req) => {
       });
     }
 
-    // Also update legacy password_hash in public.users for backward compat
-    await adminClient.rpc("admin_reset_user_password", {
-      p_user_id: userId,
-      p_new_password: newPassword,
-    }).catch(() => {});
+    await adminClient
+      .rpc("admin_reset_user_password", {
+        p_user_id: userId,
+        p_new_password: newPassword,
+      })
+      .catch((e) => {
+        console.warn("Legacy password hash sync skipped:", e?.message ?? e);
+      });
 
-    console.log(`Password reset by ${callerId} for user ${userId}`);
+    console.log(`Password reset by ${caller.email} (${caller.id}) for user ${userId}`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -98,7 +118,7 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error("admin-reset-password error:", error);
-    return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
+    return new Response(JSON.stringify({ error: error?.message || "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

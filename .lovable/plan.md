@@ -6,7 +6,7 @@
 | 1 - Create auth accounts | ✅ DONE | 19 users synced with matching UUIDs, 34 junk entries cleaned |
 | 2 - Dual-mode login | ✅ DONE | useAuth.tsx + LoginPage.tsx updated, backdoor removed |
 | 3 - Migrate localStorage readers | ✅ DONE | session-cache.ts created, 8 files migrated |
-| 4 - Tighten RLS policies | ✅ DONE | 6 migrations: created has_role/is_manager functions, rewrote 200+ policies across 216 tables |
+| 4 - Tighten RLS policies | ✅ DONE | 7 migrations: created has_role/is_manager functions, rewrote 329→0 open public write policies across 216 tables |
 | 5 - Cleanup | 🔲 TODO | Remove legacy auth code |
 
 Temp password for all Supabase Auth accounts: `BlynkTemp2026!`

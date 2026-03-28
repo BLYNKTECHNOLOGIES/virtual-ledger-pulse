@@ -3260,7 +3260,15 @@ export type Database = {
           total_hours?: number | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_attendance_policies: {
         Row: {
@@ -3319,7 +3327,7 @@ export type Database = {
           created_at: string | null
           device_name: string | null
           device_serial: string | null
-          employee_id: string | null
+          employee_id: string
           id: string
           punch_time: string
           punch_type: string | null
@@ -3331,7 +3339,7 @@ export type Database = {
           created_at?: string | null
           device_name?: string | null
           device_serial?: string | null
-          employee_id?: string | null
+          employee_id: string
           id?: string
           punch_time: string
           punch_type?: string | null
@@ -3343,14 +3351,22 @@ export type Database = {
           created_at?: string | null
           device_name?: string | null
           device_serial?: string | null
-          employee_id?: string | null
+          employee_id?: string
           id?: string
           punch_time?: string
           punch_type?: string | null
           raw_status?: number | null
           verified?: boolean | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hr_attendance_punches_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_attendance_punches_archive: {
         Row: {

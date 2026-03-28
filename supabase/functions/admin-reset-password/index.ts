@@ -86,9 +86,32 @@ serve(async (req) => {
       });
     }
 
-    const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
+    let { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
       password: newPassword,
     });
+
+    // Fallback for legacy records where public.users.id != auth.users.id
+    if (updateError?.message?.toLowerCase().includes("user not found")) {
+      const { data: targetUser } = await adminClient
+        .from("users")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      if (targetUser?.email) {
+        const { data: listed } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        const authMatch = listed?.users?.find(
+          (u) => (u.email ?? "").toLowerCase() === targetUser.email.toLowerCase()
+        );
+
+        if (authMatch?.id) {
+          const retry = await adminClient.auth.admin.updateUserById(authMatch.id, {
+            password: newPassword,
+          });
+          updateError = retry.error;
+        }
+      }
+    }
 
     if (updateError) {
       console.error("Failed to update auth password:", updateError);

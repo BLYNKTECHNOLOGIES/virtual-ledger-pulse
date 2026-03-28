@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { WeeklyOffManager, ShiftScheduleAssigner } from "@/components/hrms/ShiftScheduleManager";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -140,6 +141,13 @@ export default function ShiftsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+
+      {/* Shift Rotation & Weekly Off */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6">
+        <ShiftScheduleAssigner />
+        <WeeklyOffManager />
+      </div>
     </div>
   );
 }

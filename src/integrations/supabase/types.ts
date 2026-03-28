@@ -4458,6 +4458,7 @@ export type Database = {
           qualification: string | null
           resignation_date: string | null
           salary_structure_template_id: string | null
+          salary_template_id: string | null
           separation_reason: string | null
           state: string | null
           termination_date: string | null
@@ -4498,6 +4499,7 @@ export type Database = {
           qualification?: string | null
           resignation_date?: string | null
           salary_structure_template_id?: string | null
+          salary_template_id?: string | null
           separation_reason?: string | null
           state?: string | null
           termination_date?: string | null
@@ -4538,6 +4540,7 @@ export type Database = {
           qualification?: string | null
           resignation_date?: string | null
           salary_structure_template_id?: string | null
+          salary_template_id?: string | null
           separation_reason?: string | null
           state?: string | null
           termination_date?: string | null
@@ -4558,6 +4561,13 @@ export type Database = {
           {
             foreignKeyName: "hr_employees_salary_structure_template_id_fkey"
             columns: ["salary_structure_template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_salary_structure_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employees_salary_template_id_fkey"
+            columns: ["salary_template_id"]
             isOneToOne: false
             referencedRelation: "hr_salary_structure_templates"
             referencedColumns: ["id"]
@@ -12916,6 +12926,10 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
       }
+      apply_salary_template: {
+        Args: { p_employee_id: string; p_template_id: string }
+        Returns: undefined
+      }
       approve_product_conversion: {
         Args: { p_approved_by: string; p_conversion_id: string }
         Returns: Json
@@ -13456,6 +13470,20 @@ export type Database = {
       extract_client_bank_number: {
         Args: { account_entry: Json }
         Returns: string
+      }
+      fn_calculate_monthly_penalties: {
+        Args: { p_month: number; p_year: number }
+        Returns: {
+          employee_id: string
+          late_count: number
+          penalty_type: string
+          penalty_value: number
+          rule_name: string
+        }[]
+      }
+      fn_calculate_working_days: {
+        Args: { p_employee_id: string; p_end: string; p_start: string }
+        Returns: number
       }
       generate_employee_id: {
         Args: { dept: string; designation: string }

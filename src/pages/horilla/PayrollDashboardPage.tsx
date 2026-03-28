@@ -21,6 +21,8 @@ export default function PayrollDashboardPage() {
   const [lockConfirm, setLockConfirm] = useState<any>(null);
   const [rerunDialog, setRerunDialog] = useState<any>(null);
   const [rerunReason, setRerunReason] = useState("");
+  const [reviewDialog, setReviewDialog] = useState<any>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
 
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["hr_payroll_runs"],
@@ -46,6 +48,25 @@ export default function PayrollDashboardPage() {
       setShowCreate(false);
       setForm({ title: "", pay_period_start: "", pay_period_end: "", notes: "" });
       toast.success("Payroll run created");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({ id, notes }: { id: string; notes: string }) => {
+      const { error } = await (supabase as any).from("hr_payroll_runs").update({
+        status: "reviewed",
+        reviewed_by: (await supabase.auth.getUser()).data.user?.id || null,
+        reviewed_at: new Date().toISOString(),
+        review_notes: notes || null,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_payroll_runs"] });
+      toast.success("Payroll reviewed & approved");
+      setReviewDialog(null);
+      setReviewNotes("");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -515,6 +536,7 @@ export default function PayrollDashboardPage() {
     switch (status) {
       case "draft": return "bg-gray-100 text-gray-700";
       case "processing": return "bg-blue-100 text-blue-700";
+      case "reviewed": return "bg-indigo-100 text-indigo-700";
       case "completed": return "bg-green-100 text-green-700";
       case "cancelled": return "bg-red-100 text-red-700";
       default: return "bg-gray-100 text-gray-700";
@@ -598,8 +620,19 @@ export default function PayrollDashboardPage() {
                             {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><FileText className="h-3 w-3 mr-1" /> Generate</>}
                           </Button>
                         )}
-                        {/* Processing: Re-generate + Lock */}
+                        {/* Processing: Review + Re-generate */}
                         {r.status === "processing" && !r.is_locked && (
+                          <>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
+                              {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs text-indigo-700" onClick={() => setReviewDialog(r)}>
+                              <CheckCircle className="h-3 w-3 mr-1" /> Review & Approve
+                            </Button>
+                          </>
+                        )}
+                        {/* Reviewed: Lock or Re-generate */}
+                        {r.status === "reviewed" && !r.is_locked && (
                           <>
                             <Button size="sm" variant="outline" className="h-7 text-xs" disabled={generatingId === r.id} onClick={() => generatePayslips(r)}>
                               {generatingId === r.id ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Generating...</> : <><RefreshCw className="h-3 w-3 mr-1" /> Regenerate</>}
@@ -660,7 +693,48 @@ export default function PayrollDashboardPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Re-run Dialog */}
+      {/* Review & Approve Dialog */}
+      <Dialog open={!!reviewDialog} onOpenChange={(open) => { if (!open) { setReviewDialog(null); setReviewNotes(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle className="h-5 w-5 text-indigo-600" /> Review & Approve Payroll</DialogTitle>
+            <DialogDescription>
+              Reviewing <strong>{reviewDialog?.title}</strong> — {reviewDialog?.employee_count || 0} payslips, Net Pay ₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="bg-muted/50 rounded-lg p-3">
+                <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
+                <p className="text-sm font-bold text-green-600">₹{(reviewDialog?.total_gross || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-3">
+                <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
+                <p className="text-sm font-bold text-red-600">₹{(reviewDialog?.total_deductions || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div className="bg-muted/50 rounded-lg p-3">
+                <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
+                <p className="text-sm font-bold">₹{(reviewDialog?.total_net || 0).toLocaleString('en-IN')}</p>
+              </div>
+            </div>
+            <div>
+              <Label>Review Notes</Label>
+              <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Verification notes, discrepancies checked..." className="mt-1" />
+            </div>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-sm text-indigo-800">
+              <strong>Review confirms</strong> payslip amounts are verified and ready for final lock. After approval, the payroll can be locked to prevent changes.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReviewDialog(null); setReviewNotes(""); }}>Cancel</Button>
+            <Button className="bg-indigo-600 hover:bg-indigo-700" disabled={reviewMutation.isPending} onClick={() => reviewMutation.mutate({ id: reviewDialog?.id, notes: reviewNotes.trim() })}>
+              {reviewMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Reviewing...</> : <><CheckCircle className="h-4 w-4 mr-1" /> Approve</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={!!rerunDialog} onOpenChange={(open) => { if (!open) { setRerunDialog(null); setRerunReason(""); } }}>
         <DialogContent>
           <DialogHeader>

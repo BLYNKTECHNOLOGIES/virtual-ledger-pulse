@@ -76,6 +76,8 @@ import PenaltyManagementPage from './pages/horilla/PenaltyManagementPage';
 import CompOffPage from './pages/horilla/CompOffPage';
 import DepositManagementPage from './pages/horilla/DepositManagementPage';
 import LoansPage from './pages/horilla/LoansPage';
+import LeaveYearEndResetPage from './pages/horilla/LeaveYearEndResetPage';
+import AttendancePolicyPage from './pages/horilla/AttendancePolicyPage';
 import AssetPage from './pages/horilla/AssetPage';
 import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
 import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
@@ -631,12 +633,14 @@ const router = createBrowserRouter([
         { path: "attendance/hour-accounts", element: <HourAccountsPage /> },
         { path: "attendance/late-early", element: <LateComeEarlyOutPage /> },
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
+        { path: "attendance/policies", element: <AttendancePolicyPage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },
         { path: "leave/allocations", element: <LeaveAllocationsPage /> },
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
         { path: "leave/comp-off", element: <CompOffPage /> },
+        { path: "leave/year-end-reset", element: <LeaveYearEndResetPage /> },
         { path: "leave/accrual-plans", element: <LeaveAccrualPlansPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },
         { path: "payroll/tax-config", element: <TaxConfigPage /> },

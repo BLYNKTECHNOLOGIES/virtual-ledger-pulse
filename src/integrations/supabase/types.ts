@@ -3262,6 +3262,57 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_attendance_policies: {
+        Row: {
+          absent_if_no_punch: boolean | null
+          created_at: string | null
+          early_leave_threshold_minutes: number | null
+          grace_period_minutes: number | null
+          half_day_count_for_lop: number | null
+          half_day_threshold_minutes: number | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          late_count_for_lop: number | null
+          late_threshold_minutes: number | null
+          min_overtime_minutes: number | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          absent_if_no_punch?: boolean | null
+          created_at?: string | null
+          early_leave_threshold_minutes?: number | null
+          grace_period_minutes?: number | null
+          half_day_count_for_lop?: number | null
+          half_day_threshold_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          late_count_for_lop?: number | null
+          late_threshold_minutes?: number | null
+          min_overtime_minutes?: number | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          absent_if_no_punch?: boolean | null
+          created_at?: string | null
+          early_leave_threshold_minutes?: number | null
+          grace_period_minutes?: number | null
+          half_day_count_for_lop?: number | null
+          half_day_threshold_minutes?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          late_count_for_lop?: number | null
+          late_threshold_minutes?: number | null
+          min_overtime_minutes?: number | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       hr_attendance_punches: {
         Row: {
           badge_id: string

@@ -4151,54 +4151,6 @@ export type Database = {
           },
         ]
       }
-      hr_employee_salary: {
-        Row: {
-          amount: number
-          component_id: string
-          created_at: string
-          effective_from: string | null
-          employee_id: string
-          id: string
-          is_active: boolean | null
-          updated_at: string
-        }
-        Insert: {
-          amount?: number
-          component_id: string
-          created_at?: string
-          effective_from?: string | null
-          employee_id: string
-          id?: string
-          is_active?: boolean | null
-          updated_at?: string
-        }
-        Update: {
-          amount?: number
-          component_id?: string
-          created_at?: string
-          effective_from?: string | null
-          employee_id?: string
-          id?: string
-          is_active?: boolean | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "hr_employee_salary_component_id_fkey"
-            columns: ["component_id"]
-            isOneToOne: false
-            referencedRelation: "hr_salary_components"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hr_employee_salary_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "hr_employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       hr_employee_salary_structures: {
         Row: {
           amount: number
@@ -4207,6 +4159,7 @@ export type Database = {
           employee_id: string
           id: string
           is_active: boolean
+          is_percentage: boolean
           updated_at: string
         }
         Insert: {
@@ -4216,6 +4169,7 @@ export type Database = {
           employee_id: string
           id?: string
           is_active?: boolean
+          is_percentage?: boolean
           updated_at?: string
         }
         Update: {
@@ -4225,6 +4179,7 @@ export type Database = {
           employee_id?: string
           id?: string
           is_active?: boolean
+          is_percentage?: boolean
           updated_at?: string
         }
         Relationships: [

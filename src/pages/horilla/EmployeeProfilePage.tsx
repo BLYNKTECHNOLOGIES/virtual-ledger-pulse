@@ -911,7 +911,7 @@ export default function EmployeeProfilePage() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div><p className="text-xs text-muted-foreground">Bank Name</p><p className="text-sm text-foreground">{bankInfo?.bank_name || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Account Number</p><p className="text-sm text-foreground">{bankInfo?.account_number || "None"}</p></div>
-                <div><p className="text-xs text-muted-foreground">Bank Code 1</p><p className="text-sm text-foreground">{bankInfo?.bank_code_1 || "None"}</p></div>
+                <div><p className="text-xs text-muted-foreground">IFSC Code</p><p className="text-sm text-foreground">{bankInfo?.ifsc_code || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Bank Code 2</p><p className="text-sm text-foreground">{bankInfo?.bank_code_2 || "None"}</p></div>
                 <div><p className="text-xs text-muted-foreground">Branch</p><p className="text-sm text-foreground">{bankInfo?.branch || "None"}</p></div>
               </div>

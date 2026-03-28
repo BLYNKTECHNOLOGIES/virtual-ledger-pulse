@@ -199,7 +199,7 @@ export function ComprehensiveAddEmployeeDialog({ open, onOpenChange }: Comprehen
                 employee_id: insertResult[0].id,
                 bank_name: data.bankName || null,
                 account_number: data.accountNumber || null,
-                bank_code_1: data.ifscCode || null,
+                ifsc_code: data.ifscCode || null,
               });
           }
         }

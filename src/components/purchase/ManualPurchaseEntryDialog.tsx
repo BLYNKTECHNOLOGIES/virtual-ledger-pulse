@@ -316,15 +316,26 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       }
 
       // Validate PAN for 1% TDS
-      if (formData.tds_option === '1%' && (!formData.pan_number || formData.pan_number.trim() === '')) {
-        console.log('❌ Validation failed - PAN required for 1% TDS');
-        toast({
-          title: "Error",
-          description: "PAN number is required for 1% TDS deduction",
-          variant: "destructive"
-        });
-        setLoading(false);
-        return;
+      if (formData.tds_option === '1%') {
+        if (!formData.pan_number || formData.pan_number.trim() === '') {
+          console.log('❌ Validation failed - PAN required for 1% TDS');
+          toast({
+            title: "Error",
+            description: "PAN number is required for 1% TDS deduction",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
+        if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan_number.trim())) {
+          toast({
+            title: "Invalid PAN Format",
+            description: "PAN must be in format AAAAA9999A (e.g. ABCDE1234F)",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
+        }
       }
 
       // For off-market orders, generate the actual order number now (consuming the sequence)

@@ -28,7 +28,7 @@ export function SalesPurchasesTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_orders')
-        .select('id, order_number, supplier_name, total_amount, status, order_date, quantity, price_per_unit, fee_amount, net_amount, tds_amount')
+        .select('id, order_number, supplier_name, total_amount, status, order_date, quantity, price_per_unit, fee_amount, net_payable_amount, tds_amount')
         .order('created_at', { ascending: false })
         .limit(100);
       if (error) throw error;

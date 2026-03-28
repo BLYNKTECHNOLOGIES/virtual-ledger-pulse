@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');

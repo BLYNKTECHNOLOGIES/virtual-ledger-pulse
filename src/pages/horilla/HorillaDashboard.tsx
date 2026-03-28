@@ -1,16 +1,22 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import {
   Users, UserPlus, CheckCircle, CalendarDays, Briefcase,
-  Rocket, Building2, TrendingUp, Clock, Wallet, XCircle,
-  AlertTriangle
+  Rocket, Clock, Wallet, XCircle, AlertTriangle,
+  ArrowRight, Play, FileText
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
 
 export default function HorillaDashboard() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
   const { data: employees } = useQuery({
     queryKey: ["hr_dashboard_employees"],
     queryFn: async () => {
@@ -52,11 +58,12 @@ export default function HorillaDashboard() {
   });
 
   const today = format(new Date(), "yyyy-MM-dd");
+  const thisMonth = new Date().toISOString().slice(0, 7);
 
   const { data: todayAttendance } = useQuery({
     queryKey: ["hr_dashboard_attendance", today],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_attendance").select("id, attendance_status").eq("attendance_date", today);
+      const { data } = await supabase.from("hr_attendance").select("id, employee_id, attendance_status, late_minutes").eq("attendance_date", today);
       return data || [];
     },
   });
@@ -64,7 +71,9 @@ export default function HorillaDashboard() {
   const { data: leaveRequests } = useQuery({
     queryKey: ["hr_dashboard_leave"],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_leave_requests").select("id, status").order("created_at", { ascending: false }).limit(200);
+      const { data } = await (supabase as any).from("hr_leave_requests")
+        .select("id, status, employee_id, start_date, end_date, total_days, hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
+        .order("created_at", { ascending: false }).limit(200);
       return data || [];
     },
   });
@@ -72,38 +81,61 @@ export default function HorillaDashboard() {
   const { data: payrollRuns } = useQuery({
     queryKey: ["hr_dashboard_payroll"],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_payroll_runs").select("id, status, total_net, total_gross, employee_count, title").order("run_date", { ascending: false }).limit(10);
+      const { data } = await supabase.from("hr_payroll_runs").select("id, status, total_net, total_gross, employee_count, title, pay_period_start, pay_period_end").order("run_date", { ascending: false }).limit(10);
       return data || [];
     },
+  });
+
+  // M7: Today's absentees (employees with no attendance record today)
+  const { data: todayAbsentees = [] } = useQuery({
+    queryKey: ["hr_dashboard_absentees", today],
+    queryFn: async () => {
+      const activeEmps = (employees || []).filter(e => e.is_active);
+      const presentIds = new Set((todayAttendance || []).map((a: any) => a.employee_id));
+      const absentIds = activeEmps.filter(e => !presentIds.has(e.id)).map(e => e.id);
+      if (absentIds.length === 0) return [];
+      const { data } = await supabase.from("hr_employees").select("id, first_name, last_name, badge_id").in("id", absentIds.slice(0, 20));
+      return data || [];
+    },
+    enabled: !!(employees && todayAttendance),
+  });
+
+  // M3: Auto penalty generation
+  const autoGeneratePenalties = useMutation({
+    mutationFn: async () => {
+      const lastMonth = format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1), "yyyy-MM");
+      const { data, error } = await (supabase as any).rpc("auto_generate_penalties", { p_month: lastMonth });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      toast.success(`Auto-generated ${data?.length || 0} penalties`);
+      qc.invalidateQueries({ queryKey: ["hr_penalties"] });
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   // Employee stats
   const totalEmployees = (employees || []).length;
   const activeEmployees = (employees || []).filter(e => e.is_active).length;
-  const thisMonth = new Date().toISOString().slice(0, 7);
   const newThisMonth = (employees || []).filter(e => e.created_at?.startsWith(thisMonth)).length;
 
-  // Candidate stats
   const totalCandidates = (candidates || []).length;
   const hiredCandidates = (candidates || []).filter(c => c.hired).length;
   const onboardingCount = (candidates || []).filter(c => c.start_onboard).length;
 
-  // Recruitment
   const activeRecruitments = (recruitments || []).filter(r => !r.closed).length;
   const totalVacancies = (recruitments || []).reduce((sum, r) => sum + (r.vacancy || 0), 0);
 
-  // Attendance
   const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
   const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
   const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
 
-  // Leave
-  const pendingLeaves = (leaveRequests || []).filter(l => l.status === "pending").length;
-  const approvedLeaves = (leaveRequests || []).filter(l => l.status === "approved").length;
+  const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "pending");
+  const approvedLeaves = (leaveRequests || []).filter((l: any) => l.status === "approved").length;
 
-  // Payroll
   const lastPayroll = (payrollRuns || [])[0];
-  const totalPayrollNet = (payrollRuns || []).reduce((s, r) => s + (r.total_net || 0), 0);
+  const draftPayrolls = (payrollRuns || []).filter((r: any) => r.status === "draft");
 
   // Department distribution
   const deptCounts: Record<string, number> = {};
@@ -116,7 +148,6 @@ export default function HorillaDashboard() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 6);
 
-  // Employee type breakdown
   const typeCounts: Record<string, number> = {};
   (workInfos || []).forEach(w => {
     const t = w.employee_type || "Unknown";
@@ -124,7 +155,6 @@ export default function HorillaDashboard() {
   });
   const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
-  // Attendance pie
   const attendancePie = [
     { name: "Present", value: presentToday, color: "#10B981" },
     { name: "Absent", value: absentToday, color: "#EF4444" },
@@ -137,7 +167,7 @@ export default function HorillaDashboard() {
     { label: "Open Positions", value: activeRecruitments, sub: `${totalVacancies} vacancies`, icon: Briefcase, iconBg: "bg-amber-100", iconColor: "text-amber-600" },
     { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-blue-100", iconColor: "text-blue-600" },
     { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-teal-100", iconColor: "text-teal-600" },
-    { label: "Pending Leaves", value: pendingLeaves, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-orange-100", iconColor: "text-orange-600" },
+    { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-orange-100", iconColor: "text-orange-600" },
     { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-[#E8604C]/10", iconColor: "text-[#E8604C]" },
     { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-purple-100", iconColor: "text-purple-600" },
   ];
@@ -145,18 +175,18 @@ export default function HorillaDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-xs text-gray-500 mt-0.5">Welcome back! Here's what's happening today.</p>
+        <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Welcome back! Here's what's happening today.</p>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {stats.map((c) => (
-          <div key={c.label} className="bg-white rounded-xl border border-gray-200 p-5 flex items-start justify-between">
+          <div key={c.label} className="bg-card rounded-xl border border-border p-5 flex items-start justify-between">
             <div>
-              <p className="text-xs text-gray-500">{c.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{c.value}</p>
-              <p className="text-[11px] mt-1 text-gray-500">{c.sub}</p>
+              <p className="text-xs text-muted-foreground">{c.label}</p>
+              <p className="text-2xl font-bold text-foreground mt-1">{c.value}</p>
+              <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
             </div>
             <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center shrink-0`}>
               <c.icon className={`h-5 w-5 ${c.iconColor}`} />
@@ -165,19 +195,122 @@ export default function HorillaDashboard() {
         ))}
       </div>
 
+      {/* M7: Actionable Widgets Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {/* Pending Leave Requests - Actionable */}
+        <div className="bg-card rounded-xl border border-border p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-500" /> Pending Leave Requests
+            </h3>
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/leave-requests")}>
+              View All <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+          {pendingLeaves.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">No pending requests 🎉</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {pendingLeaves.slice(0, 5).map((lr: any) => (
+                <div key={lr.id} className="flex items-center justify-between py-2 px-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">
+                      {lr.hr_employees?.first_name} {lr.hr_employees?.last_name}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {lr.hr_leave_types?.name} · {lr.total_days}d · {lr.start_date}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/leave-requests")}>
+                    Review
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Today's Absentees - Actionable */}
+        <div className="bg-card rounded-xl border border-border p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <XCircle className="h-4 w-4 text-red-500" /> Today's Absentees
+            </h3>
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/attendance-overview")}>
+              View All <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+          {todayAbsentees.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">All employees accounted for ✓</p>
+          ) : (
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {todayAbsentees.slice(0, 8).map((emp: any) => (
+                <div key={emp.id} className="flex items-center justify-between py-1.5 px-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
+                  <p className="text-xs font-medium text-foreground">
+                    {emp.first_name} {emp.last_name}
+                    <span className="text-muted-foreground ml-1">({emp.badge_id})</span>
+                  </p>
+                </div>
+              ))}
+              {todayAbsentees.length > 8 && (
+                <p className="text-[10px] text-center text-muted-foreground">+{todayAbsentees.length - 8} more</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Payroll Action Items */}
+        <div className="bg-card rounded-xl border border-border p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <Wallet className="h-4 w-4 text-purple-500" /> Payroll Actions
+            </h3>
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/payroll")}>
+              Go to Payroll <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {draftPayrolls.length > 0 ? (
+              draftPayrolls.slice(0, 3).map((r: any) => (
+                <div key={r.id} className="flex items-center justify-between py-2 px-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                  <div>
+                    <p className="text-xs font-medium text-foreground">{r.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{r.employee_count || 0} employees · draft</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/payroll")}>
+                    <Play className="h-3 w-3 mr-0.5" /> Process
+                  </Button>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground py-2 text-center">No pending payroll runs</p>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full h-8 text-xs gap-1 mt-2"
+              onClick={() => autoGeneratePenalties.mutate()}
+              disabled={autoGeneratePenalties.isPending}
+            >
+              <FileText className="h-3 w-3" />
+              {autoGeneratePenalties.isPending ? "Generating..." : "Auto-Generate Last Month Penalties"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Department Distribution */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Department Distribution</h3>
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Department Distribution</h3>
           {deptDistribution.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No data</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={deptDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="name" fontSize={11} tick={{ fill: "#6b7280" }} />
-                <YAxis fontSize={11} tick={{ fill: "#6b7280" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                <YAxis fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#E8604C" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -185,11 +318,10 @@ export default function HorillaDashboard() {
           )}
         </div>
 
-        {/* Today's Attendance */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Today's Attendance</h3>
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Today's Attendance</h3>
           {attendancePie.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No attendance data</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">No attendance data</p>
           ) : (
             <div className="flex items-center gap-4">
               <ResponsiveContainer width="50%" height={180}>
@@ -203,8 +335,8 @@ export default function HorillaDashboard() {
                 {attendancePie.map(d => (
                   <div key={d.name} className="flex items-center gap-2 text-sm">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="text-gray-600">{d.name}</span>
-                    <span className="font-semibold text-gray-900">{d.value}</span>
+                    <span className="text-muted-foreground">{d.name}</span>
+                    <span className="font-semibold text-foreground">{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -212,11 +344,10 @@ export default function HorillaDashboard() {
           )}
         </div>
 
-        {/* Employee Types */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Employee Types</h3>
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Employee Types</h3>
           {typeData.length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No data</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
           ) : (
             <div className="flex items-center gap-4">
               <ResponsiveContainer width="50%" height={180}>
@@ -230,8 +361,8 @@ export default function HorillaDashboard() {
                 {typeData.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-2 text-sm">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="text-gray-600">{d.name}</span>
-                    <span className="font-semibold text-gray-900">{d.value}</span>
+                    <span className="text-muted-foreground">{d.name}</span>
+                    <span className="font-semibold text-foreground">{d.value}</span>
                   </div>
                 ))}
               </div>
@@ -242,43 +373,41 @@ export default function HorillaDashboard() {
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Recent Leave Requests */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Leave Summary</h3>
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Leave Summary</h3>
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Pending", value: pendingLeaves, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
+              { label: "Pending", value: pendingLeaves.length, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" },
               { label: "Approved", value: approvedLeaves, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-              { label: "Rejected", value: (leaveRequests || []).filter(l => l.status === "rejected").length, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
+              { label: "Rejected", value: (leaveRequests || []).filter((l: any) => l.status === "rejected").length, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
             ].map(s => (
               <div key={s.label} className={`${s.bg} rounded-lg p-3 text-center`}>
                 <s.icon className={`h-5 w-5 ${s.color} mx-auto mb-1`} />
-                <p className="text-lg font-bold text-gray-900">{s.value}</p>
-                <p className="text-[10px] text-gray-500">{s.label}</p>
+                <p className="text-lg font-bold text-foreground">{s.value}</p>
+                <p className="text-[10px] text-muted-foreground">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Payroll Summary */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Payroll Overview</h3>
+        <div className="bg-card rounded-xl border border-border p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Payroll Overview</h3>
           {(payrollRuns || []).length === 0 ? (
-            <p className="text-sm text-gray-400 py-4 text-center">No payroll runs yet</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">No payroll runs yet</p>
           ) : (
             <div className="space-y-3">
               {(payrollRuns || []).slice(0, 4).map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                <div key={r.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{r.title}</p>
-                    <p className="text-xs text-gray-500">{r.employee_count || 0} employees</p>
+                    <p className="text-sm font-medium text-foreground">{r.title}</p>
+                    <p className="text-xs text-muted-foreground">{r.employee_count || 0} employees</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-semibold text-foreground">₹{(r.total_net || 0).toLocaleString('en-IN')}</p>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
                       r.status === "completed" ? "bg-green-100 text-green-700" :
                       r.status === "processing" ? "bg-blue-100 text-blue-700" :
-                      "bg-gray-100 text-gray-600"
+                      "bg-muted text-muted-foreground"
                     }`}>{r.status}</span>
                   </div>
                 </div>

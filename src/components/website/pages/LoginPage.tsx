@@ -237,6 +237,15 @@ export function LoginPage() {
           
         </CardContent>
       </Card>
+
+      <ForcedPasswordResetDialog
+        open={showForcedReset}
+        onSuccess={() => {
+          setShowForcedReset(false);
+          setSuccess('Password updated successfully! Redirecting to Dashboard...');
+          setTimeout(() => navigate('/dashboard'), 1500);
+        }}
+      />
     </div>
   );
 }

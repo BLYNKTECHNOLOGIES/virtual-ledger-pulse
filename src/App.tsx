@@ -75,6 +75,7 @@ import SalaryStructurePage from './pages/horilla/SalaryStructurePage';
 import PenaltyManagementPage from './pages/horilla/PenaltyManagementPage';
 import CompOffPage from './pages/horilla/CompOffPage';
 import DepositManagementPage from './pages/horilla/DepositManagementPage';
+import LoansPage from './pages/horilla/LoansPage';
 import AssetPage from './pages/horilla/AssetPage';
 import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
 import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';

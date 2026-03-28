@@ -1253,6 +1253,24 @@ export default function UserProfile() {
           )}
         </TabsContent>
 
+        {/* ═══════ Attendance Tab ═══════ */}
+        <TabsContent value="attendance" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <AttendanceTab employeeId={hrEmployee.id} />
+          )}
+        </TabsContent>
+
+        {/* ═══════ Notifications Tab ═══════ */}
+        <TabsContent value="notifications" className="space-y-6">
+          {!hrEmployee ? (
+            <NoEmployeeProfile />
+          ) : (
+            <NotificationSettingsTab employeeId={hrEmployee.id} />
+          )}
+        </TabsContent>
+
         {/* ═══════ Settings Tab ═══════ */}
         <TabsContent value="settings" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

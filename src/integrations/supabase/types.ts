@@ -5765,6 +5765,7 @@ export type Database = {
         Row: {
           break_duration_minutes: number | null
           created_at: string
+          duration_hours: number | null
           end_time: string
           grace_period_minutes: number | null
           id: string
@@ -5777,6 +5778,7 @@ export type Database = {
         Insert: {
           break_duration_minutes?: number | null
           created_at?: string
+          duration_hours?: number | null
           end_time?: string
           grace_period_minutes?: number | null
           id?: string
@@ -5789,6 +5791,7 @@ export type Database = {
         Update: {
           break_duration_minutes?: number | null
           created_at?: string
+          duration_hours?: number | null
           end_time?: string
           grace_period_minutes?: number | null
           id?: string

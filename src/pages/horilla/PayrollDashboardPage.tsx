@@ -373,6 +373,28 @@ export default function PayrollDashboardPage() {
           }
         }
 
+        // LOP calculation
+        const lopDays = Math.max(0, workingDays - presentDays);
+        const lopDeduction = lopDays > 0 && perDayPay > 0 ? Math.round(perDayPay * lopDays) : 0;
+        if (lopDeduction > 0) {
+          deductionsBreakdown["LOP Deduction"] = lopDeduction;
+          totalDeductions += lopDeduction;
+        }
+
+        // --- Loan EMI deductions ---
+        const empLoans = (activeLoans || []).filter((l: any) => l.employee_id === emp.id && l.status === 'active' && Number(l.outstanding_balance) > 0);
+        let loanDeduction = 0;
+        for (const loan of empLoans) {
+          const emi = Math.min(Number(loan.emi_amount), Number(loan.outstanding_balance));
+          if (emi > 0) {
+            loanDeduction += emi;
+            deductionsBreakdown[`Loan EMI (${loan.loan_type?.replace(/_/g, ' ')})`] = emi;
+            loan._emiDeducted = emi;
+            loan._newBalance = Number(loan.outstanding_balance) - emi;
+          }
+        }
+        totalDeductions += loanDeduction;
+
         const netSalary = totalEarnings - totalDeductions;
 
         return {
@@ -387,6 +409,8 @@ export default function PayrollDashboardPage() {
           working_days: workingDays,
           present_days: presentDays,
           leave_days: workingDays - presentDays,
+          lop_days: lopDays,
+          lop_deduction: lopDeduction,
           overtime_hours: empAtt.ot,
           sunday_days_worked: sundayDays,
           holiday_days_worked: holidayDays,
@@ -396,7 +420,7 @@ export default function PayrollDashboardPage() {
         };
       }));
 
-      // 8. UPSERT payslips (idempotent — handles reruns without needing delete first)
+      // 8. UPSERT payslips
       await (supabase as any).from("hr_payslips").delete().eq("payroll_run_id", run.id);
       const { error: insertErr } = await (supabase as any).from("hr_payslips").insert(payslips);
       if (insertErr) throw insertErr;

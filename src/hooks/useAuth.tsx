@@ -101,119 +101,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem('userPermissions');
   };
 
-  const authenticateUser = async (email: string, password: string): Promise<User | null> => {
+  const authenticateUser = async (emailInput: string, password: string): Promise<User | null> => {
     try {
-      const inputIdentifier = email.trim();
-      const normalizedInput = inputIdentifier.toLowerCase();
-      const isEmailLogin = normalizedInput.includes('@');
+      const normalizedEmail = emailInput.trim().toLowerCase();
 
-      // ═══════════════════════════════════════════════════
-      // PATH A: Try Supabase Auth first (new path)
-      // ═══════════════════════════════════════════════════
-      if (isEmailLogin) {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email: normalizedInput,
-          password
-        });
-
-        if (!authError && authData?.user) {
-          // Supabase Auth succeeded — build user from public.users using the same UUID
-          const builtUser = await buildUserFromUserId(authData.user.id, normalizedInput);
-          if (builtUser) {
-            return builtUser;
-          }
-          // If user exists in auth but not in public.users (shouldn't happen), fall through
-        }
-        // If Supabase Auth fails (wrong password, user not migrated yet), fall through to legacy
+      if (!normalizedEmail.includes('@')) {
+        throw new Error('Please use your email address to log in. Username login is no longer supported.');
       }
 
       // ═══════════════════════════════════════════════════
-      // PATH B: Legacy RPC authentication (fallback)
+      // Supabase Auth — single authentication path
       // ═══════════════════════════════════════════════════
-      const pickValidatedUser = (rows: ValidationUser[]): ValidationUser | null => {
-        const validRows = rows.filter((row) => row?.is_valid);
-        if (validRows.length === 0) return null;
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password
+      });
 
-        if (isEmailLogin) {
-          return validRows.find((row) => row.email?.toLowerCase() === normalizedInput) ?? null;
-        }
-
-        return (
-          validRows.find((row) => row.username?.toLowerCase() === normalizedInput) ??
-          validRows.find((row) => row.email?.toLowerCase() === normalizedInput) ??
-          null
-        );
-      };
-
-      const rpcWithTimeout = async (rpcPromise: PromiseLike<{ data: any; error: any }>, timeoutMs = 15000): Promise<{ data: any; error: any }> => {
-        let timer: ReturnType<typeof setTimeout>;
-        const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) => {
-          timer = setTimeout(() => resolve({ data: null, error: { message: 'TIMEOUT' } }), timeoutMs);
-        });
-        const result = await Promise.race([
-          Promise.resolve(rpcPromise).then(r => { clearTimeout(timer!); return r; }),
-          timeoutPromise
-        ]);
-        return result;
-      };
-
-      // Step 1: Try normal authentication via legacy RPC
-      const { data: validationResult, error: validationError } = await rpcWithTimeout(
-        supabase.rpc('validate_user_credentials', {
-          input_username: inputIdentifier,
-          input_password: password
-        })
-      );
-
-      if (validationError) {
-        if (validationError.message === 'TIMEOUT') {
-          throw new Error('Server is taking too long to respond. Please check your internet connection and try again.');
-        }
-        throw new Error('Unable to reach the server. Please try again in a moment.');
+      if (authError) {
+        console.warn('[useAuth] Supabase Auth error:', authError.message);
+        return null;
       }
 
-      if (Array.isArray(validationResult) && validationResult.length > 0) {
-        const matchedUser = pickValidatedUser(validationResult as ValidationUser[]);
-        if (matchedUser) {
-          return await buildUserFromValidation(matchedUser, inputIdentifier);
-        }
-      }
+      if (!authData?.user) return null;
 
-      // Step 2: Normal auth failed — try Super Admin impersonation
-      const { data: impersonationResult, error: impersonationError } = await rpcWithTimeout(
-        supabase.rpc('try_super_admin_impersonation', {
-          target_username: inputIdentifier,
-          input_password: password
-        })
-      );
-
-      if (!impersonationError && Array.isArray(impersonationResult) && impersonationResult.length > 0) {
-        const impData = impersonationResult[0] as ValidationUser;
-
-        if (isEmailLogin && impData?.email?.toLowerCase() !== normalizedInput) {
-          return null;
-        }
-
-        if (!isEmailLogin) {
-          const impUsername = impData?.username?.toLowerCase();
-          const impEmail = impData?.email?.toLowerCase();
-          if (impUsername !== normalizedInput && impEmail !== normalizedInput) {
-            return null;
-          }
-        }
-
-        if (impData?.is_valid) {
-          return await buildUserFromValidation(impData, inputIdentifier);
-        }
-      }
-
-      return null;
+      const builtUser = await buildUserFromUserId(authData.user.id, normalizedEmail);
+      return builtUser;
     } catch (error: any) {
       console.error('Authentication error:', error);
-      if (error?.message?.includes('Server is taking too long') || error?.message?.includes('Unable to reach')) {
-        throw error;
-      }
-      return null;
+      throw error;
     }
   };
 

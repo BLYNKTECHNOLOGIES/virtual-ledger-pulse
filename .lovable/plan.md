@@ -1,94 +1,46 @@
 
+# HRMS Bug Fixes & Feature Implementation Status
 
-# P2 + P3 Implementation Plan
+## ✅ P0 + P1 — Completed (Previous Migration)
 
-## Summary
-13 items across schema fixes, data corrections, logic improvements, and new functions. Skipping PAYROLL-02 (payslip columns) per your decision.
+| # | Bug | What | Status |
+|---|-----|------|--------|
+| 1 | BUG-01 | UNIQUE on `hr_attendance_daily(employee_id, attendance_date)` | ✅ Done |
+| 2 | BUG-02 | Night Shift `is_night_shift = true` | ✅ Done |
+| 3 | BUG-03 | Leave balance reversal on `rejected` | ✅ Done |
+| 4 | BUG-05 | `is_percentage` column on salary structures | ✅ Done |
+| 5 | BUG-06 | Delete invalid ESIC rows (salary > 21000) | ✅ Done |
+| 6 | BUG-07 | Populate `basic_salary = total_salary * 0.5` | ✅ Done |
+| 7 | GAP-02 | Drop empty `hr_employee_salary` table | ✅ Done |
 
----
+## ✅ P2 — Bug & Constraint Fixes (Migration 2)
 
-## P2 — Bug & Constraint Fixes (7 items)
+| # | Item | What | Status |
+|---|------|------|--------|
+| 1 | BUG-04 | Cleaned dead status values in `update_leave_clashes_on_change` | ✅ Done |
+| 2 | GAP-01 | Status validation triggers on 8 tables | ✅ Done |
+| 3 | GAP-06 | Punch dedup unique constraint `(employee_id, punch_time)` | ✅ Done |
+| 4 | LEAVE-01 | LOP: `max_days_per_year=0`, `carry_forward=false` | ✅ Done |
+| 5 | LEAVE-02 | CO: `is_compensatory_leave=true` | ✅ Done |
+| 6 | LEAVE-05 | Half-day `total_days=0.5` enforcement trigger | ✅ Done |
+| 7 | PAYROLL-04 | Partial unique index on payroll run period | ✅ Done |
 
-### BUG-04: Clean dead status values in `update_leave_clashes_on_change`
-**Current:** `IF NEW.status IN ('requested', 'pending', 'approved', 'Approved', 'Requested')`
-**Fix:** Change to `IF NEW.status IN ('requested', 'approved')` — the others are dead code that will never match the CHECK constraint.
+## ✅ P3 — Logic & Features (Migration 3)
 
-### GAP-01: Add CHECK constraints on 8 status fields
-Add validation triggers (not CHECK constraints, per Supabase best practice) on:
-- `hr_payroll_runs.status` → draft/processing/generated/reviewed/completed/cancelled
-- `hr_payslips.status` → generated/paid/cancelled
-- `hr_loans.status` → pending/approved/rejected/active/closed
-- `hr_attendance.attendance_status` → present/absent/half_day/late/on_leave
-- `hr_objectives.status` → draft/in_progress/completed
-- `hr_helpdesk_tickets.status` → open/in_progress/resolved/closed
-- `hr_assets.status` → available/assigned/maintenance/retired
-- `hr_offer_letters.status` → draft/sent/accepted/rejected/expired
+| # | Item | What | Status |
+|---|------|------|--------|
+| 1 | FEAT-05 | `apply_salary_template()` function + `salary_template_id` column | ✅ Done |
+| 2 | FEAT-04 | `fn_calculate_monthly_penalties()` auto-calculation | ✅ Done |
+| 3 | GAP-05 | Salary revision type from `app.revision_type` session var | ✅ Done |
+| 4 | PAYROLL-01 | Payroll status state machine trigger | ✅ Done |
+| 5 | PAYROLL-03 | `fn_calculate_working_days()` function | ✅ Done |
 
-### GAP-06: Punch dedup unique constraint
-`ALTER TABLE hr_attendance_punches ADD CONSTRAINT uq_punch_emp_time UNIQUE (employee_id, punch_time);`
+## Skipped (by decision)
+- PAYROLL-02 (payslip penalty/loan columns)
 
-### LEAVE-01: Fix LOP configuration
-- Set `max_days_per_year = 0` (unlimited) and `carry_forward = false` for LOP leave type.
-
-### LEAVE-02: Fix CO compensatory flag
-- Set `is_compensatory_leave = true` for Compensatory Off (code: CO).
-
-### LEAVE-05: Half-day total_days enforcement
-Add a BEFORE INSERT OR UPDATE trigger on `hr_leave_requests`: if `is_half_day = true`, force `total_days = 0.5`.
-
-### PAYROLL-04: Duplicate payroll run prevention
-Add partial unique index: `CREATE UNIQUE INDEX uq_payroll_run_period ON hr_payroll_runs (pay_period_start, pay_period_end) WHERE status != 'cancelled';`
-
----
-
-## P3 — Logic & Features (6 items)
-
-### FEAT-05: Salary template → structure sync function
-Create `apply_salary_template(p_employee_id UUID, p_template_id UUID)` that:
-1. Reads employee's `total_salary` and computes `basic_salary = total_salary * 0.5`
-2. Deletes existing `hr_employee_salary_structures` for that employee
-3. For each template item: computes the actual amount based on `calculation_type` (percentage/fixed/formula)
-4. Inserts new structure rows with correct `is_percentage` flag
-5. Updates `hr_employees.basic_salary` and `salary_template_id`
-
-### FEAT-04: Monthly penalty auto-calculation
-Create a DB function `fn_calculate_monthly_penalties(p_year INT, p_month INT)` that:
-1. Counts late_come records per employee for the month from `hr_late_come_early_out`
-2. Matches count against `hr_penalty_rules` thresholds
-3. Inserts penalty records into `hr_penalties`
-This can be called manually or via cron.
-
-### GAP-05: Salary revision type improvement
-Change the trigger to accept a session variable `current_setting('app.revision_type', true)` — if set by the application, use it; otherwise default to `'correction'`. This lets the UI pass `'increment'`, `'promotion'`, etc.
-
-### PAYROLL-01: Payroll status state machine
-Add a validation trigger on `hr_payroll_runs` that enforces valid transitions:
-- draft → processing
-- processing → generated
-- generated → reviewed
-- reviewed → completed
-- any → cancelled (except completed)
-
-### PAYROLL-03: Working days calculation function
-Create `fn_calculate_working_days(p_employee_id UUID, p_start DATE, p_end DATE)` that:
-1. Counts calendar days in range
-2. Subtracts holidays from `hr_holidays`
-3. Subtracts weekly offs from `hr_employee_weekly_off_assignments`
-4. Returns working days count
-Note: depends on holiday and weekly off data being populated (your team handles via UI).
-
----
-
-## Implementation
-
-**Migration 1 (P2):** Single SQL migration with all 7 P2 fixes — schema constraints, data updates, trigger additions.
-
-**Migration 2 (P3):** Single SQL migration with all 6 P3 functions and triggers.
-
-**No UI changes required** — all fixes are database-level. The `apply_salary_template` function can be called from existing Salary Structure UI later.
-
-## What is NOT included
-- PAYROLL-02 (payslip penalty/loan columns) — skipped per your decision
-- All DATA items — team handles via UI
-- P4 features (attendance regularization, resignation workflow, payslip PDF, onboarding checklist)
-
+## P4+ Deferred
+- FEAT-01 (attendance regularization)
+- FEAT-02 (resignation workflow)
+- FEAT-03 (payslip PDF generation)
+- FEAT-06 (onboarding checklist)
+- All DATA items (DATA-01 through DATA-08)

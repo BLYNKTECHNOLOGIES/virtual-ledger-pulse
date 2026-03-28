@@ -463,7 +463,7 @@ async function processAttendance(
   // Log intermediate punches that are ignored
   if (windowPunches.length > 2) {
     const ignored = windowPunches.slice(1, -1);
-    console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeId}, date=${attendanceDate}: ${ignored.map((p: any) => p.punch_time).join(", ")}`);
+    console.log(`[ATTENDANCE] Ignored ${ignored.length} intermediate punches for employee=${employeeIdStr}, date=${attendanceDate}: ${ignored.map((p: any) => p.punch_time).join(", ")}`);
   }
 
   // 6. Shift-aware calculations
@@ -572,7 +572,7 @@ async function processAttendance(
     { onConflict: "employee_id,attendance_date" }
   );
 
-  console.log(`[ATTENDANCE] Processed employee=${employeeId}, date=${attendanceDate}, status=${status}, punches=${punchCount}, checkIn=${firstPunch}, checkOut=${lastPunch || "N/A"}`);
+  console.log(`[ATTENDANCE] Processed employee=${employeeIdStr}, date=${attendanceDate}, status=${status}, punches=${punchCount}, checkIn=${firstPunch}, checkOut=${lastPunch || "N/A"}`);
 }
 
 // ─── Helper: Compute shift window boundaries ───

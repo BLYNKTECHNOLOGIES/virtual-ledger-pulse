@@ -484,9 +484,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Sync user object to localStorage WITHOUT resetting the session timestamp.
+  // Sync user object to localStorage and session cache WITHOUT resetting the session timestamp.
   useEffect(() => {
     if (user) {
+      // Update session cache
+      setSessionCache(user);
+
       const existing = localStorage.getItem('userSession');
       let existingTimestamp = Date.now();
       let existingExpiry = 7 * 24 * 60 * 60 * 1000;
@@ -503,6 +506,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         expiresIn: existingExpiry
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
+    } else {
+      setSessionCache(null);
     }
   }, [user]);
 

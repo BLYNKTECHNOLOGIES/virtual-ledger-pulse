@@ -206,6 +206,7 @@ export default function LeaveRequestsPage() {
                       ) : (
                         <span className="text-gray-400 text-xs">None</span>
                       )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         r.status === "approved" ? "bg-green-100 text-green-700" :

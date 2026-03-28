@@ -525,7 +525,7 @@ export function ShiftReconciliationWidget() {
             {canApprove ? (
               <>
                 <Textarea
-516:                   placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
+placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                   value={reviewNotes}
                   onChange={e => setReviewNotes(e.target.value)}
                   className={`bg-white ${!reviewNotes.trim() ? "border-amber-400" : "border-green-400"}`}

@@ -300,5 +300,6 @@ export function OnboardingChecklistTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
 }
 

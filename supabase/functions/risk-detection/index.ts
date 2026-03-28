@@ -54,7 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
           const { data: currentOrders } = await supabase
             .from("sales_orders")
             .select("id")
-            .eq("customer_name", user.username)
+            .eq("client_name", user.username)
             .gte("order_date", `${currentMonth}-01`)
             .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`);
 
@@ -62,7 +62,7 @@ const handler = async (req: Request): Promise<Response> => {
           const { data: lastOrders } = await supabase
             .from("sales_orders")
             .select("id")
-            .eq("customer_name", user.username)
+            .eq("client_name", user.username)
             .gte("order_date", `${lastMonthStr}-01`)
             .lt("order_date", `${currentMonth}-01`);
 

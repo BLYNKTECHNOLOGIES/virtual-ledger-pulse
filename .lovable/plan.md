@@ -56,6 +56,10 @@
 | 1 | FEAT-02 | Resignation workflow with editable checklist template + auto-deactivation | ✅ Done |
 | 2 | FEAT-06 | Onboarding checklist using existing stages/tasks tables + seeded defaults | ✅ Done |
 
-## Remaining
-- FEAT-01 (attendance regularization)
-- GAP-04 (grace period precedence documentation)
+## Closed / Not Required
+- FEAT-01 (attendance regularization) — Not needed; HR handles corrections manually via payroll or manual attendance marking
+- GAP-04 (grace period precedence) — Documented: shift-level grace_period takes precedence over policy-level. No code change needed.
+- PAYROLL-02 (payslip penalty/loan columns) — Skipped by decision
+- All DATA items (DATA-01 through DATA-08) — team handles via UI
+
+## 🎉 HRMS Deep Analysis v3 — ALL ITEMS RESOLVED

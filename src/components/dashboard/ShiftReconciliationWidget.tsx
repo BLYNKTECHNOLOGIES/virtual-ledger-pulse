@@ -379,6 +379,19 @@ export function ShiftReconciliationWidget() {
   // ─── Approve / Reject ───
   const handleReview = async (action: "approved" | "rejected") => {
     if (!currentRecordId) return;
+
+    // Require review notes when approving with mismatches
+    const hasMismatches = reportData?.some(i => !i.within_tolerance) || 
+      (detailRecord?.has_mismatches);
+    if (action === "approved" && hasMismatches && !reviewNotes.trim()) {
+      toast({ 
+        title: "Review notes required", 
+        description: "You must provide review notes explaining each mismatch before approving.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from("shift_reconciliations")
@@ -397,7 +410,6 @@ export function ShiftReconciliationWidget() {
       queryClient.invalidateQueries({ queryKey: ["shift_reconciliations"] });
 
       if (action === "rejected") {
-        // Stay on report so operator can re-download / re-upload
         setActiveView("actions");
       } else {
         setActiveView("history");
@@ -513,14 +525,24 @@ export function ShiftReconciliationWidget() {
             {canApprove ? (
               <>
                 <Textarea
-                  placeholder="Add review notes (optional)..."
+placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                   value={reviewNotes}
                   onChange={e => setReviewNotes(e.target.value)}
-                  className="bg-white"
+                  className={`bg-white ${!reviewNotes.trim() ? "border-amber-400" : "border-green-400"}`}
                 />
+                {!reviewNotes.trim() && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Review notes are mandatory to approve with mismatches
+                  </p>
+                )}
                 <div className="flex gap-2">
-                  <Button onClick={() => handleReview("approved")} className="bg-green-600 hover:bg-green-700">
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Approve Anyway
+                  <Button 
+                    onClick={() => handleReview("approved")} 
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={!reviewNotes.trim()}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Approve with Notes
                   </Button>
                   <Button onClick={() => handleReview("rejected")} variant="destructive">
                     <XCircle className="h-4 w-4 mr-1" /> Reject & Request Re-upload

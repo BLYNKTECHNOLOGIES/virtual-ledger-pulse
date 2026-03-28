@@ -5287,6 +5287,138 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_loan_repayments: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string | null
+          employee_id: string
+          id: string
+          loan_id: string
+          notes: string | null
+          payroll_run_id: string | null
+          repayment_date: string
+          repayment_type: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          loan_id: string
+          notes?: string | null
+          payroll_run_id?: string | null
+          repayment_date?: string
+          repayment_type?: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          loan_id?: string
+          notes?: string | null
+          payroll_run_id?: string | null
+          repayment_date?: string
+          repayment_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_loan_repayments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_loan_repayments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "hr_loans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_loan_repayments_payroll_run_id_fkey"
+            columns: ["payroll_run_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_loans: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          disbursement_date: string
+          emi_amount: number
+          employee_id: string
+          id: string
+          interest_rate: number | null
+          loan_type: string
+          notes: string | null
+          outstanding_balance: number
+          reason: string | null
+          rejection_reason: string | null
+          start_emi_date: string
+          status: string
+          tenure_months: number
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          disbursement_date?: string
+          emi_amount: number
+          employee_id: string
+          id?: string
+          interest_rate?: number | null
+          loan_type?: string
+          notes?: string | null
+          outstanding_balance: number
+          reason?: string | null
+          rejection_reason?: string | null
+          start_emi_date: string
+          status?: string
+          tenure_months?: number
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          disbursement_date?: string
+          emi_amount?: number
+          employee_id?: string
+          id?: string
+          interest_rate?: number | null
+          loan_type?: string
+          notes?: string | null
+          outstanding_balance?: number
+          reason?: string | null
+          rejection_reason?: string | null
+          start_emi_date?: string
+          status?: string
+          tenure_months?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_loans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_notification_log: {
         Row: {
           channel: string | null
@@ -5700,6 +5832,9 @@ export type Database = {
           processed_by: string | null
           rerun_count: number
           rerun_reason: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           run_date: string
           status: string
           title: string
@@ -5721,6 +5856,9 @@ export type Database = {
           processed_by?: string | null
           rerun_count?: number
           rerun_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           run_date?: string
           status?: string
           title: string
@@ -5742,6 +5880,9 @@ export type Database = {
           processed_by?: string | null
           rerun_count?: number
           rerun_reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           run_date?: string
           status?: string
           title?: string
@@ -5769,6 +5910,8 @@ export type Database = {
           gross_salary: number
           id: string
           leave_days: number | null
+          lop_days: number | null
+          lop_deduction: number | null
           net_salary: number
           overtime_hours: number | null
           payment_date: string | null
@@ -5790,6 +5933,8 @@ export type Database = {
           gross_salary?: number
           id?: string
           leave_days?: number | null
+          lop_days?: number | null
+          lop_deduction?: number | null
           net_salary?: number
           overtime_hours?: number | null
           payment_date?: string | null
@@ -5811,6 +5956,8 @@ export type Database = {
           gross_salary?: number
           id?: string
           leave_days?: number | null
+          lop_days?: number | null
+          lop_deduction?: number | null
           net_salary?: number
           overtime_hours?: number | null
           payment_date?: string | null

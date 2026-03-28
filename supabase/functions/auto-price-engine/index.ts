@@ -42,7 +42,15 @@ serve(async (req) => {
 
     const results: any[] = [];
 
-    for (const rule of rules) {
+    // Filter out inactive rules even when called with a specific ruleId
+    const activeRules = rules.filter((r: any) => r.is_active !== false);
+    if (activeRules.length === 0) {
+      return new Response(JSON.stringify({ success: true, message: "Rule is inactive", skipped: rules.map((r: any) => r.id) }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    for (const rule of activeRules) {
       try {
         const logEntries = await processRule(rule, excludedSet, supabase);
         results.push({ ruleId: rule.id, results: logEntries });

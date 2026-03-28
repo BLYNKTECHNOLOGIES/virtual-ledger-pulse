@@ -173,6 +173,21 @@ Deno.serve(async (req) => {
             const punch_type = raw_status === 1 || raw_status === 2 || raw_status === 5
               ? "out" : "in";
 
+            // ── Deduplication: skip if same badge punched within last 2 minutes ──
+            const dedup_window = new Date(punchDateObj.getTime() - 2 * 60 * 1000).toISOString();
+            const { data: recentPunch } = await supabase
+              .from("hr_attendance_punches")
+              .select("id")
+              .eq("badge_id", badge_id)
+              .gte("punch_time", dedup_window)
+              .lte("punch_time", punchISO)
+              .limit(1)
+              .maybeSingle();
+
+            if (recentPunch) {
+              results.skipped++;
+              continue;
+            }
 
             // 1. Store raw punch
             const { error: punchError } = await supabase.from("hr_attendance_punches").insert({

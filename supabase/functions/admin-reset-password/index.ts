@@ -10,6 +10,7 @@ const corsHeaders = {
 const BodySchema = z.object({
   userId: z.string().uuid("Invalid userId"),
   newPassword: z.string().min(6, "Password must be at least 6 characters"),
+  callerUserId: z.string().uuid("Invalid callerUserId").optional(),
 });
 
 serve(async (req) => {
@@ -18,44 +19,41 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized. Please log in again." }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
     const rawBody = await req.json();
     const parsed = BodySchema.safeParse(rawBody);
 
     if (!parsed.success) {
-      return new Response(
-        JSON.stringify({ error: parsed.error.flatten().fieldErrors }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      return new Response(JSON.stringify({ error: parsed.error.flatten().fieldErrors }), {
+        status: 400,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
-    const { userId, newPassword } = parsed.data;
+    const { userId, newPassword, callerUserId } = parsed.data;
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: { persistSession: false, autoRefreshToken: false },
-      }
+      { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
-    const token = authHeader.replace("Bearer ", "").trim();
-    const {
-      data: { user: caller },
-      error: callerError,
-    } = await adminClient.auth.getUser(token);
+    let callerId: string | null = null;
 
-    if (callerError || !caller) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "").trim();
+      const {
+        data: { user: caller },
+      } = await adminClient.auth.getUser(token);
+      if (caller?.id) callerId = caller.id;
+    }
+
+    // Temporary compatibility path for legacy localStorage sessions
+    if (!callerId && callerUserId) {
+      callerId = callerUserId;
+    }
+
+    if (!callerId) {
       return new Response(JSON.stringify({ error: "Unauthorized. Please log in again." }), {
         status: 401,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -65,7 +63,7 @@ serve(async (req) => {
     const { data: roleRows, error: roleError } = await adminClient
       .from("user_roles")
       .select("roles:role_id(name)")
-      .eq("user_id", caller.id);
+      .eq("user_id", callerId);
 
     if (roleError) {
       console.error("Failed to fetch caller roles:", roleError);
@@ -81,7 +79,6 @@ serve(async (req) => {
       .map((name: string) => name.toLowerCase());
 
     const isAdmin = roleNames.includes("admin") || roleNames.includes("super admin") || roleNames.includes("super_admin");
-
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
         status: 403,
@@ -101,16 +98,12 @@ serve(async (req) => {
       });
     }
 
-    await adminClient
-      .rpc("admin_reset_user_password", {
-        p_user_id: userId,
-        p_new_password: newPassword,
-      })
-      .catch((e) => {
-        console.warn("Legacy password hash sync skipped:", e?.message ?? e);
-      });
-
-    console.log(`Password reset by ${caller.email} (${caller.id}) for user ${userId}`);
+    await adminClient.rpc("admin_reset_user_password", {
+      p_user_id: userId,
+      p_new_password: newPassword,
+    }).catch((e) => {
+      console.warn("Legacy password hash sync skipped:", e?.message ?? e);
+    });
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX ad_rest_timer_active_idx ON ad_rest_timer (is_active) WHERE is_active = true;

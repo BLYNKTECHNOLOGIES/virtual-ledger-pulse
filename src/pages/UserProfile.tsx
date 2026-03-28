@@ -109,10 +109,10 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
                     <span className="font-mono font-medium">{bank.account_number}</span>
                   </div>
                 )}
-                {bank.bank_code_1 && (
+                {bank.ifsc_code && (
                   <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">IFSC / Bank Code</span>
-                    <span className="font-mono font-medium">{bank.bank_code_1}</span>
+                    <span className="text-muted-foreground">IFSC Code</span>
+                    <span className="font-mono font-medium">{bank.ifsc_code}</span>
                   </div>
                 )}
                 {bank.bank_code_2 && (
@@ -266,12 +266,14 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
 
       const entry = { name: comp.name, code: comp.code, amount, calcLabel, type: comp.component_type };
 
-      const isEmployer = comp.name?.toLowerCase().includes('employer') ||
+      const isEmployer = comp.component_type === 'employer_contribution' ||
+        comp.name?.toLowerCase().includes('employer') ||
         ['PFC', 'ESIC'].includes(comp.code);
 
-      if (comp.component_type === "deduction") {
-        if (isEmployer) employerContribs.push(entry);
-        else deductions.push(entry);
+      if (isEmployer) {
+        employerContribs.push(entry);
+      } else if (comp.component_type === "deduction") {
+        deductions.push(entry);
       } else {
         earnings.push(entry);
       }

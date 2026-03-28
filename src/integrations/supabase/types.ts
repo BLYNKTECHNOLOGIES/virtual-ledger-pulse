@@ -4059,6 +4059,56 @@ export type Database = {
           },
         ]
       }
+      hr_employee_documents: {
+        Row: {
+          document_name: string
+          document_type: string
+          employee_id: string
+          file_url: string
+          id: string
+          is_verified: boolean
+          notes: string | null
+          uploaded_at: string
+          uploaded_by: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          document_name: string
+          document_type: string
+          employee_id: string
+          file_url: string
+          id?: string
+          is_verified?: boolean
+          notes?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          document_name?: string
+          document_type?: string
+          employee_id?: string
+          file_url?: string
+          id?: string
+          is_verified?: boolean
+          notes?: string | null
+          uploaded_at?: string
+          uploaded_by?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_notes: {
         Row: {
           created_at: string
@@ -4310,6 +4360,8 @@ export type Database = {
           additional_info: Json | null
           basic_salary: number | null
           company_name: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           contract_end_date: string | null
           created_at: string
           department_id: string | null
@@ -4317,10 +4369,12 @@ export type Database = {
           employee_type: string | null
           experience_years: number | null
           id: string
+          is_confirmed: boolean | null
           job_position_id: string | null
           job_role: string | null
           joining_date: string | null
           location: string | null
+          probation_end_date: string | null
           reporting_manager_id: string | null
           salary_per_hour: number | null
           shift_id: string | null
@@ -4334,6 +4388,8 @@ export type Database = {
           additional_info?: Json | null
           basic_salary?: number | null
           company_name?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           contract_end_date?: string | null
           created_at?: string
           department_id?: string | null
@@ -4341,10 +4397,12 @@ export type Database = {
           employee_type?: string | null
           experience_years?: number | null
           id?: string
+          is_confirmed?: boolean | null
           job_position_id?: string | null
           job_role?: string | null
           joining_date?: string | null
           location?: string | null
+          probation_end_date?: string | null
           reporting_manager_id?: string | null
           salary_per_hour?: number | null
           shift_id?: string | null
@@ -4358,6 +4416,8 @@ export type Database = {
           additional_info?: Json | null
           basic_salary?: number | null
           company_name?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           contract_end_date?: string | null
           created_at?: string
           department_id?: string | null
@@ -4365,10 +4425,12 @@ export type Database = {
           employee_type?: string | null
           experience_years?: number | null
           id?: string
+          is_confirmed?: boolean | null
           job_position_id?: string | null
           job_role?: string | null
           joining_date?: string | null
           location?: string | null
+          probation_end_date?: string | null
           reporting_manager_id?: string | null
           salary_per_hour?: number | null
           shift_id?: string | null
@@ -4649,6 +4711,83 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      hr_fnf_settlements: {
+        Row: {
+          approved_by: string | null
+          bonus_amount: number
+          created_at: string
+          deposit_refund: number
+          employee_id: string
+          id: string
+          last_working_day: string
+          leave_encashment_amount: number
+          leave_encashment_days: number
+          loan_recovery: number
+          net_payable: number
+          notes: string | null
+          other_deductions: number
+          other_deductions_notes: string | null
+          paid_at: string | null
+          payment_reference: string | null
+          penalty_deductions: number
+          pending_salary: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          bonus_amount?: number
+          created_at?: string
+          deposit_refund?: number
+          employee_id: string
+          id?: string
+          last_working_day: string
+          leave_encashment_amount?: number
+          leave_encashment_days?: number
+          loan_recovery?: number
+          net_payable?: number
+          notes?: string | null
+          other_deductions?: number
+          other_deductions_notes?: string | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          penalty_deductions?: number
+          pending_salary?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          bonus_amount?: number
+          created_at?: string
+          deposit_refund?: number
+          employee_id?: string
+          id?: string
+          last_working_day?: string
+          leave_encashment_amount?: number
+          leave_encashment_days?: number
+          loan_recovery?: number
+          net_payable?: number
+          notes?: string | null
+          other_deductions?: number
+          other_deductions_notes?: string | null
+          paid_at?: string | null
+          payment_reference?: string | null
+          penalty_deductions?: number
+          pending_salary?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_fnf_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_helpdesk_tickets: {
         Row: {
@@ -6398,6 +6537,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      hr_salary_revisions: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          effective_from: string
+          employee_id: string
+          id: string
+          new_basic: number | null
+          new_total: number | null
+          previous_basic: number | null
+          previous_total: number | null
+          revision_reason: string | null
+          revision_type: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          effective_from?: string
+          employee_id: string
+          id?: string
+          new_basic?: number | null
+          new_total?: number | null
+          previous_basic?: number | null
+          previous_total?: number | null
+          revision_reason?: string | null
+          revision_type?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          effective_from?: string
+          employee_id?: string
+          id?: string
+          new_basic?: number | null
+          new_total?: number | null
+          previous_basic?: number | null
+          previous_total?: number | null
+          revision_reason?: string | null
+          revision_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_salary_revisions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_salary_structure_template_items: {
         Row: {

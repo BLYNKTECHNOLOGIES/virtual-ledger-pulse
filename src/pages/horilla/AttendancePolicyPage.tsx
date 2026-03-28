@@ -185,7 +185,7 @@ export default function AttendancePolicyPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Late After (minutes)</Label><Input type="number" value={form.late_threshold_minutes} onChange={(e) => setForm({ ...form, late_threshold_minutes: parseInt(e.target.value) || 0 })} /></div>
-              <div><Label>Grace Period (minutes)</Label><Input type="number" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} /></div>
+              <div><Label>Grace Period (minutes)</Label><Input type="number" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} /><p className="text-[10px] text-muted-foreground mt-0.5">Fallback only — shift-level grace takes priority</p></div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">

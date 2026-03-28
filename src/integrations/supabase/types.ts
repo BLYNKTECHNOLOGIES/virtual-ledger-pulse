@@ -7565,6 +7565,7 @@ export type Database = {
       password_reset_requests: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
           reason: string | null
           requested_at: string
@@ -7576,6 +7577,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           reason?: string | null
           requested_at?: string
@@ -7587,6 +7589,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           reason?: string | null
           requested_at?: string

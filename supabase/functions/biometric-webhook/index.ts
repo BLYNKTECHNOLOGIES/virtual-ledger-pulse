@@ -189,10 +189,24 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // 1. Store raw punch
+            // 1. Resolve badge_id → employee UUID
+            const { data: empLookup } = await supabase
+              .from("hr_employees")
+              .select("id")
+              .eq("badge_id", badge_id)
+              .maybeSingle();
+
+            if (!empLookup) {
+              results.errors.push(`No employee found for badge_id=${badge_id}`);
+              continue;
+            }
+
+            const employeeUUID = empLookup.id;
+
+            // 2. Store raw punch with UUID employee_id
             const { error: punchError } = await supabase.from("hr_attendance_punches").insert({
               badge_id,
-              employee_id: badge_id,
+              employee_id: employeeUUID,
               punch_time: punchISO,
               punch_type,
               device_name: "eSSL Push",
@@ -206,8 +220,8 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // 2. Process attendance records
-            await processAttendance(supabase, badge_id, punchISO, punchDate, punch_type);
+            // 3. Process attendance records (pass UUID directly)
+            await processAttendance(supabase, badge_id, punchISO, punchDate, punch_type, employeeUUID);
 
             results.inserted++;
           } catch (lineErr) {
@@ -282,9 +296,23 @@ Deno.serve(async (req) => {
         const punchISO = new Date(punch_time).toISOString();
         const punchDate = punchISO.split("T")[0];
 
+        // Resolve badge_id → employee UUID
+        const { data: empLookup } = await supabase
+          .from("hr_employees")
+          .select("id")
+          .eq("badge_id", String(badge_id))
+          .maybeSingle();
+
+        if (!empLookup) {
+          results.errors.push(`No employee found for badge_id=${badge_id}`);
+          continue;
+        }
+
+        const employeeUUID = empLookup.id;
+
         await supabase.from("hr_attendance_punches").insert({
           badge_id: String(badge_id),
-          employee_id: String(badge_id),
+          employee_id: employeeUUID,
           punch_time: punchISO,
           punch_type: punch_type || "auto",
           device_name,
@@ -292,7 +320,7 @@ Deno.serve(async (req) => {
           raw_status: typeof raw_status === "number" ? raw_status : null,
         });
 
-        await processAttendance(supabase, String(badge_id), punchISO, punchDate, punch_type || "auto");
+        await processAttendance(supabase, String(badge_id), punchISO, punchDate, punch_type || "auto", employeeUUID);
 
         results.inserted++;
 

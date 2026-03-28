@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { getSessionUser } from '@/lib/session-cache';
 
 // All terminal action types — grouped by category
 export const AdActionTypes = {
@@ -94,6 +95,12 @@ export function getActionCategory(actionType: string): ActionCategory | null {
 
 function getUserSession(): { userId: string; userName: string } | null {
   try {
+    // Primary: session cache (Supabase Auth backed)
+    const cached = getSessionUser();
+    if (cached?.userId) {
+      return { userId: cached.userId, userName: cached.username || 'Unknown' };
+    }
+    // Fallback: direct localStorage
     const sessionStr = localStorage.getItem('userSession');
     if (sessionStr) {
       const session = JSON.parse(sessionStr);

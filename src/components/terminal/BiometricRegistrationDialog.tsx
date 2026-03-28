@@ -46,9 +46,10 @@ export function BiometricRegistrationDialog({
   const handleRegister = async () => {
     setIsRegistering(true);
     try {
-      // Get username from session
-      const session = localStorage.getItem('userSession');
-      const username = session ? JSON.parse(session).username || 'User' : 'User';
+      // Get username from session cache
+      const { getSessionUser } = await import('@/lib/session-cache');
+      const cachedUser = getSessionUser();
+      const username = cachedUser?.username || 'User';
 
       await registerBiometric(userId, username, deviceName || undefined);
       setStep('done');

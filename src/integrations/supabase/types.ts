@@ -12885,6 +12885,7 @@ export type Database = {
           id: string
           reference_id: string | null
           reference_type: string | null
+          related_transaction_id: string | null
           transaction_type: string
           wallet_id: string
         }
@@ -12899,6 +12900,7 @@ export type Database = {
           id?: string
           reference_id?: string | null
           reference_type?: string | null
+          related_transaction_id?: string | null
           transaction_type: string
           wallet_id: string
         }
@@ -12913,6 +12915,7 @@ export type Database = {
           id?: string
           reference_id?: string | null
           reference_type?: string | null
+          related_transaction_id?: string | null
           transaction_type?: string
           wallet_id?: string
         }
@@ -12922,6 +12925,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_related_transaction_id_fkey"
+            columns: ["related_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
             referencedColumns: ["id"]
           },
           {

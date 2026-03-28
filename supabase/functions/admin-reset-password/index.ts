@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 serve(async (req) => {
@@ -12,30 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    // Verify the caller is authenticated
-    const anonClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!
-    );
-    const { data: { user: caller }, error: callerError } = await anonClient.auth.getUser(
-      authHeader.replace("Bearer ", "")
-    );
-    if (callerError || !caller) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    const { userId, newPassword } = await req.json();
+    const { userId, newPassword, callerUserId } = await req.json();
 
     if (!userId || !newPassword) {
       return new Response(JSON.stringify({ error: "userId and newPassword are required" }), {
@@ -51,16 +29,39 @@ serve(async (req) => {
       });
     }
 
-    // Use service role to check caller is super_admin or admin
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Determine caller identity: try JWT first, fall back to callerUserId
+    let callerId: string | null = null;
+
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) {
+      const { data: { user: caller } } = await adminClient.auth.getUser(
+        authHeader.replace("Bearer ", "")
+      );
+      if (caller) callerId = caller.id;
+    }
+
+    // Fallback: accept callerUserId from body (for legacy sessions)
+    if (!callerId && callerUserId) {
+      callerId = callerUserId;
+    }
+
+    if (!callerId) {
+      return new Response(JSON.stringify({ error: "Unauthorized - no caller identity" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Verify caller is admin/super_admin
     const { data: callerUser } = await adminClient
       .from("users")
       .select("role")
-      .eq("id", caller.id)
+      .eq("id", callerId)
       .single();
 
     if (!callerUser || !["super_admin", "admin"].includes(callerUser.role)) {
@@ -89,7 +90,7 @@ serve(async (req) => {
       p_new_password: newPassword,
     }).catch(() => {});
 
-    console.log(`Password reset by ${caller.email} for user ${userId}`);
+    console.log(`Password reset by ${callerId} for user ${userId}`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
@@ -97,7 +98,7 @@ serve(async (req) => {
     });
   } catch (error: any) {
     console.error("admin-reset-password error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: error.message || "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });

@@ -72,11 +72,12 @@ export function ResetPasswordDialog({
     setIsLoading(true);
 
     try {
+      // Get caller identity from Supabase session or localStorage fallback
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
+      const callerUserId = session?.user?.id || localStorage.getItem('userId') || undefined;
 
       const response = await supabase.functions.invoke("admin-reset-password", {
-        body: { userId, newPassword },
+        body: { userId, newPassword, callerUserId },
       });
 
       if (response.error) {

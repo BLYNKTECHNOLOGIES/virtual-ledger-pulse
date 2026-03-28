@@ -4127,6 +4127,54 @@ export type Database = {
           },
         ]
       }
+      hr_employee_shift_schedule: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          employee_id: string
+          id: string
+          is_current: boolean | null
+          shift_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          effective_from: string
+          effective_to?: string | null
+          employee_id: string
+          id?: string
+          is_current?: boolean | null
+          shift_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          employee_id?: string
+          id?: string
+          is_current?: boolean | null
+          shift_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_shift_schedule_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_shift_schedule_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_tags: {
         Row: {
           color: string | null
@@ -4147,6 +4195,48 @@ export type Database = {
           title?: string
         }
         Relationships: []
+      }
+      hr_employee_weekly_off: {
+        Row: {
+          created_at: string | null
+          effective_from: string
+          employee_id: string
+          id: string
+          is_current: boolean | null
+          pattern_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          effective_from?: string
+          employee_id: string
+          id?: string
+          is_current?: boolean | null
+          pattern_id: string
+        }
+        Update: {
+          created_at?: string | null
+          effective_from?: string
+          employee_id?: string
+          id?: string
+          is_current?: boolean | null
+          pattern_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_weekly_off_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_weekly_off_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "hr_weekly_off_patterns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hr_employee_work_info: {
         Row: {
@@ -4275,14 +4365,18 @@ export type Database = {
           id: string
           is_active: boolean
           last_name: string
+          last_working_day: string | null
           marital_status: string | null
           pan_number: string | null
           pf_number: string | null
           phone: string | null
           profile_image_url: string | null
           qualification: string | null
+          resignation_date: string | null
           salary_structure_template_id: string | null
+          separation_reason: string | null
           state: string | null
+          termination_date: string | null
           total_salary: number | null
           uan_number: string | null
           updated_at: string
@@ -4311,14 +4405,18 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name: string
+          last_working_day?: string | null
           marital_status?: string | null
           pan_number?: string | null
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
+          resignation_date?: string | null
           salary_structure_template_id?: string | null
+          separation_reason?: string | null
           state?: string | null
+          termination_date?: string | null
           total_salary?: number | null
           uan_number?: string | null
           updated_at?: string
@@ -4347,14 +4445,18 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_name?: string
+          last_working_day?: string | null
           marital_status?: string | null
           pan_number?: string | null
           pf_number?: string | null
           phone?: string | null
           profile_image_url?: string | null
           qualification?: string | null
+          resignation_date?: string | null
           salary_structure_template_id?: string | null
+          separation_reason?: string | null
           state?: string | null
+          termination_date?: string | null
           total_salary?: number | null
           uan_number?: string | null
           updated_at?: string
@@ -6564,6 +6666,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hr_weekly_off_patterns: {
+        Row: {
+          alternate_week_offs: number[] | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_alternating: boolean | null
+          name: string
+          weekly_offs: number[]
+        }
+        Insert: {
+          alternate_week_offs?: number[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_alternating?: boolean | null
+          name: string
+          weekly_offs?: number[]
+        }
+        Update: {
+          alternate_week_offs?: number[] | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_alternating?: boolean | null
+          name?: string
+          weekly_offs?: number[]
+        }
+        Relationships: []
       }
       interview_schedules: {
         Row: {
@@ -12462,6 +12597,17 @@ export type Database = {
         }
         Returns: Json
       }
+      auto_generate_penalties: {
+        Args: { p_month?: string }
+        Returns: {
+          emp_id: string
+          emp_name: string
+          late_count: number
+          penalty_type: string
+          penalty_value: number
+          rule_applied: string
+        }[]
+      }
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean
@@ -12933,6 +13079,17 @@ export type Database = {
       delete_webauthn_credential: {
         Args: { p_credential_id: string }
         Returns: undefined
+      }
+      execute_leave_reset: {
+        Args: { p_year?: number }
+        Returns: {
+          action: string
+          carried_forward: number
+          employee_id: string
+          leave_type: string
+          new_balance: number
+          old_balance: number
+        }[]
       }
       extend_terminal_biometric_session: {
         Args: { p_token: string; p_user_id: string }

@@ -326,6 +326,10 @@ export default function EmployeeProfilePage() {
           pf_number: editForm.pf_number || null,
           uan_number: editForm.uan_number || null,
           esi_number: editForm.esi_number || null,
+          resignation_date: editForm.resignation_date || null,
+          termination_date: editForm.termination_date || null,
+          last_working_day: editForm.last_working_day || null,
+          separation_reason: editForm.separation_reason || null,
         }).eq("id", id!);
         if (error) throw error;
       }
@@ -601,6 +605,13 @@ export default function EmployeeProfilePage() {
                 <InfoRow label="PF Number" value={(emp as any).pf_number} editKey="pf_number" />
                 <InfoRow label="UAN Number" value={(emp as any).uan_number} editKey="uan_number" />
                 <InfoRow label="ESI Number" value={(emp as any).esi_number} editKey="esi_number" />
+                <div className="border-t border-border mt-3 pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Separation Details</p>
+                </div>
+                <InfoRow label="Resignation Date" value={(emp as any).resignation_date} editKey="resignation_date" inputType="date" />
+                <InfoRow label="Termination Date" value={(emp as any).termination_date} editKey="termination_date" inputType="date" />
+                <InfoRow label="Last Working Day" value={(emp as any).last_working_day} editKey="last_working_day" inputType="date" />
+                <InfoRow label="Separation Reason" value={(emp as any).separation_reason} editKey="separation_reason" />
               </div>
 
               {/* Deposit Information */}

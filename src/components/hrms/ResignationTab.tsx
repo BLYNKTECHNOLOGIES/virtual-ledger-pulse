@@ -19,8 +19,7 @@ type ResignationEmployee = {
   badge_id: string;
   first_name: string;
   last_name: string;
-  department: string | null;
-  designation: string | null;
+  hr_employee_work_info: { department_id: string | null; job_role: string | null }[];
   resignation_date: string | null;
   resignation_status: string | null;
   notice_period_end_date: string | null;

@@ -39,7 +39,6 @@ type EmployeeBasic = {
   badge_id: string;
   first_name: string;
   last_name: string;
-  department: string | null;
   date_of_joining: string | null;
 };
 

@@ -407,7 +407,7 @@ async function processAttendance(
   const { data: workInfo } = await supabase
     .from("hr_employee_work_info")
     .select("shift_id")
-    .eq("employee_id", employeeId)
+    .eq("employee_id", employeeIdStr)
     .maybeSingle();
 
   let shiftStartTime = "09:00:00";
@@ -449,7 +449,7 @@ async function processAttendance(
     .order("punch_time", { ascending: true });
 
   if (!windowPunches || windowPunches.length === 0) {
-    console.log(`[ATTENDANCE] No punches in shift window for employee=${employeeId}, badge=${badge_id}, window=${windowStart}→${windowEnd}`);
+    console.log(`[ATTENDANCE] No punches in shift window for employee=${employeeIdStr}, badge=${badge_id}, window=${windowStart}→${windowEnd}`);
     return;
   }
 
@@ -511,13 +511,13 @@ async function processAttendance(
   const { data: existingActivity } = await supabase
     .from("hr_attendance_activity")
     .select("id")
-    .eq("employee_id", employeeId)
+    .eq("employee_id", employeeIdStr)
     .eq("activity_date", attendanceDate)
     .limit(1)
     .maybeSingle();
 
   const activityPayload = {
-    employee_id: employeeId,
+    employee_id: employeeIdStr,
     activity_date: attendanceDate,
     clock_in: firstPunch,
     clock_out: lastPunch,
@@ -535,7 +535,7 @@ async function processAttendance(
 
   // 8. UPSERT hr_attendance — uses unique constraint (employee_id, attendance_date)
   const attendancePayload = {
-    employee_id: employeeId,
+    employee_id: employeeIdStr,
     attendance_date: attendanceDate,
     check_in: firstPunch,
     check_out: lastPunch,

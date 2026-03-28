@@ -573,7 +573,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             await supabase.from('client_onboarding_approvals').insert({
               sales_order_id: salesOrder.id,
               client_name: clientRecord.name || displayName,
-              client_phone: clientRecord.phone || contactNumber || null,
+              client_phone: (clientRecord.phone && !await isPhoneBlocked(clientRecord.phone)) ? clientRecord.phone : ((contactNumber && !await isPhoneBlocked(contactNumber)) ? contactNumber : null),
               // Pass state only if operator manually entered it in the dialog.
               // If left blank (null), Buyer Approval officer will enter it during review.
               client_state: clientState || null,

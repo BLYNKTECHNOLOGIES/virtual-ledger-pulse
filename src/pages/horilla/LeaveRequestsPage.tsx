@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Search, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function LeaveRequestsPage() {
   const qc = useQueryClient();
@@ -162,16 +163,16 @@ export default function LeaveRequestsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b">
               <tr>
-                {["Employee", "Leave Type", "Start", "End", "Days", "Status", "Reason", "Actions"].map((h) => (
+                {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-8 text-gray-400">No leave requests</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No leave requests</td></tr>
               ) : (
                 filtered.map((r: any) => (
                   <tr key={r.id} className="border-b hover:bg-gray-50">
@@ -187,6 +188,24 @@ export default function LeaveRequestsPage() {
                       {r.total_days}
                       {r.is_half_day && <span className="ml-1 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">{r.half_day_period || "half"}</span>}
                     </td>
+                    <td className="px-4 py-3">
+                      {(r.leave_clashes_count || 0) > 0 ? (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                <AlertTriangle className="h-3 w-3" />
+                                {r.leave_clashes_count}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{r.leave_clashes_count} employee(s) in the same department have overlapping leave</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : (
+                        <span className="text-gray-400 text-xs">None</span>
+                      )}
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         r.status === "approved" ? "bg-green-100 text-green-700" :

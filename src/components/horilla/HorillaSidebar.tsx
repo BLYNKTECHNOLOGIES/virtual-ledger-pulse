@@ -47,6 +47,7 @@ const navGroups: NavGroup[] = [
           { label: "Employee List", path: "/hrms/employee" },
           { label: "Departments", path: "/hrms/employee/departments" },
           { label: "Positions", path: "/hrms/employee/positions" },
+          { label: "Documents", path: "/hrms/employee/documents" },
         ],
       },
     ],
@@ -99,9 +100,11 @@ const navGroups: NavGroup[] = [
           { label: "Dashboard", path: "/hrms/payroll" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
           { label: "Salary Structure", path: "/hrms/payroll/salary-structure" },
+          { label: "Salary Revisions", path: "/hrms/payroll/salary-revisions" },
           { label: "Allowances", path: "/hrms/payroll/allowances" },
           { label: "Deductions", path: "/hrms/payroll/deductions" },
           { label: "Penalties", path: "/hrms/payroll/penalties" },
+          { label: "Penalty Auto-Calc", path: "/hrms/payroll/penalty-calc" },
           { label: "Loans & Advances", path: "/hrms/payroll/loans" },
           { label: "Tax Config", path: "/hrms/payroll/tax-config" },
           { label: "Deposits", path: "/hrms/payroll/deposits" },
@@ -152,7 +155,17 @@ const navGroups: NavGroup[] = [
   },
   {
     title: "SYSTEM",
-    items: [{ label: "Offboarding", icon: LogOut, path: "/hrms/offboarding" }],
+    items: [
+      {
+        label: "Offboarding",
+        icon: LogOut,
+        path: "/hrms/offboarding",
+        children: [
+          { label: "Separation", path: "/hrms/offboarding" },
+          { label: "F&F Settlement", path: "/hrms/offboarding/fnf" },
+        ],
+      },
+    ],
   },
 ];
 

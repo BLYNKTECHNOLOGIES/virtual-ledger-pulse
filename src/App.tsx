@@ -78,6 +78,10 @@ import DepositManagementPage from './pages/horilla/DepositManagementPage';
 import LoansPage from './pages/horilla/LoansPage';
 import LeaveYearEndResetPage from './pages/horilla/LeaveYearEndResetPage';
 import AttendancePolicyPage from './pages/horilla/AttendancePolicyPage';
+import FnFSettlementPage from './pages/horilla/FnFSettlementPage';
+import EmployeeDocumentsPage from './pages/horilla/EmployeeDocumentsPage';
+import SalaryRevisionsPage from './pages/horilla/SalaryRevisionsPage';
+import PenaltyAutoCalcPage from './pages/horilla/PenaltyAutoCalcPage';
 import AssetPage from './pages/horilla/AssetPage';
 import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
 import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
@@ -658,6 +662,10 @@ const router = createBrowserRouter([
         { path: "pms/objectives", element: <ObjectivesPage /> },
         { path: "pms/feedback", element: <Feedback360Page /> },
         { path: "offboarding", element: <OffboardingPage /> },
+        { path: "offboarding/fnf", element: <FnFSettlementPage /> },
+        { path: "employee/documents", element: <EmployeeDocumentsPage /> },
+        { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
+        { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         { path: "helpdesk/faq", element: <HelpdeskFaqPage /> },
         { path: "organization", element: <OrganizationPage /> },

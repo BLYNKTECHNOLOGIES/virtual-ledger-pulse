@@ -55,6 +55,7 @@ import PositionsPage from './pages/horilla/PositionsPage';
 import AttendanceOverviewPage from './pages/horilla/AttendanceOverviewPage';
 import ShiftsPage from './pages/horilla/ShiftsPage';
 import OvertimePage from './pages/horilla/OvertimePage';
+import HourAccountsPage from './pages/horilla/HourAccountsPage';
 import LeaveDashboardPage from './pages/horilla/LeaveDashboardPage';
 import LeaveRequestsPage from './pages/horilla/LeaveRequestsPage';
 import LeaveTypesPage from './pages/horilla/LeaveTypesPage';

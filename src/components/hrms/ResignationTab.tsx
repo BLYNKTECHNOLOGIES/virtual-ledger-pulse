@@ -305,7 +305,7 @@ export function ResignationTab() {
                           {getStatusBadge(emp.resignation_status)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {emp.department} • {emp.designation}
+                          {emp.hr_employee_work_info?.[0]?.job_role || "—"}
                         </div>
                         <div className="text-sm space-x-4">
                           <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString() : "—"}</strong></span>
@@ -347,7 +347,7 @@ export function ResignationTab() {
                           {getStatusBadge(emp.resignation_status)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {emp.department} • Last day: {emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}
+                          Last day: {emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}
                         </div>
                       </div>
                     </div>

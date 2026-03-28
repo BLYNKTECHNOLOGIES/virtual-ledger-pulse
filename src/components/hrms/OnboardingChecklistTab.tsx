@@ -89,7 +89,7 @@ export function OnboardingChecklistTab() {
 
       const { data: employees, error: empError } = await supabase
         .from("hr_employees")
-        .select("id, badge_id, first_name, last_name, department, date_of_joining")
+        .select("id, badge_id, first_name, last_name, date_of_joining")
         .in("id", empIds)
         .order("first_name");
       if (empError) throw empError;
@@ -210,7 +210,7 @@ export function OnboardingChecklistTab() {
                 <div>
                   <p className="font-semibold">{selectedEmployee.first_name} {selectedEmployee.last_name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {selectedEmployee.department} • Joined: {selectedEmployee.date_of_joining ? new Date(selectedEmployee.date_of_joining).toLocaleDateString() : "—"}
+                    Joined: {selectedEmployee.date_of_joining ? new Date(selectedEmployee.date_of_joining).toLocaleDateString() : "—"}
                   </p>
                 </div>
                 <Badge variant={progress === 100 ? "default" : "outline"}>

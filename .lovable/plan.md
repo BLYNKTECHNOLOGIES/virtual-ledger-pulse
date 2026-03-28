@@ -5,7 +5,7 @@
 |-------|--------|-------|
 | 1 - Create auth accounts | ✅ DONE | 19 users synced with matching UUIDs, 34 junk entries cleaned |
 | 2 - Dual-mode login | ✅ DONE | useAuth.tsx + LoginPage.tsx updated, backdoor removed |
-| 3 - Migrate localStorage readers | 🔲 TODO | 25+ files need refactoring |
+| 3 - Migrate localStorage readers | ✅ DONE | session-cache.ts created, 8 files migrated |
 | 4 - Tighten RLS policies | 🔲 TODO | 329 policies to rewrite |
 | 5 - Cleanup | 🔲 TODO | Remove legacy auth code |
 

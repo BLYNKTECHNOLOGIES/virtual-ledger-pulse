@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getSessionUserId } from "@/lib/session-cache";
 
 // Action type definitions organized by module
 export const ActionTypes = {
@@ -172,26 +173,24 @@ export async function logAction(params: LogActionParams): Promise<void> {
  */
 export function getCurrentUserId(): string | null {
   try {
+    // Primary: use session cache (backed by Supabase Auth + localStorage fallback)
+    const cachedId = getSessionUserId();
+    if (cachedId && cachedId !== 'demo-admin-id') {
+      return cachedId;
+    }
+
+    // Fallback: direct localStorage read (backward compatibility)
     const sessionStr = localStorage.getItem('userSession');
     if (sessionStr) {
       const session = JSON.parse(sessionStr);
-      // Session structure: { user: { id, username, ... }, timestamp, expiresIn }
       const userId = session?.user?.id || session?.id || null;
       
-      // Some deployments use non-UUID user ids (e.g., text ids). For action attribution we
-      // accept any non-empty string except demo-admin-id.
       if (typeof userId === 'string' && userId.trim() && userId !== 'demo-admin-id') {
-        // Keep a soft validation warning for diagnostics, but don't block.
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
         if (!isUuid) {
           console.warn('[SystemActionLogger] Non-UUID user id detected (allowed):', userId);
         }
         return userId;
-      }
-
-      if (userId === 'demo-admin-id') {
-        console.warn('[SystemActionLogger] Demo admin detected - user ID not valid for production tracking');
-        return null;
       }
     }
   } catch (err) {

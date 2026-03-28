@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthCheckProps {
   children: React.ReactNode;
@@ -11,43 +12,29 @@ export function AuthCheck({ children }: AuthCheckProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const checkAuth = () => {
-      const isLoggedIn = localStorage.getItem('isLoggedIn');
-      const userEmail = localStorage.getItem('userEmail');
-      
-      if (isLoggedIn === 'true' && userEmail) {
-        // Check if user is admin (demo credentials)
-        const isAdmin = userEmail === 'blynkvirtualtechnologiespvtld@gmail.com';
-        
-        // Store admin status for permission system
-        if (isAdmin) {
-          localStorage.setItem('userRole', 'admin');
-          localStorage.setItem('userPermissions', JSON.stringify([
-            'dashboard_view',
-            'sales_view', 'sales_manage',
-            'purchase_view', 'purchase_manage',
-            'bams_view', 'bams_manage',
-            'clients_view', 'clients_manage',
-            'leads_view', 'leads_manage',
-            'user_management_view', 'user_management_manage',
-            'hrms_view', 'hrms_manage',
-            'payroll_view', 'payroll_manage',
-            'compliance_view', 'compliance_manage',
-            'stock_view', 'stock_manage',
-            'accounting_view', 'accounting_manage',
-            'video_kyc_view', 'video_kyc_manage',
-            'kyc_approvals_view', 'kyc_approvals_manage',
-            'statistics_view', 'statistics_manage',
-            'erp_destructive', 'terminal_destructive', 'bams_destructive',
-            'clients_destructive', 'stock_destructive',
-            'shift_reconciliation_approve'
-          ]));
-        }
-        
+    const checkAuth = async () => {
+      // Primary: Check Supabase Auth session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
         setIsAuthenticated(true);
-      } else {
-        navigate('/');
+        return;
       }
+
+      // Fallback: Check legacy localStorage session
+      const isLoggedIn = localStorage.getItem('isLoggedIn');
+      const userSession = localStorage.getItem('userSession');
+      
+      if (isLoggedIn === 'true' && userSession) {
+        try {
+          const parsed = JSON.parse(userSession);
+          if (parsed?.user?.id && parsed?.user?.id !== 'demo-admin-id') {
+            setIsAuthenticated(true);
+            return;
+          }
+        } catch { /* invalid session */ }
+      }
+      
+      navigate('/');
     };
 
     checkAuth();

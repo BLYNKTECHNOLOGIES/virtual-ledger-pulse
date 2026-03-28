@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ValidationUser, UserWithRoles, User, AuthContextType } from '@/types/auth';
+import { initSessionCache, setSessionCache } from '@/lib/session-cache';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -438,8 +439,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // Restore session on mount
+  // Initialize session cache and restore session on mount
   useEffect(() => {
+    initSessionCache();
     restoreSessionFromStorage();
   }, []);
 
@@ -482,9 +484,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => clearInterval(interval);
   }, [user]);
 
-  // Sync user object to localStorage WITHOUT resetting the session timestamp.
+  // Sync user object to localStorage and session cache WITHOUT resetting the session timestamp.
   useEffect(() => {
     if (user) {
+      // Update session cache
+      setSessionCache(user);
+
       const existing = localStorage.getItem('userSession');
       let existingTimestamp = Date.now();
       let existingExpiry = 7 * 24 * 60 * 60 * 1000;
@@ -501,6 +506,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         expiresIn: existingExpiry
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
+    } else {
+      setSessionCache(null);
     }
   }, [user]);
 

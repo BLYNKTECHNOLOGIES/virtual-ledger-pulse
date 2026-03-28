@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { getSessionUserId } from "@/lib/session-cache";
 import { useAuth } from "@/hooks/useAuth";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { UserCheck, Link2 } from "lucide-react";
@@ -208,8 +209,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
           const autoTerminalRoleId = selectedErpRole?.name?.toLowerCase() === 'admin' && adminTerminalRole
             ? adminTerminalRole.id
             : terminalRoleId;
-          const sessionStr = localStorage.getItem('userSession');
-          const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+          const assignedBy = getSessionUserId() || undefined;
           await supabase.rpc("assign_terminal_role", {
             p_user_id: user.id,
             p_role_id: autoTerminalRoleId,
@@ -225,8 +225,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
             p_user_id: user.id,
             p_role_id: currentTerminalRoleId!,
           });
-          const sessionStr = localStorage.getItem('userSession');
-          const assignedBy = sessionStr ? JSON.parse(sessionStr).id : undefined;
+          const assignedBy = getSessionUserId() || undefined;
           await supabase.rpc("assign_terminal_role", {
             p_user_id: user.id,
             p_role_id: terminalRoleId,

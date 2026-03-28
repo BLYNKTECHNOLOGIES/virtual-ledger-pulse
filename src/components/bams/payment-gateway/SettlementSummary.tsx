@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSessionUserId } from "@/lib/session-cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -199,9 +200,8 @@ export function SettlementSummary() {
     if (!selectedReverseSettlement || isReversing) return;
     setIsReversing(true);
     try {
-      // Get current user ID from localStorage session
-      const sessionStr = localStorage.getItem('userSession');
-      const currentUserId = sessionStr ? JSON.parse(sessionStr)?.user?.id : null;
+      // Get current user ID from session cache
+      const currentUserId = getSessionUserId();
       const isValidUuid = currentUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUserId);
 
       const { data, error } = await supabase.rpc('reverse_payment_gateway_settlement', {

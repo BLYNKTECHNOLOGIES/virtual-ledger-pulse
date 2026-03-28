@@ -170,9 +170,8 @@ export function BiometricManagementDialog({
     setIsGeneratingBypass(true);
     setCopied(false);
     try {
-      const session = localStorage.getItem('userSession');
-      const parsed = session ? JSON.parse(session) : null;
-      const generatedBy = parsed?.user?.id || parsed?.id || null;
+      const { getSessionUserId } = await import('@/lib/session-cache');
+      const generatedBy = getSessionUserId();
       if (!generatedBy) {
         toast.error('Session not found');
         return;

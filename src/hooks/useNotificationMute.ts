@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { getSessionUserId } from '@/lib/session-cache';
 
 const MUTE_STORAGE_KEY = 'notification_muted_';
 
@@ -6,18 +7,9 @@ function getMuteKey(userId: string): string {
   return `${MUTE_STORAGE_KEY}${userId}`;
 }
 
-// Helper to get userId from the session stored in localStorage
+// Helper to get userId from session cache (Supabase Auth backed)
 function getUserIdFromSession(): string | null {
-  try {
-    const savedSession = localStorage.getItem('userSession');
-    if (savedSession) {
-      const sessionData = JSON.parse(savedSession);
-      return sessionData?.user?.id || null;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return getSessionUserId();
 }
 
 export function useNotificationMute() {

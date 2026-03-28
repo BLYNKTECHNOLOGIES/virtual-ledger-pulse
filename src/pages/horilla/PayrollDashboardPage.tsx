@@ -161,6 +161,12 @@ export default function PayrollDashboardPage() {
         .select("*")
         .eq("is_settled", false);
 
+      // 6c. Get active loans for EMI deductions
+      const { data: activeLoans } = await (supabase as any)
+        .from("hr_loans")
+        .select("*")
+        .eq("status", "active");
+
       const depositMap: Record<string, any> = {};
       (activeDeposits || []).forEach((d: any) => { depositMap[d.employee_id] = d; });
 

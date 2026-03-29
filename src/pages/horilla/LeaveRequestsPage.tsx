@@ -79,7 +79,7 @@ export default function LeaveRequestsPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date);
+      const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date, form.employee_id);
       const { error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,

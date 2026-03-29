@@ -11,8 +11,7 @@ export default function LeaveDashboardPage() {
       const { data } = await supabase
         .from("hr_leave_requests")
         .select("*, hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("created_at", { ascending: false });
       return data || [];
     },
   });

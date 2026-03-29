@@ -1,0 +1,5 @@
+
+ALTER TABLE hr_employee_deposits 
+  ADD COLUMN IF NOT EXISTS is_paused BOOLEAN DEFAULT false,
+  ADD COLUMN IF NOT EXISTS paused_reason TEXT,
+  ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ;

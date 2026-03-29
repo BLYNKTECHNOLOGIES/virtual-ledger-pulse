@@ -304,6 +304,49 @@ export function useAutoPricingLogs(ruleId?: string, limit = 100) {
   });
 }
 
+export function useAdPricingHealth() {
+  return useQuery({
+    queryKey: ['ad-pricing-health'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_ad_pricing_health');
+      if (error) throw error;
+      return data as any;
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdPricingEffectiveness(ruleId?: string) {
+  return useQuery({
+    queryKey: ['ad-pricing-effectiveness', ruleId],
+    queryFn: async () => {
+      let query = supabase
+        .from('ad_pricing_effectiveness_snapshots')
+        .select('*')
+        .order('snapshot_date', { ascending: false })
+        .limit(14);
+      if (ruleId) query = query.eq('rule_id', ruleId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+    queryKey: ['auto-pricing-logs', ruleId, limit],
+    queryFn: async () => {
+      let query = supabase
+        .from('ad_pricing_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (ruleId) query = query.eq('rule_id', ruleId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as AutoPricingLog[];
+    },
+  });
+}
+
 export function useSearchMerchant() {
   const { toast } = useToast();
   return useMutation({

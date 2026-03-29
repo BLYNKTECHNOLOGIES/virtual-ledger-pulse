@@ -57,6 +57,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   // Form state
   const [name, setName] = useState('');
+  const [isDryRun, setIsDryRun] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<string[]>(['USDT']);
   const [assetConfigs, setAssetConfigs] = useState<Record<string, AssetConfig>>({});
   const [activeAssetTab, setActiveAssetTab] = useState('USDT');

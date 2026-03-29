@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Wallet, Eye, Edit2, CheckCircle, Clock, ArrowUpDown, BadgeIndianRupee, Shield } from "lucide-react";
+import { Plus, Wallet, Eye, Edit2, CheckCircle, Clock, ArrowUpDown, BadgeIndianRupee, Shield, Pause, Play } from "lucide-react";
 
 export default function DepositManagementPage() {
   const qc = useQueryClient();
@@ -70,7 +70,7 @@ export default function DepositManagementPage() {
     mutationFn: async () => {
       const totalAmt = Number(form.total_deposit_amount);
       const isAlreadyDeducted = form.deduction_mode === "already_deducted";
-      const { error } = await (supabase as any).from("hr_employee_deposits").insert({
+      const { data: inserted, error } = await (supabase as any).from("hr_employee_deposits").insert({
         employee_id: form.employee_id,
         total_deposit_amount: totalAmt,
         deduction_mode: form.deduction_mode,
@@ -79,8 +79,19 @@ export default function DepositManagementPage() {
         collected_amount: isAlreadyDeducted ? totalAmt : 0,
         current_balance: isAlreadyDeducted ? totalAmt : 0,
         is_fully_collected: isAlreadyDeducted,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // Gap 2: Create "initiated" ledger entry
+      await (supabase as any).from("hr_deposit_transactions").insert({
+        employee_id: form.employee_id,
+        deposit_id: inserted.id,
+        transaction_type: "initiated",
+        amount: isAlreadyDeducted ? totalAmt : 0,
+        balance_after: isAlreadyDeducted ? totalAmt : 0,
+        description: `Salary Hold Initiated — Target: ₹${totalAmt.toLocaleString('en-IN')}${isAlreadyDeducted ? ' (pre-collected)' : ''}`,
+        transaction_date: new Date().toISOString().slice(0, 10),
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
@@ -93,17 +104,42 @@ export default function DepositManagementPage() {
 
   const editMutation = useMutation({
     mutationFn: async () => {
+      const oldAmount = Number(editingDeposit.total_deposit_amount);
+      const newAmount = Number(form.total_deposit_amount);
+      const oldMode = editingDeposit.deduction_mode;
+      const newMode = form.deduction_mode;
+      const oldValue = Number(editingDeposit.deduction_value);
+      const newValue = Number(form.deduction_value);
+
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
-        total_deposit_amount: Number(form.total_deposit_amount),
-        deduction_mode: form.deduction_mode,
-        deduction_value: Number(form.deduction_value),
+        total_deposit_amount: newAmount,
+        deduction_mode: newMode,
+        deduction_value: newValue,
         deduction_start_month: form.deduction_start_month,
         updated_at: new Date().toISOString(),
       }).eq("id", editingDeposit.id);
       if (error) throw error;
+
+      // Gap 5: Create "modified" audit ledger entry
+      const changes: string[] = [];
+      if (oldAmount !== newAmount) changes.push(`Amount: ₹${oldAmount.toLocaleString('en-IN')} → ₹${newAmount.toLocaleString('en-IN')}`);
+      if (oldMode !== newMode) changes.push(`Mode: ${oldMode} → ${newMode}`);
+      if (oldValue !== newValue) changes.push(`Value: ${oldValue} → ${newValue}`);
+      if (changes.length > 0) {
+        await (supabase as any).from("hr_deposit_transactions").insert({
+          employee_id: editingDeposit.employee_id,
+          deposit_id: editingDeposit.id,
+          transaction_type: "modified",
+          amount: 0,
+          balance_after: Number(editingDeposit.current_balance),
+          description: `Modified: ${changes.join('; ')}`,
+          transaction_date: new Date().toISOString().slice(0, 10),
+        });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
       setShowEdit(false);
       setEditingDeposit(null);
       toast.success("Deposit updated");

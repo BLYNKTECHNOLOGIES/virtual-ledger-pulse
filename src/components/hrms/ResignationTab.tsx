@@ -627,6 +627,57 @@ export function ResignationTab() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Resignation Acknowledgement Dialog (B1) */}
+      <Dialog open={showAcknowledgement} onOpenChange={setShowAcknowledgement}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" /> Resignation Acknowledgement
+            </DialogTitle>
+          </DialogHeader>
+          {acknowledgementData && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Employee</span>
+                  <span className="font-medium">{acknowledgementData.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Badge ID</span>
+                  <span className="font-medium">#{acknowledgementData.badge}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Resignation Date</span>
+                  <span className="font-medium">{acknowledgementData.resignationDate ? new Date(acknowledgementData.resignationDate).toLocaleDateString() : "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Last Working Day</span>
+                  <span className="font-medium">{acknowledgementData.lastWorkingDay ? new Date(acknowledgementData.lastWorkingDay).toLocaleDateString() : "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Reason</span>
+                  <span className="font-medium">{acknowledgementData.reason || "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Checklist</span>
+                  <span className="font-medium">{acknowledgementData.checklistCompleted} completed</span>
+                </div>
+              </div>
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  ✓ Employee has been deactivated<br />
+                  ✓ F&F Settlement draft created automatically<br />
+                  ✓ Account deletion scheduled
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAcknowledgement(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

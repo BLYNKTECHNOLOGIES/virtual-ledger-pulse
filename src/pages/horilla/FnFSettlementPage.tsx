@@ -63,10 +63,10 @@ export default function FnFSettlementPage() {
     // Pull loan balance
     const { data: loans } = await (supabase as any)
       .from("hr_loans")
-      .select("remaining_amount")
+      .select("outstanding_balance")
       .eq("employee_id", empId)
       .eq("status", "active");
-    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.remaining_amount || 0), 0);
+    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
 
     // Pull encashable leave balance
     const { data: allocations } = await (supabase as any)
@@ -85,6 +85,14 @@ export default function FnFSettlementPage() {
       .eq("is_applied", false);
     const penaltyTotal = (penalties || []).reduce((sum: number, p: any) => sum + Number(p.deduction_amount || 0), 0);
 
+    // Pull deposit refund (collected amount to return)
+    const { data: empDeposits } = await (supabase as any)
+      .from("hr_employee_deposits")
+      .select("collected_amount")
+      .eq("employee_id", empId)
+      .eq("is_settled", false);
+    const depositRefund = (empDeposits || []).reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
+
     const dailySalary = Number(emp.total_salary || 0) / 30;
 
     setForm({
@@ -94,7 +102,7 @@ export default function FnFSettlementPage() {
       leave_encashment_amount: Math.round(encashDays * dailySalary),
       bonus_amount: 0,
       loan_recovery: loanRecovery,
-      deposit_refund: 0,
+      deposit_refund: depositRefund,
       penalty_deductions: penaltyTotal,
       other_deductions: 0,
       other_deductions_notes: "",

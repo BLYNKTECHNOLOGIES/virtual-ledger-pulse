@@ -166,18 +166,32 @@ export function ResignationTab() {
     onSuccess: () => refetchChecklist(),
   });
 
-  // Complete resignation
+  // Complete resignation — deactivate employee and schedule account deletion
   const completeResignation = useMutation({
     mutationFn: async (employeeId: string) => {
-      const { error } = await supabase
+      // Get the employee's notice_period_end_date or last_working_day for deletion scheduling
+      const { data: empData } = await supabase
         .from("hr_employees")
-        .update({ resignation_status: "completed" })
+        .select("notice_period_end_date, last_working_day")
+        .eq("id", employeeId)
+        .single();
+
+      const deletionDate = empData?.notice_period_end_date || empData?.last_working_day || new Date().toISOString().split('T')[0];
+
+      const { error } = await (supabase as any)
+        .from("hr_employees")
+        .update({ 
+          resignation_status: "completed",
+          is_active: false,
+          account_deletion_date: deletionDate,
+        })
         .eq("id", employeeId);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast.success("Resignation completed — employee deactivated");
+      toast.success("Resignation completed — employee deactivated, account will be deleted after notice period");
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
+      queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowChecklistDialog(false);
       setSelectedEmployee(null);
     },

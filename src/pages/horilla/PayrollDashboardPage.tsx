@@ -266,11 +266,22 @@ export default function PayrollDashboardPage() {
                             </Button>
                           </>
                         )}
-                        {/* Completed & Locked: Re-run option */}
+                        {/* Completed & Locked: Mark Paid + Re-run */}
                         {r.status === "completed" && r.is_locked && (
-                          <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => setRerunDialog(r)}>
-                            <Unlock className="h-3 w-3 mr-1" /> Unlock & Re-run
-                          </Button>
+                          <>
+                            <Button size="sm" className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => markPaidMutation.mutate(r.id)} disabled={markPaidMutation.isPending}>
+                              <CheckCircle className="h-3 w-3 mr-1" /> Mark as Paid
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50" onClick={() => setRerunDialog(r)}>
+                              <Unlock className="h-3 w-3 mr-1" /> Unlock & Re-run
+                            </Button>
+                          </>
+                        )}
+                        {/* Paid: Final state */}
+                        {r.status === "paid" && (
+                          <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" /> Disbursed
+                          </span>
                         )}
                       </div>
                     </td>

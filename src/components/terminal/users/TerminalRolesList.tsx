@@ -562,6 +562,30 @@ export function TerminalRolesList() {
                 </span>
               </div>
               <div className="flex gap-1.5">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-6 text-[10px] px-2 gap-1">
+                      <FileStack className="h-3 w-3" /> Template
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {Object.entries(ROLE_TEMPLATES).map(([key, tmpl]) => {
+                      // Only apply permissions the current user can grant (delegation guard)
+                      const applicable = tmpl.permissions.filter(p => myPerms.has(p));
+                      return (
+                        <DropdownMenuItem
+                          key={key}
+                          onClick={() => {
+                            setEditPerms(new Set(applicable));
+                            toast.success(`Applied ${tmpl.label} template (${applicable.length} permissions)`);
+                          }}
+                        >
+                          {tmpl.label} ({applicable.length})
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={deselectAll}>Clear</Button>
                 <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={selectAllGrantable}>Select All</Button>
               </div>
@@ -649,6 +673,14 @@ export function TerminalRolesList() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Role Comparison Dialog */}
+        <TerminalRoleComparison
+          open={showCompare}
+          onOpenChange={setShowCompare}
+          roles={roles}
+          modules={PERMISSION_MODULES}
+        />
       </div>
     </TooltipProvider>
   );

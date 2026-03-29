@@ -131,7 +131,7 @@ export const computeComponentAmounts = (items: any[], totalSalary: number): Comp
     }
     amount = Math.round(amount);
 
-    if (comp.component_type === "allowance") {
+    if (comp.component_type === "allowance" || comp.component_type === "earning") {
       earningsBreakdown[comp.name] = amount;
       totalEarnings += amount;
     } else if (comp.component_type === "deduction" && !isEmployerComponent(comp)) {

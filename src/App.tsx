@@ -48,6 +48,7 @@ import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
 import HorillaDashboard from './pages/horilla/HorillaDashboard';
 import HelpdeskFaqPage from './pages/horilla/HelpdeskFaqPage';
+import HRPoliciesPage from './pages/horilla/HRPoliciesPage';
 import EmployeeListPage from './pages/horilla/EmployeeListPage';
 import EmployeeProfilePage from './pages/horilla/EmployeeProfilePage';
 import DepartmentsPage from './pages/horilla/DepartmentsPage';
@@ -690,6 +691,7 @@ const router = createBrowserRouter([
         { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },
         { path: "helpdesk/faq", element: <HelpdeskFaqPage /> },
+        { path: "helpdesk/policies", element: <HRPoliciesPage /> },
         { path: "organization", element: <OrganizationPage /> },
         { path: "documents", element: <DocumentsPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },

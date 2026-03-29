@@ -58,6 +58,53 @@ export default function RecruitmentDashboardPage() {
     },
   });
 
+  const { data: recruitmentManagers = [] } = useQuery({
+    queryKey: ["hr_recruitment_managers_all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_recruitment_managers").select("*, hr_employees(first_name, last_name)");
+      return data || [];
+    },
+  });
+
+  const { data: allEmployees = [] } = useQuery({
+    queryKey: ["hr_employees_for_rec_mgr"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name");
+      return data || [];
+    },
+  });
+
+  const [managerDialogRecId, setManagerDialogRecId] = useState<string | null>(null);
+  const [selectedMgrId, setSelectedMgrId] = useState("");
+
+  const addRecMgrMutation = useMutation({
+    mutationFn: async () => {
+      if (!managerDialogRecId || !selectedMgrId) return;
+      const { error } = await supabase.from("hr_recruitment_managers").insert({ recruitment_id: managerDialogRecId, employee_id: selectedMgrId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager assigned");
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitment_managers_all"] });
+      setManagerDialogRecId(null);
+      setSelectedMgrId("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to assign"),
+  });
+
+  const removeRecMgrMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hr_recruitment_managers").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager removed");
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitment_managers_all"] });
+    },
+  });
+
+  const getRecManagers = (recId: string) => recruitmentManagers.filter((m: any) => m.recruitment_id === recId);
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {

@@ -98,7 +98,7 @@ import ObjectivesPage from './pages/horilla/ObjectivesPage';
 import Feedback360Page from './pages/horilla/Feedback360Page';
 import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
 import DisciplinaryActionsPage from './pages/horilla/DisciplinaryActionsPage';
-import BonusPointsPage from './pages/horilla/BonusPointsPage';
+
 import WeeklyOffPage from './pages/horilla/WeeklyOffPage';
 import LeaveAllocationRequestsPage from './pages/horilla/LeaveAllocationRequestsPage';
 import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
@@ -699,7 +699,7 @@ const router = createBrowserRouter([
         { path: "reports", element: <ReportsPage /> },
         { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
         { path: "disciplinary-actions", element: <DisciplinaryActionsPage /> },
-        { path: "bonus-points", element: <BonusPointsPage /> },
+        
         { path: "logs", element: <HRLogsPage /> },
         { path: "recruitment", element: <RecruitmentDashboardPage /> },
         { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },

@@ -3562,38 +3562,6 @@ export type Database = {
         }
         Relationships: []
       }
-      hr_bonus_points: {
-        Row: {
-          created_at: string
-          employee_id: string
-          id: string
-          points: number
-          reason: string | null
-        }
-        Insert: {
-          created_at?: string
-          employee_id: string
-          id?: string
-          points?: number
-          reason?: string | null
-        }
-        Update: {
-          created_at?: string
-          employee_id?: string
-          id?: string
-          points?: number
-          reason?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "hr_bonus_points_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "hr_employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       hr_candidate_notes: {
         Row: {
           candidate_id: string

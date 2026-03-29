@@ -282,7 +282,19 @@ export default function RecruitmentPipelinePage() {
       const oldStageId = candidate?.stage_id;
       const { error } = await supabase.from("hr_candidates").update({ stage_id: newStageId }).eq("id", candidateId);
       if (error) throw error;
-      // Log stage transition
+
+      // Persist stage transition to hr_candidate_stages for audit trail
+      try {
+        await (supabase as any).from("hr_candidate_stages").insert({
+          candidate_id: candidateId,
+          stage_id: newStageId,
+          onboarding_stage_id: newStageId, // maps to the recruitment stage
+        });
+      } catch (e) {
+        console.warn("hr_candidate_stages insert failed (non-fatal):", e);
+      }
+
+      // Log stage transition note
       if (oldStageId) {
         const oldStage = stages?.find(s => s.id === oldStageId);
         const newStage = stages?.find(s => s.id === newStageId);

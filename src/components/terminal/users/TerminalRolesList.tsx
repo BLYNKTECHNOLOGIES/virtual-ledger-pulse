@@ -1,21 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Shield, Pencil, Plus, RefreshCw, Lock } from "lucide-react";
+import { Shield, Pencil, Plus, RefreshCw, Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTerminalAuth, TerminalPermission } from "@/hooks/useTerminalAuth";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Role {
   id: string;
@@ -26,88 +24,174 @@ interface Role {
   permissions: string[];
 }
 
-const PERMISSION_GROUPS: Record<string, { label: string; permissions: { key: TerminalPermission; label: string }[] }> = {
-  dashboard: {
-    label: "Dashboard",
-    permissions: [{ key: "terminal_dashboard_view", label: "View Dashboard" }],
-  },
-  ads: {
-    label: "Ads",
+// ─── Permission Module Definitions ─────────────────────────────────
+type PermTier = 'view' | 'manage' | 'action' | 'destructive' | 'special';
+
+interface PermDef {
+  key: TerminalPermission;
+  label: string;
+  tier: PermTier;
+  /** If set, toggling this ON also auto-enables these prerequisites */
+  requires?: TerminalPermission[];
+}
+
+interface ModuleDef {
+  key: string;
+  label: string;
+  icon: string;
+  permissions: PermDef[];
+}
+
+const PERMISSION_MODULES: ModuleDef[] = [
+  {
+    key: 'dashboard', label: 'Dashboard', icon: '📊',
     permissions: [
-      { key: "terminal_ads_view", label: "View Ads" },
-      { key: "terminal_ads_manage", label: "Manage Ads" },
+      { key: 'terminal_dashboard_view', label: 'View', tier: 'view' },
+      { key: 'terminal_dashboard_export', label: 'Export', tier: 'action', requires: ['terminal_dashboard_view'] },
     ],
   },
-  orders: {
-    label: "Orders",
+  {
+    key: 'orders', label: 'Orders', icon: '📦',
     permissions: [
-      { key: "terminal_orders_view", label: "View Orders" },
-      { key: "terminal_orders_manage", label: "Manage Orders" },
-      { key: "terminal_orders_actions", label: "Order Actions (Pay/Release/Cancel)" },
+      { key: 'terminal_orders_view', label: 'View', tier: 'view' },
+      { key: 'terminal_orders_manage', label: 'Manage (Assign)', tier: 'manage', requires: ['terminal_orders_view'] },
+      { key: 'terminal_orders_actions', label: 'Actions (Pay/Release)', tier: 'action', requires: ['terminal_orders_view'] },
+      { key: 'terminal_orders_chat', label: 'Chat', tier: 'action', requires: ['terminal_orders_view'] },
+      { key: 'terminal_orders_escalate', label: 'Escalate', tier: 'action', requires: ['terminal_orders_view'] },
+      { key: 'terminal_orders_resolve_escalation', label: 'Resolve Escalation', tier: 'manage', requires: ['terminal_orders_view'] },
+      { key: 'terminal_orders_sync_approve', label: 'Sync Approve', tier: 'special', requires: ['terminal_orders_view'] },
+      { key: 'terminal_orders_export', label: 'Export', tier: 'action', requires: ['terminal_orders_view'] },
     ],
   },
-  automation: {
-    label: "Automation",
+  {
+    key: 'ads', label: 'Ads', icon: '📢',
     permissions: [
-      { key: "terminal_automation_view", label: "View Automation" },
-      { key: "terminal_automation_manage", label: "Manage Automation" },
+      { key: 'terminal_ads_view', label: 'View', tier: 'view' },
+      { key: 'terminal_ads_manage', label: 'Manage', tier: 'manage', requires: ['terminal_ads_view'] },
+      { key: 'terminal_ads_toggle', label: 'Toggle On/Off', tier: 'action', requires: ['terminal_ads_view'] },
+      { key: 'terminal_ads_rest_timer', label: 'Rest Timer', tier: 'action', requires: ['terminal_ads_view'] },
     ],
   },
-  assets: {
-    label: "Assets",
+  {
+    key: 'payer', label: 'Payer', icon: '💰',
     permissions: [
-      { key: "terminal_assets_view", label: "View Assets & Balances" },
-      { key: "terminal_assets_manage", label: "Manage Assets (Spot Trade)" },
+      { key: 'terminal_payer_view', label: 'View Queue', tier: 'view' },
+      { key: 'terminal_payer_manage', label: 'Manage (Lock/Pay/Release)', tier: 'manage', requires: ['terminal_payer_view'] },
     ],
   },
-  analytics: {
-    label: "Analytics",
-    permissions: [{ key: "terminal_analytics_view", label: "View Analytics" }],
-  },
-  mpi: {
-    label: "MPI (Management Performance)",
-    permissions: [{ key: "terminal_mpi_view", label: "View MPI Dashboard" }],
-  },
-  audit_logs: {
-    label: "Audit Logs",
-    permissions: [{ key: "terminal_audit_logs_view", label: "View Audit Logs" }],
-  },
-  kyc: {
-    label: "KYC Team",
+  {
+    key: 'pricing', label: 'Pricing Rules', icon: '💹',
     permissions: [
-      { key: "terminal_kyc_view", label: "View KYC Module" },
-      { key: "terminal_kyc_manage", label: "Manage KYC Approvals" },
+      { key: 'terminal_pricing_view', label: 'View', tier: 'view' },
+      { key: 'terminal_pricing_manage', label: 'Create & Edit', tier: 'manage', requires: ['terminal_pricing_view'] },
+      { key: 'terminal_pricing_toggle', label: 'Toggle', tier: 'action', requires: ['terminal_pricing_view'] },
+      { key: 'terminal_pricing_delete', label: 'Delete', tier: 'destructive', requires: ['terminal_pricing_view'] },
     ],
   },
-  logs: {
-    label: "Logs",
-    permissions: [{ key: "terminal_logs_view", label: "View System Logs" }],
-  },
-  settings: {
-    label: "Settings",
+  {
+    key: 'autopay', label: 'Autopay', icon: '🤖',
     permissions: [
-      { key: "terminal_settings_view", label: "View Settings" },
-      { key: "terminal_settings_manage", label: "Manage Settings" },
+      { key: 'terminal_autopay_view', label: 'View', tier: 'view' },
+      { key: 'terminal_autopay_toggle', label: 'Toggle', tier: 'action', requires: ['terminal_autopay_view'] },
+      { key: 'terminal_autopay_configure', label: 'Configure', tier: 'manage', requires: ['terminal_autopay_view'] },
     ],
   },
-  users: {
-    label: "Users & Roles",
+  {
+    key: 'autoreply', label: 'Auto-Reply', icon: '💬',
     permissions: [
-      { key: "terminal_users_view", label: "View Users" },
-      { key: "terminal_users_manage", label: "Manage Users" },
+      { key: 'terminal_autoreply_view', label: 'View', tier: 'view' },
+      { key: 'terminal_autoreply_manage', label: 'Manage Templates', tier: 'manage', requires: ['terminal_autoreply_view'] },
+      { key: 'terminal_autoreply_toggle', label: 'Toggle', tier: 'action', requires: ['terminal_autoreply_view'] },
     ],
   },
-  payer: {
-    label: "Payer",
+  {
+    key: 'assets', label: 'Assets', icon: '🏦',
     permissions: [
-      { key: "terminal_payer_view", label: "View Payer Module" },
-      { key: "terminal_payer_manage", label: "Manage Payer Assignments" },
+      { key: 'terminal_assets_view', label: 'View', tier: 'view' },
+      { key: 'terminal_assets_manage', label: 'Manage & Spot Trade', tier: 'manage', requires: ['terminal_assets_view'] },
     ],
   },
+  {
+    key: 'analytics', label: 'Analytics & MPI', icon: '📈',
+    permissions: [
+      { key: 'terminal_analytics_view', label: 'View Analytics', tier: 'view' },
+      { key: 'terminal_analytics_export', label: 'Export Analytics', tier: 'action', requires: ['terminal_analytics_view'] },
+      { key: 'terminal_mpi_view_own', label: 'MPI (Own)', tier: 'view' },
+      { key: 'terminal_mpi_view_all', label: 'MPI (All Users)', tier: 'manage' },
+    ],
+  },
+  {
+    key: 'shift', label: 'Shift & Handover', icon: '🔄',
+    permissions: [
+      { key: 'terminal_shift_view', label: 'View', tier: 'view' },
+      { key: 'terminal_shift_manage', label: 'Initiate & Respond', tier: 'manage', requires: ['terminal_shift_view'] },
+      { key: 'terminal_shift_reconciliation', label: 'Reconciliation', tier: 'special', requires: ['terminal_shift_view'] },
+    ],
+  },
+  {
+    key: 'kyc', label: 'KYC', icon: '🪪',
+    permissions: [
+      { key: 'terminal_kyc_view', label: 'View', tier: 'view' },
+      { key: 'terminal_kyc_manage', label: 'Manage Approvals', tier: 'manage', requires: ['terminal_kyc_view'] },
+    ],
+  },
+  {
+    key: 'users', label: 'Users & Team', icon: '👥',
+    permissions: [
+      { key: 'terminal_users_view', label: 'View Users', tier: 'view' },
+      { key: 'terminal_users_manage', label: 'Manage Users', tier: 'manage', requires: ['terminal_users_view'] },
+      { key: 'terminal_users_manage_subordinates', label: 'Manage Subordinates', tier: 'manage', requires: ['terminal_users_view'] },
+      { key: 'terminal_users_manage_all', label: 'Manage All Users', tier: 'special', requires: ['terminal_users_view', 'terminal_users_manage'] },
+      { key: 'terminal_users_role_assign', label: 'Assign Roles', tier: 'special', requires: ['terminal_users_view', 'terminal_users_manage'] },
+      { key: 'terminal_users_bypass_code', label: 'Bypass Code', tier: 'special', requires: ['terminal_users_view'] },
+    ],
+  },
+  {
+    key: 'settings', label: 'Settings & Broadcasts', icon: '⚙️',
+    permissions: [
+      { key: 'terminal_settings_view', label: 'View Settings', tier: 'view' },
+      { key: 'terminal_settings_manage', label: 'Manage Settings', tier: 'manage', requires: ['terminal_settings_view'] },
+      { key: 'terminal_broadcasts_create', label: 'Create Broadcasts', tier: 'action' },
+      { key: 'terminal_broadcasts_manage', label: 'Manage Broadcasts', tier: 'manage' },
+    ],
+  },
+  {
+    key: 'logs', label: 'Audit & Logs', icon: '📋',
+    permissions: [
+      { key: 'terminal_audit_logs_view', label: 'Audit Logs', tier: 'view' },
+      { key: 'terminal_activity_logs_view', label: 'Activity Logs', tier: 'view' },
+      { key: 'terminal_pricing_logs_view', label: 'Pricing Logs', tier: 'view' },
+      { key: 'terminal_logs_view', label: 'System Logs', tier: 'view' },
+    ],
+  },
+  {
+    key: 'destructive', label: 'Destructive', icon: '⚠️',
+    permissions: [
+      { key: 'terminal_destructive', label: 'Delete Operations', tier: 'destructive' },
+    ],
+  },
+];
+
+const TIER_STYLES: Record<PermTier, string> = {
+  view: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  manage: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  action: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+  special: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+  destructive: 'bg-red-500/15 text-red-400 border-red-500/30',
 };
 
+const TIER_SWITCH_STYLES: Record<PermTier, string> = {
+  view: 'data-[state=checked]:bg-emerald-500',
+  manage: 'data-[state=checked]:bg-blue-500',
+  action: 'data-[state=checked]:bg-sky-500',
+  special: 'data-[state=checked]:bg-amber-500',
+  destructive: 'data-[state=checked]:bg-red-500',
+};
+
+// ─── Component ─────────────────────────────────────────────────────
+
 export function TerminalRolesList() {
-  const { hasPermission, userId, isTerminalAdmin } = useTerminalAuth();
+  const { hasPermission, terminalPermissions, userId, isTerminalAdmin, isSuperAdmin } = useTerminalAuth();
   const canManage = hasPermission("terminal_users_manage");
 
   const [roles, setRoles] = useState<Role[]>([]);
@@ -120,6 +204,14 @@ export function TerminalRolesList() {
   const [editHierarchy, setEditHierarchy] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [myHierarchyLevel, setMyHierarchyLevel] = useState<number>(999);
+  const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+
+  // Current user's permissions for delegation guard
+  const myPerms = useMemo(() => new Set<string>(
+    isSuperAdmin
+      ? PERMISSION_MODULES.flatMap(m => m.permissions.map(p => p.key))
+      : terminalPermissions
+  ), [terminalPermissions, isSuperAdmin]);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -140,20 +232,12 @@ export function TerminalRolesList() {
 
   useEffect(() => { fetchRoles(); fetchMyLevel(); }, [fetchRoles, fetchMyLevel]);
 
-  /** Can the current user edit this role? Admin (level 0) can edit everything including itself. Others can only edit roles strictly below them. */
   const canEditRole = (role: Role): boolean => {
     if (!canManage) return false;
-    // ERP Super Admin or terminal Super Admin (< 0) has full rights
     if (isTerminalAdmin) return true;
     if (myHierarchyLevel !== null && myHierarchyLevel < 0) return true;
-
-    // Admin (0) can edit roles with level >= 0 (cannot edit Super Admin role)
-    if (myHierarchyLevel === 0) {
-      return (role.hierarchy_level ?? 999) >= 0;
-    }
-
-    const targetLevel = role.hierarchy_level ?? 999;
-    return targetLevel > myHierarchyLevel;
+    if (myHierarchyLevel === 0) return (role.hierarchy_level ?? 999) >= 0;
+    return (role.hierarchy_level ?? 999) > myHierarchyLevel;
   };
 
   const openEdit = (role: Role) => {
@@ -164,6 +248,7 @@ export function TerminalRolesList() {
     setEditDesc(role.description);
     setEditPerms(new Set(role.permissions));
     setEditHierarchy(role.hierarchy_level !== null ? String(role.hierarchy_level) : "");
+    setCollapsedModules(new Set());
   };
 
   const openNew = () => {
@@ -173,32 +258,45 @@ export function TerminalRolesList() {
     setEditDesc("");
     setEditPerms(new Set());
     setEditHierarchy("");
+    setCollapsedModules(new Set());
   };
 
-  const togglePerm = (perm: string) => {
+  const togglePerm = (perm: PermDef) => {
     setEditPerms((prev) => {
       const next = new Set(prev);
-      if (next.has(perm)) next.delete(perm); else next.add(perm);
+      if (next.has(perm.key)) {
+        next.delete(perm.key);
+      } else {
+        next.add(perm.key);
+        // Auto-enable prerequisites
+        perm.requires?.forEach(req => next.add(req));
+      }
       return next;
     });
   };
 
-  const selectAll = () => {
-    const all = Object.values(PERMISSION_GROUPS).flatMap(g => g.permissions.map(p => p.key));
-    setEditPerms(new Set(all));
+  const selectAllGrantable = () => {
+    const grantable = PERMISSION_MODULES.flatMap(m => m.permissions.filter(p => myPerms.has(p.key)).map(p => p.key));
+    setEditPerms(new Set(grantable));
+  };
+
+  const deselectAll = () => setEditPerms(new Set());
+
+  const toggleModuleCollapse = (key: string) => {
+    setCollapsedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
   };
 
   const handleSave = async () => {
     if (!editName.trim()) { toast.error("Role name is required"); return; }
-
     const parsedLevel = editHierarchy.trim() ? parseInt(editHierarchy.trim(), 10) : null;
-
-    // Super Admin (level < 0) and Admin (level 0) can set any hierarchy level. Others must set levels below their own.
     if (parsedLevel !== null && myHierarchyLevel > 0 && parsedLevel <= myHierarchyLevel) {
       toast.error(`Hierarchy level must be greater than ${myHierarchyLevel} (your level)`);
       return;
     }
-
     setIsSaving(true);
     try {
       const { error } = await supabase.rpc("save_terminal_role", {
@@ -218,6 +316,7 @@ export function TerminalRolesList() {
   };
 
   const roleBadgeClass = (name: string, level: number | null) => {
+    if (level !== null && level < 0) return "bg-red-500/20 text-red-400 border-red-500/30";
     if (level === 0 || name.toLowerCase() === "admin") return "bg-red-500/20 text-red-400 border-red-500/30";
     if (level === 1) return "bg-amber-500/20 text-amber-400 border-amber-500/30";
     if (level === 2) return "bg-purple-500/20 text-purple-400 border-purple-500/30";
@@ -227,6 +326,21 @@ export function TerminalRolesList() {
     if (name.toLowerCase() === "viewer") return "bg-slate-500/20 text-slate-400 border-slate-500/30";
     return "bg-primary/20 text-primary border-primary/30";
   };
+
+  // Group permissions by module for display in role cards
+  const getModuleSummary = (perms: string[]) => {
+    const permSet = new Set(perms);
+    return PERMISSION_MODULES
+      .map(m => ({
+        ...m,
+        granted: m.permissions.filter(p => permSet.has(p.key)).length,
+        total: m.permissions.length,
+      }))
+      .filter(m => m.granted > 0);
+  };
+
+  const totalPerms = PERMISSION_MODULES.reduce((sum, m) => sum + m.permissions.length, 0);
+  const selectedCount = editPerms.size;
 
   return (
     <TooltipProvider>
@@ -255,13 +369,14 @@ export function TerminalRolesList() {
           <div className="grid gap-3">
             {roles.map((role) => {
               const editable = canEditRole(role);
+              const modules = getModuleSummary(role.permissions);
               return (
                 <div
                   key={role.id}
                   className="border border-border rounded-lg p-4 bg-muted/5 hover:bg-muted/10 transition-colors"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="outline" className={`text-xs ${roleBadgeClass(role.name, role.hierarchy_level)}`}>
                         {role.name}
                       </Badge>
@@ -275,16 +390,19 @@ export function TerminalRolesList() {
                           Default
                         </Badge>
                       )}
+                      <span className="text-[10px] text-muted-foreground">
+                        {role.permissions.length} permission{role.permissions.length !== 1 ? 's' : ''}
+                      </span>
                     </div>
                     {canManage && (
                       editable ? (
-                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openEdit(role)}>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => openEdit(role)}>
                           <Pencil className="h-3 w-3 mr-1" /> Edit
                         </Button>
                       ) : (
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs opacity-40 cursor-not-allowed" disabled>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs opacity-40 cursor-not-allowed shrink-0" disabled>
                               <Lock className="h-3 w-3 mr-1" /> Edit
                             </Button>
                           </TooltipTrigger>
@@ -296,15 +414,18 @@ export function TerminalRolesList() {
                     )}
                   </div>
                   {role.description && (
-                    <p className="text-xs text-muted-foreground mb-3">{role.description}</p>
+                    <p className="text-xs text-muted-foreground mb-2">{role.description}</p>
                   )}
-                  <div className="flex flex-wrap gap-1">
-                    {role.permissions.map((p) => (
-                      <Badge key={p} variant="secondary" className="text-[10px] font-mono bg-muted/30">
-                        {p.replace("terminal_", "")}
+                  {/* Module summary badges */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {modules.map(m => (
+                      <Badge key={m.key} variant="secondary" className="text-[10px] gap-1 bg-muted/30">
+                        <span>{m.icon}</span>
+                        <span>{m.label}</span>
+                        <span className="text-muted-foreground">{m.granted}/{m.total}</span>
                       </Badge>
                     ))}
-                    {role.permissions.length === 0 && (
+                    {modules.length === 0 && (
                       <span className="text-xs text-muted-foreground italic">No permissions</span>
                     )}
                   </div>
@@ -314,88 +435,122 @@ export function TerminalRolesList() {
           </div>
         )}
 
-        {/* Edit/Create Role Dialog */}
+        {/* ─── Edit/Create Role Dialog ─── */}
         <Dialog open={!!editingRole} onOpenChange={(open) => !open && setEditingRole(null)}>
-          <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
+            <DialogHeader className="px-6 pt-6 pb-2">
               <DialogTitle>{isNew ? "Create Role" : `Edit: ${editingRole?.name}`}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Name</label>
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  placeholder="e.g. Supervisor"
-                  className="h-9 text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Description</label>
-                <Input
-                  value={editDesc}
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  placeholder="Optional description"
-                  className="h-9 text-sm"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">
-                  Hierarchy Level
-                  {myHierarchyLevel !== 0 && (
-                    <span className="text-muted-foreground/60 ml-1">(must be &gt; {myHierarchyLevel})</span>
-                  )}
-                </label>
-                <Input
-                  type="number"
-                  value={editHierarchy}
-                  onChange={(e) => setEditHierarchy(e.target.value)}
-                  placeholder="e.g. 3"
-                  className="h-9 text-sm w-32"
-                  min={myHierarchyLevel === 0 ? 0 : myHierarchyLevel + 1}
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Shield className="h-3.5 w-3.5" /> Permissions
-                  </label>
-                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectAll}>
-                    Select All
-                  </Button>
+
+            <div className="px-6 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Name</label>
+                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="e.g. Supervisor" className="h-8 text-sm" />
                 </div>
-                <Accordion type="multiple" defaultValue={Object.keys(PERMISSION_GROUPS)} className="space-y-1">
-                  {Object.entries(PERMISSION_GROUPS).map(([key, group]) => (
-                    <AccordionItem key={key} value={key} className="border border-border rounded-md px-3">
-                      <AccordionTrigger className="text-xs py-2 hover:no-underline">
-                        <span className="flex items-center gap-2">
-                          {group.label}
-                          <Badge variant="secondary" className="text-[10px] h-4">
-                            {group.permissions.filter(p => editPerms.has(p.key)).length}/{group.permissions.length}
-                          </Badge>
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent className="pb-2 space-y-1.5">
-                        {group.permissions.map((p) => (
-                          <label
-                            key={p.key}
-                            className="flex items-center gap-2 text-xs cursor-pointer hover:bg-muted/20 rounded px-1 py-0.5"
-                          >
-                            <Checkbox
-                              checked={editPerms.has(p.key)}
-                              onCheckedChange={() => togglePerm(p.key)}
-                              className="h-3.5 w-3.5"
-                            />
-                            <span>{p.label}</span>
-                          </label>
-                        ))}
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Hierarchy Level
+                    {myHierarchyLevel > 0 && <span className="text-muted-foreground/60 ml-1">(&gt; {myHierarchyLevel})</span>}
+                  </label>
+                  <Input type="number" value={editHierarchy} onChange={(e) => setEditHierarchy(e.target.value)} placeholder="e.g. 3" className="h-8 text-sm w-full" min={myHierarchyLevel === 0 ? 0 : myHierarchyLevel + 1} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Description</label>
+                <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} placeholder="Optional description" className="h-8 text-sm" />
               </div>
             </div>
-            <DialogFooter>
+
+            {/* Permission header */}
+            <div className="px-6 pt-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">
+                  Permissions ({selectedCount}/{totalPerms})
+                </span>
+              </div>
+              <div className="flex gap-1.5">
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={deselectAll}>Clear</Button>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2" onClick={selectAllGrantable}>Select All</Button>
+              </div>
+            </div>
+
+            {/* Tier legend */}
+            <div className="px-6 flex flex-wrap gap-2">
+              {([['view', 'View', 'bg-emerald-500'], ['manage', 'Manage', 'bg-blue-500'], ['action', 'Action', 'bg-sky-500'], ['special', 'Special', 'bg-amber-500'], ['destructive', 'Destructive', 'bg-red-500']] as const).map(([tier, label, color]) => (
+                <div key={tier} className="flex items-center gap-1">
+                  <div className={`w-2 h-2 rounded-full ${color}`} />
+                  <span className="text-[10px] text-muted-foreground">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Module Grid */}
+            <ScrollArea className="flex-1 min-h-0 px-6 pb-2">
+              <div className="space-y-2 pr-2 pb-4">
+                {PERMISSION_MODULES.map((mod) => {
+                  const grantedInModule = mod.permissions.filter(p => editPerms.has(p.key)).length;
+                  const isCollapsed = collapsedModules.has(mod.key);
+                  return (
+                    <div key={mod.key} className="border border-border rounded-lg overflow-hidden">
+                      {/* Module Header */}
+                      <button
+                        type="button"
+                        onClick={() => toggleModuleCollapse(mod.key)}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/20 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{mod.icon}</span>
+                          <span className="text-xs font-medium">{mod.label}</span>
+                          <Badge variant="secondary" className={`text-[10px] h-4 px-1.5 ${grantedInModule === mod.permissions.length ? 'bg-emerald-500/20 text-emerald-400' : grantedInModule > 0 ? 'bg-blue-500/20 text-blue-400' : ''}`}>
+                            {grantedInModule}/{mod.permissions.length}
+                          </Badge>
+                        </div>
+                        {isCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                      </button>
+
+                      {/* Permission Toggles */}
+                      {!isCollapsed && (
+                        <div className="px-3 pb-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
+                          {mod.permissions.map((perm) => {
+                            const canGrant = myPerms.has(perm.key);
+                            const isEnabled = editPerms.has(perm.key);
+                            return (
+                              <div key={perm.key} className="flex items-center justify-between gap-2 min-h-[28px]">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  {!canGrant && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Lock className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="left">
+                                        <p className="text-xs">You don't have this permission</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 font-normal ${TIER_STYLES[perm.tier]}`}>
+                                    {perm.label}
+                                  </Badge>
+                                </div>
+                                <Switch
+                                  checked={isEnabled}
+                                  onCheckedChange={() => canGrant && togglePerm(perm)}
+                                  disabled={!canGrant}
+                                  className={`h-4 w-7 shrink-0 ${canGrant ? TIER_SWITCH_STYLES[perm.tier] : 'opacity-30'}`}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+
+            <DialogFooter className="px-6 py-3 border-t border-border">
               <Button variant="outline" size="sm" onClick={() => setEditingRole(null)}>Cancel</Button>
               <Button size="sm" onClick={handleSave} disabled={isSaving}>
                 {isSaving ? "Saving..." : isNew ? "Create Role" : "Save Changes"}

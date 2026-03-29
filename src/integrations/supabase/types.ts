@@ -13132,8 +13132,6 @@ export type Database = {
           force_logout_at: string | null
           force_password_change: boolean | null
           id: string
-          is_payer: boolean
-          is_purchase_creator: boolean
           last_activity: string | null
           last_login: string | null
           last_name: string | null
@@ -13157,8 +13155,6 @@ export type Database = {
           force_logout_at?: string | null
           force_password_change?: boolean | null
           id?: string
-          is_payer?: boolean
-          is_purchase_creator?: boolean
           last_activity?: string | null
           last_login?: string | null
           last_name?: string | null
@@ -13182,8 +13178,6 @@ export type Database = {
           force_logout_at?: string | null
           force_password_change?: boolean | null
           id?: string
-          is_payer?: boolean
-          is_purchase_creator?: boolean
           last_activity?: string | null
           last_login?: string | null
           last_name?: string | null

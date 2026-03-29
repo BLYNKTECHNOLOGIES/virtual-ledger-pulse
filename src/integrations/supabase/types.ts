@@ -11531,6 +11531,30 @@ export type Database = {
           },
         ]
       }
+      terminal_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       terminal_alternate_upi_requests: {
         Row: {
           created_at: string
@@ -11768,6 +11792,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      terminal_broadcasts: {
+        Row: {
+          broadcast_type: string
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          title: string
+        }
+        Insert: {
+          broadcast_type?: string
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          title: string
+        }
+        Update: {
+          broadcast_type?: string
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          title?: string
+        }
+        Relationships: []
       }
       terminal_bypass_codes: {
         Row: {
@@ -12135,6 +12192,48 @@ export type Database = {
           },
         ]
       }
+      terminal_order_escalations: {
+        Row: {
+          created_at: string
+          escalated_by: string
+          escalated_to: string
+          id: string
+          order_number: string
+          priority: string
+          reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          escalated_by: string
+          escalated_to: string
+          id?: string
+          order_number: string
+          priority?: string
+          reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          escalated_by?: string
+          escalated_to?: string
+          id?: string
+          order_number?: string
+          priority?: string
+          reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       terminal_order_size_ranges: {
         Row: {
           created_at: string
@@ -12420,6 +12519,42 @@ export type Database = {
           },
         ]
       }
+      terminal_shift_handovers: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          handover_orders: Json
+          id: string
+          incoming_notes: string | null
+          incoming_user_id: string
+          outgoing_notes: string | null
+          outgoing_user_id: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          handover_orders?: Json
+          id?: string
+          incoming_notes?: string | null
+          incoming_user_id: string
+          outgoing_notes?: string | null
+          outgoing_user_id: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          handover_orders?: Json
+          id?: string
+          incoming_notes?: string | null
+          incoming_user_id?: string
+          outgoing_notes?: string | null
+          outgoing_user_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       terminal_user_exchange_mappings: {
         Row: {
           created_at: string
@@ -12460,18 +12595,21 @@ export type Database = {
         Row: {
           is_online: boolean
           last_seen_at: string
+          status: string
           updated_at: string
           user_id: string
         }
         Insert: {
           is_online?: boolean
           last_seen_at?: string
+          status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           is_online?: boolean
           last_seen_at?: string
+          status?: string
           updated_at?: string
           user_id?: string
         }
@@ -13343,16 +13481,27 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: string
       }
-      auto_assign_order_by_scope: {
-        Args: {
-          p_adv_no?: string
-          p_asset?: string
-          p_order_number: string
-          p_total_price: number
-          p_trade_type: string
-        }
-        Returns: Json
-      }
+      auto_assign_order_by_scope:
+        | {
+            Args: {
+              p_adv_no?: string
+              p_asset?: string
+              p_order_number: string
+              p_total_price?: number
+              p_trade_type?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_adv_no?: string
+              p_asset?: string
+              p_order_number: string
+              p_total_price: number
+              p_trade_type: string
+            }
+            Returns: Json
+          }
       auto_generate_penalties: {
         Args: { p_month?: string }
         Returns: {
@@ -13388,8 +13537,10 @@ export type Database = {
           severity: string
         }[]
       }
+      check_terminal_order_sla: { Args: never; Returns: number }
       cleanup_expired_records: { Args: never; Returns: undefined }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
+      cleanup_terminal_stale_data: { Args: never; Returns: undefined }
       compare_snapshots: {
         Args: { p_snapshot_id_new: string; p_snapshot_id_old: string }
         Returns: {
@@ -13419,6 +13570,15 @@ export type Database = {
           p_total_amount: number
         }
         Returns: string
+      }
+      complete_shift_handover: {
+        Args: {
+          p_accept: boolean
+          p_handover_id: string
+          p_incoming_user_id: string
+          p_notes?: string
+        }
+        Returns: Json
       }
       compute_annual_tax: {
         Args: { p_filing_status_id: string; p_taxable_income: number }
@@ -13793,6 +13953,15 @@ export type Database = {
         Args: { p_credential_id: string }
         Returns: undefined
       }
+      escalate_terminal_order: {
+        Args: {
+          p_escalated_by: string
+          p_order_number: string
+          p_priority?: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       execute_leave_reset: {
         Args: { p_year?: number }
         Returns: {
@@ -13860,6 +14029,10 @@ export type Database = {
         Args: { p_generated_by: string; p_user_id: string }
         Returns: string
       }
+      generate_terminal_mpi_snapshots: {
+        Args: { p_date?: string }
+        Returns: number
+      }
       get_active_users: {
         Args: never
         Returns: {
@@ -13909,9 +14082,7 @@ export type Database = {
       }
       get_terminal_permissions: {
         Args: { p_user_id: string }
-        Returns: {
-          permission: string
-        }[]
+        Returns: string[]
       }
       get_terminal_subordinates: {
         Args: { p_user_id: string }
@@ -13930,9 +14101,7 @@ export type Database = {
       }
       get_terminal_visible_user_ids: {
         Args: { p_user_id: string }
-        Returns: {
-          visible_user_id: string
-        }[]
+        Returns: string[]
       }
       get_transactions_with_closing_balance: {
         Args: {
@@ -14038,6 +14207,15 @@ export type Database = {
         Returns: boolean
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
+      initiate_shift_handover: {
+        Args: {
+          p_incoming_user_id: string
+          p_notes?: string
+          p_orders: Json
+          p_outgoing_user_id: string
+        }
+        Returns: Json
+      }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       list_terminal_roles: {
         Args: never
@@ -14049,6 +14227,10 @@ export type Database = {
           name: string
           permissions: string[]
         }[]
+      }
+      lock_payer_order: {
+        Args: { p_order_number: string; p_payer_user_id: string }
+        Returns: Json
       }
       log_biometric_event: {
         Args: {
@@ -14069,6 +14251,10 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      mark_payer_order_paid: {
+        Args: { p_order_number: string; p_payer_user_id: string }
+        Returns: Json
       }
       mark_terminal_user_offline: {
         Args: { p_user_id: string }
@@ -14183,6 +14369,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      release_payer_order_lock: {
+        Args: { p_order_number: string; p_payer_user_id: string }
+        Returns: Json
+      }
       remove_terminal_role: {
         Args: { p_role_id: string; p_user_id: string }
         Returns: undefined
@@ -14190,6 +14380,14 @@ export type Database = {
       resolve_inactive_assignee_notifications: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      resolve_terminal_escalation: {
+        Args: {
+          p_escalation_id: string
+          p_resolution_note: string
+          p_resolved_by: string
+        }
+        Returns: Json
       }
       reverse_payment_gateway_settlement: {
         Args: { p_reversed_by?: string; p_settlement_id: string }

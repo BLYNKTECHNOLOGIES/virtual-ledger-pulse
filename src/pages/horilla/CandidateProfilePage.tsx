@@ -268,6 +268,7 @@ export default function CandidateProfilePage() {
     { key: "interviews", label: "Interviews", count: interviews.length },
     { key: "offers", label: "Offers", count: offers.length },
     { key: "stage_history", label: "Stage History", count: stageNotes.length },
+    { key: "tasks", label: "Tasks", count: candidateTasks.length },
     { key: "history", label: "Timeline" },
   ];
 

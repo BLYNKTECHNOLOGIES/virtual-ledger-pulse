@@ -17,7 +17,7 @@ import { Progress } from "@/components/ui/progress";
 // ─── Tabs matching Horilla ───
 const TABS = [
   "About", "Work Type & Shift", "Note", "Documents",
-  "Leave", "Asset", "Attendance", "Payroll", "Tags & Skills", "Notifications",
+  "Leave", "Asset", "Attendance", "Payroll", "Tags & Skills", "Lifecycle", "Notifications",
 ];
 
 // ─── Salary Summary Card ───
@@ -1124,6 +1124,44 @@ export default function EmployeeProfilePage() {
 
         {activeTab === "Tags & Skills" && emp && (
           <TagsAndSkillsTab employeeId={emp.id} />
+        )}
+
+        {activeTab === "Lifecycle" && emp && (
+          <div className="space-y-4">
+            <div className="border border-border rounded-lg p-4 bg-muted/30">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Employee Lifecycle</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-muted-foreground">Date of Joining</p>
+                  <p className="font-medium text-foreground">{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString("en-IN") : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Resignation Status</p>
+                  <p className="font-medium text-foreground">{emp.resignation_status || "Active"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Resignation Date</p>
+                  <p className="font-medium text-foreground">{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString("en-IN") : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Last Working Day</p>
+                  <p className="font-medium text-foreground">{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN") : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Separation Reason</p>
+                  <p className="font-medium text-foreground">{emp.separation_reason || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Notice Period End</p>
+                  <p className="font-medium text-foreground">{emp.notice_period_end_date ? new Date(emp.notice_period_end_date).toLocaleDateString("en-IN") : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <p className={`font-medium ${emp.is_active ? "text-green-600" : "text-destructive"}`}>{emp.is_active ? "Active" : "Inactive"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === "Notifications" && emp && (

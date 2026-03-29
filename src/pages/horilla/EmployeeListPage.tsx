@@ -6,7 +6,7 @@ import {
   Search, Plus, Filter, LayoutGrid, List, MoreVertical,
   Mail, Phone, Building2, ChevronDown, ChevronUp, Download, Upload,
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3,
-  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal
+  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock
 } from "lucide-react";
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";

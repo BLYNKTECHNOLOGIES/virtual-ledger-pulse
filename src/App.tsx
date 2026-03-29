@@ -655,6 +655,7 @@ const router = createBrowserRouter([
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
         { path: "attendance/policies", element: <AttendancePolicyPage /> },
         { path: "attendance/punches", element: <AttendancePunchesPage /> },
+        { path: "attendance/monthly-hours", element: <MonthlyHoursSummaryPage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },
         { path: "leave/allocations", element: <LeaveAllocationsPage /> },

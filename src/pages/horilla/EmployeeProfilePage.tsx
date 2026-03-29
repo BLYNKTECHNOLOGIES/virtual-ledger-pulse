@@ -16,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 // ─── Tabs matching Horilla ───
 const TABS = [
   "About", "Work Type & Shift", "Note", "Documents",
-  "Leave", "Asset", "Attendance", "Payroll", "Tags & Skills",
+  "Leave", "Asset", "Attendance", "Payroll", "Tags & Skills", "Notifications",
 ];
 
 // ─── Deposit Info Sub-Component ───
@@ -1073,6 +1073,10 @@ export default function EmployeeProfilePage() {
 
         {activeTab === "Tags & Skills" && emp && (
           <TagsAndSkillsTab employeeId={emp.id} />
+        )}
+
+        {activeTab === "Notifications" && emp && (
+          <NotificationPreferences employeeId={emp.id} />
         )}
       </div>
     </div>

@@ -11,10 +11,12 @@ import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
 
 export default function TerminalUsers() {
-  const { userId } = useTerminalAuth();
+  const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'users', { activeTab: 'users' as string });
   const activeTab = prefs.activeTab;
   const setActiveTab = (v: string) => setPref('activeTab', v);
+  const canAssignRoles = hasPermission('terminal_users_role_assign') || isTerminalAdmin;
+  const canBypassCode = hasPermission('terminal_users_bypass_code') || isTerminalAdmin;
 
   return (
     <TerminalPermissionGate permissions={["terminal_users_view"]}>
@@ -27,7 +29,7 @@ export default function TerminalUsers() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="bg-muted/30 border border-border">
             <TabsTrigger value="users" className="text-xs">Users</TabsTrigger>
-            <TabsTrigger value="roles" className="text-xs">Roles</TabsTrigger>
+            {canAssignRoles && <TabsTrigger value="roles" className="text-xs">Roles</TabsTrigger>}
             <TabsTrigger value="exchanges" className="text-xs">Exchange Accounts</TabsTrigger>
             <TabsTrigger value="ranges" className="text-xs">Size Ranges</TabsTrigger>
             <TabsTrigger value="payer" className="text-xs">Payer Assignments</TabsTrigger>

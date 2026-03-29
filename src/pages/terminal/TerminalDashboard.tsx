@@ -26,7 +26,8 @@ export default function TerminalDashboard() {
   const { isSyncing, metadata } = useAutoSyncOrders();
   const syncMutation = useSyncOrderHistory();
   const { data: syncMeta } = useSyncMetadata();
-  const { userId } = useTerminalAuth();
+  const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canExport = hasPermission('terminal_dashboard_export') || isTerminalAdmin;
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'dashboard', { period: '30d' as string });
   const period = prefs.period as any;
   const setPeriod = (v: any) => setPref('period', v);
@@ -149,16 +150,18 @@ export default function TerminalDashboard() {
             <span className="text-muted-foreground/50">·</span>
             <span>{lastSyncLabel}</span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-            onClick={handleUniversalSync}
-            disabled={isAnySyncing}
-            title="Universal Sync — orders, purchases, sales, assets"
-          >
-            <CloudDownload className={`h-3.5 w-3.5 ${isAnySyncing ? 'animate-pulse' : ''}`} />
-          </Button>
+          {canExport && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={handleUniversalSync}
+              disabled={isAnySyncing}
+              title="Universal Sync — orders, purchases, sales, assets"
+            >
+              <CloudDownload className={`h-3.5 w-3.5 ${isAnySyncing ? 'animate-pulse' : ''}`} />
+            </Button>
+          )}
         </div>
       </div>
 

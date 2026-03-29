@@ -9,11 +9,15 @@ import {
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Shield, Pencil, Plus, RefreshCw, Lock, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Shield, Pencil, Plus, RefreshCw, Lock, ChevronDown, ChevronRight, ArrowLeftRight, FileStack } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useTerminalAuth, TerminalPermission } from "@/hooks/useTerminalAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TerminalRoleComparison } from "./TerminalRoleComparison";
 
 interface Role {
   id: string;

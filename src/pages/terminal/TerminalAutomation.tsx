@@ -82,10 +82,20 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export default function TerminalAutomation() {
-  const { userId } = useTerminalAuth();
+  const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'automation', { activeTab: 'auto-reply' as string });
   const activeTab = prefs.activeTab;
   const setActiveTab = (v: string) => setPref('activeTab', v);
+
+  // Granular permission checks
+  const canManageAutoReply = hasPermission('terminal_autoreply_manage') || isTerminalAdmin;
+  const canToggleAutoReply = hasPermission('terminal_autoreply_toggle') || isTerminalAdmin;
+  const canManagePricing = hasPermission('terminal_pricing_manage') || isTerminalAdmin;
+  const canTogglePricing = hasPermission('terminal_pricing_toggle') || isTerminalAdmin;
+  const canDeletePricing = hasPermission('terminal_pricing_delete') || isTerminalAdmin;
+  const canToggleAutopay = hasPermission('terminal_autopay_toggle') || isTerminalAdmin;
+  const canConfigureAutopay = hasPermission('terminal_autopay_configure') || isTerminalAdmin;
+  const canDestructive = hasPermission('terminal_destructive') || isTerminalAdmin;
   const [ruleDialogOpen, setRuleDialogOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AutoReplyRule | null>(null);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
@@ -160,12 +170,14 @@ export default function TerminalAutomation() {
 
         {/* ═══ AUTO-REPLY RULES ═══ */}
         <TabsContent value="auto-reply" className="mt-4 space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={handleCreateRule}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Rule
-            </Button>
-          </div>
+          {canManageAutoReply && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleCreateRule}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                New Rule
+              </Button>
+            </div>
+          )}
 
           <Card>
             <CardContent className="p-0">
@@ -199,6 +211,7 @@ export default function TerminalAutomation() {
                           <Switch
                             checked={rule.is_active}
                             onCheckedChange={(v) => toggleRule.mutate({ id: rule.id, is_active: v })}
+                            disabled={!canToggleAutoReply}
                           />
                         </TableCell>
                         <TableCell className="font-medium">{rule.name}</TableCell>
@@ -230,12 +243,16 @@ export default function TerminalAutomation() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRule(rule)}>
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm({ type: 'rule', id: rule.id })}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {canManageAutoReply && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditRule(rule)}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {canDestructive && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm({ type: 'rule', id: rule.id })}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -290,6 +307,7 @@ export default function TerminalAutomation() {
                           <Switch
                             checked={s.is_active}
                             onCheckedChange={(v) => toggleSchedule.mutate({ id: s.id, is_active: v })}
+                            disabled={!canManageAutoReply}
                           />
                         </TableCell>
                         <TableCell className="font-medium">{s.name}</TableCell>
@@ -306,12 +324,16 @@ export default function TerminalAutomation() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditSchedule(s)}>
-                              <Edit className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm({ type: 'schedule', id: s.id })}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {canManageAutoReply && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditSchedule(s)}>
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                            {canDestructive && (
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteConfirm({ type: 'schedule', id: s.id })}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>

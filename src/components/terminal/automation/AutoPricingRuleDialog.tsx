@@ -146,7 +146,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   useEffect(() => {
     if (editingRule) {
       setName(editingRule.name);
-      const assets = editingRule.assets?.length > 0 ? editingRule.assets : [editingRule.asset];
+      setIsDryRun(editingRule.is_dry_run || false);
       setSelectedAssets(assets);
       setActiveAssetTab(assets[0]);
       setAssetConfigs(editingRule.asset_config || {});
@@ -169,7 +169,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setRestingRatio(editingRule.resting_ratio ? String(editingRule.resting_ratio) : '');
       setCheckInterval(String(editingRule.check_interval_seconds));
     } else {
-      setName(''); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
+      setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setTradeType('BUY'); setPriceType('FIXED');
       setPriorityMerchants(['']);
       setOnlyOnline(false); setPauseNoMerchant(false);
@@ -271,6 +271,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
     const payload: any = {
       name,
+      is_dry_run: isDryRun,
       asset: selectedAssets[0], // backward compat
       assets: selectedAssets,
       asset_config: cleanConfig,

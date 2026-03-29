@@ -86,7 +86,7 @@ import AssetPage from './pages/horilla/AssetPage';
 import AssetDashboardPage from './pages/horilla/AssetDashboardPage';
 import AssetAssignmentsPage from './pages/horilla/AssetAssignmentsPage';
 import HelpdeskPage from './pages/horilla/HelpdeskPage';
-import OffboardingPage from './pages/horilla/OffboardingPage';
+// OffboardingPage removed — merged into ResignationTab (Separation)
 import OrganizationPage from './pages/horilla/OrganizationPage';
 import DocumentsPage from './pages/horilla/DocumentsPage';
 import AnnouncementsPage from './pages/horilla/AnnouncementsPage';
@@ -662,7 +662,7 @@ const router = createBrowserRouter([
         { path: "pms", element: <PMSDashboardPage /> },
         { path: "pms/objectives", element: <ObjectivesPage /> },
         { path: "pms/feedback", element: <Feedback360Page /> },
-        { path: "offboarding", element: <OffboardingPage /> },
+        // offboarding route removed — merged into HRMS Separation tab
         { path: "offboarding/fnf", element: <FnFSettlementPage /> },
         { path: "employee/documents", element: <EmployeeDocumentsPage /> },
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },

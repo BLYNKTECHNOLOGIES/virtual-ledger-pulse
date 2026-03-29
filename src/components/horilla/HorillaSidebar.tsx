@@ -158,13 +158,9 @@ const navGroups: NavGroup[] = [
     title: "SYSTEM",
     items: [
       {
-        label: "Offboarding",
+        label: "F&F Settlement",
         icon: LogOut,
-        path: "/hrms/offboarding",
-        children: [
-          { label: "Separation", path: "/hrms/offboarding" },
-          { label: "F&F Settlement", path: "/hrms/offboarding/fnf" },
-        ],
+        path: "/hrms/offboarding/fnf",
       },
     ],
   },

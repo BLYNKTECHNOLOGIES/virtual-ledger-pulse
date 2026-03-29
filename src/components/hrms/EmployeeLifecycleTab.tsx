@@ -1,6 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeInformationTab } from "./EmployeeInformationTab";
-import { OffboardingTab } from "./OffboardingTab";
 import { ResignationTab } from "./ResignationTab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,8 +15,7 @@ export function EmployeeLifecycleTab() {
         <TabsList className="flex w-full overflow-x-auto whitespace-nowrap">
           <TabsTrigger value="onboarding" className="text-xs md:text-sm">Onboarding</TabsTrigger>
           <TabsTrigger value="employee-info" className="text-xs md:text-sm">Employee Info</TabsTrigger>
-          <TabsTrigger value="resignation" className="text-xs md:text-sm">Resignation</TabsTrigger>
-          <TabsTrigger value="offboarding" className="text-xs md:text-sm">Offboarding</TabsTrigger>
+          <TabsTrigger value="separation" className="text-xs md:text-sm">Separation</TabsTrigger>
         </TabsList>
 
         <TabsContent value="onboarding">
@@ -39,12 +37,8 @@ export function EmployeeLifecycleTab() {
           <EmployeeInformationTab />
         </TabsContent>
 
-        <TabsContent value="resignation">
+        <TabsContent value="separation">
           <ResignationTab />
-        </TabsContent>
-
-        <TabsContent value="offboarding">
-          <OffboardingTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -1132,8 +1132,8 @@ export default function EmployeeProfilePage() {
               <h3 className="text-sm font-semibold text-foreground mb-3">Employee Lifecycle</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Date of Joining</p>
-                  <p className="font-medium text-foreground">{emp.date_of_joining ? new Date(emp.date_of_joining).toLocaleDateString("en-IN") : "—"}</p>
+                  <p className="text-xs text-muted-foreground">Joining Date</p>
+                  <p className="font-medium text-foreground">{(workInfo as any)?.joining_date ? new Date((workInfo as any).joining_date).toLocaleDateString("en-IN") : "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Resignation Status</p>

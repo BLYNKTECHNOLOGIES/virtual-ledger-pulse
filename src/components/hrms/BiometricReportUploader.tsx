@@ -334,7 +334,7 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
             attendance_date: row.date,
             attendance_status: row.status,
             notes: row.remarks || row.rawStatus || null,
-            work_type: "office",
+            work_type: "On-site",
           };
           if (checkInTs) payload.check_in = checkInTs;
           if (checkOutTs) payload.check_out = checkOutTs;

@@ -13509,6 +13509,14 @@ export type Database = {
         }
         Returns: Json
       }
+      auto_assign_payer_by_scope: {
+        Args: {
+          p_order_number: string
+          p_total_price: number
+          p_trade_type?: string
+        }
+        Returns: Json
+      }
       auto_generate_penalties: {
         Args: { p_month?: string }
         Returns: {
@@ -13520,6 +13528,7 @@ export type Database = {
           rule_applied: string
         }[]
       }
+      auto_reassign_inactive_orders: { Args: never; Returns: Json }
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean
@@ -14080,6 +14089,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_terminal_dashboard_summary: { Args: never; Returns: Json }
       get_terminal_mpi_leaderboard: {
         Args: { p_from: string; p_limit?: number; p_to: string }
         Returns: Json
@@ -14222,15 +14232,25 @@ export type Database = {
         Returns: boolean
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
-      initiate_shift_handover: {
-        Args: {
-          p_incoming_user_id: string
-          p_notes?: string
-          p_orders: Json
-          p_outgoing_user_id: string
-        }
-        Returns: Json
-      }
+      has_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
+      initiate_shift_handover:
+        | {
+            Args: {
+              p_incoming_user_id: string
+              p_notes?: string
+              p_outgoing_user_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_incoming_user_id: string
+              p_notes?: string
+              p_orders: Json
+              p_outgoing_user_id: string
+            }
+            Returns: Json
+          }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       list_terminal_roles: {
         Args: never
@@ -14308,6 +14328,14 @@ export type Database = {
           wallet_id: string
         }
         Returns: boolean
+      }
+      re_escalate_terminal_order: {
+        Args: {
+          p_current_handler_id: string
+          p_escalation_id: string
+          p_reason?: string
+        }
+        Returns: Json
       }
       recalculate_wallet_balance: {
         Args: { wallet_id_param: string }

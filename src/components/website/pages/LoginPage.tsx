@@ -122,7 +122,7 @@ export function LoginPage() {
           'statistics_view', 'statistics_manage',
           'erp_destructive', 'terminal_destructive', 'bams_destructive',
           'clients_destructive', 'stock_destructive',
-          'shift_reconciliation_approve'
+          'shift_reconciliation_create', 'shift_reconciliation_approve'
         ];
         localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
       }

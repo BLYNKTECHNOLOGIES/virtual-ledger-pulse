@@ -49,6 +49,7 @@ const availablePermissions = [
   { id: "bams_destructive", name: "BAMS Destructive", description: "Delete/close/reverse BAMS entries and accounts" },
   { id: "clients_destructive", name: "Clients Destructive", description: "Delete/reject clients" },
   { id: "stock_destructive", name: "Stock Destructive", description: "Delete stock/wallet transactions and conversions" },
+  { id: "shift_reconciliation_create", name: "Shift Reconciliation Create", description: "Submit shift reconciliation records" },
   { id: "shift_reconciliation_approve", name: "Shift Reconciliation Approve", description: "Approve or reject shift reconciliation records" },
   { id: "stock_conversion_approve", name: "Stock Conversion Approve", description: "Approve stock/product conversions" },
   { id: "stock_conversion_create", name: "Stock Conversion Create", description: "Create stock/product conversions" },

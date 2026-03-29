@@ -10,6 +10,11 @@ import {
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
 import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "tasks" | "history";
 
@@ -25,6 +30,9 @@ export default function CandidateProfilePage() {
   const [offerOpen, setOfferOpen] = useState(false);
   const [newRating, setNewRating] = useState(3);
   const [rejectReason, setRejectReason] = useState("");
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskStageId, setNewTaskStageId] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
   const { data: candidate, isLoading } = useQuery({
     queryKey: ["hr_candidate", id],
@@ -159,6 +167,27 @@ export default function CandidateProfilePage() {
       toast.success("Task updated");
     },
     onError: (err: any) => toast.error(err?.message || "Failed to update task"),
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any)
+        .from("hr_candidate_tasks")
+        .insert({
+          candidate_stage_id: newTaskStageId,
+          title: newTaskTitle.trim(),
+          status: "pending",
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchTasks();
+      toast.success("Task added");
+      setShowAddTask(false);
+      setNewTaskTitle("");
+      setNewTaskStageId("");
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to add task"),
   });
 
   const updateMutation = useMutation({
@@ -603,12 +632,47 @@ export default function CandidateProfilePage() {
 
         {activeTab === "tasks" && (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Candidate Tasks</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Candidate Tasks</h3>
+              {candidateStages.length > 0 && (
+                <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Add Task</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Add Candidate Task</DialogTitle></DialogHeader>
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Stage</Label>
+                        <Select value={newTaskStageId} onValueChange={setNewTaskStageId}>
+                          <SelectTrigger><SelectValue placeholder="Select stage" /></SelectTrigger>
+                          <SelectContent>
+                            {candidateStages.map((cs: any) => (
+                              <SelectItem key={cs.id} value={cs.id}>{cs.hr_stages?.stage_name || "Unknown"}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Task Title</Label>
+                        <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="e.g. Submit portfolio" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddTask(false)}>Cancel</Button>
+                      <Button disabled={!newTaskStageId || !newTaskTitle.trim() || createTaskMutation.isPending} onClick={() => createTaskMutation.mutate()}>
+                        {createTaskMutation.isPending ? "Adding..." : "Add Task"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
             {candidateTasks.length === 0 ? (
               <div className="text-center py-8">
-                <ClipboardList className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No tasks assigned to this candidate yet.</p>
-                <p className="text-xs text-gray-400 mt-1">Tasks are assigned per recruitment stage.</p>
+                <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No tasks assigned to this candidate yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Click "Add Task" to create one.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -637,7 +701,7 @@ export default function CandidateProfilePage() {
                               )}
                             </button>
                             <span className={`text-sm ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                              {task.hr_onboarding_tasks?.title || `Task ${task.candidate_task_id}`}
+                              {task.title || task.hr_onboarding_tasks?.title || `Task ${task.id.slice(0,6)}`}
                             </span>
                             <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded-full font-medium ${
                               task.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"

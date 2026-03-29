@@ -332,7 +332,13 @@ export function ResignationTab() {
     mutationFn: async (employeeId: string) => {
       const { error } = await supabase
         .from("hr_employees")
-        .update({ resignation_status: "withdrawn" })
+        .update({
+          resignation_status: null,
+          resignation_date: null,
+          notice_period_end_date: null,
+          last_working_day: null,
+          separation_reason: null,
+        })
         .eq("id", employeeId);
       if (error) throw error;
       // Clean up checklist

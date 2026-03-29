@@ -3714,26 +3714,29 @@ export type Database = {
       hr_candidate_tasks: {
         Row: {
           candidate_stage_id: string
-          candidate_task_id: string
+          candidate_task_id: string | null
           created_at: string
           id: string
           status: string
+          title: string | null
           updated_at: string
         }
         Insert: {
           candidate_stage_id: string
-          candidate_task_id: string
+          candidate_task_id?: string | null
           created_at?: string
           id?: string
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Update: {
           candidate_stage_id?: string
-          candidate_task_id?: string
+          candidate_task_id?: string | null
           created_at?: string
           id?: string
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: [

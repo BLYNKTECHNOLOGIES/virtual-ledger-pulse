@@ -66,13 +66,32 @@ export function ResignationTab() {
   const { data: resigningEmployees, isLoading } = useQuery({
     queryKey: ["resignation-employees"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: employees, error } = await supabase
         .from("hr_employees")
-        .select("id, badge_id, first_name, last_name, resignation_date, resignation_status, notice_period_end_date, last_working_day, separation_reason, is_active, hr_employee_work_info(department_id, job_role)")
+        .select("id, badge_id, first_name, last_name, resignation_date, resignation_status, notice_period_end_date, last_working_day, separation_reason, is_active")
         .not("resignation_status", "is", null)
         .order("resignation_date", { ascending: false });
       if (error) throw error;
-      return data as ResignationEmployee[];
+      if (!employees?.length) return [] as ResignationEmployee[];
+
+      const employeeIds = employees.map((employee) => employee.id);
+      const { data: workInfoRows, error: workInfoError } = await supabase
+        .from("hr_employee_work_info")
+        .select("employee_id, department_id, job_role")
+        .in("employee_id", employeeIds);
+      if (workInfoError) throw workInfoError;
+
+      const workInfoByEmployee = new Map<string, { department_id: string | null; job_role: string | null }[]>();
+      for (const row of workInfoRows || []) {
+        const existing = workInfoByEmployee.get(row.employee_id) || [];
+        existing.push({ department_id: row.department_id, job_role: row.job_role });
+        workInfoByEmployee.set(row.employee_id, existing);
+      }
+
+      return employees.map((employee) => ({
+        ...employee,
+        hr_employee_work_info: workInfoByEmployee.get(employee.id) || [],
+      })) as ResignationEmployee[];
     },
   });
 

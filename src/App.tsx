@@ -80,6 +80,7 @@ import LeaveYearEndResetPage from './pages/horilla/LeaveYearEndResetPage';
 import AttendancePolicyPage from './pages/horilla/AttendancePolicyPage';
 import FnFSettlementPage from './pages/horilla/FnFSettlementPage';
 import EmployeeDocumentsPage from './pages/horilla/EmployeeDocumentsPage';
+import SeparationPage from './pages/horilla/SeparationPage';
 import SalaryRevisionsPage from './pages/horilla/SalaryRevisionsPage';
 import PenaltyAutoCalcPage from './pages/horilla/PenaltyAutoCalcPage';
 import AssetPage from './pages/horilla/AssetPage';
@@ -665,6 +666,7 @@ const router = createBrowserRouter([
         // offboarding route removed — merged into HRMS Separation tab
         { path: "offboarding/fnf", element: <FnFSettlementPage /> },
         { path: "employee/documents", element: <EmployeeDocumentsPage /> },
+        { path: "employee/separation", element: <SeparationPage /> },
         { path: "payroll/salary-revisions", element: <SalaryRevisionsPage /> },
         { path: "payroll/penalty-calc", element: <PenaltyAutoCalcPage /> },
         { path: "helpdesk", element: <HelpdeskPage /> },

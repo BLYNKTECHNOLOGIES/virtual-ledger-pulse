@@ -148,8 +148,10 @@ function getScoreBg(score: number) {
 
 export default function TerminalMPI() {
   const navigate = useNavigate();
-  const { isTerminalAdmin, terminalRoles, userId } = useTerminalAuth();
+  const { isTerminalAdmin, terminalRoles, userId, hasPermission } = useTerminalAuth();
   const { visibleUserIds } = useTerminalJurisdiction();
+  const canViewAll = hasPermission('terminal_mpi_view_all') || isTerminalAdmin;
+  const canViewOwn = hasPermission('terminal_mpi_view_own');
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'mpi', { timeRange: 'today' as string, viewLevel: 'all' as string, sortBy: 'efficiency' as string });
   const timeRange = prefs.timeRange;
   const viewLevel = prefs.viewLevel;
@@ -306,8 +308,16 @@ export default function TerminalMPI() {
         }
       });
 
-      // Build metrics per visible user
-      const visibleIds = isTerminalAdmin ? new Set(users.map(u => u.id)) : visibleUserIds;
+      // Build metrics per visible user — apply data scope filtering (GAP 8)
+      let visibleIds: Set<string>;
+      if (isTerminalAdmin || canViewAll) {
+        visibleIds = new Set(users.map(u => u.id));
+      } else if (canViewOwn && userId) {
+        // Only show own data
+        visibleIds = new Set([userId]);
+      } else {
+        visibleIds = visibleUserIds;
+      }
       const metricsArr: OperatorMetric[] = [];
 
       for (const uid of visibleIds) {
@@ -419,7 +429,7 @@ export default function TerminalMPI() {
     } finally {
       setIsLoading(false);
     }
-  }, [isTerminalAdmin, visibleUserIds, timeRange, sortBy]);
+  }, [isTerminalAdmin, canViewAll, canViewOwn, userId, visibleUserIds, timeRange, sortBy]);
 
   useEffect(() => { fetchMetrics(); }, [fetchMetrics]);
 

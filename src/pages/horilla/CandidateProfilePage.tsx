@@ -190,7 +190,7 @@ export default function CandidateProfilePage() {
     onError: (err: any) => toast.error(err?.message || "Failed to add task"),
   });
 
-
+  const updateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("hr_candidates").update(editForm).eq("id", id!);
       if (error) throw error;

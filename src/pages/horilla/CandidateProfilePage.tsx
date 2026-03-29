@@ -459,6 +459,7 @@ export default function CandidateProfilePage() {
           </div>
         )}
 
+        {activeTab === "interviews" && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-semibold text-gray-900">Interview History</h3>

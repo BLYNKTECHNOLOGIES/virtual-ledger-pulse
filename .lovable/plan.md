@@ -1,101 +1,76 @@
 
 
-# HRMS V5 Fixes — Implementation Plan
+# Terminal Audit V2 — Implementation Plan
 
-## Overview
-11 confirmed fixes across 3 priority tiers, implemented via a single database migration.
+## Scope
+- **Phase 0**: 4 crash fixes (all verified critical)
+- **Phase 1**: 5 logic fixes (items 5-8 + 10, excluding #9 sync integration)
+- **Phase 2**: Full MPI production-ready (5 items)
+- **Phase 3-4**: Skipped
 
----
-
-## P0 — Critical Runtime Fixes (3)
-
-### 1. BUG-V5-01: Attendance Lock Column Fix
-**Problem:** `fn_lock_attendance_for_completed_payroll` references `month` and `year` columns that don't exist on `hr_payroll_runs`. Will crash all attendance operations when a payroll run is locked.
-
-**Fix:** Replace with date-range check using `pay_period_start` and `pay_period_end`:
-```sql
-AND pay_period_start <= v_date AND pay_period_end >= v_date
-```
-
-### 2. BUG-V5-02: Re-attach Late Tracking Trigger
-**Problem:** `auto_track_late_early` function exists and correctly computes `NEW.late_minutes`/`NEW.early_leave_minutes`, but its trigger was removed during v4 dedup. The AFTER trigger (`sync_late_come_early_out`) has nothing to persist.
-
-**Fix:** Create BEFORE trigger:
-```sql
-CREATE TRIGGER trg_auto_track_late_early
-  BEFORE INSERT OR UPDATE ON hr_attendance
-  FOR EACH ROW EXECUTE FUNCTION auto_track_late_early();
-```
-Alphabetical ordering ensures it fires before `trg_lock_attendance_for_payroll` and `trg_sync_late_come_early_out`.
-
-### 3. BUG-V5-03: Leave Reset ON CONFLICT Fix
-**Problem:** `execute_leave_reset` uses `ON CONFLICT (employee_id, leave_type_id, year)` but the unique constraint includes `quarter`. INSERT also omits `quarter`. Re-running creates duplicate allocations.
-
-**Fix:** Add `quarter = 1` to INSERT, update ON CONFLICT to `(employee_id, leave_type_id, year, quarter)`.
+Total: 14 fixes in a single database migration. No frontend changes required.
 
 ---
 
-## P1 — Salary & Logic Fixes (4)
+## Phase 0 — Emergency Crash Fixes
 
-### 4. BUG-V5-04: Fix `apply_salary_template` percentage_of
-**Problem:** Templates use `'total_salary'` and `'basic_pay'` but function only recognizes `'basic'`, `'gross'`, `'total'`. BASIC gets computed as 25% instead of 50%.
+### 1. T2-CRASH-01: Add `metadata` column to `terminal_notifications`
+Add `metadata jsonb DEFAULT '{}'`. Fixes 4 crashing functions + SLA cron.
 
-**Fix:** Expand IF branches:
-- `IN ('basic', 'basic_pay', 'basic_salary')` → use basic_salary
-- `IN ('gross', 'total', 'total_salary', 'gross_salary')` → use total_salary
+### 2. T2-CRASH-02: Rewrite `generate_terminal_mpi_snapshots`
+- Fix join: `por.binance_order_number` (not `por.order_number`)
+- Fix status values: remove `'5'`, `'8'`, `'9'` — use `'COMPLETED'`, `'CANCELLED'`, `'CANCELLED_BY_SYSTEM'`
+- Include `idle_time_minutes` in UPSERT's ON CONFLICT UPDATE
+- Add `completion_rate` column computation (combines with T2-MPI-01)
+- Change `terminal_mpi_snapshots.user_id` from `text` to `uuid`
 
-### 5. BUG-V5-05: Fix HRA Formula Evaluation
-**Problem:** Formulas like `total_salary - basic_pay - epf_employee` exist in templates but `apply_salary_template` just stores `COALESCE(value, 0)` = 0.
+### 3. T2-CRASH-03: Make `terminal_auto_assignment_log.assigned_to` nullable
+`ALTER COLUMN assigned_to DROP NOT NULL`. No-match path works gracefully.
 
-**Fix:** Add formula evaluation within the function — build a vars map (total_salary, basic_pay, component codes) and evaluate the formula expression, matching the approach in `salaryComputation.ts`.
-
-### 6. BUG-V5-10: Block INSERT on Locked Payroll
-**Problem:** `trg_enforce_payslip_lock` fires on UPDATE/DELETE only (tgtype=27). INSERT is not blocked.
-
-**Fix:** Drop and recreate trigger with INSERT:
-```sql
-BEFORE INSERT OR UPDATE OR DELETE ON hr_payslips
-```
-
-### 7. BUG-V5-08: Drop Orphaned Leave Function
-**Problem:** `handle_leave_balance_on_status_change` exists with no trigger and uses wrong case values. `validate_leave_balance_on_approve` already doesn't exist.
-
-**Fix:** `DROP FUNCTION IF EXISTS handle_leave_balance_on_status_change;`
+### 4. T2-CRASH-04: Fix payer lock unique index
+Drop `idx_payer_order_locks_unique_active` (WHERE status='active'), recreate as `WHERE (status = 'locked')` to match actual INSERT value.
 
 ---
 
-## P2 — Safeguards & Cleanup (4)
+## Phase 1 — Logic Fixes (5 of 6)
 
-### 8. BUG-V5-09: Loan/Deposit Sync on UPDATE/DELETE
-**Problem:** Both sync triggers only fire on INSERT. Amount corrections or deletions leave balances stale.
+### 5. T2-BUG-05: Drop old auto_assign overload
+`DROP FUNCTION IF EXISTS auto_assign_order_by_scope(text, text, numeric, text, text)` — the old signature without presence/cap checks.
 
-**Fix:** Expand both triggers to INSERT OR UPDATE OR DELETE. Add OLD-row handling: on DELETE, reverse the balance change; on UPDATE, use NEW values.
+### 6. T2-BUG-06: Add `is_enabled` check
+At top of remaining `auto_assign_order_by_scope`, check `terminal_auto_assignment_config.is_enabled`. Return `'disabled'` status if false.
 
-### 9. GAP-V5-07: Loan State Machine
-**Problem:** `fn_validate_loan_status` only checks allowed values, not transitions. Loans can jump `pending → closed`.
+### 7. T2-BUG-07: Add break status filter
+Add `AND tpr.status = 'active'` to all operator selection queries in auto-assign. Operators on break excluded.
 
-**Fix:** Add transition validation:
-- `pending → approved | rejected`
-- `approved → active | rejected`
-- `active → closed`
-- `rejected` and `closed` are terminal
+### 8. T2-BUG-08: Create `set_terminal_user_status` RPC
+New SECURITY DEFINER function accepting `(p_user_id uuid, p_status text)`. Validates against `'active'`, `'on_break'`, `'busy'`. Updates `terminal_user_presence.status` and logs to `terminal_activity_log`.
 
-### 10. GAP-V5-05: Alternating Weekly Offs
-**Problem:** `fn_calculate_working_days` reads `is_alternating` and `alternate_week_offs` but ignores them. Alternating Saturdays counted as working days.
+### 10. T2-AUTO-01: Auto-deactivate assignments on complete/cancel
+In `sync_p2p_order`, after UPSERT — when `v_effective_status` is COMPLETED or CANCELLED: set `terminal_order_assignments.is_active = false` and release payer locks (`status = 'auto_released'`).
 
-**Fix:** When `is_alternating = true`, check week number (odd/even from a reference date) to determine if alternate days apply for that specific week.
+---
 
-### 11. Cleanup: Duplicate Indexes + RLS
-**Drop duplicate indexes:**
-- Keep `hr_attendance_employee_id_attendance_date_key` (unique), drop any duplicate
-- Keep `hr_attendance_daily_employee_id_attendance_date_key` (unique), drop `idx_daily_emp_date` (non-unique duplicate on same columns)
+## Phase 2 — MPI Production-Ready
 
-**Drop duplicate RLS policies (keep the `authenticated_all_*` pattern):**
-- `hr_deposit_transactions`: drop "Allow all for authenticated users"
-- `hr_employee_deposits`: drop "Allow all for authenticated users"
-- `hr_onboarding_stages`: drop "Authenticated users can manage..." and "...can view..."
-- `hr_onboarding_tasks`: same
-- `hr_onboarding_task_employees`: same
+### 11. T2-MPI-01: Add `completion_rate` column
+`ALTER TABLE terminal_mpi_snapshots ADD COLUMN completion_rate numeric DEFAULT 0`. Computed in rewritten MPI function.
+
+### 12. T2-MPI-02: Response time tracking
+- Add `first_action_at timestamptz` to `terminal_order_assignments`
+- Add `avg_response_time_minutes numeric` to `terminal_mpi_snapshots`
+- Add `avg_order_size numeric DEFAULT 0` and `mpi_score numeric DEFAULT 0` (combines T2-MPI-03)
+- Compute in MPI function from assignment → first action delta
+
+### 13. T2-MPI-04: Aggregation + leaderboard RPCs
+- `get_terminal_mpi_summary(p_user_id, p_from, p_to)` — date-range aggregation per user
+- `get_terminal_mpi_leaderboard(p_from, p_to, p_limit)` — ranked operator list with completion rate, volume, response time
+
+### 14. T2-MPI-05: Backfill historical data
+After MPI function is fixed, run backfill loop from 2026-02-14 to yesterday.
+
+### 15. T2-BUG-10: Auto-assign fallback to `terminal_user_size_range_mappings`
+Add Priority 3 in auto-assign: when `terminal_operator_assignments` yields no match, fall back to `terminal_user_size_range_mappings` with same presence/cap/break checks. Match type logged as `'size_range_fallback'`.
 
 ---
 
@@ -104,14 +79,14 @@ BEFORE INSERT OR UPDATE OR DELETE ON hr_payslips
 ### Files Changed
 | File | Action |
 |------|--------|
-| `supabase/migrations/xxx.sql` | Single migration with all 11 fixes |
+| `supabase/migrations/xxx.sql` | Single migration with all 14 fixes |
 
-### No Frontend Changes Required
-All fixes are database-level (functions, triggers, indexes, policies). No React/TS code changes needed.
+### No Frontend Changes
+All fixes are database-level (columns, functions, triggers, indexes). No React/TS changes needed. Frontend can later integrate `set_terminal_user_status` for break toggle UI.
 
 ### Risk Assessment
-- P0 fixes are safe — they fix broken references and restore removed functionality
-- P1 salary fix: `apply_salary_template` change won't retroactively fix existing data. After fix, templates should be manually reapplied per employee via the UI
-- P2 loan state machine: existing loans with unexpected status combos won't be blocked (trigger only validates future transitions)
-- Cleanup: removing duplicate indexes/policies has zero functional impact
+- Phase 0: Zero risk — all tables have 0 rows or additive-only changes
+- Phase 1 item 5 (drop overload): Verified frontend uses named params matching new signature
+- Phase 1 item 10 (auto-deactivate in sync): Wrapped in safe conditional, only fires on terminal statuses
+- Phase 2 MPI: Table has 0 rows, schema changes are safe. Backfill is read-only aggregation
 

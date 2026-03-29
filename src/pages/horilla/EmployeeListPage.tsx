@@ -6,7 +6,7 @@ import {
   Search, Plus, Filter, LayoutGrid, List, MoreVertical,
   Mail, Phone, Building2, ChevronDown, ChevronUp, Download, Upload,
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3,
-  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal
+  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock
 } from "lucide-react";
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
@@ -396,6 +396,68 @@ export default function EmployeeListPage() {
     }
   };
 
+  // ─── Bulk status change ───
+  const handleBulkStatusChange = async (active: boolean) => {
+    if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
+    try {
+      for (const id of selectedIds) {
+        await supabase.from("hr_employees").update({ is_active: active }).eq("id", id);
+      }
+      toast.success(`${selectedIds.size} employee(s) ${active ? "activated" : "deactivated"}`);
+      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+      setSelectedIds(new Set());
+      setActionsOpen(false);
+    } catch {
+      toast.error("Failed to update status");
+    }
+  };
+
+  // ─── Bulk department transfer ───
+  const [bulkDeptOpen, setBulkDeptOpen] = useState(false);
+  const [bulkDeptId, setBulkDeptId] = useState("");
+  const handleBulkDeptTransfer = async () => {
+    if (!bulkDeptId || selectedIds.size === 0) return;
+    try {
+      for (const id of selectedIds) {
+        const wi = getWorkInfo(id);
+        if (wi) {
+          await supabase.from("hr_employee_work_info").update({ department_id: bulkDeptId }).eq("id", wi.id);
+        }
+      }
+      toast.success(`${selectedIds.size} employee(s) transferred`);
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+      setSelectedIds(new Set());
+      setBulkDeptOpen(false);
+      setBulkDeptId("");
+      setActionsOpen(false);
+    } catch {
+      toast.error("Failed to transfer");
+    }
+  };
+
+  // ─── Bulk shift assign ───
+  const [bulkShiftOpen, setBulkShiftOpen] = useState(false);
+  const [bulkShiftId, setBulkShiftId] = useState("");
+  const handleBulkShiftAssign = async () => {
+    if (!bulkShiftId || selectedIds.size === 0) return;
+    try {
+      for (const id of selectedIds) {
+        const wi = getWorkInfo(id);
+        if (wi) {
+          await supabase.from("hr_employee_work_info").update({ shift_id: bulkShiftId }).eq("id", wi.id);
+        }
+      }
+      toast.success(`${selectedIds.size} employee(s) shift updated`);
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+      setSelectedIds(new Set());
+      setBulkShiftOpen(false);
+      setBulkShiftId("");
+      setActionsOpen(false);
+    } catch {
+      toast.error("Failed to assign shift");
+    }
+  };
+
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
   const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500"];
@@ -486,6 +548,27 @@ export default function EmployeeListPage() {
                     className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <Download className="h-3.5 w-3.5" /> Export
+                  </button>
+                  <hr className="my-1 border-border" />
+                  <button onClick={() => { setBulkDeptOpen(true); setActionsOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <Building2 className="h-3.5 w-3.5" /> Bulk Dept Transfer
+                  </button>
+                  <button onClick={() => { setBulkShiftOpen(true); setActionsOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <Clock className="h-3.5 w-3.5" /> Bulk Shift Assign
+                  </button>
+                  <button onClick={() => handleBulkStatusChange(true)}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <UserCheck className="h-3.5 w-3.5" /> Bulk Activate
+                  </button>
+                  <button onClick={() => handleBulkStatusChange(false)}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <UserX className="h-3.5 w-3.5" /> Bulk Deactivate
                   </button>
                   <hr className="my-1 border-border" />
                   <button
@@ -889,6 +972,48 @@ export default function EmployeeListPage() {
         departments={departments || []}
         positions={positions || []}
       />
+
+      {/* Bulk Department Transfer Dialog */}
+      {bulkDeptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-popover rounded-xl border border-border w-full max-w-sm shadow-2xl p-5 space-y-4">
+            <h3 className="text-base font-semibold text-foreground">Bulk Department Transfer</h3>
+            <p className="text-sm text-muted-foreground">{selectedIds.size} employee(s) selected</p>
+            <select value={bulkDeptId} onChange={e => setBulkDeptId(e.target.value)}
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground">
+              <option value="">Select department...</option>
+              {(departments || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setBulkDeptOpen(false); setBulkDeptId(""); }}
+                className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+              <button onClick={handleBulkDeptTransfer} disabled={!bulkDeptId}
+                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40">Transfer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Shift Assign Dialog */}
+      {bulkShiftOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-popover rounded-xl border border-border w-full max-w-sm shadow-2xl p-5 space-y-4">
+            <h3 className="text-base font-semibold text-foreground">Bulk Shift Assignment</h3>
+            <p className="text-sm text-muted-foreground">{selectedIds.size} employee(s) selected</p>
+            <select value={bulkShiftId} onChange={e => setBulkShiftId(e.target.value)}
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground">
+              <option value="">Select shift...</option>
+              {(shifts || []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setBulkShiftOpen(false); setBulkShiftId(""); }}
+                className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
+              <button onClick={handleBulkShiftAssign} disabled={!bulkShiftId}
+                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40">Assign</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 

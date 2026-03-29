@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ClipboardList, Plus, Edit, Trash2, X, ChevronDown, ChevronRight, Eye, FileText, CheckSquare, List } from "lucide-react";
+import { ClipboardList, Plus, Edit, Trash2, X, ChevronDown, ChevronRight, Eye, FileText, CheckSquare, List, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
 const QUESTION_TYPES = [
@@ -22,6 +22,7 @@ export default function RecruitmentSurveyPage() {
   const [qForm, setQForm] = useState({ question: "", question_type: "text", is_required: true, options: "" });
   const [addQTo, setAddQTo] = useState<string | null>(null);
   const [viewResponses, setViewResponses] = useState<string | null>(null);
+  const [viewAnalytics, setViewAnalytics] = useState<string | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["hr_survey_templates"],
@@ -200,9 +201,13 @@ export default function RecruitmentSurveyPage() {
                   </div>
                   <span className="text-xs text-gray-500">{tplQuestions.length} Q&apos;s</span>
                   <span className="text-xs text-gray-500">{tplResponses.length} responses</span>
-                  <button onClick={(e) => { e.stopPropagation(); setViewResponses(viewResponses === tpl.id ? null : tpl.id); }}
+                  <button onClick={(e) => { e.stopPropagation(); setViewResponses(viewResponses === tpl.id ? null : tpl.id); setViewAnalytics(null); }}
                     className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600" title="View Responses">
                     <Eye className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setViewAnalytics(viewAnalytics === tpl.id ? null : tpl.id); setViewResponses(null); }}
+                    className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-emerald-600" title="Analytics">
+                    <BarChart3 className="h-3.5 w-3.5" />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); setForm({ title: tpl.title, description: tpl.description || "", is_general_template: tpl.is_general_template }); setEditTemplate(tpl); setCreateOpen(true); }}
                     className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
@@ -295,6 +300,15 @@ export default function RecruitmentSurveyPage() {
                     )}
                   </div>
                 )}
+
+                {/* Analytics panel */}
+                {viewAnalytics === tpl.id && (
+                  <SurveyAnalyticsPanel
+                    templateId={tpl.id}
+                    questions={getQuestionsForTemplate(tpl.id)}
+                    responses={getResponsesForTemplate(tpl.id)}
+                  />
+                )}
               </div>
             );
           })}
@@ -332,6 +346,128 @@ export default function RecruitmentSurveyPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SurveyAnalyticsPanel({ templateId, questions, responses }: { templateId: string; questions: any[]; responses: any[] }) {
+  const analytics = useMemo(() => {
+    return questions.map((q: any) => {
+      const answers = responses
+        .map((r: any) => (r.answers || {})[q.id])
+        .filter(Boolean);
+
+      if (q.question_type === "rating") {
+        const nums = answers.map(Number).filter(n => !isNaN(n));
+        const avg = nums.length ? (nums.reduce((a: number, b: number) => a + b, 0) / nums.length).toFixed(1) : "—";
+        const dist: Record<number, number> = {};
+        for (let i = 1; i <= 5; i++) dist[i] = 0;
+        nums.forEach(n => { if (dist[n] !== undefined) dist[n]++; });
+        return { ...q, type: "rating", avg, distribution: dist, total: nums.length };
+      }
+
+      if (q.question_type === "yes_no") {
+        const yes = answers.filter((a: string) => a.toLowerCase() === "yes").length;
+        const no = answers.filter((a: string) => a.toLowerCase() === "no").length;
+        return { ...q, type: "yes_no", yes, no, total: answers.length };
+      }
+
+      if (q.question_type === "multiple_choice") {
+        const counts: Record<string, number> = {};
+        answers.forEach((a: string) => { counts[a] = (counts[a] || 0) + 1; });
+        return { ...q, type: "multiple_choice", counts, total: answers.length };
+      }
+
+      return { ...q, type: "text", answers, total: answers.length };
+    });
+  }, [questions, responses]);
+
+  if (responses.length === 0) {
+    return (
+      <div className="border-t border-gray-200 bg-gray-50 p-4">
+        <p className="text-xs text-gray-400 text-center">No responses to analyze yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-gray-900">Analytics</h4>
+        <span className="text-xs text-gray-500">{responses.length} total responses</span>
+      </div>
+
+      {analytics.map((q: any, i: number) => (
+        <div key={q.id} className="bg-white rounded-lg border border-gray-200 p-3">
+          <p className="text-xs font-medium text-gray-900 mb-2">{i + 1}. {q.question}</p>
+
+          {q.type === "rating" && (
+            <div className="space-y-1">
+              <p className="text-lg font-bold text-[#E8604C]">{q.avg} <span className="text-xs font-normal text-gray-400">/ 5 avg</span></p>
+              <div className="flex gap-1 items-end h-12">
+                {[1, 2, 3, 4, 5].map(n => {
+                  const pct = q.total > 0 ? (q.distribution[n] / q.total) * 100 : 0;
+                  return (
+                    <div key={n} className="flex-1 flex flex-col items-center">
+                      <div className="w-full bg-gray-100 rounded-t relative" style={{ height: `${Math.max(pct, 4)}%`, minHeight: 4 }}>
+                        <div className="absolute inset-0 bg-[#E8604C] rounded-t" style={{ height: `${pct}%` }} />
+                      </div>
+                      <span className="text-[9px] text-gray-500 mt-0.5">{n}★</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400">{q.total} responses</p>
+            </div>
+          )}
+
+          {q.type === "yes_no" && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-green-600">Yes</span>
+                  <span className="font-medium">{q.total > 0 ? Math.round((q.yes / q.total) * 100) : 0}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${q.total > 0 ? (q.yes / q.total) * 100 : 0}%` }} />
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-red-600">No</span>
+                  <span className="font-medium">{q.total > 0 ? Math.round((q.no / q.total) * 100) : 0}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-500 rounded-full" style={{ width: `${q.total > 0 ? (q.no / q.total) * 100 : 0}%` }} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {q.type === "multiple_choice" && (
+            <div className="space-y-1">
+              {Object.entries(q.counts as Record<string, number>).sort((a, b) => (b[1] as number) - (a[1] as number)).map(([opt, count]) => (
+                <div key={opt} className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600 w-24 truncate">{opt}</span>
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${q.total > 0 ? ((count as number) / q.total) * 100 : 0}%` }} />
+                  </div>
+                  <span className="text-[10px] text-gray-500 w-6 text-right">{count as number}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {q.type === "text" && (
+            <div className="space-y-1 max-h-20 overflow-y-auto">
+              {q.answers.slice(0, 5).map((a: string, idx: number) => (
+                <p key={idx} className="text-xs text-gray-600 bg-gray-50 rounded px-2 py-1">"{a}"</p>
+              ))}
+              {q.answers.length > 5 && <p className="text-[10px] text-gray-400">+{q.answers.length - 5} more</p>}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

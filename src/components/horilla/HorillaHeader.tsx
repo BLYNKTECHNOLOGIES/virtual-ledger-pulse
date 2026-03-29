@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +18,19 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
-  const { data: notifications = [] } = useQuery({
+  // Fetch user's notification preferences
+  const { data: preferences } = useQuery({
+    queryKey: ["hr_notification_preferences_header"],
+    queryFn: async () => {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user?.user?.id) return null;
+      const { data } = await (supabase as any).from("hr_notification_preferences")
+        .select("*").eq("employee_id", user.user.id).maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: rawNotifications = [] } = useQuery({
     queryKey: ["hr_notifications"],
     queryFn: async () => {
       const { data } = await (supabase as any).from("hr_notifications")
@@ -29,6 +41,19 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
     },
     refetchInterval: 30000,
   });
+
+  // Filter notifications by preferences
+  const notifications = useMemo(() => {
+    if (!preferences) return rawNotifications;
+    return rawNotifications.filter((n: any) => {
+      const type = n.notification_type || n.type || "";
+      if (type.includes("leave") && preferences.leave_notifications === false) return false;
+      if (type.includes("attendance") && preferences.attendance_notifications === false) return false;
+      if (type.includes("payroll") && preferences.payroll_notifications === false) return false;
+      if (type.includes("announcement") && preferences.announcement_notifications === false) return false;
+      return true;
+    });
+  }, [rawNotifications, preferences]);
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
 

@@ -104,22 +104,23 @@ export default function Purchase() {
     },
   });
 
-  // Fetch purchase orders summary for badges
+  // Fetch purchase orders summary for badges using individual count queries
   const { data: ordersSummary } = useQuery({
     queryKey: ['purchase_orders_summary'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select('status, order_status');
+      const [pendingRes, reviewRes, completedRes, buyOrdersRes] = await Promise.all([
+        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
+        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'REVIEW_NEEDED'),
+        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
+        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).not('order_status', 'is', null),
+      ]);
       
-      if (error) throw error;
-      
-      const pending = data?.filter(order => order.status === 'PENDING').length || 0;
-      const review = data?.filter(order => order.status === 'REVIEW_NEEDED').length || 0;
-      const completed = data?.filter(order => order.status === 'COMPLETED').length || 0;
-      const buyOrders = data?.filter(order => order.order_status !== null).length || 0;
-      
-      return { pending, review, completed, buyOrders };
+      return {
+        pending: pendingRes.count || 0,
+        review: reviewRes.count || 0,
+        completed: completedRes.count || 0,
+        buyOrders: buyOrdersRes.count || 0,
+      };
     },
   });
 

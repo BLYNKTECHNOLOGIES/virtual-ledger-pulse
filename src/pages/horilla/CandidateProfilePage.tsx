@@ -5,13 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, Star, UserCheck, UserX, Edit, Save, X, Plus,
   Calendar, FileText, MessageSquare, Clock, Video, MapPin,
-  Briefcase, Mail, Phone, Globe, User
+  Briefcase, Mail, Phone, Globe, User, ClipboardList, CheckSquare, Square
 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
 import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
 
-type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "history";
+type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "tasks" | "history";
 
 export default function CandidateProfilePage() {
   const { id } = useParams<{ id: string }>();

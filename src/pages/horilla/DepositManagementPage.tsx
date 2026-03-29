@@ -408,6 +408,17 @@ export default function DepositManagementPage() {
                               <Button size="sm" variant="ghost" className="h-7" onClick={() => openEdit(d)} title="Edit">
                                 <Edit2 className="h-3 w-3" />
                               </Button>
+                              {!d.is_fully_collected && (
+                                d.is_paused ? (
+                                  <Button size="sm" variant="ghost" className="h-7 text-teal-600" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'resume' })} title="Resume Deductions">
+                                    <Play className="h-3 w-3" />
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="ghost" className="h-7 text-yellow-600" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'pause' })} title="Pause Deductions">
+                                    <Pause className="h-3 w-3" />
+                                  </Button>
+                                )
+                              )}
                               {d.is_fully_collected && d.current_balance > 0 && (
                                 <Button size="sm" variant="ghost" className="h-7 text-purple-600" onClick={() => settleMutation.mutate(d)} title="F&F Settle">
                                   <CheckCircle className="h-3 w-3" />

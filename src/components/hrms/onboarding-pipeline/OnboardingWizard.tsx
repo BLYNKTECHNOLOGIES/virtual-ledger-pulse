@@ -229,7 +229,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   const canAccessStage = (stage: number) => {
     if (isCompleted) return true;
     if (stage === 1) return true;
-    const completions = record?.stage_completions || {};
+    const completions = (record?.stage_completions as Record<string, any>) || {};
     return !!completions[`stage_${stage - 1}`];
   };
 

@@ -225,33 +225,52 @@ export default function StagesPage() {
                 {recStages.map((stage: any, i: number) => {
                   const typeInfo = STAGE_TYPES[stage.stage_type] || STAGE_TYPES.initial;
                   const count = getCountForStage(stage.id);
-                  return (
-                    <div key={stage.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
-                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
-                        {i + 1}
+                    return (
+                      <div key={stage.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
+                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{stage.stage_name}</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${typeInfo.color}`}>
+                            {typeInfo.label}
+                          </span>
+                          <span className="text-xs text-gray-500 min-w-[60px] text-right">
+                            {count} candidate{count !== 1 ? "s" : ""}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setManagerDialogStageId(stage.id)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Manage stage managers">
+                              <UserPlus className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                              <Edit className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { if (confirm(`Delete "${stage.stage_name}"?`)) deleteMutation.mutate(stage.id); }}
+                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Show assigned managers */}
+                        {getManagersForStage(stage.id).length > 0 && (
+                          <div className="flex items-center gap-2 mt-1.5 ml-14 flex-wrap">
+                            <Users className="h-3 w-3 text-gray-400" />
+                            {getManagersForStage(stage.id).map((m: any) => (
+                              <span key={m.id} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 flex items-center gap-1">
+                                {m.hr_employees?.first_name} {m.hr_employees?.last_name}
+                                <button onClick={() => removeManagerMutation.mutate(m.id)} className="hover:text-red-500">
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{stage.stage_name}</p>
-                      </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${typeInfo.color}`}>
-                        {typeInfo.label}
-                      </span>
-                      <span className="text-xs text-gray-500 min-w-[60px] text-right">
-                        {count} candidate{count !== 1 ? "s" : ""}
-                      </span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => { if (confirm(`Delete "${stage.stage_name}"?`)) deleteMutation.mutate(stage.id); }}
-                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
                   );
                 })}
               </div>

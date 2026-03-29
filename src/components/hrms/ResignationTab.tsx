@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
+import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
 
 type ResignationEmployee = {
   id: string;
@@ -51,6 +51,8 @@ export function ResignationTab() {
   const [showInitiateDialog, setShowInitiateDialog] = useState(false);
   const [showChecklistDialog, setShowChecklistDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showAcknowledgement, setShowAcknowledgement] = useState(false);
+  const [acknowledgementData, setAcknowledgementData] = useState<any>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<ResignationEmployee | null>(null);
   const [formData, setFormData] = useState({
     employee_id: "",

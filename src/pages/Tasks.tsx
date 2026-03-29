@@ -69,8 +69,8 @@ export default function Tasks() {
       });
 
       // Send email notification
-      const senderName = user?.first_name && user?.last_name 
-        ? `${user.first_name} ${user.last_name}` 
+      const senderName = user?.firstName && user?.lastName 
+        ? `${user.firstName} ${user.lastName}` 
         : user?.username || user?.email || 'System';
       
       await supabase.functions.invoke('send-task-email', {

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Plus, Users, Briefcase, CheckCircle, XCircle,
   ChevronRight, Eye, Edit, Trash2, X, Globe, Lock,
-  MapPin, DollarSign
+  MapPin, DollarSign, UserPlus
 } from "lucide-react";
 import { toast } from "sonner";
 

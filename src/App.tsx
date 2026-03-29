@@ -109,6 +109,7 @@ import InterviewListPage from './pages/horilla/InterviewListPage';
 import StagesPage from './pages/horilla/StagesPage';
 import SkillZonePage from './pages/horilla/SkillZonePage';
 import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
+import RejectedCandidatesPage from './pages/horilla/RejectedCandidatesPage';
 import HRLogsPage from './pages/horilla/HRLogsPage';
 import AttendancePunchesPage from './pages/horilla/AttendancePunchesPage';
 import MonthlyHoursSummaryPage from './pages/horilla/MonthlyHoursSummaryPage';
@@ -708,6 +709,7 @@ const router = createBrowserRouter([
         { path: "recruitment/stages", element: <StagesPage /> },
         { path: "recruitment/skill-zones", element: <SkillZonePage /> },
         { path: "recruitment/surveys", element: <RecruitmentSurveyPage /> },
+        { path: "recruitment/rejected", element: <RejectedCandidatesPage /> },
       ],
     },
   {

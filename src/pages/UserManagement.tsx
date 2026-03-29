@@ -566,75 +566,69 @@ export default function UserManagement() {
                   ) : (
                     <div>
                       {roles.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {roles.map((role) => (
-                            <Card key={role.id} className="hover:shadow-lg transition-shadow">
-                              <CardContent className="p-4">
-                                <div className="space-y-3">
-                                  <div className="flex justify-between items-start">
-                                    <h3 className="font-semibold text-gray-900">{role.name}</h3>
-                                    <Badge variant={getRoleBadgeVariant(role.name)}>
-                                      {role.user_count} users
+                        <div className="space-y-2">
+                          {/* Table header */}
+                          <div className="hidden md:grid grid-cols-12 gap-3 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            <div className="col-span-2">Role</div>
+                            <div className="col-span-1 text-center">Users</div>
+                            <div className="col-span-6">Permissions</div>
+                            <div className="col-span-3 text-right">Actions</div>
+                          </div>
+                          {roles.map((role) => {
+                            const viewPerms = role.permissions.filter(p => p.endsWith('_view'));
+                            const managePerms = role.permissions.filter(p => p.endsWith('_manage'));
+                            const destructivePerms = role.permissions.filter(p => p.endsWith('_destructive') || p === 'erp_destructive');
+                            const specialPerms = role.permissions.filter(p => !p.endsWith('_view') && !p.endsWith('_manage') && !p.includes('destructive'));
+                            return (
+                            <div key={role.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center px-4 py-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
+                              <div className="md:col-span-2">
+                                <h3 className="font-semibold text-sm">{role.name}</h3>
+                                {role.description && <p className="text-xs text-muted-foreground line-clamp-1">{role.description}</p>}
+                              </div>
+                              <div className="md:col-span-1 text-center">
+                                <Badge variant={getRoleBadgeVariant(role.name)} className="text-xs">
+                                  {role.user_count}
+                                </Badge>
+                              </div>
+                              <div className="md:col-span-6">
+                                <div className="flex flex-wrap gap-1">
+                                  {viewPerms.length > 0 && (
+                                    <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                                      {viewPerms.length} view
                                     </Badge>
-                                  </div>
-                                  
-                                  <p className="text-sm text-gray-600">{role.description}</p>
-                                  
-                                  <div className="space-y-2">
-                                    <p className="text-xs font-medium text-muted-foreground">Permissions:</p>
-                                    <div className="flex flex-wrap gap-1">
-                                      {role.permissions.slice(0, 3).map((permission) => (
-                                        <Badge key={permission} variant="outline" className="text-xs">
-                                          {formatPermissionDisplay(permission)}
-                                        </Badge>
-                                      ))}
-                                      {role.permissions.length > 3 && (
-                                        <Badge variant="outline" className="text-xs">
-                                          +{role.permissions.length - 3} more
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex justify-between pt-2 border-t gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => setViewingRoleUsers(role)}
-                                      className="flex items-center gap-1"
-                                    >
-                                      <Users className="h-3 w-3" />
-                                      View Users
-                                    </Button>
-                                    
-                                    <PermissionGate permissions={['user_management_manage']}>
-                                      <div className="flex gap-1">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => setEditingRole(role)}
-                                          className="flex items-center gap-1"
-                                        >
-                                          <Edit className="h-3 w-3" />
-                                          Edit
-                                        </Button>
-                                        
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => deleteRole(role.id)}
-                                          className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                        >
-                                          <Trash2 className="h-3 w-3" />
-                                          Delete
-                                        </Button>
-                                      </div>
-                                    </PermissionGate>
-                                  </div>
+                                  )}
+                                  {managePerms.length > 0 && (
+                                    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                                      {managePerms.length} manage
+                                    </Badge>
+                                  )}
+                                  {destructivePerms.length > 0 && (
+                                    <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+                                      {destructivePerms.length} destructive
+                                    </Badge>
+                                  )}
+                                  {specialPerms.length > 0 && (
+                                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                                      {specialPerms.length} special
+                                    </Badge>
+                                  )}
                                 </div>
-                              </CardContent>
-                            </Card>
-                          ))}
+                              </div>
+                              <div className="md:col-span-3 flex justify-end gap-1">
+                                <Button variant="ghost" size="sm" onClick={() => setViewingRoleUsers(role)} className="h-7 px-2 text-xs">
+                                  <Users className="h-3 w-3 mr-1" /> Users
+                                </Button>
+                                <PermissionGate permissions={['user_management_manage']}>
+                                  <Button variant="ghost" size="sm" onClick={() => setEditingRole(role)} className="h-7 px-2 text-xs">
+                                    <Edit className="h-3 w-3 mr-1" /> Edit
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={() => deleteRole(role.id)} className="h-7 px-2 text-xs text-destructive hover:text-destructive">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </PermissionGate>
+                              </div>
+                            </div>
+                          );})}
                         </div>
                       ) : (
                         <Card>

@@ -79,6 +79,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.send-task-email]
     verify_jwt = false
+  [functions.auto-absent-marking]
+    verify_jwt = false
 
 [inbucket]
   enabled = true

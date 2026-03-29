@@ -327,6 +327,7 @@ export default function RecruitmentDashboardPage() {
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Candidates</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Hired</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Managers</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>

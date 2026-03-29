@@ -14,6 +14,7 @@ import { RoleUsersDialog } from "@/components/user-management/RoleUsersDialog";
 import { PendingRegistrationsTab } from "@/components/user-management/PendingRegistrationsTab";
 import { ResetPasswordDialog } from "@/components/user-management/ResetPasswordDialog";
 import { FunctionsTab } from "@/components/user-management/FunctionsTab";
+import { PermissionChangeLog } from "@/components/user-management/PermissionChangeLog";
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
 import { PasswordResetRequestsTab } from "@/components/user-management/PasswordResetRequestsTab";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -728,6 +729,7 @@ export default function UserManagement() {
           <TabsContent value="functions" className="space-y-4">
             <PermissionGate permissions={['user_management_view', 'user_management_manage']}>
               <FunctionsTab />
+              <PermissionChangeLog />
             </PermissionGate>
           </TabsContent>
 

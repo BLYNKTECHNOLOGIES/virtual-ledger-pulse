@@ -1,18 +1,28 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import {
+  Plus, Pencil, Trash2, Calendar, Shield, ArrowRightLeft,
+  Banknote, Zap, Paperclip, Umbrella, Loader2, MoreHorizontal,
+} from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const defaultForm = {
-  name: "", code: "", max_days_per_year: 12, is_paid: true, requires_approval: true, color: "#E8604C",
+  name: "", code: "", max_days_per_year: 12, is_paid: true, requires_approval: true, color: "#6C63FF",
   reset: false, reset_based: "" as string, reset_month: "", reset_day: "",
   is_encashable: false, exclude_company_leave: false, exclude_holiday: false, is_compensatory_leave: false,
   carryforward_type: "carryforward", carryforward_expire_in: null as number | null, carryforward_expire_period: "",
@@ -49,6 +59,7 @@ export default function LeaveTypesPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["hr_leave_types"],
@@ -62,20 +73,13 @@ export default function LeaveTypesPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const payload: any = {
-        name: form.name,
-        code: form.code,
-        max_days_per_year: form.max_days_per_year,
-        is_paid: form.is_paid,
-        requires_approval: form.requires_approval,
-        color: form.color,
-        reset: form.reset,
-        reset_based: form.reset ? form.reset_based || null : null,
+        name: form.name, code: form.code, max_days_per_year: form.max_days_per_year,
+        is_paid: form.is_paid, requires_approval: form.requires_approval, color: form.color,
+        reset: form.reset, reset_based: form.reset ? form.reset_based || null : null,
         reset_month: form.reset && form.reset_based === "yearly" ? form.reset_month || null : null,
         reset_day: form.reset ? form.reset_day || null : null,
-        is_encashable: form.is_encashable,
-        exclude_company_leave: form.exclude_company_leave,
-        exclude_holiday: form.exclude_holiday,
-        is_compensatory_leave: form.is_compensatory_leave,
+        is_encashable: form.is_encashable, exclude_company_leave: form.exclude_company_leave,
+        exclude_holiday: form.exclude_holiday, is_compensatory_leave: form.is_compensatory_leave,
         carryforward_type: form.carryforward_type,
         carry_forward: form.carryforward_type !== "no carryforward",
         carryforward_expire_in: form.carryforward_type === "carryforward expire" ? form.carryforward_expire_in : null,
@@ -93,9 +97,7 @@ export default function LeaveTypesPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_types"] });
-      setShowDialog(false);
-      setEditId(null);
-      setForm(defaultForm);
+      setShowDialog(false); setEditId(null); setForm(defaultForm);
       toast.success(editId ? "Leave type updated" : "Leave type created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -114,15 +116,15 @@ export default function LeaveTypesPage() {
       const { error } = await supabase.from("hr_leave_types").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["hr_leave_types"] }); toast.success("Deleted"); },
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["hr_leave_types"] }); toast.success("Leave type deleted"); setDeleteId(null); },
+    onError: (e: any) => { toast.error(e.message); setDeleteId(null); },
   });
 
   const openEdit = (t: any) => {
     setEditId(t.id);
     setForm({
       name: t.name, code: t.code, max_days_per_year: t.max_days_per_year || 12,
-      is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#E8604C",
+      is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#6C63FF",
       reset: t.reset ?? false, reset_based: t.reset_based || "", reset_month: t.reset_month || "", reset_day: t.reset_day || "",
       is_encashable: t.is_encashable ?? false, exclude_company_leave: t.exclude_company_leave ?? false,
       exclude_holiday: t.exclude_holiday ?? false, is_compensatory_leave: t.is_compensatory_leave ?? false,
@@ -135,95 +137,229 @@ export default function LeaveTypesPage() {
   };
 
   const getCarryForwardLabel = (t: any) => {
-    if (t.carryforward_type === "no carryforward") return "No carry forward";
-    if (t.carryforward_type === "carryforward expire") return `Carry forward (expires in ${t.carryforward_expire_in || "?"} ${t.carryforward_expire_period || "?"})`;
-    return "Carry forward";
+    if (t.carryforward_type === "no carryforward") return "None";
+    if (t.carryforward_type === "carryforward expire") return `${t.carryforward_expire_in || "?"} ${t.carryforward_expire_period || "?"}`;
+    return "Unlimited";
   };
 
-  const getResetLabel = (t: any) => {
-    if (!t.reset) return null;
-    if (t.reset_based === "yearly") return `Reset: Yearly (${MONTHS_LIST.find(m => m.value === t.reset_month)?.label || ""} ${t.reset_day || ""})`;
-    if (t.reset_based === "monthly") return `Reset: Monthly (day ${t.reset_day || "?"})`;
-    if (t.reset_based === "weekly") return "Reset: Weekly";
-    return "Reset enabled";
+  const getTags = (t: any) => {
+    const tags: { label: string; icon: React.ElementType; variant: "default" | "secondary" | "outline" }[] = [];
+    tags.push({ label: t.is_paid ? "Paid" : "Unpaid", icon: Banknote, variant: t.is_paid ? "default" : "outline" });
+    if (t.requires_approval) tags.push({ label: "Approval", icon: Shield, variant: "secondary" });
+    if (t.is_compensatory_leave) tags.push({ label: "Comp-Off", icon: Zap, variant: "secondary" });
+    if (t.is_encashable) tags.push({ label: "Encashable", icon: Banknote, variant: "secondary" });
+    if (t.require_attachment) tags.push({ label: "Attachment", icon: Paperclip, variant: "outline" });
+    if (t.exclude_holiday) tags.push({ label: "Excl. Holidays", icon: Umbrella, variant: "outline" });
+    return tags;
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Types</h1>
-          <p className="text-sm text-gray-500">Configure leave types with reset, carryforward & encashment rules</p>
+          <h1 className="text-2xl font-semibold text-foreground">Leave Types</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Configure leave policies, carry-forward rules & entitlements</p>
         </div>
-        <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
-          <Plus className="h-4 w-4 mr-2" /> Add Type
+        <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} size="sm">
+          <Plus className="h-4 w-4 mr-1.5" /> New Leave Type
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading ? (
-          <p className="text-gray-400 col-span-3 text-center py-12">Loading...</p>
-        ) : types.length === 0 ? (
-          <p className="text-gray-400 col-span-3 text-center py-12">No leave types configured</p>
-        ) : (
-          types.map((t: any) => (
-            <Card key={t.id} className={`${!t.is_active ? "opacity-50" : ""}`}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: t.color || "#E8604C" }} />
-                    <h3 className="font-semibold text-gray-900">{t.name}</h3>
-                    <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{t.code}</span>
-                  </div>
-                  <Switch checked={t.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: t.id, is_active: v })} />
-                </div>
-                <div className="space-y-1 text-sm text-gray-600">
-                  <p>📅 Max {t.max_days_per_year} days/quarter</p>
-                  <p>{t.is_paid ? "💰 Paid" : "📋 Unpaid"} • {t.requires_approval ? "✅ Needs Approval" : "🔓 Auto-Approved"}</p>
-                  <p>🔄 {getCarryForwardLabel(t)}</p>
-                  {getResetLabel(t) && <p>🔁 {getResetLabel(t)}</p>}
-                  {t.is_encashable && <p>💵 Encashable</p>}
-                  {t.is_compensatory_leave && <p>⚡ Compensatory Leave</p>}
-                  {t.exclude_holiday && <p>🏖️ Excludes holidays</p>}
-                  {t.require_attachment && <p>📎 Attachment required</p>}
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(t)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
-                  <Button variant="outline" size="sm" className="text-red-600 hover:bg-red-50" onClick={() => deleteMutation.mutate(t.id)}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+      {/* Table */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="text-left font-medium text-muted-foreground px-4 py-3">Leave Type</th>
+              <th className="text-center font-medium text-muted-foreground px-4 py-3 hidden sm:table-cell">Quota / Qtr</th>
+              <th className="text-center font-medium text-muted-foreground px-4 py-3 hidden md:table-cell">Carry Forward</th>
+              <th className="text-left font-medium text-muted-foreground px-4 py-3 hidden lg:table-cell">Properties</th>
+              <th className="text-center font-medium text-muted-foreground px-4 py-3">Status</th>
+              <th className="text-right font-medium text-muted-foreground px-4 py-3 w-12"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="text-center py-16">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
+                </td>
+              </tr>
+            ) : types.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="text-center py-16 text-muted-foreground">
+                  No leave types configured. Click "New Leave Type" to get started.
+                </td>
+              </tr>
+            ) : (
+              types.map((t: any) => (
+                <tr key={t.id} className={`hover:bg-muted/30 transition-colors ${!t.is_active ? "opacity-50" : ""}`}>
+                  {/* Name + Code */}
+                  <td className="px-4 py-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-card"
+                        style={{ backgroundColor: t.color || "#6C63FF", boxShadow: `0 0 6px ${t.color || "#6C63FF"}40` }}
+                      />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{t.name}</span>
+                          <span className="text-[10px] font-mono tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            {t.code}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Quota */}
+                  <td className="px-4 py-3.5 text-center hidden sm:table-cell">
+                    <div className="inline-flex items-center gap-1.5 text-foreground">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="font-medium">{t.max_days_per_year}</span>
+                      <span className="text-muted-foreground text-xs">days</span>
+                    </div>
+                  </td>
+
+                  {/* Carry Forward */}
+                  <td className="px-4 py-3.5 text-center hidden md:table-cell">
+                    <div className="inline-flex items-center gap-1.5">
+                      <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className={`text-xs ${t.carryforward_type === "no carryforward" ? "text-muted-foreground" : "text-foreground font-medium"}`}>
+                        {getCarryForwardLabel(t)}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Properties */}
+                  <td className="px-4 py-3.5 hidden lg:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {getTags(t).map((tag, i) => (
+                        <Badge key={i} variant={tag.variant} className="text-[10px] font-normal gap-1 px-1.5 py-0">
+                          <tag.icon className="h-2.5 w-2.5" />
+                          {tag.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3.5 text-center">
+                    <Switch
+                      checked={t.is_active}
+                      onCheckedChange={(v) => toggleMutation.mutate({ id: t.id, is_active: v })}
+                    />
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-3.5 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => openEdit(t)}>
+                          <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteId(t.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Leave Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this leave type. Any existing allocations or requests using this type may be affected. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editId ? "Edit Leave Type" : "Create Leave Type"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>{editId ? "Edit Leave Type" : "New Leave Type"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5">
             {/* Basic Info */}
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Casual Leave" /></div>
-              <div><Label>Code</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. CL" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Max Days/Quarter</Label><Input type="number" value={form.max_days_per_year} onChange={(e) => setForm({ ...form, max_days_per_year: parseInt(e.target.value) || 0 })} /></div>
-              <div><Label>Color</Label><Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="h-10" /></div>
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Basic Information</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Name</Label>
+                  <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Casual Leave" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Code</Label>
+                  <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="e.g. CL" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Max Days / Quarter</Label>
+                  <Input type="number" value={form.max_days_per_year} onChange={(e) => setForm({ ...form, max_days_per_year: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Color</Label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="w-8 h-8 rounded border border-border cursor-pointer" />
+                    <Input value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="font-mono text-xs" />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Toggles */}
-            <div className="space-y-3 border-t pt-3">
-              <p className="text-xs font-medium text-gray-500 uppercase">Payment & Approval</p>
-              <div className="flex items-center gap-2"><Switch checked={form.is_paid} onCheckedChange={(v) => setForm({ ...form, is_paid: v })} /><Label>Paid Leave</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.requires_approval} onCheckedChange={(v) => setForm({ ...form, requires_approval: v })} /><Label>Requires Approval</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.require_attachment} onCheckedChange={(v) => setForm({ ...form, require_attachment: v })} /><Label>Require Attachment</Label></div>
+            {/* Payment & Approval */}
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Payment & Approval</p>
+              <div className="grid grid-cols-1 gap-2.5">
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Paid Leave</span>
+                  <Switch checked={form.is_paid} onCheckedChange={(v) => setForm({ ...form, is_paid: v })} />
+                </label>
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Requires Approval</span>
+                  <Switch checked={form.requires_approval} onCheckedChange={(v) => setForm({ ...form, requires_approval: v })} />
+                </label>
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Require Attachment</span>
+                  <Switch checked={form.require_attachment} onCheckedChange={(v) => setForm({ ...form, require_attachment: v })} />
+                </label>
+              </div>
             </div>
 
             {/* Carry Forward */}
-            <div className="space-y-3 border-t pt-3">
-              <p className="text-xs font-medium text-gray-500 uppercase">Carry Forward</p>
-              <div>
-                <Label>Carry Forward Type</Label>
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Carry Forward</p>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Type</Label>
                 <Select value={form.carryforward_type} onValueChange={(v) => setForm({ ...form, carryforward_type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -233,9 +369,12 @@ export default function LeaveTypesPage() {
               </div>
               {form.carryforward_type === "carryforward expire" && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div><Label>Expire In</Label><Input type="number" value={form.carryforward_expire_in ?? ""} onChange={(e) => setForm({ ...form, carryforward_expire_in: parseInt(e.target.value) || null })} placeholder="e.g. 3" /></div>
-                  <div>
-                    <Label>Period</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Expire In</Label>
+                    <Input type="number" value={form.carryforward_expire_in ?? ""} onChange={(e) => setForm({ ...form, carryforward_expire_in: parseInt(e.target.value) || null })} placeholder="e.g. 3" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Period</Label>
                     <Select value={form.carryforward_expire_period} onValueChange={(v) => setForm({ ...form, carryforward_expire_period: v })}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                       <SelectContent>
@@ -248,13 +387,16 @@ export default function LeaveTypesPage() {
             </div>
 
             {/* Reset */}
-            <div className="space-y-3 border-t pt-3">
-              <p className="text-xs font-medium text-gray-500 uppercase">Reset Configuration</p>
-              <div className="flex items-center gap-2"><Switch checked={form.reset} onCheckedChange={(v) => setForm({ ...form, reset: v })} /><Label>Enable Reset</Label></div>
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reset Configuration</p>
+              <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                <span className="text-sm text-foreground">Enable Reset</span>
+                <Switch checked={form.reset} onCheckedChange={(v) => setForm({ ...form, reset: v })} />
+              </label>
               {form.reset && (
-                <>
-                  <div>
-                    <Label>Reset Period</Label>
+                <div className="space-y-3 pl-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Reset Period</Label>
                     <Select value={form.reset_based} onValueChange={(v) => setForm({ ...form, reset_based: v })}>
                       <SelectTrigger><SelectValue placeholder="Select period" /></SelectTrigger>
                       <SelectContent>
@@ -263,8 +405,8 @@ export default function LeaveTypesPage() {
                     </Select>
                   </div>
                   {form.reset_based === "yearly" && (
-                    <div>
-                      <Label>Reset Month</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Reset Month</Label>
                       <Select value={form.reset_month} onValueChange={(v) => setForm({ ...form, reset_month: v })}>
                         <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
                         <SelectContent>
@@ -274,24 +416,44 @@ export default function LeaveTypesPage() {
                     </div>
                   )}
                   {(form.reset_based === "yearly" || form.reset_based === "monthly") && (
-                    <div><Label>Reset Day</Label><Input value={form.reset_day} onChange={(e) => setForm({ ...form, reset_day: e.target.value })} placeholder="e.g. 1, 15, or 'last day'" /></div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Reset Day</Label>
+                      <Input value={form.reset_day} onChange={(e) => setForm({ ...form, reset_day: e.target.value })} placeholder="e.g. 1, 15, or 'last day'" />
+                    </div>
                   )}
-                </>
+                </div>
               )}
             </div>
 
-            {/* Special Flags */}
-            <div className="space-y-3 border-t pt-3">
-              <p className="text-xs font-medium text-gray-500 uppercase">Special Options</p>
-              <div className="flex items-center gap-2"><Switch checked={form.is_encashable} onCheckedChange={(v) => setForm({ ...form, is_encashable: v })} /><Label>Encashable</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.is_compensatory_leave} onCheckedChange={(v) => setForm({ ...form, is_compensatory_leave: v })} /><Label>Compensatory Leave</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.exclude_company_leave} onCheckedChange={(v) => setForm({ ...form, exclude_company_leave: v })} /><Label>Exclude Company Holidays</Label></div>
-              <div className="flex items-center gap-2"><Switch checked={form.exclude_holiday} onCheckedChange={(v) => setForm({ ...form, exclude_holiday: v })} /><Label>Exclude Public Holidays</Label></div>
+            {/* Special Options */}
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Special Options</p>
+              <div className="grid grid-cols-1 gap-2.5">
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Encashable</span>
+                  <Switch checked={form.is_encashable} onCheckedChange={(v) => setForm({ ...form, is_encashable: v })} />
+                </label>
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Compensatory Leave</span>
+                  <Switch checked={form.is_compensatory_leave} onCheckedChange={(v) => setForm({ ...form, is_compensatory_leave: v })} />
+                </label>
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Exclude Company Holidays</span>
+                  <Switch checked={form.exclude_company_leave} onCheckedChange={(v) => setForm({ ...form, exclude_company_leave: v })} />
+                </label>
+                <label className="flex items-center justify-between p-2.5 rounded-md border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <span className="text-sm text-foreground">Exclude Public Holidays</span>
+                  <Switch checked={form.exclude_holiday} onCheckedChange={(v) => setForm({ ...form, exclude_holiday: v })} />
+                </label>
+              </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-2">
             <Button variant="outline" onClick={() => setShowDialog(false)}>Cancel</Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code} className="bg-[#E8604C] hover:bg-[#d4553f]">Save</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}>
+              {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+              {editId ? "Update" : "Create"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

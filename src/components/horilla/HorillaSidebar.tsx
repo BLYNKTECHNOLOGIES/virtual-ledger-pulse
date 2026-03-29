@@ -56,6 +56,25 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    title: "RECRUITMENT",
+    items: [
+      {
+        label: "Recruitment",
+        icon: Briefcase,
+        path: "/hrms/recruitment",
+        children: [
+          { label: "Dashboard", path: "/hrms/recruitment" },
+          { label: "Pipeline", path: "/hrms/recruitment/pipeline" },
+          { label: "Candidates", path: "/hrms/recruitment/candidates" },
+          { label: "Interviews", path: "/hrms/recruitment/interviews" },
+          { label: "Stages", path: "/hrms/recruitment/stages" },
+          { label: "Skill Zones", path: "/hrms/recruitment/skill-zones" },
+          { label: "Surveys", path: "/hrms/recruitment/surveys" },
+        ],
+      },
+    ],
+  },
+  {
     title: "TIME & ATTENDANCE",
     items: [
       {

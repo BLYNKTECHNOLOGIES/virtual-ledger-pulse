@@ -158,7 +158,7 @@ export const computeFullBreakdown = (items: any[], totalSalary: number, basicSal
     if (!comp) return;
     if (i.is_variable) {
       const entry = { name: comp.name, code: comp.code, amount: 0, isVariable: true };
-      if (comp.component_type === "allowance") earnings.push(entry);
+      if (comp.component_type === "allowance" || comp.component_type === "earning") earnings.push(entry);
       else deductions.push(entry);
       return;
     }

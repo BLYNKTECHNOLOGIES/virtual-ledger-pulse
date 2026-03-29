@@ -217,9 +217,11 @@ export default function CandidateProfilePage() {
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "about", label: "About" },
     { key: "notes", label: "Notes", count: notes.length },
+    { key: "ratings", label: "Ratings", count: ratings.length },
     { key: "interviews", label: "Interviews", count: interviews.length },
     { key: "offers", label: "Offers", count: offers.length },
-    { key: "history", label: "History" },
+    { key: "stage_history", label: "Stage History", count: stageNotes.length },
+    { key: "history", label: "Timeline" },
   ];
 
   const STATUS_COLORS: Record<string, string> = {

@@ -162,16 +162,49 @@ export default function CandidateProfilePage() {
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("hr_candidates").update({ canceled: true, hired: false }).eq("id", id!);
+      const { error } = await supabase.from("hr_candidates").update({ canceled: true, hired: false, reject_reason: rejectReason || null }).eq("id", id!);
       if (error) throw error;
+      // Archive to rejected candidates table
+      await supabase.from("hr_rejected_candidates").insert({
+        candidate_id: id!,
+        reject_reason: rejectReason || "No reason provided",
+        description: `Rejected from candidate profile page. Stage: ${stage?.stage_name || "Unknown"}`,
+      });
+      // Log stage note
+      if (candidate?.stage_id) {
+        await supabase.from("hr_stage_notes").insert({
+          candidate_id: id!,
+          stage_id: candidate.stage_id,
+          description: `Candidate REJECTED. Reason: ${rejectReason || "Not specified"}`,
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Candidate rejected");
+      setRejectReason("");
       queryClient.invalidateQueries({ queryKey: ["hr_candidate", id] });
       queryClient.invalidateQueries({ queryKey: ["hr_candidates"] });
       queryClient.invalidateQueries({ queryKey: ["hr_candidates_all"] });
     },
     onError: (err: any) => toast.error(err?.message || "Failed to reject candidate"),
+  });
+
+  const addRatingMutation = useMutation({
+    mutationFn: async () => {
+      // Using a placeholder employee_id since we don't have current user's employee record
+      const { error } = await supabase.from("hr_candidate_ratings").insert({
+        candidate_id: id!,
+        employee_id: "00000000-0000-0000-0000-000000000000",
+        rating: newRating,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Rating added");
+      setNewRating(3);
+      queryClient.invalidateQueries({ queryKey: ["hr_candidate_ratings", id] });
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to add rating"),
   });
 
   if (isLoading || !candidate) {

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { LeaveTab } from "@/components/hrms/LeaveTab";
+import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { Progress } from "@/components/ui/progress";
 
 // ─── Tabs matching Horilla ───

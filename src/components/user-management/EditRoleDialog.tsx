@@ -178,7 +178,8 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
   special: {
     label: 'Special',
     permissions: [
-      { id: 'shift_reconciliation_approve', name: 'Shift Reconciliation', description: 'Approve shift reconciliation', tier: 'special' },
+      { id: 'shift_reconciliation_create', name: 'Reconciliation Create', description: 'Submit shift reconciliation records', tier: 'special' },
+      { id: 'shift_reconciliation_approve', name: 'Reconciliation Approve', description: 'Approve/reject shift reconciliation', tier: 'special' },
     ],
   },
 };

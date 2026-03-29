@@ -43,10 +43,10 @@ export function usePermissions() {
           'statistics_view', 'statistics_manage',
           'erp_destructive', 'terminal_destructive', 'bams_destructive',
           'clients_destructive', 'stock_destructive',
-          'shift_reconciliation_approve',
-          'utility_view', 'utility_manage',
-          'tasks_view', 'tasks_manage'
-        ];
+           'shift_reconciliation_create', 'shift_reconciliation_approve',
+           'utility_view', 'utility_manage',
+           'tasks_view', 'tasks_manage'
+         ];
         setPermissions(adminPermissions);
         localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
         return;
@@ -81,8 +81,8 @@ export function usePermissions() {
             'kyc_approvals_view', 'kyc_approvals_manage',
             'statistics_view', 'statistics_manage',
             'erp_destructive', 'terminal_destructive', 'bams_destructive',
-            'clients_destructive', 'stock_destructive',
-             'shift_reconciliation_approve',
+             'clients_destructive', 'stock_destructive',
+             'shift_reconciliation_create', 'shift_reconciliation_approve',
              'utility_view', 'utility_manage',
              'tasks_view', 'tasks_manage'
            ];

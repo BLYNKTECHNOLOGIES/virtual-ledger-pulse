@@ -141,13 +141,13 @@ export function ResignationTab() {
     },
   });
 
-  // Initiate resignation
+  // Initiate resignation — goes to pending_approval first
   const initiateResignation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from("hr_employees")
         .update({
-          resignation_status: "notice_period",
+          resignation_status: "pending_approval",
           resignation_date: formData.resignation_date,
           notice_period_end_date: formData.notice_period_end_date,
           last_working_day: formData.last_working_day,
@@ -155,19 +155,52 @@ export function ResignationTab() {
         })
         .eq("id", formData.employee_id);
       if (error) throw error;
-
-      // Initialize checklist
-      const { error: rpcError } = await supabase.rpc("fn_initialize_resignation_checklist", {
-        p_employee_id: formData.employee_id,
-      });
-      if (rpcError) throw rpcError;
     },
     onSuccess: () => {
-      toast.success("Resignation initiated successfully");
+      toast.success("Resignation submitted for approval");
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowInitiateDialog(false);
       setFormData({ employee_id: "", resignation_date: "", notice_period_end_date: "", last_working_day: "", separation_reason: "" });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Approve resignation — moves to notice_period and initializes checklist
+  const approveResignation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { error } = await supabase
+        .from("hr_employees")
+        .update({ resignation_status: "notice_period" })
+        .eq("id", employeeId);
+      if (error) throw error;
+
+      // Initialize checklist on approval
+      const { error: rpcError } = await supabase.rpc("fn_initialize_resignation_checklist", {
+        p_employee_id: employeeId,
+      });
+      if (rpcError) throw rpcError;
+    },
+    onSuccess: () => {
+      toast.success("Resignation approved — notice period started");
+      queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Reject resignation
+  const rejectResignation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { error } = await supabase
+        .from("hr_employees")
+        .update({ resignation_status: null, resignation_date: null, notice_period_end_date: null, last_working_day: null, separation_reason: null })
+        .eq("id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Resignation rejected");
+      queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
+      queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
     },
     onError: (err: any) => toast.error(err.message),
   });

@@ -501,17 +501,19 @@ export default function TerminalMPI() {
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Select value={viewLevel} onValueChange={setViewLevel}>
-            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="operators">Operators</SelectItem>
-              <SelectItem value="payers">Payers</SelectItem>
-              <SelectItem value="admins">Admins</SelectItem>
-            </SelectContent>
-          </Select>
+          {canViewAll && (
+            <Select value={viewLevel} onValueChange={setViewLevel}>
+              <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="operators">Operators</SelectItem>
+                <SelectItem value="payers">Payers</SelectItem>
+                <SelectItem value="admins">Admins</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />

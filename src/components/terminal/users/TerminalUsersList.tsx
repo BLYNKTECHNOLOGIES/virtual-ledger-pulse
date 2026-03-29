@@ -51,6 +51,9 @@ interface UserAssignment {
 export function TerminalUsersList() {
   const { hasPermission, userId: currentUserId, isSuperAdmin, isTerminalAdmin } = useTerminalAuth();
   const canManage = hasPermission("terminal_users_manage");
+  const canManageAll = hasPermission("terminal_users_manage_all") || isSuperAdmin || isTerminalAdmin;
+  const canManageSubs = hasPermission("terminal_users_manage_subordinates");
+  const canRoleAssign = hasPermission("terminal_users_role_assign") || isTerminalAdmin;
 
   const [assignments, setAssignments] = useState<UserAssignment[]>([]);
   const [availableRoles, setAvailableRoles] = useState<TerminalRole[]>([]);
@@ -180,9 +183,11 @@ export function TerminalUsersList() {
         return aLevel - bLevel;
       });
 
-      // --- Hierarchical visibility filtering ---
-      // Super Admins and Admins see everyone; others see only themselves + subordinates
-      if (currentUserId && !isSuperAdmin && !isTerminalAdmin) {
+      // --- Hierarchical visibility filtering (GAP 8) ---
+      // canManageAll: see everyone
+      // canManageSubs: see self + subordinates
+      // Otherwise (just view): see self + subordinates
+      if (currentUserId && !canManageAll) {
         // BFS to find all subordinates of current user
         const visibleUserIds = new Set<string>([currentUserId]);
         const queue = [currentUserId];
@@ -207,7 +212,7 @@ export function TerminalUsersList() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUserId, isSuperAdmin, isTerminalAdmin]);
+  }, [currentUserId, canManageAll]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -259,7 +264,7 @@ export function TerminalUsersList() {
       const matchesSearch = u.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
         u.email.toLowerCase().includes(userSearchTerm.toLowerCase());
       // Non-admins can only grant access to users within their jurisdiction
-      if (!isSuperAdmin && !isTerminalAdmin) {
+      if (!canManageAll) {
         return matchesSearch && visibleUserIds.has(u.id);
       }
       return matchesSearch;
@@ -296,7 +301,7 @@ export function TerminalUsersList() {
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchData}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
-          {canManage && (
+          {canRoleAssign && (
             <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="h-8 text-xs">

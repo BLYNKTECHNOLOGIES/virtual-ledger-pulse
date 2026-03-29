@@ -11695,7 +11695,7 @@ export type Database = {
       }
       terminal_auto_assignment_log: {
         Row: {
-          assigned_to: string
+          assigned_to: string | null
           created_at: string
           eligible_count: number
           id: string
@@ -11704,7 +11704,7 @@ export type Database = {
           strategy_used: string
         }
         Insert: {
-          assigned_to: string
+          assigned_to?: string | null
           created_at?: string
           eligible_count?: number
           id?: string
@@ -11713,7 +11713,7 @@ export type Database = {
           strategy_used: string
         }
         Update: {
-          assigned_to?: string
+          assigned_to?: string | null
           created_at?: string
           eligible_count?: number
           id?: string
@@ -11964,10 +11964,14 @@ export type Database = {
       terminal_mpi_snapshots: {
         Row: {
           avg_completion_time_minutes: number | null
+          avg_order_size: number | null
+          avg_response_time_minutes: number | null
           buy_count: number
+          completion_rate: number | null
           created_at: string
           id: string
           idle_time_minutes: number | null
+          mpi_score: number | null
           orders_cancelled: number
           orders_completed: number
           orders_handled: number
@@ -11978,10 +11982,14 @@ export type Database = {
         }
         Insert: {
           avg_completion_time_minutes?: number | null
+          avg_order_size?: number | null
+          avg_response_time_minutes?: number | null
           buy_count?: number
+          completion_rate?: number | null
           created_at?: string
           id?: string
           idle_time_minutes?: number | null
+          mpi_score?: number | null
           orders_cancelled?: number
           orders_completed?: number
           orders_handled?: number
@@ -11992,10 +12000,14 @@ export type Database = {
         }
         Update: {
           avg_completion_time_minutes?: number | null
+          avg_order_size?: number | null
+          avg_response_time_minutes?: number | null
           buy_count?: number
+          completion_rate?: number | null
           created_at?: string
           id?: string
           idle_time_minutes?: number | null
+          mpi_score?: number | null
           orders_cancelled?: number
           orders_completed?: number
           orders_handled?: number
@@ -12013,6 +12025,7 @@ export type Database = {
           is_active: boolean
           is_read: boolean
           message: string
+          metadata: Json | null
           notification_type: string
           related_user_id: string | null
           title: string
@@ -12025,6 +12038,7 @@ export type Database = {
           is_active?: boolean
           is_read?: boolean
           message: string
+          metadata?: Json | null
           notification_type?: string
           related_user_id?: string | null
           title: string
@@ -12037,6 +12051,7 @@ export type Database = {
           is_active?: boolean
           is_read?: boolean
           message?: string
+          metadata?: Json | null
           notification_type?: string
           related_user_id?: string | null
           title?: string
@@ -12123,6 +12138,7 @@ export type Database = {
           assignment_type: string
           created_at: string
           exchange_account_id: string | null
+          first_action_at: string | null
           id: string
           is_active: boolean
           order_number: string
@@ -12138,6 +12154,7 @@ export type Database = {
           assignment_type?: string
           created_at?: string
           exchange_account_id?: string | null
+          first_action_at?: string | null
           id?: string
           is_active?: boolean
           order_number: string
@@ -12153,6 +12170,7 @@ export type Database = {
           assignment_type?: string
           created_at?: string
           exchange_account_id?: string | null
+          first_action_at?: string | null
           id?: string
           is_active?: boolean
           order_number?: string
@@ -13481,27 +13499,16 @@ export type Database = {
         Args: { p_employee_id: string }
         Returns: string
       }
-      auto_assign_order_by_scope:
-        | {
-            Args: {
-              p_adv_no?: string
-              p_asset?: string
-              p_order_number: string
-              p_total_price?: number
-              p_trade_type?: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_adv_no?: string
-              p_asset?: string
-              p_order_number: string
-              p_total_price: number
-              p_trade_type: string
-            }
-            Returns: Json
-          }
+      auto_assign_order_by_scope: {
+        Args: {
+          p_adv_no?: string
+          p_asset?: string
+          p_order_number: string
+          p_total_price?: number
+          p_trade_type?: string
+        }
+        Returns: Json
+      }
       auto_generate_penalties: {
         Args: { p_month?: string }
         Returns: {
@@ -14030,7 +14037,7 @@ export type Database = {
         Returns: string
       }
       generate_terminal_mpi_snapshots: {
-        Args: { p_date?: string }
+        Args: { p_date: string }
         Returns: number
       }
       get_active_users: {
@@ -14072,6 +14079,14 @@ export type Database = {
         Returns: {
           user_id: string
         }[]
+      }
+      get_terminal_mpi_leaderboard: {
+        Args: { p_from: string; p_limit?: number; p_to: string }
+        Returns: Json
+      }
+      get_terminal_mpi_summary: {
+        Args: { p_from: string; p_to: string; p_user_id: string }
+        Returns: Json
       }
       get_terminal_operator_workloads: {
         Args: never
@@ -14407,6 +14422,10 @@ export type Database = {
           p_role_id?: string
         }
         Returns: string
+      }
+      set_terminal_user_status: {
+        Args: { p_status: string; p_user_id: string }
+        Returns: Json
       }
       store_webauthn_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }

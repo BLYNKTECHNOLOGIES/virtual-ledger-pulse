@@ -114,6 +114,53 @@ export default function CandidateProfilePage() {
     enabled: !!id,
   });
 
+  // Fetch candidate stages for this candidate
+  const { data: candidateStages = [] } = useQuery({
+    queryKey: ["hr_candidate_stages", id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_candidate_stages")
+        .select("id, stage_id, onboarding_stage_id, created_at, hr_stages(stage_name)")
+        .eq("candidate_id", id!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch candidate tasks
+  const { data: candidateTasks = [], refetch: refetchTasks } = useQuery({
+    queryKey: ["hr_candidate_tasks", id, candidateStages.length],
+    queryFn: async () => {
+      if (!candidateStages.length) return [];
+      const stageIds = candidateStages.map((s: any) => s.id);
+      const { data, error } = await (supabase as any)
+        .from("hr_candidate_tasks")
+        .select("*, hr_onboarding_tasks(title)")
+        .in("candidate_stage_id", stageIds)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: candidateStages.length > 0,
+  });
+
+  const toggleTaskMutation = useMutation({
+    mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: string }) => {
+      const { error } = await (supabase as any)
+        .from("hr_candidate_tasks")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchTasks();
+      toast.success("Task updated");
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to update task"),
+  });
+
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("hr_candidates").update(editForm).eq("id", id!);

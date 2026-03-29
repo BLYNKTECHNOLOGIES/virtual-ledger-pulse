@@ -608,6 +608,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
             </DialogDescription>
             {/* Tab Navigation */}
             <div className="flex gap-2 mt-3">
+              {canCreate && (
               <Button
                 size="sm"
                 variant={activeView === "actions" ? "default" : "outline"}
@@ -615,6 +616,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
               >
                 <Upload className="h-4 w-4 mr-1" /> Submit
               </Button>
+              )}
               <Button
                 size="sm"
                 variant={activeView === "report" && reportData ? "default" : "outline"}

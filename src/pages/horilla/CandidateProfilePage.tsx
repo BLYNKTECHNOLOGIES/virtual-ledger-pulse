@@ -169,7 +169,28 @@ export default function CandidateProfilePage() {
     onError: (err: any) => toast.error(err?.message || "Failed to update task"),
   });
 
-  const updateMutation = useMutation({
+  const createTaskMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any)
+        .from("hr_candidate_tasks")
+        .insert({
+          candidate_stage_id: newTaskStageId,
+          candidate_task_id: null,
+          status: "pending",
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchTasks();
+      toast.success("Task added");
+      setShowAddTask(false);
+      setNewTaskTitle("");
+      setNewTaskStageId("");
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to add task"),
+  });
+
+
     mutationFn: async () => {
       const { error } = await supabase.from("hr_candidates").update(editForm).eq("id", id!);
       if (error) throw error;

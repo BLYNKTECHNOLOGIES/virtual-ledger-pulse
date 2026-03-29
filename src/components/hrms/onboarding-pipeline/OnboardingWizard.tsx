@@ -10,6 +10,7 @@ import { Stage2SalaryConfig } from "./Stage2SalaryConfig";
 import { Stage3Documents } from "./Stage3Documents";
 import { Stage4OfferPolicy } from "./Stage4OfferPolicy";
 import { Stage5Finalization } from "./Stage5Finalization";
+import OnboardingTaskManager from "./OnboardingTaskManager";
 
 const STAGE_LABELS = ["Basic Details", "Salary Config", "Documents", "Offer & Policy", "Finalization"];
 
@@ -379,6 +380,13 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           onBack={() => setActiveStage(4)}
           readOnly={isCompleted}
         />
+      )}
+
+      {/* Onboarding Task Checklist */}
+      {recordId && (
+        <div className="mt-6">
+          <OnboardingTaskManager onboardingId={recordId} recruitmentId={record?.recruitment_id} />
+        </div>
       )}
     </div>
   );

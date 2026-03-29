@@ -220,12 +220,12 @@ export function ResignationTab() {
     onSuccess: () => refetchChecklist(),
   });
 
-  // Complete resignation — deactivate employee, auto-create F&F, show acknowledgement
+  // Complete resignation — deactivate employee, auto-create F&F with calculated values, show acknowledgement
   const completeResignation = useMutation({
     mutationFn: async (employeeId: string) => {
       const { data: empData } = await supabase
         .from("hr_employees")
-        .select("first_name, last_name, badge_id, notice_period_end_date, last_working_day, resignation_date, separation_reason")
+        .select("first_name, last_name, badge_id, notice_period_end_date, last_working_day, resignation_date, separation_reason, total_salary")
         .eq("id", employeeId)
         .single();
 
@@ -241,22 +241,67 @@ export function ResignationTab() {
         .eq("id", employeeId);
       if (error) throw error;
 
-      // Auto-create draft F&F settlement (B3)
+      // Calculate F&F values from actual data
+      const dailySalary = Number(empData?.total_salary || 0) / 30;
+
+      // Loan outstanding balance
+      const { data: loans } = await (supabase as any)
+        .from("hr_loans")
+        .select("outstanding_balance")
+        .eq("employee_id", employeeId)
+        .eq("status", "active");
+      const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
+
+      // Encashable leave balance
+      const { data: allocations } = await (supabase as any)
+        .from("hr_leave_allocations")
+        .select("available_days, hr_leave_types!hr_leave_allocations_leave_type_id_fkey(is_encashable)")
+        .eq("employee_id", employeeId);
+      const encashDays = (allocations || [])
+        .filter((a: any) => a.hr_leave_types?.is_encashable)
+        .reduce((sum: number, a: any) => sum + Number(a.available_days || 0), 0);
+      const leaveEncashAmount = Math.round(encashDays * dailySalary);
+
+      // Pending penalties
+      const { data: penalties } = await (supabase as any)
+        .from("hr_penalties")
+        .select("deduction_amount")
+        .eq("employee_id", employeeId)
+        .eq("is_applied", false);
+      const penaltyTotal = (penalties || []).reduce((sum: number, p: any) => sum + Number(p.deduction_amount || 0), 0);
+
+      // Deposit refund (collected amount that needs to be returned)
+      const { data: deposits } = await (supabase as any)
+        .from("hr_employee_deposits")
+        .select("collected_amount")
+        .eq("employee_id", employeeId)
+        .eq("is_settled", false);
+      const depositRefund = (deposits || []).reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
+
+      const netPayable = leaveEncashAmount + depositRefund - loanRecovery - penaltyTotal;
+
+      // Auto-create calculated F&F settlement
       try {
         await (supabase as any).from("hr_fnf_settlements").insert({
           employee_id: employeeId,
           status: "draft",
-          settlement_date: empData?.last_working_day || new Date().toISOString().split('T')[0],
-          total_earnings: 0,
-          total_deductions: 0,
-          net_payable: 0,
-          notes: "Auto-created on resignation completion",
+          last_working_day: empData?.last_working_day || new Date().toISOString().split('T')[0],
+          pending_salary: 0,
+          leave_encashment_days: encashDays,
+          leave_encashment_amount: leaveEncashAmount,
+          bonus_amount: 0,
+          loan_recovery: loanRecovery,
+          deposit_refund: depositRefund,
+          penalty_deductions: penaltyTotal,
+          other_deductions: 0,
+          net_payable: netPayable,
+          notes: "Auto-calculated on resignation completion",
         });
       } catch (e) {
         console.warn("F&F auto-creation failed (non-fatal):", e);
       }
 
-      return empData;
+      return { ...empData, fnf: { leaveEncashAmount, loanRecovery, depositRefund, penaltyTotal, netPayable, encashDays } };
     },
     onSuccess: (empData) => {
       toast.success("Resignation completed — employee deactivated");

@@ -96,6 +96,10 @@ import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
 import ObjectivesPage from './pages/horilla/ObjectivesPage';
 import Feedback360Page from './pages/horilla/Feedback360Page';
 import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
+import DisciplinaryActionsPage from './pages/horilla/DisciplinaryActionsPage';
+import BonusPointsPage from './pages/horilla/BonusPointsPage';
+import WeeklyOffPage from './pages/horilla/WeeklyOffPage';
+import LeaveAllocationRequestsPage from './pages/horilla/LeaveAllocationRequestsPage';
 import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
 import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
 import CandidatesListPage from './pages/horilla/CandidatesListPage';
@@ -656,6 +660,8 @@ const router = createBrowserRouter([
         { path: "leave/comp-off", element: <CompOffPage /> },
         { path: "leave/year-end-reset", element: <LeaveYearEndResetPage /> },
         { path: "leave/accrual-plans", element: <LeaveAccrualPlansPage /> },
+        { path: "leave/allocation-requests", element: <LeaveAllocationRequestsPage /> },
+        { path: "leave/weekly-off", element: <WeeklyOffPage /> },
         { path: "payroll", element: <PayrollDashboardPage /> },
         { path: "payroll/tax-config", element: <TaxConfigPage /> },
         { path: "payroll/payslips", element: <PayslipsPage /> },
@@ -684,6 +690,8 @@ const router = createBrowserRouter([
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
         { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
+        { path: "disciplinary-actions", element: <DisciplinaryActionsPage /> },
+        { path: "bonus-points", element: <BonusPointsPage /> },
         { path: "recruitment", element: <RecruitmentDashboardPage /> },
         { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
         { path: "recruitment/candidates", element: <CandidatesListPage /> },

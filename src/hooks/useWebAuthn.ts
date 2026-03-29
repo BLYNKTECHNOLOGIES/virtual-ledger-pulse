@@ -69,7 +69,7 @@ export async function registerBiometric(userId: string, username: string, device
       challenge: base64urlToBuffer(challengeData.challenge),
       rp: {
         name: challengeData.rpName || 'P2P Trading Terminal',
-        id: window.location.hostname,
+        id: 'blynkex.com',
       },
       user: {
         id: new TextEncoder().encode(userId),
@@ -133,7 +133,7 @@ export async function authenticateBiometric(
   // 2. Get assertion via browser API
   const publicKeyOptions: PublicKeyCredentialRequestOptions = {
     challenge: base64urlToBuffer(challengeData.challenge),
-    rpId: window.location.hostname,
+    rpId: 'blynkex.com',
     userVerification: 'required',
     timeout: 60000,
     // Pass server credentials if available; browser will check all providers

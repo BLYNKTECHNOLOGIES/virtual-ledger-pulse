@@ -6398,6 +6398,7 @@ export type Database = {
           deductions_breakdown: Json | null
           earnings_breakdown: Json | null
           employee_id: string
+          employer_contributions: Json | null
           gross_salary: number
           holiday_days_worked: number | null
           id: string
@@ -6424,6 +6425,7 @@ export type Database = {
           deductions_breakdown?: Json | null
           earnings_breakdown?: Json | null
           employee_id: string
+          employer_contributions?: Json | null
           gross_salary?: number
           holiday_days_worked?: number | null
           id?: string
@@ -6450,6 +6452,7 @@ export type Database = {
           deductions_breakdown?: Json | null
           earnings_breakdown?: Json | null
           employee_id?: string
+          employer_contributions?: Json | null
           gross_salary?: number
           holiday_days_worked?: number | null
           id?: string

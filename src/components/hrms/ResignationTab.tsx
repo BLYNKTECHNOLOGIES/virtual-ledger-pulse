@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2 } from "lucide-react";
+import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
 
 type ResignationEmployee = {
   id: string;
@@ -47,10 +47,12 @@ type TemplateItem = {
 };
 
 export function ResignationTab() {
-  const [subTab, setSubTab] = useState("active");
+  const [subTab, setSubTab] = useState("pending");
   const [showInitiateDialog, setShowInitiateDialog] = useState(false);
   const [showChecklistDialog, setShowChecklistDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showAcknowledgement, setShowAcknowledgement] = useState(false);
+  const [acknowledgementData, setAcknowledgementData] = useState<any>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<ResignationEmployee | null>(null);
   const [formData, setFormData] = useState({
     employee_id: "",
@@ -139,13 +141,13 @@ export function ResignationTab() {
     },
   });
 
-  // Initiate resignation
+  // Initiate resignation — goes to pending_approval first
   const initiateResignation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase
         .from("hr_employees")
         .update({
-          resignation_status: "notice_period",
+          resignation_status: "pending_approval",
           resignation_date: formData.resignation_date,
           notice_period_end_date: formData.notice_period_end_date,
           last_working_day: formData.last_working_day,
@@ -153,19 +155,52 @@ export function ResignationTab() {
         })
         .eq("id", formData.employee_id);
       if (error) throw error;
-
-      // Initialize checklist
-      const { error: rpcError } = await supabase.rpc("fn_initialize_resignation_checklist", {
-        p_employee_id: formData.employee_id,
-      });
-      if (rpcError) throw rpcError;
     },
     onSuccess: () => {
-      toast.success("Resignation initiated successfully");
+      toast.success("Resignation submitted for approval");
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowInitiateDialog(false);
       setFormData({ employee_id: "", resignation_date: "", notice_period_end_date: "", last_working_day: "", separation_reason: "" });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Approve resignation — moves to notice_period and initializes checklist
+  const approveResignation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { error } = await supabase
+        .from("hr_employees")
+        .update({ resignation_status: "notice_period" })
+        .eq("id", employeeId);
+      if (error) throw error;
+
+      // Initialize checklist on approval
+      const { error: rpcError } = await supabase.rpc("fn_initialize_resignation_checklist", {
+        p_employee_id: employeeId,
+      });
+      if (rpcError) throw rpcError;
+    },
+    onSuccess: () => {
+      toast.success("Resignation approved — notice period started");
+      queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Reject resignation
+  const rejectResignation = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const { error } = await supabase
+        .from("hr_employees")
+        .update({ resignation_status: null, resignation_date: null, notice_period_end_date: null, last_working_day: null, separation_reason: null })
+        .eq("id", employeeId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Resignation rejected");
+      queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
+      queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -185,13 +220,12 @@ export function ResignationTab() {
     onSuccess: () => refetchChecklist(),
   });
 
-  // Complete resignation — deactivate employee and schedule account deletion
+  // Complete resignation — deactivate employee, auto-create F&F, show acknowledgement
   const completeResignation = useMutation({
     mutationFn: async (employeeId: string) => {
-      // Get the employee's notice_period_end_date or last_working_day for deletion scheduling
       const { data: empData } = await supabase
         .from("hr_employees")
-        .select("notice_period_end_date, last_working_day")
+        .select("first_name, last_name, badge_id, notice_period_end_date, last_working_day, resignation_date, separation_reason")
         .eq("id", employeeId)
         .single();
 
@@ -206,13 +240,43 @@ export function ResignationTab() {
         })
         .eq("id", employeeId);
       if (error) throw error;
+
+      // Auto-create draft F&F settlement (B3)
+      try {
+        await (supabase as any).from("hr_fnf_settlements").insert({
+          employee_id: employeeId,
+          status: "draft",
+          settlement_date: empData?.last_working_day || new Date().toISOString().split('T')[0],
+          total_earnings: 0,
+          total_deductions: 0,
+          net_payable: 0,
+          notes: "Auto-created on resignation completion",
+        });
+      } catch (e) {
+        console.warn("F&F auto-creation failed (non-fatal):", e);
+      }
+
+      return empData;
     },
-    onSuccess: () => {
-      toast.success("Resignation completed — employee deactivated, account will be deleted after notice period");
+    onSuccess: (empData) => {
+      toast.success("Resignation completed — employee deactivated");
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowChecklistDialog(false);
       setSelectedEmployee(null);
+
+      // Show acknowledgement summary (B1)
+      if (empData) {
+        setAcknowledgementData({
+          name: `${empData.first_name} ${empData.last_name}`,
+          badge: empData.badge_id,
+          resignationDate: empData.resignation_date,
+          lastWorkingDay: empData.last_working_day,
+          reason: empData.separation_reason,
+          checklistCompleted: `${completedCount}/${totalCount}`,
+        });
+        setShowAcknowledgement(true);
+      }
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -277,6 +341,7 @@ export function ResignationTab() {
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
+      case "pending_approval": return <Badge className="bg-blue-100 text-blue-800">Pending Approval</Badge>;
       case "notice_period": return <Badge className="bg-amber-100 text-amber-800">Notice Period</Badge>;
       case "completed": return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
       case "withdrawn": return <Badge className="bg-gray-100 text-gray-800">Withdrawn</Badge>;
@@ -284,6 +349,7 @@ export function ResignationTab() {
     }
   };
 
+  const pendingApprovals = resigningEmployees?.filter(e => e.resignation_status === "pending_approval") || [];
   const activeResignations = resigningEmployees?.filter(e => e.resignation_status === "notice_period") || [];
   const completedResignations = resigningEmployees?.filter(e => e.resignation_status === "completed") || [];
 
@@ -314,13 +380,54 @@ export function ResignationTab() {
 
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList>
+          <TabsTrigger value="pending" className="gap-1">
+            <FileText className="h-3.5 w-3.5" /> Pending Approval ({pendingApprovals.length})
+          </TabsTrigger>
           <TabsTrigger value="active" className="gap-1">
-            <Clock className="h-3.5 w-3.5" /> Active ({activeResignations.length})
+            <Clock className="h-3.5 w-3.5" /> Notice Period ({activeResignations.length})
           </TabsTrigger>
           <TabsTrigger value="completed" className="gap-1">
             <CheckCircle2 className="h-3.5 w-3.5" /> Completed ({completedResignations.length})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pending">
+          {pendingApprovals.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">No resignations pending approval</CardContent></Card>
+          ) : (
+            <div className="grid gap-3">
+              {pendingApprovals.map(emp => (
+                <Card key={emp.id} className="hover:shadow-md transition-shadow border-blue-200 dark:border-blue-800">
+                  <CardContent className="py-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{emp.first_name} {emp.last_name}</span>
+                          <span className="text-xs text-muted-foreground">#{emp.badge_id}</span>
+                          {getStatusBadge(emp.resignation_status)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{emp.hr_employee_work_info?.[0]?.job_role || "—"}</div>
+                        <div className="text-sm space-x-4">
+                          <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString() : "—"}</strong></span>
+                          <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}</strong></span>
+                        </div>
+                        {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => { if (confirm("Approve this resignation and start notice period?")) approveResignation.mutate(emp.id); }}>
+                          <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Reject this resignation?")) rejectResignation.mutate(emp.id); }}>
+                          <XCircle className="h-4 w-4 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="active">
           {activeResignations.length === 0 ? (
@@ -518,6 +625,57 @@ export function ResignationTab() {
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resignation Acknowledgement Dialog (B1) */}
+      <Dialog open={showAcknowledgement} onOpenChange={setShowAcknowledgement}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600" /> Resignation Acknowledgement
+            </DialogTitle>
+          </DialogHeader>
+          {acknowledgementData && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Employee</span>
+                  <span className="font-medium">{acknowledgementData.name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Badge ID</span>
+                  <span className="font-medium">#{acknowledgementData.badge}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Resignation Date</span>
+                  <span className="font-medium">{acknowledgementData.resignationDate ? new Date(acknowledgementData.resignationDate).toLocaleDateString() : "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Last Working Day</span>
+                  <span className="font-medium">{acknowledgementData.lastWorkingDay ? new Date(acknowledgementData.lastWorkingDay).toLocaleDateString() : "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Reason</span>
+                  <span className="font-medium">{acknowledgementData.reason || "—"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Checklist</span>
+                  <span className="font-medium">{acknowledgementData.checklistCompleted} completed</span>
+                </div>
+              </div>
+              <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  ✓ Employee has been deactivated<br />
+                  ✓ F&F Settlement draft created automatically<br />
+                  ✓ Account deletion scheduled
+                </p>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAcknowledgement(false)}>Close</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

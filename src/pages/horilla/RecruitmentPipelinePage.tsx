@@ -288,7 +288,7 @@ export default function RecruitmentPipelinePage() {
         await (supabase as any).from("hr_candidate_stages").insert({
           candidate_id: candidateId,
           stage_id: newStageId,
-          onboarding_stage_id: newStageId, // maps to the recruitment stage
+          onboarding_stage_id: null, // recruitment stage transition, not onboarding
         });
       } catch (e) {
         console.warn("hr_candidate_stages insert failed (non-fatal):", e);

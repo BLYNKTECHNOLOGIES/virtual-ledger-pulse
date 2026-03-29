@@ -203,7 +203,7 @@ export default function HorillaDashboard() {
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <AlertTriangle className="h-4 w-4 text-amber-500" /> Pending Leave Requests
             </h3>
-            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/leave-requests")}>
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/leave/requests")}>
               View All <ArrowRight className="h-3 w-3" />
             </Button>
           </div>
@@ -221,7 +221,7 @@ export default function HorillaDashboard() {
                       {lr.hr_leave_types?.name} · {lr.total_days}d · {lr.start_date}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/leave-requests")}>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" onClick={() => navigate("/hrms/leave/requests")}>
                     Review
                   </Button>
                 </div>
@@ -236,7 +236,7 @@ export default function HorillaDashboard() {
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <XCircle className="h-4 w-4 text-red-500" /> Today's Absentees
             </h3>
-            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/attendance-overview")}>
+            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={() => navigate("/hrms/attendance")}>
               View All <ArrowRight className="h-3 w-3" />
             </Button>
           </div>

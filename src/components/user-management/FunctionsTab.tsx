@@ -171,7 +171,7 @@ export function FunctionsTab() {
                 <li>Functions are assigned to <strong>Roles</strong>, not individual users</li>
                 <li>Users inherit functions through their assigned role</li>
                 <li>To assign functions, edit a role in the "Roles & Permissions" tab</li>
-                <li>For Purchase module: if a role has Purchase Tab access, it must have at least one purchase function</li>
+                <li>Purchase module uses permission-based access (purchase_manage). Other modules may use specific functions.</li>
               </ul>
             </div>
           </div>

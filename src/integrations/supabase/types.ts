@@ -9428,6 +9428,101 @@ export type Database = {
           },
         ]
       }
+      permission_change_log: {
+        Row: {
+          change_type: string
+          changed_at: string
+          changed_by: string | null
+          function_key: string | null
+          id: string
+          permission: string | null
+          role_id: string | null
+          role_name: string
+        }
+        Insert: {
+          change_type: string
+          changed_at?: string
+          changed_by?: string | null
+          function_key?: string | null
+          id?: string
+          permission?: string | null
+          role_id?: string | null
+          role_name: string
+        }
+        Update: {
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          function_key?: string | null
+          id?: string
+          permission?: string | null
+          role_id?: string | null
+          role_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_change_log_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permission_enforcement_config: {
+        Row: {
+          id: string
+          mode: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          mode?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          mode?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      permission_enforcement_log: {
+        Row: {
+          attempted_action: string
+          blocked: boolean
+          created_at: string
+          enforcement_mode: string
+          had_permission: boolean
+          id: string
+          required_permission: string
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          attempted_action: string
+          blocked?: boolean
+          created_at?: string
+          enforcement_mode: string
+          had_permission?: boolean
+          id?: string
+          required_permission: string
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          attempted_action?: string
+          blocked?: boolean
+          created_at?: string
+          enforcement_mode?: string
+          had_permission?: boolean
+          id?: string
+          required_permission?: string
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
       platforms: {
         Row: {
           created_at: string
@@ -13132,8 +13227,6 @@ export type Database = {
           force_logout_at: string | null
           force_password_change: boolean | null
           id: string
-          is_payer: boolean
-          is_purchase_creator: boolean
           last_activity: string | null
           last_login: string | null
           last_name: string | null
@@ -13157,8 +13250,6 @@ export type Database = {
           force_logout_at?: string | null
           force_password_change?: boolean | null
           id?: string
-          is_payer?: boolean
-          is_purchase_creator?: boolean
           last_activity?: string | null
           last_login?: string | null
           last_name?: string | null
@@ -13182,8 +13273,6 @@ export type Database = {
           force_logout_at?: string | null
           force_password_change?: boolean | null
           id?: string
-          is_payer?: boolean
-          is_purchase_creator?: boolean
           last_activity?: string | null
           last_login?: string | null
           last_name?: string | null
@@ -13636,6 +13725,14 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: number
       }
+      check_delete_purchase_permission: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      check_delete_sales_permission: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       check_snapshot_drift: {
         Args: { p_critical_threshold?: number; p_warning_threshold?: number }
         Returns: {
@@ -13646,6 +13743,10 @@ export type Database = {
         }[]
       }
       check_terminal_order_sla: { Args: never; Returns: number }
+      check_user_management_permission: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       cleanup_expired_records: { Args: never; Returns: undefined }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       cleanup_terminal_stale_data: { Args: never; Returns: undefined }
@@ -14517,6 +14618,10 @@ export type Database = {
       remove_terminal_role: {
         Args: { p_role_id: string; p_user_id: string }
         Returns: undefined
+      }
+      require_permission: {
+        Args: { _action_name?: string; _permission: string; _user_id: string }
+        Returns: boolean
       }
       resolve_inactive_assignee_notifications: {
         Args: { p_user_id: string }

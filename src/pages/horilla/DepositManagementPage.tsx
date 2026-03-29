@@ -392,6 +392,8 @@ export default function DepositManagementPage() {
                           <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">Settled</span>
                         ) : d.is_fully_collected ? (
                           <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Fully Collected</span>
+                        ) : d.is_paused ? (
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Paused</span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">Collecting</span>
                         )}

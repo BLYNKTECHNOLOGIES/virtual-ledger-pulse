@@ -125,8 +125,10 @@ function generatePayslipPDF(detail: any) {
 
   // === Deductions Table ===
   const deductionRows = Object.entries(detail.deductions_breakdown || {}).map(([name, amt]) => [name, fmt(Number(amt))]);
-  if (detail.tds_amount > 0) deductionRows.push(["TDS", fmt(detail.tds_amount)]);
-  if (detail.lop_deduction > 0) deductionRows.push(["LOP Deduction", fmt(detail.lop_deduction)]);
+  // Gap 6 fix: Only add TDS/LOP if not already present in deductions_breakdown
+  const breakdownKeys = Object.keys(detail.deductions_breakdown || {}).map(k => k.toLowerCase());
+  if (detail.tds_amount > 0 && !breakdownKeys.some(k => k.includes("tds"))) deductionRows.push(["TDS", fmt(detail.tds_amount)]);
+  if (detail.lop_deduction > 0 && !breakdownKeys.some(k => k.includes("lop"))) deductionRows.push(["LOP Deduction", fmt(detail.lop_deduction)]);
   if (deductionRows.length > 0) {
     deductionRows.push(["Total Deductions", fmt(detail.total_deductions)]);
     autoTable(doc, {

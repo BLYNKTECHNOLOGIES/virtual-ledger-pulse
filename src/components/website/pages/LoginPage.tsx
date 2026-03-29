@@ -129,8 +129,14 @@ export function LoginPage() {
 
       console.log('User authenticated successfully:', authenticatedUser);
 
-      // Check if user logged in with the temporary transition password
-      if (password === 'BlynkTemp2026!') {
+      // Check if user must change password (ERP onboarding or transition)
+      const { data: pwdCheck } = await supabase
+        .from('users')
+        .select('force_password_change')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (pwdCheck?.force_password_change || password === 'BlynkTemp2026!') {
         setShowForcedReset(true);
         return; // Don't redirect yet — force password change first
       }

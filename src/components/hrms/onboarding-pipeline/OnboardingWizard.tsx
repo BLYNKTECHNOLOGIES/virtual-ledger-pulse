@@ -212,10 +212,67 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       await logAudit(recordId, 5, "finalized", { employee_id: emp.id });
 
-      // 7. TODO: ERP account creation if create_erp_account is true
-      if (r.create_erp_account) {
-        await logAudit(recordId, 5, "erp_account_requested", { role: r.erp_role_id });
-        // ERP user creation logic to be implemented
+      // 7. ERP account creation if create_erp_account is true
+      if (r.create_erp_account && r.erp_role_id) {
+        try {
+          const { data: erpResult, error: erpError } = await supabase.functions.invoke("create-erp-user", {
+            body: {
+              firstName: r.first_name,
+              lastName: r.last_name || "",
+              email: r.email,
+              phone: r.phone || null,
+              departmentId: r.department_id || null,
+              positionId: r.position_id || null,
+              roleId: r.erp_role_id,
+              badgeId: r.essl_badge_id || null,
+              callerUserId: user?.user?.id,
+            },
+          });
+
+          if (erpError) throw new Error(erpError.message || "ERP user creation failed");
+          if (erpResult?.error) throw new Error(erpResult.error);
+
+          const { userId: erpUserId, username: erpUsername, tempPassword } = erpResult;
+
+          // Send credentials email via hr@blynkex.com
+          const loginUrl = window.location.origin;
+          const credentialsHtml = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #1a1a1a;">Welcome to Blynk ERP</h2>
+              <p>Dear ${r.first_name},</p>
+              <p>Your ERP account has been created. Here are your login credentials:</p>
+              <table style="border-collapse: collapse; margin: 20px 0;">
+                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Login URL</td><td style="padding: 8px 16px;"><a href="${loginUrl}">${loginUrl}</a></td></tr>
+                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Email</td><td style="padding: 8px 16px;">${r.email}</td></tr>
+                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Username</td><td style="padding: 8px 16px;">${erpUsername}</td></tr>
+                <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Temporary Password</td><td style="padding: 8px 16px; font-family: monospace;">${tempPassword}</td></tr>
+              </table>
+              <p style="color: #d32f2f; font-weight: bold;">⚠️ You will be required to change your password on first login.</p>
+              <p>If you have any questions, please contact the HR department.</p>
+              <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
+              <p style="color: #888; font-size: 12px;">This is an automated message from Blynk Virtual Technologies HR.</p>
+            </div>
+          `;
+
+          await supabase.functions.invoke("send-hr-email", {
+            body: {
+              recipientEmail: r.email,
+              subject: "Your Blynk ERP Login Credentials",
+              htmlBody: credentialsHtml,
+              templateName: "erp_credentials",
+            },
+          });
+
+          // Link ERP user to onboarding record
+          await updateRecord({ erp_user_id: erpUserId });
+          await logAudit(recordId, 5, "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
+          toast.success("ERP account created & credentials emailed");
+        } catch (erpErr: any) {
+          console.error("ERP account creation failed:", erpErr);
+          toast.error(`ERP account: ${erpErr.message}`);
+          // Non-fatal — employee is already created
+          await logAudit(recordId, 5, "erp_account_failed", { error: erpErr.message });
+        }
       }
 
       await refetch();

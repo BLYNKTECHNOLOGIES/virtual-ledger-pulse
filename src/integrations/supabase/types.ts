@@ -10545,24 +10545,30 @@ export type Database = {
       }
       roles: {
         Row: {
+          can_manage_roles_below: boolean | null
           created_at: string | null
           description: string | null
+          hierarchy_level: number | null
           id: string
           is_system_role: boolean | null
           name: string
           updated_at: string | null
         }
         Insert: {
+          can_manage_roles_below?: boolean | null
           created_at?: string | null
           description?: string | null
+          hierarchy_level?: number | null
           id?: string
           is_system_role?: boolean | null
           name: string
           updated_at?: string | null
         }
         Update: {
+          can_manage_roles_below?: boolean | null
           created_at?: string | null
           description?: string | null
+          hierarchy_level?: number | null
           id?: string
           is_system_role?: boolean | null
           name?: string
@@ -13725,14 +13731,6 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: number
       }
-      check_delete_purchase_permission: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
-      check_delete_sales_permission: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
       check_snapshot_drift: {
         Args: { p_critical_threshold?: number; p_warning_threshold?: number }
         Returns: {
@@ -13743,10 +13741,6 @@ export type Database = {
         }[]
       }
       check_terminal_order_sla: { Args: never; Returns: number }
-      check_user_management_permission: {
-        Args: { _user_id: string }
-        Returns: boolean
-      }
       cleanup_expired_records: { Args: never; Returns: undefined }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       cleanup_terminal_stale_data: { Args: never; Returns: undefined }

@@ -177,7 +177,7 @@ const navGroups: NavGroup[] = [
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
       { label: "Announcements", icon: Megaphone, path: "/hrms/announcements" },
       { label: "Disciplinary Actions", icon: AlertTriangle, path: "/hrms/disciplinary-actions" },
-      { label: "Bonus Points", icon: Star, path: "/hrms/bonus-points" },
+      
     ],
   },
   {

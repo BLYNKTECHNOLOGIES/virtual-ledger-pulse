@@ -710,10 +710,35 @@ export function ResignationTab() {
                   <span className="font-medium">{acknowledgementData.checklistCompleted} completed</span>
                 </div>
               </div>
+              {acknowledgementData.fnf && (
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Auto-Calculated)</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Leave Encashment ({acknowledgementData.fnf.encashDays}d)</span>
+                    <span className="font-medium text-green-600">+₹{Number(acknowledgementData.fnf.leaveEncashAmount).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Deposit Refund</span>
+                    <span className="font-medium text-green-600">+₹{Number(acknowledgementData.fnf.depositRefund).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Loan Recovery</span>
+                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.loanRecovery).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Penalty Deductions</span>
+                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.penaltyTotal).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-1">
+                    <span>Net Payable</span>
+                    <span>₹{Number(acknowledgementData.fnf.netPayable).toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              )}
               <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
                 <p className="text-sm text-green-800 dark:text-green-200">
                   ✓ Employee has been deactivated<br />
-                  ✓ F&F Settlement draft created automatically<br />
+                  ✓ F&F Settlement draft created with calculated values<br />
                   ✓ Account deletion scheduled
                 </p>
               </div>

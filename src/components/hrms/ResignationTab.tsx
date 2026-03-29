@@ -319,6 +319,7 @@ export function ResignationTab() {
           lastWorkingDay: empData.last_working_day,
           reason: empData.separation_reason,
           checklistCompleted: `${completedCount}/${totalCount}`,
+          fnf: empData.fnf,
         });
         setShowAcknowledgement(true);
       }

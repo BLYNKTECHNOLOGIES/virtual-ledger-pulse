@@ -1,143 +1,115 @@
 
 
-# Implementation Plan: GAPs 1, 3, 8, 9, 10
+# HRMS Deep Analysis — Remaining Gaps
 
-## Scope Summary
-5 gaps to close across DB triggers, page-level permission gating, data scope filtering, role comparison UI, and role template presets.
-
----
-
-## GAP 1: Audit Trigger on Permission Changes
-
-**Problem:** `terminal_permission_change_log` table exists but nothing populates it.
-
-**Implementation:**
-- Create SQL migration with a trigger function `log_terminal_permission_change()` on `p2p_terminal_role_permissions` table
-- Fires on INSERT and DELETE, logs `role_id`, `role_name` (looked up from `p2p_terminal_roles`), `action` ('granted'/'revoked'), `permission`, `changed_by` (from `auth.uid()`)
-- Update `save_terminal_role` RPC to use diff-based approach: compute added/removed permissions instead of delete-all + re-insert (preserves trigger granularity)
-
-**Files:** 1 SQL migration
+After cross-referencing all 85 HR database tables against 65+ HRMS pages and components, here is a categorized list of everything still missing or broken.
 
 ---
 
-## GAP 3: Page-Level Granular Permission Gating
-
-**Problem:** All terminal pages show all buttons/actions regardless of user permissions. The 50-permission system is cosmetic.
-
-**Implementation per page:**
-
-### Orders Page (`TerminalOrders.tsx`)
-- Add `useTerminalAuth` permission checks for:
-  - Chat button → `terminal_orders_chat`
-  - Escalate action → `terminal_orders_escalate`
-  - Assignment dialog → `terminal_orders_manage`
-  - Export (if present) → `terminal_orders_export`
-- Wrap `OrderActions.tsx` buttons with permission checks passed as props
-
-### Automation Page (`TerminalAutomation.tsx`)
-- Wrap entire page with `TerminalPermissionGate` using `terminal_pricing_view` (already done in sidebar, but page itself has no gate)
-- Auto-Reply tab: 
-  - "New Rule" button → `terminal_autoreply_manage`
-  - Toggle switch → `terminal_autoreply_toggle`
-  - Delete button → `terminal_destructive`
-- Auto-Pay tab → `terminal_autopay_view` to see, toggle → `terminal_autopay_toggle`, configure → `terminal_autopay_configure`
-- Auto Pricing/Hybrid tabs → `terminal_pricing_view` to see, create/edit → `terminal_pricing_manage`, toggle → `terminal_pricing_toggle`, delete → `terminal_pricing_delete`
-
-### Users Page (`TerminalUsers.tsx`)
-- "Roles" tab visibility → `terminal_users_role_assign`
-- Bypass code generation → `terminal_users_bypass_code`
-- Role assignment dropdown in user list → `terminal_users_role_assign`
-
-### Dashboard Page (`TerminalDashboard.tsx`)
-- Export/sync buttons → `terminal_dashboard_export`
-
-### Assets Page (`TerminalAssets.tsx`)
-- Already partially gated (spot trading). No additional changes needed.
-
-### MPI Page (`TerminalMPI.tsx`)
-- Already uses `visibleUserIds` from jurisdiction — needs permission-based scope override (see GAP 8)
-
-### Payer Page (`TerminalPayer.tsx`)
-- Already gated at page level with `terminal_payer_view`
-- Lock/Pay/Release actions inside → `terminal_payer_manage`
-
-### Settings Page (`TerminalSettings.tsx`)
-- Already gated. Manage actions → `terminal_settings_manage`
-
-### Audit Logs Page (`TerminalAuditLogs.tsx`)
-- Already properly gated
-
-**Approach:** Use `hasPermission()` inline checks to conditionally render buttons. For heavier sections, use `TerminalPermissionGate` with `silent` prop. Pass permission booleans as props to child components where needed.
-
-**Files:** `TerminalOrders.tsx`, `TerminalAutomation.tsx`, `TerminalUsers.tsx`, `TerminalDashboard.tsx`, `TerminalPayer.tsx`, `OrderActions.tsx`, `TerminalMPI.tsx`
+## A. Table-to-UI Coverage (100% achieved)
+All 85 `hr_*` tables now have corresponding UI integrations. The 3 excluded (2 archive tables, 1 junction table) are backend-only and need no UI. **No table coverage gaps remain.**
 
 ---
 
-## GAP 8: Data Scope Filtering (own vs all)
+## B. Functional & Workflow Gaps (14 issues found)
 
-**Problem:** `terminal_mpi_view_own` vs `terminal_mpi_view_all` and `terminal_users_manage_subordinates` vs `terminal_users_manage_all` exist in DB but no code filters data based on them.
+### B1. Resignation Flow — Missing Acknowledgement
+- **Problem**: When a resignation is completed, the employee is simply deactivated. There is no acknowledgement letter/notice generated, no email sent to the employee, and no printable summary.
+- **Fix**: Add a resignation acknowledgement generation step (PDF or on-screen summary) that includes: employee name, badge, department, resignation date, last working day, checklist completion status, F&F settlement link.
 
-**Implementation:**
+### B2. Resignation Flow — No "Pending Approval" Stage
+- **Problem**: Current flow goes directly from initiation to `notice_period`. There is no HR approval step before placing an employee on notice. Indrajet's case likely skipped any review.
+- **Fix**: Add `pending_approval` status between initiation and `notice_period`. HR/Manager must approve before notice period begins.
 
-### MPI Page (`TerminalMPI.tsx`)
-- Check `hasPermission('terminal_mpi_view_all')` — if true, show all users (current behavior)
-- If only `terminal_mpi_view_own` — filter metrics to show ONLY the current user's data
-- Hide the "View Level" dropdown (all/operators/payers) when user only has `view_own`
+### B3. Separation → F&F Linkage Missing
+- **Problem**: Completing a resignation does NOT auto-create an F&F settlement record. HR must manually go to F&F page and create one — easy to miss.
+- **Fix**: Auto-create a draft `hr_fnf_settlements` record when resignation status changes to `completed`.
 
-### Users Page (`TerminalUsersList.tsx`)
-- If `terminal_users_manage_all` — show all terminal users (current behavior)
-- If only `terminal_users_manage_subordinates` — filter user list to show only users whose supervisor includes the current user (use existing `supervisorNames` field or hierarchy level comparison)
-- If neither manage permission — hide edit/config buttons, show read-only list
+### B4. Dashboard — Broken Navigation Links
+- **Problem**: Dashboard "View All" buttons link to `/hrms/leave-requests` and `/hrms/attendance-overview` but actual routes are `/hrms/leave/requests` and `/hrms/attendance`.
+- **Fix**: Correct the `navigate()` paths on dashboard action buttons.
 
-**Files:** `TerminalMPI.tsx`, `TerminalUsersList.tsx`
+### B5. Employee Profile — No Salary Tab Content for Non-Template Employees
+- **Problem**: The Payroll tab only shows `EmployeeSalaryStructure` (overrides). If no salary template was applied during onboarding, the tab appears empty with no context — no base salary, no CTC breakdown visible.
+- **Fix**: Show the employee's `total_salary` and linked salary template info alongside overrides.
+
+### B6. Onboarding Task Manager — No Default Templates
+- **Problem**: The new `OnboardingTaskManager` renders stages/tasks but starts empty. There are no default onboarding stage templates, so every onboarding requires manual stage/task creation.
+- **Fix**: Seed default onboarding stages (Document Collection, IT Setup, Orientation, Training, Probation Review) via a "Load Default Template" button.
+
+### B7. Leave Allocation — No Auto-Allocation on Employee Creation
+- **Problem**: When Stage 5 finalizes and creates an employee, no leave allocations are auto-created. HR must manually go to Leave Allocations and create entries for each leave type per employee.
+- **Fix**: Stage 5 finalization should auto-insert `hr_leave_allocations` rows for all active leave types with their `max_days_per_year` as the allocated balance.
+
+### B8. Attendance — No Auto-Absent Marking
+- **Problem**: Absent employees are computed client-side on the dashboard by checking who has no attendance record. There is no scheduled process to mark employees as absent if they don't clock in.
+- **Fix**: Create a DB function or edge function that runs daily to insert `absent` attendance records for employees with no check-in by end of shift.
+
+### B9. Payslip — No Individual Employee View
+- **Problem**: Payslips page shows bulk payslip list from payroll runs. There is no way for an employee profile to show their own payslip history.
+- **Fix**: Add a "Payslips" section to the Employee Profile Payroll tab, querying `hr_payslips` by `employee_id`.
+
+### B10. HR Policies — Repurposed as FAQ
+- **Problem**: `hr_policies` table is only used by `HelpdeskFaqPage.tsx` for FAQ entries. There is no dedicated Company Policies page for employees to view HR policies, handbooks, or compliance documents.
+- **Fix**: Either split FAQs into their own table or create a separate Policies page that presents policies categorized (Leave, Attendance, Conduct, etc.).
+
+### B11. Reports Page — Too Basic
+- **Problem**: Reports page has only 4 static charts. No export functionality, no date range filters, no drill-down. Missing: attendance trend, department-wise leave analysis, payroll cost analysis, headcount trends.
+- **Fix**: Add date range filters, export to Excel/PDF, and at least 4 more report types.
+
+### B12. Employee List — No Bulk Actions
+- **Problem**: Employee list has individual edit/archive/delete but no bulk selection for common operations like bulk department transfer, bulk shift assignment, or bulk status change.
+- **Fix**: Add checkbox selection and a bulk actions toolbar.
+
+### B13. Notification Preferences — Isolated from Notification System
+- **Problem**: `NotificationPreferences` component saves preferences to `hr_notification_preferences`, but the actual notification creation code in `HorillaHeader.tsx` simply queries `hr_notifications` — it never checks preferences before showing/sending notifications.
+- **Fix**: Notification creation logic (wherever notifications are inserted) should respect preferences. For now, at minimum, filter displayed notifications client-side by checking the user's preferences.
+
+### B14. Survey Templates — No Response Analytics
+- **Problem**: `RecruitmentSurveyPage.tsx` manages templates and questions but the response data (`hr_survey_responses`) has no analytics view — no aggregate scores, no charts, no response rate tracking.
+- **Fix**: Add a "Results" tab to the survey page showing response analytics per template.
 
 ---
 
-## GAP 9: Role Comparison Side-by-Side View
+## C. Data Integrity Issues (3 issues)
 
-**Problem:** No way to compare two roles' permissions visually.
+### C1. `hr_candidate_stages` Duplicate Inserts
+- **Problem**: The recent Phase 5 change inserts into `hr_candidate_stages` on every stage move in the pipeline, but uses `onboarding_stage_id` set to `newStageId` (a recruitment stage ID, not an onboarding stage ID). This is a foreign key type mismatch.
+- **Fix**: Set `onboarding_stage_id` to null since this is a recruitment stage transition, not onboarding.
 
-**Implementation:**
-- Add a "Compare" button to the `TerminalRolesList.tsx` header (next to "New Role")
-- Opens a dialog with two role dropdowns (Role A / Role B)
-- Below the selectors, render the same `PERMISSION_MODULES` grid but with 3 columns per permission: Label | Role A | Role B
-- Color-highlight differences:
-  - Green row = both have it
-  - Red/amber = only one has it (show which)
-- Counter at top: "Role A: 25 perms | Role B: 18 perms | Shared: 15 | Diff: 13"
+### C2. Onboarding Task Manager — Wrong Employee Reference
+- **Problem**: `OnboardingTaskManager` uses `onboarding.candidate_id` as `employeeId` for task completion tracking. But `candidate_id` is a candidate reference, not an employee ID, so task completions won't link correctly.
+- **Fix**: Use the employee ID created during Stage 5 finalization, stored in `hr_employee_onboarding.employee_id` (if that field exists) or look up the employee by candidate reference.
 
-**Files:** New component `TerminalRoleComparison.tsx` + update `TerminalRolesList.tsx` to add the Compare button/dialog
-
----
-
-## GAP 10: Role Template Presets
-
-**Problem:** Creating a new role requires manually toggling 50 permissions.
-
-**Implementation:**
-- Add a "From Template" dropdown button next to the permission counter in the role create/edit dialog
-- Templates are hardcoded constants matching the tier definitions from Stage 2:
-  - "Operator Template" (~14 perms): views + escalate + chat
-  - "Team Lead Template" (~25 perms): operator + manage subordinates + some manage perms
-  - "Payer Template" (~10 perms): payer_view + payer_manage + orders_view
-  - "Asst Manager Template" (~31 perms)
-  - "Ops Manager Template" (~37 perms)
-- Clicking a template replaces current `editPerms` set with the template's permission set (only permissions the current user possesses are actually applied — delegation guard)
-- Show confirmation toast: "Applied Operator template (14 permissions)"
-
-**Files:** `TerminalRolesList.tsx` (add `ROLE_TEMPLATES` constant + template selector dropdown)
+### C3. Leave Balance Deduction — Relies on DB Trigger
+- **Problem**: Leave request approval comment says "DB trigger handles balance deduction" but this trigger may not exist. If it doesn't, approved leaves never reduce the allocation balance.
+- **Fix**: Verify the trigger exists. If not, create one or handle deduction in the approval mutation.
 
 ---
 
-## Execution Order
+## D. Recommended Implementation Priority
 
-1. **SQL Migration** — Audit trigger (GAP 1)
-2. **TerminalRolesList.tsx** — Role comparison + templates (GAPs 9, 10)
-3. **Page-level gating** — All terminal pages (GAP 3)
-4. **Data scope filtering** — MPI + Users list (GAP 8)
+**Phase 1 — Critical Workflows** (B1, B2, B3, B4, C1, C2, C3):
+- Fix resignation approval flow and auto-F&F creation
+- Fix dashboard broken links
+- Fix data integrity issues
 
-## Estimated File Changes
-- 1 new SQL migration
-- 1 new component (`TerminalRoleComparison.tsx`)
-- ~8 existing files modified
+**Phase 2 — Employee Experience** (B5, B7, B9, B10):
+- Auto leave allocation on employee creation
+- Payslip history in employee profile
+- HR Policies page
+
+**Phase 3 — Operational Maturity** (B6, B8, B11, B12, B13, B14):
+- Default onboarding templates
+- Auto-absent marking
+- Enhanced reports with export
+- Bulk actions
+- Notification preference enforcement
+- Survey analytics
+
+---
+
+**Total: 14 functional gaps + 3 data integrity issues = 17 items across 3 phases.**
+
+Shall I proceed with Phase 1 (Critical Workflows)?
 

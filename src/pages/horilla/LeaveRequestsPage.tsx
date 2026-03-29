@@ -48,15 +48,31 @@ export default function LeaveRequestsPage() {
     },
   });
 
-  // Calculate working days (exclude weekends)
-  const countWorkingDays = (startStr: string, endStr: string) => {
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+  // Fetch weekly off patterns for all employees
+  const { data: weeklyOffPatterns = [] } = useQuery({
+    queryKey: ["hr_employee_weekly_off_patterns"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_employee_weekly_off").select("employee_id, day_of_week");
+      return data || [];
+    },
+  });
+
+  // Calculate working days using employee-specific weekly off pattern
+  const countWorkingDays = (startStr: string, endStr: string, employeeId?: string) => {
+    const start = new Date(startStr + "T00:00:00");
+    const end = new Date(endStr + "T00:00:00");
+    
+    // Get this employee's weekly off days (0=Sun, 1=Mon, ..., 6=Sat)
+    const empOffDays = (weeklyOffPatterns as any[])
+      .filter((p: any) => p.employee_id === employeeId)
+      .map((p: any) => Number(p.day_of_week));
+    
+    // Default to Sunday only if no pattern configured
+    const offDays = empOffDays.length > 0 ? empOffDays : [0];
+    
     let count = 0;
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const day = d.getDay();
-      // Only Sunday (0) is a weekly off
-      if (day !== 0) count++;
+      if (!offDays.includes(d.getDay())) count++;
     }
     return count;
   };

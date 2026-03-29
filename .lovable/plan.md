@@ -1,59 +1,66 @@
-# Impact Analysis: Erasing Existing Onboarding Systems
-
-## What Would Be Removed
-
-There are **3 existing onboarding systems** to erase:
 
 
-| System       | File(s)                      | What it does                                                                         |
-| ------------ | ---------------------------- | ------------------------------------------------------------------------------------ |
-| **System 1** | `OnboardingPage.tsx`         | Hired candidates → checklist tasks → "Convert to Employee" button                    |
-| **System 2** | `OnboardingChecklistTab.tsx` | Post-creation checklist inside HRMS → Employee Lifecycle tab                         |
-| **System 3** | `OnboardingDialog.tsx`       | Quick onboard from `job_applicants` (currently **orphaned** — not imported anywhere) |
-
-
-Plus supporting pages:
-
-- `OnboardingStagesPage.tsx` — manages `hr_onboarding_stages` and `hr_onboarding_tasks`
-
-## Database Tables Affected
-
-These existing tables would become unused:
-
-- `hr_onboarding_stages` — stage definitions
-- `hr_onboarding_tasks` — task definitions per stage
-- `hr_onboarding_task_employees` — checklist completion tracking per employee
-
-## Consequences — What Gets Affected
-
-### 1. No other functionality breaks
-
-- `OnboardingDialog.tsx` is **orphaned** (zero imports) — safe to remove
-- `OnboardingPage.tsx` and `OnboardingStagesPage.tsx` are **not routed** in `App.tsx` — they exist as files but have no active routes
-- `OnboardingChecklistTab.tsx` is used **only** inside `EmployeeLifecycleTab.tsx` as the "Onboarding" sub-tab — replacing it is clean
-
-### 2. Dashboard widget has a minor dependency
-
-- `RealDataWidgets.tsx` queries `hr_candidates` with `start_onboard = true` to show pending onboarding count. This would need to point to the new `hr_employee_onboarding` table instead.
-
-### 3. `hr_candidates` table stays — used elsewhere
-
-- `CandidatesListPage.tsx`, `SkillZonePage.tsx`, `RecruitmentSurveyPage.tsx`, and `HorillaDashboard.tsx` all query `hr_candidates`. The table itself must NOT be dropped — only the onboarding flow built on top of it changes.
-
-### 4. "Convert to Employee" logic disappears — by design
-
-- `OnboardingPage.tsx` has a `convertToEmployeeMutation` that creates `hr_employees` + `hr_employee_work_info` directly. This is exactly what the new pipeline replaces with deferred creation at Stage 5.
+# ERP Account Creation in Onboarding Stage 5
 
 ## Summary
 
+Implement the ERP account creation logic in the `handleFinalize` function of `OnboardingWizard.tsx`. When "Create ERP Account" is toggled on, the system will create a Supabase Auth user, a `public.users` record, assign the selected role via `user_roles`, and email credentials via `send-hr-email`.
 
-| Concern                 | Risk                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| Routes breaking         | **None** — the old pages aren't routed in App.tsx                              |
-| Other features affected | **Minimal** — only the dashboard widget onboarding count needs re-pointing     |
-| Data loss               | **None** — existing `hr_employees` records stay; old tables just become unused |
-| `hr_candidates` table   | **Safe** — used by recruitment, skill zones, surveys; stays untouched          |
-| `OnboardingDialog.tsx`  | **Zero risk** — already orphaned                                               |
+## What Happens Today
 
+The TODO block at lines 215-219 of `OnboardingWizard.tsx` only logs an audit entry — no user is actually created.
 
-**Verdict**: Safe to fully replace. The only change needed outside the onboarding system itself is updating 1 dashboard widget query. update dashboard widget with new syste widgets
+## Implementation
+
+### 1. New Edge Function: `create-erp-user`
+
+A new Edge Function that handles the full ERP user creation securely using the service role key:
+
+**Input**: `{ firstName, lastName, email, phone, departmentId, positionId, roleId, badgeId, callerUserId }`
+
+**Logic**:
+1. Validate caller is admin/super_admin (same pattern as `admin-reset-password`)
+2. Generate username: `firstname + lastname` (lowercase, no spaces). If duplicate exists, append a number
+3. Generate a random 12-char password
+4. Create auth user via `adminClient.auth.admin.createUser({ email, password, email_confirm: true })`
+5. Create `public.users` record with: `id` = auth user id, `username`, `email`, `first_name`, `last_name`, `phone`, `badge_id`, `role_id`, `password_hash` = 'SUPABASE_AUTH', `status` = 'ACTIVE'
+6. Insert into `user_roles`: `{ user_id, role_id, assigned_by: callerUserId }`
+7. Return `{ userId, username, tempPassword }`
+
+### 2. Update `OnboardingWizard.tsx` — handleFinalize (lines 215-219)
+
+Replace the TODO block with:
+1. Call `create-erp-user` Edge Function with Stage 1 data + Stage 5 role selection
+2. On success, send credentials email via `send-hr-email` containing:
+   - ERP login URL (from `window.location.origin`)
+   - Username
+   - Temporary password
+   - "You will be required to change your password on first login"
+3. Log audit: `erp_account_created` with the new user ID
+
+### 3. First Login Password Change Enforcement
+
+Add a `force_password_change` column to `public.users` table (boolean, default false). The `create-erp-user` function sets it to `true`. The existing auth flow checks this flag and redirects to a password change screen.
+
+### 4. Migration
+
+```sql
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS force_password_change boolean DEFAULT false;
+```
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `supabase/functions/create-erp-user/index.ts` | New — Edge Function for secure user creation |
+| `supabase/migrations/xxx.sql` | Add `force_password_change` column |
+| `src/components/hrms/onboarding-pipeline/OnboardingWizard.tsx` | Replace TODO with actual ERP creation + email logic |
+| Auth flow component (login page) | Add force password change check |
+
+## Security
+
+- Edge Function validates caller is admin/super_admin before creating users
+- Admin/Super Admin roles cannot be assigned (filtered in UI already + validated in Edge Function)
+- Password is generated server-side, never exposed in client logs
+- Uses service role key only within the Edge Function
+

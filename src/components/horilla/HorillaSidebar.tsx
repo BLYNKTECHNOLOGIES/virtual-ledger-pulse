@@ -16,6 +16,7 @@ import {
   Megaphone,
   ChevronLeft,
   ChevronRight,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

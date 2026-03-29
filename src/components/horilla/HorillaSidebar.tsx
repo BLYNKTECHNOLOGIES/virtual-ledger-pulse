@@ -169,7 +169,7 @@ const navGroups: NavGroup[] = [
         path: "/hrms/helpdesk",
         children: [
           { label: "Tickets", path: "/hrms/helpdesk" },
-          { label: "FAQ", path: "/hrms/helpdesk/faq" },
+          
           { label: "HR Policies", path: "/hrms/helpdesk/policies" },
         ],
       },

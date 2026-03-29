@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import { LeaveTab } from "@/components/hrms/LeaveTab";
 import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
+import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
 import { Progress } from "@/components/ui/progress";
 
 // ─── Tabs matching Horilla ───

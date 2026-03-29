@@ -189,6 +189,11 @@ const navGroups: NavGroup[] = [
         icon: LogOut,
         path: "/hrms/offboarding/fnf",
       },
+      {
+        label: "HR Logs",
+        icon: FileText,
+        path: "/hrms/logs",
+      },
     ],
   },
 ];

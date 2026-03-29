@@ -1,5 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Bell, Moon, Menu, User } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Search, Bell, Moon, Menu, User, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
 interface HorillaHeaderProps {
   onToggleSidebar: () => void;
@@ -8,6 +15,39 @@ interface HorillaHeaderProps {
 
 export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHeaderProps) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: ["hr_notifications"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_notifications")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(30);
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  const unreadCount = notifications.filter((n: any) => !n.is_read).length;
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await (supabase as any).from("hr_notifications").update({ is_read: true }).eq("id", id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_notifications"] }),
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const unreadIds = notifications.filter((n: any) => !n.is_read).map((n: any) => n.id);
+      if (unreadIds.length) {
+        await (supabase as any).from("hr_notifications").update({ is_read: true }).in("id", unreadIds);
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_notifications"] }),
+  });
 
   return (
     <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2">
@@ -31,17 +71,56 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
       <div className="flex items-center gap-1 shrink-0">
         {!isMobile && (
-          <>
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
-              <Moon className="h-5 w-5" />
-            </button>
+          <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+            <Moon className="h-5 w-5" />
+          </button>
+        )}
 
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
             <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 relative transition-colors">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#6C63FF] rounded-full"></span>
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </button>
-          </>
-        )}
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-0" align="end">
+            <div className="flex items-center justify-between px-3 py-2 border-b">
+              <span className="text-sm font-semibold">Notifications</span>
+              {unreadCount > 0 && (
+                <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => markAllReadMutation.mutate()}>
+                  <Check className="h-3 w-3 mr-1" /> Mark all read
+                </Button>
+              )}
+            </div>
+            <ScrollArea className="max-h-[350px]">
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">No notifications</div>
+              ) : notifications.map((n: any) => (
+                <div
+                  key={n.id}
+                  className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-blue-50/50" : ""}`}
+                  onClick={() => {
+                    if (!n.is_read) markReadMutation.mutate(n.id);
+                    if (n.link) { navigate(n.link); setOpen(false); }
+                  }}
+                >
+                  <div className="flex items-start gap-2">
+                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />}
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm ${!n.is_read ? "font-medium" : "text-muted-foreground"}`}>{n.title}</p>
+                      {n.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>}
+                      <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(n.created_at), "dd MMM, h:mm a")}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
 
         <button
           onClick={() => navigate("/dashboard")}

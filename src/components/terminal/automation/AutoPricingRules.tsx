@@ -204,6 +204,9 @@ export function AutoPricingRules() {
                           <Badge variant="outline" className="text-[10px]">
                             {rule.offset_direction}
                           </Badge>
+                          {rule.is_dry_run && (
+                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">DRY RUN</Badge>
+                          )}
                         </div>
 
                         {/* Per-Asset Status Badges */}

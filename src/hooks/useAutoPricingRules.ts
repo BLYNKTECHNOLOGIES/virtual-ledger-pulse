@@ -17,6 +17,7 @@ export interface AutoPricingRule {
   id: string;
   name: string;
   is_active: boolean;
+  is_dry_run: boolean;
   asset: string;
   assets: string[];
   asset_config: Record<string, AssetConfig>;
@@ -299,6 +300,35 @@ export function useAutoPricingLogs(ruleId?: string, limit = 100) {
       const { data, error } = await query;
       if (error) throw error;
       return data as AutoPricingLog[];
+    },
+  });
+}
+
+export function useAdPricingHealth() {
+  return useQuery({
+    queryKey: ['ad-pricing-health'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_ad_pricing_health');
+      if (error) throw error;
+      return data as any;
+    },
+    refetchInterval: 30000,
+  });
+}
+
+export function useAdPricingEffectiveness(ruleId?: string) {
+  return useQuery({
+    queryKey: ['ad-pricing-effectiveness', ruleId],
+    queryFn: async () => {
+      let query = supabase
+        .from('ad_pricing_effectiveness_snapshots')
+        .select('*')
+        .order('snapshot_date', { ascending: false })
+        .limit(14);
+      if (ruleId) query = query.eq('rule_id', ruleId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
     },
   });
 }

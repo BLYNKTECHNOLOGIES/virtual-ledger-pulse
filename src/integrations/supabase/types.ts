@@ -4689,6 +4689,7 @@ export type Database = {
       }
       hr_employees: {
         Row: {
+          account_deletion_date: string | null
           additional_info: Json | null
           address: string | null
           badge_id: string
@@ -4732,6 +4733,7 @@ export type Database = {
           zip: string | null
         }
         Insert: {
+          account_deletion_date?: string | null
           additional_info?: Json | null
           address?: string | null
           badge_id: string
@@ -4775,6 +4777,7 @@ export type Database = {
           zip?: string | null
         }
         Update: {
+          account_deletion_date?: string | null
           additional_info?: Json | null
           address?: string | null
           badge_id?: string
@@ -14423,6 +14426,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_scheduled_account_deletions: { Args: never; Returns: Json }
       re_escalate_terminal_order: {
         Args: {
           p_current_handler_id: string

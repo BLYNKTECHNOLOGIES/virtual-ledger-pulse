@@ -150,7 +150,7 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
     },
   });
 
-  const employeeId = onboarding?.candidate_id; // using candidate_id as reference
+  const employeeId = onboarding?.employee_id || onboarding?.candidate_id; // prefer employee_id from Stage 5 finalization
 
   return (
     <div className="space-y-4">

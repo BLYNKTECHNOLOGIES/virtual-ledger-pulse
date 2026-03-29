@@ -330,22 +330,8 @@ export function useAdPricingEffectiveness(ruleId?: string) {
       if (error) throw error;
       return data;
     },
-  });
 }
-    queryKey: ['auto-pricing-logs', ruleId, limit],
-    queryFn: async () => {
-      let query = supabase
-        .from('ad_pricing_logs')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      if (ruleId) query = query.eq('rule_id', ruleId);
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as AutoPricingLog[];
-    },
-  });
-}
+
 
 export function useSearchMerchant() {
   const { toast } = useToast();

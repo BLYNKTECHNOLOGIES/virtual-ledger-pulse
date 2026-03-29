@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
 import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
 
-type Tab = "about" | "notes" | "interviews" | "offers" | "history";
+type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "history";
 
 export default function CandidateProfilePage() {
   const { id } = useParams<{ id: string }>();

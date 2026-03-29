@@ -13330,6 +13330,10 @@ export type Database = {
         Args: { p_assigned_by?: string; p_role_id: string; p_user_id: string }
         Returns: undefined
       }
+      auto_assign_and_apply_salary_template: {
+        Args: { p_employee_id: string }
+        Returns: string
+      }
       auto_assign_order_by_scope: {
         Args: {
           p_adv_no?: string
@@ -13354,6 +13358,13 @@ export type Database = {
       bank_account_has_transactions: {
         Args: { account_id_param: string }
         Returns: boolean
+      }
+      batch_reapply_salary_templates: {
+        Args: never
+        Returns: {
+          employee_name: string
+          result: string
+        }[]
       }
       calculate_user_risk_score: {
         Args: { user_uuid: string }

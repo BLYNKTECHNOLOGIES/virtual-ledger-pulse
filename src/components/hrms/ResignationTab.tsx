@@ -380,13 +380,54 @@ export function ResignationTab() {
 
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList>
+          <TabsTrigger value="pending" className="gap-1">
+            <FileText className="h-3.5 w-3.5" /> Pending Approval ({pendingApprovals.length})
+          </TabsTrigger>
           <TabsTrigger value="active" className="gap-1">
-            <Clock className="h-3.5 w-3.5" /> Active ({activeResignations.length})
+            <Clock className="h-3.5 w-3.5" /> Notice Period ({activeResignations.length})
           </TabsTrigger>
           <TabsTrigger value="completed" className="gap-1">
             <CheckCircle2 className="h-3.5 w-3.5" /> Completed ({completedResignations.length})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pending">
+          {pendingApprovals.length === 0 ? (
+            <Card><CardContent className="py-8 text-center text-muted-foreground">No resignations pending approval</CardContent></Card>
+          ) : (
+            <div className="grid gap-3">
+              {pendingApprovals.map(emp => (
+                <Card key={emp.id} className="hover:shadow-md transition-shadow border-blue-200 dark:border-blue-800">
+                  <CardContent className="py-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{emp.first_name} {emp.last_name}</span>
+                          <span className="text-xs text-muted-foreground">#{emp.badge_id}</span>
+                          {getStatusBadge(emp.resignation_status)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">{emp.hr_employee_work_info?.[0]?.job_role || "—"}</div>
+                        <div className="text-sm space-x-4">
+                          <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString() : "—"}</strong></span>
+                          <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}</strong></span>
+                        </div>
+                        {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => { if (confirm("Approve this resignation and start notice period?")) approveResignation.mutate(emp.id); }}>
+                          <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Reject this resignation?")) rejectResignation.mutate(emp.id); }}>
+                          <XCircle className="h-4 w-4 mr-1" /> Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
         <TabsContent value="active">
           {activeResignations.length === 0 ? (

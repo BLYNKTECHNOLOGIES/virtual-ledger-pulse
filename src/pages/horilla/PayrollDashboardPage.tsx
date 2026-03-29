@@ -176,11 +176,12 @@ export default function PayrollDashboardPage() {
         .eq("penalty_month", payMonth)
         .eq("is_applied", false);
 
-      // 6b. Get active deposits
+      // 6b. Get active deposits (exclude paused)
       const { data: activeDeposits } = await (supabase as any)
         .from("hr_employee_deposits")
         .select("*")
-        .eq("is_settled", false);
+        .eq("is_settled", false)
+        .or("is_paused.is.null,is_paused.eq.false");
 
       // 6c. Get active loans for EMI deductions
       const { data: activeLoans } = await (supabase as any)
@@ -345,17 +346,28 @@ export default function PayrollDashboardPage() {
               } else {
                 installment = Number(empDeposit.deduction_value);
               }
+              // Cap against remaining target
               installment = Math.min(installment, remaining);
+              // Gap 1 fix: Cap against net payable salary (earnings minus all other deductions so far)
+              const netPayableBeforeDeposit = totalEarnings - totalDeductions;
+              if (netPayableBeforeDeposit <= 0) {
+                installment = 0; // No salary left to deduct from
+              } else {
+                installment = Math.min(installment, netPayableBeforeDeposit);
+              }
               if (installment > 0) {
                 depositDeduction = installment;
                 deductionsBreakdown["Security Deposit"] = installment;
                 totalDeductions += installment;
                 empDeposit.collected_amount = Number(empDeposit.collected_amount) + installment;
                 empDeposit.current_balance = Number(empDeposit.current_balance) + installment;
+                const wasFullyCollected = empDeposit.is_fully_collected;
                 if (empDeposit.collected_amount >= Number(empDeposit.total_deposit_amount)) {
                   empDeposit.is_fully_collected = true;
                 }
                 empDeposit._collectionAmount = installment;
+                // Gap 3: Track if fully collected just turned true
+                empDeposit._justCompleted = !wasFullyCollected && empDeposit.is_fully_collected;
               }
             }
           }
@@ -490,6 +502,17 @@ export default function PayrollDashboardPage() {
             transaction_type: "replenishment", amount: dep._replenishAmount,
             balance_after: Number(dep.current_balance),
             description: "Deposit replenishment after penalty",
+            transaction_date: new Date().toISOString().slice(0, 10), payroll_run_id: run.id,
+          });
+        }
+
+        // Gap 3: Insert "completed" ledger entry when fully collected
+        if (dep._justCompleted) {
+          txns.push({
+            employee_id: dep.employee_id, deposit_id: dep.id,
+            transaction_type: "completed", amount: 0,
+            balance_after: Number(dep.current_balance),
+            description: "Deposit fully collected — target reached",
             transaction_date: new Date().toISOString().slice(0, 10), payroll_run_id: run.id,
           });
         }

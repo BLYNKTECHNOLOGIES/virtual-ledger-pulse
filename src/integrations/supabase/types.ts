@@ -4011,7 +4011,10 @@ export type Database = {
           employee_id: string
           id: string
           is_fully_collected: boolean
+          is_paused: boolean | null
           is_settled: boolean
+          paused_at: string | null
+          paused_reason: string | null
           settled_at: string | null
           settlement_notes: string | null
           total_deposit_amount: number
@@ -4027,7 +4030,10 @@ export type Database = {
           employee_id: string
           id?: string
           is_fully_collected?: boolean
+          is_paused?: boolean | null
           is_settled?: boolean
+          paused_at?: string | null
+          paused_reason?: string | null
           settled_at?: string | null
           settlement_notes?: string | null
           total_deposit_amount?: number
@@ -4043,7 +4049,10 @@ export type Database = {
           employee_id?: string
           id?: string
           is_fully_collected?: boolean
+          is_paused?: boolean | null
           is_settled?: boolean
+          paused_at?: string | null
+          paused_reason?: string | null
           settled_at?: string | null
           settlement_notes?: string | null
           total_deposit_amount?: number

@@ -105,7 +105,9 @@ const navGroups: NavGroup[] = [
           { label: "Leave Types", path: "/hrms/leave/types" },
           { label: "Holidays", path: "/hrms/leave/holidays" },
           { label: "Comp-Off", path: "/hrms/leave/comp-off" },
+          { label: "Allocation Requests", path: "/hrms/leave/allocation-requests" },
           { label: "Accrual Plans", path: "/hrms/leave/accrual-plans" },
+          { label: "Weekly Off", path: "/hrms/leave/weekly-off" },
           { label: "Year-End Reset", path: "/hrms/leave/year-end-reset" },
         ],
       },
@@ -169,6 +171,8 @@ const navGroups: NavGroup[] = [
       { label: "Organization", icon: Building2, path: "/hrms/organization" },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
       { label: "Announcements", icon: Megaphone, path: "/hrms/announcements" },
+      { label: "Disciplinary Actions", icon: AlertTriangle, path: "/hrms/disciplinary-actions" },
+      { label: "Bonus Points", icon: BarChart3, path: "/hrms/bonus-points" },
     ],
   },
   {

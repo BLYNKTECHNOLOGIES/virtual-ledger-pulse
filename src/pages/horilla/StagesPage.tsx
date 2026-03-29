@@ -325,6 +325,55 @@ export default function StagesPage() {
           </div>
         </div>
       )}
+
+      {/* Stage Manager Assignment Dialog */}
+      {managerDialogStageId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Assign Stage Manager</h2>
+              <button onClick={() => setManagerDialogStageId(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Select Employee</label>
+                <select value={selectedManagerId} onChange={e => setSelectedManagerId(e.target.value)} className={inputCls}>
+                  <option value="">Choose employee...</option>
+                  {employees
+                    .filter((emp: any) => !getManagersForStage(managerDialogStageId).some((m: any) => m.employee_id === emp.id))
+                    .map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
+                    ))}
+                </select>
+              </div>
+              {/* Current managers */}
+              {getManagersForStage(managerDialogStageId).length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Current Managers</label>
+                  <div className="space-y-1">
+                    {getManagersForStage(managerDialogStageId).map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-gray-700">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
+                        <button onClick={() => removeManagerMutation.mutate(m.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setManagerDialogStageId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Close</button>
+              <button
+                onClick={() => addManagerMutation.mutate()}
+                disabled={!selectedManagerId}
+                className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+              >
+                Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

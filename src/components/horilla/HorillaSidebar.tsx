@@ -49,6 +49,7 @@ const navGroups: NavGroup[] = [
           { label: "Departments", path: "/hrms/employee/departments" },
           { label: "Positions", path: "/hrms/employee/positions" },
           { label: "Documents", path: "/hrms/employee/documents" },
+          { label: "Separation", path: "/hrms/employee/separation" },
         ],
       },
     ],

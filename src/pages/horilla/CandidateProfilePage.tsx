@@ -701,7 +701,7 @@ export default function CandidateProfilePage() {
                               )}
                             </button>
                             <span className={`text-sm ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                              {task.hr_onboarding_tasks?.title || `Task ${task.candidate_task_id}`}
+                              {task.title || task.hr_onboarding_tasks?.title || `Task ${task.id.slice(0,6)}`}
                             </span>
                             <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded-full font-medium ${
                               task.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"

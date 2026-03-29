@@ -77,10 +77,22 @@ export default function OffboardingPage() {
       const { error } = await (supabase as any).from("employee_offboarding").update({ status }).eq("id", id);
       if (error) throw error;
 
-      // When offboarding is completed, deactivate the employee
+      // When offboarding is completed, deactivate the employee and schedule account deletion
       if (status === "completed" && employeeId) {
-        // Try hr_employees first
-        await (supabase as any).from("hr_employees").update({ is_active: false }).eq("id", employeeId);
+        // Get the offboarding record for last_working_day / notice_period_days
+        const { data: offData } = await (supabase as any)
+          .from("employee_offboarding")
+          .select("last_working_day, notice_period_days")
+          .eq("id", id)
+          .single();
+
+        const deletionDate = offData?.last_working_day || new Date().toISOString().split('T')[0];
+
+        // Deactivate in hr_employees and schedule deletion
+        await (supabase as any).from("hr_employees")
+          .update({ is_active: false, account_deletion_date: deletionDate })
+          .eq("id", employeeId);
+
         // Also try legacy employees table
         await (supabase as any).from("employees").update({ status: "inactive" }).eq("id", employeeId);
       }

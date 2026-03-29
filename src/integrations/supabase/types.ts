@@ -14251,6 +14251,7 @@ export type Database = {
           total_encashable_days: number
         }[]
       }
+      fn_expire_compoff_allocations: { Args: never; Returns: undefined }
       fn_generate_payroll: {
         Args: { p_payroll_run_id: string; p_triggered_by?: string }
         Returns: Json

@@ -330,6 +330,14 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   <Label>Rule Name</Label>
                   <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" />
                 </div>
+                <div className="flex items-center gap-2 p-2 rounded-md border border-amber-500/30 bg-amber-500/5">
+                  <Switch checked={isDryRun} onCheckedChange={setIsDryRun} />
+                  <div>
+                    <Label className="text-xs font-medium">Dry-Run Mode</Label>
+                    <p className="text-[10px] text-muted-foreground">Calculates & logs prices without calling Binance API. Use to test rules safely.</p>
+                  </div>
+                  {isDryRun && <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/40 text-[10px]">DRY RUN</Badge>}
+                </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label>Trade Type</Label>

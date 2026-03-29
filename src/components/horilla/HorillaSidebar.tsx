@@ -53,6 +53,7 @@ const navGroups: NavGroup[] = [
           { label: "Positions", path: "/hrms/employee/positions" },
           { label: "Documents", path: "/hrms/employee/documents" },
           { label: "Separation", path: "/hrms/employee/separation" },
+          { label: "F&F Settlement", path: "/hrms/offboarding/fnf" },
         ],
       },
     ],
@@ -187,11 +188,6 @@ const navGroups: NavGroup[] = [
   {
     title: "SYSTEM",
     items: [
-      {
-        label: "F&F Settlement",
-        icon: LogOut,
-        path: "/hrms/offboarding/fnf",
-      },
       {
         label: "HR Logs",
         icon: FileText,

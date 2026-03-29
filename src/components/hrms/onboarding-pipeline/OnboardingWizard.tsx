@@ -98,7 +98,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
   // Generic stage complete handler
   const handleStageComplete = async (stage: number, stageData: any) => {
     try {
-      const completions = record?.stage_completions || {};
+      const completions = (record?.stage_completions as Record<string, any>) || {};
       const { data: user } = await supabase.auth.getUser();
       const updatedCompletions = {
         ...completions,
@@ -200,7 +200,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       // 6. Mark onboarding as completed
       const { data: user } = await supabase.auth.getUser();
-      const completions = record.stage_completions || {};
+      const completions = (record.stage_completions as Record<string, any>) || {};
       await updateRecord({
         status: "completed",
         employee_id: emp.id,

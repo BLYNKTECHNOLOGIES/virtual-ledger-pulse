@@ -42,12 +42,11 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     queryKey: ["erp-roles-list"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_roles")
-        .select("id, role")
-        .order("role");
+        .from("roles")
+        .select("id, name")
+        .order("name");
       if (error) throw error;
-      // Filter out admin roles
-      return data?.filter(r => !["admin", "super_admin"].includes(r.role)) || [];
+      return data?.filter(r => !["admin", "super_admin", "Admin", "Super Admin"].includes(r.name)) || [];
     },
     enabled: form.create_erp_account,
   });
@@ -144,7 +143,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
                 >
                   <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
                   <SelectContent>
-                    {roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.role}</SelectItem>)}
+                    {roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

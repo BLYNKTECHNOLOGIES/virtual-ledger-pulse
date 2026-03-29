@@ -3,28 +3,77 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 export type TerminalPermission =
+  // Dashboard
   | 'terminal_dashboard_view'
-  | 'terminal_ads_view'
-  | 'terminal_ads_manage'
+  | 'terminal_dashboard_export'
+  // Orders
   | 'terminal_orders_view'
   | 'terminal_orders_manage'
   | 'terminal_orders_actions'
-  | 'terminal_automation_view'
-  | 'terminal_automation_manage'
-  | 'terminal_analytics_view'
-  | 'terminal_assets_view'
-  | 'terminal_assets_manage'
-  | 'terminal_mpi_view'
-  | 'terminal_audit_logs_view'
-  | 'terminal_kyc_view'
-  | 'terminal_kyc_manage'
-  | 'terminal_logs_view'
-  | 'terminal_settings_view'
-  | 'terminal_settings_manage'
+  | 'terminal_orders_sync_approve'
+  | 'terminal_orders_escalate'
+  | 'terminal_orders_resolve_escalation'
+  | 'terminal_orders_chat'
+  | 'terminal_orders_export'
+  // Ads
+  | 'terminal_ads_view'
+  | 'terminal_ads_manage'
+  | 'terminal_ads_toggle'
+  | 'terminal_ads_rest_timer'
+  // Payer
+  | 'terminal_payer_view'
+  | 'terminal_payer_manage'
+  // Pricing
+  | 'terminal_pricing_view'
+  | 'terminal_pricing_manage'
+  | 'terminal_pricing_toggle'
+  | 'terminal_pricing_delete'
+  // Autopay
+  | 'terminal_autopay_view'
+  | 'terminal_autopay_toggle'
+  | 'terminal_autopay_configure'
+  // Autoreply
+  | 'terminal_autoreply_view'
+  | 'terminal_autoreply_manage'
+  | 'terminal_autoreply_toggle'
+  // Users & Team
   | 'terminal_users_view'
   | 'terminal_users_manage'
-  | 'terminal_payer_view'
-  | 'terminal_payer_manage';
+  | 'terminal_users_role_assign'
+  | 'terminal_users_bypass_code'
+  | 'terminal_users_manage_subordinates'
+  | 'terminal_users_manage_all'
+  // Shift & Handover
+  | 'terminal_shift_view'
+  | 'terminal_shift_manage'
+  | 'terminal_shift_reconciliation'
+  // Analytics & MPI
+  | 'terminal_analytics_view'
+  | 'terminal_analytics_export'
+  | 'terminal_mpi_view'
+  | 'terminal_mpi_view_own'
+  | 'terminal_mpi_view_all'
+  // Assets
+  | 'terminal_assets_view'
+  | 'terminal_assets_manage'
+  // KYC
+  | 'terminal_kyc_view'
+  | 'terminal_kyc_manage'
+  // Settings & Broadcasts
+  | 'terminal_settings_view'
+  | 'terminal_settings_manage'
+  | 'terminal_broadcasts_create'
+  | 'terminal_broadcasts_manage'
+  // Audit & Logs
+  | 'terminal_audit_logs_view'
+  | 'terminal_activity_logs_view'
+  | 'terminal_pricing_logs_view'
+  | 'terminal_logs_view'
+  // Legacy (kept for backward compat)
+  | 'terminal_automation_view'
+  | 'terminal_automation_manage'
+  // Destructive
+  | 'terminal_destructive';
 
 export interface TerminalRole {
   role_id: string;
@@ -144,14 +193,28 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
   );
 
   const ALL_TERMINAL_PERMISSIONS: TerminalPermission[] = [
-    'terminal_dashboard_view', 'terminal_ads_view', 'terminal_ads_manage',
+    'terminal_dashboard_view', 'terminal_dashboard_export',
     'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
-    'terminal_automation_view', 'terminal_automation_manage',
-    'terminal_analytics_view', 'terminal_assets_view', 'terminal_assets_manage', 'terminal_mpi_view',
-    'terminal_audit_logs_view', 'terminal_kyc_view', 'terminal_kyc_manage',
-    'terminal_logs_view', 'terminal_settings_view', 'terminal_settings_manage',
-    'terminal_users_view', 'terminal_users_manage',
+    'terminal_orders_sync_approve', 'terminal_orders_escalate', 'terminal_orders_resolve_escalation',
+    'terminal_orders_chat', 'terminal_orders_export',
+    'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
     'terminal_payer_view', 'terminal_payer_manage',
+    'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',
+    'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
+    'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
+    'terminal_users_view', 'terminal_users_manage', 'terminal_users_role_assign',
+    'terminal_users_bypass_code', 'terminal_users_manage_subordinates', 'terminal_users_manage_all',
+    'terminal_shift_view', 'terminal_shift_manage', 'terminal_shift_reconciliation',
+    'terminal_analytics_view', 'terminal_analytics_export',
+    'terminal_mpi_view', 'terminal_mpi_view_own', 'terminal_mpi_view_all',
+    'terminal_assets_view', 'terminal_assets_manage',
+    'terminal_kyc_view', 'terminal_kyc_manage',
+    'terminal_settings_view', 'terminal_settings_manage',
+    'terminal_broadcasts_create', 'terminal_broadcasts_manage',
+    'terminal_audit_logs_view', 'terminal_activity_logs_view', 'terminal_pricing_logs_view',
+    'terminal_logs_view',
+    'terminal_automation_view', 'terminal_automation_manage',
+    'terminal_destructive',
   ];
 
   const effectivePermissions = isSuperAdmin ? ALL_TERMINAL_PERMISSIONS : terminalPermissions;

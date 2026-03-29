@@ -1067,6 +1067,7 @@ export default function EmployeeProfilePage() {
                 </table>
               </div>
             )}
+            {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
           </div>
         )}
 

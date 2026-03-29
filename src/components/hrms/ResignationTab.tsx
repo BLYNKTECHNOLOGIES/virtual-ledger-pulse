@@ -220,13 +220,12 @@ export function ResignationTab() {
     onSuccess: () => refetchChecklist(),
   });
 
-  // Complete resignation — deactivate employee and schedule account deletion
+  // Complete resignation — deactivate employee, auto-create F&F, show acknowledgement
   const completeResignation = useMutation({
     mutationFn: async (employeeId: string) => {
-      // Get the employee's notice_period_end_date or last_working_day for deletion scheduling
       const { data: empData } = await supabase
         .from("hr_employees")
-        .select("notice_period_end_date, last_working_day")
+        .select("first_name, last_name, badge_id, notice_period_end_date, last_working_day, resignation_date, separation_reason")
         .eq("id", employeeId)
         .single();
 
@@ -241,13 +240,43 @@ export function ResignationTab() {
         })
         .eq("id", employeeId);
       if (error) throw error;
+
+      // Auto-create draft F&F settlement (B3)
+      try {
+        await (supabase as any).from("hr_fnf_settlements").insert({
+          employee_id: employeeId,
+          status: "draft",
+          settlement_date: empData?.last_working_day || new Date().toISOString().split('T')[0],
+          total_earnings: 0,
+          total_deductions: 0,
+          net_payable: 0,
+          notes: "Auto-created on resignation completion",
+        });
+      } catch (e) {
+        console.warn("F&F auto-creation failed (non-fatal):", e);
+      }
+
+      return empData;
     },
-    onSuccess: () => {
-      toast.success("Resignation completed — employee deactivated, account will be deleted after notice period");
+    onSuccess: (empData) => {
+      toast.success("Resignation completed — employee deactivated");
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowChecklistDialog(false);
       setSelectedEmployee(null);
+
+      // Show acknowledgement summary (B1)
+      if (empData) {
+        setAcknowledgementData({
+          name: `${empData.first_name} ${empData.last_name}`,
+          badge: empData.badge_id,
+          resignationDate: empData.resignation_date,
+          lastWorkingDay: empData.last_working_day,
+          reason: empData.separation_reason,
+          checklistCompleted: `${completedCount}/${totalCount}`,
+        });
+        setShowAcknowledgement(true);
+      }
     },
     onError: (err: any) => toast.error(err.message),
   });
@@ -312,6 +341,7 @@ export function ResignationTab() {
 
   const getStatusBadge = (status: string | null) => {
     switch (status) {
+      case "pending_approval": return <Badge className="bg-blue-100 text-blue-800">Pending Approval</Badge>;
       case "notice_period": return <Badge className="bg-amber-100 text-amber-800">Notice Period</Badge>;
       case "completed": return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
       case "withdrawn": return <Badge className="bg-gray-100 text-gray-800">Withdrawn</Badge>;
@@ -319,6 +349,7 @@ export function ResignationTab() {
     }
   };
 
+  const pendingApprovals = resigningEmployees?.filter(e => e.resignation_status === "pending_approval") || [];
   const activeResignations = resigningEmployees?.filter(e => e.resignation_status === "notice_period") || [];
   const completedResignations = resigningEmployees?.filter(e => e.resignation_status === "completed") || [];
 

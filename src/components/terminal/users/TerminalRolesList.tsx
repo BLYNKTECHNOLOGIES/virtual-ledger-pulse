@@ -192,6 +192,89 @@ const TIER_SWITCH_STYLES: Record<PermTier, string> = {
   destructive: 'data-[state=checked]:bg-red-500',
 };
 
+// ─── Role Template Presets ──────────────────────────────────────────
+const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermission[] }> = {
+  operator: {
+    label: 'Operator',
+    permissions: [
+      'terminal_dashboard_view', 'terminal_orders_view', 'terminal_orders_actions',
+      'terminal_orders_chat', 'terminal_orders_escalate', 'terminal_ads_view',
+      'terminal_payer_view', 'terminal_shift_view', 'terminal_mpi_view_own',
+      'terminal_analytics_view', 'terminal_assets_view', 'terminal_autoreply_view',
+      'terminal_autopay_view', 'terminal_pricing_view',
+    ],
+  },
+  team_lead: {
+    label: 'Team Lead',
+    permissions: [
+      'terminal_dashboard_view', 'terminal_dashboard_export',
+      'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
+      'terminal_orders_chat', 'terminal_orders_escalate', 'terminal_orders_export',
+      'terminal_ads_view', 'terminal_ads_toggle',
+      'terminal_payer_view', 'terminal_payer_manage',
+      'terminal_pricing_view', 'terminal_pricing_toggle',
+      'terminal_autopay_view', 'terminal_autopay_toggle',
+      'terminal_autoreply_view', 'terminal_autoreply_toggle',
+      'terminal_shift_view', 'terminal_shift_manage',
+      'terminal_mpi_view_own', 'terminal_mpi_view_all',
+      'terminal_analytics_view', 'terminal_assets_view',
+      'terminal_users_view', 'terminal_users_manage_subordinates',
+    ],
+  },
+  payer: {
+    label: 'Payer',
+    permissions: [
+      'terminal_dashboard_view', 'terminal_orders_view', 'terminal_orders_actions',
+      'terminal_orders_chat', 'terminal_payer_view', 'terminal_payer_manage',
+      'terminal_shift_view', 'terminal_mpi_view_own',
+      'terminal_assets_view', 'terminal_autopay_view',
+    ],
+  },
+  asst_manager: {
+    label: 'Asst Manager',
+    permissions: [
+      'terminal_dashboard_view', 'terminal_dashboard_export',
+      'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
+      'terminal_orders_chat', 'terminal_orders_escalate', 'terminal_orders_resolve_escalation',
+      'terminal_orders_export',
+      'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle',
+      'terminal_payer_view', 'terminal_payer_manage',
+      'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle',
+      'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
+      'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
+      'terminal_shift_view', 'terminal_shift_manage',
+      'terminal_mpi_view_own', 'terminal_mpi_view_all',
+      'terminal_analytics_view', 'terminal_analytics_export',
+      'terminal_assets_view',
+      'terminal_users_view', 'terminal_users_manage', 'terminal_users_manage_subordinates',
+      'terminal_activity_logs_view',
+    ],
+  },
+  ops_manager: {
+    label: 'Ops Manager',
+    permissions: [
+      'terminal_dashboard_view', 'terminal_dashboard_export',
+      'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
+      'terminal_orders_chat', 'terminal_orders_escalate', 'terminal_orders_resolve_escalation',
+      'terminal_orders_sync_approve', 'terminal_orders_export',
+      'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
+      'terminal_payer_view', 'terminal_payer_manage',
+      'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',
+      'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
+      'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
+      'terminal_shift_view', 'terminal_shift_manage', 'terminal_shift_reconciliation',
+      'terminal_mpi_view_own', 'terminal_mpi_view_all',
+      'terminal_analytics_view', 'terminal_analytics_export',
+      'terminal_assets_view', 'terminal_assets_manage',
+      'terminal_kyc_view', 'terminal_kyc_manage',
+      'terminal_users_view', 'terminal_users_manage', 'terminal_users_manage_subordinates', 'terminal_users_manage_all',
+      'terminal_users_role_assign',
+      'terminal_settings_view',
+      'terminal_audit_logs_view', 'terminal_activity_logs_view', 'terminal_pricing_logs_view',
+    ],
+  },
+};
+
 // ─── Component ─────────────────────────────────────────────────────
 
 export function TerminalRolesList() {
@@ -209,6 +292,7 @@ export function TerminalRolesList() {
   const [isSaving, setIsSaving] = useState(false);
   const [myHierarchyLevel, setMyHierarchyLevel] = useState<number>(999);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+  const [showCompare, setShowCompare] = useState(false);
 
   // Current user's permissions for delegation guard
   const myPerms = useMemo(() => new Set<string>(
@@ -356,6 +440,9 @@ export function TerminalRolesList() {
           <div className="flex gap-2">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { fetchRoles(); fetchMyLevel(); }}>
               <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setShowCompare(true)}>
+              <ArrowLeftRight className="h-3.5 w-3.5 mr-1" /> Compare
             </Button>
             {canManage && (
               <Button size="sm" className="h-8 text-xs" onClick={openNew}>

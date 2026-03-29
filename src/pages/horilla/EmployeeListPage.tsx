@@ -396,6 +396,68 @@ export default function EmployeeListPage() {
     }
   };
 
+  // ─── Bulk status change ───
+  const handleBulkStatusChange = async (active: boolean) => {
+    if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
+    try {
+      for (const id of selectedIds) {
+        await supabase.from("hr_employees").update({ is_active: active }).eq("id", id);
+      }
+      toast.success(`${selectedIds.size} employee(s) ${active ? "activated" : "deactivated"}`);
+      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+      setSelectedIds(new Set());
+      setActionsOpen(false);
+    } catch {
+      toast.error("Failed to update status");
+    }
+  };
+
+  // ─── Bulk department transfer ───
+  const [bulkDeptOpen, setBulkDeptOpen] = useState(false);
+  const [bulkDeptId, setBulkDeptId] = useState("");
+  const handleBulkDeptTransfer = async () => {
+    if (!bulkDeptId || selectedIds.size === 0) return;
+    try {
+      for (const id of selectedIds) {
+        const wi = getWorkInfo(id);
+        if (wi) {
+          await supabase.from("hr_employee_work_info").update({ department_id: bulkDeptId }).eq("id", wi.id);
+        }
+      }
+      toast.success(`${selectedIds.size} employee(s) transferred`);
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+      setSelectedIds(new Set());
+      setBulkDeptOpen(false);
+      setBulkDeptId("");
+      setActionsOpen(false);
+    } catch {
+      toast.error("Failed to transfer");
+    }
+  };
+
+  // ─── Bulk shift assign ───
+  const [bulkShiftOpen, setBulkShiftOpen] = useState(false);
+  const [bulkShiftId, setBulkShiftId] = useState("");
+  const handleBulkShiftAssign = async () => {
+    if (!bulkShiftId || selectedIds.size === 0) return;
+    try {
+      for (const id of selectedIds) {
+        const wi = getWorkInfo(id);
+        if (wi) {
+          await supabase.from("hr_employee_work_info").update({ shift_id: bulkShiftId }).eq("id", wi.id);
+        }
+      }
+      toast.success(`${selectedIds.size} employee(s) shift updated`);
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+      setSelectedIds(new Set());
+      setBulkShiftOpen(false);
+      setBulkShiftId("");
+      setActionsOpen(false);
+    } catch {
+      toast.error("Failed to assign shift");
+    }
+  };
+
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
   const avatarColors = ["bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500"];
@@ -486,6 +548,27 @@ export default function EmployeeListPage() {
                     className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
                   >
                     <Download className="h-3.5 w-3.5" /> Export
+                  </button>
+                  <hr className="my-1 border-border" />
+                  <button onClick={() => { setBulkDeptOpen(true); setActionsOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <Building2 className="h-3.5 w-3.5" /> Bulk Dept Transfer
+                  </button>
+                  <button onClick={() => { setBulkShiftOpen(true); setActionsOpen(false); }}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <Clock className="h-3.5 w-3.5" /> Bulk Shift Assign
+                  </button>
+                  <button onClick={() => handleBulkStatusChange(true)}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <UserCheck className="h-3.5 w-3.5" /> Bulk Activate
+                  </button>
+                  <button onClick={() => handleBulkStatusChange(false)}
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
+                    disabled={selectedIds.size === 0}>
+                    <UserX className="h-3.5 w-3.5" /> Bulk Deactivate
                   </button>
                   <hr className="my-1 border-border" />
                   <button

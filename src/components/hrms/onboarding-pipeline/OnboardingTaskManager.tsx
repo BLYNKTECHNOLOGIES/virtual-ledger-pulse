@@ -152,19 +152,53 @@ export default function OnboardingTaskManager({ onboardingId, recruitmentId }: P
 
   const employeeId = onboarding?.employee_id || onboarding?.candidate_id; // prefer employee_id from Stage 5 finalization
 
+  const loadDefaultTemplate = useMutation({
+    mutationFn: async () => {
+      const defaults = [
+        { stage_title: "Document Collection", sequence: 1, tasks: ["Collect ID proof", "Collect address proof", "Collect PAN card", "Collect bank details"] },
+        { stage_title: "IT Setup", sequence: 2, tasks: ["Create email account", "Setup workstation", "Assign software licenses", "Provide VPN access"] },
+        { stage_title: "Orientation", sequence: 3, tasks: ["Company overview session", "Meet team members", "Office tour", "Review company policies"] },
+        { stage_title: "Training", sequence: 4, tasks: ["Role-specific training", "Tools & systems training", "Compliance training"] },
+        { stage_title: "Probation Review", sequence: 5, tasks: ["30-day check-in", "60-day performance review", "Probation confirmation"], is_final_stage: true },
+      ];
+      for (const s of defaults) {
+        const { data: stage, error } = await (supabase as any).from("hr_onboarding_stages").insert({
+          stage_title: s.stage_title, sequence: s.sequence, recruitment_id: recruitmentId || null, is_final_stage: s.is_final_stage || false,
+        }).select("id").single();
+        if (error) throw error;
+        if (stage && s.tasks.length) {
+          await (supabase as any).from("hr_onboarding_tasks").insert(s.tasks.map(t => ({ stage_id: stage.id, title: t })));
+        }
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_onboarding_stages"] });
+      qc.invalidateQueries({ queryKey: ["hr_onboarding_tasks"] });
+      toast.success("Default template loaded with 5 stages");
+    },
+    onError: () => toast.error("Failed to load template"),
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold flex items-center gap-2">
           <ListTodo className="h-5 w-5" /> Onboarding Stages & Tasks
         </h3>
-        <Button size="sm" onClick={() => { setStageForm({ stage_title: "", sequence: stages.length + 1 }); setShowStageDialog(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Add Stage
-        </Button>
+        <div className="flex gap-2">
+          {stages.length === 0 && (
+            <Button size="sm" variant="outline" onClick={() => loadDefaultTemplate.mutate()} disabled={loadDefaultTemplate.isPending}>
+              Load Default Template
+            </Button>
+          )}
+          <Button size="sm" onClick={() => { setStageForm({ stage_title: "", sequence: stages.length + 1 }); setShowStageDialog(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Add Stage
+          </Button>
+        </div>
       </div>
 
       {stages.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-muted-foreground">No onboarding stages defined. Add stages to create a task checklist.</CardContent></Card>
+        <Card><CardContent className="p-6 text-center text-muted-foreground">No onboarding stages defined. Click "Load Default Template" or add stages manually.</CardContent></Card>
       ) : (
         stages.map((stage: any) => {
           const stageTasks = tasks.filter((t: any) => t.stage_id === stage.id);

@@ -175,7 +175,7 @@ export default function CandidateProfilePage() {
         .from("hr_candidate_tasks")
         .insert({
           candidate_stage_id: newTaskStageId,
-          candidate_task_id: null,
+          title: newTaskTitle.trim(),
           status: "pending",
         });
       if (error) throw error;

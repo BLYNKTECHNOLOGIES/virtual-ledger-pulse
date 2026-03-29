@@ -693,6 +693,7 @@ const router = createBrowserRouter([
         { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
         { path: "disciplinary-actions", element: <DisciplinaryActionsPage /> },
         { path: "bonus-points", element: <BonusPointsPage /> },
+        { path: "logs", element: <HRLogsPage /> },
         { path: "recruitment", element: <RecruitmentDashboardPage /> },
         { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
         { path: "recruitment/candidates", element: <CandidatesListPage /> },

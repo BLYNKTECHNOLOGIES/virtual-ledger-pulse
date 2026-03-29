@@ -63,10 +63,10 @@ export default function FnFSettlementPage() {
     // Pull loan balance
     const { data: loans } = await (supabase as any)
       .from("hr_loans")
-      .select("remaining_amount")
+      .select("outstanding_balance")
       .eq("employee_id", empId)
       .eq("status", "active");
-    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.remaining_amount || 0), 0);
+    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
 
     // Pull encashable leave balance
     const { data: allocations } = await (supabase as any)

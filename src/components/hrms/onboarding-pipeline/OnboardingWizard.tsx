@@ -167,6 +167,31 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         .single();
       if (empErr) throw empErr;
 
+      // 2b. Auto-create leave allocations for all active leave types
+      try {
+        const { data: leaveTypes } = await supabase
+          .from("hr_leave_types")
+          .select("id, max_days_per_year")
+          .eq("is_active", true);
+        if (leaveTypes && leaveTypes.length > 0) {
+          const now = new Date();
+          const year = now.getFullYear();
+          const quarter = Math.ceil((now.getMonth() + 1) / 3);
+          const allocations = leaveTypes.map(lt => ({
+            employee_id: emp.id,
+            leave_type_id: lt.id,
+            year,
+            quarter,
+            allocated_days: lt.max_days_per_year || 0,
+            available_days: lt.max_days_per_year || 0,
+            used_days: 0,
+          }));
+          await supabase.from("hr_leave_allocations").insert(allocations);
+        }
+      } catch (leaveErr) {
+        console.warn("Auto leave allocation failed:", leaveErr);
+      }
+
       // 3. Create work info
       await supabase.from("hr_employee_work_info").insert({
         employee_id: emp.id,

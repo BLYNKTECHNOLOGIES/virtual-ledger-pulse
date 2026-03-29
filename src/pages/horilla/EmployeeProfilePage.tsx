@@ -20,6 +20,53 @@ const TABS = [
   "Leave", "Asset", "Attendance", "Payroll", "Tags & Skills", "Notifications",
 ];
 
+// ─── Salary Summary Card ───
+function SalarySummaryCard({ employeeId, totalSalary }: { employeeId?: string; totalSalary?: number }) {
+  const { data: templateInfo } = useQuery({
+    queryKey: ["salary-template-info", employeeId],
+    queryFn: async () => {
+      if (!employeeId) return null;
+      const { data } = await (supabase as any)
+        .from("hr_employee_salary_structures")
+        .select("id, template_id")
+        .eq("employee_id", employeeId)
+        .limit(1)
+        .maybeSingle();
+      if (!data?.template_id) return null;
+      const { data: tmpl } = await (supabase as any)
+        .from("hr_salary_templates")
+        .select("name")
+        .eq("id", data.template_id)
+        .maybeSingle();
+      return tmpl;
+    },
+    enabled: !!employeeId,
+  });
+
+  const ctc = totalSalary || 0;
+  const monthly = Math.round(ctc / 12);
+
+  return (
+    <div className="border border-border rounded-lg p-4 bg-muted/30">
+      <h3 className="text-sm font-semibold text-foreground mb-3">Salary Summary</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground">Annual CTC</p>
+          <p className="text-sm font-bold text-foreground">₹{ctc.toLocaleString("en-IN")}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Monthly CTC</p>
+          <p className="text-sm font-semibold text-foreground">₹{monthly.toLocaleString("en-IN")}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Salary Template</p>
+          <p className="text-sm font-medium text-foreground">{templateInfo?.name || "No template"}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Deposit Info Sub-Component ───
 function DepositInfoSection({ employeeId }: { employeeId: string }) {
   const { data: deposit } = useQuery({
@@ -1028,6 +1075,9 @@ export default function EmployeeProfilePage() {
         {/* ── PAYROLL TAB ── */}
         {activeTab === "Payroll" && (
           <div className="space-y-4">
+            {/* Salary Summary Card */}
+            <SalarySummaryCard employeeId={emp?.id} totalSalary={emp?.total_salary} />
+
             <h3 className="text-base font-semibold text-foreground">Payslips</h3>
             {(payslips || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No payslips found</p>

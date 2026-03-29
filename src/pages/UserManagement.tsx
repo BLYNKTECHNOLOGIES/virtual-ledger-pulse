@@ -736,7 +736,7 @@ export default function UserManagement() {
 
           {/* Password Reset Requests Tab - Super Admin only */}
           <TabsContent value="password-requests" className="space-y-4">
-            <PermissionGate permissions={['super_admin_access']}>
+            <PermissionGate permissions={['user_management_manage']}>
               <PasswordResetRequestsTab />
             </PermissionGate>
           </TabsContent>

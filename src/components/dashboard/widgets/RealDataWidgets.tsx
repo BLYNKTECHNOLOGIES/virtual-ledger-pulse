@@ -1170,11 +1170,11 @@ export function UpcomingTasksWidget() {
       if (hasHrmsView) {
         const [{ count: pendingLeave }, { count: pendingOnboard }] = await Promise.all([
           supabase.from('hr_leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-          supabase.from('hr_candidates').select('id', { count: 'exact', head: true }).eq('start_onboard', true).eq('hired', false),
+          supabase.from('hr_employee_onboarding').select('id', { count: 'exact', head: true }).not('status', 'in', '("completed","cancelled")'),
         ]);
         items.push(
           { label: 'Leave Requests', count: pendingLeave || 0, color: 'bg-yellow-500', urgency: pendingLeave && pendingLeave > 0 ? 'Pending' : 'Clear' },
-          { label: 'Onboarding', count: pendingOnboard || 0, color: 'bg-blue-500', urgency: 'In Progress' },
+          { label: 'Onboarding', count: pendingOnboard || 0, color: 'bg-blue-500', urgency: pendingOnboard && pendingOnboard > 0 ? 'In Progress' : 'Clear' },
         );
       }
 

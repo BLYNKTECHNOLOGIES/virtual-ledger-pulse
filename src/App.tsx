@@ -94,6 +94,7 @@ import ReportsPage from './pages/horilla/ReportsPage';
 import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
 import ObjectivesPage from './pages/horilla/ObjectivesPage';
 import Feedback360Page from './pages/horilla/Feedback360Page';
+import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -672,6 +673,7 @@ const router = createBrowserRouter([
         { path: "documents", element: <DocumentsPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
+        { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
       ],
     },
   {

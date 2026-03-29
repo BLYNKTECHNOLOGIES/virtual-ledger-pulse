@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Layers, Plus, Edit, Trash2, X, GripVertical } from "lucide-react";
+import { Layers, Plus, Edit, Trash2, X, GripVertical, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export default function StagesPage() {
@@ -39,6 +39,63 @@ export default function StagesPage() {
       return data || [];
     },
   });
+
+  const { data: stageManagers = [] } = useQuery({
+    queryKey: ["hr_stage_managers_all"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hr_stage_managers")
+        .select("*, hr_employees(first_name, last_name)");
+      return data || [];
+    },
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["hr_employees_for_manager"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hr_employees")
+        .select("id, first_name, last_name")
+        .eq("is_active", true)
+        .order("first_name");
+      return data || [];
+    },
+  });
+
+  const [managerDialogStageId, setManagerDialogStageId] = useState<string | null>(null);
+  const [selectedManagerId, setSelectedManagerId] = useState("");
+
+  const addManagerMutation = useMutation({
+    mutationFn: async () => {
+      if (!managerDialogStageId || !selectedManagerId) return;
+      const { error } = await supabase.from("hr_stage_managers").insert({
+        stage_id: managerDialogStageId,
+        employee_id: selectedManagerId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager assigned");
+      queryClient.invalidateQueries({ queryKey: ["hr_stage_managers_all"] });
+      setManagerDialogStageId(null);
+      setSelectedManagerId("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to assign manager"),
+  });
+
+  const removeManagerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hr_stage_managers").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager removed");
+      queryClient.invalidateQueries({ queryKey: ["hr_stage_managers_all"] });
+    },
+  });
+
+  const getManagersForStage = (stageId: string) =>
+    stageManagers.filter((m: any) => m.stage_id === stageId);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

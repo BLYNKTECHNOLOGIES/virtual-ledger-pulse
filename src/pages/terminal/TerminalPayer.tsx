@@ -34,7 +34,8 @@ function mapOrderStatusCode(code: number | string): string {
 
 export default function TerminalPayer() {
   const [search, setSearch] = useState('');
-  const { userId } = useTerminalAuth();
+  const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canManagePayer = hasPermission('terminal_payer_manage') || isTerminalAdmin;
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'payer', { activeTab: 'pending' as string });
   const activeTab = prefs.activeTab as 'pending' | 'completed';
   const setActiveTab = (v: string) => setPref('activeTab', v);

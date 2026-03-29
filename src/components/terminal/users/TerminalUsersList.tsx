@@ -437,10 +437,10 @@ export function TerminalUsersList() {
                       )}
                     </div>
                   </TableCell>
-                  {canManage && (() => {
+                  {(canManage || canRoleAssign) && (() => {
                     // Non-admin users cannot config/modify themselves — only superiors can
                     const isSelf = a.userId === currentUserId;
-                    const canModifyThisUser = isSuperAdmin || isTerminalAdmin || !isSelf;
+                    const canModifyThisUser = canManageAll || !isSelf;
                     if (!canModifyThisUser) return <TableCell />;
                     return (
                       <TableCell className="text-right">

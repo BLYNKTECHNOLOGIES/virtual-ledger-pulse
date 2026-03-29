@@ -56,6 +56,7 @@ export default function Tasks() {
     if (!task.assignee_id) return;
     try {
       const from = (table: string) => supabase.from(table as any);
+      // In-app notification
       await from('terminal_notifications').insert({
         user_id: task.assignee_id,
         title: '🔔 Task Reminder',
@@ -66,6 +67,25 @@ export default function Tasks() {
         task_id: task.id, user_id: user?.id, action: 'nudge_sent',
         details: { nudged_user: task.assignee_id },
       });
+
+      // Send email notification
+      const senderName = user?.firstName && user?.lastName 
+        ? `${user.firstName} ${user.lastName}` 
+        : user?.username || user?.email || 'System';
+      
+      await supabase.functions.invoke('send-task-email', {
+        body: {
+          eventType: 'task_nudge',
+          taskId: task.id,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          assignedByName: senderName,
+          dueDate: task.due_date,
+          status: task.status,
+          recipientUserIds: [task.assignee_id],
+        },
+      });
+
       toast({ title: 'Nudge sent to assignee' });
     } catch {
       toast({ title: 'Error', description: 'Failed to send nudge', variant: 'destructive' });

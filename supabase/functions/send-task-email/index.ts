@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend@2.0.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface EmailRequest {
-  eventType: "task_assigned" | "task_reassigned" | "task_overdue" | "task_due_soon" | "task_mention";
+  eventType: "task_assigned" | "task_reassigned" | "task_overdue" | "task_due_soon" | "task_mention" | "task_nudge";
   taskId: string;
   taskTitle: string;
   taskDescription?: string;
@@ -24,6 +24,7 @@ function getSubject(eventType: string, taskTitle: string): string {
     task_overdue: `⚠️ Task Overdue: ${taskTitle}`,
     task_due_soon: `⏰ Task Due Soon: ${taskTitle}`,
     task_mention: `💬 You were mentioned: ${taskTitle}`,
+    task_nudge: `🔔 Task Reminder: ${taskTitle}`,
   };
   return subjects[eventType] || `Task Update: ${taskTitle}`;
 }
@@ -52,6 +53,7 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
     task_overdue: "⚠️ This task is overdue and needs attention",
     task_due_soon: "⏰ This task is approaching its deadline",
     task_mention: "💬 You were mentioned in a task comment",
+    task_nudge: "🔔 This task needs your immediate attention",
   };
 
   return `
@@ -63,7 +65,7 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <tr><td style="background:#1a1a2e;padding:24px 30px;">
-          <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:600;">ERP Task Management</h1>
+          <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:600;">BLYNK ERP — Task Management</h1>
         </td></tr>
         <tr><td style="padding:30px;">
           <p style="margin:0 0 16px;font-size:16px;color:#333;font-weight:600;">${headers[eventType] || "Task Update"}</p>
@@ -72,10 +74,10 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
             <p style="margin:0;color:#666;font-size:14px;line-height:1.5;">${descSnippet}</p>
           </div>
           ${dueLine}
-          ${assignedByName ? `<p style="margin:8px 0;color:#555;">👤 ${eventType === "task_reassigned" ? "Reassigned" : "Assigned"} by: <strong>${assignedByName}</strong></p>` : ""}
+          ${assignedByName ? `<p style="margin:8px 0;color:#555;">👤 ${eventType === "task_reassigned" ? "Reassigned" : "Sent"} by: <strong>${assignedByName}</strong></p>` : ""}
           ${statusBadge ? `<p style="margin:8px 0;color:#555;">Status: ${statusBadge}</p>` : ""}
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
-          <p style="margin:0;font-size:12px;color:#999;">This is an automated notification from your ERP system. Please log in to view full details and take action.</p>
+          <p style="margin:0;font-size:12px;color:#999;">This is an automated notification from BLYNK ERP. Please log in to view full details and take action.</p>
         </td></tr>
       </table>
     </td></tr>
@@ -96,22 +98,24 @@ Deno.serve(async (req) => {
     if (!eventType || !taskId || !recipientUserIds?.length) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const smtpHost = Deno.env.get("SMTP_HOST");
+    const smtpUser = Deno.env.get("SMTP_USER");
+    const smtpPass = Deno.env.get("SMTP_PASS");
 
-    if (!resendApiKey) {
-      return new Response(JSON.stringify({ error: "RESEND_API_KEY not configured" }), {
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      console.error("Missing SMTP configuration");
+      return new Response(JSON.stringify({ error: "SMTP not configured" }), {
         status: 500,
-        headers: corsHeaders,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const resend = new Resend(resendApiKey);
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data: users, error: usersError } = await supabase
@@ -120,24 +124,41 @@ Deno.serve(async (req) => {
       .in("id", recipientUserIds);
 
     if (usersError || !users?.length) {
+      console.error("Failed to fetch recipients:", usersError?.message);
       return new Response(
         JSON.stringify({ error: usersError?.message || "No valid recipients found" }),
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Deduplicate by email so a user doesn't get duplicate notifications
     const uniqueUsers = Array.from(
       new Map((users || []).filter((u) => !!u.email).map((u) => [u.email?.toLowerCase(), u])).values()
     );
+
+    if (uniqueUsers.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No recipients with email addresses found" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const today = new Date().toISOString().split("T")[0];
     let sentCount = 0;
     const errors: string[] = [];
 
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: 465,
+        tls: true,
+        auth: { username: smtpUser, password: smtpPass },
+      },
+    });
+
     for (const recipient of uniqueUsers) {
       if (!recipient.email) continue;
 
+      // Dedup: skip if already sent today for same task+event
       const { data: existing } = await supabase
         .from("email_notification_log")
         .select("id")
@@ -150,10 +171,11 @@ Deno.serve(async (req) => {
       if (existing && existing.length > 0) continue;
 
       try {
-        await resend.emails.send({
-          from: "ERP Tasks <onboarding@resend.dev>",
-          to: [recipient.email],
+        await client.send({
+          from: smtpUser,
+          to: recipient.email,
           subject: getSubject(eventType, body.taskTitle),
+          content: "Please view this email in an HTML-capable client.",
           html: getEmailBody(eventType, body),
         });
 
@@ -168,6 +190,7 @@ Deno.serve(async (req) => {
         sentCount++;
       } catch (sendErr: any) {
         const message = sendErr?.message || "Unknown send error";
+        console.error(`Failed to send to ${recipient.email}:`, message);
         errors.push(`${recipient.email}: ${message}`);
 
         await supabase.from("email_notification_log").insert({
@@ -181,10 +204,14 @@ Deno.serve(async (req) => {
       }
     }
 
+    await client.close();
+
+    console.log(`Task email: sent=${sentCount}, errors=${errors.length}`);
     return new Response(JSON.stringify({ sent: sentCount, errors }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
+    console.error("send-task-email error:", err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

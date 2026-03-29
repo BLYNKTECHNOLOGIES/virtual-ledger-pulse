@@ -4196,6 +4196,133 @@ export type Database = {
           },
         ]
       }
+      hr_employee_onboarding: {
+        Row: {
+          candidate_id: string | null
+          create_erp_account: boolean | null
+          created_at: string
+          created_by: string | null
+          ctc: number | null
+          current_stage: number
+          date_of_birth: string | null
+          date_of_joining: string | null
+          department_id: string | null
+          deposit_config: Json | null
+          document_collection_status: string | null
+          document_email_sent_at: string | null
+          document_mail_received_at: string | null
+          documents: Json | null
+          email: string | null
+          employee_id: string | null
+          employee_type: string | null
+          erp_role_id: string | null
+          essl_badge_id: string | null
+          first_name: string | null
+          gender: string | null
+          id: string
+          job_role: string | null
+          last_name: string | null
+          offer_policy_status: string | null
+          phone: string | null
+          position_id: string | null
+          salary_template_id: string | null
+          shift_id: string | null
+          stage_completions: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          candidate_id?: string | null
+          create_erp_account?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          ctc?: number | null
+          current_stage?: number
+          date_of_birth?: string | null
+          date_of_joining?: string | null
+          department_id?: string | null
+          deposit_config?: Json | null
+          document_collection_status?: string | null
+          document_email_sent_at?: string | null
+          document_mail_received_at?: string | null
+          documents?: Json | null
+          email?: string | null
+          employee_id?: string | null
+          employee_type?: string | null
+          erp_role_id?: string | null
+          essl_badge_id?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string
+          job_role?: string | null
+          last_name?: string | null
+          offer_policy_status?: string | null
+          phone?: string | null
+          position_id?: string | null
+          salary_template_id?: string | null
+          shift_id?: string | null
+          stage_completions?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string | null
+          create_erp_account?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          ctc?: number | null
+          current_stage?: number
+          date_of_birth?: string | null
+          date_of_joining?: string | null
+          department_id?: string | null
+          deposit_config?: Json | null
+          document_collection_status?: string | null
+          document_email_sent_at?: string | null
+          document_mail_received_at?: string | null
+          documents?: Json | null
+          email?: string | null
+          employee_id?: string | null
+          employee_type?: string | null
+          erp_role_id?: string | null
+          essl_badge_id?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string
+          job_role?: string | null
+          last_name?: string | null
+          offer_policy_status?: string | null
+          phone?: string | null
+          position_id?: string | null
+          salary_template_id?: string | null
+          shift_id?: string | null
+          stage_completions?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_employee_onboarding_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "hr_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_employee_salary_structures: {
         Row: {
           amount: number
@@ -5897,6 +6024,44 @@ export type Database = {
             columns: ["recruitment_id"]
             isOneToOne: false
             referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_onboarding_audit_log: {
+        Row: {
+          action: string
+          changed_fields: Json | null
+          id: string
+          onboarding_id: string
+          performed_at: string
+          performed_by: string | null
+          stage: number | null
+        }
+        Insert: {
+          action: string
+          changed_fields?: Json | null
+          id?: string
+          onboarding_id: string
+          performed_at?: string
+          performed_by?: string | null
+          stage?: number | null
+        }
+        Update: {
+          action?: string
+          changed_fields?: Json | null
+          id?: string
+          onboarding_id?: string
+          performed_at?: string
+          performed_by?: string | null
+          stage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_onboarding_audit_log_onboarding_id_fkey"
+            columns: ["onboarding_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_onboarding"
             referencedColumns: ["id"]
           },
         ]

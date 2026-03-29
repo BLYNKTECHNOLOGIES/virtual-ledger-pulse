@@ -18,7 +18,7 @@ import {
   ChevronRight,
   Briefcase,
   AlertTriangle,
-  Star,
+  
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

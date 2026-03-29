@@ -110,6 +110,7 @@ import SkillZonePage from './pages/horilla/SkillZonePage';
 import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
 import HRLogsPage from './pages/horilla/HRLogsPage';
 import AttendancePunchesPage from './pages/horilla/AttendancePunchesPage';
+import MonthlyHoursSummaryPage from './pages/horilla/MonthlyHoursSummaryPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';

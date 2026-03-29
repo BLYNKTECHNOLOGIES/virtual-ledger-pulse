@@ -3941,6 +3941,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_email_send_log: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          message_id: string
+          metadata: Json | null
+          recipient_email: string
+          status: string
+          subject: string | null
+          template_name: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id: string
+          metadata?: Json | null
+          recipient_email: string
+          status?: string
+          subject?: string | null
+          template_name: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string
+          metadata?: Json | null
+          recipient_email?: string
+          status?: string
+          subject?: string | null
+          template_name?: string
+        }
+        Relationships: []
+      }
       hr_employee_bank_details: {
         Row: {
           account_number: string | null

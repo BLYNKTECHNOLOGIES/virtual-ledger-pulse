@@ -405,6 +405,8 @@ export default function RecruitmentDashboardPage() {
                         </button>
                       </div>
                     </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1">
                         <button
                           onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)}
                           className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600"

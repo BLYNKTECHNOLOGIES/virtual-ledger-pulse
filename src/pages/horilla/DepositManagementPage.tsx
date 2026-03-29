@@ -176,6 +176,37 @@ export default function DepositManagementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Gap 4: Pause/Resume mutation
+  const pauseResumeMutation = useMutation({
+    mutationFn: async ({ deposit, action }: { deposit: any; action: 'pause' | 'resume' }) => {
+      const isPausing = action === 'pause';
+      const { error } = await (supabase as any).from("hr_employee_deposits").update({
+        is_paused: isPausing,
+        paused_at: isPausing ? new Date().toISOString() : null,
+        paused_reason: isPausing ? "Manually paused by admin" : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", deposit.id);
+      if (error) throw error;
+
+      // Log to ledger
+      await (supabase as any).from("hr_deposit_transactions").insert({
+        employee_id: deposit.employee_id,
+        deposit_id: deposit.id,
+        transaction_type: isPausing ? "paused" : "resumed",
+        amount: 0,
+        balance_after: Number(deposit.current_balance),
+        description: isPausing ? "Deposit deductions paused by admin" : "Deposit deductions resumed by admin",
+        transaction_date: new Date().toISOString().slice(0, 10),
+      });
+    },
+    onSuccess: (_, { action }) => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
+      toast.success(action === 'pause' ? "Deposit paused" : "Deposit resumed");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const openEdit = (d: any) => {
     setEditingDeposit(d);
     setForm({
@@ -209,6 +240,11 @@ export default function DepositManagementPage() {
       case "penalty_deduction": return "bg-red-100 text-red-700";
       case "replenishment": return "bg-blue-100 text-blue-700";
       case "ff_refund": return "bg-purple-100 text-purple-700";
+      case "initiated": return "bg-cyan-100 text-cyan-700";
+      case "modified": return "bg-orange-100 text-orange-700";
+      case "completed": return "bg-emerald-100 text-emerald-700";
+      case "paused": return "bg-yellow-100 text-yellow-700";
+      case "resumed": return "bg-teal-100 text-teal-700";
       default: return "bg-gray-100 text-gray-700";
     }
   };
@@ -219,6 +255,11 @@ export default function DepositManagementPage() {
       case "penalty_deduction": return "Penalty Deduction";
       case "replenishment": return "Replenishment";
       case "ff_refund": return "F&F Refund";
+      case "initiated": return "Initiated";
+      case "modified": return "Modified";
+      case "completed": return "Completed";
+      case "paused": return "Paused";
+      case "resumed": return "Resumed";
       default: return type;
     }
   };

@@ -330,8 +330,8 @@ export function useAdPricingEffectiveness(ruleId?: string) {
       if (error) throw error;
       return data;
     },
+  });
 }
-
 
 export function useSearchMerchant() {
   const { toast } = useToast();

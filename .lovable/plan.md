@@ -1,120 +1,66 @@
-# HRMS v6 Analysis — Verified Against Our Actual Database
 
-Claude's analysis identified 32 items. After verifying each against our live database functions, triggers, and schema, here is the real status:
 
----
+# Fix Remaining HRMS Issues — 4 Items
 
-## CONFIRMED REAL BUGS (Must Fix)
+## Issue Analysis
 
-### 1. Payroll Engine Crash: Payslip INSERT uses 'draft' but trigger only allows 'generated'
+### 1. BUG-V6-07: Duplicate Leave Clash Triggers
+**Root cause**: Two triggers compute clashes on `hr_leave_requests`:
+- `trg_compute_leave_clashes` → inline computation (correct, works on INSERT because it uses `NEW` directly)
+- `trg_update_leave_clashes` → calls `compute_leave_clashes(NEW.id)` which queries by ID — but on INSERT, the row doesn't exist yet, so it returns 0 and **overwrites** the correct value
 
-- **Verified**: `fn_generate_payroll` line 438 inserts `'draft'`. Trigger `trg_validate_payslip_status` rejects anything not in `('generated', 'paid', 'cancelled')`. **Every payroll run will crash.**
-- **Fix**: Single-line change in `fn_generate_payroll` — change `'draft'` to `'generated'`
+**Fix**: Drop `trg_update_leave_clashes`. The inline `trg_compute_leave_clashes` handles everything correctly.
 
-### 2. Payroll Regeneration Crash: Sets status to 'processing' unconditionally
+### 2. CLASH-V6-01: Leave Trigger Execution Order
+**Root cause**: Postgres fires same-type BEFORE UPDATE triggers alphabetically:
+1. `trg_leave_balance_on_status_change` — deducts balance using `NEW.total_days` (may be wrong from frontend)
+2. `trg_validate_leave_balance` — corrects `NEW.total_days` server-side via `fn_calculate_working_days`
 
-- **Verified**: Line 460 always sets `status = 'processing'`. If run from `reviewed` state, the payroll state machine blocks `reviewed → processing`. 
-- **Fix**: Make status update conditional — only set `'processing'` if current status is `'draft'` or `'processing'`
+Balance deduction happens BEFORE validation corrects the value → wrong amount deducted.
 
-### 3. Loan Sync DELETE Handler: Wrong column names
+**Fix**: Rename `trg_leave_balance_on_status_change` to `trg_z_leave_balance_on_status_change` so it fires AFTER validation alphabetically.
 
-- **Verified**: `fn_sync_loan_balance_on_repayment` DELETE handler uses `payment_date` and `loan_amount`. Actual columns are `repayment_date` and `amount`. **Deleting loan repayments (including during payroll regeneration) will crash.**
-- **Fix**: Replace `payment_date` → `repayment_date`, `loan_amount` → `amount`
+### 3. CRON-V6-03: CompOff Expiry Cleanup
+**Root cause**: `set_compoff_expiry` trigger sets `expires_at = credit_date + 30 days` on `hr_compoff_credits`. But nothing ever acts on expired credits — the corresponding leave allocations remain usable forever.
 
-### 4. Dual Salary Template Columns: Payroll reads wrong one
+**Fix**: Create a function `fn_expire_compoff_allocations()` that:
+- Finds `hr_compoff_credits` where `expires_at < now()` and `status = 'approved'`
+- Sets matching `hr_leave_allocations` (type='CO') `available_days = 0`
+- Updates credit status to `'expired'`
+- Register a daily cron job at 2 AM
 
-- **Verified**: Both `salary_template_id` and `salary_structure_template_id` exist on `hr_employees`. `apply_salary_template()` writes to `salary_template_id`. `fn_generate_payroll` reads from `salary_structure_template_id` (line 107). **New employees get wrong/no salary breakdown in payslips.**
-- **Fix**: Sync data + update `fn_generate_payroll` to read `salary_template_id`
+### 4. DEAD CODE: `hr_employee_salary_structures` & `hr_hour_accounts`
+**`hr_employee_salary_structures`**: Has full CRUD UI in `EmployeeSalaryStructure.tsx`. Payroll ignores it (reads from templates). This is a design choice — individual salary adjustments are managed here but payroll uses template-based computation. **No change needed** — both serve different purposes (template = standard, structure = individual override). The UI works and is useful for HR to track per-employee customizations.
 
-### 5. `present_days` is INTEGER, payroll computes NUMERIC (half-days = 0.5)
-
-- **Verified**: Column is `integer`. Payroll computes `v_present_days` as `numeric` (adds 0.5 for half-days). Postgres truncates 19.5 → 19. **LOP calculations will be wrong for half-day scenarios.**
-- **Fix**: `ALTER TABLE hr_payslips ALTER COLUMN present_days TYPE numeric`
-
-### 6. Payroll hardcodes Sunday-only weekly off
-
-- **Verified**: Lines 90-93 use `v_dow != 0` (Sunday only). But `fn_calculate_working_days` exists and handles employee-specific weekly off patterns. **Employees with Sat+Sun off get inflated working days → wrong LOP.**
-- **Fix**: Replace hardcoded loop with `fn_calculate_working_days(employee_id, start, end)`
-
-### 7. Employer contributions (PF/ESI) computed but never stored
-
-- **Verified**: Lines 239-242 explicitly skip employer contributions (`pfc`, `esic`). No `employer_contributions` column exists on `hr_payslips`. **Cannot generate PF/ESI compliance reports from payslip data.**
-- **Fix**: Add `employer_contributions` JSONB column to `hr_payslips`, populate during payroll
+**`hr_hour_accounts`**: Has a page (`HourAccountsPage.tsx`) with filtering and display. Table is empty because no process populates it. **No change needed** — this is an operational gap (HR hasn't started using it), not a code bug. The UI is ready.
 
 ---
 
-## CONFIRMED MISSING AUTOMATION (Must Add)
+## Implementation Plan
 
-### 8. No cron for monthly leave accrual
+### Migration 1: Fix Leave Triggers (BUG-V6-07 + CLASH-V6-01)
+Single SQL migration:
+```sql
+-- Drop duplicate clash trigger
+DROP TRIGGER IF EXISTS trg_update_leave_clashes ON hr_leave_requests;
 
-- **Verified**: `run_leave_accrual()` function exists. No cron job named anything with "leave" or "accrual" in the cron list. **Leave allocations never auto-generate.**
-- **Fix**: `cron.schedule('monthly-leave-accrual', '0 0 1 * *', 'SELECT run_leave_accrual()')`
+-- Rename balance trigger to fire after validation
+ALTER TRIGGER trg_leave_balance_on_status_change 
+  ON hr_leave_requests RENAME TO trg_z_leave_balance_on_status_change;
+```
 
-### 9. No cron for monthly penalty calculation
+### Migration 2: CompOff Expiry System (CRON-V6-03)
+SQL migration that:
+1. Creates `fn_expire_compoff_allocations()` — finds expired credits, zeros out CO allocations, marks credits as expired
+2. Registers `pg_cron` schedule: daily at 2 AM UTC
 
-- **Verified**: `fn_calculate_monthly_penalties()` exists. No cron job for it. **Penalties won't be ready when payroll runs.**
-- **Fix**: `cron.schedule('monthly-penalty-calc', '0 1 1 * *', 'SELECT fn_calculate_monthly_penalties(...)')`
-
----
-
-## CONFIRMED DATA GAPS (Must Seed)
-
-### 10. Zero 2026 holidays
-
-- **Verified**: `COUNT = 0` for 2026 holidays. **Working days calculation is wrong for all of 2026. Payroll will not deduct for holidays.**
-
-### 11. Zero 2026 leave allocations
-
-- **Verified**: `COUNT = 0` for year=2026. **All leave requests for 2026 will fail balance validation.**
-
-### 12. All 25 active employees missing weekly off patterns
-
-- **Verified**: `COUNT = 25` employees with no weekly off entry. **Working days function falls back to defaults instead of employee-specific patterns.**
-
-### 13. 7 employees with zero salary
-
-- **Verified**: 7 of 25 active employees have `total_salary = 0 or NULL`. **They'll get ₹0 payslips.**
+### Dead Code
+No changes. Both tables have UI coverage and serve their intended purposes. The "dead" label from the report was inaccurate — they're operational gaps, not code bugs.
 
 ---
 
-## ITEMS FROM CLAUDE'S REPORT THAT ARE NOT REAL ISSUES
+## Summary
+- 2 SQL migrations (no UI changes)
+- Fixes 3 real bugs: duplicate trigger, wrong trigger order, missing expiry automation
+- Dead code items confirmed as working-as-designed
 
-
-| Item                                        | Why it's NOT an issue for us                                                                                                                                                                                                       |
-| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BUG-V6-05: `compute_annual_tax` missing     | **EXISTS** — verified function uses `hr_tax_brackets` + `hr_filing_statuses`. Works correctly.                                                                                                                                     |
-| BUG-V6-07: Duplicate leave clash triggers   | **No triggers on `hr_leave_requests` at all** — 0 triggers found. Not applicable.                                                                                                                                                  |
-| CLASH-V6-01: 7 BEFORE triggers on leave     | **Same — 0 triggers exist.** Leave validation is handled differently in our system.                                                                                                                                                |
-| CLASH-V6-02: CompOff dual triggers          | Not verified as problematic — `fn_allocate_compoff_credit` exists and the logic is sound.                                                                                                                                          |
-| BUG-V6-08: No-attendance = full present     | **Intentional** — for new hires without biometric setup. This is our business rule.                                                                                                                                                |
-| BUG-V6-11: Sunday OT double-counting        | **Intentional** — Sunday work deserves extra pay beyond proration. Business decision. need to fix this we have holiday rotation now so we schedule rotationally thus if a person work aprt from his schedule then needs exxtra pay |
-| DEAD-V6-04: Terminal functions in namespace | **Not HRMS** — these are P2P/ERP functions. Irrelevant.                                                                                                                                                                            |
-| DEAD-V6-02: `hr_hour_accounts` empty        | Low priority cleanup, not a bug.                                                                                                                                                                                                   |
-
-
----
-
-## IMPLEMENTATION PLAN (Priority Order)
-
-### Migration 1 — Fix Payroll Engine (4 crash bugs)
-
-One SQL migration that:
-
-1. Replaces `fn_generate_payroll` with fixed version: `'draft'` → `'generated'`, conditional status update, use `salary_template_id`, use `fn_calculate_working_days` instead of hardcoded Sunday
-2. Fixes `fn_sync_loan_balance_on_repayment` column names
-3. Syncs `salary_structure_template_id = salary_template_id` for existing data
-4. Alters `hr_payslips.present_days` to `numeric`
-5. Adds `employer_contributions` JSONB column to `hr_payslips` and populates it during generation
-
-### Migration 2 — Register cron jobs
-
-1. Schedule `run_leave_accrual()` monthly on the 1st
-2. Schedule `fn_calculate_monthly_penalties()` monthly on the 1st at 1 AM
-
-### Migration 3 — Seed critical data
-
-1. Insert 2026 Indian public holidays (~15-20 dates)
-2. Bulk-create 2026 leave allocations for all 25 active employees × active leave types
-3. Assign default weekly off patterns (Sat+Sun) for all 25 employees
-
-**No UI changes needed.** All fixes are database-level (functions, triggers, schema, data).

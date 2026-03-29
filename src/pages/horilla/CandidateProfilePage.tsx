@@ -23,6 +23,8 @@ export default function CandidateProfilePage() {
   const [newNote, setNewNote] = useState("");
   const [interviewOpen, setInterviewOpen] = useState(false);
   const [offerOpen, setOfferOpen] = useState(false);
+  const [newRating, setNewRating] = useState(3);
+  const [rejectReason, setRejectReason] = useState("");
 
   const { data: candidate, isLoading } = useQuery({
     queryKey: ["hr_candidate", id],

@@ -12598,6 +12598,44 @@ export type Database = {
           },
         ]
       }
+      terminal_permission_change_log: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          permission: string
+          role_id: string | null
+          role_name: string | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          permission: string
+          role_id?: string | null
+          role_name?: string | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          permission?: string
+          role_id?: string | null
+          role_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_permission_change_log_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_terminal_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_purchase_sync: {
         Row: {
           binance_order_number: string
@@ -14425,6 +14463,13 @@ export type Database = {
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       has_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
+      has_terminal_permission: {
+        Args: {
+          p_permission: Database["public"]["Enums"]["terminal_permission"]
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       initiate_shift_handover:
         | {
             Args: {
@@ -15005,6 +15050,39 @@ export type Database = {
         | "terminal_kyc_manage"
         | "terminal_logs_view"
         | "terminal_assets_manage"
+        | "terminal_dashboard_export"
+        | "terminal_orders_sync_approve"
+        | "terminal_orders_escalate"
+        | "terminal_orders_resolve_escalation"
+        | "terminal_orders_chat"
+        | "terminal_orders_export"
+        | "terminal_ads_toggle"
+        | "terminal_ads_rest_timer"
+        | "terminal_pricing_view"
+        | "terminal_pricing_manage"
+        | "terminal_pricing_toggle"
+        | "terminal_pricing_delete"
+        | "terminal_autopay_view"
+        | "terminal_autopay_toggle"
+        | "terminal_autopay_configure"
+        | "terminal_autoreply_view"
+        | "terminal_autoreply_manage"
+        | "terminal_autoreply_toggle"
+        | "terminal_users_role_assign"
+        | "terminal_users_bypass_code"
+        | "terminal_users_manage_subordinates"
+        | "terminal_users_manage_all"
+        | "terminal_shift_view"
+        | "terminal_shift_manage"
+        | "terminal_shift_reconciliation"
+        | "terminal_analytics_export"
+        | "terminal_mpi_view_own"
+        | "terminal_mpi_view_all"
+        | "terminal_broadcasts_create"
+        | "terminal_broadcasts_manage"
+        | "terminal_activity_logs_view"
+        | "terminal_pricing_logs_view"
+        | "terminal_destructive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -15257,6 +15335,39 @@ export const Constants = {
         "terminal_kyc_manage",
         "terminal_logs_view",
         "terminal_assets_manage",
+        "terminal_dashboard_export",
+        "terminal_orders_sync_approve",
+        "terminal_orders_escalate",
+        "terminal_orders_resolve_escalation",
+        "terminal_orders_chat",
+        "terminal_orders_export",
+        "terminal_ads_toggle",
+        "terminal_ads_rest_timer",
+        "terminal_pricing_view",
+        "terminal_pricing_manage",
+        "terminal_pricing_toggle",
+        "terminal_pricing_delete",
+        "terminal_autopay_view",
+        "terminal_autopay_toggle",
+        "terminal_autopay_configure",
+        "terminal_autoreply_view",
+        "terminal_autoreply_manage",
+        "terminal_autoreply_toggle",
+        "terminal_users_role_assign",
+        "terminal_users_bypass_code",
+        "terminal_users_manage_subordinates",
+        "terminal_users_manage_all",
+        "terminal_shift_view",
+        "terminal_shift_manage",
+        "terminal_shift_reconciliation",
+        "terminal_analytics_export",
+        "terminal_mpi_view_own",
+        "terminal_mpi_view_all",
+        "terminal_broadcasts_create",
+        "terminal_broadcasts_manage",
+        "terminal_activity_logs_view",
+        "terminal_pricing_logs_view",
+        "terminal_destructive",
       ],
     },
   },

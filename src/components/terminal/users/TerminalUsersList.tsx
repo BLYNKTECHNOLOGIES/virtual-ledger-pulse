@@ -380,7 +380,7 @@ export function TerminalUsersList() {
                 <TableHead className="text-xs font-medium text-muted-foreground">Role</TableHead>
                 <TableHead className="text-xs font-medium text-muted-foreground">Reports To</TableHead>
                 <TableHead className="text-xs font-medium text-muted-foreground">Config</TableHead>
-                {canManage && <TableHead className="text-xs font-medium text-muted-foreground text-right">Actions</TableHead>}
+                {(canManage || canRoleAssign) && <TableHead className="text-xs font-medium text-muted-foreground text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -96,6 +96,14 @@ import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
 import ObjectivesPage from './pages/horilla/ObjectivesPage';
 import Feedback360Page from './pages/horilla/Feedback360Page';
 import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
+import RecruitmentDashboardPage from './pages/horilla/RecruitmentDashboardPage';
+import RecruitmentPipelinePage from './pages/horilla/RecruitmentPipelinePage';
+import CandidatesListPage from './pages/horilla/CandidatesListPage';
+import CandidateProfilePage from './pages/horilla/CandidateProfilePage';
+import InterviewListPage from './pages/horilla/InterviewListPage';
+import StagesPage from './pages/horilla/StagesPage';
+import SkillZonePage from './pages/horilla/SkillZonePage';
+import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -676,6 +684,14 @@ const router = createBrowserRouter([
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
         { path: "onboarding-pipeline", element: <EmployeeOnboardingPipelinePage /> },
+        { path: "recruitment", element: <RecruitmentDashboardPage /> },
+        { path: "recruitment/pipeline", element: <RecruitmentPipelinePage /> },
+        { path: "recruitment/candidates", element: <CandidatesListPage /> },
+        { path: "recruitment/candidates/:id", element: <CandidateProfilePage /> },
+        { path: "recruitment/interviews", element: <InterviewListPage /> },
+        { path: "recruitment/stages", element: <StagesPage /> },
+        { path: "recruitment/skill-zones", element: <SkillZonePage /> },
+        { path: "recruitment/surveys", element: <RecruitmentSurveyPage /> },
       ],
     },
   {

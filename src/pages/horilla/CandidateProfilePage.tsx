@@ -84,6 +84,34 @@ export default function CandidateProfilePage() {
     enabled: !!id,
   });
 
+  const { data: ratings = [] } = useQuery({
+    queryKey: ["hr_candidate_ratings", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_candidate_ratings")
+        .select("*, hr_employees(first_name, last_name)")
+        .eq("candidate_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  const { data: stageNotes = [] } = useQuery({
+    queryKey: ["hr_stage_notes", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_stage_notes")
+        .select("*, hr_stages(stage_name)")
+        .eq("candidate_id", id!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
   const updateMutation = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from("hr_candidates").update(editForm).eq("id", id!);

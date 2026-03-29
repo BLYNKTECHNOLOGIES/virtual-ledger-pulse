@@ -13368,6 +13368,7 @@ export type Database = {
           severity: string
         }[]
       }
+      check_tds_overdue_and_alert: { Args: never; Returns: undefined }
       cleanup_expired_records: { Args: never; Returns: undefined }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       compare_snapshots: {
@@ -14290,18 +14291,6 @@ export type Database = {
           settled_timestamp: string
         }
         Returns: Json
-      }
-      update_settlement_status_bypass_triggers: {
-        Args: {
-          batch_id: string
-          order_ids: string[]
-          settled_timestamp: string
-        }
-        Returns: {
-          error_message: string
-          success: boolean
-          updated_id: string
-        }[]
       }
       update_settlement_status_direct: {
         Args: {

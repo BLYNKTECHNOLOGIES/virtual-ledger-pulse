@@ -5,13 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, Star, UserCheck, UserX, Edit, Save, X, Plus,
   Calendar, FileText, MessageSquare, Clock, Video, MapPin,
-  Briefcase, Mail, Phone, Globe, User
+  Briefcase, Mail, Phone, Globe, User, ClipboardList, CheckSquare, Square
 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
 import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
 
-type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "history";
+type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "tasks" | "history";
 
 export default function CandidateProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -112,6 +112,53 @@ export default function CandidateProfilePage() {
       return data || [];
     },
     enabled: !!id,
+  });
+
+  // Fetch candidate stages for this candidate
+  const { data: candidateStages = [] } = useQuery({
+    queryKey: ["hr_candidate_stages", id],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_candidate_stages")
+        .select("id, stage_id, onboarding_stage_id, created_at, hr_stages(stage_name)")
+        .eq("candidate_id", id!)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Fetch candidate tasks
+  const { data: candidateTasks = [], refetch: refetchTasks } = useQuery({
+    queryKey: ["hr_candidate_tasks", id, candidateStages.length],
+    queryFn: async () => {
+      if (!candidateStages.length) return [];
+      const stageIds = candidateStages.map((s: any) => s.id);
+      const { data, error } = await (supabase as any)
+        .from("hr_candidate_tasks")
+        .select("*, hr_onboarding_tasks(title)")
+        .in("candidate_stage_id", stageIds)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: candidateStages.length > 0,
+  });
+
+  const toggleTaskMutation = useMutation({
+    mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: string }) => {
+      const { error } = await (supabase as any)
+        .from("hr_candidate_tasks")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("id", taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchTasks();
+      toast.success("Task updated");
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to update task"),
   });
 
   const updateMutation = useMutation({
@@ -221,6 +268,7 @@ export default function CandidateProfilePage() {
     { key: "interviews", label: "Interviews", count: interviews.length },
     { key: "offers", label: "Offers", count: offers.length },
     { key: "stage_history", label: "Stage History", count: stageNotes.length },
+    { key: "tasks", label: "Tasks", count: candidateTasks.length },
     { key: "history", label: "Timeline" },
   ];
 
@@ -550,6 +598,60 @@ export default function CandidateProfilePage() {
                 {offer.negotiation_notes && <p className="mt-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-2">{offer.negotiation_notes}</p>}
               </div>
             ))}
+          </div>
+        )}
+
+        {activeTab === "tasks" && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Candidate Tasks</h3>
+            {candidateTasks.length === 0 ? (
+              <div className="text-center py-8">
+                <ClipboardList className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">No tasks assigned to this candidate yet.</p>
+                <p className="text-xs text-gray-400 mt-1">Tasks are assigned per recruitment stage.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {candidateStages.map((cs: any) => {
+                  const stageTasks = candidateTasks.filter((t: any) => t.candidate_stage_id === cs.id);
+                  if (stageTasks.length === 0) return null;
+                  return (
+                    <div key={cs.id} className="border border-gray-100 rounded-lg p-3">
+                      <p className="text-xs font-medium text-gray-500 mb-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 inline-block">
+                        {cs.hr_stages?.stage_name || "Unknown Stage"}
+                      </p>
+                      <div className="space-y-1.5">
+                        {stageTasks.map((task: any) => (
+                          <div key={task.id} className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-gray-50">
+                            <button
+                              onClick={() => toggleTaskMutation.mutate({
+                                taskId: task.id,
+                                newStatus: task.status === "completed" ? "pending" : "completed",
+                              })}
+                              className="shrink-0"
+                            >
+                              {task.status === "completed" ? (
+                                <CheckSquare className="h-4 w-4 text-emerald-500" />
+                              ) : (
+                                <Square className="h-4 w-4 text-gray-300" />
+                              )}
+                            </button>
+                            <span className={`text-sm ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                              {task.hr_onboarding_tasks?.title || `Task ${task.candidate_task_id}`}
+                            </span>
+                            <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded-full font-medium ${
+                              task.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {task.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

@@ -147,6 +147,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     if (editingRule) {
       setName(editingRule.name);
       setIsDryRun(editingRule.is_dry_run || false);
+      const assets = editingRule.assets?.length > 0 ? editingRule.assets : [editingRule.asset];
       setSelectedAssets(assets);
       setActiveAssetTab(assets[0]);
       setAssetConfigs(editingRule.asset_config || {});

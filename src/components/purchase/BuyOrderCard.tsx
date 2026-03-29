@@ -507,48 +507,8 @@ export function BuyOrderCard({
 
           {/* Right Section - Actions */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Review Indicator for Purchase Creator */}
-            {pf.canSeeReviews && (
-              <ReviewIndicator orderId={order.id} />
-            )}
-
-            {/* Review Button for Payer */}
-            {pf.canSubmitReview && !['completed', 'cancelled'].includes(currentStatus) && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowReviewDialog(true)}
-                className="gap-1"
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span className="hidden sm:inline">Review</span>
-              </Button>
-            )}
-
-            {/* Waiting for Banking indicator for Payer-only */}
-            {pf.showWaitingForBanking && !bankingCollected && currentStatus === 'new' && (
-              <Badge variant="outline" className="text-xs border-muted-foreground/50">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Waiting for bank details
-              </Badge>
-            )}
-
-            {/* Collecting PAN indicator for Payer-only */}
-            {pf.showWaitingForPan && !tdsSelected && bankingCollected && 
-             (currentStatus === 'new' || currentStatus === 'banking_collected') && (
-              <Badge variant="outline" className="text-xs border-indigo-300 text-indigo-600 bg-indigo-50">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Collecting PAN
-              </Badge>
-            )}
-
-            {/* Waiting for Payment indicator for Creator-only */}
-            {!pf.canRecordPayment && currentStatus === 'added_to_bank' && (
-              <Badge variant="outline" className="text-xs border-amber-300 text-amber-600 bg-amber-50">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Waiting for Payment
-              </Badge>
-            )}
+            {/* Review Indicator */}
+            <ReviewIndicator orderId={order.id} />
 
             {/*
               IMPORTANT: Banking details collection must remain actionable independently.

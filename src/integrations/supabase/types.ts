@@ -163,6 +163,92 @@ export type Database = {
           },
         ]
       }
+      ad_pricing_effectiveness_snapshots: {
+        Row: {
+          avg_applied_price: number | null
+          avg_competitor_price: number | null
+          avg_spread: number | null
+          created_at: string | null
+          id: string
+          orders_completed: number
+          orders_received: number
+          rule_id: string
+          snapshot_date: string
+          total_price_updates: number
+          total_volume: number
+        }
+        Insert: {
+          avg_applied_price?: number | null
+          avg_competitor_price?: number | null
+          avg_spread?: number | null
+          created_at?: string | null
+          id?: string
+          orders_completed?: number
+          orders_received?: number
+          rule_id: string
+          snapshot_date: string
+          total_price_updates?: number
+          total_volume?: number
+        }
+        Update: {
+          avg_applied_price?: number | null
+          avg_competitor_price?: number | null
+          avg_spread?: number | null
+          created_at?: string | null
+          id?: string
+          orders_completed?: number
+          orders_received?: number
+          rule_id?: string
+          snapshot_date?: string
+          total_price_updates?: number
+          total_volume?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_pricing_effectiveness_snapshots_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "ad_pricing_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_pricing_engine_state: {
+        Row: {
+          circuit_status: string
+          consecutive_failures: number
+          cooldown_minutes: number
+          failure_threshold: number
+          id: string
+          last_failure_at: string | null
+          last_success_at: string | null
+          opened_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          circuit_status?: string
+          consecutive_failures?: number
+          cooldown_minutes?: number
+          failure_threshold?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          opened_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          circuit_status?: string
+          consecutive_failures?: number
+          cooldown_minutes?: number
+          failure_threshold?: number
+          id?: string
+          last_failure_at?: string | null
+          last_success_at?: string | null
+          opened_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ad_pricing_logs: {
         Row: {
           ad_number: string | null
@@ -251,6 +337,7 @@ export type Database = {
           fiat: string
           id: string
           is_active: boolean
+          is_dry_run: boolean
           last_applied_price: number | null
           last_applied_ratio: number | null
           last_checked_at: string | null
@@ -295,6 +382,7 @@ export type Database = {
           fiat?: string
           id?: string
           is_active?: boolean
+          is_dry_run?: boolean
           last_applied_price?: number | null
           last_applied_ratio?: number | null
           last_checked_at?: string | null
@@ -339,6 +427,7 @@ export type Database = {
           fiat?: string
           id?: string
           is_active?: boolean
+          is_dry_run?: boolean
           last_applied_price?: number | null
           last_applied_ratio?: number | null
           last_checked_at?: string | null
@@ -14041,6 +14130,10 @@ export type Database = {
         Returns: string
       }
       generate_off_market_sales_order_number: { Args: never; Returns: string }
+      generate_pricing_effectiveness_snapshot: {
+        Args: { p_date?: string }
+        Returns: number
+      }
       generate_terminal_bypass_code: {
         Args: { p_generated_by: string; p_user_id: string }
         Returns: string
@@ -14061,6 +14154,7 @@ export type Database = {
           username: string
         }[]
       }
+      get_ad_pricing_health: { Args: never; Returns: Json }
       get_bank_calculated_balances: {
         Args: never
         Returns: {

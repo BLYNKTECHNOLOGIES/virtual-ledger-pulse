@@ -6304,6 +6304,7 @@ export type Database = {
           earnings_breakdown: Json | null
           employee_id: string
           gross_salary: number
+          holiday_days_worked: number | null
           id: string
           leave_days: number | null
           lop_days: number | null
@@ -6313,8 +6314,10 @@ export type Database = {
           payment_date: string | null
           payment_reference: string | null
           payroll_run_id: string
+          penalty_amount: number | null
           present_days: number | null
           status: string | null
+          sunday_days_worked: number | null
           tds_amount: number | null
           total_deductions: number
           total_earnings: number
@@ -6327,6 +6330,7 @@ export type Database = {
           earnings_breakdown?: Json | null
           employee_id: string
           gross_salary?: number
+          holiday_days_worked?: number | null
           id?: string
           leave_days?: number | null
           lop_days?: number | null
@@ -6336,8 +6340,10 @@ export type Database = {
           payment_date?: string | null
           payment_reference?: string | null
           payroll_run_id: string
+          penalty_amount?: number | null
           present_days?: number | null
           status?: string | null
+          sunday_days_worked?: number | null
           tds_amount?: number | null
           total_deductions?: number
           total_earnings?: number
@@ -6350,6 +6356,7 @@ export type Database = {
           earnings_breakdown?: Json | null
           employee_id?: string
           gross_salary?: number
+          holiday_days_worked?: number | null
           id?: string
           leave_days?: number | null
           lop_days?: number | null
@@ -6359,8 +6366,10 @@ export type Database = {
           payment_date?: string | null
           payment_reference?: string | null
           payroll_run_id?: string
+          penalty_amount?: number | null
           present_days?: number | null
           status?: string | null
+          sunday_days_worked?: number | null
           tds_amount?: number | null
           total_deductions?: number
           total_earnings?: number
@@ -13825,6 +13834,10 @@ export type Database = {
           encashment_amount: number
           total_encashable_days: number
         }[]
+      }
+      fn_generate_payroll: {
+        Args: { p_payroll_run_id: string; p_triggered_by?: string }
+        Returns: Json
       }
       fn_initialize_onboarding: {
         Args: { p_employee_id: string }

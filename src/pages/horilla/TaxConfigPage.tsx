@@ -275,6 +275,11 @@ export default function TaxConfigPage() {
               </div>
               {testResult !== null && (
                 <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+                  {testResult === 0 && Number(testIncome) <= 1200000 && filingStatuses.find((f: any) => f.id === testFSId)?.name?.toLowerCase().includes("new regime") && (
+                    <div className="p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded text-xs text-green-700 dark:text-green-400">
+                      ✅ Section 87A rebate applied — No tax for income up to ₹12,00,000 under New Regime
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Taxable Income:</span>
                     <span className="font-medium">{formatINR(Number(testIncome))}</span>
@@ -289,7 +294,7 @@ export default function TaxConfigPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Effective Rate:</span>
-                    <span className="font-medium">{((testResult / Number(testIncome)) * 100).toFixed(2)}%</span>
+                    <span className="font-medium">{Number(testIncome) > 0 ? ((testResult / Number(testIncome)) * 100).toFixed(2) : "0.00"}%</span>
                   </div>
                 </div>
               )}

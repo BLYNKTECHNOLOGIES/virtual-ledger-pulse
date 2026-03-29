@@ -10,6 +10,11 @@ import {
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
 import { OfferDialog } from "@/components/horilla/recruitment/OfferDialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Tab = "about" | "notes" | "interviews" | "offers" | "ratings" | "stage_history" | "tasks" | "history";
 
@@ -25,6 +30,9 @@ export default function CandidateProfilePage() {
   const [offerOpen, setOfferOpen] = useState(false);
   const [newRating, setNewRating] = useState(3);
   const [rejectReason, setRejectReason] = useState("");
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskStageId, setNewTaskStageId] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState("");
 
   const { data: candidate, isLoading } = useQuery({
     queryKey: ["hr_candidate", id],

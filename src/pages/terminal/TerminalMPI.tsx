@@ -148,8 +148,10 @@ function getScoreBg(score: number) {
 
 export default function TerminalMPI() {
   const navigate = useNavigate();
-  const { isTerminalAdmin, terminalRoles, userId } = useTerminalAuth();
+  const { isTerminalAdmin, terminalRoles, userId, hasPermission } = useTerminalAuth();
   const { visibleUserIds } = useTerminalJurisdiction();
+  const canViewAll = hasPermission('terminal_mpi_view_all') || isTerminalAdmin;
+  const canViewOwn = hasPermission('terminal_mpi_view_own');
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'mpi', { timeRange: 'today' as string, viewLevel: 'all' as string, sortBy: 'efficiency' as string });
   const timeRange = prefs.timeRange;
   const viewLevel = prefs.viewLevel;
@@ -306,8 +308,16 @@ export default function TerminalMPI() {
         }
       });
 
-      // Build metrics per visible user
-      const visibleIds = isTerminalAdmin ? new Set(users.map(u => u.id)) : visibleUserIds;
+      // Build metrics per visible user — apply data scope filtering (GAP 8)
+      let visibleIds: Set<string>;
+      if (isTerminalAdmin || canViewAll) {
+        visibleIds = new Set(users.map(u => u.id));
+      } else if (canViewOwn && userId) {
+        // Only show own data
+        visibleIds = new Set([userId]);
+      } else {
+        visibleIds = visibleUserIds;
+      }
       const metricsArr: OperatorMetric[] = [];
 
       for (const uid of visibleIds) {
@@ -419,7 +429,7 @@ export default function TerminalMPI() {
     } finally {
       setIsLoading(false);
     }
-  }, [isTerminalAdmin, visibleUserIds, timeRange, sortBy]);
+  }, [isTerminalAdmin, canViewAll, canViewOwn, userId, visibleUserIds, timeRange, sortBy]);
 
   useEffect(() => { fetchMetrics(); }, [fetchMetrics]);
 
@@ -491,17 +501,19 @@ export default function TerminalMPI() {
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Select value={viewLevel} onValueChange={setViewLevel}>
-            <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="operators">Operators</SelectItem>
-              <SelectItem value="payers">Payers</SelectItem>
-              <SelectItem value="admins">Admins</SelectItem>
-            </SelectContent>
-          </Select>
+          {canViewAll && (
+            <Select value={viewLevel} onValueChange={setViewLevel}>
+              <SelectTrigger className="h-7 text-[10px] sm:text-xs w-24 sm:w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="operators">Operators</SelectItem>
+                <SelectItem value="payers">Payers</SelectItem>
+                <SelectItem value="admins">Admins</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="h-7 text-[10px] sm:text-xs w-22 sm:w-28">
               <SelectValue />

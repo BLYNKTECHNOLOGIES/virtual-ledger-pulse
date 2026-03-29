@@ -96,6 +96,10 @@ export default function TerminalOrders() {
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
+  const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
+  const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;
+  const canSyncApprove = hasPermission('terminal_orders_sync_approve') || isTerminalAdmin;
   const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
@@ -837,20 +841,22 @@ export default function TerminalOrders() {
           <Badge variant="outline" className="text-[10px] text-muted-foreground">
             {visibleOrders.length} of {displayOrders.length} orders
           </Badge>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs gap-1.5 relative"
-            onClick={() => setShowChatInbox(true)}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            Chat
-            {totalUnread > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
-                <span className="text-[9px] font-bold text-destructive-foreground">{totalUnread}</span>
-              </span>
-            )}
-          </Button>
+          {canChat && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 relative"
+              onClick={() => setShowChatInbox(true)}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              Chat
+              {totalUnread > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
+                  <span className="text-[9px] font-bold text-destructive-foreground">{totalUnread}</span>
+                </span>
+              )}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"

@@ -601,6 +601,60 @@ export default function CandidateProfilePage() {
           </div>
         )}
 
+        {activeTab === "tasks" && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900">Candidate Tasks</h3>
+            {candidateTasks.length === 0 ? (
+              <div className="text-center py-8">
+                <ClipboardList className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">No tasks assigned to this candidate yet.</p>
+                <p className="text-xs text-gray-400 mt-1">Tasks are assigned per recruitment stage.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {candidateStages.map((cs: any) => {
+                  const stageTasks = candidateTasks.filter((t: any) => t.candidate_stage_id === cs.id);
+                  if (stageTasks.length === 0) return null;
+                  return (
+                    <div key={cs.id} className="border border-gray-100 rounded-lg p-3">
+                      <p className="text-xs font-medium text-gray-500 mb-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 inline-block">
+                        {cs.hr_stages?.stage_name || "Unknown Stage"}
+                      </p>
+                      <div className="space-y-1.5">
+                        {stageTasks.map((task: any) => (
+                          <div key={task.id} className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-gray-50">
+                            <button
+                              onClick={() => toggleTaskMutation.mutate({
+                                taskId: task.id,
+                                newStatus: task.status === "completed" ? "pending" : "completed",
+                              })}
+                              className="shrink-0"
+                            >
+                              {task.status === "completed" ? (
+                                <CheckSquare className="h-4 w-4 text-emerald-500" />
+                              ) : (
+                                <Square className="h-4 w-4 text-gray-300" />
+                              )}
+                            </button>
+                            <span className={`text-sm ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                              {task.hr_onboarding_tasks?.title || `Task ${task.candidate_task_id}`}
+                            </span>
+                            <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded-full font-medium ${
+                              task.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                            }`}>
+                              {task.status}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "history" && (
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-gray-900">Candidate Timeline</h3>

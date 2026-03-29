@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
       return jsonResponse({
         challenge,
         allowCredentials,
-        rpId: url.hostname === 'localhost' ? 'localhost' : url.hostname,
+        rpId: 'blynkex.com',
         rpName: 'P2P Trading Terminal',
       });
     }

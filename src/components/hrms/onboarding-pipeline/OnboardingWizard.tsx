@@ -385,7 +385,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       {/* Onboarding Task Checklist */}
       {recordId && (
         <div className="mt-6">
-          <OnboardingTaskManager onboardingId={recordId} recruitmentId={record?.recruitment_id} />
+          <OnboardingTaskManager onboardingId={recordId} recruitmentId={(record as any)?.recruitment_id} />
         </div>
       )}
     </div>

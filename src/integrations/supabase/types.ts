@@ -9428,6 +9428,47 @@ export type Database = {
           },
         ]
       }
+      permission_change_log: {
+        Row: {
+          change_type: string
+          changed_at: string
+          changed_by: string | null
+          function_key: string | null
+          id: string
+          permission: string | null
+          role_id: string | null
+          role_name: string
+        }
+        Insert: {
+          change_type: string
+          changed_at?: string
+          changed_by?: string | null
+          function_key?: string | null
+          id?: string
+          permission?: string | null
+          role_id?: string | null
+          role_name: string
+        }
+        Update: {
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          function_key?: string | null
+          id?: string
+          permission?: string | null
+          role_id?: string | null
+          role_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permission_change_log_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platforms: {
         Row: {
           created_at: string

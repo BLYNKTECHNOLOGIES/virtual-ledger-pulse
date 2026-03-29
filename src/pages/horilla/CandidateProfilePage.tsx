@@ -603,12 +603,47 @@ export default function CandidateProfilePage() {
 
         {activeTab === "tasks" && (
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-gray-900">Candidate Tasks</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Candidate Tasks</h3>
+              {candidateStages.length > 0 && (
+                <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline"><Plus className="h-3 w-3 mr-1" /> Add Task</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Add Candidate Task</DialogTitle></DialogHeader>
+                    <div className="space-y-3">
+                      <div>
+                        <Label>Stage</Label>
+                        <Select value={newTaskStageId} onValueChange={setNewTaskStageId}>
+                          <SelectTrigger><SelectValue placeholder="Select stage" /></SelectTrigger>
+                          <SelectContent>
+                            {candidateStages.map((cs: any) => (
+                              <SelectItem key={cs.id} value={cs.id}>{cs.hr_stages?.stage_name || "Unknown"}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Task Title</Label>
+                        <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="e.g. Submit portfolio" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowAddTask(false)}>Cancel</Button>
+                      <Button disabled={!newTaskStageId || !newTaskTitle.trim() || createTaskMutation.isPending} onClick={() => createTaskMutation.mutate()}>
+                        {createTaskMutation.isPending ? "Adding..." : "Add Task"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
             {candidateTasks.length === 0 ? (
               <div className="text-center py-8">
-                <ClipboardList className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No tasks assigned to this candidate yet.</p>
-                <p className="text-xs text-gray-400 mt-1">Tasks are assigned per recruitment stage.</p>
+                <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">No tasks assigned to this candidate yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Click "Add Task" to create one.</p>
               </div>
             ) : (
               <div className="space-y-2">

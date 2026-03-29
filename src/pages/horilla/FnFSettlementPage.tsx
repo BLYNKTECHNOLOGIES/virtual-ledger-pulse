@@ -136,6 +136,20 @@ export default function FnFSettlementPage() {
       if (status === "paid") payload.paid_at = new Date().toISOString();
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
+      // Auto-deactivate employee when F&F is paid
+      if (status === "paid") {
+        const { data: settlement } = await (supabase as any)
+          .from("hr_fnf_settlements")
+          .select("employee_id")
+          .eq("id", id)
+          .single();
+        if (settlement?.employee_id) {
+          await (supabase as any)
+            .from("hr_employees")
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq("id", settlement.employee_id);
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });

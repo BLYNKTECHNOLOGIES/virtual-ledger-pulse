@@ -388,6 +388,23 @@ export default function RecruitmentDashboardPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
+                        {getRecManagers(rec.id).length > 0 ? (
+                          <div className="flex -space-x-1">
+                            {getRecManagers(rec.id).slice(0, 3).map((m: any) => (
+                              <div key={m.id} className="w-5 h-5 rounded-full bg-violet-500 text-white flex items-center justify-center text-[8px] font-bold ring-1 ring-white" title={`${m.hr_employees?.first_name} ${m.hr_employees?.last_name}`}>
+                                {m.hr_employees?.first_name?.[0]}{m.hr_employees?.last_name?.[0]}
+                              </div>
+                            ))}
+                            {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-gray-400 ml-1">+{getRecManagers(rec.id).length - 3}</span>}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-300">No managers</span>
+                        )}
+                        <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Assign managers">
+                          <UserPlus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
                         <button
                           onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)}
                           className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600"

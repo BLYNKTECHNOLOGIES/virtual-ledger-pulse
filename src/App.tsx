@@ -110,6 +110,7 @@ import SkillZonePage from './pages/horilla/SkillZonePage';
 import RecruitmentSurveyPage from './pages/horilla/RecruitmentSurveyPage';
 import HRLogsPage from './pages/horilla/HRLogsPage';
 import AttendancePunchesPage from './pages/horilla/AttendancePunchesPage';
+import MonthlyHoursSummaryPage from './pages/horilla/MonthlyHoursSummaryPage';
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -655,6 +656,7 @@ const router = createBrowserRouter([
         { path: "attendance/summary", element: <AttendanceSummaryPage /> },
         { path: "attendance/policies", element: <AttendancePolicyPage /> },
         { path: "attendance/punches", element: <AttendancePunchesPage /> },
+        { path: "attendance/monthly-hours", element: <MonthlyHoursSummaryPage /> },
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },
         { path: "leave/allocations", element: <LeaveAllocationsPage /> },

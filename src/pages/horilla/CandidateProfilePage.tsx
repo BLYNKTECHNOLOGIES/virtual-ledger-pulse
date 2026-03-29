@@ -380,7 +380,85 @@ export default function CandidateProfilePage() {
           </div>
         )}
 
-        {activeTab === "interviews" && (
+        {activeTab === "ratings" && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(r => (
+                  <button key={r} onClick={() => setNewRating(r)}>
+                    <Star className={`h-6 w-6 ${r <= newRating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => addRatingMutation.mutate()}
+                disabled={addRatingMutation.isPending}
+                className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
+                Add Rating
+              </button>
+            </div>
+            {ratings.length === 0 ? (
+              <div className="text-center py-8">
+                <Star className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">No ratings yet. Be the first to rate this candidate.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-2xl font-bold text-gray-900">
+                    {(ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / ratings.length).toFixed(1)}
+                  </span>
+                  <span className="text-sm text-gray-500">avg from {ratings.length} rating{ratings.length !== 1 ? "s" : ""}</span>
+                </div>
+                {ratings.map((r: any) => (
+                  <div key={r.id} className="border border-gray-100 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} className={`h-4 w-4 ${i <= r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {r.hr_employees ? `${r.hr_employees.first_name} ${r.hr_employees.last_name}` : "Unknown"}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400">{new Date(r.created_at).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "stage_history" && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-900">Stage Transition Log</h3>
+            {stageNotes.length === 0 ? (
+              <div className="text-center py-8">
+                <Clock className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-500">No stage transitions recorded yet.</p>
+              </div>
+            ) : (
+              <div className="relative pl-6 space-y-3">
+                <div className="absolute left-2 top-1 bottom-1 w-px bg-gray-200" />
+                {stageNotes.map((sn: any) => (
+                  <div key={sn.id} className="relative">
+                    <div className="absolute -left-4 top-1.5 w-2.5 h-2.5 rounded-full bg-[#E8604C] ring-2 ring-white" />
+                    <div className="border border-gray-100 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-700 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
+                          {sn.hr_stages?.stage_name || "Unknown Stage"}
+                        </span>
+                        <span className="text-[10px] text-gray-400">{new Date(sn.created_at).toLocaleString('en-IN')}</span>
+                      </div>
+                      <p className="text-sm text-gray-600">{sn.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-semibold text-gray-900">Interview History</h3>

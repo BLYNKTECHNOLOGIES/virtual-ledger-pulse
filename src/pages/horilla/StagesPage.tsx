@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Layers, Plus, Edit, Trash2, X, GripVertical } from "lucide-react";
+import { Layers, Plus, Edit, Trash2, X, GripVertical, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 export default function StagesPage() {
@@ -39,6 +39,63 @@ export default function StagesPage() {
       return data || [];
     },
   });
+
+  const { data: stageManagers = [] } = useQuery({
+    queryKey: ["hr_stage_managers_all"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hr_stage_managers")
+        .select("*, hr_employees(first_name, last_name)");
+      return data || [];
+    },
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["hr_employees_for_manager"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hr_employees")
+        .select("id, first_name, last_name")
+        .eq("is_active", true)
+        .order("first_name");
+      return data || [];
+    },
+  });
+
+  const [managerDialogStageId, setManagerDialogStageId] = useState<string | null>(null);
+  const [selectedManagerId, setSelectedManagerId] = useState("");
+
+  const addManagerMutation = useMutation({
+    mutationFn: async () => {
+      if (!managerDialogStageId || !selectedManagerId) return;
+      const { error } = await supabase.from("hr_stage_managers").insert({
+        stage_id: managerDialogStageId,
+        employee_id: selectedManagerId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager assigned");
+      queryClient.invalidateQueries({ queryKey: ["hr_stage_managers_all"] });
+      setManagerDialogStageId(null);
+      setSelectedManagerId("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to assign manager"),
+  });
+
+  const removeManagerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hr_stage_managers").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager removed");
+      queryClient.invalidateQueries({ queryKey: ["hr_stage_managers_all"] });
+    },
+  });
+
+  const getManagersForStage = (stageId: string) =>
+    stageManagers.filter((m: any) => m.stage_id === stageId);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -168,33 +225,52 @@ export default function StagesPage() {
                 {recStages.map((stage: any, i: number) => {
                   const typeInfo = STAGE_TYPES[stage.stage_type] || STAGE_TYPES.initial;
                   const count = getCountForStage(stage.id);
-                  return (
-                    <div key={stage.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors">
-                      <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
-                      <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
-                        {i + 1}
+                    return (
+                      <div key={stage.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
+                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{stage.stage_name}</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${typeInfo.color}`}>
+                            {typeInfo.label}
+                          </span>
+                          <span className="text-xs text-gray-500 min-w-[60px] text-right">
+                            {count} candidate{count !== 1 ? "s" : ""}
+                          </span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => setManagerDialogStageId(stage.id)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Manage stage managers">
+                              <UserPlus className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                              <Edit className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { if (confirm(`Delete "${stage.stage_name}"?`)) deleteMutation.mutate(stage.id); }}
+                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Show assigned managers */}
+                        {getManagersForStage(stage.id).length > 0 && (
+                          <div className="flex items-center gap-2 mt-1.5 ml-14 flex-wrap">
+                            <Users className="h-3 w-3 text-gray-400" />
+                            {getManagersForStage(stage.id).map((m: any) => (
+                              <span key={m.id} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 flex items-center gap-1">
+                                {m.hr_employees?.first_name} {m.hr_employees?.last_name}
+                                <button onClick={() => removeManagerMutation.mutate(m.id)} className="hover:text-red-500">
+                                  <X className="h-2.5 w-2.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">{stage.stage_name}</p>
-                      </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${typeInfo.color}`}>
-                        {typeInfo.label}
-                      </span>
-                      <span className="text-xs text-gray-500 min-w-[60px] text-right">
-                        {count} candidate{count !== 1 ? "s" : ""}
-                      </span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
-                          <Edit className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => { if (confirm(`Delete "${stage.stage_name}"?`)) deleteMutation.mutate(stage.id); }}
-                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
                   );
                 })}
               </div>
@@ -244,6 +320,55 @@ export default function StagesPage() {
                 className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
               >
                 {editStage ? "Update" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stage Manager Assignment Dialog */}
+      {managerDialogStageId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Assign Stage Manager</h2>
+              <button onClick={() => setManagerDialogStageId(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Select Employee</label>
+                <select value={selectedManagerId} onChange={e => setSelectedManagerId(e.target.value)} className={inputCls}>
+                  <option value="">Choose employee...</option>
+                  {employees
+                    .filter((emp: any) => !getManagersForStage(managerDialogStageId).some((m: any) => m.employee_id === emp.id))
+                    .map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
+                    ))}
+                </select>
+              </div>
+              {/* Current managers */}
+              {getManagersForStage(managerDialogStageId).length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Current Managers</label>
+                  <div className="space-y-1">
+                    {getManagersForStage(managerDialogStageId).map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-gray-700">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
+                        <button onClick={() => removeManagerMutation.mutate(m.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setManagerDialogStageId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Close</button>
+              <button
+                onClick={() => addManagerMutation.mutate()}
+                disabled={!selectedManagerId}
+                className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+              >
+                Assign
               </button>
             </div>
           </div>

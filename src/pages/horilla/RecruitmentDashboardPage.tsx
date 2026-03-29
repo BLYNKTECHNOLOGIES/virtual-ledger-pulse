@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Plus, Users, Briefcase, CheckCircle, XCircle,
   ChevronRight, Eye, Edit, Trash2, X, Globe, Lock,
-  MapPin, DollarSign
+  MapPin, DollarSign, UserPlus
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,6 +57,53 @@ export default function RecruitmentDashboardPage() {
       return data || [];
     },
   });
+
+  const { data: recruitmentManagers = [] } = useQuery({
+    queryKey: ["hr_recruitment_managers_all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_recruitment_managers").select("*, hr_employees(first_name, last_name)");
+      return data || [];
+    },
+  });
+
+  const { data: allEmployees = [] } = useQuery({
+    queryKey: ["hr_employees_for_rec_mgr"],
+    queryFn: async () => {
+      const { data } = await supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name");
+      return data || [];
+    },
+  });
+
+  const [managerDialogRecId, setManagerDialogRecId] = useState<string | null>(null);
+  const [selectedMgrId, setSelectedMgrId] = useState("");
+
+  const addRecMgrMutation = useMutation({
+    mutationFn: async () => {
+      if (!managerDialogRecId || !selectedMgrId) return;
+      const { error } = await supabase.from("hr_recruitment_managers").insert({ recruitment_id: managerDialogRecId, employee_id: selectedMgrId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager assigned");
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitment_managers_all"] });
+      setManagerDialogRecId(null);
+      setSelectedMgrId("");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to assign"),
+  });
+
+  const removeRecMgrMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("hr_recruitment_managers").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Manager removed");
+      queryClient.invalidateQueries({ queryKey: ["hr_recruitment_managers_all"] });
+    },
+  });
+
+  const getRecManagers = (recId: string) => recruitmentManagers.filter((m: any) => m.recruitment_id === recId);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -280,6 +327,7 @@ export default function RecruitmentDashboardPage() {
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Candidates</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Hired</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Managers</th>
                 <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
@@ -338,6 +386,25 @@ export default function RecruitmentDashboardPage() {
                           <Lock className="h-3 w-3" /> Draft
                         </button>
                       )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-1">
+                        {getRecManagers(rec.id).length > 0 ? (
+                          <div className="flex -space-x-1">
+                            {getRecManagers(rec.id).slice(0, 3).map((m: any) => (
+                              <div key={m.id} className="w-5 h-5 rounded-full bg-violet-500 text-white flex items-center justify-center text-[8px] font-bold ring-1 ring-white" title={`${m.hr_employees?.first_name} ${m.hr_employees?.last_name}`}>
+                                {m.hr_employees?.first_name?.[0]}{m.hr_employees?.last_name?.[0]}
+                              </div>
+                            ))}
+                            {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-gray-400 ml-1">+{getRecManagers(rec.id).length - 3}</span>}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-gray-300">No managers</span>
+                        )}
+                        <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Assign managers">
+                          <UserPlus className="h-3 w-3" />
+                        </button>
+                      </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-1">
@@ -478,6 +545,54 @@ export default function RecruitmentDashboardPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
               >
                 {saveMutation.isPending ? "Saving..." : editRec ? "Update" : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manager Assignment Dialog */}
+      {managerDialogRecId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-lg font-semibold text-gray-900">Assign Recruitment Managers</h2>
+              <button onClick={() => setManagerDialogRecId(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">Select Employee</label>
+                <select value={selectedMgrId} onChange={e => setSelectedMgrId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
+                  <option value="">Choose employee...</option>
+                  {allEmployees
+                    .filter((emp: any) => !getRecManagers(managerDialogRecId).some((m: any) => m.employee_id === emp.id))
+                    .map((emp: any) => (
+                      <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>
+                    ))}
+                </select>
+              </div>
+              {getRecManagers(managerDialogRecId).length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Current Managers</label>
+                  <div className="space-y-1">
+                    {getRecManagers(managerDialogRecId).map((m: any) => (
+                      <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-gray-700">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
+                        <button onClick={() => removeRecMgrMutation.mutate(m.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
+              <button onClick={() => setManagerDialogRecId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Close</button>
+              <button
+                onClick={() => addRecMgrMutation.mutate()}
+                disabled={!selectedMgrId}
+                className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c] disabled:opacity-50"
+              >
+                Assign
               </button>
             </div>
           </div>

@@ -278,8 +278,20 @@ export default function RecruitmentPipelinePage() {
 
   const moveCandidateMutation = useMutation({
     mutationFn: async ({ candidateId, newStageId }: { candidateId: string; newStageId: string }) => {
+      const candidate = candidates?.find(c => c.id === candidateId);
+      const oldStageId = candidate?.stage_id;
       const { error } = await supabase.from("hr_candidates").update({ stage_id: newStageId }).eq("id", candidateId);
       if (error) throw error;
+      // Log stage transition
+      if (oldStageId) {
+        const oldStage = stages?.find(s => s.id === oldStageId);
+        const newStage = stages?.find(s => s.id === newStageId);
+        await supabase.from("hr_stage_notes").insert({
+          candidate_id: candidateId,
+          stage_id: newStageId,
+          description: `Moved from "${oldStage?.stage_name || 'Unknown'}" to "${newStage?.stage_name || 'Unknown'}"`,
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Candidate moved");
@@ -292,6 +304,14 @@ export default function RecruitmentPipelinePage() {
     mutationFn: async (candidateId: string) => {
       const { error } = await supabase.from("hr_candidates").update({ hired: true, canceled: false, hired_date: new Date().toISOString().split("T")[0] }).eq("id", candidateId);
       if (error) throw error;
+      const candidate = candidates?.find(c => c.id === candidateId);
+      if (candidate?.stage_id) {
+        await supabase.from("hr_stage_notes").insert({
+          candidate_id: candidateId,
+          stage_id: candidate.stage_id,
+          description: "Candidate marked as HIRED",
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Candidate marked as hired");
@@ -303,8 +323,22 @@ export default function RecruitmentPipelinePage() {
 
   const cancelCandidateMutation = useMutation({
     mutationFn: async (candidateId: string) => {
+      const candidate = candidates?.find(c => c.id === candidateId);
       const { error } = await supabase.from("hr_candidates").update({ canceled: true, hired: false }).eq("id", candidateId);
       if (error) throw error;
+      // Archive to hr_rejected_candidates
+      await supabase.from("hr_rejected_candidates").insert({
+        candidate_id: candidateId,
+        reject_reason: "Cancelled from pipeline",
+        description: `Rejected at stage: ${stages?.find(s => s.id === candidate?.stage_id)?.stage_name || "Unknown"}`,
+      });
+      if (candidate?.stage_id) {
+        await supabase.from("hr_stage_notes").insert({
+          candidate_id: candidateId,
+          stage_id: candidate.stage_id,
+          description: "Candidate REJECTED / Cancelled",
+        });
+      }
     },
     onSuccess: () => {
       toast.success("Candidate canceled");

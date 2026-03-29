@@ -23,6 +23,60 @@ serve(async (req) => {
   } catch { /* empty body for cron */ }
 
   try {
+    // ===== AP-ARCH-01: CIRCUIT BREAKER CHECK =====
+    const { data: engineState } = await supabase
+      .from("ad_pricing_engine_state")
+      .select("*")
+      .eq("id", "singleton")
+      .single();
+
+    if (engineState && engineState.circuit_status === "OPEN") {
+      const openedAt = new Date(engineState.opened_at || 0);
+      const cooldownMs = (engineState.cooldown_minutes || 10) * 60000;
+      if (Date.now() - openedAt.getTime() < cooldownMs) {
+        console.log("[circuit-breaker] Circuit OPEN, cooldown active. Skipping cycle.");
+        return new Response(JSON.stringify({ success: true, message: "Circuit breaker OPEN, skipping" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Cooldown elapsed — transition to HALF_OPEN
+      await supabase.from("ad_pricing_engine_state").update({
+        circuit_status: "HALF_OPEN", updated_at: new Date().toISOString(),
+      }).eq("id", "singleton");
+      console.log("[circuit-breaker] Cooldown elapsed, transitioning to HALF_OPEN");
+    }
+
+    const isHalfOpen = engineState?.circuit_status === "HALF_OPEN";
+
+    // ===== AP-BUG-01: REST TIMER CHECK =====
+    const { data: restTimers } = await supabase
+      .from("ad_rest_timer")
+      .select("*")
+      .eq("is_active", true)
+      .limit(1);
+
+    if (restTimers && restTimers.length > 0) {
+      const timer = restTimers[0];
+      const expiresAt = new Date(new Date(timer.started_at).getTime() + timer.duration_minutes * 60000);
+      if (new Date() < expiresAt) {
+        console.log(`[rest-timer] Active rest timer until ${expiresAt.toISOString()}, skipping entire cycle`);
+        // Log skip for all active rules
+        const { data: activeRules } = await supabase.from("ad_pricing_rules").select("id").eq("is_active", true);
+        if (activeRules && activeRules.length > 0) {
+          await supabase.from("ad_pricing_logs").insert(
+            activeRules.map((r: any) => ({ rule_id: r.id, status: "skipped", skipped_reason: "rest_timer" }))
+          );
+        }
+        return new Response(JSON.stringify({ success: true, message: "Rest timer active, skipping" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } else {
+        // Expired but still active — clean up
+        await supabase.from("ad_rest_timer").update({ is_active: false }).eq("id", timer.id);
+        console.log("[rest-timer] Expired timer cleaned up");
+      }
+    }
+
     let query = supabase.from("ad_pricing_rules").select("*");
     if (singleRuleId) {
       query = query.eq("id", singleRuleId);
@@ -50,10 +104,43 @@ serve(async (req) => {
       });
     }
 
+    // ===== AP-BUG-05: AD CONFLICT DETECTION =====
+    const adToRule = new Map<string, string>();
+    const conflictedRules = new Set<string>();
     for (const rule of activeRules) {
+      const allAdNos = getAllAdNumbers(rule);
+      for (const adNo of allAdNos) {
+        if (adToRule.has(adNo)) {
+          const existingRule = adToRule.get(adNo)!;
+          conflictedRules.add(rule.id);
+          conflictedRules.add(existingRule);
+          console.warn(`[conflict] Ad ${adNo} claimed by rules: ${existingRule} and ${rule.id}`);
+        } else {
+          adToRule.set(adNo, rule.id);
+        }
+      }
+    }
+
+    // In HALF_OPEN mode, only process first rule as test
+    const rulesToProcess = isHalfOpen ? activeRules.slice(0, 1) : activeRules;
+
+    let cycleSuccessCount = 0;
+    let cycleErrorCount = 0;
+
+    for (const rule of rulesToProcess) {
+      // Skip conflicted rules
+      if (conflictedRules.has(rule.id)) {
+        await supabase.from("ad_pricing_logs").insert({
+          rule_id: rule.id, status: "skipped", skipped_reason: "ad_conflict",
+        });
+        results.push({ ruleId: rule.id, status: "skipped", reason: "ad_conflict" });
+        continue;
+      }
+
       try {
         const logEntries = await processRule(rule, excludedSet, supabase);
         results.push({ ruleId: rule.id, results: logEntries });
+        cycleSuccessCount++;
       } catch (err) {
         console.error(`Rule ${rule.id} error:`, err);
         await supabase.from("ad_pricing_rules").update({
@@ -62,20 +149,94 @@ serve(async (req) => {
           consecutive_errors: (rule.consecutive_errors || 0) + 1,
         }).eq("id", rule.id);
         results.push({ ruleId: rule.id, status: "error", error: (err as Error).message });
+        cycleErrorCount++;
       }
     }
+
+    // ===== CIRCUIT BREAKER STATE TRANSITION =====
+    await updateCircuitBreaker(supabase, engineState, cycleSuccessCount, cycleErrorCount);
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("auto-price-engine fatal:", err);
+    // Record fatal failure in circuit breaker
+    try {
+      await supabase.from("ad_pricing_engine_state").update({
+        consecutive_failures: (await supabase.from("ad_pricing_engine_state").select("consecutive_failures").eq("id", "singleton").single()).data?.consecutive_failures + 1 || 1,
+        last_failure_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }).eq("id", "singleton");
+    } catch { /* best effort */ }
     return new Response(JSON.stringify({ success: false, error: (err as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
+
+function getAllAdNumbers(rule: any): string[] {
+  const assetConfig: Record<string, any> = rule.asset_config || {};
+  const allNos: string[] = [];
+  const assets = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  for (const asset of assets) {
+    const config = assetConfig[asset] || {};
+    const nos = config.ad_numbers || [];
+    allNos.push(...nos);
+  }
+  // Fallback to top-level
+  if (allNos.length === 0 && rule.ad_numbers) {
+    allNos.push(...rule.ad_numbers);
+  }
+  return allNos;
+}
+
+async function updateCircuitBreaker(supabase: any, currentState: any, successes: number, errors: number) {
+  if (!currentState) return;
+  const now = new Date().toISOString();
+
+  if (currentState.circuit_status === "HALF_OPEN") {
+    if (successes > 0 && errors === 0) {
+      await supabase.from("ad_pricing_engine_state").update({
+        circuit_status: "CLOSED", consecutive_failures: 0,
+        last_success_at: now, updated_at: now,
+      }).eq("id", "singleton");
+      console.log("[circuit-breaker] HALF_OPEN → CLOSED (test passed)");
+    } else {
+      await supabase.from("ad_pricing_engine_state").update({
+        circuit_status: "OPEN", opened_at: now,
+        consecutive_failures: currentState.consecutive_failures + errors,
+        last_failure_at: now, updated_at: now,
+      }).eq("id", "singleton");
+      console.log("[circuit-breaker] HALF_OPEN → OPEN (test failed)");
+    }
+    return;
+  }
+
+  // CLOSED state
+  if (errors > 0) {
+    const newFailures = (currentState.consecutive_failures || 0) + errors;
+    const threshold = currentState.failure_threshold || 5;
+    if (newFailures >= threshold) {
+      await supabase.from("ad_pricing_engine_state").update({
+        circuit_status: "OPEN", consecutive_failures: newFailures,
+        opened_at: now, last_failure_at: now, updated_at: now,
+      }).eq("id", "singleton");
+      console.log(`[circuit-breaker] CLOSED → OPEN (${newFailures} failures >= ${threshold})`);
+    } else {
+      await supabase.from("ad_pricing_engine_state").update({
+        consecutive_failures: newFailures, last_failure_at: now, updated_at: now,
+      }).eq("id", "singleton");
+    }
+  } else if (successes > 0) {
+    if (currentState.consecutive_failures > 0) {
+      await supabase.from("ad_pricing_engine_state").update({
+        consecutive_failures: 0, last_success_at: now, updated_at: now,
+      }).eq("id", "singleton");
+    }
+  }
+}
 
 async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   const now = new Date();
@@ -108,22 +269,21 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   if (rule.consecutive_deviations >= rule.auto_pause_after_deviations) {
     await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "auto_paused" });
+    // AP-MISS-03: Alert on auto-pause
+    await insertPricingAlert(supabase, rule, "auto_paused",
+      `Rule "${rule.name}" auto-paused after ${rule.consecutive_deviations} consecutive deviations`);
     return [{ status: "skipped", reason: "auto_paused" }];
   }
 
-  // Determine assets to process: use `assets` array if available, otherwise fall back to single `asset`
+  // Determine assets to process
   const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
   const assetConfig: Record<string, any> = rule.asset_config || {};
 
-  // Map terminal trade type to Binance search trade type
   const binanceTradeType = rule.trade_type === "BUY" ? "SELL" : "BUY";
-
-  // Fetch USDT/INR once for all assets
   const usdtInr = await fetchUsdtInr(supabase);
 
   const allResults: any[] = [];
 
-  // Process each asset independently
   for (const currentAsset of assetsToProcess) {
     try {
       const result = await processAsset(rule, currentAsset, assetConfig[currentAsset] || {}, binanceTradeType, usdtInr, excludedSet, supabase, now, assetsToProcess.length);
@@ -195,9 +355,6 @@ async function processAsset(
     const found = searchResult.data.find((item: any) => {
       const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
       if (advNickName !== normalizedNick) return false;
-      // If only_counter_when_online is set, skip merchants that aren't marked online
-      // Note: Binance P2P search with publisherType:"merchant" already filters for merchants.
-      // The online status fields may not be present in search results, so default to true (assume online).
       if (rule.only_counter_when_online) {
         const onlineField = item.advertiser?.isOnline;
         const onlineStatus = item.advertiser?.userOnlineStatus;
@@ -217,6 +374,11 @@ async function processAsset(
     if (rule.pause_if_no_merchant_found && totalAssets === 1) {
       await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     }
+    // AP-MISS-03: Alert on merchant disappearance (only if previously found)
+    if (rule.last_matched_merchant) {
+      await insertPricingAlert(supabase, rule, "merchant_disappeared",
+        `Merchant "${rule.target_merchant}" disappeared from ${asset} listings for rule "${rule.name}"`);
+    }
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,
       asset,
@@ -227,7 +389,6 @@ async function processAsset(
   }
 
   // 5. MARKET VALIDATION
-  // Market ref = coinUsdt × usdtInr (P2P rate)
   let marketReferencePrice: number | null = null;
   let deviationPct: number | null = null;
 
@@ -267,7 +428,7 @@ async function processAsset(
     await supabase.from("ad_pricing_rules").update({ consecutive_deviations: 0 }).eq("id", rule.id);
   }
 
-  // 6. CALCULATE PRICE — use per-asset config for offsets and limits
+  // 6. CALCULATE PRICE
   const offsetAmount = config.offset_amount ?? rule.offset_amount ?? 0;
   const offsetPct = config.offset_pct ?? rule.offset_pct ?? 0;
   const maxCeiling = config.max_ceiling ?? rule.max_ceiling;
@@ -280,7 +441,6 @@ async function processAsset(
   let wasCapped = false;
   let wasRateLimited = false;
 
-  // Resolve ad numbers early (needed by FLOATING mode to infer Binance index)
   const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
 
   if (rule.price_type === "FIXED") {
@@ -290,7 +450,6 @@ async function processAsset(
       newPrice = competitorPrice - offsetAmount;
     }
 
-    // Rate-of-change guard
     if (rule.max_price_change_per_cycle && rule.last_applied_price) {
       const delta = Math.abs(newPrice - rule.last_applied_price);
       if (delta > rule.max_price_change_per_cycle) {
@@ -300,14 +459,10 @@ async function processAsset(
       }
     }
 
-    // Hard limits (per-asset)
     if (maxCeiling && newPrice > maxCeiling) { newPrice = maxCeiling; wasCapped = true; }
     if (minFloor && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
-    // FLOATING mode — calculate ratio additively based on competitor's deviation from market reference.
-    // competitorRatio = (competitorPrice / marketReferencePrice) * 100
-    // newRatio = competitorRatio ± offsetPct (additive)
     const baseRef = marketReferencePrice && marketReferencePrice > 0 ? marketReferencePrice : competitorPrice;
     const competitorRatio = (competitorPrice / baseRef) * 100;
 
@@ -332,7 +487,23 @@ async function processAsset(
     if (minRatioFloor && newRatio < minRatioFloor) { newRatio = minRatioFloor; wasCapped = true; }
   }
 
-  // 7. EXECUTE — ad numbers already resolved above
+  // AP-MISS-03: Anomaly alert if price changed >3% from last applied
+  if (rule.price_type === "FIXED" && newPrice && rule.last_applied_price && rule.last_applied_price > 0) {
+    const changePct = Math.abs((newPrice - rule.last_applied_price) / rule.last_applied_price) * 100;
+    if (changePct > 3) {
+      await insertPricingAlert(supabase, rule, "price_spike",
+        `${asset}: Price changing ${changePct.toFixed(1)}% (₹${rule.last_applied_price} → ₹${newPrice.toFixed(2)}) for rule "${rule.name}"`);
+    }
+  }
+  if (rule.price_type === "FLOATING" && newRatio && rule.last_applied_ratio && rule.last_applied_ratio > 0) {
+    const changePct = Math.abs((newRatio - rule.last_applied_ratio) / rule.last_applied_ratio) * 100;
+    if (changePct > 3) {
+      await insertPricingAlert(supabase, rule, "ratio_spike",
+        `${asset}: Ratio changing ${changePct.toFixed(1)}% (${rule.last_applied_ratio}% → ${newRatio.toFixed(4)}%) for rule "${rule.name}"`);
+    }
+  }
+
+  // 7. EXECUTE
   if (adNumbers.length === 0) {
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,
@@ -341,6 +512,32 @@ async function processAsset(
       skipped_reason: "no_ads",
     });
     return { asset, status: "skipped", reason: "no_ads" };
+  }
+
+  // ===== AP-ARCH-03: DRY-RUN MODE =====
+  if (rule.is_dry_run) {
+    await supabase.from("ad_pricing_logs").insert({
+      rule_id: rule.id,
+      asset,
+      competitor_merchant: matchedMerchant,
+      competitor_price: competitorPrice,
+      market_reference_price: marketReferencePrice,
+      deviation_from_market_pct: deviationPct,
+      calculated_price: rule.price_type === "FIXED" ? newPrice : null,
+      calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+      applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : null,
+      applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
+      was_capped: wasCapped,
+      was_rate_limited: wasRateLimited,
+      status: "dry_run",
+    });
+    console.log(`[DRY-RUN] ${rule.name}/${asset}: would apply ${rule.price_type === "FIXED" ? `₹${newPrice?.toFixed(2)}` : `${newRatio?.toFixed(4)}%`}`);
+    return {
+      asset, status: "dry_run",
+      competitor: matchedMerchant, competitorPrice,
+      newPrice: rule.price_type === "FIXED" ? newPrice : undefined,
+      newRatio: rule.price_type === "FLOATING" ? newRatio : undefined,
+    };
   }
 
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
@@ -431,11 +628,43 @@ async function processAsset(
   };
 }
 
+// ===== AP-MISS-03: ANOMALY ALERT HELPER =====
+async function insertPricingAlert(supabase: any, rule: any, alertType: string, message: string) {
+  try {
+    // Rate-limit: max 1 alert per rule per 15 minutes
+    const { data: recentAlerts } = await supabase
+      .from("terminal_notifications")
+      .select("id")
+      .eq("notification_type", "pricing_anomaly")
+      .like("message", `%${rule.id}%`)
+      .gte("created_at", new Date(Date.now() - 15 * 60000).toISOString())
+      .limit(1);
+
+    if (recentAlerts && recentAlerts.length > 0) return;
+
+    await supabase.from("terminal_notifications").insert({
+      notification_type: "pricing_anomaly",
+      title: `Pricing Alert: ${alertType.replace(/_/g, " ")}`,
+      message: `[${rule.id}] ${message}`,
+      severity: alertType === "auto_paused" ? "critical" : "warning",
+      is_active: true,
+    });
+  } catch (e) {
+    console.error("[alert] Failed to insert pricing alert:", e);
+  }
+}
+
 async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, supabase: any) {
   const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
   const assetConfig: Record<string, any> = rule.asset_config || {};
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // Skip resting price application in dry-run mode
+  if (rule.is_dry_run) {
+    console.log(`[DRY-RUN] ${rule.name}: would apply resting price/ratio (skipped)`);
+    return;
+  }
 
   for (const asset of assetsToProcess) {
     const config = assetConfig[asset] || {};
@@ -502,7 +731,6 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
 }
 
 async function fetchCoinUsdtRate(asset: string): Promise<number> {
-  // Try 1: Via proxy
   const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
   const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
   if (BINANCE_PROXY_URL) {
@@ -523,7 +751,6 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
     }
   }
 
-  // Try 2: Direct Binance public API (no auth needed for ticker)
   try {
     const resp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset}USDT`);
     const data = await resp.json();
@@ -541,10 +768,6 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
-  // Primary: USD/INR live forex rate (USDT ≈ 1 USD, so USD/INR is the correct market reference)
-  // This avoids inflated CoinGecko USDT/INR rates that include P2P premiums.
-
-  // Source 1: ExchangeRate-API (free, no key needed)
   try {
     const resp = await fetch("https://open.er-api.com/v6/latest/USD");
     const data = await resp.json();
@@ -556,7 +779,6 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
     console.error("[fetchUsdtInr] er-api failed:", e);
   }
 
-  // Source 2: frankfurter.app (ECB rates, free, no key)
   try {
     const resp = await fetch("https://api.frankfurter.app/latest?from=USD&to=INR");
     const data = await resp.json();
@@ -568,7 +790,6 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
     console.error("[fetchUsdtInr] frankfurter failed:", e);
   }
 
-  // Source 3: CoinGecko USDT/INR as last resort
   try {
     const cgResp = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
@@ -586,11 +807,6 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
   return 91;
 }
 
-/**
- * Infer Binance's actual P2P index price by fetching our own ad's
- * current displayed price and floating ratio.
- * Formula: index = displayedPrice / (floatingRatio / 100)
- */
 async function inferBinanceIndex(adNo: string, supabase: any): Promise<number | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -605,7 +821,6 @@ async function inferBinanceIndex(adNo: string, supabase: any): Promise<number | 
   });
   const result = await resp.json();
 
-  // Navigate Binance response structure
   const adData = result?.data?.data || result?.data;
   if (!adData) return null;
 
@@ -613,14 +828,12 @@ async function inferBinanceIndex(adNo: string, supabase: any): Promise<number | 
   const ratio = parseFloat(adData.priceFloatingRatio || adData.adDetailResp?.priceFloatingRatio || "0");
   const priceType = adData.priceType ?? adData.adDetailResp?.priceType;
 
-  // Only infer index if ad is currently using floating pricing (priceType 2)
   if (priceType === 2 && ratio > 0 && price > 0) {
     const index = price / (ratio / 100);
     console.log(`[inferBinanceIndex] Ad ${adNo}: price=${price}, ratio=${ratio}, inferred index=${index.toFixed(2)}`);
     return index;
   }
 
-  // If ad is FIXED or no ratio, we can't infer the index
   console.log(`[inferBinanceIndex] Ad ${adNo}: priceType=${priceType}, cannot infer index`);
   return null;
 }

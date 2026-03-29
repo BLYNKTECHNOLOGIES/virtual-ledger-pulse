@@ -12873,6 +12873,7 @@ export type Database = {
           failed_login_attempts: number | null
           first_name: string | null
           force_logout_at: string | null
+          force_password_change: boolean | null
           id: string
           is_payer: boolean
           is_purchase_creator: boolean
@@ -12897,6 +12898,7 @@ export type Database = {
           failed_login_attempts?: number | null
           first_name?: string | null
           force_logout_at?: string | null
+          force_password_change?: boolean | null
           id?: string
           is_payer?: boolean
           is_purchase_creator?: boolean
@@ -12921,6 +12923,7 @@ export type Database = {
           failed_login_attempts?: number | null
           first_name?: string | null
           force_logout_at?: string | null
+          force_password_change?: boolean | null
           id?: string
           is_payer?: boolean
           is_purchase_creator?: boolean

@@ -13818,6 +13818,14 @@ export type Database = {
         Args: { p_employee_id: string; p_end: string; p_start: string }
         Returns: number
       }
+      fn_compute_fnf_leave_encashment: {
+        Args: { p_employee_id: string }
+        Returns: {
+          breakdown: Json
+          encashment_amount: number
+          total_encashable_days: number
+        }[]
+      }
       fn_initialize_onboarding: {
         Args: { p_employee_id: string }
         Returns: undefined

@@ -46,6 +46,12 @@ export function ForcedPasswordResetDialog({ open, onSuccess }: ForcedPasswordRes
         return;
       }
 
+      // Clear the force_password_change flag
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        await supabase.from('users').update({ force_password_change: false }).eq('id', user.id);
+      }
+
       onSuccess();
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred.');

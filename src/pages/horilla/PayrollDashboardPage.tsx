@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck } from "lucide-react";
-import { computeComponentAmounts, isEmployerComponent } from "@/lib/hrms/salaryComputation";
+import { StatutoryReportsPanel } from "@/components/hrms/StatutoryReportsPanel";
 import { StatutoryReportsPanel } from "@/components/hrms/StatutoryReportsPanel";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 

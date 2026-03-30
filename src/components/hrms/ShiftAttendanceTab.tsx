@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Calendar, Users, AlertCircle, Edit, Trash2, Fingerprint } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ShiftManagementDialog } from "./ShiftManagementDialog";
 import { OvertimeRecordDialog } from "./OvertimeRecordDialog";
 import { LiveAttendanceDashboard } from "./attendance/LiveAttendanceDashboard";

@@ -6,6 +6,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,18 +127,19 @@ export function BiometricManagementDialog({
     }
   };
 
-  const handleDelete = async (credId: string, credDeviceName: string | null) => {
-    if (
-      !window.confirm(
-        `Remove biometric credential "${credDeviceName || 'Unknown Device'}" from ${displayName}?`
-      )
-    )
-      return;
+  const [credToDelete, setCredToDelete] = useState<{id: string; name: string | null} | null>(null);
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
 
-    setDeletingId(credId);
+  const handleDelete = async (credId: string, credDeviceName: string | null) => {
+    setCredToDelete({ id: credId, name: credDeviceName });
+  };
+
+  const confirmDelete = async () => {
+    if (!credToDelete) return;
+    setDeletingId(credToDelete.id);
     try {
       const { error } = await supabase.rpc('delete_webauthn_credential', {
-        p_credential_id: credId,
+        p_credential_id: credToDelete.id,
       });
       if (error) throw error;
       toast.success('Credential removed');
@@ -138,17 +149,15 @@ export function BiometricManagementDialog({
       toast.error('Failed to remove credential');
     } finally {
       setDeletingId(null);
+      setCredToDelete(null);
     }
   };
 
   const handleDeleteAll = async () => {
-    if (
-      !window.confirm(
-        `Remove ALL biometric credentials for ${displayName}? They will need to re-register.`
-      )
-    )
-      return;
+    setShowDeleteAll(true);
+  };
 
+  const confirmDeleteAll = async () => {
     setIsLoading(true);
     try {
       const { error } = await supabase.rpc(
@@ -163,6 +172,7 @@ export function BiometricManagementDialog({
       toast.error('Failed to remove credentials');
     } finally {
       setIsLoading(false);
+      setShowDeleteAll(false);
     }
   };
 

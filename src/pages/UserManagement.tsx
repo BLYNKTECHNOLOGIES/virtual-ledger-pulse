@@ -5,6 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key, Settings2, Terminal } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { useUsers } from "@/hooks/useUsers";
 import { AddUserDialog } from "@/components/user-management/AddUserDialog";
 import { AddRoleDialog } from "@/components/user-management/AddRoleDialog";
@@ -247,23 +258,26 @@ export default function UserManagement() {
     }
   };
 
+  const [roleToDelete, setRoleToDelete] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+
   const deleteRole = async (roleId: string) => {
-    if (window.confirm('Are you sure you want to delete this role?')) {
-      try {
-        const { error } = await supabase
-          .from('roles')
-          .delete()
-          .eq('id', roleId);
+    try {
+      const { error } = await supabase
+        .from('roles')
+        .delete()
+        .eq('id', roleId);
 
-        if (error) {
-          console.error('Error deleting role:', error);
-          return;
-        }
-
-        await fetchRoles();
-      } catch (error) {
+      if (error) {
         console.error('Error deleting role:', error);
+        return;
       }
+
+      await fetchRoles();
+    } catch (error) {
+      console.error('Error deleting role:', error);
+    } finally {
+      setRoleToDelete(null);
     }
   };
 
@@ -298,25 +312,28 @@ export default function UserManagement() {
     
     if (!hasPermission('user_management_manage')) {
       console.error('User does not have permission to delete users');
-      alert('You do not have permission to delete users');
+      toast.error('You do not have permission to delete users');
       return;
     }
     
-    if (window.confirm('Are you sure you want to permanently delete this user and all related data? This action cannot be undone.')) {
-      console.log('User confirmed deletion, calling deleteUser...');
-      try {
-        const result = await deleteUser(userId);
-        console.log('Delete result:', result);
-        if (result?.success) {
-          console.log('User deleted successfully');
-        } else {
-          console.error('Delete failed:', result?.error);
-        }
-      } catch (error) {
-        console.error('Exception during delete:', error);
+    setUserToDelete(userId);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    console.log('User confirmed deletion, calling deleteUser...');
+    try {
+      const result = await deleteUser(userToDelete);
+      console.log('Delete result:', result);
+      if (result?.success) {
+        console.log('User deleted successfully');
+      } else {
+        console.error('Delete failed:', result?.error);
       }
-    } else {
-      console.log('User cancelled deletion');
+    } catch (error) {
+      console.error('Exception during delete:', error);
+    } finally {
+      setUserToDelete(null);
     }
   };
 

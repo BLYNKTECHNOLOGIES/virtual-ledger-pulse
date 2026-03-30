@@ -1,4 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -238,11 +248,19 @@ export function TerminalUsersList() {
     }
   };
 
+  const [roleToRemove, setRoleToRemove] = useState<{userId: string; roleId: string; roleName: string; username: string} | null>(null);
+
   const handleRemove = async (userId: string, roleId: string, roleName: string, username: string) => {
-    if (!window.confirm(`Remove "${roleName}" from ${username}?`)) return;
+    setRoleToRemove({ userId, roleId, roleName, username });
+  };
+
+  const confirmRemove = async () => {
+    if (!roleToRemove) return;
+    const { userId, roleId, roleName, username } = roleToRemove;
     const { error } = await supabase.rpc("remove_terminal_role", { p_user_id: userId, p_role_id: roleId });
-    if (error) { toast.error("Failed to remove role"); return; }
+    if (error) { toast.error("Failed to remove role"); setRoleToRemove(null); return; }
     toast.success(`Removed "${roleName}" from ${username}`);
+    setRoleToRemove(null);
     await fetchData();
   };
 

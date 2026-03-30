@@ -5,6 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent } from "lucide-react";
@@ -360,9 +370,14 @@ export function WalletManagementTab() {
   };
 
   // Delete wallet with confirmation
+  const [walletToDelete, setWalletToDelete] = useState<WalletType | null>(null);
   const handleDeleteWallet = (wallet: WalletType) => {
-    if (window.confirm(`Are you sure you want to delete wallet "${wallet.wallet_name}"? This action cannot be undone.`)) {
-      deleteWalletMutation.mutate(wallet.id);
+    setWalletToDelete(wallet);
+  };
+  const confirmDeleteWallet = () => {
+    if (walletToDelete) {
+      deleteWalletMutation.mutate(walletToDelete.id);
+      setWalletToDelete(null);
     }
   };
 

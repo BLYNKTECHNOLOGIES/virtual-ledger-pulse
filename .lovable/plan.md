@@ -1,8 +1,8 @@
 
 
-# ERP Full System Audit — Phase 11 Report
+# ERP Full System Audit — Phase 12 Report
 
-## Phases 1-10 Status (completed)
+## Phases 1-11 Status (completed)
 - Phase 1-4: Data integrity, orphaned code, permissions, demo-admin cleanup — ALL FIXED
 - Phase 5: Hardcoded password, dead localStorage, native dialogs replaced — ALL FIXED
 - Phase 6: XSS fix, stale removeItems, shift delete cleanup — ALL FIXED
@@ -11,70 +11,82 @@
 - Phase 8: 2 orphaned HRMS files deleted, OrderFocusContext fully removed, empty import + stale localStorage + duplicate session writes cleaned — ALL FIXED
 - Phase 9: 5 orphaned hooks + 2 orphaned utils deleted (~494 lines) — ALL FIXED
 - Phase 10: 4 dead auth components + TopNav + payslipPdfGenerator deleted (~1,424 lines), AuthProvider cleaned — ALL FIXED
+- Phase 11: Orphaned HorillaModulePage deleted, 138 console.log calls removed from 5 worst-offender files — ALL FIXED
 
 ---
 
-## CATEGORY 1: ORPHANED PAGE (1 file, 32 lines)
+## CATEGORY 1: CONSOLE.LOG CLEANUP — BATCH 2 (Next worst offenders)
 
-### P11-DEAD-01 | HorillaModulePage.tsx — never imported (DELETE)
+Phase 11 cleaned the top 5 files (~138 calls). This phase targets the next tier — files with 10+ debug logs each.
 
-`src/pages/horilla/HorillaModulePage.tsx` (32 lines) is a generic "Coming Soon" placeholder page. **Never imported** — all 65 Horilla module pages are individually built and routed in App.tsx. This placeholder was superseded and is now dead.
+### P12-LOG-01 | SalesEntryDialog.tsx — ~14 console.log calls (CLEAN)
+
+`src/components/sales/SalesEntryDialog.tsx` has debug traces like `console.log('🔥 FORM SUBMIT EVENT TRIGGERED!')`, `console.log('🚀 Create Order button clicked!')`, validation logs, and step traces. Remove all. Preserve `console.error` and `console.warn`.
+
+### P12-LOG-02 | ManualPurchaseEntryDialog.tsx — ~18 console.log calls (CLEAN)
+
+`src/components/purchase/ManualPurchaseEntryDialog.tsx` has extensive submission debug logs (`'🚀 ManualPurchase: Submit clicked'`, RPC params dumps, wallet selection traces). Remove all.
+
+### P12-LOG-03 | StockTransactionsTab.tsx — ~10 console.log calls (CLEAN)
+
+`src/components/stock/StockTransactionsTab.tsx` has wallet/stock transaction fetch and count debug logs. Remove all.
+
+### P12-LOG-04 | OrderActions.tsx — ~10 console.log calls (CLEAN)
+
+`src/components/terminal/orders/OrderActions.tsx` has ReleaseCrypto debug traces for every input change, keypress, and submission. Remove all.
+
+### P12-LOG-05 | BiometricReportUploader.tsx — ~10 console.log calls (CLEAN)
+
+`src/components/hrms/BiometricReportUploader.tsx` has parser debug logs (row dumps, column maps, sample output). Remove all.
+
+### P12-LOG-06 | CandidatesTab.tsx + RecruitmentTab.tsx — ~10 console.log calls (CLEAN)
+
+Both files have identical "mark not interested" debug traces. Remove all from both.
+
+### P12-LOG-07 | CreateKYCRequestDialog.tsx — ~6 console.log calls (CLEAN)
+
+File upload and insertion debug traces. Remove all.
+
+### P12-LOG-08 | SalesOrderDialog.tsx — ~4 console.log calls (CLEAN)
+
+Client onboarding debug traces. Remove all.
+
+### P12-LOG-09 | OrderCompletionForm.tsx — ~5 console.log calls (CLEAN)
+
+Platform fee and order completion debug traces. Remove all.
+
+### P12-LOG-10 | CompletedPurchaseOrders.tsx + EditPurchaseOrderDialog.tsx — ~4 console.log calls (CLEAN)
+
+Delete and reconciliation debug traces. Remove all.
 
 ---
 
-## CATEGORY 2: CONSOLE.LOG CLEANUP — WORST OFFENDERS (Phase 1 of gradual cleanup)
+## CATEGORY 2: SYSTEMIC ISSUES (DEFERRED)
 
-The codebase has ~1,200+ `console.log` calls across ~50+ files. Tackling all at once is too large. This phase targets the **worst offenders** — files with excessive debug logging that should never ship to production.
-
-### P11-LOG-01 | InvestigationDetailsDialog.tsx — 103 console.log calls (CLEAN)
-
-`src/components/compliance/InvestigationDetailsDialog.tsx` has **103 debug console.log calls** — the single worst offender. Most are step-by-step debug traces (`console.log('=== SUBMIT FOR APPROVAL STARTED ===')`, `console.log('Cancel button clicked')`, etc.) from development. Remove all except `console.error` calls.
-
-### P11-LOG-02 | AddUserDialog.tsx — 18 console.log calls (CLEAN)
-
-`src/components/user-management/AddUserDialog.tsx` has a `canCreateUsers()` function that logs 8 permission-check debug lines every render. Remove all debug logs.
-
-### P11-LOG-03 | UserManagement.tsx — 14 console.log calls (CLEAN)
-
-`src/pages/UserManagement.tsx` has debug logs for role creation, role updates, and user deletion. Remove all.
-
-### P11-LOG-04 | RoleUsersDialog.tsx — 2 console.log calls (CLEAN)
-
-`src/components/user-management/RoleUsersDialog.tsx` has 2 debug logs. Remove.
-
-### P11-LOG-05 | AddRoleDialog.tsx — 1 console.log call (CLEAN)
-
-`src/components/user-management/AddRoleDialog.tsx` has 1 debug log. Remove.
-
----
-
-## CATEGORY 3: SYSTEMIC ISSUES (DEFERRED)
-
-### P11-TYPE-01 | 64 files use `(supabase as any)` — type safety bypass (DEFERRED)
+### P12-TYPE-01 | 64 files use `(supabase as any)` — type safety bypass (DEFERRED)
 Needs Supabase type regeneration. Tracked since Phase 6.
 
-### P11-LOG-REMAINING | ~1,050+ console.log across 45+ files (DEFERRED)
-Remaining cleanup to be done in batches over future phases.
+### P12-LOG-REMAINING | ~750+ console.log across 30+ files (DEFERRED)
+Remaining hooks, terminal, and edge function logs for future phases.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 11A — Delete orphaned page (30s)
+### Phase 12 — Clean debug logging batch 2 (~15 min)
 
-| # | Bug ID | Fix | Effort |
-|---|--------|-----|--------|
-| 1 | P11-DEAD-01 | Delete `src/pages/horilla/HorillaModulePage.tsx` | 30s |
-
-### Phase 11B — Clean debug logging from worst offenders (15 min)
-
-| # | Bug ID | Fix | Effort |
-|---|--------|-----|--------|
-| 2 | P11-LOG-01 | Remove ~103 console.log from InvestigationDetailsDialog.tsx | 8 min |
-| 3 | P11-LOG-02 | Remove ~18 console.log from AddUserDialog.tsx | 3 min |
-| 4 | P11-LOG-03 | Remove ~14 console.log from UserManagement.tsx | 2 min |
-| 5 | P11-LOG-04 | Remove 2 console.log from RoleUsersDialog.tsx | 30s |
-| 6 | P11-LOG-05 | Remove 1 console.log from AddRoleDialog.tsx | 30s |
+| # | Bug ID | Files | Console.log Count |
+|---|--------|-------|-------------------|
+| 1 | P12-LOG-01 | SalesEntryDialog.tsx | ~14 |
+| 2 | P12-LOG-02 | ManualPurchaseEntryDialog.tsx | ~18 |
+| 3 | P12-LOG-03 | StockTransactionsTab.tsx | ~10 |
+| 4 | P12-LOG-04 | OrderActions.tsx | ~10 |
+| 5 | P12-LOG-05 | BiometricReportUploader.tsx | ~10 |
+| 6 | P12-LOG-06 | CandidatesTab.tsx + RecruitmentTab.tsx | ~10 |
+| 7 | P12-LOG-07 | CreateKYCRequestDialog.tsx | ~6 |
+| 8 | P12-LOG-08 | SalesOrderDialog.tsx | ~4 |
+| 9 | P12-LOG-09 | OrderCompletionForm.tsx | ~5 |
+| 10 | P12-LOG-10 | CompletedPurchaseOrders.tsx + EditPurchaseOrderDialog.tsx | ~4 |
 
 ---
 
@@ -82,14 +94,13 @@ Remaining cleanup to be done in batches over future phases.
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| Orphaned page (never imported) | 1 file (32 lines) | LOW — dead weight |
-| Debug console.log (worst offenders) | 5 files, ~138 calls | MEDIUM — ships debug noise to production |
+| Debug console.log (batch 2) | 12 files, ~91 calls | MEDIUM — production debug noise |
 
-**Total: 1 file deleted + 5 files cleaned, ~138 console.log calls removed, ~16 minutes effort**
+**Total: 12 files cleaned, ~91 console.log calls removed, ~15 minutes effort**
 
-No database changes needed. The console.log cleanup preserves all `console.error` and `console.warn` calls (these are legitimate error reporting). Only `console.log` debug statements are removed.
+No database changes needed. All `console.error` and `console.warn` calls preserved. Edge function logs (supabase/functions/) intentionally excluded — server-side logging is appropriate there.
 
 ### Technical Details
 
-The `window.location.reload()` calls in `TopHeader.tsx` and `NotificationDropdown.tsx` are **intentional** — they power user-facing "Reload Page" buttons and should NOT be changed. The remaining `dangerouslySetInnerHTML` in `TaskComments.tsx` already has proper `escapeHtml()` sanitization (fixed in Phase 6) and the one in `chart.tsx` is a shadcn/ui library file — both are safe.
+The `console.log` in `onClick={() => console.log('🚀 Create Order button clicked!')}` in SalesEntryDialog.tsx is particularly wasteful — it fires on every button click in production. The BiometricReportUploader dumps entire row arrays to console during file parsing. OrderActions.tsx logs every keystroke during crypto release — a security concern as it could expose OTP/auth codes in browser dev tools.
 

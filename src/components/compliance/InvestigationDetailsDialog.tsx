@@ -337,7 +337,7 @@ export function InvestigationDetailsDialog({
         investigation_id: investigationIdToUse,
         final_resolution: finalResolution,
         supporting_documents_urls: attachmentUrls,
-        submitted_by: 'Current User',
+        submitted_by: (await getCurrentUserIdAsync()) || 'unknown',
         approval_status: 'PENDING'
       };
       

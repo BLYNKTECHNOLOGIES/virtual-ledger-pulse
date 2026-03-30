@@ -124,8 +124,8 @@ export function WalletManagementTab() {
       if (error) throw error;
       return data;
     },
-    refetchInterval: 5000, // Live updates every 5 seconds
-    staleTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
   // Add wallet mutation

@@ -1087,7 +1087,7 @@ export function InventoryStatusWidget() {
       try {
         const { data: rateData } = await supabase.functions.invoke('fetch-usdt-rate');
         if (rateData?.rate) usdtInrRate = rateData.rate;
-      } catch {}
+      } catch (err) { console.warn('[RealDataWidgets] Failed to fetch USDT rate:', err); }
 
       // Aggregate balances
       const totals: Record<string, number> = {};

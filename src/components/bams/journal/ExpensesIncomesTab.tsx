@@ -82,8 +82,8 @@ export function ExpensesIncomesTab() {
 
       return formattedTransactions;
     },
-    refetchInterval: 5000, // Refresh every 5 seconds to catch new transactions
-    staleTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
    // Delete mutation

@@ -85,12 +85,13 @@ export function CaseTrackingTab() {
   // Start Investigation Mutation
   const startInvestigationMutation = useMutation({
     mutationFn: async (caseId: string) => {
+      const userId = (await getCurrentUserIdAsync()) || 'unknown';
       const { error } = await supabase
         .from('bank_cases')
         .update({
           investigation_status: 'UNDER_INVESTIGATION',
           investigation_started_at: new Date().toISOString(),
-          investigation_assigned_to: 'Current User' // You can replace with actual user
+          investigation_assigned_to: userId
         })
         .eq('id', caseId);
       

@@ -388,13 +388,14 @@ export function AccountStatusTab() {
                   return;
                 }
                 try {
+                  const userId = (await getCurrentUserIdAsync()) || 'unknown';
                   const { error } = await supabase.from('account_investigations').insert({
                     bank_account_id: selectedAccount.id,
                     investigation_type: investigationData.type,
                     reason: investigationData.reason,
                     priority: investigationData.priority,
                     notes: investigationData.notes,
-                    assigned_to: 'Current User',
+                    assigned_to: userId,
                     status: 'ACTIVE'
                   });
                   if (error) {

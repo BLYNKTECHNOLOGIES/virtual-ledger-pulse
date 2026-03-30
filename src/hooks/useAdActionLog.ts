@@ -108,7 +108,7 @@ function getUserSession(): { userId: string; userName: string } | null {
       const userName = session?.user?.username || session?.user?.name || session?.username || 'Unknown';
       if (userId) return { userId, userName };
     }
-  } catch {}
+  } catch (err) { console.warn('[useAdActionLog] Failed to resolve user:', err); }
   return null;
 }
 

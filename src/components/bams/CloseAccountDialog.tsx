@@ -185,7 +185,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
           final_balance: account.balance,
           closure_reason: closureReason,
           closure_documents: documentUrls,
-          closed_by: 'Current User'
+          closed_by: (await getCurrentUserIdAsync()) || 'unknown'
         });
 
       if (insertError) {

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipboardList, Plus, Edit, Trash2, X, ChevronDown, ChevronRight, Eye, FileText, CheckSquare, List, BarChart3 } from "lucide-react";

@@ -18,6 +18,7 @@ export default function RecruitmentSurveyPage() {
   const [editTemplate, setEditTemplate] = useState<any>(null);
   const [form, setForm] = useState({ title: "", description: "", is_general_template: false });
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Question form
   const [qForm, setQForm] = useState({ question: "", question_type: "text", is_required: true, options: "" });

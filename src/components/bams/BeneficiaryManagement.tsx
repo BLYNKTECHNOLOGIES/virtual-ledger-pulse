@@ -729,6 +729,80 @@ export function BeneficiaryManagement() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Manual Add Beneficiary Dialog */}
+      <Dialog open={showManualAddDialog} onOpenChange={(open) => {
+        setShowManualAddDialog(open);
+        if (!open) setManualForm({ account_number: "", account_holder_name: "", ifsc_code: "", account_type: "", account_opening_branch: "" });
+      }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Add Beneficiary Manually
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Account Number <span className="text-destructive">*</span></Label>
+              <Input
+                placeholder="Enter account number"
+                value={manualForm.account_number}
+                onChange={(e) => setManualForm((p) => ({ ...p, account_number: e.target.value }))}
+                className="font-mono text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Account Holder Name</Label>
+              <Input
+                placeholder="Enter holder name"
+                value={manualForm.account_holder_name}
+                onChange={(e) => setManualForm((p) => ({ ...p, account_holder_name: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">IFSC Code</Label>
+              <Input
+                placeholder="e.g. SBIN0001234"
+                value={manualForm.ifsc_code}
+                onChange={(e) => setManualForm((p) => ({ ...p, ifsc_code: e.target.value.toUpperCase() }))}
+                className="font-mono text-sm"
+                maxLength={11}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Account Type</Label>
+              <Select value={manualForm.account_type} onValueChange={(v) => setManualForm((p) => ({ ...p, account_type: v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Savings">Savings</SelectItem>
+                  <SelectItem value="Current">Current</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Opening Branch</Label>
+              <Input
+                placeholder="Enter branch name"
+                value={manualForm.account_opening_branch}
+                onChange={(e) => setManualForm((p) => ({ ...p, account_opening_branch: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowManualAddDialog(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={!manualForm.account_number.trim() || manualAddMutation.isPending}
+              onClick={() => manualAddMutation.mutate(manualForm)}
+            >
+              {manualAddMutation.isPending ? "Adding..." : "Add Beneficiary"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

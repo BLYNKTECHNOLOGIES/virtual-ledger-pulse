@@ -1152,6 +1152,14 @@ function TerminalOrdersContent() {
   );
 }
 
+export default function TerminalOrders() {
+  return (
+    <TerminalPermissionGate permissions={['terminal_orders_view']}>
+      <TerminalOrdersContent />
+    </TerminalPermissionGate>
+  );
+}
+
 function OrderStatusBadge({ status, tradeType, additionalKycVerify }: { status: string; tradeType: string; additionalKycVerify?: number }) {
   const operational = mapToOperationalStatus(status, tradeType);
   const needsKyc = tradeType === 'SELL' && additionalKycVerify === 1 && operational === 'Pending Payment';

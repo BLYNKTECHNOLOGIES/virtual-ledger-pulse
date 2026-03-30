@@ -198,7 +198,9 @@ function TimingCard({ icon: Icon, label, value, subtitle, borderColor }: { icon:
   );
 }
 
-export default function TerminalOperatorDetail() {
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+
+function TerminalOperatorDetailContent() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);

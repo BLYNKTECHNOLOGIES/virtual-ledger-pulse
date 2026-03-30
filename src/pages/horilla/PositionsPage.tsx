@@ -152,7 +152,7 @@ export default function PositionsPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
                         className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400"><Edit className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm(`Delete "${p.title}"?`)) deleteMutation.mutate(p.id); }}
+                      <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                         className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>

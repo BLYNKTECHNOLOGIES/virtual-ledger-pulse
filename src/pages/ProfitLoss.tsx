@@ -247,12 +247,6 @@ export default function ProfitLoss() {
          .gte('created_at', startStr)
          .lte('created_at', endStr + 'T23:59:59');
 
-       // Fetch realized P&L events (conversion coin price gains/losses) within period
-       const { data: realizedPnlData } = await supabase
-         .from('realized_pnl_events')
-         .select('realized_pnl_usdt')
-         .gte('created_at', startStr)
-         .lte('created_at', endStr + 'T23:59:59');
 
        // Fetch USDT/INR rate for converting USDT P&L to INR
        let usdtInrRate = 84.5; // fallback

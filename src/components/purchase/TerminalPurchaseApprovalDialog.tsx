@@ -19,6 +19,7 @@ import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface Props {
   open: boolean;
@@ -58,6 +59,10 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   
+  // Contact & State form fields (like Sales dialog)
+  const [contactNumber, setContactNumber] = useState('');
+  const [clientState, setClientState] = useState('');
+
   // Conflict tracking between client master and counterparty records
   const [clientMasterPan, setClientMasterPan] = useState('');
   const [counterpartyPan, setCounterpartyPan] = useState('');
@@ -134,11 +139,17 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setClientMasterState(cMasterState);
       setCounterpartyState(cPartyState);
 
-      // Auto-resolve: sync record PAN (entered in terminal) wins, then client master, then counterparty
+      // Auto-resolve: sync record PAN (entered in terminal) wins, then counterparty, then client master
       const syncPan = syncRecord?.pan_number || '';
-      const resolvedPan = syncPan || cMasterPan || cPartyPan;
+      const resolvedPan = syncPan || cPartyPan || cMasterPan;
       setPanNumber(resolvedPan);
       setTdsOption(resolvedPan ? '1%' : '20%');
+
+      // Auto-resolve contact/state: counterparty records (terminal-captured) > client master
+      const resolvedPhone = cPartyPhone || cMasterPhone;
+      const resolvedState = cPartyState || cMasterState;
+      setContactNumber(resolvedPhone);
+      setClientState(resolvedState);
 
       if (!linkedClientId) {
         setLinkedClientId(syncRecord?.client_id || '');
@@ -160,7 +171,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
 
   // Build conflict items for the banner
-  const panConflicts = useMemo(() => {
+  const dataConflicts = useMemo(() => {
     const items: { field: string; clientValue: string; counterpartyValue: string; onChoose: (v: string) => void }[] = [];
     if (clientMasterPan && counterpartyPan && clientMasterPan !== counterpartyPan) {
       items.push({
@@ -170,8 +181,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         onChoose: (v) => { setPanNumber(v); setTdsOption(v ? '1%' : '20%'); },
       });
     }
+    if (clientMasterPhone && counterpartyPhone && clientMasterPhone !== counterpartyPhone) {
+      items.push({ field: 'Phone', clientValue: clientMasterPhone, counterpartyValue: counterpartyPhone, onChoose: setContactNumber });
+    }
+    if (clientMasterState && counterpartyState && clientMasterState !== counterpartyState) {
+      items.push({ field: 'State', clientValue: clientMasterState, counterpartyValue: counterpartyState, onChoose: setClientState });
+    }
     return items;
-  }, [clientMasterPan, counterpartyPan]);
+  }, [clientMasterPan, counterpartyPan, clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Fetch bank accounts
   const { data: bankAccounts = [] } = useQuery({
@@ -386,7 +403,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_fee_percentage: null,
           p_is_off_market: false,
           p_created_by: userId || null,
-          p_contact_number: null,
+          p_contact_number: contactNumber || null,
         };
 
         const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2_rpc' as any, rpcParams);
@@ -422,27 +439,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           .maybeSingle();
 
         const updates: any = {};
-        // PAN: save to client if provided and client doesn't have one
-        if (panNumber && !existingClient?.pan_card_number) {
+        // PAN: overwrite if operator-confirmed value differs from client master
+        if (panNumber && existingClient?.pan_card_number !== panNumber) {
           updates.pan_card_number = panNumber;
         }
 
-        // Phone/state from counterparty records — only for unmasked nicknames
-        const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
-        let resolvedPhone: string | null = null;
-        let resolvedState: string | null = null;
-        if (nickname && !nickname.includes('*')) {
-          const { data: contactRec } = await supabase
-            .from('counterparty_contact_records')
-            .select('contact_number, state')
-            .eq('counterparty_nickname', nickname)
-            .maybeSingle();
-          resolvedPhone = contactRec?.contact_number || null;
-          resolvedState = contactRec?.state || null;
-        }
-
-        if (resolvedPhone && existingClient?.phone !== resolvedPhone) updates.phone = resolvedPhone;
-        if (resolvedState && existingClient?.state !== resolvedState) updates.state = resolvedState;
+        // Phone/state: use operator-confirmed form values (already resolved from counterparty/client)
+        if (contactNumber && existingClient?.phone !== contactNumber) updates.phone = contactNumber;
+        if (clientState && existingClient?.state !== clientState) updates.state = clientState;
 
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);
@@ -642,7 +646,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           </Card>
 
           {/* Data Conflict Banner */}
-          <DataConflictBanner conflicts={panConflicts} />
+          <DataConflictBanner conflicts={dataConflicts} />
 
           {/* TDS & PAN */}
           <div className="grid grid-cols-2 gap-4">
@@ -674,6 +678,33 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                 className="mt-1 h-9 text-sm font-mono"
                 maxLength={10}
               />
+            </div>
+          </div>
+
+          {/* Contact Number & State */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs">Contact Number</Label>
+              <Input
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
+                placeholder="Seller contact number"
+                className="mt-1 h-9 text-sm"
+                maxLength={15}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">State</Label>
+              <Select value={clientState} onValueChange={setClientState}>
+                <SelectTrigger className="mt-1 h-9 text-sm">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border z-50 max-h-[200px]">
+                  {INDIAN_STATES_AND_UTS.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

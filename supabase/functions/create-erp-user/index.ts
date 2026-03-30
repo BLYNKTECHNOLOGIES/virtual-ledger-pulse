@@ -16,7 +16,7 @@ const BodySchema = z.object({
   positionId: z.string().uuid().optional().nullable(),
   roleId: z.string().uuid("Role ID is required"),
   badgeId: z.string().optional().nullable(),
-  callerUserId: z.string().uuid().optional(),
+  
 });
 
 function generatePassword(length = 12): string {
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { firstName, lastName, email, phone, departmentId, positionId, roleId, badgeId, callerUserId } = parsed.data;
+    const { firstName, lastName, email, phone, departmentId, positionId, roleId, badgeId } = parsed.data;
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       const { data: { user: caller } } = await adminClient.auth.getUser(token);
       if (caller?.id) callerId = caller.id;
     }
-    if (!callerId && callerUserId) callerId = callerUserId;
+    
 
     if (!callerId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {

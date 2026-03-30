@@ -1,88 +1,62 @@
 
 
-# ERP Full System Audit — Phase 16 Report
+# Fix: Realized P&L Showing Wrong Values (Zero Cost Basis)
 
-## Phases 1-15 Status (completed)
-All previous phases complete: data integrity, orphaned code, permissions, demo-admin cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log batches 1-5 (~440+ calls removed), native confirm() dialogs replaced, dead hike mutation removed, manual purchase RPC fix.
+## Root Cause
 
----
+**160 out of 195 P&L events have `avg_cost_at_sale = 0` and `cost_out_usdt = 0`**, making the entire proceeds appear as profit. This massively inflates the reported Realized P&L.
 
-## CATEGORY 1: FINAL CONSOLE.LOG CLEANUP (Client-side)
+The issue: When assets are purchased via P2P purchase orders (the primary acquisition path), the `wallet_asset_positions` table (which tracks WAC — weighted average cost) is **never updated**. Only conversion BUY operations update it. So when assets acquired via purchase orders are later sold via conversion, the WAC lookup returns 0, and COGS = 0.
 
-Only 2 client-side files remain with `console.log` calls (edge functions excluded — server-side logging is appropriate).
+```text
+Purchase Order (BTC bought) → wallet_transactions ✓ → wallet_asset_positions ✗ (no cost update)
+Conversion SELL (BTC sold)  → reads wallet_asset_positions → avg_cost = 0 → COGS = 0 → P&L inflated
+```
 
-### P16-LOG-01 | BeneficiaryManagement.tsx — 1 console.log
-Line 97: `console.log("bank_bulk_formats fetched:", data)` — dumps fetched bank format data. Remove.
+## Fix (2 parts)
 
-### P16-LOG-02 | PurchaseManagement.tsx — 5 console.log calls
-Lines 188-197, 694: Form submission debug dumps including full form data and step tracking. Security risk — logs payment method configuration. Remove all 5.
+### Part 1: Update `approve_product_conversion` to calculate cost from purchase history when WAC is zero
 
-**After this: zero client-side console.log calls remain.**
+When `v_pos.avg_cost_usdt = 0` and it's a SELL, derive the average cost from completed purchase orders for that asset. This is a fallback that uses:
+```sql
+SELECT SUM(poi.quantity * po.market_rate_usdt) / NULLIF(SUM(poi.quantity), 0)
+FROM purchase_order_items poi
+JOIN purchase_orders po ON po.id = poi.purchase_order_id
+JOIN products p ON p.id = poi.product_id
+WHERE po.status = 'COMPLETED' AND p.code = v_conv.asset_code
+```
 
----
+If this returns a valid cost, use it. Otherwise, fall back to the conversion's own execution rate as a conservative estimate.
 
-## CATEGORY 2: XSS VECTOR — `dangerouslySetInnerHTML` in TaskComments
+### Part 2: Backfill the 160 corrupted P&L events
 
-`TaskComments.tsx` line 103 uses `dangerouslySetInnerHTML` with a custom `escapeHtml` function. The current `escapeHtml` implementation (line 80-81) is correct and covers all 5 HTML entities, so this is **safe but fragile**. The `displayContent` function applies regex after escaping, which is the correct order.
+A one-time data migration to recalculate the 160 zero-cost events using the weighted average purchase cost per asset at the time of each sale. For each corrupted event:
+- Recalculate `avg_cost_at_sale` from purchase order history
+- Recalculate `cost_out_usdt = sell_qty * avg_cost_at_sale`
+- Recalculate `realized_pnl_usdt = proceeds_usdt_net - cost_out_usdt`
+- Also update the corresponding `erp_product_conversions` row's `cost_out_usdt` and `realized_pnl_usdt`
 
-**Assessment**: No fix needed — the implementation is sound. The `escapeHtml` runs before the regex mention replacement, preventing injection.
+### Part 3: Sync `wallet_asset_positions` from purchase orders going forward
 
----
+Add logic to the manual purchase RPC (the `create_manual_purchase_complete_v2` function) so that when a purchase order is created/completed, the `wallet_asset_positions` WAC pool is updated with the purchase cost, matching the pattern used in conversion BUYs.
 
-## CATEGORY 3: HRMS PAGES — Manual State Management Anti-Pattern
+## Implementation Plan
 
-3 HRMS pages (`Feedback360Page`, `PMSDashboardPage`, `ObjectivesPage`) use `useState` + `useEffect(() => { fetchAll(); }, [])` instead of `useQuery`. This causes:
-- No automatic cache invalidation
-- No loading/error states from React Query
-- Manual `setLoading` boilerplate
-- Data goes stale on tab switch without refetch
+| # | Action | Target |
+|---|--------|--------|
+| 1 | Migration: Add purchase-cost fallback to `approve_product_conversion` for SELL when WAC=0 | SQL function |
+| 2 | Migration: Backfill 160 zero-cost P&L events with correct cost from purchase history | Data fix |
+| 3 | Migration: Update `create_manual_purchase_complete_v2` to update `wallet_asset_positions` on purchase completion | SQL function |
+| 4 | No frontend changes needed — the report component is correct, only the underlying data is wrong | — |
 
-**Fix**: Refactor all 3 to use `useQuery` with proper query keys, matching the pattern used everywhere else in the app. This also removes the need for manual `useState` arrays for data.
+### Technical Details
 
----
+The backfill will use a per-asset weighted average cost from all completed purchase orders. For each asset:
+- BTC: ~$65,270 avg cost (from ~0.967 BTC purchased at various `market_rate_usdt` values)
+- BNB: ~$604 avg cost
+- ETH: ~$1,946 avg cost
+- USDC: ~$0.96 avg cost (approximation from INR conversion)
+- XRP, SOL, TON, TRX, SHIB: similarly derived
 
-## CATEGORY 4: `window.location.reload()` — Hard Reloads
-
-2 files use `window.location.reload()`:
-- `NotificationDropdown.tsx` line 44
-- `TopHeader.tsx` line 32
-
-These cause full page reloads, losing all React state and triggering unnecessary re-authentication. 
-
-**Fix**: Replace with React Query's `queryClient.invalidateQueries()` to refresh all cached data without a full page reload. Add a `useQueryClient()` hook and call `queryClient.invalidateQueries()` instead.
-
----
-
-## CATEGORY 5: RecruitmentPipelinePage — `window.location.href` Instead of React Router
-
-`RecruitmentPipelinePage.tsx` line 98 uses `window.location.href = /hrms/recruitment/candidates/${id}` instead of React Router's `navigate()`. This causes a full page reload for navigation.
-
-**Fix**: Replace with `useNavigate()` hook and `navigate()` call.
-
----
-
-## Summary
-
-| Category | Items | Severity |
-|----------|-------|----------|
-| Final console.log cleanup | 2 files, 6 calls | MEDIUM — security-sensitive |
-| HRMS useQuery refactor | 3 files | LOW — anti-pattern |
-| window.location.reload | 2 files | LOW — UX degradation |
-| window.location.href navigation | 1 file | LOW — UX degradation |
-
-### Implementation Plan
-
-| # | ID | Action | Files |
-|---|-----|--------|-------|
-| 1 | P16-LOG-01 | Remove console.log from BeneficiaryManagement | BeneficiaryManagement.tsx |
-| 2 | P16-LOG-02 | Remove console.log from PurchaseManagement | PurchaseManagement.tsx |
-| 3 | P16-QUERY-01 | Refactor Feedback360Page to useQuery | Feedback360Page.tsx |
-| 4 | P16-QUERY-02 | Refactor PMSDashboardPage to useQuery | PMSDashboardPage.tsx |
-| 5 | P16-QUERY-03 | Refactor ObjectivesPage to useQuery | ObjectivesPage.tsx |
-| 6 | P16-RELOAD-01 | Replace window.location.reload with queryClient.invalidateQueries | NotificationDropdown.tsx, TopHeader.tsx |
-| 7 | P16-NAV-01 | Replace window.location.href with navigate() | RecruitmentPipelinePage.tsx |
-
-**Total: 6 console.log calls removed (completing client-side cleanup), 3 pages refactored to useQuery, 2 hard reloads eliminated, 1 navigation fix**
-
-No database changes needed.
+The purchase order `market_rate_usdt` field directly gives the USDT cost per unit, so the calculation is: `SUM(quantity * market_rate_usdt) / SUM(quantity)` per asset code.
 

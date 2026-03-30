@@ -85,13 +85,12 @@ export function useUsers() {
 
     } catch (error: any) {
       console.error('Error in fetchUsers:', error);
-      
-      // Even on error, show demo data for the admin user
-      const demoUsers: DatabaseUser[] = [
-        {
-          id: 'demo-admin-id',
-          username: 'admin',
-          email: 'blynkvirtualtechnologiespvtld@gmail.com',
+      setUsers([]);
+      toast({
+        title: "Error",
+        description: "Failed to load users. Please try again.",
+        variant: "destructive",
+      });
           first_name: 'Admin',
           last_name: 'User',
           phone: '+1234567890',

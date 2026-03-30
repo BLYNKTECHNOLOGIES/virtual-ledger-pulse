@@ -108,6 +108,8 @@ export default function EmployeeListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [colPickerOpen, setColPickerOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(ALL_TABLE_COLS.map(c => c.key));
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   const pageSize = viewMode === "grid" ? 12 : 20;
 

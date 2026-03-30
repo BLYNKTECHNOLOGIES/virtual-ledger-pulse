@@ -19,6 +19,7 @@ const UtilityHub = () => {
   const navigate = useNavigate();
 
   return (
+    <PermissionGate permissions={["utility_view"]}>
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Utility Tools</h1>
@@ -48,6 +49,7 @@ const UtilityHub = () => {
         })}
       </div>
     </div>
+    </PermissionGate>
   );
 };
 

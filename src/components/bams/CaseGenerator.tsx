@@ -229,9 +229,13 @@ export function CaseGenerator() {
         uploadedStatementProof = await handleFileUpload(data.statement_proof, 'statement_proof');
       }
 
+      // Get current user for audit trail
+      const { data: { user } } = await supabase.auth.getUser();
+
       const caseData = {
         case_number: caseNumber,
         case_type: data.case_type,
+        created_by: user?.id || null,
         bank_account_id: data.bank_account_id,
         title: data.title,
         description: data.description,

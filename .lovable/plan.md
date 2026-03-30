@@ -1,38 +1,88 @@
 
 
-# Fix: Manual Purchase "function is not unique" Error
+# ERP Full System Audit — Phase 16 Report
 
-## Root Cause
+## Phases 1-15 Status (completed)
+All previous phases complete: data integrity, orphaned code, permissions, demo-admin cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log batches 1-5 (~440+ calls removed), native confirm() dialogs replaced, dead hike mutation removed, manual purchase RPC fix.
 
-The last migration created a **second overloaded version** of `create_manual_purchase_complete_v2` with a new `p_deduction_bank_account_id` parameter, but did NOT drop the old 16-param version first. Now there are two functions with the same name but different signatures:
+---
 
-1. **Old (16 params)**: `p_bank_account_id` at position 8, no `p_deduction_bank_account_id`
-2. **New (17 params)**: `p_bank_account_id` at position 10, adds `p_deduction_bank_account_id` at position 11
+## CATEGORY 1: FINAL CONSOLE.LOG CLEANUP (Client-side)
 
-When `create_manual_purchase_complete_v2_rpc` tries to call `create_manual_purchase_complete_v2`, PostgreSQL cannot disambiguate → "is not unique" error.
+Only 2 client-side files remain with `console.log` calls (edge functions excluded — server-side logging is appropriate).
 
-## Fix
+### P16-LOG-01 | BeneficiaryManagement.tsx — 1 console.log
+Line 97: `console.log("bank_bulk_formats fetched:", data)` — dumps fetched bank format data. Remove.
 
-**Single migration** that:
-1. Drops the OLD 16-param overload (the one without `p_deduction_bank_account_id`)
-2. Keeps the NEW 17-param version from the latest migration
-3. Updates `create_manual_purchase_complete_v2_rpc` wrapper to pass params matching the new signature
+### P16-LOG-02 | PurchaseManagement.tsx — 5 console.log calls
+Lines 188-197, 694: Form submission debug dumps including full form data and step tracking. Security risk — logs payment method configuration. Remove all 5.
 
-### Technical Details
+**After this: zero client-side console.log calls remain.**
 
-```sql
--- Drop old overload
-DROP FUNCTION IF EXISTS public.create_manual_purchase_complete_v2(
-  text, text, date, numeric, uuid, numeric, numeric, uuid,
-  text, text, uuid, text, text, numeric, boolean, uuid
-);
+---
 
--- Recreate _rpc wrapper to match new signature
-CREATE OR REPLACE FUNCTION public.create_manual_purchase_complete_v2_rpc(...)
-  -- routes to the 17-param version with named args
-```
+## CATEGORY 2: XSS VECTOR — `dangerouslySetInnerHTML` in TaskComments
 
-The frontend code in `ManualPurchaseEntryDialog.tsx` does NOT send `p_deduction_bank_account_id`, so the wrapper must pass `NULL` for it (it has a default anyway).
+`TaskComments.tsx` line 103 uses `dangerouslySetInnerHTML` with a custom `escapeHtml` function. The current `escapeHtml` implementation (line 80-81) is correct and covers all 5 HTML entities, so this is **safe but fragile**. The `displayContent` function applies regex after escaping, which is the correct order.
 
-No frontend changes needed — the `_rpc` wrapper handles the routing.
+**Assessment**: No fix needed — the implementation is sound. The `escapeHtml` runs before the regex mention replacement, preventing injection.
+
+---
+
+## CATEGORY 3: HRMS PAGES — Manual State Management Anti-Pattern
+
+3 HRMS pages (`Feedback360Page`, `PMSDashboardPage`, `ObjectivesPage`) use `useState` + `useEffect(() => { fetchAll(); }, [])` instead of `useQuery`. This causes:
+- No automatic cache invalidation
+- No loading/error states from React Query
+- Manual `setLoading` boilerplate
+- Data goes stale on tab switch without refetch
+
+**Fix**: Refactor all 3 to use `useQuery` with proper query keys, matching the pattern used everywhere else in the app. This also removes the need for manual `useState` arrays for data.
+
+---
+
+## CATEGORY 4: `window.location.reload()` — Hard Reloads
+
+2 files use `window.location.reload()`:
+- `NotificationDropdown.tsx` line 44
+- `TopHeader.tsx` line 32
+
+These cause full page reloads, losing all React state and triggering unnecessary re-authentication. 
+
+**Fix**: Replace with React Query's `queryClient.invalidateQueries()` to refresh all cached data without a full page reload. Add a `useQueryClient()` hook and call `queryClient.invalidateQueries()` instead.
+
+---
+
+## CATEGORY 5: RecruitmentPipelinePage — `window.location.href` Instead of React Router
+
+`RecruitmentPipelinePage.tsx` line 98 uses `window.location.href = /hrms/recruitment/candidates/${id}` instead of React Router's `navigate()`. This causes a full page reload for navigation.
+
+**Fix**: Replace with `useNavigate()` hook and `navigate()` call.
+
+---
+
+## Summary
+
+| Category | Items | Severity |
+|----------|-------|----------|
+| Final console.log cleanup | 2 files, 6 calls | MEDIUM — security-sensitive |
+| HRMS useQuery refactor | 3 files | LOW — anti-pattern |
+| window.location.reload | 2 files | LOW — UX degradation |
+| window.location.href navigation | 1 file | LOW — UX degradation |
+
+### Implementation Plan
+
+| # | ID | Action | Files |
+|---|-----|--------|-------|
+| 1 | P16-LOG-01 | Remove console.log from BeneficiaryManagement | BeneficiaryManagement.tsx |
+| 2 | P16-LOG-02 | Remove console.log from PurchaseManagement | PurchaseManagement.tsx |
+| 3 | P16-QUERY-01 | Refactor Feedback360Page to useQuery | Feedback360Page.tsx |
+| 4 | P16-QUERY-02 | Refactor PMSDashboardPage to useQuery | PMSDashboardPage.tsx |
+| 5 | P16-QUERY-03 | Refactor ObjectivesPage to useQuery | ObjectivesPage.tsx |
+| 6 | P16-RELOAD-01 | Replace window.location.reload with queryClient.invalidateQueries | NotificationDropdown.tsx, TopHeader.tsx |
+| 7 | P16-NAV-01 | Replace window.location.href with navigate() | RecruitmentPipelinePage.tsx |
+
+**Total: 6 console.log calls removed (completing client-side cleanup), 3 pages refactored to useQuery, 2 hard reloads eliminated, 1 navigation fix**
+
+No database changes needed.
 

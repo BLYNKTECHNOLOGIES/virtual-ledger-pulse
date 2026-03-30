@@ -527,33 +527,20 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           }, { onConflict: 'counterparty_nickname' });
       }
 
-      // Sync PAN/contact/state to client master — overwrite if operator provides different values
-      if (linkedClientId) {
+      // Sync contact/state to client master — overwrite if operator provides different values
+      if (linkedClientId && (contactNumber || clientState)) {
         const { data: existingClient } = await supabase
           .from('clients')
-          .select('phone, state, pan_card_number')
+          .select('phone, state')
           .eq('id', linkedClientId)
           .maybeSingle();
 
         const updates: any = {};
-        // Always overwrite phone/state if operator provides a value (operator correction or enrichment)
         if (contactNumber && existingClient?.phone !== contactNumber) {
           updates.phone = contactNumber;
         }
         if (clientState && existingClient?.state !== clientState) {
           updates.state = clientState;
-        }
-        // PAN: fetch from counterparty records and sync to client master if different
-        const nickname = (od.counterparty_nickname || syncRecord?.counterparty_name || '').trim();
-        if (nickname && !nickname.includes('*')) {
-          const { data: panRec } = await supabase
-            .from('counterparty_pan_records')
-            .select('pan_number')
-            .eq('counterparty_nickname', nickname)
-            .maybeSingle();
-          if (panRec?.pan_number && existingClient?.pan_card_number !== panRec.pan_number) {
-            updates.pan_card_number = panRec.pan_number;
-          }
         }
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);

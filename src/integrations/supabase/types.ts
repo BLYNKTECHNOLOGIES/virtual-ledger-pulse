@@ -9929,7 +9929,6 @@ export type Database = {
           created_by: string | null
           description: string | null
           failure_proof_url: string | null
-          failure_reason: string | null
           fee_amount: number | null
           fee_percentage: number | null
           id: string
@@ -9941,9 +9940,7 @@ export type Database = {
           net_payable_amount: number | null
           notes: string | null
           order_date: string
-          order_expires_at: string | null
           order_number: string
-          order_status: string | null
           pan_number: string | null
           payment_method_type: string | null
           payment_method_used: string | null
@@ -9960,7 +9957,6 @@ export type Database = {
           tds_amount: number | null
           tds_applied: boolean | null
           terminal_sync_id: string | null
-          timer_end_at: string | null
           total_amount: number
           total_paid: number | null
           updated_at: string
@@ -9979,7 +9975,6 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           failure_proof_url?: string | null
-          failure_reason?: string | null
           fee_amount?: number | null
           fee_percentage?: number | null
           id?: string
@@ -9991,9 +9986,7 @@ export type Database = {
           net_payable_amount?: number | null
           notes?: string | null
           order_date: string
-          order_expires_at?: string | null
           order_number: string
-          order_status?: string | null
           pan_number?: string | null
           payment_method_type?: string | null
           payment_method_used?: string | null
@@ -10010,7 +10003,6 @@ export type Database = {
           tds_amount?: number | null
           tds_applied?: boolean | null
           terminal_sync_id?: string | null
-          timer_end_at?: string | null
           total_amount: number
           total_paid?: number | null
           updated_at?: string
@@ -10029,7 +10021,6 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           failure_proof_url?: string | null
-          failure_reason?: string | null
           fee_amount?: number | null
           fee_percentage?: number | null
           id?: string
@@ -10041,9 +10032,7 @@ export type Database = {
           net_payable_amount?: number | null
           notes?: string | null
           order_date?: string
-          order_expires_at?: string | null
           order_number?: string
-          order_status?: string | null
           pan_number?: string | null
           payment_method_type?: string | null
           payment_method_used?: string | null
@@ -10060,7 +10049,6 @@ export type Database = {
           tds_amount?: number | null
           tds_applied?: boolean | null
           terminal_sync_id?: string | null
-          timer_end_at?: string | null
           total_amount?: number
           total_paid?: number | null
           updated_at?: string

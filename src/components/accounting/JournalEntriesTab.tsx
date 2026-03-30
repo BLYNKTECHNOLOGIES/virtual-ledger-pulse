@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FileText, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { FileText } from "lucide-react";
 
 export function JournalEntriesTab() {
   return (
@@ -12,17 +12,16 @@ export function JournalEntriesTab() {
             <FileText className="h-5 w-5" />
             Journal Entries
           </CardTitle>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            New Entry
-          </Button>
+          <Badge variant="secondary" className="text-xs">Coming Soon</Badge>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-center py-8">
-          <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-          <p className="text-gray-500">No journal entries recorded</p>
-          <Button className="mt-4">Create Journal Entry</Button>
+        <div className="text-center py-12">
+          <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">Coming Soon</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Journal entry management is under development. You'll be able to create, view, and manage all journal entries here.
+          </p>
         </div>
       </CardContent>
     </Card>

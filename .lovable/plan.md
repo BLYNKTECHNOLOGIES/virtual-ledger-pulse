@@ -1,101 +1,96 @@
 
 
-# ERP Full System Audit — Phase 6 Report
+# ERP Full System Audit — Phase 7 Report
 
-## Phases 1-5 Status (completed)
-- Phase 1: Data integrity, orphaned code, UI bugs — ALL FIXED
-- Phase 2: Banking.tsx deleted, permission fix, dead code cleanup, website deletion, platforms seeded — ALL FIXED
-- Phase 3: Permission gates (4 pages), demo-admin-id removed from usePermissions, localStorage writes cleaned, risk_management permissions added, reload removed from StepBySalesFlow — ALL FIXED
-- Phase 4: All demo-admin-id references removed (useUsers, AuthCheck, system-action-logger), dead userPermissions localStorage write removed from LoginPage — ALL FIXED
-- Phase 5: Hardcoded password removed, dead localStorage writes removed (userEmail/userRole from LoginPage/useAuth), all window.confirm/alert replaced with AlertDialog/toast across 7 files — ALL FIXED
-
----
-
-## CATEGORY 1: SECURITY
-
-### P6-SEC-01 | XSS vulnerability via dangerouslySetInnerHTML in TaskComments (HIGH)
-
-`src/components/tasks/TaskComments.tsx` line 98 uses `dangerouslySetInnerHTML` to render comment content. The `displayContent` function applies a regex to convert `@[Name](id)` mentions into `<span>` elements, but does **zero sanitization** of the surrounding text.
-
-If a user types `<img src=x onerror=alert(1)>` in a comment, it will execute as HTML. This is a stored XSS vector — comments are persisted in the database and rendered for all users viewing that task.
-
-**Fix**: Escape HTML entities in the text **before** applying the mention regex, or switch to React elements instead of innerHTML.
-
-### P6-SEC-02 | Stale localStorage removeItem calls for keys never written (LOW)
-
-`useAuth.tsx` still calls `removeItem('userEmail')`, `removeItem('userRole')`, and `removeItem('userPermissions')` in two places (lines 225, 366-368) even though **no code writes these keys anymore** (removed in Phase 5). These are harmless no-ops but dead code.
-
-**Fix**: Remove the 3 stale `removeItem` calls from useAuth.tsx (lines 225, 366-368).
+## Phases 1-6 Status (completed)
+- Phase 1-4: Data integrity, orphaned code, permissions, demo-admin cleanup — ALL FIXED
+- Phase 5: Hardcoded password, dead localStorage, native dialogs replaced — ALL FIXED
+- Phase 6: XSS fix, stale removeItems, shift delete cleanup — ALL FIXED
+- Phase 6.5: Buy Orders/Pending/Review tabs removed, 25 files deleted, dead DB columns + trigger dropped — ALL FIXED
 
 ---
 
-## CATEGORY 2: TYPE SAFETY — `supabase as any` PATTERN (64 files)
+## CATEGORY 1: DEAD DATABASE TABLES (Post Buy-Order Removal)
 
-### P6-TYPE-01 | Widespread `(supabase as any).from(...)` bypasses type checking (MEDIUM)
+### P7-DB-01 | 3 empty purchase tables now orphaned (MEDIUM)
 
-64 files use `(supabase as any)` to query HR/terminal tables that aren't in the generated Supabase types. This means:
-- No autocomplete for column names — typos cause silent failures
-- No type checking on insert/update payloads
-- Missing columns don't surface at build time
+After removing the buy order workflow, these tables have **0 rows** and no active code consumers:
 
-This is a systemic issue across all Horilla (HR) modules, terminal modules, and some newer ERP tables. The root cause is that `src/integrations/supabase/types.ts` hasn't been regenerated after schema changes.
+| Table | Rows | Code References | Verdict |
+|-------|------|-----------------|---------|
+| `purchase_order_reviews` | 0 | Only in types.ts (auto-generated) | **DROP** — ReviewDialog deleted |
+| `purchase_order_status_history` | 0 | Only in types.ts | **DROP** — buy order workflow deleted |
+| `purchase_order_payments` | 0 | `PurchaseOrderDetailsDialog.tsx` reads `order.purchase_order_payments` (always empty array) | **DROP** — safe, never populated |
 
-**Fix**: Regenerate the Supabase types file. This is a single command (`supabase gen types typescript`) that would eliminate all 64 files of `as any` casts. However, this requires the Supabase CLI to be connected. **Skip for now — flag for future sprint.**
-
----
-
-## CATEGORY 3: DEAD CODE & CLEANUP
-
-### P6-CLEAN-01 | 2,100+ console.log statements across 83 files (LOW)
-
-Production-grade codebase contains extensive debug logging. While not harmful, it:
-- Clutters browser console for end users
-- Leaks internal operation details (wallet IDs, order data, user IDs)
-- Some logs contain emoji prefixes (🗑️, 💰, ✅, 📝) indicating development-phase debugging
-
-**Status**: LOW priority. Too many to fix in one phase. Flag for gradual cleanup.
-
-### P6-CLEAN-02 | ShiftAttendanceTab delete is still a no-op (MEDIUM)
-
-Phase 5 replaced `alert()` with `AlertDialog` but the `confirmDeleteShift` function still only does `console.log()` — it doesn't actually delete anything. The comment says "TODO: Wire up actual delete mutation when shifts are stored in DB."
-
-**Fix**: Shifts appear to be hardcoded mock data (not from DB). The delete button should either be hidden or the shifts should be stored in the database. Need to verify if `hr_shifts` table exists.
-
-### P6-CLEAN-03 | ForcedPasswordResetDialog still contains 'BlynkTemp2026!' (LOW — ACCEPTABLE)
-
-`ForcedPasswordResetDialog.tsx` line 31 checks `newPassword === 'BlynkTemp2026!'` to prevent password reuse. This is acceptable because:
-- The password is already known to the user (they just used it to log in)
-- It's a UX guard, not a security mechanism
-- The server-side `force_password_change` flag is the real control
-
-**Status**: No fix needed.
+**Fix**: Migration to drop all 3 tables. Remove the dead `.purchase_order_payments` reference in PurchaseOrderDetailsDialog.
 
 ---
 
-## CATEGORY 4: ERROR HANDLING
+## CATEGORY 2: DEAD CONTEXT & HOOK
 
-### P6-ERR-01 | Silent empty catch blocks in 7 files (LOW)
+### P7-DEAD-01 | OrderFocusContext — `useIsOrderFocused` never called, `order-card-` ID never rendered (LOW)
 
-7 files have `catch {}` or `catch { /* ignore */ }` blocks that silently swallow errors. Most are acceptable (best-effort operations like IP lookup, localStorage reads, WebSocket cleanup), but they should at minimum log to console for debuggability.
+`OrderFocusContext` provides `focusOrder()` which scrolls to `document.getElementById('order-card-${orderId}')`. However:
+- **No component renders `id="order-card-..."`** — the BuyOrderCard (which had it) was deleted in Phase 6.5
+- `useIsOrderFocused()` is exported but **never imported** anywhere
+- `focusOrder()` is still called by `NotificationContext` for order click-through — it just silently does nothing (element not found)
 
-**Status**: LOW priority — all current instances are intentionally best-effort. No fix needed.
+**Status**: The context itself is still used by NotificationContext (which is used broadly), so we can't delete it. But `useIsOrderFocused` is dead code.
+
+**Fix**: Remove the `useIsOrderFocused` export from OrderFocusContext.tsx. LOW priority — cosmetic dead code.
+
+---
+
+## CATEGORY 3: REMAINING UX ISSUES
+
+### P7-UX-01 | EditUserDialog uses `window.location.reload()` for role change (MEDIUM)
+
+`EditUserDialog.tsx` line 247 does `window.location.reload()` after updating the current user's own role. This is a full page reload that loses React state. Should use React Query invalidation + re-fetch permissions instead.
+
+**Fix**: Replace `window.location.reload()` with `queryClient.invalidateQueries()` for permissions/user data, then close dialog.
+
+### P7-UX-02 | TopHeader + NotificationDropdown manual reload buttons (ACCEPTABLE)
+
+Both have "Reload Page" menu items using `window.location.reload()`. These are **intentional UX** — user-initiated "hard refresh" actions, not automated logic. No fix needed.
+
+---
+
+## CATEGORY 4: STALE QUERY INVALIDATIONS
+
+### P7-CLEAN-01 | Purchase.tsx summary query only counts COMPLETED (LOW)
+
+The `purchase_orders_summary` query in Purchase.tsx still queries for `pending` and `review_needed` counts (removed in Phase 6.5). Wait — I already cleaned this in the rewrite. Verified clean.
+
+---
+
+## CATEGORY 5: PURCHASE_ACTION_TIMINGS TABLE
+
+### P7-DATA-01 | purchase_action_timings has 710 rows but workflow deleted (KEEP)
+
+This table records who created/paid each order with timestamps. It's actively queried by:
+- `src/lib/purchase-action-timing.ts` — records timings during ManualEntry and TerminalSync approval
+- `src/hooks/useOrderActors.ts` — displays creator/payer info on order details
+- `src/components/purchase/TransactionActorsCard.tsx` — renders actor cards
+
+**Status**: KEEP — still provides historical data for completed orders.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 6A — XSS fix (Critical, 5 min)
+### Phase 7A — Drop dead DB tables (3 min)
 
 | # | Bug ID | Fix | Effort |
 |---|--------|-----|--------|
-| 1 | P6-SEC-01 | Escape HTML in TaskComments before rendering mentions via dangerouslySetInnerHTML | 5 min |
+| 1 | P7-DB-01 | Migration: DROP `purchase_order_reviews`, `purchase_order_status_history`, `purchase_order_payments` | 2 min |
+| 2 | P7-DB-01 | Remove dead `purchase_order_payments` reference from PurchaseOrderDetailsDialog | 1 min |
 
-### Phase 6B — Dead code cleanup (5 min)
+### Phase 7B — Dead code + UX cleanup (5 min)
 
 | # | Bug ID | Fix | Effort |
 |---|--------|-----|--------|
-| 2 | P6-SEC-02 | Remove stale removeItem('userEmail'/'userRole'/'userPermissions') from useAuth.tsx | 2 min |
-| 3 | P6-CLEAN-02 | Verify shift storage and either wire up delete or hide button | 3 min |
+| 3 | P7-DEAD-01 | Remove `useIsOrderFocused` from OrderFocusContext.tsx | 1 min |
+| 4 | P7-UX-01 | Replace `window.location.reload()` in EditUserDialog with query invalidation | 4 min |
 
 ---
 
@@ -103,11 +98,10 @@ Phase 5 replaced `alert()` with `AlertDialog` but the `confirmDeleteShift` funct
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| XSS via dangerouslySetInnerHTML | 1 file | HIGH — stored XSS vector |
-| Stale localStorage cleanup calls | 1 file, 5 calls | LOW — dead no-ops |
-| `supabase as any` type bypass | 64 files | MEDIUM — systemic, needs type regen (deferred) |
-| console.log pollution | 83 files, 2100+ calls | LOW — cosmetic (deferred) |
-| No-op shift delete | 1 file | MEDIUM — misleading UX |
+| Dead DB tables (0 rows, no consumers) | 3 tables | MEDIUM — orphaned schema |
+| Dead exported hook | 1 function | LOW — cosmetic |
+| window.location.reload in EditUserDialog | 1 file | MEDIUM — loses React state |
+| purchase_action_timings | 710 rows | KEEP — active consumers |
 
-**Total effort: ~10 minutes for 3 fixes (1 critical, 2 cleanup)**
+**Total effort: ~8 minutes for 4 fixes**
 

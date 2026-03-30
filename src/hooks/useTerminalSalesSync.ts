@@ -72,7 +72,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       .maybeSingle();
 
     if (!activeLink) {
-      console.log('[SalesSync] No active terminal wallet link found, skipping.');
       return { synced: 0, duplicates: 0 };
     }
 
@@ -89,7 +88,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
     const completedSells = await fetchSalesOrdersByStatus(['COMPLETED', '4'], cutoffTime);
 
     if (!completedSells || completedSells.length === 0) {
-      console.log('[SalesSync] No recent completed SELL orders found.');
       return { synced: 0, duplicates: 0 };
     }
 
@@ -102,7 +100,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         return tp < smallConfig.min_amount || tp > smallConfig.max_amount;
       });
       if (filteredSells.length === 0) {
-        console.log('[SalesSync] All orders are small sales, skipping big sales sync.');
         return { synced: 0, duplicates: 0 };
       }
     }
@@ -147,8 +144,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
         if (healErr) {
           console.warn('[SalesSync] Auto-heal failed for mismatched links:', healErr);
-        } else {
-          console.log(`[SalesSync] Auto-healed ${mismatchedSyncIds.length} mismatched sync link(s)`);
         }
       }
     }
@@ -249,7 +244,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       synced = toInsert.length;
     }
 
-    console.log(`[SalesSync] Synced: ${synced}, Duplicates: ${duplicates}`);
   } catch (err) {
     console.error('[SalesSync] Error:', err);
   }

@@ -299,11 +299,6 @@ export function PaymentMethodManagement() {
 
   const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
     if (e) e.preventDefault();
-    console.log('=== PAYMENT METHOD FORM SUBMIT ===');
-    console.log('Step:', step);
-    console.log('Form data:', JSON.stringify(formData, null, 2));
-    console.log('payment_gateway:', formData.payment_gateway);
-    console.log('settlement_cycle:', formData.settlement_cycle);
     
     // Validate required fields
     if (!formData.bank_account_id) {
@@ -397,10 +392,8 @@ export function PaymentMethodManagement() {
     
     // Skip validation for editing - just submit
     if (editingMethod) {
-      console.log('Updating existing sales method');
       updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
     } else {
-      console.log('Creating new sales method');
       createMethodMutation.mutate(formData);
     }
   };
@@ -897,8 +890,6 @@ export function PaymentMethodManagement() {
                   <Button 
                     type="submit"
                     onClick={(e) => {
-                      console.log('=== ADD METHOD BUTTON CLICKED ===');
-                      // If form onSubmit doesn't fire, call handleSubmit directly
                       handleSubmit(e);
                     }}
                     disabled={createMethodMutation.isPending || updateMethodMutation.isPending}

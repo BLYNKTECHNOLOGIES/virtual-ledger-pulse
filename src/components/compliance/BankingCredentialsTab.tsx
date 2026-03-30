@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,7 @@ export function BankingCredentialsTab() {
     security_questions: [{ question: '', answer: '' }] as SecurityQuestion[],
     notes: ''
   });
+  const [deleteCredentialId, setDeleteCredentialId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -264,9 +266,7 @@ export function BankingCredentialsTab() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this credential?')) {
-      deleteCredentialMutation.mutate(id);
-    }
+    setDeleteCredentialId(id);
   };
 
   const togglePasswordVisibility = (id: string) => {
@@ -804,6 +804,18 @@ export function BankingCredentialsTab() {
           )}
         </div>
       )}
+      <AlertDialog open={!!deleteCredentialId} onOpenChange={() => setDeleteCredentialId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Credential</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete this credential? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteCredentialId) { deleteCredentialMutation.mutate(deleteCredentialId); setDeleteCredentialId(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

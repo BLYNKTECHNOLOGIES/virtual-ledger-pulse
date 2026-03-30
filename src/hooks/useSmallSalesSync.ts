@@ -46,7 +46,6 @@ export async function getSmallSalesConfig(): Promise<SmallSalesConfig | null> {
 export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   const config = await getSmallSalesConfig();
   if (!config || !config.is_enabled) {
-    console.log('[SmallSalesSync] Disabled or no config.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
@@ -80,7 +79,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   }
 
   if (allOrders.length === 0) {
-    console.log('[SmallSalesSync] No SELL orders in lookback window.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
@@ -91,7 +89,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   });
 
   if (smallOrders.length === 0) {
-    console.log('[SmallSalesSync] No small sale orders found.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
@@ -137,11 +134,8 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   const duplicates = smallOrders.length - newOrders.length;
 
   if (newOrders.length === 0) {
-    console.log('[SmallSalesSync] All orders already synced.');
     return { synced: 0, duplicates, batchId: null };
   }
-
-  console.log(`[SmallSalesSync] Found ${newOrders.length} new small sale orders (${duplicates} already synced)`);
 
   // Clean up old map entries from rejected syncs so UNIQUE constraint won't block re-inserts
   if (rejectedSyncIds.size > 0) {
@@ -153,7 +147,7 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
         .delete()
         .in('small_sales_sync_id', batch);
     }
-    console.log(`[SmallSalesSync] Cleaned up map entries for ${rejectedSyncIds.size} rejected syncs`);
+    
   }
 
   // Get active terminal wallet link
@@ -252,7 +246,7 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
       }
     }
 
-    console.log(`[SmallSalesSync] Mapped ${mapInsertCount}/${group.length} orders for sync ${syncRecord.id}`);
+    
     entriesCreated++;
   }
 
@@ -268,6 +262,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     synced_by: userId || null,
   });
 
-  console.log(`[SmallSalesSync] Batch ${batchId}: ${entriesCreated} entries, ${newOrders.length} orders, ${duplicates} duplicates`);
+  
   return { synced: entriesCreated, duplicates, batchId };
 }

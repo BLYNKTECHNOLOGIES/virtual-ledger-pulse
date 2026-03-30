@@ -531,9 +531,6 @@ export default function UserProfile() {
   const [leaveRequest, setLeaveRequest] = useState({
     leave_type_id: '', from_date: '', to_date: '', reason: ''
   });
-  const [hikeRequest, setHikeRequest] = useState({
-    current_salary: '', requested_salary: '', reason: '', justification: ''
-  });
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '', passwordResetReason: ''
   });
@@ -783,20 +780,6 @@ export default function UserProfile() {
     }
   });
 
-  // ─── Apply for hike mutation ───
-  const applyHikeMutation = useMutation({
-    mutationFn: async (hikeData: typeof hikeRequest) => {
-      console.log('Apply for hike:', hikeData);
-      throw new Error('Salary hike requests table not implemented yet');
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Salary hike request submitted successfully" });
-      setHikeRequest({ current_salary: '', requested_salary: '', reason: '', justification: '' });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  });
 
   // ─── Update username mutation ───
   const updateUsernameMutation = useMutation({

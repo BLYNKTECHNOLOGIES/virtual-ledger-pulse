@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClipboardList, Plus, Edit, Trash2, X, ChevronDown, ChevronRight, Eye, FileText, CheckSquare, List, BarChart3 } from "lucide-react";
@@ -17,6 +18,7 @@ export default function RecruitmentSurveyPage() {
   const [editTemplate, setEditTemplate] = useState<any>(null);
   const [form, setForm] = useState({ title: "", description: "", is_general_template: false });
   const [expanded, setExpanded] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   // Question form
   const [qForm, setQForm] = useState({ question: "", question_type: "text", is_required: true, options: "" });
@@ -213,7 +215,7 @@ export default function RecruitmentSurveyPage() {
                     className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${tpl.title}"?`)) deleteTemplateMutation.mutate(tpl.id); }}
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: tpl.id, name: tpl.title }); }}
                     className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -346,6 +348,18 @@ export default function RecruitmentSurveyPage() {
           </div>
         </div>
       )}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Template</AlertDialogTitle>
+            <AlertDialogDescription>Delete "{deleteTarget?.name}"? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) { deleteTemplateMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

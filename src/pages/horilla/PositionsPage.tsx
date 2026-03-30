@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash2, X, Briefcase } from "lucide-react";
@@ -10,6 +11,7 @@ export default function PositionsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", department_id: "", description: "" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: positions, isLoading } = useQuery({
     queryKey: ["hr_positions"],
@@ -150,7 +152,7 @@ export default function PositionsPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
                         className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400"><Edit className="h-3.5 w-3.5" /></button>
-                      <button onClick={() => { if (confirm(`Delete "${p.title}"?`)) deleteMutation.mutate(p.id); }}
+                      <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                         className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
@@ -201,6 +203,18 @@ export default function PositionsPage() {
           </div>
         </div>
       )}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Position</AlertDialogTitle>
+            <AlertDialogDescription>Delete "{deleteTarget?.name}"? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

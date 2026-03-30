@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,7 @@ export default function ObjectivesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { fetchAll(); }, []);
@@ -112,11 +114,11 @@ export default function ObjectivesPage() {
     fetchAll();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this objective?")) return;
+  async function executeDelete(id: string) {
     const { error } = await (supabase as any).from("hr_objectives").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Deleted"); fetchAll();
+    setDeleteTarget(null);
   }
 
   const filtered = objectives.filter((o) => {
@@ -191,7 +193,7 @@ export default function ObjectivesPage() {
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(obj)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(obj.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(obj.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                   </div>
                 </div>
               </CardContent>
@@ -228,6 +230,18 @@ export default function ObjectivesPage() {
           </div>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Objective</AlertDialogTitle>
+            <AlertDialogDescription>Delete this objective? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) executeDelete(deleteTarget); }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

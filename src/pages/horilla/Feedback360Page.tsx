@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,7 @@ export default function Feedback360Page() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -87,10 +89,10 @@ export default function Feedback360Page() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this feedback?")) return;
     const { error } = await (supabase as any).from("hr_feedback_360").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Deleted"); fetchAll();
+    setDeleteTarget(null);
   }
 
   const empMap = Object.fromEntries(employees.map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
@@ -156,7 +158,7 @@ export default function Feedback360Page() {
                     <p className="font-semibold text-gray-900">{empMap[fb.employee_id] || "Unknown"}</p>
                     <p className="text-xs text-gray-500">{fb.review_cycle}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(fb.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(fb.id)}>
                     <Trash2 className="h-4 w-4 text-red-400" />
                   </Button>
                 </div>
@@ -208,6 +210,18 @@ export default function Feedback360Page() {
           </div>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Feedback</AlertDialogTitle>
+            <AlertDialogDescription>Delete this feedback? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) handleDelete(deleteTarget); }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -191,6 +192,7 @@ export default function RecruitmentPipelinePage() {
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [deleteStageTarget, setDeleteStageTarget] = useState<{ id: string; name: string } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -525,12 +527,7 @@ export default function RecruitmentPipelinePage() {
                         <button
                           onClick={() => {
                             if (stageCandidates.length > 0) { toast.error("Remove all candidates first"); return; }
-                            if (confirm(`Delete stage "${stage.stage_name}"?`)) {
-                              supabase.from("hr_stages").delete().eq("id", stage.id).then(({ error }) => {
-                                if (error) toast.error("Failed to delete");
-                                else { toast.success("Stage deleted"); queryClient.invalidateQueries({ queryKey: ["hr_stages"] }); }
-                              });
-                            }
+                            setDeleteStageTarget({ id: stage.id, name: stage.stage_name });
                           }}
                           className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
                           title="Delete stage">
@@ -729,6 +726,26 @@ export default function RecruitmentPipelinePage() {
           recruitmentId={activeRec.id}
         />
       )}
+      <AlertDialog open={!!deleteStageTarget} onOpenChange={() => setDeleteStageTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Stage</AlertDialogTitle>
+            <AlertDialogDescription>Delete stage "{deleteStageTarget?.name}"? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (deleteStageTarget) {
+                supabase.from("hr_stages").delete().eq("id", deleteStageTarget.id).then(({ error }) => {
+                  if (error) toast.error("Failed to delete");
+                  else { toast.success("Stage deleted"); queryClient.invalidateQueries({ queryKey: ["hr_stages"] }); }
+                });
+                setDeleteStageTarget(null);
+              }
+            }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

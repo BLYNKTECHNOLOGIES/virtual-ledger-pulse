@@ -51,8 +51,6 @@ export function ExpensesIncomesTab() {
   const { data: transactions } = useQuery({
     queryKey: ['bank_transactions_only'],
     queryFn: async () => {
-      console.log('🔍 Fetching bank transactions for ExpensesIncomesTab...');
-      
       // Fetch only bank transactions - exclude purchase-related ones
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
@@ -71,9 +69,6 @@ export function ExpensesIncomesTab() {
         throw bankError;
       }
       
-      console.log(`📊 Found ${bankData?.length || 0} bank transactions`);
-      console.log('💳 Bank transactions sample:', bankData?.slice(0, 3));
-
       // Format transactions for display
       const formattedTransactions = (bankData || []).map(t => ({
         ...t,

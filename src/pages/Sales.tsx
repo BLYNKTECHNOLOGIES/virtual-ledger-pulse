@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export default function Sales() {
   const [selectedOrderForUserPaying, setSelectedOrderForUserPaying] = useState<any>(null);
   const [selectedOrderForAlternativeMethod, setSelectedOrderForAlternativeMethod] = useState<any>(null);
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('tab') || 'completed';
@@ -289,9 +291,7 @@ export default function Sales() {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (confirm('Are you sure you want to delete this order? This will revert all related changes.')) {
-      deleteSalesOrderMutation.mutate(orderId);
-    }
+    setDeleteOrderId(orderId);
   };
 
   // Mobile-friendly card view for orders
@@ -843,6 +843,18 @@ export default function Sales() {
           order={selectedOrderForCompletion}
         />
       </PermissionGate>
+      <AlertDialog open={!!deleteOrderId} onOpenChange={() => setDeleteOrderId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Sales Order</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete this order? This will revert all related changes.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteOrderId) { deleteSalesOrderMutation.mutate(deleteOrderId); setDeleteOrderId(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
     </PermissionGate>
   );

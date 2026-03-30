@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +21,7 @@ export default function RecruitmentDashboardPage() {
     experience_level: "mid", salary_min: "", salary_max: "",
     location: "", requirements: ""
   });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: recruitments, isLoading } = useQuery({
     queryKey: ["hr_recruitments"],
@@ -425,7 +427,7 @@ export default function RecruitmentDashboardPage() {
                             <XCircle className="h-3.5 w-3.5" />
                           </button>
                         ) : (
-                          <button onClick={() => { if (confirm(`Delete "${rec.title}" and all its data?`)) deleteMutation.mutate(rec.id); }}
+                          <button onClick={() => setDeleteTarget({ id: rec.id, name: rec.title })}
                             className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -598,6 +600,18 @@ export default function RecruitmentDashboardPage() {
           </div>
         </div>
       )}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Recruitment</AlertDialogTitle>
+            <AlertDialogDescription>Delete "{deleteTarget?.name}" and all its data? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

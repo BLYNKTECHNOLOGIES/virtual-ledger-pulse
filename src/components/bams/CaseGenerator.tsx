@@ -205,7 +205,6 @@ export function CaseGenerator() {
       }
 
       const caseNumber = caseIdData.caseId;
-      console.log('Generated case ID:', caseNumber);
       
       // Upload files for different case types
       let uploadedScreenshots: string[] = [];
@@ -285,8 +284,6 @@ export function CaseGenerator() {
           console.error('Error updating bank account status:', updateError);
           // Don't throw error here as the case was already created successfully
           toast.error("Case created but failed to update bank account status");
-        } else {
-          console.log('Bank account status updated to INACTIVE');
         }
       }
 

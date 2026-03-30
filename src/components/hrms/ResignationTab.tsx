@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,7 @@ export function ResignationTab() {
     separation_reason: "",
   });
   const [newTemplateItem, setNewTemplateItem] = useState({ item_title: "", category: "general" });
+  const [confirmAction, setConfirmAction] = useState<{ type: string; id: string; label: string } | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch employees with resignation data
@@ -466,10 +468,10 @@ export function ResignationTab() {
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => { if (confirm("Approve this resignation and start notice period?")) approveResignation.mutate(emp.id); }}>
+                        <Button size="sm" onClick={() => setConfirmAction({ type: 'approve', id: emp.id, label: 'Approve this resignation and start notice period?' })}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Reject this resignation?")) rejectResignation.mutate(emp.id); }}>
+                        <Button size="sm" variant="destructive" onClick={() => setConfirmAction({ type: 'reject', id: emp.id, label: 'Reject this resignation?' })}>
                           <XCircle className="h-4 w-4 mr-1" /> Reject
                         </Button>
                       </div>
@@ -510,7 +512,7 @@ export function ResignationTab() {
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Checklist
                         </Button>
                         <Button size="sm" variant="ghost" className="text-red-600" onClick={() => {
-                          if (confirm("Withdraw this resignation?")) withdrawResignation.mutate(emp.id);
+                          setConfirmAction({ type: 'withdraw', id: emp.id, label: 'Withdraw this resignation?' });
                         }}>
                           <XCircle className="h-4 w-4 mr-1" /> Withdraw
                         </Button>
@@ -626,8 +628,8 @@ export function ResignationTab() {
               variant="destructive"
               disabled={completedCount < totalCount}
               onClick={() => {
-                if (selectedEmployee && confirm("Complete resignation and deactivate this employee?")) {
-                  completeResignation.mutate(selectedEmployee.id);
+                if (selectedEmployee) {
+                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation and deactivate this employee?' });
                 }
               }}
             >
@@ -755,6 +757,26 @@ export function ResignationTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Action</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.label}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (!confirmAction) return;
+              const { type, id } = confirmAction;
+              if (type === 'approve') approveResignation.mutate(id);
+              else if (type === 'reject') rejectResignation.mutate(id);
+              else if (type === 'withdraw') withdrawResignation.mutate(id);
+              else if (type === 'complete') completeResignation.mutate(id);
+              setConfirmAction(null);
+            }}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

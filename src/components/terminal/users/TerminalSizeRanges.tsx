@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +44,7 @@ export function TerminalSizeRanges() {
   const [maxAmount, setMaxAmount] = useState("");
   const [orderType, setOrderType] = useState("BOTH");
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -104,10 +106,15 @@ export function TerminalSizeRanges() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete size range "${name}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from("terminal_order_size_ranges").delete().eq("id", id);
-    if (error) { toast.error(error.message || "Failed to delete"); return; }
+    setDeleteTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("terminal_order_size_ranges").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error(error.message || "Failed to delete"); setDeleteTarget(null); return; }
     toast.success("Size range deleted");
+    setDeleteTarget(null);
     fetchData();
   };
 
@@ -217,6 +224,18 @@ export function TerminalSizeRanges() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Size Range</AlertDialogTitle>
+            <AlertDialogDescription>Delete size range "{deleteTarget?.name}"? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

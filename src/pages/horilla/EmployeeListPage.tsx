@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -107,6 +108,8 @@ export default function EmployeeListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [colPickerOpen, setColPickerOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(ALL_TABLE_COLS.map(c => c.key));
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
   const pageSize = viewMode === "grid" ? 12 : 20;
 
@@ -186,9 +189,7 @@ export default function EmployeeListPage() {
   };
 
   const handleDelete = (emp: HrEmployee) => {
-    if (confirm(`Delete ${emp.first_name} ${emp.last_name}? This cannot be undone.`)) {
-      deleteMutation.mutate(emp.id);
-    }
+    setDeleteTarget({ id: emp.id, name: `${emp.first_name} ${emp.last_name}` });
   };
 
   // ─── Filter logic ───
@@ -381,7 +382,11 @@ export default function EmployeeListPage() {
   // ─── Bulk delete ───
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
-    if (!confirm(`Delete ${selectedIds.size} selected employee(s)? This cannot be undone.`)) return;
+    setBulkDeleteConfirmOpen(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirmOpen(false);
     try {
       for (const id of selectedIds) {
         const { error } = await supabase.from("hr_employees").delete().eq("id", id);
@@ -1014,6 +1019,30 @@ export default function EmployeeListPage() {
           </div>
         </div>
       )}
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription>Delete {deleteTarget?.name}? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bulk Delete Employees</AlertDialogTitle>
+            <AlertDialogDescription>Delete {selectedIds.size} selected employee(s)? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={executeBulkDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 

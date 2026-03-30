@@ -33,6 +33,7 @@ function getNotificationIcon(type: GlobalNotification['type']) {
 export function NotificationDropdown() {
   const { isMuted, toggleMute } = useNotificationMute();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { 
     notifications, 
     unreadCount, 

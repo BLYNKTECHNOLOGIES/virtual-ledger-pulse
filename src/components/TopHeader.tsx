@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export function TopHeader() {

@@ -100,7 +100,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         return tp < smallConfig.min_amount || tp > smallConfig.max_amount;
       });
       if (filteredSells.length === 0) {
-        console.log('[SalesSync] All orders are small sales, skipping big sales sync.');
         return { synced: 0, duplicates: 0 };
       }
     }

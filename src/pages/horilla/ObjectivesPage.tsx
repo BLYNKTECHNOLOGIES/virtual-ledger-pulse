@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Target, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Objective {
   id: string;
@@ -56,28 +57,33 @@ const emptyForm = {
 };
 
 export default function ObjectivesPage() {
-  const [objectives, setObjectives] = useState<Objective[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchAll(); }, []);
+  const { data: objectives = [], isLoading: objLoading } = useQuery({
+    queryKey: ['hr_objectives'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_objectives").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Objective[];
+    },
+  });
 
-  async function fetchAll() {
-    setLoading(true);
-    const [objRes, empRes] = await Promise.all([
-      (supabase as any).from("hr_objectives").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true),
-    ]);
-    if (objRes.data) setObjectives(objRes.data);
-    if (empRes.data) setEmployees(empRes.data);
-    setLoading(false);
-  }
+  const { data: employees = [], isLoading: empLoading } = useQuery({
+    queryKey: ['hr_employees_active'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true);
+      if (error) throw error;
+      return data as Employee[];
+    },
+  });
+
+  const loading = objLoading || empLoading;
 
   function openCreate() { setEditId(null); setForm(emptyForm); setDialogOpen(true); }
 
@@ -111,13 +117,14 @@ export default function ObjectivesPage() {
     if (error) { toast.error(error.message); return; }
     toast.success(editId ? "Objective updated" : "Objective created");
     setDialogOpen(false);
-    fetchAll();
+    queryClient.invalidateQueries({ queryKey: ['hr_objectives'] });
   }
 
   async function executeDelete(id: string) {
     const { error } = await (supabase as any).from("hr_objectives").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Deleted"); fetchAll();
+    toast.success("Deleted");
+    queryClient.invalidateQueries({ queryKey: ['hr_objectives'] });
     setDeleteTarget(null);
   }
 

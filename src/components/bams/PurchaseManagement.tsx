@@ -185,15 +185,9 @@ export function PurchaseManagement() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submission on step:', step);
-    console.log('Form data:', formData);
-    
-    // Skip validation for editing - just submit
     if (editingMethod) {
-      console.log('Updating existing method');
       updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
     } else {
-      console.log('Creating new method');
       createMethodMutation.mutate(formData);
     }
   };
@@ -691,7 +685,6 @@ export function PurchaseManagement() {
                     type="button" 
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('Submit button clicked on step:', step);
                       handleSubmit(e);
                     }}
                     disabled={createMethodMutation.isPending || updateMethodMutation.isPending}

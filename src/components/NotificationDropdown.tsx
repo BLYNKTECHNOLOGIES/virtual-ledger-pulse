@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX, CheckCheck, Trash2, AlertTriangle, Info, CheckCircle, BellOff } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNotificationMute } from "@/hooks/useNotificationMute";
@@ -32,6 +33,7 @@ function getNotificationIcon(type: GlobalNotification['type']) {
 export function NotificationDropdown() {
   const { isMuted, toggleMute } = useNotificationMute();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { 
     notifications, 
     unreadCount, 
@@ -41,7 +43,8 @@ export function NotificationDropdown() {
   } = useNotifications();
 
   const handleReload = () => {
-    window.location.reload();
+    queryClient.invalidateQueries();
+    toast({ title: "Refreshed", description: "All data has been refreshed." });
   };
 
   const handleToggleMute = () => {

@@ -94,7 +94,6 @@ export function BeneficiaryManagement() {
         console.error("Failed to fetch bank_bulk_formats:", error);
         throw error;
       }
-      console.log("bank_bulk_formats fetched:", data);
       return (data as unknown as BankBulkFormat[]).map((f) => ({
         ...f,
         columns: typeof f.columns === "string" ? JSON.parse(f.columns) : f.columns,

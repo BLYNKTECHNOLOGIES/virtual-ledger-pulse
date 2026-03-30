@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +5,9 @@ import { Progress } from "@/components/ui/progress";
 import { Target, TrendingUp, Users, Star, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+import { useMemo } from "react";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700",
@@ -18,44 +19,50 @@ const STATUS_COLORS: Record<string, string> = {
 const PIE_COLORS = ["#6366f1", "#3b82f6", "#22c55e", "#ef4444"];
 
 export default function PMSDashboardPage() {
-  const [objectives, setObjectives] = useState<any[]>([]);
-  const [feedbackStats, setFeedbackStats] = useState({ total: 0, pending: 0, submitted: 0, avgRating: 0 });
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  useEffect(() => { fetchData(); }, []);
+  const { data: objectives = [], isLoading: objLoading } = useQuery({
+    queryKey: ['hr_objectives'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_objectives").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+  });
 
-  async function fetchData() {
-    setLoading(true);
-    const [objRes, fbRes] = await Promise.all([
-      (supabase as any).from("hr_objectives").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("hr_feedback_360").select("*"),
-    ]);
-    if (objRes.data) setObjectives(objRes.data);
-    if (fbRes.data) {
-      const fb = fbRes.data as any[];
+  const { data: feedbackStats, isLoading: fbLoading } = useQuery({
+    queryKey: ['hr_feedback_360_stats'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_feedback_360").select("*");
+      if (error) throw error;
+      const fb = data as any[];
       const rated = fb.filter((f: any) => f.rating);
-      setFeedbackStats({
+      return {
         total: fb.length,
         pending: fb.filter((f: any) => f.status === "pending").length,
         submitted: fb.filter((f: any) => f.status === "submitted").length,
         avgRating: rated.length ? +(rated.reduce((s: number, f: any) => s + f.rating, 0) / rated.length).toFixed(1) : 0,
-      });
-    }
-    setLoading(false);
-  }
+      };
+    },
+  });
 
-  const statusCounts = objectives.reduce((acc: any, o: any) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const pieData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
-  const avgProgress = objectives.length ? Math.round(objectives.reduce((s: number, o: any) => s + o.progress, 0) / objectives.length) : 0;
-  const typeCounts = objectives.reduce((acc: any, o: any) => { acc[o.objective_type] = (acc[o.objective_type] || 0) + 1; return acc; }, {} as Record<string, number>);
-  const barData = Object.entries(typeCounts).map(([name, count]) => ({ name, count }));
+  const loading = objLoading || fbLoading;
+  const safeStats = feedbackStats ?? { total: 0, pending: 0, submitted: 0, avgRating: 0 };
+
+  const { statusCounts, pieData, avgProgress, barData } = useMemo(() => {
+    const sc = objectives.reduce((acc: any, o: any) => { acc[o.status] = (acc[o.status] || 0) + 1; return acc; }, {} as Record<string, number>);
+    const pd = Object.entries(sc).map(([name, value]) => ({ name, value }));
+    const ap = objectives.length ? Math.round(objectives.reduce((s: number, o: any) => s + o.progress, 0) / objectives.length) : 0;
+    const tc = objectives.reduce((acc: any, o: any) => { acc[o.objective_type] = (acc[o.objective_type] || 0) + 1; return acc; }, {} as Record<string, number>);
+    const bd = Object.entries(tc).map(([name, count]) => ({ name, count }));
+    return { statusCounts: sc, pieData: pd, avgProgress: ap, barData: bd };
+  }, [objectives]);
 
   const stats = [
     { label: "Total Objectives", value: objectives.length, icon: Target, color: "text-indigo-600", bg: "bg-indigo-50" },
     { label: "Avg Progress", value: `${avgProgress}%`, icon: TrendingUp, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Feedback Reviews", value: feedbackStats.total, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "Avg Rating", value: feedbackStats.avgRating || "–", icon: Star, color: "text-amber-600", bg: "bg-amber-50" },
+    { label: "Feedback Reviews", value: safeStats.total, icon: Users, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: "Avg Rating", value: safeStats.avgRating || "–", icon: Star, color: "text-amber-600", bg: "bg-amber-50" },
   ];
 
   if (loading) return <div className="flex items-center justify-center py-24 text-gray-500">Loading PMS data...</div>;

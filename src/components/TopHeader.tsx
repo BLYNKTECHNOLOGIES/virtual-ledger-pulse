@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
 
 export function TopHeader() {
@@ -22,6 +23,7 @@ export function TopHeader() {
   const { isDragMode, setIsDragMode, isDashboardRearrangeMode, setIsDashboardRearrangeMode } = useSidebarEdit();
   const location = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleViewWebsite = () => {
@@ -29,7 +31,8 @@ export function TopHeader() {
   };
 
   const handleReload = () => {
-    window.location.reload();
+    queryClient.invalidateQueries();
+    toast({ title: "Refreshed", description: "All data has been refreshed." });
   };
 
   const handleDashboardClick = () => {

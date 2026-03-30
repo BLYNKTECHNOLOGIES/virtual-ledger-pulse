@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 export function DirectoryTab() {
+  const { toast } = useToast();
   // Filter states
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");

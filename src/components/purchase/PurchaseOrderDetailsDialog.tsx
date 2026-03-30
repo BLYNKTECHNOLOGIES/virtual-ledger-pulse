@@ -418,12 +418,11 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
           )}
 
           {/* Transaction Actors - Shown prominently for closed orders */}
-          {(order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'EXPIRED' ||
-            order.order_status === 'completed' || order.order_status === 'cancelled') && (
+          {(order.status === 'COMPLETED' || order.status === 'CANCELLED' || order.status === 'EXPIRED') && (
             <>
               <TransactionActorsCard 
                 orderId={order.id} 
-                orderStatus={order.status || order.order_status}
+                orderStatus={order.status}
               />
               
               <ActivityTimeline 

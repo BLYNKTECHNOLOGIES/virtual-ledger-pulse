@@ -62,6 +62,7 @@ export function ResignationTab() {
     separation_reason: "",
   });
   const [newTemplateItem, setNewTemplateItem] = useState({ item_title: "", category: "general" });
+  const [confirmAction, setConfirmAction] = useState<{ type: string; id: string; label: string } | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch employees with resignation data

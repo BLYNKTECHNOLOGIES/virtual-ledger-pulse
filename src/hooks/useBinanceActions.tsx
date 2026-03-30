@@ -213,7 +213,6 @@ export function useBinanceOrderHistory() {
         console.error('[OrderHistory] Phase 1 fetch error:', error);
         return [];
       }
-      console.log(`[OrderHistory] Phase 1: ${data?.length ?? 0} orders loaded`);
       return (data || []).map(mapOrderRow);
     },
     staleTime: 20 * 1000,
@@ -252,7 +251,6 @@ export function useBinanceOrderHistory() {
         }
       }
 
-      console.log(`[OrderHistory] Phase 2: ${allOrders.length} total orders loaded`);
       return allOrders;
     },
     staleTime: 60 * 1000,

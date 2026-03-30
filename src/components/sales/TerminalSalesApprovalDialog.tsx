@@ -411,7 +411,6 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       if (existingSO) {
         // Sales order already exists from a previous partial approval — reuse it
-        console.log('[SalesApproval] Existing sales order found, recovering from partial approval:', existingSO.id);
         salesOrder = existingSO;
       } else {
         const { data: newSO, error: soErr } = await supabase
@@ -498,7 +497,6 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       // Payment method usage is computed live — no manual current_usage update needed
 
-      console.log('[SalesApproval] Sales order created - bank transaction handled by triggers if applicable');
       } // end if (!existingSO)
 
       // Update sync record
@@ -549,7 +547,6 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);
-          console.log('✅ Client profile updated from terminal sale approval:', updates);
         }
       }
 

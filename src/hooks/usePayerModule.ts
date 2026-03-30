@@ -266,15 +266,12 @@ export function usePayerOrders() {
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const list = Array.isArray(d) ? d : [];
 
-    console.log('[PayerModule] Raw active orders:', list.length);
 
     const buyOrders = list.filter((o: any) => o.tradeType === 'BUY');
-    console.log('[PayerModule] BUY orders:', buyOrders.length, 'My assignments:', myAssignments.length);
 
     if (myAssignments.length === 0) {
       // Even with no current assignments, still show orders locked to this user
       const lockedToMe = buyOrders.filter((o: any) => lockByOrder.get(o.orderNumber) === userId);
-      console.log('[PayerModule] No assignments but', lockedToMe.length, 'orders locked to me');
       return { myOrders: lockedToMe, newLocks: [] };
     }
 
@@ -294,7 +291,6 @@ export function usePayerOrders() {
         if (existingLock === userId) {
           myOrders.push(order);
         } else {
-          console.log(`[PayerModule] Order ${order.orderNumber} locked to ${existingLock}, skipping`);
         }
         continue;
       }
@@ -322,11 +318,9 @@ export function usePayerOrders() {
       if (bestPayer === userId) {
         myOrders.push(order);
       } else {
-        console.log(`[PayerModule] Order ${order.orderNumber} assigned to ${bestPayer}, not me`);
       }
     }
 
-    console.log('[PayerModule] Total matched orders for me:', myOrders.length, 'New locks to create:', newLocks.length);
     return { myOrders, newLocks };
   }, [activeOrdersData, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId, lockByOrder]);
 
@@ -353,7 +347,6 @@ export function usePayerOrders() {
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
       .filter((o: any) => !excludeFromPending.has(String(o.orderStatus)));
 
-    console.log('[PayerModule] Pending orders:', result.length, 'of', allMatchedOrders.length, 'matched');
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 

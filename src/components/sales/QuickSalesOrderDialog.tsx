@@ -75,7 +75,6 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
 
   const createSalesOrderMutation = useMutation({
     mutationFn: async (orderData: SalesOrderFormData) => {
-      console.log('🚀 Creating sales order...');
       
       // Get bank account details
       const { data: bankAccount, error: bankError } = await supabase
@@ -110,7 +109,6 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
         .single();
 
       if (salesError) throw salesError;
-      console.log('✅ Sales order created:', salesOrder.id);
 
       // Check if client already exists in the clients table (exact name match, not deleted)
       const { data: existingClient } = await supabase
@@ -123,7 +121,6 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
 
       // If client doesn't exist, create an onboarding approval request
       if (!existingClient) {
-        console.log('📝 New client detected, creating onboarding approval request...');
         const { error: approvalError } = await supabase
           .from('client_onboarding_approvals')
           .insert({
@@ -139,10 +136,8 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
           console.error('⚠️ Failed to create approval request:', approvalError);
           // Don't throw - the order was created, approval is secondary
         } else {
-          console.log('✅ Onboarding approval request created');
         }
       } else {
-        console.log('✅ Existing client found:', existingClient.name);
       }
 
       return salesOrder;

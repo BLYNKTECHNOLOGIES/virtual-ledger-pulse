@@ -107,7 +107,6 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   // 2. Look back 7 days to catch cross-day and appeal-resolved orders
   const LOOKBACK_DAYS = 7;
   const cutoffTime = Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
-  console.log('[PurchaseSync] Cutoff (7-day lookback):', new Date(cutoffTime).toISOString());
 
   // 2a. Fetch COMPLETED BUY orders (paginated)
   const completedBuys = await fetchOrdersByStatus('BUY', ['COMPLETED', '4'], cutoffTime);
@@ -115,14 +114,12 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   // 2b. Fetch IN_APPEAL BUY orders — these may have been resolved since last sync (paginated)
   const appealBuys = await fetchOrdersByStatus('BUY', ['IN_APPEAL', '7'], cutoffTime);
 
-  console.log(`[PurchaseSync] COMPLETED: ${completedBuys?.length || 0}, IN_APPEAL to recheck: ${appealBuys?.length || 0}`);
 
   // 2c. For each IN_APPEAL order, check live status from Binance API
   const resolvedAppealOrders: any[] = [];
   for (const order of (appealBuys || [])) {
     try {
       const { status, sellerName } = await fetchOrderDetail(order.order_number);
-      console.log(`[PurchaseSync] IN_APPEAL order ${order.order_number} live status: ${status}`);
 
       if (status === 'COMPLETED') {
         const updatePayload: any = { order_status: 'COMPLETED' };
@@ -138,7 +135,6 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
           order_status: 'COMPLETED',
           verified_name: sellerName || order.verified_name,
         });
-        console.log(`[PurchaseSync] Order ${order.order_number} resolved from IN_APPEAL → COMPLETED`);
       }
     } catch (e) {
       console.warn(`[PurchaseSync] Failed to check appeal order ${order.order_number}:`, e);
@@ -160,12 +156,10 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     });
     const excluded = before - allEligible.length;
     if (excluded > 0) {
-      console.log(`[PurchaseSync] Excluded ${excluded} orders in small buys range (₹${smallBuysConfig.min_amount}-₹${smallBuysConfig.max_amount})`);
     }
   }
 
   if (allEligible.length === 0) {
-    console.log('[PurchaseSync] No eligible completed BUY orders found.');
     return { synced: 0, duplicates: 0 };
   }
 
@@ -225,7 +219,6 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   const newOrders = allEligible.filter(o => !existingSet.has(o.order_number));
   duplicates = allEligible.length - newOrders.length;
 
-  console.log(`[PurchaseSync] ${newOrders.length} new orders to process, ${duplicates} duplicates skipped`);
 
   for (const order of newOrders) {
     // Enrich: fetch verified seller name if not already available
@@ -311,6 +304,5 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     synced = toInsert.length;
   }
 
-  console.log(`[PurchaseSync] Synced: ${synced}, Duplicates: ${duplicates}`);
   return { synced, duplicates };
 }

@@ -45,7 +45,6 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
 
     const PAYMENT_SIGNALS = ['seller_payed', 'buyer_payed', 'buyer_paid'];
     const items = extractItems(chatMessages);
-    console.log('[PaymentSignal] Chat items count:', items.length);
     return items.some((m: any) => {
       const msgType = String(m?.type || m?.chatMessageType || '').toLowerCase();
       const isSystem = msgType === 'system' || msgType === 'sys' || msgType === 'order_system';

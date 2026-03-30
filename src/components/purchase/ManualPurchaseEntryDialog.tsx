@@ -735,7 +735,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Select 
                 value={formData.credit_wallet_id} 
                 onValueChange={(value) => {
-                  console.log('🪙 ManualPurchase: wallet selected:', value);
                   handleInputChange('credit_wallet_id', value);
                 }}
               >

@@ -454,7 +454,6 @@ export function StockTransactionsTab() {
             });
           
           if (feeError) throw feeError;
-          console.log(`✅ Transfer fee of ${transferFee.toFixed(4)} USDT recorded`);
         }
       } else {
         // Single wallet adjustment (CREDIT or DEBIT)
@@ -477,7 +476,6 @@ export function StockTransactionsTab() {
       }
 
       // Stock syncing is handled by database triggers automatically
-      console.log('✅ StockTransactions: Manual adjustment completed - stock updates handled by database triggers');
       
       // Return adjustment data for logging
       return { adjustmentData };
@@ -779,11 +777,6 @@ export function StockTransactionsTab() {
     ...allEntries.map(e => e.products?.code).filter(Boolean)
   ])).sort();
 
-  console.log('📈 Total combined entries:', allEntries.length);
-  console.log('🔍 Filtered entries:', filteredEntries.length);
-  console.log('💰 Wallet entries:', walletTransactions?.length || 0);
-  console.log('📦 Stock entries:', transactions?.length || 0);
-  console.log('🛒 Purchase entries:', purchaseEntries?.length || 0);
 
   return (
     <div className="space-y-6">

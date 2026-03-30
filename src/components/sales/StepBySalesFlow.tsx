@@ -260,7 +260,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         created_by: user?.id
       };
 
-      console.log('Creating sales order with data:', salesOrderData);
 
       // First create the sales order
       const { data: salesOrder, error: salesError } = await supabase
@@ -274,7 +273,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
         throw salesError;
       }
 
-      console.log('Sales order created successfully:', salesOrder);
 
       // Process wallet deduction if USDT amount is specified and wallet is selected
       if (walletId && usdtAmount > 0) {
@@ -297,11 +295,9 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             throw new Error(`Wallet deduction failed: ${walletError.message}`);
           }
 
-          console.log(`Wallet deduction processed successfully: ${netQuantity} USDT`);
           
           // Process platform fee deduction separately (if applicable)
           if (platformFees > 0) {
-            console.log('💰 Processing platform fee deduction:', platformFees, 'USDT');
             
             const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
               p_order_id: salesOrder.id,
@@ -316,7 +312,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
               // Don't throw - the main order was created, just log the fee error
               console.warn('⚠️ Platform fee deduction failed, but order was created');
             } else {
-              console.log('✅ Platform fee processed:', feeResult);
             }
             
             // Update the sales order with fee details
@@ -358,7 +353,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
       return salesOrder;
     },
      onSuccess: async (data) => {
-      console.log('Sales order creation completed successfully:', data);
        
        // Check if client exists - if not, create an onboarding approval request for new buyers
        try {
@@ -375,7 +369,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
          
          // If client doesn't exist, create an onboarding approval request
          if (!existingClient) {
-           console.log('📝 New client detected, creating onboarding approval request...');
            const { error: approvalError } = await supabase
              .from('client_onboarding_approvals')
              .insert({
@@ -390,10 +383,8 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
            if (approvalError) {
              console.error('⚠️ Failed to create approval request:', approvalError);
            } else {
-             console.log('✅ Onboarding approval request created');
            }
           } else {
-            console.log('✅ Existing client found:', existingClient.name);
             // Update client phone/state from order data
             const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
             await updateClientFromOrder({
@@ -695,14 +686,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   };
 
   const handleFinalSubmit = () => {
-    console.log('Final submit clicked with data:', {
-      finalOrderData,
-      selectedClient,
-      newClientData,
-      orderAmount,
-      selectedPaymentMethod,
-      cosmosAlert
-    });
 
     // Validate required fields
     if (!finalOrderData.order_number) {

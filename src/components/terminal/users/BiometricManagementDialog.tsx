@@ -187,11 +187,9 @@ export function BiometricManagementDialog({
         return;
       }
 
-      console.log('Bypass: invoking edge function...');
       const result = await supabase.functions.invoke('terminal-webauthn', {
         body: { action: 'generate_bypass', user_id: userId, generated_by: generatedBy },
       });
-      console.log('Bypass: invoke result:', result);
       
       const { data, error } = result;
       if (error) {

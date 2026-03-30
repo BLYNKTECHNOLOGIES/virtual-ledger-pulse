@@ -46,10 +46,8 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
     try {
       // Step 2a: Get pre-signed URL from Binance via SAPI
       const imageName = `${orderNo}_${Date.now()}.jpg`;
-      console.log('📸 Step 1: Getting pre-signed URL for:', imageName);
       
       const result = await getUploadUrl.mutateAsync(imageName);
-      console.log('📸 Pre-signed URL response:', JSON.stringify(result).substring(0, 300));
       
       // Parse response - Binance nests under data.data
       const outer = result?.data || result;
@@ -69,8 +67,6 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         throw new Error('Failed to get imageUrl from Binance');
       }
 
-      console.log('📸 Step 2: Uploading file to S3 pre-signed URL...');
-      console.log('📸 imageUrl for chat:', imageUrl);
 
       // Step 2b: Upload raw file data to pre-signed URL (PUT with raw binary, no headers per doc)
       const uploadResponse = await fetch(preSignedUrl, {
@@ -84,7 +80,6 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         throw new Error(`Upload failed with status ${uploadResponse.status}`);
       }
 
-      console.log('✅ Step 3: Image uploaded to S3, delivering imageUrl...');
 
       // Step 2c: Try REST first, fallback to WS if REST fails (proxy may not support sendMessage yet)
       let restSent = false;
@@ -93,11 +88,9 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
           orderNo,
           imageUrl: imageUrl,
         });
-        console.log('📸 sendChatMessage result:', JSON.stringify(sendResult).substring(0, 300));
         
         if (sendResult?.data?.code === '000000' || (sendResult?.success && !sendResult?.error)) {
           restSent = true;
-          console.log('✅ Image delivered via REST API');
         }
       } catch (restErr: any) {
         console.warn('⚠️ REST sendChatMessage failed:', restErr.message, '— using WebSocket fallback');

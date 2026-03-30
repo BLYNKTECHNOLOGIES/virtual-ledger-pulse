@@ -388,12 +388,16 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setLogRuleId(rule.id); setShowLogs(true); }} title="View Logs">
                         <Clock className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(rule)}>
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(rule.id); setDeleteRuleName(rule.name); }}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canManage && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(rule)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(rule.id); setDeleteRuleName(rule.name); }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>

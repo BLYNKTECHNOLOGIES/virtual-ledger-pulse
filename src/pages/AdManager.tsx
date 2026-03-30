@@ -67,6 +67,7 @@ export default function AdManager() {
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSelectedAdvNos(new Set()); };
 
   return (
+    <PermissionGate permissions={["terminal_view"]}>
     <div className="space-y-6 p-4 md:p-6">
       {/* Rest Timer Banner — visible to all when active */}
       <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
@@ -176,5 +177,6 @@ export default function AdManager() {
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>
+    </PermissionGate>
   );
 }

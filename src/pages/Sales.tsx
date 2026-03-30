@@ -79,9 +79,9 @@ export default function Sales() {
     },
   });
 
-  // Fetch sales orders from database — scoped to active tab to avoid 1000 row cap
+  // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
-    queryKey: ['sales_orders', activeTab, searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
+    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
     queryFn: async () => {
       let query = supabase
         .from('sales_orders')
@@ -92,7 +92,7 @@ export default function Sales() {
         `)
         .order('created_at', { ascending: false });
 
-      // No tab-based status filtering — show all orders in the completed tab
+      // Show all orders regardless of status
 
       if (searchTerm) {
         query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);

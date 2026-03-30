@@ -1,71 +1,147 @@
 
 
-# Terminal RPC Bug Verification — Complete Audit Results
+# ERP Full System Audit — Phase 1 Report
 
-## Verification Method
-Pulled every live function definition from `pg_proc` and cross-checked against reported bugs.
-
----
-
-## ALL PREVIOUSLY REPORTED BUGS — VERIFIED FIXED
-
-| Bug ID | Description | Status |
-|--------|-------------|--------|
-| RPC-BUG-01 | Leaderboard `display_name` crash | **FIXED** — now joins `users` table |
-| RPC-BUG-02 / T-BUG-05 | Handover bypasses audit trail | **FIXED** — calls `assign_terminal_order()` |
-| RPC-BUG-03 | Inconsistent `notification_type` | **FIXED** — both overloads use `'handover'` |
-| RPC-BUG-04 | Duplicate open escalations | **FIXED** — IF EXISTS guard added |
-| RPC-BUG-05 | Duplicate pending handovers | **FIXED** — IF EXISTS guard in function |
-| RPC-BUG-07 | Payer functions skip `payer_order_log` | **FIXED** — all 3 payer RPCs now log |
-| RPC-BUG-09 | Paid order re-lockable | **FIXED** — `lock_payer_order` checks `paid/completed` |
-| RPC-BUG-10 | Escalate non-existent order | **FIXED** — order existence validation |
-| RPC-BUG-11 | SLA fires on completed orders | **FIXED** — joins `p2p_order_records` with status filter |
-| RPC-BUG-12 | Permission log NULL `changed_by` | **FIXED** — `set_config` + trigger reads session var |
-| RPC-BUG-13 | Notifications missing `metadata` | **FIXED** — function returns it, frontend interface has it |
-| T-BUG-01 | Counterparty volume data corrupted | **FIXED** — data corrected (small drift from new completions is expected) |
-| T-BUG-02 | Bypass code unique constraint bomb | **FIXED** — retry loop + used-code cleanup |
-| T-BUG-03 | `admin_reset_user_password` no permission | **FIXED** — Admin/Super Admin gate |
-| T-BUG-06 | Biometric session no access check | **FIXED** — `has_terminal_access()` gate |
-| T-BUG-07 | Escalation non-deterministic fallback | **FIXED** — ORDER BY on both escalate + re_escalate |
-| T-BUG-08 | `extend_session` return type mismatch | **FIXED** — `v_row_count integer`, returns `> 0` |
-| T-BUG-09 | SLA ignores payer locks | **FIXED** — second loop for stale payer locks |
-| T-BUG-10 | Pricing snapshot not scheduled | **FIXED** — cron job 23 at `0 1 * * *` |
-| T-BUG-11 | `revoke_session` no permission | **FIXED** — self-or-admin gate |
-| T-BUG-12 | `mark_paid` on cancelled order | **FIXED** — cancelled/expired check |
+## Methodology
+Audited all routes, pages, database tables (200+), cron jobs, triggers, data integrity, orphaned files, and UI inconsistencies against the live database.
 
 ---
 
-## NEW ISSUE FOUND DURING VERIFICATION
+## CATEGORY 1: DATA INTEGRITY BUGS
 
-### BUG: Two `save_terminal_role` overloads with swapped argument order
+### DI-01 | KUCOIN wallet has negative balance (-493.62 USDT)
+The `check_wallet_balance_before_transaction` trigger was added to prevent this, but KUCOIN already has a historical negative balance of -493.62 USDT in both `wallets.current_balance` and `wallet_asset_balances`. The trigger allows negatives for wallets that already have negative balances (exception clause), meaning this will never self-correct.
 
-Live DB shows **two** function overloads:
+**Fix**: Investigate root cause (likely a missing deposit credit), then either create a corrective adjustment transaction or manually zero the balance via a reconciliation entry.
 
-```text
-OID 318067: (p_role_id, p_name, p_description, p_hierarchy_level, p_permissions)
-OID 243202: (p_role_id, p_name, p_description, p_permissions, p_hierarchy_level)
-```
+**Effort**: Requires manual investigation — cannot auto-fix without data loss risk. Flag for shift reconciliation review.
 
-Arguments 4 and 5 are **swapped**. Both have 5 args, both have defaults.
+### DI-02 | 23 sets of duplicate client phone numbers
+Different client names share the same phone number (e.g., 4 different clients all with phone 7972213711). This violates identity integrity. Current system has no unique constraint on `clients.phone`, so P2P order sync can link the wrong client to an order.
 
-**Risk:** PostgREST uses named parameters for RPC calls, so this works as long as the frontend always passes named args (which Supabase JS does). However:
-- The older overload (OID 243202) does NOT set `app.current_user_id` session variable, so permission change logging will have NULL `changed_by` when that overload is invoked
-- Having two overloads increases maintenance risk and confusion
+**Fix**: 
+- Add a data cleanup task to merge or flag duplicates
+- Consider adding a unique partial index: `CREATE UNIQUE INDEX idx_clients_unique_phone ON clients(phone) WHERE phone IS NOT NULL AND phone != '' AND is_deleted = false;`
+- This requires data cleanup first (resolve the 23 duplicate sets)
 
-### Fix
-Drop the older overload (OID 243202) that lacks the `set_config` call. Keep OID 318067 which has all fixes applied.
+**Effort**: 30 min data review + migration
 
-```sql
--- Drop old overload by exact signature
-DROP FUNCTION IF EXISTS public.save_terminal_role(uuid, text, text, text[], integer);
-```
+---
+
+## CATEGORY 2: ORPHANED / DEAD CODE
+
+### DC-01 | `Management.tsx` — orphaned page, no route
+`src/pages/Management.tsx` (613 lines) defines an org chart view but is never imported in `App.tsx` and has no route. Completely unreachable dead code.
+
+**Fix**: Delete the file, or wire it to a route if the org chart is wanted.
+
+### DC-02 | `HRMS.tsx` — imported but never used in router
+`src/pages/HRMS.tsx` is imported in `App.tsx` line 24 but never assigned to any route. The HRMS module uses the Horilla layout at `/hrms/*` instead. Dead import.
+
+**Fix**: Remove the import from `App.tsx` and delete `HRMS.tsx` if Horilla is the canonical HRMS.
+
+### DC-03 | Orphaned stock components never imported
+- `StockAdjustmentTab.tsx` — only self-references, never imported by any parent component
+- `WarehouseManagementTab.tsx` — never imported by any file (the `WalletManagementTab` is used instead)
+- `ProductListingTab.tsx` — never imported
+
+**Fix**: Delete these 3 files (~1,300 lines of dead code).
+
+---
+
+## CATEGORY 3: UI BUGS
+
+### UI-01 | StockManagement.tsx has duplicate header
+Lines 53-75 render a full header block ("Stock Management / Inventory, warehouse, and stock control system"), then lines 78-81 render a SECOND header ("Stock Management System / Comprehensive inventory and stock control") inside the tab container. Users see two stacked headers.
+
+**Fix**: Remove lines 78-81 (the inner duplicate header).
+
+### UI-02 | Accounting module tabs are mostly empty shells
+- `JournalEntriesTab.tsx` — static placeholder "No journal entries recorded" with non-functional "Create Journal Entry" button
+- `journal_entries` table has 0 rows
+- `ledger_accounts` table has 0 rows
+
+These are scaffolded UI shells with no real functionality. The buttons create false expectations.
+
+**Fix**: Either disable the non-functional buttons or mark tabs as "Coming Soon" to set correct expectations. No code changes to make them functional — the accounting module is not in active use.
+
+### UI-03 | Purchase CSV export has duplicate column
+Line 221-222 in `Purchase.tsx` maps `order.total_amount` twice — once as "Total Amount" and again as "TDS Applied" column value. The TDS Applied column should show `order.tds_applied ? 'Yes' : 'No'` (which it does on line 223), but line 222 inserts `total_amount` in the wrong position, shifting all subsequent columns by one.
+
+**Fix**: Remove line 222 (`order.total_amount || 0,`) which is a duplicate that shifts the CSV columns.
+
+---
+
+## CATEGORY 4: STALE DATABASE TABLES (0 rows, no frontend usage)
+
+These tables exist in the schema but have zero rows and no active frontend code writing to them:
+
+| Table | Purpose | Verdict |
+|-------|---------|---------|
+| `ad_payment_methods` | Was for ad payment config | Stale — `ad_pricing_rules` replaced |
+| `employees` (non-HR) | Legacy employee table | Dead — `hr_employees` is canonical |
+| `employee_offboarding` | Legacy offboarding | Dead — merged into HR separation |
+| `erp_drift_alerts` | Drift detection alerts | Schema exists, no writer — deferred feature |
+| `payment_methods` | Generic payment methods | Dead — `purchase_payment_methods` + `sales_payment_methods` used |
+| `platforms` | Platform registry | Read by UI (Sales, KYC) but has 0 rows |
+| `stock_adjustments` | Stock adjustment records | Referenced by orphaned components only |
+| `permission_enforcement_log` | Audit-mode log | Schema ready, no data yet (enforcement in audit mode) |
+
+**Fix**: 
+- `platforms` has 0 rows but is actively queried by `SalesOrderDialog` and `OrderCompletionDialog`. This means platform dropdown is always empty — users can't select a platform when creating sales orders. Either seed default platforms or remove the field.
+- The rest can remain dormant — no cleanup needed unless DB hygiene is a priority.
+
+---
+
+## CATEGORY 5: CRON JOB REVIEW
+
+14 active cron jobs verified. All are functional and calling deployed edge functions. No stale jobs found. Key schedules:
+
+| Job | Function | Schedule |
+|-----|----------|----------|
+| 1 | snapshot-asset-value | Daily midnight |
+| 2 | snapshot-daily-profit | Daily midnight |
+| 3 | auto-reply-engine | Every minute |
+| 5 | auto-price-engine | Every 2 minutes |
+| 8 | auto-pay-engine | Every minute |
+| 23 | pricing-effectiveness-snapshot | Daily 1 AM |
+| 24 | check_terminal_order_sla | Every minute |
+
+All cron jobs confirmed active and pointing to valid edge function URLs.
+
+---
+
+## IMPLEMENTATION PLAN (Phased)
+
+### Phase 1A — Critical Fixes (implement now)
+1. **UI-01**: Remove duplicate header in `StockManagement.tsx` (lines 78-81)
+2. **UI-03**: Fix Purchase CSV export duplicate column (line 222)
+3. **DC-02**: Remove dead `HRMS` import from `App.tsx`
+
+### Phase 1B — Dead Code Cleanup
+4. Delete `src/pages/Management.tsx`
+5. Delete `src/pages/HRMS.tsx`
+6. Delete `src/components/stock/StockAdjustmentTab.tsx`
+7. Delete `src/components/stock/WarehouseManagementTab.tsx`
+8. Delete `src/components/stock/ProductListingTab.tsx`
+
+### Phase 1C — Data Integrity (requires business decision)
+9. **DI-01**: KUCOIN negative balance — flag for reconciliation review
+10. **DI-02**: Duplicate client phones — data cleanup + unique index
+11. **Platforms table**: Seed with default values or remove from Sales UI
+
+### Phase 1D — UI Polish
+12. **UI-02**: Mark non-functional Accounting tabs as "Coming Soon"
 
 ---
 
 ## Summary
 
-- **25 of 25** previously reported bugs are confirmed fixed in live DB
-- **1 new issue** found: duplicate `save_terminal_role` overload (old version without `set_config`)
-- **No frontend changes needed** — all fixes are backend-only
-- Single SQL migration to drop the stale overload
+| Category | Count | Severity |
+|----------|-------|----------|
+| Data integrity bugs | 2 | HIGH (negative balance, duplicate phones) |
+| Dead/orphaned code | 6 files (~2,500 lines) | MEDIUM |
+| UI bugs | 3 | MEDIUM (duplicate header, CSV shift, empty shells) |
+| Stale tables | 8 | LOW (no active harm) |
+| Cron issues | 0 | None |
 

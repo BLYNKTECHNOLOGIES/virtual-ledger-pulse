@@ -70,35 +70,7 @@ export function useUsers() {
       }
 
       if (!allUsers || allUsers.length === 0) {
-        
-        // Create demo admin user data
-        const demoUsers: DatabaseUser[] = [
-          {
-            id: 'demo-admin-id',
-            username: 'admin',
-            email: 'blynkvirtualtechnologiespvtld@gmail.com',
-            first_name: 'Admin',
-            last_name: 'User',
-            phone: '+1234567890',
-            avatar_url: null,
-            status: 'ACTIVE',
-            email_verified: true,
-            last_login: new Date().toISOString(),
-            failed_login_attempts: 0,
-            account_locked_until: null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            password_hash: 'demo-hash',
-            role_id: 'admin-role-id',
-            role: {
-              id: 'admin-role-id',
-              name: 'Admin',
-              description: 'Administrator with full access'
-            }
-          }
-        ];
-        
-        setUsers(demoUsers);
+        setUsers([]);
         return;
       }
       

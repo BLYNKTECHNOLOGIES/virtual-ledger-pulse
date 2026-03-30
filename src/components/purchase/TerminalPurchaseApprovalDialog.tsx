@@ -439,8 +439,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           .maybeSingle();
 
         const updates: any = {};
-        // PAN: save to client if provided and client doesn't have one
-        if (panNumber && !existingClient?.pan_card_number) {
+        // PAN: overwrite if operator-confirmed value differs from client master
+        if (panNumber && existingClient?.pan_card_number !== panNumber) {
           updates.pan_card_number = panNumber;
         }
 

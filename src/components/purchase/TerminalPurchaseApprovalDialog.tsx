@@ -59,6 +59,10 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   
+  // Contact & State form fields (like Sales dialog)
+  const [contactNumber, setContactNumber] = useState('');
+  const [clientState, setClientState] = useState('');
+
   // Conflict tracking between client master and counterparty records
   const [clientMasterPan, setClientMasterPan] = useState('');
   const [counterpartyPan, setCounterpartyPan] = useState('');

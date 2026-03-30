@@ -19,6 +19,7 @@ import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface Props {
   open: boolean;

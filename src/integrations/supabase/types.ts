@@ -13679,34 +13679,55 @@ export type Database = {
         }
         Returns: string
       }
-      create_manual_purchase_complete_rpc: {
-        Args: {
-          p_bank_account_id: string
-          p_contact_number?: string
-          p_created_by?: string
-          p_credit_wallet_id?: string
-          p_description?: string
-          p_fee_percentage?: number
-          p_is_off_market?: boolean
-          p_order_date: string
-          p_order_number: string
-          p_pan_number?: string
-          p_product_id: string
-          p_quantity: number
-          p_supplier_name: string
-          p_tds_option?: string
-          p_total_amount: number
-          p_unit_price: number
-        }
-        Returns: Json
-      }
+      create_manual_purchase_complete_rpc:
+        | {
+            Args: {
+              p_bank_account_id: string
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_bank_account_id?: string
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
       create_manual_purchase_complete_v2: {
         Args: {
           p_bank_account_id?: string
           p_contact_number?: string
           p_created_by?: string
           p_credit_wallet_id?: string
-          p_deduction_bank_account_id?: string
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
@@ -13722,27 +13743,49 @@ export type Database = {
         }
         Returns: Json
       }
-      create_manual_purchase_complete_v2_rpc: {
-        Args: {
-          p_bank_account_id: string
-          p_contact_number?: string
-          p_created_by?: string
-          p_credit_wallet_id?: string
-          p_description?: string
-          p_fee_percentage?: number
-          p_is_off_market?: boolean
-          p_order_date: string
-          p_order_number: string
-          p_pan_number?: string
-          p_product_id: string
-          p_quantity: number
-          p_supplier_name: string
-          p_tds_option?: string
-          p_total_amount: number
-          p_unit_price: number
-        }
-        Returns: Json
-      }
+      create_manual_purchase_complete_v2_rpc:
+        | {
+            Args: {
+              p_bank_account_id: string
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_bank_account_id?: string
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
       create_manual_purchase_order: {
         Args: {
           p_bank_account_id: string
@@ -13826,27 +13869,49 @@ export type Database = {
         }
         Returns: string
       }
-      create_manual_purchase_with_split_payments: {
-        Args: {
-          p_contact_number?: string
-          p_created_by?: string
-          p_credit_wallet_id?: string
-          p_description?: string
-          p_fee_percentage?: number
-          p_is_off_market?: boolean
-          p_order_date: string
-          p_order_number: string
-          p_pan_number?: string
-          p_payment_splits?: Json
-          p_product_id: string
-          p_quantity: number
-          p_supplier_name: string
-          p_tds_option?: string
-          p_total_amount: number
-          p_unit_price: number
-        }
-        Returns: Json
-      }
+      create_manual_purchase_with_split_payments:
+        | {
+            Args: {
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_payment_splits?: Json
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_contact_number?: string
+              p_created_by?: string
+              p_credit_wallet_id?: string
+              p_description?: string
+              p_fee_percentage?: number
+              p_is_off_market?: boolean
+              p_order_date: string
+              p_order_number: string
+              p_pan_number?: string
+              p_payment_splits?: Json
+              p_product_id: string
+              p_quantity: number
+              p_supplier_name: string
+              p_tds_option?: string
+              p_total_amount: number
+              p_unit_price: number
+            }
+            Returns: Json
+          }
       create_manual_purchase_with_split_payments_rpc: {
         Args: {
           p_contact_number?: string

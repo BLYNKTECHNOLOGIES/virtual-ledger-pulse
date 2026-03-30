@@ -534,6 +534,7 @@ export default function TerminalSettings() {
         onSave={handleSaveReply}
       />
     </div>
+    </TerminalPermissionGate>
   );
 }
 

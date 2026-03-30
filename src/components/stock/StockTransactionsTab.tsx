@@ -207,7 +207,7 @@ export function StockTransactionsTab() {
         new Set(tx.filter((t: any) => t.reference_type === 'ERP_CONVERSION' && t.reference_id).map((t: any) => t.reference_id))
       ) as string[];
 
-      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }, { data: conversions }] = await Promise.all([
+      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }, { data: conversions }, { data: productsData }] = await Promise.all([
         salesOrderIds.length
           ? supabase
               .from('sales_orders')
@@ -232,6 +232,9 @@ export function StockTransactionsTab() {
               .select('id, reference_no, asset_code, side, price_usd, created_by')
               .in('id', conversionIds)
           : Promise.resolve({ data: [] } as any),
+        supabase
+          .from('products')
+          .select('code, average_buying_price'),
       ]);
 
       const soById = new Map<string, any>();
@@ -242,6 +245,9 @@ export function StockTransactionsTab() {
 
       const convById = new Map<string, any>();
       (conversions || []).forEach((c: any) => c?.id && convById.set(c.id, c));
+
+      const avgBuyPriceByCode = new Map<string, number>();
+      (productsData || []).forEach((p: any) => p?.code && avgBuyPriceByCode.set(p.code, Number(p.average_buying_price || 0)));
 
       const avgPurchasePriceByPo = new Map<string, number>();
       (purchaseItems || []).forEach((pi: any) => {
@@ -328,11 +334,11 @@ export function StockTransactionsTab() {
 
         // Manual transfer / manual adjustment / wallet transfer
         const qty = parseFloat(String(t.amount)) || 0;
-        const unitPrice = 1;
+        const assetAvgPrice = avgBuyPriceByCode.get(t.asset_code) || 0;
         return {
           ...t,
-          _unit_price: unitPrice,
-          _total_amount: qty * unitPrice,
+          _unit_price: assetAvgPrice,
+          _total_amount: qty * assetAvgPrice,
           _supplier_customer_name: null,
           _reference_number: null,
           _created_by_user: t.created_by ? userById.get(t.created_by) : null,

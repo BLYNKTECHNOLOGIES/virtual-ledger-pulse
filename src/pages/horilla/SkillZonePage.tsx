@@ -12,6 +12,7 @@ export default function SkillZonePage() {
   const [form, setForm] = useState({ zone_name: "", description: "" });
   const [expanded, setExpanded] = useState<string[]>([]);
   const [addCandOpen, setAddCandOpen] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState("");
 
   const { data: zones = [], isLoading } = useQuery({

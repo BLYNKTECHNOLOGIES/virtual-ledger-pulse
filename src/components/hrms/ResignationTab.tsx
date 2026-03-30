@@ -511,7 +511,7 @@ export function ResignationTab() {
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Checklist
                         </Button>
                         <Button size="sm" variant="ghost" className="text-red-600" onClick={() => {
-                          if (confirm("Withdraw this resignation?")) withdrawResignation.mutate(emp.id);
+                          setConfirmAction({ type: 'withdraw', id: emp.id, label: 'Withdraw this resignation?' });
                         }}>
                           <XCircle className="h-4 w-4 mr-1" /> Withdraw
                         </Button>

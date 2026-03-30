@@ -79,7 +79,6 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
       return;
     }
 
-    console.log('Submitting role with data:', formData);
     setIsLoading(true);
     
     try {

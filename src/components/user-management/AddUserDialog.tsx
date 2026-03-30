@@ -73,13 +73,6 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
 
   // Enhanced permission check with detailed logging
   const canCreateUsers = () => {
-    console.log('=== Permission Check Debug ===');
-    console.log('Auth loading:', authLoading);
-    console.log('Current user:', user);
-    console.log('User roles:', user?.roles);
-    console.log('isAdmin value:', isAdmin);
-    console.log('hasRole("user_management"):', hasRole('user_management'));
-    console.log('hasRole("admin"):', hasRole('admin'));
     
     // Don't show permission denied while still loading
     if (authLoading) {
@@ -87,8 +80,6 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     }
     
     const hasPermission = isAdmin || hasRole('user_management') || hasRole('admin');
-    console.log('Final permission result:', hasPermission);
-    console.log('=== End Permission Check ===');
     
     return hasPermission;
   };
@@ -98,10 +89,8 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('Form submit - checking permissions...');
     
     if (!userCanCreate) {
-      console.log('Permission denied for user creation');
       toast({
         title: "Access Denied",
         description: "You don't have permission to create users. Please contact an administrator.",
@@ -159,7 +148,6 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     setIsLoading(true);
     
     try {
-      console.log('Attempting to create user...');
       const result = await onAddUser({
         username: formData.username.trim(),
         email: formData.email.trim(),
@@ -192,7 +180,6 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           position_id: ""
         });
         setOpen(false);
-        console.log('User created successfully');
       }
     } finally {
       setIsLoading(false);

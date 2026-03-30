@@ -211,7 +211,6 @@ export default function UserManagement() {
 
   const createRole = async (roleData: { name: string; description: string; permissions: string[] }) => {
     try {
-      console.log('Creating role with permissions:', roleData);
       
       const { data, error } = await supabase.rpc('create_role_with_permissions', {
         role_name: roleData.name,
@@ -224,7 +223,6 @@ export default function UserManagement() {
         return { success: false, error };
       }
 
-      console.log('Role created successfully with ID:', data);
       await fetchRoles();
       return { success: true, data };
     } catch (error) {
@@ -235,7 +233,6 @@ export default function UserManagement() {
 
   const updateRole = async (roleId: string, roleData: { name: string; description: string; permissions: string[] }) => {
     try {
-      console.log('Updating role with permissions:', roleData);
       
       const { data, error } = await supabase.rpc('update_role_permissions', {
         p_role_id: roleId,
@@ -249,7 +246,6 @@ export default function UserManagement() {
         return { success: false, error };
       }
 
-      console.log('Role updated successfully');
       await fetchRoles();
       return { success: true };
     } catch (error) {
@@ -304,11 +300,6 @@ export default function UserManagement() {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    console.log('=== HANDLE DELETE USER TRIGGERED ===');
-    console.log('handleDeleteUser called for userId:', userId);
-    console.log('Current user permissions:', permissions);
-    console.log('hasPermission user_management_manage:', hasPermission('user_management_manage'));
-    console.log('Delete button should be visible:', hasPermission('user_management_manage'));
     
     if (!hasPermission('user_management_manage')) {
       console.error('User does not have permission to delete users');
@@ -321,12 +312,9 @@ export default function UserManagement() {
 
   const confirmDeleteUser = async () => {
     if (!userToDelete) return;
-    console.log('User confirmed deletion, calling deleteUser...');
     try {
       const result = await deleteUser(userToDelete);
-      console.log('Delete result:', result);
       if (result?.success) {
-        console.log('User deleted successfully');
       } else {
         console.error('Delete failed:', result?.error);
       }

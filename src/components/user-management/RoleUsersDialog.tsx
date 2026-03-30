@@ -59,8 +59,6 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
           return;
         }
 
-        console.log('Raw user roles data:', data); // Debug log
-
         const usersWithRole = data?.map(item => ({
           id: item.users.id,
           username: item.users.username,
@@ -71,7 +69,7 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
           created_at: item.users.created_at
         })) || [];
 
-        console.log('Processed users with role:', usersWithRole); // Debug log
+
         setUsers(usersWithRole);
       } catch (error) {
         console.error('Error fetching users with role:', error);

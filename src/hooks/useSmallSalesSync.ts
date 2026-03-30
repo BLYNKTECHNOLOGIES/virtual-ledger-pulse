@@ -134,11 +134,8 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   const duplicates = smallOrders.length - newOrders.length;
 
   if (newOrders.length === 0) {
-    console.log('[SmallSalesSync] All orders already synced.');
     return { synced: 0, duplicates, batchId: null };
   }
-
-  console.log(`[SmallSalesSync] Found ${newOrders.length} new small sale orders (${duplicates} already synced)`);
 
   // Clean up old map entries from rejected syncs so UNIQUE constraint won't block re-inserts
   if (rejectedSyncIds.size > 0) {

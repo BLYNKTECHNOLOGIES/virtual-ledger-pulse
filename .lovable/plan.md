@@ -1,55 +1,86 @@
 
 
-# Phase 29: Complete Removal of Conversion P&L
+# Phase 30: Fix PAN & Contact Auto-Population in Terminal Approvals
 
-## What's Being Removed
+## Problem
 
-The Conversion P&L system tracks realized gains/losses from crypto price movements during conversions. The underlying WAC data is corrupted, making all P&L figures unreliable. Complete removal requested.
+When PAN and contact number are provided in the terminal (stored in `counterparty_pan_records` and `counterparty_contact_records`), they are not auto-populated into the purchase approval form. Additionally, existing client data is not overwritten when newer terminal data is available.
 
-## Components to Remove
+### Root Causes Found
 
-### 1. Frontend — P&L Page (`src/pages/ProfitLoss.tsx`)
-- Remove `conversionPnlUsdt` and `conversionPnlInr` from `PeriodMetrics` interface
-- Remove the `realized_pnl_events` query (lines 253-258)
-- Remove the Conversion P&L calculation (lines 339-341)
-- Remove `conversionPnlInr` from `netProfit` formula — net profit becomes: `grossProfit - totalExpenses + totalIncome`
-- Remove the Conversion P&L card (lines 678-703)
-- Update Net Profit subtitle from "Gross + Conv. P&L - Expenses + Income" to "Gross Profit - Expenses + Income"
+**Purchase Approval (`TerminalPurchaseApprovalDialog.tsx`):**
+1. **No contact/state form fields** — The dialog fetches counterparty phone/state but has no UI inputs to display or pass them
+2. **`p_contact_number: null` hardcoded** (line 389) — Even though contact data is resolved, it's passed as `null` to the RPC
+3. **PAN not overwriting** (line 426) — Client master PAN is only updated if `!existingClient?.pan_card_number` — existing PAN is never overwritten with newer terminal data
+4. **Phone/state not overwriting on client master** (line 444-445) — Only updates if values differ, but the resolved data was never populated because of issue #1
 
-### 2. Frontend — Realized P&L Tab (`src/components/stock/InterProductConversionTab.tsx`)
-- Remove the "Realized P&L" tab trigger and `TabsContent`
-- Remove the `RealizedPnlReport` import and `Activity` icon import
+**Sales Approval (`TerminalSalesApprovalDialog.tsx`):**
+5. **Pre-fill priority wrong** (line 166) — `setContactNumber(prev => prev || phone)` means if client master phone was set first (from the auto-match effect), terminal data can't overwrite it. Terminal data should have highest priority per the form-autofill-precedence-rules memory.
 
-### 3. Frontend — Delete Files
-- Delete `src/components/stock/conversion/RealizedPnlReport.tsx`
-- Delete `src/hooks/useRealizedPnl.ts`
+## Changes
 
-### 4. Hook Cleanup (`src/hooks/useProductConversions.ts`)
-- Remove the `queryClient.invalidateQueries({ queryKey: ['realized_pnl_events'] })` line from `useApproveConversion`
+### 1. Purchase Approval — Add Contact/State Fields & Fix Data Flow
 
-### 5. Database Migration
-- Drop `realized_pnl_events` table entirely
-- Drop `conversion_journal_entries` table (only used for P&L journal tracking, never queried by frontend)
-- Remove P&L-related inserts from `approve_product_conversion` function:
-  - Remove the `INSERT INTO realized_pnl_events` statement
-  - Remove the `INSERT INTO conversion_journal_entries` statements (all 3 line types: USDT_IN, COGS, REALIZED_PNL, and FEE)
-  - Remove `v_cost_out`, `v_realized_pnl`, `v_fee_usdt_equiv` variable declarations and calculations
-  - Keep `cost_out_usdt` and `realized_pnl_usdt` columns on `erp_product_conversions` as nullable (historical data stays, just no longer populated)
-- Update the `erp_product_conversions` UPDATE at end of approval to set `cost_out_usdt = NULL, realized_pnl_usdt = NULL` instead of calculated values
+**File: `src/components/purchase/TerminalPurchaseApprovalDialog.tsx`**
 
-### Safety
-- The `approve_product_conversion` function's core logic (wallet transactions, balance updates, WAC updates, status change) is untouched
-- Only P&L tracking logic is removed from the function
-- Existing approved conversions retain their data in `erp_product_conversions` columns
+- Add `contactNumber` and `clientState` state variables (like Sales dialog has)
+- Add contact/state conflict tracking to the existing conflict banner
+- In the resolve effect (line 78-159): auto-fill `contactNumber` and `clientState` from resolved sources (sync record → counterparty records → client master)
+- Pass `p_contact_number: contactNumber || null` to both RPC calls (lines 389 and split payment equivalent)
+- In the client master update block (line 416-450):
+  - Use the form's `contactNumber` and `clientState` values (operator-confirmed)
+  - Overwrite PAN on client if `panNumber` is provided and differs (remove the `!existingClient?.pan_card_number` guard)
+  - Overwrite phone/state on client if provided and differs
+- Add Contact Number and State input fields to the form UI (between Client Mapping and TDS sections)
+- Add phone/state conflict items to the DataConflictBanner
+
+### 2. Sales Approval — Fix Pre-fill Priority
+
+**File: `src/components/sales/TerminalSalesApprovalDialog.tsx`**
+
+- Change counterparty contact pre-fill (line 166-167) from `prev => prev || phone` to unconditionally set when terminal data exists — terminal-captured data is highest priority
+- In client master update (lines 540-551): also overwrite PAN if available from counterparty records (currently Sales doesn't sync PAN to client at all)
+
+### 3. Purchase Approval — Client Master PAN Overwrite
+
+In the post-approval client sync block, change:
+```
+if (panNumber && !existingClient?.pan_card_number)
+```
+to:
+```
+if (panNumber && existingClient?.pan_card_number !== panNumber)
+```
+
+This ensures the latest operator-confirmed PAN overwrites stale client data.
+
+## Data Flow After Fix
+
+```text
+Terminal operator enters PAN/Phone/State
+  ↓
+Stored in counterparty_pan_records / counterparty_contact_records
+  ↓
+Approval dialog opens → fetches from:
+  1. Sync record (highest priority)
+  2. Counterparty records (terminal-captured)
+  3. Client master (fallback)
+  ↓
+Form pre-fills with resolved values (operator can edit)
+  ↓
+On approve:
+  - Purchase/Sales order created with contact data
+  - Client master updated (overwrite if different)
+  - Counterparty records updated
+```
 
 ## Summary
 
-| Action | Target |
-|--------|--------|
-| Delete 2 frontend files | `RealizedPnlReport.tsx`, `useRealizedPnl.ts` |
-| Edit 3 frontend files | `ProfitLoss.tsx`, `InterProductConversionTab.tsx`, `useProductConversions.ts` |
-| Drop 2 tables | `realized_pnl_events`, `conversion_journal_entries` |
-| Recreate 1 function | `approve_product_conversion` (P&L logic stripped) |
+| Action | File | What |
+|--------|------|------|
+| Add contact/state fields + fix RPC params | `TerminalPurchaseApprovalDialog.tsx` | ~40 lines added/changed |
+| Fix pre-fill priority | `TerminalSalesApprovalDialog.tsx` | ~6 lines changed |
+| Enable PAN/phone/state overwrite | Both dialogs | ~4 lines changed |
 
-**1 migration, 5 frontend changes.**
+**0 migrations, 2 frontend files.**
 

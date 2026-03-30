@@ -12,6 +12,7 @@ interface TerminalNotification {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  metadata: Record<string, any> | null;
 }
 
 export function useTerminalNotifications() {

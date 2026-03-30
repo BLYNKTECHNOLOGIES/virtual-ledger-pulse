@@ -14282,6 +14282,7 @@ export type Database = {
           is_active: boolean
           is_read: boolean
           message: string
+          metadata: Json
           notification_type: string
           related_user_id: string
           title: string
@@ -14658,16 +14659,27 @@ export type Database = {
         Returns: undefined
       }
       run_leave_accrual: { Args: { p_accrual_date?: string }; Returns: number }
-      save_terminal_role: {
-        Args: {
-          p_description?: string
-          p_hierarchy_level?: number
-          p_name?: string
-          p_permissions?: string[]
-          p_role_id?: string
-        }
-        Returns: string
-      }
+      save_terminal_role:
+        | {
+            Args: {
+              p_description?: string
+              p_hierarchy_level?: number
+              p_name?: string
+              p_permissions?: string[]
+              p_role_id?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_description?: string
+              p_hierarchy_level?: number
+              p_name?: string
+              p_permissions?: string[]
+              p_role_id?: string
+            }
+            Returns: string
+          }
       set_terminal_user_status: {
         Args: { p_status: string; p_user_id: string }
         Returns: Json

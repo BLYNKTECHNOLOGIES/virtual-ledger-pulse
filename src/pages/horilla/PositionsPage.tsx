@@ -11,6 +11,7 @@ export default function PositionsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", department_id: "", description: "" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: positions, isLoading } = useQuery({
     queryKey: ["hr_positions"],

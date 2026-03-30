@@ -205,7 +205,6 @@ export function CaseGenerator() {
       }
 
       const caseNumber = caseIdData.caseId;
-      console.log('Generated case ID:', caseNumber);
       
       // Upload files for different case types
       let uploadedScreenshots: string[] = [];

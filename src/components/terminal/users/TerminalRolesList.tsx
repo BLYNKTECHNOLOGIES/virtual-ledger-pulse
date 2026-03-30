@@ -387,14 +387,21 @@ export function TerminalRolesList() {
     }
     setIsSaving(true);
     try {
-      const { error } = await supabase.rpc("save_terminal_role", {
-        p_role_id: isNew ? undefined : editingRole?.id,
+      const rpcParams: Record<string, any> = {
         p_name: editName.trim(),
-        p_description: editDesc.trim() || undefined,
         p_permissions: Array.from(editPerms),
-        p_hierarchy_level: parsedLevel,
-      });
-      if (error) { toast.error(error.message); return; }
+      };
+      if (!isNew && editingRole?.id) rpcParams.p_role_id = editingRole.id;
+      if (editDesc.trim()) rpcParams.p_description = editDesc.trim();
+      if (parsedLevel !== null) rpcParams.p_hierarchy_level = parsedLevel;
+      
+      console.log('[save_terminal_role] params:', JSON.stringify(rpcParams));
+      const { data, error } = await supabase.rpc("save_terminal_role", rpcParams as any);
+      if (error) {
+        console.error('[save_terminal_role] error:', error.code, error.message, error.details, error.hint);
+        toast.error(error.message);
+        return;
+      }
       toast.success(isNew ? "Role created" : "Role updated");
       setEditingRole(null);
       await fetchRoles();

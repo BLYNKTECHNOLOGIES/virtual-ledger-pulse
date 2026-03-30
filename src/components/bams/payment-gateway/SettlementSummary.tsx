@@ -159,7 +159,8 @@ export function SettlementSummary() {
       });
       setReverseDialogOpen(false);
       setSelectedReverseSettlement(null);
-      fetchSettlements();
+      queryClient.invalidateQueries({ queryKey: ['settlement-history'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-settlements'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });

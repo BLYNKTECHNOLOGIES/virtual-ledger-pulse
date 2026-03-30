@@ -55,8 +55,6 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.terminal-webauthn]
     verify_jwt = false
-  [functions.verify-password-reset-otp]
-    verify_jwt = false
   [functions.send-transactional-email]
     verify_jwt = true
   [functions.preview-transactional-email]

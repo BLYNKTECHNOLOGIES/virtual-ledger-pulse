@@ -368,34 +368,21 @@ export function PendingSettlements() {
         mdrDeduction
       );
 
-      // Update local state
-      setPendingSales(prev => prev.filter(sale => !successfullySettledIds.includes(sale.id)));
-      setGatewayGroups(prev => prev.map(group => ({
-        ...group,
-        sales: group.sales.filter(sale => !successfullySettledIds.includes(sale.id)),
-        totalAmount: group.sales
-          .filter(sale => !successfullySettledIds.includes(sale.id))
-          .reduce((sum, sale) => sum + (sale.settlement_amount || sale.total_amount), 0)
-      })).filter(group => group.sales.length > 0));
-
       toast({
         title: "Success",
         description: `Successfully settled ₹${settlementAmount.toLocaleString('en-IN')} to ${selectedBankAcc?.account_name}${mdrDeduction > 0 ? ` (MDR expense: ₹${mdrDeduction.toLocaleString('en-IN')})` : ''}`,
       });
 
-      // Reset form
       setSelectedSales([]);
       setSelectedBankAccount("");
       setDeductMdr(false);
       setMdrAmount("0");
       setIsDialogOpen(false);
-      
-      // Invalidate caches so expense entries appear in Expenses tab
+
+      queryClient.invalidateQueries({ queryKey: ['pending-settlements'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
-
-      fetchPendingSettlements();
     } catch (error) {
       console.error('Error settling payments:', error);
       toast({

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { batchComputeSalesUsage } from "@/lib/payment-method-usage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { AddPaymentGatewayDialog } from "./AddPaymentGatewayDialog";
 import { EditPaymentGatewayDialog } from "./EditPaymentGatewayDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface PaymentGateway {
   id: string;
@@ -30,64 +31,54 @@ interface PaymentGateway {
   };
 }
 
+const fetchPaymentGateways = async (): Promise<PaymentGateway[]> => {
+  const { data, error } = await supabase
+    .from('sales_payment_methods')
+    .select(`
+      id, type, upi_id, risk_category, payment_limit, current_usage, 
+      is_active, settlement_cycle, settlement_days, payment_gateway, bank_account_id,
+      bank_accounts (
+        id,
+        account_name,
+        bank_name
+      )
+    `)
+    .eq('payment_gateway', true)
+    .eq('is_active', true);
+
+  if (error) throw error;
+
+  const usageMap = await batchComputeSalesUsage(
+    (data || []).map(gw => ({ id: gw.id, last_reset: null, payment_gateway: true }))
+  );
+
+  return (data || []).map(gw => ({
+    ...gw,
+    current_usage: usageMap.get(gw.id) || 0,
+  }));
+};
+
 export function AvailablePaymentGateways() {
-  const [gateways, setGateways] = useState<PaymentGateway[]>([]);
-  const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedGateway, setSelectedGateway] = useState<PaymentGateway | null>(null);
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
   const canManage = hasPermission('bams_manage');
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchPaymentGateways();
-  }, []);
+  const { data: gateways = [], isLoading } = useQuery({
+    queryKey: ['payment-gateways'],
+    queryFn: fetchPaymentGateways,
+    meta: { errorMessage: 'Failed to fetch payment gateways' },
+  });
 
-  const fetchPaymentGateways = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sales_payment_methods')
-        .select(`
-          id, type, upi_id, risk_category, payment_limit, current_usage, 
-          is_active, settlement_cycle, settlement_days, payment_gateway, bank_account_id,
-          bank_accounts (
-            id,
-            account_name,
-            bank_name
-          )
-        `)
-        .eq('payment_gateway', true)
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      // Compute live usage from shared helper
-      const usageMap = await batchComputeSalesUsage(
-        (data || []).map(gw => ({ id: gw.id, last_reset: null, payment_gateway: true }))
-      );
-
-      const enrichedGateways = (data || []).map(gw => ({
-        ...gw,
-        current_usage: usageMap.get(gw.id) || 0,
-      }));
-
-      setGateways(enrichedGateways);
-    } catch (error) {
-      console.error('Error fetching payment gateways:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch payment gateways",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['payment-gateways'] });
   };
 
   const getSettlementInfo = (gateway: PaymentGateway) => {
     if (!gateway.settlement_cycle) return "Not configured";
-    
     if (gateway.settlement_cycle === "Custom" && gateway.settlement_days) {
       return `T+${gateway.settlement_days} Days`;
     }
@@ -99,7 +90,7 @@ export function AvailablePaymentGateways() {
     setEditDialogOpen(true);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -155,7 +146,6 @@ export function AvailablePaymentGateways() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Settlement Bank Account */}
                 {gateway.bank_accounts && (
                   <div className="bg-muted/50 p-3 rounded-md">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -224,14 +214,14 @@ export function AvailablePaymentGateways() {
       <AddPaymentGatewayDialog
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
-        onSuccess={fetchPaymentGateways}
+        onSuccess={handleSuccess}
       />
 
       <EditPaymentGatewayDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         gateway={selectedGateway}
-        onSuccess={fetchPaymentGateways}
+        onSuccess={handleSuccess}
       />
     </div>
   );

@@ -659,7 +659,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           </Card>
 
           {/* Data Conflict Banner */}
-          <DataConflictBanner conflicts={panConflicts} />
+          <DataConflictBanner conflicts={dataConflicts} />
 
           {/* TDS & PAN */}
           <div className="grid grid-cols-2 gap-4">

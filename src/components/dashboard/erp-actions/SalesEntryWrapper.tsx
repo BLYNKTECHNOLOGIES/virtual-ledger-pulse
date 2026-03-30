@@ -354,7 +354,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               asset_code: (item.asset || 'USDT').toUpperCase(),
             });
 
-          console.log(`✅ Withdrawal fee DEBIT recorded: ${binanceNetworkFee} ${item.asset} for ${item.tx_id || item.movement_id}`);
+          
         }
       }
 

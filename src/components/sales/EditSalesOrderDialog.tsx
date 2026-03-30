@@ -180,12 +180,12 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           throw new Error(result.error || 'Reconciliation failed');
         }
 
-        console.log('✅ Sales order reconciliation completed:', result);
+        
 
         // If payment method also changed alongside financial fields,
         // handle the payment method switch separately (pending settlements, bank tx transfer)
         if (paymentMethodChanged) {
-          console.log('🔄 Payment method also changed during financial reconciliation, processing...');
+          
           const { data: pmResult, error: pmError } = await supabase.rpc('handle_sales_order_payment_method_change', {
             p_order_id: order.id,
             p_old_payment_method_id: originalPaymentMethodId,
@@ -194,12 +194,12 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           });
           if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
           if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
-          console.log('✅ Payment method change processed alongside reconciliation', pmResult);
+          
         }
       } else if (isCompleted) {
         // Handle payment method change only (no financial field change)
         if (paymentMethodChanged) {
-          console.log('🔄 Payment method changed, processing...');
+          
           const { data: pmResult, error: pmError } = await supabase.rpc('handle_sales_order_payment_method_change', {
             p_order_id: order.id,
             p_old_payment_method_id: originalPaymentMethodId,
@@ -209,7 +209,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
           if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
           if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
-          console.log('✅ Payment method change processed', pmResult);
+          
         }
 
         // Repair: if order is completed + has payment method + no INCOME tx exists
@@ -223,7 +223,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             .eq('transaction_type', 'INCOME');
 
           if ((count || 0) === 0) {
-            console.log('🩹 Missing INCOME bank transaction detected; repairing...');
+            
             await supabase.rpc('handle_sales_order_payment_method_change', {
               p_order_id: order.id,
               p_old_payment_method_id: null,

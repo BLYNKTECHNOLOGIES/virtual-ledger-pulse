@@ -66,14 +66,14 @@ export function useBinanceChatWebSocket(
   const captureMetadata = useCallback((data: any) => {
     if (data.sessionId && !sessionIdRef.current) {
       sessionIdRef.current = data.sessionId;
-      console.log('✅ Captured sessionId:', sessionIdRef.current);
+      
     }
     // Capture groupId from any field that might contain it
     const gid = data.groupId || data.chatGroupId || data.threadId;
     const orderKey = data.orderNo || data.topicId;
     if (gid && orderKey) {
       if (!groupIdMapRef.current.has(orderKey)) {
-        console.log('✅ Captured groupId:', gid, 'for order:', orderKey);
+        
       }
       groupIdMapRef.current.set(orderKey, gid);
     }
@@ -83,14 +83,14 @@ export function useBinanceChatWebSocket(
   const fetchGroupId = useCallback(async (orderNo: string) => {
     if (groupIdMapRef.current.has(orderNo)) return; // Already have it
     try {
-      console.log('🔍 Pre-fetching groupId for order:', orderNo);
+      
       const result = await callBinanceAds('getChatGroupId', { orderNo });
       const data = result?.data?.data || result?.data || result;
       // Try to extract groupId from response
       const gid = data?.groupId || data?.chatGroupId;
       if (gid) {
         groupIdMapRef.current.set(orderNo, gid);
-        console.log('✅ Pre-fetched groupId:', gid, 'for order:', orderNo);
+        
       } else {
         // Try from group list if returned as array
         const groups = data?.groups || data?.list || (Array.isArray(data) ? data : []);
@@ -99,7 +99,7 @@ export function useBinanceChatWebSocket(
           const topic = g?.topicId || g?.orderNo;
           if (id && (!topic || topic === orderNo)) {
             groupIdMapRef.current.set(orderNo, id);
-            console.log('✅ Pre-fetched groupId from list:', id, 'for order:', orderNo);
+            
             break;
           }
         }
@@ -195,7 +195,7 @@ export function useBinanceChatWebSocket(
 
       const binanceTarget = `${credData.chatWssUrl}/${credData.listenKey}?token=${credData.listenToken}&clientType=web`;
       const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
-      console.log('Connecting to Binance Chat via relay...');
+      
 
       const ws = new WebSocket(wsUrl);
 
@@ -209,7 +209,7 @@ export function useBinanceChatWebSocket(
 
       ws.onopen = () => {
         clearTimeout(connectTimeout);
-        console.log('✅ Chat WebSocket connected via relay');
+        
         setIsConnected(true);
         setIsConnecting(false);
         setError(null);
@@ -235,7 +235,7 @@ export function useBinanceChatWebSocket(
           captureMetadata(data);
 
           // Log all frames with full detail for debugging
-          console.log('WS message received:', JSON.stringify(data).substring(0, 500));
+          
           
           // Skip error frames (don't add to messages list)
           if (data.type === 'error') {
@@ -249,7 +249,7 @@ export function useBinanceChatWebSocket(
             // CRITICAL: Only process messages belonging to the currently active order
             const msgOrderNo = data.orderNo || data.topicId || data.order?.orderNo;
             if (msgOrderNo && msgOrderNo !== activeOrderRef.current) {
-              console.log('⏭️ Skipping WS message for different order:', msgOrderNo, '(active:', activeOrderRef.current, ')');
+              
               return;
             }
 
@@ -284,11 +284,11 @@ export function useBinanceChatWebSocket(
 
           // Capture sessionId from confirmation frames
           if (data.scenario !== undefined && data.localId) {
-            console.log('📨 Message confirmed by Binance, msgId:', data.msgId);
+            
           }
 
           if (data.e === 'orderStatus' || data.type === 'orderStatusUpdate') {
-            console.log('Order status update via WS:', data);
+            
           }
         } catch {
           // Truly unparseable — ignore silently
@@ -301,7 +301,7 @@ export function useBinanceChatWebSocket(
       };
 
       ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
+        
         setIsConnected(false);
         setIsConnecting(false);
 
@@ -372,7 +372,7 @@ export function useBinanceChatWebSocket(
       if (groupId) payload.groupId = groupId;
 
       ws.send(JSON.stringify(payload));
-      console.log('📤 WS sent:', content.substring(0, 50));
+      
 
       // Fast poll to pick up confirmed message from server
       pollIntervalRef.current = 1500;
@@ -409,7 +409,7 @@ export function useBinanceChatWebSocket(
       if (groupId) imgPayload.groupId = groupId;
 
       ws.send(JSON.stringify(imgPayload));
-      console.log('📤 WS sent image link');
+      
 
       pollIntervalRef.current = 1500;
       setTimeout(() => fetchChatHistory(orderNo), 1500);

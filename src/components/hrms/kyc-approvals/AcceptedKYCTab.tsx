@@ -103,7 +103,7 @@ export function AcceptedKYCTab() {
 
   const handlePaymentStatusChange = async (kycId: string, status: string, paymentMethodId?: string) => {
     try {
-      console.log(`Updating KYC ${kycId} to status: ${status}`, { paymentMethodId });
+      
       
       const updateData: any = {
         payment_status: status,

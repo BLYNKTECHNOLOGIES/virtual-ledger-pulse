@@ -1,146 +1,82 @@
 
-## Fix Plan: Manual Purchase Entry is still broken due to live DB schema drift
 
-### Root cause I found
-This is not a frontend-only issue. The current live purchase RPCs are out of sync with the actual database schema, so they throw 400s before the order can be created.
+# ERP Full System Audit — Phase 17 Report
 
-#### Single-payment path is broken in `create_manual_purchase_complete_v2`
-The live function still inserts into columns that do not exist anymore:
-- `stock_transactions.warehouse_id` — column does not exist
-- `purchase_order_payment_splits.payment_date` — column does not exist
-- `purchase_order_payment_splits.status` — column does not exist
-- `purchase_order_payment_splits.notes` — column does not exist
+## Phases 1-16 Status (completed)
+All previous phases complete: data integrity fixes, orphaned code removal, permissions cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log batches 1-5, native confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination.
 
-#### Split-payment path is also broken in `create_manual_purchase_with_split_payments`
-It still inserts into:
-- `purchase_orders.order_status` — column does not exist
+---
 
-### Why the previous fix did not solve it
-The last work fixed P&L data, but the currently deployed manual purchase functions are still stale. The frontend is calling:
-- `create_manual_purchase_complete_v2_rpc`
-- `create_manual_purchase_with_split_payments_rpc`
+## CATEGORY A: Data Integrity / Security Bugs (3 items)
 
-Those wrappers still route into old function bodies that no longer match current tables.
+### P17-SEC-01: Hardcoded `'Current User'` string in 4 files instead of actual user ID
+**Impact: HIGH** — Audit trail is broken for bank account closures, compliance investigations, and case tracking. The string `'Current User'` is inserted into `closed_by`, `assigned_to`, `completed_by`, and `created_by` columns instead of the real user UUID.
 
-## Implementation plan
+**Files affected:**
+- `src/components/bams/CloseAccountDialog.tsx` (line 188) — `closed_by: 'Current User'`
+- `src/components/compliance/CaseTrackingTab.tsx` (line 92) — `investigation_assigned_to: 'Current User'`
+- `src/components/compliance/InvestigationDetailsDialog.tsx` (lines 167, 225, 338) — `completed_by`, `created_by`, `submitted_by`
+- `src/components/compliance/AccountStatusTab.tsx` (line 396) — `assigned_to: 'Current User'`
 
-### 1) Rebuild both manual purchase core functions against the current schema
-Create one corrective migration that fully recreates:
+**Fix:** Replace all 6 occurrences with `getCurrentUserId()` from `@/lib/system-action-logger`, falling back to `auth.uid()` where the column expects a UUID. For text columns that store names, use `user.email` or `user.username` from the auth context.
 
-- `public.create_manual_purchase_complete_v2`
-- `public.create_manual_purchase_with_split_payments`
+**Live data corruption:** 2 rows in `closed_bank_accounts` already have `closed_by = 'Current User'`. Will backfill with the actual user who performed the closure if determinable from `system_action_logs`, otherwise mark as `'system-backfill'`.
 
-using the current live table structure only.
+### P17-SEC-02: `stock_transactions` — 100% of rows have `created_by = NULL`
+**Impact: MEDIUM** — 1,373 out of 1,373 stock transaction rows lack audit attribution. This was caused by the old RPC functions not passing `created_by`. The rebuilt purchase RPCs (Phase 15) now pass `created_by`, but historical data is unattributed.
 
-#### Single-payment function
-Update it to:
-- insert `purchase_orders` without `order_status`
-- insert `purchase_order_items` with valid columns only
-- insert `bank_transactions` with current schema
-- insert `stock_transactions` with current schema:
-  - `product_id`
-  - `transaction_type`
-  - `quantity`
-  - `unit_price`
-  - `total_amount`
-  - `reference_number`
-  - `supplier_customer_name`
-  - `transaction_date`
-  - `reason`
-  - `created_by`
-- insert `wallet_transactions` with current schema
-- insert `purchase_order_payment_splits` using only:
-  - `purchase_order_id`
-  - `bank_account_id`
-  - `amount`
-  - `created_by`
+**Fix:** No retroactive backfill possible (original actor unknown). Document as known data gap. Verify the new purchase RPC correctly sets `created_by` going forward by checking one recent test entry.
 
-### 2) Fix split-payment logic properly, not just enough to stop the error
-While recreating `create_manual_purchase_with_split_payments`, also correct the deeper ledger inconsistency:
+### P17-SEC-03: `wallet_transactions` — 85% of rows have `created_by = NULL`
+**Impact: MEDIUM** — 4,323 out of 5,056 wallet transaction rows lack audit attribution. Same root cause as P17-SEC-02.
 
-Current split-payment logic:
-- creates wallet transactions when wallet exists
-- skips stock transaction in that case
+**Fix:** Same approach — document as historical gap. The rebuilt RPCs now set `created_by`. No safe retroactive backfill.
 
-Proper behavior should mirror single-payment flow:
-- always create purchase order item
-- always create stock transaction for inventory audit trail
-- create wallet transaction when wallet credit is applicable
-- create one `purchase_order_payment_splits` row per bank split
-- no use of removed `order_status`
+---
 
-This avoids “it saves but ledgers drift later” problems.
+## CATEGORY B: Aggressive Polling / Performance (2 items)
 
-### 3) Restore WAC / wallet position sync in the purchase path
-The current live `create_manual_purchase_complete_v2` does not contain the intended `wallet_asset_positions` update logic.
+### P17-PERF-01: `WalletManagementTab` polls at 5-second intervals
+Two queries in `WalletManagementTab.tsx` use `refetchInterval: 5000` with `staleTime: 0`. This fires 24 queries/minute per tab visitor, even when the data rarely changes.
 
-Re-add WAC sync so every purchase updates:
-- `wallet_asset_positions.qty_on_hand`
-- `wallet_asset_positions.cost_pool_usdt`
-- `wallet_asset_positions.avg_cost_usdt`
+**Fix:** Increase to `refetchInterval: 30000` (30s) and `staleTime: 10000` (10s). Wallet data doesn't change every 5 seconds.
 
-Use the same safety-clamp pattern already used elsewhere:
-- reset corrupted negative/extreme cost values
-- recompute weighted average from incoming purchase cost
-- keep this only for wallet-backed asset purchases
+### P17-PERF-02: `ExpensesIncomesTab` polls at 5-second intervals
+`src/components/bams/journal/ExpensesIncomesTab.tsx` uses `refetchInterval: 5000`. Bank journal entries don't change every 5 seconds.
 
-Also add the same WAC sync to the split-payment function so both purchase modes behave identically.
+**Fix:** Increase to `refetchInterval: 30000`.
 
-### 4) Rebuild all wrappers with named-argument routing
-Recreate these wrappers so all call sites stay compatible:
+---
 
-- `create_manual_purchase_complete_rpc`
-- `create_manual_purchase_complete_v2_rpc`
-- `create_manual_purchase_with_split_payments_rpc`
+## CATEGORY C: Code Quality (2 items)
 
-Requirements:
-- use named args only
-- keep the current frontend payload shape working
-- pass `p_deduction_bank_account_id := NULL` where needed for compatibility
-- avoid overload ambiguity regressions
+### P17-QUAL-01: Silent empty `catch {}` blocks in 5 locations
+These swallow errors without any logging:
+- `useTaskComments.ts:101`
+- `useAdActionLog.ts:111`
+- `RealDataWidgets.tsx:1090`
+- `TerminalSettings.tsx:49`
+- `ProfitLoss.tsx:265`
 
-### 5) Add server-side permission parity
-Right now split-payment RPC checks permission, but single-payment RPC does not.
+**Fix:** Add `console.warn` to each so failures are visible during debugging. The `TerminalSettings.tsx` one (localStorage parse) is acceptable as-is since it has a fallback.
 
-Make both RPC entrypoints enforce the same permission check:
-- `purchase_manage`
+### P17-QUAL-02: `useUSDTRate.tsx` — last remaining `console.debug` call
+One `console.debug` remains gated behind `import.meta.env.DEV`, which is acceptable. No action needed — document as intentional.
 
-This closes a backend security gap and keeps manual entry authorization consistent.
+---
 
-### 6) Preserve data integrity rules
-The corrective migration should:
-- not disable triggers
-- not bypass balance checks
-- not weaken idempotency protections
-- preserve existing bank balance validation
-- preserve PAN/TDS validation
-- preserve duplicate order-number protection
+## Summary Table
 
-## Verification checklist after implementation
-I will verify all four entry paths, because they share the same broken function family:
+| # | ID | Action | File(s) |
+|---|------|--------|---------|
+| 1 | P17-SEC-01 | Replace 6x `'Current User'` with real user ID | CloseAccountDialog, CaseTrackingTab, InvestigationDetailsDialog, AccountStatusTab |
+| 2 | P17-SEC-02 | Document stock_transactions audit gap | Documentation only |
+| 3 | P17-SEC-03 | Document wallet_transactions audit gap | Documentation only |
+| 4 | P17-PERF-01 | Reduce WalletManagementTab polling 5s → 30s | WalletManagementTab.tsx |
+| 5 | P17-PERF-02 | Reduce ExpensesIncomesTab polling 5s → 30s | ExpensesIncomesTab.tsx |
+| 6 | P17-QUAL-01 | Add console.warn to 4 silent catch blocks | 4 files |
 
-1. Purchase page → Manual Entry → single bank account
-2. Purchase page → Manual Entry → split payment
-3. Terminal purchase approval → single payment
-4. Small buys approval → single payment
+**Total: 6 hardcoded 'Current User' strings fixed, 2 polling intervals reduced, 4 silent catch blocks instrumented**
 
-For each, confirm:
-- no 400 error
-- purchase order created once
-- bank transaction created once
-- stock transaction created once
-- wallet transaction created once
-- payment split rows correct
-- `created_by` populated
-- `wallet_asset_positions` updated correctly
-- no duplicate ledger entries on retry
+No database schema changes needed. One data-fix query to backfill the 2 `closed_bank_accounts` rows.
 
-## Expected result
-This will be a root-cause fix, not a patch:
-- manual purchase creation starts working again
-- both single and split payment paths are aligned with the current DB schema
-- inventory and wallet ledgers remain consistent
-- future realized P&L calculations stop drifting from purchase history again because purchase WAC is synced at source
-
-### Technical note
-The failure is caused by stale function bodies, not by the React form. The frontend payload already matches the active RPC signatures closely enough; the live SQL implementations are what must be rebuilt.

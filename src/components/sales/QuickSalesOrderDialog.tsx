@@ -178,7 +178,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Detailed validation with specific error messages
@@ -201,6 +201,14 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
     }
     if (formData.total_amount <= 0) {
       errors.push("Total amount must be greater than 0");
+    }
+
+    // Check blocked phone numbers
+    if (formData.client_phone.trim()) {
+      const blocked = await isPhoneBlocked(formData.client_phone.trim());
+      if (blocked) {
+        errors.push("This phone number is blocked — it's a known operator/placeholder number");
+      }
     }
     
     if (errors.length > 0) {

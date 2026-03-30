@@ -230,6 +230,7 @@ export function TerminalAccessTab() {
     firstName && lastName ? `${firstName} ${lastName}` : username;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

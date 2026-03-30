@@ -1,13 +1,12 @@
 
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Clock, History, Briefcase, Activity, BarChart3 } from "lucide-react";
+import { Plus, Clock, History, Briefcase, Activity } from "lucide-react";
 import { CreateConversionForm } from "./conversion/CreateConversionForm";
 import { PendingConversionsTable } from "./conversion/PendingConversionsTable";
 import { ConversionHistoryTable } from "./conversion/ConversionHistoryTable";
 import { PortfolioSnapshot } from "./conversion/PortfolioSnapshot";
 import { RealizedPnlReport } from "./conversion/RealizedPnlReport";
-import { ExecutionVarianceReport } from "./conversion/ExecutionVarianceReport";
 
 export function InterProductConversionTab() {
   const [subTab, setSubTab] = useState("create");
@@ -38,10 +37,6 @@ export function InterProductConversionTab() {
               <Activity className="h-3.5 w-3.5" />
               Realized P&L
             </TabsTrigger>
-            <TabsTrigger value="variance" className="flex items-center gap-1.5 shrink-0">
-              <BarChart3 className="h-3.5 w-3.5" />
-              Variance
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -59,9 +54,6 @@ export function InterProductConversionTab() {
         </TabsContent>
         <TabsContent value="pnl">
           <RealizedPnlReport />
-        </TabsContent>
-        <TabsContent value="variance">
-          <ExecutionVarianceReport />
         </TabsContent>
       </Tabs>
     </div>

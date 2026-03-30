@@ -64,8 +64,8 @@ export function WalletSelector({
       if (error) throw error;
       return data;
     },
-    refetchInterval: 10000,
-    staleTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
   const getWalletBalance = (walletId: string): number | null => {

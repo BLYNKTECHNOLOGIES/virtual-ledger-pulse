@@ -320,9 +320,8 @@ export default function Dashboard() {
       }
       return [];
     },
-    refetchInterval: 10000,
-    staleTime: 0,
-    gcTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
   const { data: recentActivity, refetch: refetchActivity } = useQuery({

@@ -327,11 +327,8 @@ export default function ProfitLoss() {
       const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
 
-      // Conversion P&L from realized_pnl_events (coin price gains/losses)
-      const conversionPnlUsdt = realizedPnlData?.reduce((sum, item) => sum + Number(item.realized_pnl_usdt || 0), 0) || 0;
-      const conversionPnlInr = conversionPnlUsdt * usdtInrRate;
       
-      const netProfit = grossProfit - totalExpenses + totalIncome + conversionPnlInr;
+      const netProfit = grossProfit - totalExpenses + totalIncome;
       const profitMargin = totalSalesValue > 0 
         ? (netProfit / totalSalesValue) * 100 : 0;
 

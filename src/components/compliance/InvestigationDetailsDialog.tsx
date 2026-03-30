@@ -224,7 +224,7 @@ export function InvestigationDetailsDialog({
           investigation_id: investigationIdToUse,
           update_text: updateText,
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
-          created_by: 'Current User'
+          created_by: (await getCurrentUserIdAsync()) || 'unknown'
         });
       
       if (error) throw error;

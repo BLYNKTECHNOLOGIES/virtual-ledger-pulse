@@ -16,7 +16,7 @@ const BodySchema = z.object({
   positionId: z.string().uuid().optional().nullable(),
   roleId: z.string().uuid("Role ID is required"),
   badgeId: z.string().optional().nullable(),
-  callerUserId: z.string().uuid().optional(),
+  
 });
 
 function generatePassword(length = 12): string {

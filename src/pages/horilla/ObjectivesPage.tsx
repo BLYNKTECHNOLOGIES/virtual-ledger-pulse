@@ -63,6 +63,7 @@ export default function ObjectivesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { fetchAll(); }, []);

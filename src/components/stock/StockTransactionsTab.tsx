@@ -179,7 +179,6 @@ export function StockTransactionsTab() {
   const { data: walletTransactions } = useQuery({
     queryKey: ['wallet_stock_transactions'],
     queryFn: async () => {
-      console.log('🔄 Fetching wallet transactions...');
       const { data, error } = await supabase
         .from('wallet_transactions')
         .select(`
@@ -339,7 +338,6 @@ export function StockTransactionsTab() {
         };
       });
 
-      console.log('✅ Wallet transactions loaded:', enriched.length, 'transactions');
       return enriched;
     },
     staleTime: 0, // Always fetch fresh data

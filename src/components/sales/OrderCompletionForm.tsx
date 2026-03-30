@@ -156,8 +156,6 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
         // Process platform fee separately if applicable
         const platformFees = order?.fee_amount || 0;
         if (platformFees > 0) {
-          console.log('💰 Processing platform fee deduction:', platformFees, 'USDT');
-          
           const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
             p_order_id: order.id,
             p_order_type: 'SALES_ORDER',
@@ -169,14 +167,9 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
           if (feeError) {
             console.error('Error processing platform fee:', feeError);
             // Don't throw - main order was completed, just log
-          } else {
-            console.log('✅ Platform fee processed:', feeResult);
           }
         }
       }
-
-      // Note: Stock transactions and product updates will be handled by database triggers
-      console.log('✅ Order completion - all stock management handled by database triggers');
 
       // Process bank transaction if payment method exists
       if (order.sales_payment_method_id) {
@@ -187,9 +180,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
           .single();
 
         // Note: Bank transaction will be automatically created by database triggers
-        if (paymentMethod?.bank_account_id) {
-          console.log('Order completed for payment method with bank account - bank transaction will be handled by triggers');
-        }
+        // Bank transaction will be handled by triggers
       }
 
       return order.id;
@@ -215,9 +206,8 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
              .maybeSingle();
            
            // If client doesn't exist, create an onboarding approval request
-           if (!existingClient) {
-             console.log('📝 New client detected, creating onboarding approval request...');
-             const { error: approvalError } = await supabase
+            if (!existingClient) {
+              const { error: approvalError } = await supabase
                .from('client_onboarding_approvals')
                .insert({
                  sales_order_id: order.id,
@@ -229,12 +219,10 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                });
  
              if (approvalError) {
-               console.error('⚠️ Failed to create approval request:', approvalError);
-             } else {
-               console.log('✅ Onboarding approval request created');
-             }
+                console.error('Failed to create approval request:', approvalError);
+              }
            } else {
-             console.log('✅ Existing client found:', existingClient.name);
+             
            }
          }
        } catch (approvalCheckError) {

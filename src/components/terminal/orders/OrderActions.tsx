@@ -170,8 +170,6 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     const finalCode = overrideCode || codeRef.current;
     if (!finalCode.trim() || releaseFiredRef.current || releaseCoin.isPending) return;
     releaseFiredRef.current = true;
-    console.log('[ReleaseCrypto] Firing release with', finalCode.length, 'chars, authMethod:', authMethod);
-    
     // API doc #29 expects authType + method-specific verification fields.
     // For YubiKey release on this endpoint, sending generic `code` causes
     // "Unsupported authentication type"; send only yubikeyVerifyCode.
@@ -185,16 +183,13 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
       params[selectedAuth.fieldName] = finalCode;
     }
     
-    console.log('[ReleaseCrypto] Sending params:', JSON.stringify(params));
     releaseCoin.mutate(params as any, {
       onSuccess: () => {
-        console.log('[ReleaseCrypto] Release succeeded!');
         setOpen(false);
         updateCode('');
         releaseFiredRef.current = false;
       },
-      onError: (err) => {
-        console.error('[ReleaseCrypto] Release failed:', err);
+      onError: () => {
         releaseFiredRef.current = false;
       },
     });
@@ -204,7 +199,6 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const handleCodeChange = (val: string) => {
     updateCode(val);
     if (authMethod === 'YUBIKEY' && val.length >= 44 && !releaseFiredRef.current) {
-      console.log('[ReleaseCrypto] YubiKey auto-submit at', val.length, 'chars');
       setTimeout(() => doRelease(val), 100);
     }
   };
@@ -265,23 +259,17 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               placeholder={selectedAuth.placeholder}
               value={code}
               onChange={(e) => {
-                console.log('[ReleaseCrypto] Input onChange:', e.target.value.length, 'chars');
                 handleCodeChange(e.target.value);
               }}
               onKeyDown={(e) => {
-                console.log('[ReleaseCrypto] Key pressed:', e.key);
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   e.stopPropagation();
                   const val = (e.target as HTMLInputElement).value;
-                  console.log('[ReleaseCrypto] Enter with value length:', val.length);
                   if (val.trim()) {
                     setTimeout(() => doRelease(val), 50);
                   }
                 }
-              }}
-              onInput={(e) => {
-                console.log('[ReleaseCrypto] onInput event:', (e.target as HTMLInputElement).value.length, 'chars');
               }}
               maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
               className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}

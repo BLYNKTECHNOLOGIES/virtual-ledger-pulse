@@ -1,5 +1,6 @@
 import { FileText, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { PermissionGate } from "@/components/PermissionGate";
 
 const tools = [
   {

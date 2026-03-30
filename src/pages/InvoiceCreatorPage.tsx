@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { PermissionGate } from "@/components/PermissionGate";
 import { Download, Receipt, Hash, FileText, FileDown, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CSVUploader from "@/components/invoice/CSVUploader";

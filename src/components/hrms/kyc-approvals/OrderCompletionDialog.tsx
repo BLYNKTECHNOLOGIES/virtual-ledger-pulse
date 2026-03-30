@@ -82,18 +82,23 @@ export function OrderCompletionDialog({
     },
   });
 
-  // Fetch platforms
+  // Fetch platforms derived from active wallets
   const { data: platforms } = useQuery({
-    queryKey: ['platforms'],
+    queryKey: ['wallet_platforms'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('platforms')
-        .select('*')
+        .from('wallets')
+        .select('id, wallet_name')
         .eq('is_active', true)
-        .order('name');
+        .order('wallet_name');
       
       if (error) throw error;
-      return data;
+      const seen = new Set<string>();
+      return (data || []).filter(w => {
+        if (seen.has(w.wallet_name)) return false;
+        seen.add(w.wallet_name);
+        return true;
+      }).map(w => ({ id: w.id, name: w.wallet_name }));
     },
   });
 

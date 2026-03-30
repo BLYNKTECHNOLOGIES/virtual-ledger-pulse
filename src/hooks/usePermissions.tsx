@@ -21,9 +21,8 @@ export function usePermissions() {
         return;
       }
       
-      // Check if user is demo admin (hardcoded permissions)
-      if (user.id === 'demo-admin-id' || user.email === 'blynkvirtualtechnologiespvtld@gmail.com' || 
-          user.roles?.some(r => r.toLowerCase() === 'super admin')) {
+      // Check if user is super admin (role-based only)
+      if (user.roles?.some(r => r.toLowerCase() === 'super admin')) {
         const adminPermissions = [
           'dashboard_view',
           'sales_view', 'sales_manage',
@@ -41,6 +40,7 @@ export function usePermissions() {
           'video_kyc_view', 'video_kyc_manage',
           'kyc_approvals_view', 'kyc_approvals_manage',
           'statistics_view', 'statistics_manage',
+          'risk_management_view', 'risk_management_manage',
           'erp_destructive', 'terminal_destructive', 'bams_destructive',
           'clients_destructive', 'stock_destructive',
            'shift_reconciliation_create', 'shift_reconciliation_approve',
@@ -48,7 +48,6 @@ export function usePermissions() {
            'tasks_view', 'tasks_manage'
          ];
         setPermissions(adminPermissions);
-        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
         return;
       }
 

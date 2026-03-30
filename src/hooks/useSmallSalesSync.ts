@@ -89,7 +89,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   });
 
   if (smallOrders.length === 0) {
-    console.log('[SmallSalesSync] No small sale orders found.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 

@@ -77,11 +77,9 @@ export function TerminalSidebar() {
     return location.pathname.startsWith(url);
   };
 
-  // If no terminal role assigned, show all nav items (unrestricted until role is assigned)
-  const showAll = !isLoading && terminalPermissions.length === 0;
+  // Only show items user has permission for (no fallback to show all)
 
   const visibleItems = navItems.filter((item) => {
-    if (showAll) return true;
     if (!item.requiredPermission) return true;
     return hasPermission(item.requiredPermission);
   });

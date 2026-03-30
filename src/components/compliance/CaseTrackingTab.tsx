@@ -12,6 +12,7 @@ import { Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 
 const caseTypeLabels = {
   'ACCOUNT_NOT_WORKING': 'Account Not Working',

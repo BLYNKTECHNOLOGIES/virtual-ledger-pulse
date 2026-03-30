@@ -444,22 +444,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           updates.pan_card_number = panNumber;
         }
 
-        // Phone/state from counterparty records — only for unmasked nicknames
-        const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
-        let resolvedPhone: string | null = null;
-        let resolvedState: string | null = null;
-        if (nickname && !nickname.includes('*')) {
-          const { data: contactRec } = await supabase
-            .from('counterparty_contact_records')
-            .select('contact_number, state')
-            .eq('counterparty_nickname', nickname)
-            .maybeSingle();
-          resolvedPhone = contactRec?.contact_number || null;
-          resolvedState = contactRec?.state || null;
-        }
-
-        if (resolvedPhone && existingClient?.phone !== resolvedPhone) updates.phone = resolvedPhone;
-        if (resolvedState && existingClient?.state !== resolvedState) updates.state = resolvedState;
+        // Phone/state: use operator-confirmed form values (already resolved from counterparty/client)
+        if (contactNumber && existingClient?.phone !== contactNumber) updates.phone = contactNumber;
+        if (clientState && existingClient?.state !== clientState) updates.state = clientState;
 
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);

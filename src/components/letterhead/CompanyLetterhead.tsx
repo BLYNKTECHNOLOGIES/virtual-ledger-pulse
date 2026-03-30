@@ -8,131 +8,98 @@ interface CompanyLetterheadProps {
 
 export function CompanyLetterhead({ children, showCIN = true }: CompanyLetterheadProps) {
   return (
-    <div className="relative bg-white w-full min-h-[1122px] overflow-hidden" style={{ fontFamily: 'Arial, sans-serif' }}>
-      {/* Top-left corner decoration */}
-      <div className="absolute top-0 left-0 w-[120px] h-[160px] overflow-hidden">
-        {/* Dark navy stripe */}
-        <div
-          className="absolute"
-          style={{
-            top: '-30px',
-            left: '-60px',
-            width: '200px',
-            height: '80px',
-            background: '#0a1f44',
-            transform: 'rotate(-35deg)',
-            transformOrigin: 'center',
-          }}
+    <div
+      className="relative bg-white w-full overflow-hidden"
+      style={{
+        fontFamily: 'Arial, sans-serif',
+        minHeight: '1122px',
+        aspectRatio: '210 / 297',
+      }}
+    >
+      {/* ── Top-left corner: 3 diagonal chevron stripes ── */}
+      <svg
+        className="absolute top-0 left-0"
+        width="180"
+        height="200"
+        viewBox="0 0 180 200"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Light blue (bottom layer) */}
+        <path
+          d="M0 0 L180 0 L180 30 L60 200 L0 200 Z"
+          fill="#a8d4f0"
         />
-        {/* Medium blue stripe */}
-        <div
-          className="absolute"
-          style={{
-            top: '10px',
-            left: '-50px',
-            width: '200px',
-            height: '60px',
-            background: '#1a8fcf',
-            transform: 'rotate(-35deg)',
-            transformOrigin: 'center',
-          }}
+        {/* Medium blue (middle layer) */}
+        <path
+          d="M0 0 L140 0 L140 20 L40 175 L0 175 Z"
+          fill="#2196F3"
         />
-        {/* Light blue stripe */}
-        <div
-          className="absolute"
-          style={{
-            top: '45px',
-            left: '-40px',
-            width: '200px',
-            height: '50px',
-            background: '#3db4f0',
-            transform: 'rotate(-35deg)',
-            transformOrigin: 'center',
-          }}
+        {/* Dark navy (top layer) */}
+        <path
+          d="M0 0 L100 0 L100 15 L20 145 L0 145 Z"
+          fill="#0b1f3f"
         />
-      </div>
+      </svg>
 
-      {/* Right side navy bar */}
+      {/* ── Right-side navy bar (full height) ── */}
       <div
-        className="absolute right-0 top-0 h-full"
-        style={{
-          width: '45px',
-          background: 'linear-gradient(180deg, #0a1f44 0%, #0d2a5c 100%)',
-        }}
+        className="absolute right-0 top-0 w-[42px] h-full"
+        style={{ background: '#0b1f3f' }}
       />
-
-      {/* Right side accent line */}
+      {/* White accent line inside right bar */}
       <div
-        className="absolute"
+        className="absolute bg-white"
         style={{
-          right: '50px',
-          top: '35%',
+          right: '48px',
+          top: '33%',
           height: '30%',
           width: '2px',
-          background: '#ffffff',
-          opacity: 0.0,
         }}
       />
 
-      {/* Bottom-left corner decoration */}
-      <div className="absolute bottom-0 left-0 w-[140px] h-[120px] overflow-hidden">
-        {/* Dark navy stripe */}
-        <div
-          className="absolute"
-          style={{
-            bottom: '-20px',
-            left: '-60px',
-            width: '220px',
-            height: '60px',
-            background: '#0a1f44',
-            transform: 'rotate(-35deg)',
-            transformOrigin: 'center',
-          }}
+      {/* ── Bottom-left corner: 3 diagonal chevron stripes (mirrored) ── */}
+      <svg
+        className="absolute bottom-0 left-0"
+        width="200"
+        height="180"
+        viewBox="0 0 200 180"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        {/* Light blue (top layer visually, drawn first) */}
+        <path
+          d="M0 180 L200 180 L200 155 L80 0 L0 0 Z"
+          fill="#a8d4f0"
         />
-        {/* Medium blue stripe */}
-        <div
-          className="absolute"
-          style={{
-            bottom: '15px',
-            left: '-50px',
-            width: '220px',
-            height: '50px',
-            background: '#1a8fcf',
-            transform: 'rotate(-35deg)',
-            transformOrigin: 'center',
-          }}
+        {/* Medium blue */}
+        <path
+          d="M0 180 L160 180 L160 160 L55 15 L0 15 Z"
+          fill="#2196F3"
         />
-        {/* Light blue stripe */}
-        <div
-          className="absolute"
-          style={{
-            bottom: '50px',
-            left: '-40px',
-            width: '220px',
-            height: '40px',
-            background: '#3db4f0',
-            transform: 'rotate(-35deg)',
-            transformOrigin: 'center',
-          }}
+        {/* Dark navy */}
+        <path
+          d="M0 180 L115 180 L115 168 L30 40 L0 40 Z"
+          fill="#0b1f3f"
         />
-      </div>
+      </svg>
 
-      {/* Header: Logo + CIN */}
-      <div className="relative z-10 flex flex-col items-center pt-6 pb-4">
+      {/* ── Header: Logo + CIN ── */}
+      <div className="relative z-10 flex flex-col items-center pt-5 pb-3">
         <img
           src={blynkLogo}
           alt="Blynk Virtual Technologies"
-          className="h-14 object-contain"
+          className="h-16 object-contain"
         />
         {showCIN && (
-          <p className="mt-1 text-xs text-gray-600 tracking-wide">
+          <p className="mt-1 text-[11px] text-gray-600 tracking-wide">
             CIN No . U62099MP2025PTC074915
           </p>
         )}
       </div>
 
-      {/* Content area */}
-      <div className="relative z-10 px-16 pr-20 py-4">
+      {/* ── Content area ── */}
+      <div className="relative z-10 px-14 pr-[72px] py-4">
         {children}
       </div>
     </div>

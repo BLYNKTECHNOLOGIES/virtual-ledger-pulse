@@ -64,6 +64,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
   onInterview: (c: Candidate) => void;
   onOffer: (c: Candidate) => void;
 }) {
+  const navigate = useNavigate();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: candidate.id,
     data: { type: "candidate", stageId: currentStageId },

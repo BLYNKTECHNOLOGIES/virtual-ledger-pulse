@@ -602,7 +602,7 @@ export function TerminalRolesList() {
             </div>
 
             {/* Module Grid */}
-            <ScrollArea className="flex-1 min-h-0 px-6 pb-2">
+            <ScrollArea className="flex-1 min-h-0 px-6 pb-2 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 280px)' }}>
               <div className="space-y-2 pr-2 pb-4">
                 {PERMISSION_MODULES.map((mod) => {
                   const grantedInModule = mod.permissions.filter(p => editPerms.has(p.key)).length;

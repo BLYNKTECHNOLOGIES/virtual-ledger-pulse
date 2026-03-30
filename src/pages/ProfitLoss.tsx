@@ -262,7 +262,7 @@ export default function ProfitLoss() {
        try {
          const { data: rateData } = await supabase.functions.invoke('fetch-usdt-rate');
          if (rateData?.rate) usdtInrRate = rateData.rate;
-       } catch {}
+       } catch (err) { console.warn('[ProfitLoss] Failed to fetch USDT rate:', err); }
 
       // Calculate period-based metrics
       // For "All Assets" mode, convert non-USDT purchases to USDT-equivalent:

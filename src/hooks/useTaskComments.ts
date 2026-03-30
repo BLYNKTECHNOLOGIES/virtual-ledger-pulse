@@ -98,7 +98,7 @@ export function useAddTaskComment() {
               assignedByName: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone',
               ccUserIds: mentionedOthers,
             });
-          } catch {}
+          } catch (err) { console.warn('[useTaskComments] Failed to send task mention email:', err); }
         }
       }
     },

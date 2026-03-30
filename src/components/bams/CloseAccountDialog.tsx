@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserIdAsync } from "@/lib/system-action-logger";
 
 interface BankAccount {
   id: string;
@@ -185,7 +185,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
           final_balance: account.balance,
           closure_reason: closureReason,
           closure_documents: documentUrls,
-          closed_by: 'Current User'
+          closed_by: (await getCurrentUserIdAsync()) || 'unknown'
         });
 
       if (insertError) {

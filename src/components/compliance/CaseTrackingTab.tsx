@@ -12,6 +12,7 @@ import { Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 
 const caseTypeLabels = {
   'ACCOUNT_NOT_WORKING': 'Account Not Working',
@@ -84,12 +85,13 @@ export function CaseTrackingTab() {
   // Start Investigation Mutation
   const startInvestigationMutation = useMutation({
     mutationFn: async (caseId: string) => {
+      const userId = (await getCurrentUserIdAsync()) || 'unknown';
       const { error } = await supabase
         .from('bank_cases')
         .update({
           investigation_status: 'UNDER_INVESTIGATION',
           investigation_started_at: new Date().toISOString(),
-          investigation_assigned_to: 'Current User' // You can replace with actual user
+          investigation_assigned_to: userId
         })
         .eq('id', caseId);
       

@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, CheckCircle, Clock, FileText, ExternalLink } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
+import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 
 interface InvestigationDetailsDialogProps {
   investigation: any;
@@ -159,12 +160,13 @@ export function InvestigationDetailsDialog({
   // Complete step mutation
   const completeStepMutation = useMutation({
     mutationFn: async ({ stepId, notes, reportUrl }: { stepId: string; notes?: string; reportUrl?: string }) => {
+      const userId = (await getCurrentUserIdAsync()) || 'unknown';
       const { error } = await supabase
         .from('investigation_steps')
         .update({
           status: 'COMPLETED',
           completed_at: new Date().toISOString(),
-          completed_by: 'Current User',
+          completed_by: userId,
           notes,
           completion_report_url: reportUrl
         })
@@ -222,7 +224,7 @@ export function InvestigationDetailsDialog({
           investigation_id: investigationIdToUse,
           update_text: updateText,
           attachment_urls: attachmentUrls.length > 0 ? attachmentUrls : null,
-          created_by: 'Current User'
+          created_by: (await getCurrentUserIdAsync()) || 'unknown'
         });
       
       if (error) throw error;
@@ -335,7 +337,7 @@ export function InvestigationDetailsDialog({
         investigation_id: investigationIdToUse,
         final_resolution: finalResolution,
         supporting_documents_urls: attachmentUrls,
-        submitted_by: 'Current User',
+        submitted_by: (await getCurrentUserIdAsync()) || 'unknown',
         approval_status: 'PENDING'
       };
       

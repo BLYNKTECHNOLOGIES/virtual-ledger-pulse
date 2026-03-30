@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 
 export function AccountStatusTab() {
   const [showInvestigationDialog, setShowInvestigationDialog] = useState(false);
@@ -387,13 +388,14 @@ export function AccountStatusTab() {
                   return;
                 }
                 try {
+                  const userId = (await getCurrentUserIdAsync()) || 'unknown';
                   const { error } = await supabase.from('account_investigations').insert({
                     bank_account_id: selectedAccount.id,
                     investigation_type: investigationData.type,
                     reason: investigationData.reason,
                     priority: investigationData.priority,
                     notes: investigationData.notes,
-                    assigned_to: 'Current User',
+                    assigned_to: userId,
                     status: 'ACTIVE'
                   });
                   if (error) {

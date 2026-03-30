@@ -267,6 +267,7 @@ export function StockTransactionsTab() {
           ...(salesOrders || []).map((so: any) => so.created_by).filter(Boolean),
           ...(purchaseOrders || []).map((po: any) => po.created_by).filter(Boolean),
           ...(conversions || []).map((c: any) => c.created_by).filter(Boolean),
+          ...(tx || []).map((t: any) => t.created_by).filter(Boolean),
         ])
       ) as string[];
 
@@ -334,7 +335,7 @@ export function StockTransactionsTab() {
           _total_amount: qty * unitPrice,
           _supplier_customer_name: null,
           _reference_number: null,
-          _created_by_user: null,
+          _created_by_user: t.created_by ? userById.get(t.created_by) : null,
         };
       });
 

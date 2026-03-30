@@ -341,7 +341,8 @@ export function TerminalRolesList() {
     setIsNew(false);
     setEditName(role.name);
     setEditDesc(role.description);
-    setEditPerms(new Set(role.permissions));
+    const knownKeys = new Set(PERMISSION_MODULES.flatMap(m => m.permissions.map(p => p.key)));
+    setEditPerms(new Set(role.permissions.filter(p => knownKeys.has(p))));
     setEditHierarchy(role.hierarchy_level !== null ? String(role.hierarchy_level) : "");
     setCollapsedModules(new Set());
   };

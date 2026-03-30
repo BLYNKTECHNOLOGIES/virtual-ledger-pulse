@@ -8,13 +8,14 @@ import { FlaggedClientsTab } from "@/components/risk-management/FlaggedClientsTa
 import { UnderReKYCTab } from "@/components/risk-management/UnderReKYCTab";
 import { ClearedClientsTab } from "@/components/risk-management/ClearedClientsTab";
 import { BlacklistedClientsTab } from "@/components/risk-management/BlacklistedClientsTab";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useNavigate } from "react-router-dom";
 
 export default function RiskManagement() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("flagged");
 
   // Fetch risk summary statistics
@@ -56,8 +57,8 @@ export default function RiskManagement() {
       
       if (error) throw error;
       
-      // Refresh the page after detection
-      window.location.reload();
+      // Refresh data after detection
+      queryClient.invalidateQueries({ queryKey: ["risk-stats"] });
     } catch (error) {
       console.error("Error running risk detection:", error);
     }
@@ -65,7 +66,7 @@ export default function RiskManagement() {
 
   return (
     <PermissionGate
-      permissions={["compliance_view"]}
+      permissions={["risk_management_view"]}
       fallback={
         <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">

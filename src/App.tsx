@@ -33,7 +33,7 @@ import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
 
 import UserProfile from './pages/UserProfile';
-import Banking from './pages/Banking';
+
 import RiskManagement from './pages/RiskManagement';
 import AdManager from './pages/AdManager';
 import TerminalDashboard from './pages/terminal/TerminalDashboard';
@@ -383,20 +383,8 @@ const router = createBrowserRouter([
        </QueryProvider>
      ),
    },
-   {
-     path: "/banking",
-     element: (
-       <QueryProvider>
-         <AuthProvider>
-           <AuthCheck>
-             <Layout>
-               <Banking />
-             </Layout>
-           </AuthCheck>
-         </AuthProvider>
-       </QueryProvider>
-      ),
-    },
+
+
     {
       path: "/risk-management",
       element: (

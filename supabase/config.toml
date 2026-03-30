@@ -45,8 +45,6 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.reconciliation-scan]
     verify_jwt = false
-  [functions.reset-password-with-otp]
-    verify_jwt = false
   [functions.reset-payment-limits]
     verify_jwt = false
   [functions.risk-detection]

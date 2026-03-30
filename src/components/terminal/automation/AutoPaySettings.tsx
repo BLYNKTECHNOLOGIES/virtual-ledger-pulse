@@ -12,7 +12,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 
-export function AutoPaySettings() {
+interface AutoPaySettingsProps {
+  canToggle?: boolean;
+  canConfigure?: boolean;
+}
+
+export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoPaySettingsProps) {
   const queryClient = useQueryClient();
 
   const { data: settings, isLoading } = useQuery({

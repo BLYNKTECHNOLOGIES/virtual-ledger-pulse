@@ -48,7 +48,13 @@ const ALERT_BADGE_STYLES: Record<string, string> = {
   auto_paused: 'bg-destructive/20 text-destructive border-destructive/40',
 };
 
-export function AutoPricingRules() {
+interface AutoPricingRulesProps {
+  canManage?: boolean;
+  canToggle?: boolean;
+  canDelete?: boolean;
+}
+
+export function AutoPricingRules({ canManage = true, canToggle = true, canDelete = true }: AutoPricingRulesProps) {
   const { data: rules = [], isLoading } = useAutoPricingRules();
   const updateRule = useUpdateAutoPricingRule();
   const deleteRule = useDeleteAutoPricingRule();

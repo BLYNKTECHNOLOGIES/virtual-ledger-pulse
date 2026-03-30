@@ -527,13 +527,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           }, { onConflict: 'counterparty_nickname' });
       }
 
-      // Sync contact/state to client master — only update fields that are currently missing on the client.
-      // If the operator provides phone/state in this dialog and the client doesn't have them yet, fill them in.
-      // This ensures repeat orders progressively enrich the client profile without overwriting existing data.
-      if (linkedClientId && (contactNumber || clientState)) {
+      // Sync PAN/contact/state to client master — overwrite if operator provides different values
+      if (linkedClientId) {
         const { data: existingClient } = await supabase
           .from('clients')
-          .select('phone, state')
+          .select('phone, state, pan_card_number')
           .eq('id', linkedClientId)
           .maybeSingle();
 
@@ -544,6 +542,18 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
         if (clientState && existingClient?.state !== clientState) {
           updates.state = clientState;
+        }
+        // PAN: fetch from counterparty records and sync to client master if different
+        const nickname = (od.counterparty_nickname || syncRecord?.counterparty_name || '').trim();
+        if (nickname && !nickname.includes('*')) {
+          const { data: panRec } = await supabase
+            .from('counterparty_pan_records')
+            .select('pan_number')
+            .eq('counterparty_nickname', nickname)
+            .maybeSingle();
+          if (panRec?.pan_number && existingClient?.pan_card_number !== panRec.pan_number) {
+            updates.pan_card_number = panRec.pan_number;
+          }
         }
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);

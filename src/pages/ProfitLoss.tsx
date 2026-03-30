@@ -61,9 +61,6 @@ interface PeriodMetrics {
    effectivePurchaseRate: number | null;
    netPurchaseQty: number;
 
-   // Conversion P&L
-   conversionPnlUsdt: number;
-   conversionPnlInr: number;
 }
 
 interface TradeEntry {

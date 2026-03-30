@@ -47,9 +47,6 @@ export function InterProductConversionTab() {
         <TabsContent value="portfolio">
           <PortfolioSnapshot />
         </TabsContent>
-        <TabsContent value="pnl">
-          <RealizedPnlReport />
-        </TabsContent>
       </Tabs>
     </div>
   );

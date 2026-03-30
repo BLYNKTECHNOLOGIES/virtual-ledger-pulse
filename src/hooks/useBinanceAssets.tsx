@@ -62,8 +62,8 @@ export function useBinanceBalances() {
         (b) => !EXCLUDED_ASSETS.includes(b.asset)
       );
     },
-    refetchInterval: 15000,
-    staleTime: 5000,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 }
 

@@ -1,108 +1,81 @@
 
 
-# ERP Full System Audit — Phase 8 Report
+# ERP Full System Audit — Phase 9 Report
 
-## Phases 1-7 Status (completed)
+## Phases 1-8 Status (completed)
 - Phase 1-4: Data integrity, orphaned code, permissions, demo-admin cleanup — ALL FIXED
 - Phase 5: Hardcoded password, dead localStorage, native dialogs replaced — ALL FIXED
 - Phase 6: XSS fix, stale removeItems, shift delete cleanup — ALL FIXED
 - Phase 6.5: Buy Orders/Pending/Review tabs removed, 25 files deleted, dead DB columns + trigger dropped — ALL FIXED
 - Phase 7: 3 dead DB tables dropped, dead `useIsOrderFocused` removed, `window.location.reload()` replaced in EditUserDialog — ALL FIXED
+- Phase 8: 2 orphaned HRMS files deleted, OrderFocusContext fully removed, empty import + stale localStorage + duplicate session writes cleaned — ALL FIXED
 
 ---
 
-## CATEGORY 1: ORPHANED FILES (never imported anywhere)
+## CATEGORY 1: ORPHANED HOOKS (never imported anywhere)
 
-### P8-DEAD-01 | ClaimExpenseTab.tsx — 100% mock data, never imported (DELETE)
+### P9-DEAD-01 | useOperatorModule.ts — 161 lines, zero imports (DELETE)
 
-`src/components/hrms/ClaimExpenseTab.tsx` is a 139-line component with **hardcoded mock data** (fake employees, fake amounts). It is exported but **never imported** by any file in the codebase. Pure dead code.
+`src/hooks/useOperatorModule.ts` exports `useOperatorAssignments`, `useCreateOperatorAssignment`, `useDeleteOperatorAssignment`, and `useAutoAssignOperator`. **No file imports from this module.** The underlying table (`terminal_operator_assignments`) is queried directly in `TerminalMPI.tsx` and `TerminalOperatorDetail.tsx` — they do not use this hook.
 
-### P8-DEAD-02 | LeavesTab.tsx — standalone HR leave management, never imported (DELETE)
+### P9-DEAD-02 | useValidation.tsx — 121 lines, zero imports (DELETE)
 
-`src/components/hrms/LeavesTab.tsx` is a 301-line component that queries `hr_leave_requests`. It is exported but **never imported** anywhere. Note: `LeaveTab.tsx` (singular, different file) IS imported by `EmployeeProfilePage.tsx` — that one is live. `LeavesTab.tsx` (plural) is dead.
+`src/hooks/useValidation.tsx` wraps `@/utils/validations` with toast error handling. **Never imported.** The underlying `@/utils/validations` is imported directly where needed (TransactionForm, TransferForm). This hook is an unused wrapper layer.
 
-**Fix**: Delete both orphaned files.
+### P9-DEAD-03 | useStockValidation.tsx — 31 lines, zero imports (DELETE)
 
----
+`src/hooks/useStockValidation.tsx` is a smaller wrapper around `validateProductStock` from `@/utils/validations`. **Never imported.** Same pattern as above — dead wrapper.
 
-## CATEGORY 2: DEAD CODE PATTERNS
+### P9-DEAD-04 | usePerformance.tsx — 20 lines, zero imports (DELETE)
 
-### P8-DEAD-03 | Empty import `import {} from "@/components/ui/select"` (LOW)
+`src/hooks/usePerformance.tsx` sets up a `PerformanceObserver` for Core Web Vitals logging. **Never imported.** It only writes to `console.log` — pure dead instrumentation code.
 
-`PendingConversionsTable.tsx` line 8 has `import {} from "@/components/ui/select"` — an empty import that does nothing. Cosmetic dead code.
+### P9-DEAD-05 | useOptimizedQueries.tsx — 109 lines, zero imports (DELETE)
 
-**Fix**: Remove the empty import line.
-
-### P8-DEAD-04 | Stale `removeItem('userPermissions')` in useAuth.tsx (LOW)
-
-`useAuth.tsx` line 97 still calls `localStorage.removeItem('userPermissions')` during logout. No code anywhere writes `userPermissions` to localStorage (confirmed: zero `setItem`/`getItem` calls for this key). This is a harmless no-op but dead code.
-
-**Fix**: Remove the stale `removeItem('userPermissions')` call.
+`src/hooks/useOptimizedQueries.tsx` exports `useProducts`, `useBankAccounts`, `usePaymentMethods`, `useWarehouses`. **Never imported.** These queries are done inline or via other hooks throughout the app.
 
 ---
 
-## CATEGORY 3: OrderFocusContext — FULLY DEAD (post-Phase 6.5)
+## CATEGORY 2: ORPHANED UTILS (never imported)
 
-### P8-DEAD-05 | OrderFocusContext scrolls to `order-card-{id}` but no element renders that ID (MEDIUM)
+### P9-DEAD-06 | debugAuth.ts — 36 lines, zero imports (DELETE)
 
-After the BuyOrderCard deletion in Phase 6.5:
-- `focusOrder()` calls `document.getElementById('order-card-${orderId}')` — **no component renders this ID**
-- `NotificationContext` calls `focusOrder()` on order click-through — silently does nothing
-- The entire `OrderFocusProvider` wraps the app in `Layout.tsx` for no purpose
+`src/utils/debugAuth.ts` is a debug utility that dumps Supabase auth state to console. **Never imported.** Development artifact that should not ship.
 
-The context is now a no-op wrapper. We can safely:
-1. Remove `OrderFocusContext.tsx` entirely
-2. Remove the `useOrderFocus` import and `focusOrder` call from `NotificationContext.tsx`
-3. Remove `OrderFocusProvider` wrapper from `Layout.tsx`
+### P9-DEAD-07 | lazyLoad.ts — 16 lines, zero imports (DELETE)
 
-**Fix**: Delete `OrderFocusContext.tsx`, clean up `NotificationContext.tsx` and `Layout.tsx`.
+`src/utils/lazyLoad.ts` provides a `lazyLoad()` wrapper around React.lazy. **Never imported.** The app uses direct `lazy()` calls or no code splitting at all.
 
 ---
 
-## CATEGORY 4: DUPLICATE localStorage SESSION (LoginPage.tsx)
+## CATEGORY 3: SYSTEMIC ISSUES (DEFERRED)
 
-### P8-DUP-01 | LoginPage.tsx duplicates session writes already done by useAuth (LOW)
+### P9-TYPE-01 | 64 files use `(supabase as any)` — type safety bypass (DEFERRED)
+Needs Supabase type regeneration. Tracked since Phase 6.
 
-`LoginPage.tsx` lines 93-101 manually write `isLoggedIn` and `userSession` to localStorage. However, `useAuth.tsx` already does this via `writeCompatibilitySession()`. The LoginPage writes are redundant — the auth hook handles this centrally.
-
-**Fix**: Remove the duplicate localStorage writes from LoginPage.tsx (lines 93-101). The `useAuth` hook's `writeCompatibilitySession()` already handles this.
-
----
-
-## CATEGORY 5: SYSTEMIC ISSUES (DEFERRED)
-
-### P8-TYPE-01 | 65 files use `(supabase as any)` — type safety bypass (DEFERRED)
-Needs Supabase type regeneration. Tracked since Phase 6, deferred until CLI is connected.
-
-### P8-LOG-01 | 2,000+ console.log across 79 files (DEFERRED)
+### P9-LOG-01 | 2,000+ console.log across 79+ files (DEFERRED)
 Too many for one phase. Gradual cleanup over future phases.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 8A — Delete orphaned files (2 min)
+### Phase 9A — Delete orphaned hooks (2 min)
 
 | # | Bug ID | Fix | Effort |
 |---|--------|-----|--------|
-| 1 | P8-DEAD-01 | Delete `src/components/hrms/ClaimExpenseTab.tsx` | 30s |
-| 2 | P8-DEAD-02 | Delete `src/components/hrms/LeavesTab.tsx` | 30s |
+| 1 | P9-DEAD-01 | Delete `src/hooks/useOperatorModule.ts` (161 lines) | 30s |
+| 2 | P9-DEAD-02 | Delete `src/hooks/useValidation.tsx` (121 lines) | 30s |
+| 3 | P9-DEAD-03 | Delete `src/hooks/useStockValidation.tsx` (31 lines) | 30s |
+| 4 | P9-DEAD-04 | Delete `src/hooks/usePerformance.tsx` (20 lines) | 30s |
+| 5 | P9-DEAD-05 | Delete `src/hooks/useOptimizedQueries.tsx` (109 lines) | 30s |
 
-### Phase 8B — Remove dead OrderFocusContext (5 min)
-
-| # | Bug ID | Fix | Effort |
-|---|--------|-----|--------|
-| 3 | P8-DEAD-05 | Delete `src/contexts/OrderFocusContext.tsx` | 30s |
-| 4 | P8-DEAD-05 | Remove `useOrderFocus` import + `focusOrder` call from NotificationContext.tsx | 2 min |
-| 5 | P8-DEAD-05 | Remove `OrderFocusProvider` wrapper from Layout.tsx | 1 min |
-
-### Phase 8C — Minor cleanup (3 min)
+### Phase 9B — Delete orphaned utils (1 min)
 
 | # | Bug ID | Fix | Effort |
 |---|--------|-----|--------|
-| 6 | P8-DEAD-03 | Remove empty `import {} from` in PendingConversionsTable.tsx | 30s |
-| 7 | P8-DEAD-04 | Remove stale `removeItem('userPermissions')` from useAuth.tsx | 30s |
-| 8 | P8-DUP-01 | Remove duplicate localStorage writes from LoginPage.tsx | 1 min |
+| 6 | P9-DEAD-06 | Delete `src/utils/debugAuth.ts` (36 lines) | 30s |
+| 7 | P9-DEAD-07 | Delete `src/utils/lazyLoad.ts` (16 lines) | 30s |
 
 ---
 
@@ -110,11 +83,14 @@ Too many for one phase. Gradual cleanup over future phases.
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| Orphaned files (never imported) | 2 files (440 lines) | MEDIUM — dead weight |
-| Dead context + provider wrapper | 1 context, 3 files affected | MEDIUM — no-op code wrapping entire app |
-| Empty import | 1 line | LOW — cosmetic |
-| Stale localStorage cleanup | 1 call | LOW — no-op |
-| Duplicate session writes | 1 file | LOW — redundant |
+| Orphaned hooks (never imported) | 5 files (442 lines) | MEDIUM — dead weight, misleading |
+| Orphaned utils (never imported) | 2 files (52 lines) | LOW — dead weight |
 
-**Total effort: ~10 minutes for 8 fixes, deleting 3 files + cleaning 4 files**
+**Total: 7 files deleted, ~494 lines removed, ~3 minutes effort**
+
+No database changes needed. No other files reference these — clean deletions with zero risk.
+
+### Technical Details
+
+All 7 files were verified by searching for `import.*from.*@/hooks/<name>` and `import.*from.*@/utils/<name>` across the entire `src/` directory. Each returned zero matches. The underlying functionality they wrap (Supabase queries, validation utils) is accessed directly elsewhere — these are purely redundant abstraction layers that were never wired in.
 

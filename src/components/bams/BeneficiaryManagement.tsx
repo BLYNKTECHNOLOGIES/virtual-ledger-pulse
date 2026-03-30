@@ -71,6 +71,16 @@ export function BeneficiaryManagement() {
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<BeneficiaryRecord | null>(null);
   const [selectedBankId, setSelectedBankId] = useState("");
 
+  // Manual add beneficiary state
+  const [showManualAddDialog, setShowManualAddDialog] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    account_number: "",
+    account_holder_name: "",
+    ifsc_code: "",
+    account_type: "",
+    account_opening_branch: "",
+  });
+
   // Export dialog state
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [exportStep, setExportStep] = useState<ExportStep>("configure");

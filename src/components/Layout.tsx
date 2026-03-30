@@ -3,7 +3,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TopHeader } from "./TopHeader";
 import { SidebarEditProvider } from "@/contexts/SidebarEditContext";
 import { PinUnlockProvider } from "@/contexts/PinUnlockContext";
-import { OrderFocusProvider } from "@/contexts/OrderFocusContext";
+
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { MobileBottomNav } from "./MobileBottomNav";
 
@@ -15,8 +15,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <PinUnlockProvider>
       <SidebarEditProvider>
-        <OrderFocusProvider>
-          <NotificationProvider>
+        <NotificationProvider>
             <SidebarProvider>
               <div className="flex w-full min-h-screen bg-slate-50">
                 {/* Desktop sidebar - hidden on mobile */}
@@ -34,7 +33,6 @@ export function Layout({ children }: LayoutProps) {
               </div>
             </SidebarProvider>
           </NotificationProvider>
-        </OrderFocusProvider>
       </SidebarEditProvider>
     </PinUnlockProvider>
   );

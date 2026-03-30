@@ -94,7 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Clear legacy localStorage
     localStorage.removeItem('userSession');
     localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userPermissions');
+    
   };
 
   const authenticateUser = async (emailInput: string, password: string): Promise<User | null> => {

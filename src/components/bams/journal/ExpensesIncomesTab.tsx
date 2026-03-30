@@ -69,9 +69,6 @@ export function ExpensesIncomesTab() {
         throw bankError;
       }
       
-      console.log(`📊 Found ${bankData?.length || 0} bank transactions`);
-      console.log('💳 Bank transactions sample:', bankData?.slice(0, 3));
-
       // Format transactions for display
       const formattedTransactions = (bankData || []).map(t => ({
         ...t,

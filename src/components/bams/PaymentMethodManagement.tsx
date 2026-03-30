@@ -890,8 +890,6 @@ export function PaymentMethodManagement() {
                   <Button 
                     type="submit"
                     onClick={(e) => {
-                      console.log('=== ADD METHOD BUTTON CLICKED ===');
-                      // If form onSubmit doesn't fire, call handleSubmit directly
                       handleSubmit(e);
                     }}
                     disabled={createMethodMutation.isPending || updateMethodMutation.isPending}

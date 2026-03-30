@@ -262,6 +262,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
     synced_by: userId || null,
   });
 
-  console.log(`[SmallSalesSync] Batch ${batchId}: ${entriesCreated} entries, ${newOrders.length} orders, ${duplicates} duplicates`);
+  
   return { synced: entriesCreated, duplicates, batchId };
 }

@@ -244,7 +244,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       synced = toInsert.length;
     }
 
-    console.log(`[SalesSync] Synced: ${synced}, Duplicates: ${duplicates}`);
   } catch (err) {
     console.error('[SalesSync] Error:', err);
   }

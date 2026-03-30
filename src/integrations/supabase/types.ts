@@ -1673,47 +1673,6 @@ export type Database = {
         }
         Relationships: []
       }
-      conversion_journal_entries: {
-        Row: {
-          asset_code: string
-          conversion_id: string
-          created_at: string
-          id: string
-          line_type: string
-          notes: string | null
-          qty_delta: number | null
-          usdt_delta: number | null
-        }
-        Insert: {
-          asset_code: string
-          conversion_id: string
-          created_at?: string
-          id?: string
-          line_type: string
-          notes?: string | null
-          qty_delta?: number | null
-          usdt_delta?: number | null
-        }
-        Update: {
-          asset_code?: string
-          conversion_id?: string
-          created_at?: string
-          id?: string
-          line_type?: string
-          notes?: string | null
-          qty_delta?: number | null
-          usdt_delta?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "conversion_journal_entries_conversion_id_fkey"
-            columns: ["conversion_id"]
-            isOneToOne: false
-            referencedRelation: "erp_product_conversions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       counterparty_contact_records: {
         Row: {
           collected_by: string | null
@@ -10031,63 +9990,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["account_name"]
-          },
-        ]
-      }
-      realized_pnl_events: {
-        Row: {
-          asset_code: string
-          avg_cost_at_sale: number
-          conversion_id: string
-          cost_out_usdt: number
-          created_at: string
-          id: string
-          proceeds_usdt_gross: number
-          proceeds_usdt_net: number
-          realized_pnl_usdt: number
-          sell_qty: number
-          wallet_id: string
-        }
-        Insert: {
-          asset_code: string
-          avg_cost_at_sale: number
-          conversion_id: string
-          cost_out_usdt: number
-          created_at?: string
-          id?: string
-          proceeds_usdt_gross: number
-          proceeds_usdt_net: number
-          realized_pnl_usdt: number
-          sell_qty: number
-          wallet_id: string
-        }
-        Update: {
-          asset_code?: string
-          avg_cost_at_sale?: number
-          conversion_id?: string
-          cost_out_usdt?: number
-          created_at?: string
-          id?: string
-          proceeds_usdt_gross?: number
-          proceeds_usdt_net?: number
-          realized_pnl_usdt?: number
-          sell_qty?: number
-          wallet_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "realized_pnl_events_conversion_id_fkey"
-            columns: ["conversion_id"]
-            isOneToOne: false
-            referencedRelation: "erp_product_conversions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "realized_pnl_events_wallet_id_fkey"
-            columns: ["wallet_id"]
-            isOneToOne: false
-            referencedRelation: "wallets"
-            referencedColumns: ["id"]
           },
         ]
       }

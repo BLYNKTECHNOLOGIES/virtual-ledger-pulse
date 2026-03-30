@@ -246,7 +246,7 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
       }
     }
 
-    console.log(`[SmallSalesSync] Mapped ${mapInsertCount}/${group.length} orders for sync ${syncRecord.id}`);
+    
     entriesCreated++;
   }
 

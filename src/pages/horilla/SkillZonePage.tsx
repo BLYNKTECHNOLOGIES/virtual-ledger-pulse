@@ -189,7 +189,7 @@ export default function SkillZonePage() {
                     className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${zone.zone_name}"?`)) deleteMutation.mutate(zone.id); }}
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: zone.id, name: zone.zone_name }); }}
                     className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

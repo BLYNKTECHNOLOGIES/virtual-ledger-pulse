@@ -151,7 +151,7 @@ export default function DepartmentsPage() {
                   <button onClick={() => openEdit(d)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => { if (confirm(`Delete "${d.name}"?`)) deleteMutation.mutate(d.id); }} className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500">
+                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>

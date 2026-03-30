@@ -214,7 +214,7 @@ export default function RecruitmentSurveyPage() {
                     className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${tpl.title}"?`)) deleteTemplateMutation.mutate(tpl.id); }}
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: tpl.id, name: tpl.title }); }}
                     className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>

@@ -74,7 +74,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       // Always fetch purchase orders - exclude cancelled
       const { data: purchaseData } = await supabase
         .from('purchase_orders')
-        .select('id, order_number, order_date, total_amount, status, order_status')
+        .select('id, order_number, order_date, total_amount, status')
         .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone || 'NONE'}"`)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });

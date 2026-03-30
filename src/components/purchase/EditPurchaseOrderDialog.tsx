@@ -214,7 +214,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         ? paymentSplits[0]?.bank_account_id || null
         : data.bank_account_id || null;
 
-      const isCompleted = order.status === 'COMPLETED' || order.order_status === 'completed';
+      const isCompleted = order.status === 'COMPLETED';
 
       // For completed orders, reconcile all dependent records (bank, wallet, fees)
       if (isCompleted) {
@@ -428,7 +428,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       toast({ title: "Success", description: "Purchase order updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
-      queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
+      
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });

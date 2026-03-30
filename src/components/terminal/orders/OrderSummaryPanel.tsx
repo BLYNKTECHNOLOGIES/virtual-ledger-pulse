@@ -20,6 +20,8 @@ interface Props {
 }
 
 export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail }: Props) {
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
   const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);

@@ -147,13 +147,15 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
           </div>
         )}
 
-        {/* Order Actions */}
-        <OrderActions
-          orderNumber={order.binance_order_number}
-          orderStatus={order.order_status}
-          tradeType={order.trade_type}
-          additionalKycVerify={order.additional_kyc_verify}
-        />
+        {/* Order Actions — gated by terminal_orders_actions */}
+        {canActions && (
+          <OrderActions
+            orderNumber={order.binance_order_number}
+            orderStatus={order.order_status}
+            tradeType={order.trade_type}
+            additionalKycVerify={order.additional_kyc_verify}
+          />
+        )}
       </div>
 
       {/* Update Payment Method Dialog */}

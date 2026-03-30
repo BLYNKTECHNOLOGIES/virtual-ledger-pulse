@@ -158,7 +158,7 @@ export default function Feedback360Page() {
                     <p className="font-semibold text-gray-900">{empMap[fb.employee_id] || "Unknown"}</p>
                     <p className="text-xs text-gray-500">{fb.review_cycle}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(fb.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(fb.id)}>
                     <Trash2 className="h-4 w-4 text-red-400" />
                   </Button>
                 </div>

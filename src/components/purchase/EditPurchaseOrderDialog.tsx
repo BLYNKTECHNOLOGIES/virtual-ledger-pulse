@@ -278,7 +278,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           throw new Error(result.error || 'Reconciliation failed');
         }
 
-        console.log('✅ Purchase order reconciliation completed:', result);
+        
       }
 
       const { data: result, error } = await supabase

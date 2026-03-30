@@ -254,14 +254,8 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('🚀 ManualPurchase: Submit clicked');
-    console.log('🚀 ManualPurchase: formData:', JSON.stringify(formData, null, 2));
-    console.log('🚀 ManualPurchase: isNewClient:', isNewClient, 'selectedClientId:', selectedClientId);
-    console.log('🚀 ManualPurchase: loading state:', loading);
-    
     // Guard against double submission
     if (loading) {
-      console.log('⚠️ ManualPurchase: Already loading, ignoring submit');
       return;
     }
     
@@ -305,7 +299,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       }
       
       if (missingFields.length > 0) {
-        console.log('❌ Validation failed - missing required fields:', missingFields);
+        
         toast({
           title: "Error",
           description: `Missing required fields: ${missingFields.join(', ')}`,
@@ -318,7 +312,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       // Validate PAN for 1% TDS
       if (formData.tds_option === '1%') {
         if (!formData.pan_number || formData.pan_number.trim() === '') {
-          console.log('❌ Validation failed - PAN required for 1% TDS');
+          
           toast({
             title: "Error",
             description: "PAN number is required for 1% TDS deduction",
@@ -351,7 +345,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         orderNumber = formData.order_number || generateOrderNumber();
       }
       const totalAmount = parseFloat(formData.total_amount) || 0;
-      console.log('📝 Order number:', orderNumber, 'Total amount:', totalAmount);
+      
 
       // Get current user ID for created_by tracking — REQUIRED, blocks if missing
       const currentUserId = await requireCurrentUserId();
@@ -385,8 +379,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_payment_splits: splitPaymentsJson
         };
         
-        console.log('📡 Calling RPC create_manual_purchase_with_split_payments with params:', rpcParams);
-
         const { data, error } = await supabase.rpc(
           'create_manual_purchase_with_split_payments_rpc' as any,
           rpcParams
@@ -414,8 +406,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
           p_created_by: currentUserId || undefined
         };
         
-        console.log('📡 Calling RPC create_manual_purchase_complete_v2 with params:', rpcParams);
-
         const { data, error } = await supabase.rpc(
           'create_manual_purchase_complete_v2_rpc' as any,
           rpcParams
@@ -423,9 +413,6 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         result = data as Record<string, unknown>;
         functionError = error;
       }
-
-      console.log('📡 RPC response:', { result, functionError });
-
 
       if (functionError) {
         throw functionError;
@@ -469,18 +456,14 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         throw new Error('Purchase order created but not readable - check RLS policies');
       }
 
-      console.log('✅ Purchase order verified:', orderId);
-
       // ONLY create seller client AFTER purchase order is successfully created and verified
       if (isNewClient && formData.supplier_name.trim()) {
-        console.log('🆕 Creating new seller client after purchase order verification...');
         try {
           const newClient = await createSellerClient(
             formData.supplier_name.trim(),
             formData.contact_number || undefined
           );
           if (newClient) {
-            console.log('✅ New seller client created');
             queryClient.invalidateQueries({ queryKey: ['clients'] });
             queryClient.invalidateQueries({ queryKey: ['pending-seller-approvals'] });
           }

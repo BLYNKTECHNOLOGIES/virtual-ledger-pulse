@@ -90,11 +90,6 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
   // Use raw:false to get formatted strings (especially dates)
   const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
 
-  console.log("[BiometricParser] Total rows:", rows.length);
-  // Log first 20 rows for debugging column structure
-  for (let i = 0; i < Math.min(20, rows.length); i++) {
-    console.log(`[BiometricParser] Row ${i}:`, JSON.stringify(rows[i]));
-  }
 
   const results: ParsedAttendanceRow[] = [];
   let currentCode = "";
@@ -158,7 +153,7 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
         );
         if (allVals.length > 0) currentName = allVals[allVals.length - 1]; // Take last non-label value
       }
-      console.log(`[BiometricParser] Found employee: code=${currentCode}, name=${currentName}`);
+      
       continue;
     }
 
@@ -174,7 +169,7 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
         if (v === "status") colStatus = c;
         if (v === "remarks") colRemarksStart = c;
       }
-      console.log(`[BiometricParser] Column map: date=${colDate}, in=${colIn}, out=${colOut}, shift=${colShift}, duration=${colDuration}, status=${colStatus}`);
+      
       continue;
     }
 
@@ -224,11 +219,6 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
 
     const status = mapStatus(rawStatus);
     
-    // Log first few rows per employee for debugging
-    if (results.filter(r => r.employeeCode === currentCode).length < 3) {
-      console.log(`[BiometricParser] Row: code=${currentCode}, date=${parsedDate}, in=${inTime}, out=${outTime}, rawStatus="${rawStatus}", mapped="${status}"`);
-    }
-
     results.push({
       employeeCode: currentCode,
       employeeName: currentName || `Employee ${currentCode}`,
@@ -241,11 +231,6 @@ export function parseBiometricXLS(data: ArrayBuffer): ParsedAttendanceRow[] {
       rawStatus,
       remarks,
     });
-  }
-
-  console.log(`[BiometricParser] Total parsed records: ${results.length}`);
-  if (results.length > 0) {
-    console.log("[BiometricParser] Sample:", JSON.stringify(results[0]));
   }
 
   return results;

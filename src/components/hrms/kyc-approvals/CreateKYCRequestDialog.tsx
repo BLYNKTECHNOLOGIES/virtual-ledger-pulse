@@ -42,8 +42,6 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${folder}/${fileName}`;
 
-      console.log('Uploading file:', filePath);
-
       const { data, error: uploadError } = await supabase.storage
         .from('kyc-documents')
         .upload(filePath, file, {
@@ -60,8 +58,6 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
         });
         return null;
       }
-
-      console.log('Upload successful:', data);
 
       const { data: urlData } = supabase.storage
         .from('kyc-documents')
@@ -102,8 +98,6 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
     setIsSubmitting(true);
     
     try {
-      console.log('Starting file uploads...');
-      
       // Upload required Binance ID screenshot first
       const binanceIdUrl = await uploadFile(formData.binanceIdScreenshotFile!, 'binance-id');
       if (!binanceIdUrl) {
@@ -116,8 +110,6 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
       const verifiedFeedbackUrl = formData.verifiedFeedbackFile ? await uploadFile(formData.verifiedFeedbackFile, 'verified-feedback') : null;
       const negativeFeedbackUrl = formData.negativeFeedbackFile ? await uploadFile(formData.negativeFeedbackFile, 'negative-feedback') : null;
       const additionalDocsUrl = formData.additionalDocumentsFile ? await uploadFile(formData.additionalDocumentsFile, 'additional-docs') : null;
-
-      console.log('All files uploaded, inserting into database...');
 
       // Insert into database
       const { data, error } = await supabase
@@ -136,12 +128,7 @@ export function CreateKYCRequestDialog({ open, onOpenChange, onSuccess }: Create
         })
         .select();
 
-      if (error) {
-        console.error('Database insert error:', error);
-        throw error;
-      }
-
-      console.log('KYC request created successfully:', data);
+      if (error) throw error;
 
       toast({
         title: "KYC Request Created",

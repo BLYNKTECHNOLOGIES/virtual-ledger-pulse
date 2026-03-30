@@ -312,7 +312,6 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
         
         // If client doesn't exist, create an onboarding approval request
         if (!existingClient && formData.client_name) {
-          console.log('📝 New client detected, creating onboarding approval request...');
           const { error: approvalError } = await supabase
             .from('client_onboarding_approvals')
             .insert({
@@ -324,12 +323,9 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
             });
  
           if (approvalError) {
-            console.error('⚠️ Failed to create approval request:', approvalError);
-          } else {
-            console.log('✅ Onboarding approval request created');
+            console.error('Failed to create approval request:', approvalError);
           }
         } else if (existingClient) {
-          console.log('✅ Existing client found:', existingClient.name);
           // Update client's phone/state from order data
           const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
           await updateClientFromOrder({

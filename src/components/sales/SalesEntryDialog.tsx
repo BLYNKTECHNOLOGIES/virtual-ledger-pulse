@@ -222,7 +222,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
         // Payment method usage is computed live — no manual current_usage write needed
 
-        console.log('Sales order created - bank transaction will be handled by triggers if applicable');
+        // Bank transaction will be handled by triggers if applicable
       }
 
       // Process wallet deduction if wallet is selected and payment is completed
@@ -244,8 +244,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         // Process platform fee deduction separately (if applicable)
         const platformFees = parseFloat(data.platform_fees) || 0;
         if (platformFees > 0) {
-          console.log('💰 Processing platform fee deduction:', platformFees, 'USDT');
-          
           const { data: feeResult, error: feeError } = await supabase.rpc('process_platform_fee_deduction', {
             p_order_id: result.id,
             p_order_type: 'SALES_ORDER',
@@ -258,8 +256,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
             console.error('Error processing platform fee:', feeError);
             // Don't throw - the main order was created, just log the fee error
             console.warn('⚠️ Platform fee deduction failed, but order was created');
-          } else {
-            console.log('✅ Platform fee processed:', feeResult);
           }
           
           // Update the sales order with fee details
@@ -284,7 +280,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
       // If client doesn't exist, create an onboarding approval request
       if (!existingClient) {
-        console.log('📝 New client detected, creating onboarding approval request...');
         const { error: approvalError } = await supabase
           .from('client_onboarding_approvals')
           .insert({
@@ -298,12 +293,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           });
 
         if (approvalError) {
-          console.error('⚠️ Failed to create approval request:', approvalError);
-        } else {
-          console.log('✅ Onboarding approval request created');
+          console.error('Failed to create approval request:', approvalError);
         }
       } else {
-        console.log('✅ Existing client found:', existingClient.name);
         // Update client's phone/state if provided in the order
         const { updateClientFromOrder } = await import('@/utils/updateClientFromOrder');
         await updateClientFromOrder({
@@ -317,8 +309,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       return result;
     },
     onSuccess: (data) => {
-      console.log('🎉 Sales order created successfully');
-      
       // Save last used defaults for next order
       saveLastOrderDefaults({
         wallet_id: formData.wallet_id,
@@ -384,8 +374,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('📝 Starting sales order creation mutation with data:', formData);
-    
     // Collect all validation errors
     const errors: string[] = [];
     
@@ -415,7 +403,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     }
     
     if (errors.length > 0) {
-      console.log('❌ Validation failed:', errors);
+      
       toast({ 
         title: "Validation Error", 
         description: errors.join(". "), 
@@ -424,7 +412,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       return;
     }
     
-    console.log('✅ Validation passed, calling mutation');
+    
     
     // For off-market orders, generate the actual order number at submission (consuming the sequence)
     const submitOrder = async () => {

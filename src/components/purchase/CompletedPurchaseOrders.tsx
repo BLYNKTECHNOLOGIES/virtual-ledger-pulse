@@ -101,7 +101,6 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
 
   const deleteMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      console.log("🗑️ Deleting purchase order", { orderId });
       const { data, error } = await supabase.rpc('delete_purchase_order_with_reversal', {
         order_id: orderId
       });
@@ -109,7 +108,6 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
       if (error) throw error;
       
       const result = data as { success: boolean; error?: string; message?: string };
-      console.log("🧾 delete_purchase_order_with_reversal result", result);
       
       if (!result?.success) {
         throw new Error(result?.error || 'Failed to delete purchase order');

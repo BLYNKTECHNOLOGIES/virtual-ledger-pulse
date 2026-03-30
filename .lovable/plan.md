@@ -1,81 +1,90 @@
 
 
-# ERP Full System Audit — Phase 9 Report
+# ERP Full System Audit — Phase 10 Report
 
-## Phases 1-8 Status (completed)
+## Phases 1-9 Status (completed)
 - Phase 1-4: Data integrity, orphaned code, permissions, demo-admin cleanup — ALL FIXED
 - Phase 5: Hardcoded password, dead localStorage, native dialogs replaced — ALL FIXED
 - Phase 6: XSS fix, stale removeItems, shift delete cleanup — ALL FIXED
 - Phase 6.5: Buy Orders/Pending/Review tabs removed, 25 files deleted, dead DB columns + trigger dropped — ALL FIXED
 - Phase 7: 3 dead DB tables dropped, dead `useIsOrderFocused` removed, `window.location.reload()` replaced in EditUserDialog — ALL FIXED
 - Phase 8: 2 orphaned HRMS files deleted, OrderFocusContext fully removed, empty import + stale localStorage + duplicate session writes cleaned — ALL FIXED
+- Phase 9: 5 orphaned hooks + 2 orphaned utils deleted (~494 lines) — ALL FIXED
 
 ---
 
-## CATEGORY 1: ORPHANED HOOKS (never imported anywhere)
+## CATEGORY 1: DEAD AUTH COMPONENT CLUSTER (4 files, 962 lines)
 
-### P9-DEAD-01 | useOperatorModule.ts — 161 lines, zero imports (DELETE)
+### P10-DEAD-01 | Login.tsx — replaced by LoginPage.tsx, never imported (DELETE)
 
-`src/hooks/useOperatorModule.ts` exports `useOperatorAssignments`, `useCreateOperatorAssignment`, `useDeleteOperatorAssignment`, and `useAutoAssignOperator`. **No file imports from this module.** The underlying table (`terminal_operator_assignments`) is queried directly in `TerminalMPI.tsx` and `TerminalOperatorDetail.tsx` — they do not use this hook.
+`src/components/auth/Login.tsx` (158 lines) is the **old login component**. The app uses `src/components/website/pages/LoginPage.tsx` instead. Login.tsx is **never imported** by any file.
 
-### P9-DEAD-02 | useValidation.tsx — 121 lines, zero imports (DELETE)
+It imports `ForgotPasswordDialog` and `RegistrationDialogV2` — both of which are **only consumed by this dead Login.tsx**, making them dead too.
 
-`src/hooks/useValidation.tsx` wraps `@/utils/validations` with toast error handling. **Never imported.** The underlying `@/utils/validations` is imported directly where needed (TransactionForm, TransferForm). This hook is an unused wrapper layer.
+### P10-DEAD-02 | ForgotPasswordDialog.tsx — only imported by dead Login.tsx (DELETE)
 
-### P9-DEAD-03 | useStockValidation.tsx — 31 lines, zero imports (DELETE)
+`src/components/auth/ForgotPasswordDialog.tsx` (134 lines). Only import is from `Login.tsx` which is itself dead.
 
-`src/hooks/useStockValidation.tsx` is a smaller wrapper around `validateProductStock` from `@/utils/validations`. **Never imported.** Same pattern as above — dead wrapper.
+### P10-DEAD-03 | RegistrationDialogV2.tsx — only imported by dead Login.tsx (DELETE)
 
-### P9-DEAD-04 | usePerformance.tsx — 20 lines, zero imports (DELETE)
+`src/components/auth/RegistrationDialogV2.tsx` (309 lines). Only import is from `Login.tsx`.
 
-`src/hooks/usePerformance.tsx` sets up a `PerformanceObserver` for Core Web Vitals logging. **Never imported.** It only writes to `console.log` — pure dead instrumentation code.
+### P10-DEAD-04 | RegistrationDialog.tsx — zero imports anywhere (DELETE)
 
-### P9-DEAD-05 | useOptimizedQueries.tsx — 109 lines, zero imports (DELETE)
+`src/components/auth/RegistrationDialog.tsx` (361 lines). **Never imported.** An older version of the registration dialog that was superseded by V2 (which is also dead).
 
-`src/hooks/useOptimizedQueries.tsx` exports `useProducts`, `useBankAccounts`, `usePaymentMethods`, `useWarehouses`. **Never imported.** These queries are done inline or via other hooks throughout the app.
-
----
-
-## CATEGORY 2: ORPHANED UTILS (never imported)
-
-### P9-DEAD-06 | debugAuth.ts — 36 lines, zero imports (DELETE)
-
-`src/utils/debugAuth.ts` is a debug utility that dumps Supabase auth state to console. **Never imported.** Development artifact that should not ship.
-
-### P9-DEAD-07 | lazyLoad.ts — 16 lines, zero imports (DELETE)
-
-`src/utils/lazyLoad.ts` provides a `lazyLoad()` wrapper around React.lazy. **Never imported.** The app uses direct `lazy()` calls or no code splitting at all.
+**Result**: After deletion, `src/components/auth/` will contain only `ForcedPasswordResetDialog.tsx` (the one live file, imported by LoginPage.tsx).
 
 ---
 
-## CATEGORY 3: SYSTEMIC ISSUES (DEFERRED)
+## CATEGORY 2: ORPHANED COMPONENT (1 file, 29 lines)
 
-### P9-TYPE-01 | 64 files use `(supabase as any)` — type safety bypass (DEFERRED)
+### P10-DEAD-05 | TopNav.tsx — never imported (DELETE)
+
+`src/components/TopNav.tsx` (29 lines) provides a simple page header with sidebar toggle. **Never imported.** The app uses `TopHeader.tsx` + `TerminalHeader.tsx` for navigation.
+
+---
+
+## CATEGORY 3: ORPHANED UTILS & LIBS (2 files, 567 lines)
+
+### P10-DEAD-06 | payslipPdfGenerator.ts — 433 lines, zero imports (DELETE)
+
+`src/utils/payslipPdfGenerator.ts` generates PDF payslips. **Never imported.** The payroll module exists but doesn't use this generator.
+
+### P10-DEAD-07 | statutoryReports.ts — 134 lines, zero imports (DELETE)
+
+`src/lib/hrms/statutoryReports.ts` generates PF/ESI statutory reports. **Never imported.** Dead HRMS artifact.
+
+---
+
+## CATEGORY 4: SYSTEMIC ISSUES (DEFERRED)
+
+### P10-TYPE-01 | 64 files use `(supabase as any)` — type safety bypass (DEFERRED)
 Needs Supabase type regeneration. Tracked since Phase 6.
 
-### P9-LOG-01 | 2,000+ console.log across 79+ files (DEFERRED)
-Too many for one phase. Gradual cleanup over future phases.
+### P10-LOG-01 | 2,000+ console.log across 79+ files (DEFERRED)
+Gradual cleanup over future phases.
 
 ---
 
 ## IMPLEMENTATION PLAN
 
-### Phase 9A — Delete orphaned hooks (2 min)
+### Phase 10A — Delete dead auth cluster (2 min)
 
 | # | Bug ID | Fix | Effort |
 |---|--------|-----|--------|
-| 1 | P9-DEAD-01 | Delete `src/hooks/useOperatorModule.ts` (161 lines) | 30s |
-| 2 | P9-DEAD-02 | Delete `src/hooks/useValidation.tsx` (121 lines) | 30s |
-| 3 | P9-DEAD-03 | Delete `src/hooks/useStockValidation.tsx` (31 lines) | 30s |
-| 4 | P9-DEAD-04 | Delete `src/hooks/usePerformance.tsx` (20 lines) | 30s |
-| 5 | P9-DEAD-05 | Delete `src/hooks/useOptimizedQueries.tsx` (109 lines) | 30s |
+| 1 | P10-DEAD-01 | Delete `src/components/auth/Login.tsx` (158 lines) | 30s |
+| 2 | P10-DEAD-02 | Delete `src/components/auth/ForgotPasswordDialog.tsx` (134 lines) | 30s |
+| 3 | P10-DEAD-03 | Delete `src/components/auth/RegistrationDialogV2.tsx` (309 lines) | 30s |
+| 4 | P10-DEAD-04 | Delete `src/components/auth/RegistrationDialog.tsx` (361 lines) | 30s |
 
-### Phase 9B — Delete orphaned utils (1 min)
+### Phase 10B — Delete orphaned component + utils (1 min)
 
 | # | Bug ID | Fix | Effort |
 |---|--------|-----|--------|
-| 6 | P9-DEAD-06 | Delete `src/utils/debugAuth.ts` (36 lines) | 30s |
-| 7 | P9-DEAD-07 | Delete `src/utils/lazyLoad.ts` (16 lines) | 30s |
+| 5 | P10-DEAD-05 | Delete `src/components/TopNav.tsx` (29 lines) | 30s |
+| 6 | P10-DEAD-06 | Delete `src/utils/payslipPdfGenerator.ts` (433 lines) | 30s |
+| 7 | P10-DEAD-07 | Delete `src/lib/hrms/statutoryReports.ts` (134 lines) | 30s |
 
 ---
 
@@ -83,14 +92,15 @@ Too many for one phase. Gradual cleanup over future phases.
 
 | Category | Count | Severity |
 |----------|-------|----------|
-| Orphaned hooks (never imported) | 5 files (442 lines) | MEDIUM — dead weight, misleading |
-| Orphaned utils (never imported) | 2 files (52 lines) | LOW — dead weight |
+| Dead auth component cluster | 4 files (962 lines) | MEDIUM — misleading, ships dead UI code |
+| Orphaned component (TopNav) | 1 file (29 lines) | LOW — dead weight |
+| Orphaned utils/libs | 2 files (567 lines) | LOW — dead weight |
 
-**Total: 7 files deleted, ~494 lines removed, ~3 minutes effort**
+**Total: 7 files deleted, ~1,558 lines removed, ~3 minutes effort**
 
-No database changes needed. No other files reference these — clean deletions with zero risk.
+No database changes needed. All 7 files verified with zero imports across the entire `src/` directory. The only surviving file in `src/components/auth/` will be `ForcedPasswordResetDialog.tsx` (actively imported by LoginPage.tsx).
 
 ### Technical Details
 
-All 7 files were verified by searching for `import.*from.*@/hooks/<name>` and `import.*from.*@/utils/<name>` across the entire `src/` directory. Each returned zero matches. The underlying functionality they wrap (Supabase queries, validation utils) is accessed directly elsewhere — these are purely redundant abstraction layers that were never wired in.
+The dead auth cluster (`Login.tsx` -> `ForgotPasswordDialog.tsx` + `RegistrationDialogV2.tsx`) forms a dependency island: these files only reference each other but are never pulled into the app's component tree. The live login flow uses `src/components/website/pages/LoginPage.tsx` with `ForcedPasswordResetDialog.tsx`. `RegistrationDialog.tsx` (non-V2) is a standalone orphan with zero references anywhere.
 

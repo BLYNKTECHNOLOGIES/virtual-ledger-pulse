@@ -13,13 +13,110 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Trash2, ChevronDown, ChevronRight, User, Layers } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
-import {
-  useAllOperatorAssignments,
-  useCreateOperatorAssignment,
-  useToggleOperatorAssignment,
-  useDeleteOperatorAssignment,
-} from '@/hooks/useOperatorModule';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { toast as sonnerToast } from 'sonner';
+
+function useAllOperatorAssignments() {
+  return useQuery({
+    queryKey: ['all-operator-assignments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_operator_assignments' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+
+      const userIds = [...new Set((data || []).map((a: any) => a.operator_user_id))];
+      const sizeRangeIds = (data || []).filter((a: any) => a.size_range_id).map((a: any) => a.size_range_id);
+
+      const [usersRes, rangesRes] = await Promise.all([
+        userIds.length > 0
+          ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds)
+          : { data: [] },
+        sizeRangeIds.length > 0
+          ? supabase.from('terminal_order_size_ranges').select('id, name, min_amount, max_amount').in('id', sizeRangeIds)
+          : { data: [] },
+      ]);
+
+      const userMap: Record<string, any> = {};
+      for (const u of usersRes.data || []) userMap[u.id] = u;
+      const rangeMap: Record<string, any> = {};
+      for (const r of rangesRes.data || []) rangeMap[r.id] = r;
+
+      return (data || []).map((a: any) => ({
+        ...a,
+        user: userMap[a.operator_user_id] || null,
+        size_range: a.size_range_id ? rangeMap[a.size_range_id] || null : null,
+      }));
+    },
+  });
+}
+
+function useCreateOperatorAssignment() {
+  const queryClient = useQueryClient();
+  const { userId } = useTerminalAuth();
+
+  return useMutation({
+    mutationFn: async (params: {
+      operator_user_id: string;
+      assignment_type: 'size_range' | 'ad_id';
+      size_range_id?: string;
+      ad_id?: string;
+    }) => {
+      if (!userId) throw new Error('Not authenticated');
+      const { error } = await supabase.from('terminal_operator_assignments' as any).insert({
+        operator_user_id: params.operator_user_id,
+        assignment_type: params.assignment_type,
+        size_range_id: params.size_range_id || null,
+        ad_id: params.ad_id || null,
+        assigned_by: userId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      sonnerToast.success('Operator assignment created');
+      queryClient.invalidateQueries({ queryKey: ['all-operator-assignments'] });
+    },
+    onError: (err: Error) => sonnerToast.error(`Failed: ${err.message}`),
+  });
+}
+
+function useToggleOperatorAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase
+        .from('terminal_operator_assignments' as any)
+        .update({ is_active })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-operator-assignments'] });
+    },
+  });
+}
+
+function useDeleteOperatorAssignment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('terminal_operator_assignments' as any)
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      sonnerToast.success('Assignment removed');
+      queryClient.invalidateQueries({ queryKey: ['all-operator-assignments'] });
+    },
+    onError: (err: Error) => sonnerToast.error(`Failed: ${err.message}`),
+  });
+}
 import {
   Dialog,
   DialogContent,

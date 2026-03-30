@@ -1,5 +1,6 @@
 
 import React, { useEffect } from 'react';
+
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
 import TerminalPayer from './pages/terminal/TerminalPayer';

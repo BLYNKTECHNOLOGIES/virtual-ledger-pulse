@@ -1,97 +1,69 @@
 
 
-# Phase 27: Terminal RBAC — Database-Level RLS Enforcement
+# Phase 28: W30 + W31 + W32
 
-## Problem
+## W30 — ad_pricing_rules / ad_rest_timer RLS: PARTIALLY ALREADY FIXED
 
-All terminal tables have open `authenticated_all_*` RLS policies (`USING condition: true`). Any authenticated ERP user (HR, accounting, etc.) can directly query terminal tables via the Supabase API, bypassing the 53-permission RBAC system which is enforced only at the UI layer and in select RPC functions.
+Phase 27 hardened **29 terminal tables** with `verify_terminal_access` RLS. The three tables mentioned in W30:
+- `terminal_operator_assignments` — already hardened in Phase 27
+- `ad_pricing_rules` — still has open `authenticated_all_ad_pricing_rules` policy (USING: true)
+- `ad_rest_timer` — still has open `authenticated_all_ad_rest_timer` policy (USING: true)
 
-## Approach
+**Fix:** Drop the open policies on `ad_pricing_rules` and `ad_rest_timer`, replace with `verify_terminal_access` for reads and `has_terminal_permission` for writes (these are pricing-sensitive tables). Keep `service_role` unrestricted.
 
-**Tiered enforcement strategy:**
-- **READ access**: Require `verify_terminal_access(auth.uid())` — user must have at least one terminal role OR be Super Admin. This prevents non-terminal users from seeing terminal data.
-- **WRITE access on sensitive tables**: Require specific `has_terminal_permission()` checks for high-risk mutations (role assignments, bypass codes, payer config).
-- **Service role**: Keep unrestricted for cron jobs, triggers, and system operations.
+| Table | READ | WRITE |
+|-------|------|-------|
+| `ad_pricing_rules` | `verify_terminal_access` | `has_terminal_permission(auth.uid(), 'terminal_ads_pricing_manage')` |
+| `ad_rest_timer` | `verify_terminal_access` | `has_terminal_permission(auth.uid(), 'terminal_ads_pricing_manage')` |
 
-This is deliberately not per-table-per-permission granular at the RLS level because:
-1. The application layer + RPC guards already enforce per-module permissions
-2. Per-permission RLS on 20+ tables risks breaking legitimate queries and adds significant query overhead
-3. The critical security gap is non-terminal users accessing terminal data at all
+---
 
-## Tables to Harden (14 terminal tables)
+## W31 — set_first_action_at_on_chat trigger performance: LOW PRIORITY, NO ACTION
 
-### Tier 1 — High sensitivity (permission-gated writes)
+The trigger joins `p2p_order_chats → p2p_order_records → terminal_order_assignments`. This is a 2-table join but:
+1. Chat volume is low (terminal is lightly used — 15 historical assignments)
+2. The join uses indexed columns (`p2p_order_records.id` is PK, `terminal_order_assignments.order_number` + `is_active` are indexed)
+3. The `first_action_at IS NULL` filter means the trigger only does real work once per assignment — all subsequent chats hit the NULL check and exit early
+4. Denormalizing `order_number` onto `p2p_order_chats` would add write overhead on every chat INSERT for marginal read savings
 
-| Table | READ gate | WRITE gate |
-|-------|-----------|------------|
-| `p2p_terminal_roles` | `verify_terminal_access` | `has_terminal_permission('terminal_users_manage')` |
-| `p2p_terminal_role_permissions` | `verify_terminal_access` | `has_terminal_permission('terminal_users_manage')` |
-| `p2p_terminal_user_roles` | `verify_terminal_access` | `has_terminal_permission('terminal_users_role_assign')` |
-| `terminal_bypass_codes` | `verify_terminal_access` | `has_terminal_permission('terminal_users_bypass_code')` |
+**No action needed.** The trigger is efficient for current and foreseeable volumes.
 
-### Tier 2 — Standard terminal tables (terminal-access-gated)
+---
 
-| Table | READ + WRITE gate |
-|-------|-------------------|
-| `terminal_order_assignments` | `verify_terminal_access` |
-| `p2p_order_chats` | `verify_terminal_access` |
-| `terminal_payer_assignments` | `verify_terminal_access` |
-| `terminal_mpi_snapshots` | `verify_terminal_access` |
-| `terminal_shift_reconciliations` | `verify_terminal_access` |
-| `terminal_operator_assignments` | `verify_terminal_access` |
-| `terminal_notifications` | `verify_terminal_access` |
-| `terminal_user_presence` | `verify_terminal_access` |
-| `terminal_permission_change_log` | `verify_terminal_access` |
-| `terminal_assignment_audit_logs` | `verify_terminal_access` |
+## W32 — process_scheduled_account_deletions safety guard
 
-### Not changed
-- `terminal_biometric_sessions`, `terminal_internal_messages`, `terminal_internal_chat_reads`, `terminal_auto_reply_exclusions`, `terminal_payer_order_log` — these will also get `verify_terminal_access` gating.
-- `terminal_alternate_upi_requests` — already has specific SELECT/UPDATE policies, will add terminal access check.
+**Current state:** The function deletes accounts where `account_deletion_date <= CURRENT_DATE AND is_active = false AND user_id IS NOT NULL`. The `is_active = false` check is already a guard — only terminated employees are eligible.
 
-## Migration SQL Pattern
+**Improvement:** Add a `deletion_approved_by IS NOT NULL` guard. This requires:
+1. Adding `deletion_approved_by UUID` column to `hr_employees`
+2. Adding the check to the deletion query
+3. The offboarding UI that sets `account_deletion_date` must also set `deletion_approved_by` to the current user
 
+This ensures a human explicitly approved the deletion, preventing edge cases where `account_deletion_date` was set programmatically or in error without managerial sign-off.
+
+### Migration
 ```sql
--- Drop open policy
-DROP POLICY IF EXISTS "authenticated_all_terminal_order_assignments" ON terminal_order_assignments;
+-- Add approval column
+ALTER TABLE hr_employees ADD COLUMN IF NOT EXISTS deletion_approved_by uuid;
 
--- Terminal users: read
-CREATE POLICY "terminal_users_select" ON terminal_order_assignments
-  FOR SELECT TO authenticated
-  USING (verify_terminal_access(auth.uid()));
-
--- Terminal users: write  
-CREATE POLICY "terminal_users_write" ON terminal_order_assignments
-  FOR ALL TO authenticated
-  USING (verify_terminal_access(auth.uid()))
-  WITH CHECK (verify_terminal_access(auth.uid()));
-
--- System operations
-CREATE POLICY "service_all" ON terminal_order_assignments
-  FOR ALL TO service_role
-  USING (true) WITH CHECK (true);
+-- Recreate function with approval guard
+CREATE OR REPLACE FUNCTION process_scheduled_account_deletions()
+-- ... same body but WHERE clause adds:
+--   AND deletion_approved_by IS NOT NULL
 ```
 
-For Tier 1 tables, write policies use `has_terminal_permission()` instead of `verify_terminal_access()`.
+### Frontend
+The component that sets `account_deletion_date` must also set `deletion_approved_by` to the logged-in user's ID. Need to find and update that UI.
 
-## Safety
-
-- `verify_terminal_access()` and `has_terminal_permission()` are both `SECURITY DEFINER` with `SET search_path = public` — they bypass RLS on the tables they query, preventing infinite recursion.
-- Service role policies ensure cron jobs and triggers continue working.
-- All existing RPC functions that modify terminal data are `SECURITY DEFINER`, so they bypass RLS entirely — no breakage.
-
-## Implementation
-
-**1 migration file** containing:
-- Drop 19 open `authenticated_all_*` policies on terminal tables
-- Create ~38 replacement policies (SELECT + write per table, plus service_role)
-- No frontend changes needed
+---
 
 ## Summary
 
-| Action | Count |
-|--------|-------|
-| Policies dropped | ~19 |
-| Policies created | ~57 (SELECT + INSERT/UPDATE/DELETE + service_role per table) |
-| Tables hardened | 19 |
-| Frontend changes | 0 |
+| # | Item | Action | Target |
+|---|------|--------|--------|
+| W30 | ad_pricing_rules + ad_rest_timer RLS | Drop open policies, add terminal-gated policies | Migration |
+| W31 | Chat trigger perf | No action — efficient for current volume | — |
+| W32 | Deletion approval guard | Add `deletion_approved_by` column + function guard | Migration + frontend |
+
+**1 migration, 1 frontend file update (offboarding UI).**
 

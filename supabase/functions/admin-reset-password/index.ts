@@ -10,7 +10,6 @@ const corsHeaders = {
 const BodySchema = z.object({
   userId: z.string().uuid("Invalid userId"),
   newPassword: z.string().min(6, "Password must be at least 6 characters"),
-  callerUserId: z.string().uuid("Invalid callerUserId").optional(),
 });
 
 serve(async (req) => {

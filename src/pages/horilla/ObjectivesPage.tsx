@@ -193,7 +193,7 @@ export default function ObjectivesPage() {
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(obj)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(obj.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(obj.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                   </div>
                 </div>
               </CardContent>

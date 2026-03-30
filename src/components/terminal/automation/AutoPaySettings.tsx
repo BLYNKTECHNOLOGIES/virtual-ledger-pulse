@@ -110,6 +110,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
             <Switch
               checked={settings?.is_active ?? false}
               onCheckedChange={(v) => updateSettings.mutate({ is_active: v })}
+              disabled={!canToggle}
             />
           </div>
 

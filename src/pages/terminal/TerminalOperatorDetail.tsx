@@ -1567,3 +1567,11 @@ function TerminalOperatorDetailContent() {
     </div>
   );
 }
+
+export default function TerminalOperatorDetail() {
+  return (
+    <TerminalPermissionGate permissions={['terminal_mpi_view_own']}>
+      <TerminalOperatorDetailContent />
+    </TerminalPermissionGate>
+  );
+}

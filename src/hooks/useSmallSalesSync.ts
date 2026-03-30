@@ -147,7 +147,7 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
         .delete()
         .in('small_sales_sync_id', batch);
     }
-    console.log(`[SmallSalesSync] Cleaned up map entries for ${rejectedSyncIds.size} rejected syncs`);
+    
   }
 
   // Get active terminal wallet link

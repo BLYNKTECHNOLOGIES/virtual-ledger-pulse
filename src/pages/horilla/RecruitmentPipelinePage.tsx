@@ -192,6 +192,7 @@ export default function RecruitmentPipelinePage() {
   const [offerCandidate, setOfferCandidate] = useState<Candidate | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [deleteStageTarget, setDeleteStageTarget] = useState<{ id: string; name: string } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })

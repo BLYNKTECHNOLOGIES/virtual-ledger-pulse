@@ -207,7 +207,7 @@ export function StockTransactionsTab() {
         new Set(tx.filter((t: any) => t.reference_type === 'ERP_CONVERSION' && t.reference_id).map((t: any) => t.reference_id))
       ) as string[];
 
-      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }, { data: conversions }] = await Promise.all([
+      const [{ data: salesOrders }, { data: purchaseOrders }, { data: purchaseItems }, { data: conversions }, { data: productsData }] = await Promise.all([
         salesOrderIds.length
           ? supabase
               .from('sales_orders')
@@ -232,6 +232,9 @@ export function StockTransactionsTab() {
               .select('id, reference_no, asset_code, side, price_usd, created_by')
               .in('id', conversionIds)
           : Promise.resolve({ data: [] } as any),
+        supabase
+          .from('products')
+          .select('code, average_buying_price'),
       ]);
 
       const soById = new Map<string, any>();

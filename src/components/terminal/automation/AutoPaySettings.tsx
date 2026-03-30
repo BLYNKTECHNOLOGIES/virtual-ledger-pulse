@@ -136,6 +136,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                       updateSettings.mutate({ minutes_before_expiry: val });
                     }}
                     className="w-20 h-7 text-xs"
+                    disabled={!canConfigure}
                   />
                 </div>
               </div>

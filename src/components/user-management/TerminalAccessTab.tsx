@@ -411,5 +411,23 @@ export function TerminalAccessTab() {
         )}
       </CardContent>
     </Card>
+
+    <AlertDialog open={!!roleToRemove} onOpenChange={(open) => !open && setRoleToRemove(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove Terminal Role</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remove "{roleToRemove?.roleName}" role from {roleToRemove?.username}? They may lose terminal access.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmRemoveRole} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

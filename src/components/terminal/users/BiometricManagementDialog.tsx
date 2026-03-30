@@ -451,5 +451,40 @@ export function BiometricManagementDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!credToDelete} onOpenChange={(open) => !open && setCredToDelete(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove Credential</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remove biometric credential "{credToDelete?.name || 'Unknown Device'}" from {displayName}?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Remove
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    <AlertDialog open={showDeleteAll} onOpenChange={setShowDeleteAll}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove All Credentials</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remove ALL biometric credentials for {displayName}? They will need to re-register.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDeleteAll} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Remove All
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

@@ -31,16 +31,6 @@ import { EditWalletDialog } from "./EditWalletDialog";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { PermissionGate } from "@/components/PermissionGate";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 interface WalletType {
   id: string;

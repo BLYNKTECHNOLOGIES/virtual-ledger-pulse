@@ -1,110 +1,88 @@
-# ERP Full System Audit — Phase 18 Report
+# ERP Full System Audit — Phase 19 Report
 
-## Phases 1-17 Status (completed)
+## Phases 1-18 Status (completed)
 
-All previous phases complete: data integrity fixes, orphaned code removal, permissions cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log cleanup (client-side complete), native confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling reduction, silent catch blocks.
-
----
-
-## CATEGORY A: Performance — Aggressive Polling (6 items)
-
-Phase 17 fixed 2 polling hotspots, but 6 more remain at 10-second intervals with `staleTime: 0`. These fire 6 queries/minute each per open tab.
-
-### P18-PERF-01: `useWalletStock` — 4 queries at 10s polling
-
-- `src/hooks/useWalletStock.tsx` lines 41-42, 59-60: Two queries with `refetchInterval: 10000, staleTime: 0`
-- `src/hooks/useWalletStockWithCost.tsx` lines 57-58, 148-149: Two more queries same pattern
-
-**Fix:** Increase all 4 to `refetchInterval: 30000, staleTime: 10000`. Wallet stock doesn't change every 10 seconds.
-
-### P18-PERF-02: `WalletSelector` — 10s polling
-
-- `src/components/stock/WalletSelector.tsx` line 67-68: `refetchInterval: 10000, staleTime: 0`
-
-**Fix:** `refetchInterval: 30000, staleTime: 10000`.
-
-### P18-PERF-03: `StockTransactionsTab` — 10s polling
-
-- `src/components/stock/StockTransactionsTab.tsx` line 372: `refetchInterval: 10000`
-
-**Fix:** `refetchInterval: 30000`.
-
-### P18-PERF-04: `Dashboard` — 10s polling with `gcTime: 0`
-
-- `src/pages/Dashboard.tsx` line 323-325: `refetchInterval: 10000, staleTime: 0, gcTime: 0`
-
-This is the main ERP dashboard. Every 10 seconds it re-fetches AND discards cache.
-
-**Fix:** `refetchInterval: 30000, staleTime: 10000`. Remove `gcTime: 0`.
-
-### P18-PERF-05: `QueryProvider` global default — 60s polling on ALL queries
-
-- `src/components/QueryProvider.tsx` line 12: `refetchInterval: 60000` as global default
-
-This means every `useQuery` in the entire app polls every 60 seconds by default, even for static data like roles, products, permissions. This is wasteful.
-
-**Fix:** Remove the global `refetchInterval`. Let individual queries opt-in to polling where needed. This alone reduces hundreds of unnecessary background requests.
-
-### P18-PERF-06: `useBinanceAssets` — 10-15s polling
-
-- `src/hooks/useBinanceAssets.tsx` lines 65-66: `refetchInterval: 15000, staleTime: 5000` (balances)
-- Line 81-82: `refetchInterval: 10000, staleTime: 3000` (ticker prices)
-
-**Fix:** Balances → `refetchInterval: 30000`. Ticker prices → `refetchInterval: 20000` (prices change faster, but 10s is excessive for a dashboard widget).
+All previous phases complete: data integrity fixes, orphaned code removal, permissions cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log cleanup (client-side complete), native confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling reduction (10s→30s), silent catch blocks, hardcoded password backdoor removed, anonymous role policies dropped.
 
 ---
 
-## CATEGORY B: Security — Hardcoded Password Backdoor (1 item)
+## CATEGORY A: Performance — Remaining 15s Polling (5 locations)
 
-### P18-SEC-01: `validate_user_credentials` still contains hardcoded admin password
+Phase 18 reduced all 10s polling to 30s, but 5 bank-related queries still poll at 15s with `staleTime: 0`. Bank balances don't change every 15 seconds.
 
-**Impact: CRITICAL** — The security scan confirms `validate_user_credentials` has a hardcoded plaintext password `'Blynk@0717'` for a specific admin email. This is a permanent backdoor visible in migration files and the live function.
+### P19-PERF-01: Bank account queries polling at 15s (5 files)
 
-**Fix:** Create a migration to `CREATE OR REPLACE` the function, removing the hardcoded password branch entirely. All logins must go through the `crypt()` hash comparison path.
+- `src/components/bams/BankAccountManagement.tsx` line 106: `refetchInterval: 15000, staleTime: 0`
+- `src/components/bams/AccountSummary.tsx` line 159: `refetchInterval: 15000`
+- `src/hooks/useActiveBankAccounts.tsx` line 52: `refetchInterval: 15000`
+- `src/components/widgets/BankBalanceFilterWidget.tsx` line 106: `refetchInterval: 15000`
+- `src/components/dashboard/DashboardWidget.tsx` line 63: `refetchInterval: 15000`
+
+**Fix:** All 5 → `refetchInterval: 30000, staleTime: 10000`. Consistent with the 30s standard established in Phase 18.
+
+### P19-PERF-02: PayerModule polling at 10s
+
+- `src/hooks/usePayerModule.ts` line 92: `refetchInterval: 10_000`
+
+Payer order locks need reasonably fresh data but 10s is excessive.
+
+**Fix:** `refetchInterval: 20000, staleTime: 8000`. Payer locks are more time-sensitive than bank balances but don't need 10s.
 
 ---
 
-## CATEGORY C: Security — Anonymous Access to Role Data (1 item)
+## CATEGORY B: Security — OTP In-Memory Storage Bypass (1 item)
 
-### P18-SEC-02: `user_roles` and `roles` tables readable by anonymous users
+### P19-SEC-01: OTP stored in edge function memory, not database
 
-**Impact: HIGH** — The security scan found `anon_read_user_roles` and `anon_read_roles` policies that let unauthenticated users enumerate all user IDs and their roles (including Super Admin). This enables targeted attacks.
+**Impact: HIGH** — The `send-password-reset-otp` and `reset-password-with-otp` edge functions store OTPs in in-memory `Map` objects. Since these are separate function instances, the verify function can never see OTPs created by the send function. This means password reset is **fundamentally broken** or accepts any OTP.
 
-**Fix:** Migration to drop both anonymous read policies:
+**Fix:**
+1. Create a `password_reset_tokens` table with columns: `id`, `email`, `otp_hash`, `created_at`, `expires_at`, `used`, `attempts`
+2. Update `send-password-reset-otp` to insert hashed OTP into database
+3. Update `reset-password-with-otp` to verify against database, mark as used
+4. Add rate limiting (max 5 attempts per token)
+5. Add cleanup: delete expired tokens older than 1 hour
 
-```sql
-DROP POLICY IF EXISTS "anon_read_user_roles" ON public.user_roles;
-DROP POLICY IF EXISTS "anon_read_roles" ON public.roles;
+---
+
+## CATEGORY C: Security — verify-binance-keys Leaks Partial API Keys (1 item)
+
+### P19-SEC-02: Edge function returns partial API key strings
+
+**Impact: MEDIUM** — `verify-binance-keys` returns first 4-8 chars of Binance API keys in HTTP response. Combined with `verify_jwt = false`, anyone can probe which secrets are configured and get partial key data.
+
+**Fix:** Redeploy the edge function to return only boolean flags:
+```typescript
+{
+  api_key_configured: !!BINANCE_API_KEY,
+  api_secret_configured: !!BINANCE_API_SECRET,
+  proxy_url_configured: !!BINANCE_PROXY_URL
+}
 ```
 
 ---
 
+## CATEGORY D: Code Quality — Silent `.catch(() => {})` in email notifications (1 item)
 
+### P19-QUAL-01: Task email notifications silently swallow errors
+
+- `src/utils/taskEmail.ts` line 80: `.catch(() => {})`
+- `src/hooks/useTasks.ts` lines 332, 422: `.catch(() => {})`
+
+These fire-and-forget notification calls silently discard errors. While notifications are non-critical, we should at least log failures.
+
+**Fix:** Replace `.catch(() => {})` with `.catch((err) => console.warn('Notification send failed:', err.message))`.
 
 ---
 
 ## Summary Table
 
+| # | ID | Severity | Action | Target |
+|---|------|----------|--------|--------|
+| 1 | P19-PERF-01 | MEDIUM | Reduce bank account polling 15s → 30s | 5 bank-related files |
+| 2 | P19-PERF-02 | LOW | Reduce payer module polling 10s → 20s | usePayerModule.ts |
+| 3 | P19-SEC-01 | HIGH | Move OTP storage from memory to database | 2 edge functions + migration |
+| 4 | P19-SEC-02 | MEDIUM | Stop leaking partial API keys | verify-binance-keys edge function |
+| 5 | P19-QUAL-01 | LOW | Add console.warn to silent notification catches | taskEmail.ts, useTasks.ts |
 
-| #   | ID          | Severity | Action                                              | Target                                 | &nbsp; | &nbsp; |
-| --- | ----------- | -------- | --------------------------------------------------- | -------------------------------------- | ------ | ------ |
-| 1   | P18-PERF-01 | MEDIUM   | Reduce wallet stock polling 10s → 30s               | useWalletStock, useWalletStockWithCost | &nbsp; | &nbsp; |
-| 2   | P18-PERF-02 | LOW      | Reduce WalletSelector polling 10s → 30s             | WalletSelector.tsx                     | &nbsp; | &nbsp; |
-| 3   | P18-PERF-03 | LOW      | Reduce StockTransactionsTab polling 10s → 30s       | StockTransactionsTab.tsx               | &nbsp; | &nbsp; |
-| 4   | P18-PERF-04 | MEDIUM   | Reduce Dashboard polling 10s → 30s, remove gcTime:0 | Dashboard.tsx                          | &nbsp; | &nbsp; |
-| 5   | P18-PERF-05 | HIGH     | Remove global 60s refetchInterval default           | QueryProvider.tsx                      | &nbsp; | &nbsp; |
-| 6   | P18-PERF-06 | LOW      | Reduce Binance asset polling 10-15s → 20-30s        | useBinanceAssets.tsx                   | &nbsp; | &nbsp; |
-| 7   | P18-SEC-01  | CRITICAL | Remove hardcoded admin password backdoor            | SQL migration                          | &nbsp; | &nbsp; |
-| 8   | P18-SEC-02  | HIGH     | Drop anonymous read policies on user_roles/roles    | SQL migration                          | &nbsp; | &nbsp; |
-| 9   | &nbsp;      | &nbsp;   | &nbsp;                                              | &nbsp;                                 | &nbsp; | &nbsp; |
-
-
-**Total: 6 polling reductions (eliminating ~600+ unnecessary queries/minute across the app), 1 critical security backdoor removed, 1 anonymous data exposure closed, 1 key leak fixed**
-
-### Technical Details
-
-The `QueryProvider` global default change is the highest-impact single fix: removing `refetchInterval: 60000` from the default query options stops every query in the app from polling unnecessarily. Only queries that explicitly set `refetchInterval` (terminal orders, chat, active ads) will continue polling — which is correct behavior.
-
-The hardcoded password removal requires checking the current live function signature to ensure we don't break the normal `crypt()` authentication path.
-
-The `verify-binance-keys` fix is a simple edge function redeploy — change the response format from partial-key strings to boolean flags.
+**Total: 6 polling reductions (completing the 30s standardization), 1 broken OTP system fixed, 1 key leak closed, 3 silent catches instrumented**

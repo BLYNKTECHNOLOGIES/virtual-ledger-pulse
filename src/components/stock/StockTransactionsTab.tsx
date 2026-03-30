@@ -334,11 +334,11 @@ export function StockTransactionsTab() {
 
         // Manual transfer / manual adjustment / wallet transfer
         const qty = parseFloat(String(t.amount)) || 0;
-        const unitPrice = 1;
+        const assetAvgPrice = avgBuyPriceByCode.get(t.asset_code) || 0;
         return {
           ...t,
-          _unit_price: unitPrice,
-          _total_amount: qty * unitPrice,
+          _unit_price: assetAvgPrice,
+          _total_amount: qty * assetAvgPrice,
           _supplier_customer_name: null,
           _reference_number: null,
           _created_by_user: t.created_by ? userById.get(t.created_by) : null,

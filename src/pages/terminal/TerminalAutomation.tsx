@@ -271,12 +271,14 @@ export default function TerminalAutomation() {
 
         {/* ═══ MERCHANT SCHEDULES ═══ */}
         <TabsContent value="schedules" className="mt-4 space-y-4">
-          <div className="flex justify-end">
-            <Button size="sm" onClick={handleCreateSchedule}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Schedule
-            </Button>
-          </div>
+          {canManageAutoReply && (
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handleCreateSchedule}>
+                <Plus className="h-4 w-4 mr-1.5" />
+                New Schedule
+              </Button>
+            </div>
+          )}
 
           <Card>
             <CardContent className="p-0">

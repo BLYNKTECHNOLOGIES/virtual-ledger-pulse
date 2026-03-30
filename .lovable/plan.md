@@ -1,82 +1,110 @@
+# ERP Full System Audit — Phase 18 Report
 
+## Phases 1-17 Status (completed)
 
-# ERP Full System Audit — Phase 17 Report
-
-## Phases 1-16 Status (completed)
-All previous phases complete: data integrity fixes, orphaned code removal, permissions cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log batches 1-5, native confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination.
-
----
-
-## CATEGORY A: Data Integrity / Security Bugs (3 items)
-
-### P17-SEC-01: Hardcoded `'Current User'` string in 4 files instead of actual user ID
-**Impact: HIGH** — Audit trail is broken for bank account closures, compliance investigations, and case tracking. The string `'Current User'` is inserted into `closed_by`, `assigned_to`, `completed_by`, and `created_by` columns instead of the real user UUID.
-
-**Files affected:**
-- `src/components/bams/CloseAccountDialog.tsx` (line 188) — `closed_by: 'Current User'`
-- `src/components/compliance/CaseTrackingTab.tsx` (line 92) — `investigation_assigned_to: 'Current User'`
-- `src/components/compliance/InvestigationDetailsDialog.tsx` (lines 167, 225, 338) — `completed_by`, `created_by`, `submitted_by`
-- `src/components/compliance/AccountStatusTab.tsx` (line 396) — `assigned_to: 'Current User'`
-
-**Fix:** Replace all 6 occurrences with `getCurrentUserId()` from `@/lib/system-action-logger`, falling back to `auth.uid()` where the column expects a UUID. For text columns that store names, use `user.email` or `user.username` from the auth context.
-
-**Live data corruption:** 2 rows in `closed_bank_accounts` already have `closed_by = 'Current User'`. Will backfill with the actual user who performed the closure if determinable from `system_action_logs`, otherwise mark as `'system-backfill'`.
-
-### P17-SEC-02: `stock_transactions` — 100% of rows have `created_by = NULL`
-**Impact: MEDIUM** — 1,373 out of 1,373 stock transaction rows lack audit attribution. This was caused by the old RPC functions not passing `created_by`. The rebuilt purchase RPCs (Phase 15) now pass `created_by`, but historical data is unattributed.
-
-**Fix:** No retroactive backfill possible (original actor unknown). Document as known data gap. Verify the new purchase RPC correctly sets `created_by` going forward by checking one recent test entry.
-
-### P17-SEC-03: `wallet_transactions` — 85% of rows have `created_by = NULL`
-**Impact: MEDIUM** — 4,323 out of 5,056 wallet transaction rows lack audit attribution. Same root cause as P17-SEC-02.
-
-**Fix:** Same approach — document as historical gap. The rebuilt RPCs now set `created_by`. No safe retroactive backfill.
+All previous phases complete: data integrity fixes, orphaned code removal, permissions cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log cleanup (client-side complete), native confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling reduction, silent catch blocks.
 
 ---
 
-## CATEGORY B: Aggressive Polling / Performance (2 items)
+## CATEGORY A: Performance — Aggressive Polling (6 items)
 
-### P17-PERF-01: `WalletManagementTab` polls at 5-second intervals
-Two queries in `WalletManagementTab.tsx` use `refetchInterval: 5000` with `staleTime: 0`. This fires 24 queries/minute per tab visitor, even when the data rarely changes.
+Phase 17 fixed 2 polling hotspots, but 6 more remain at 10-second intervals with `staleTime: 0`. These fire 6 queries/minute each per open tab.
 
-**Fix:** Increase to `refetchInterval: 30000` (30s) and `staleTime: 10000` (10s). Wallet data doesn't change every 5 seconds.
+### P18-PERF-01: `useWalletStock` — 4 queries at 10s polling
 
-### P17-PERF-02: `ExpensesIncomesTab` polls at 5-second intervals
-`src/components/bams/journal/ExpensesIncomesTab.tsx` uses `refetchInterval: 5000`. Bank journal entries don't change every 5 seconds.
+- `src/hooks/useWalletStock.tsx` lines 41-42, 59-60: Two queries with `refetchInterval: 10000, staleTime: 0`
+- `src/hooks/useWalletStockWithCost.tsx` lines 57-58, 148-149: Two more queries same pattern
 
-**Fix:** Increase to `refetchInterval: 30000`.
+**Fix:** Increase all 4 to `refetchInterval: 30000, staleTime: 10000`. Wallet stock doesn't change every 10 seconds.
+
+### P18-PERF-02: `WalletSelector` — 10s polling
+
+- `src/components/stock/WalletSelector.tsx` line 67-68: `refetchInterval: 10000, staleTime: 0`
+
+**Fix:** `refetchInterval: 30000, staleTime: 10000`.
+
+### P18-PERF-03: `StockTransactionsTab` — 10s polling
+
+- `src/components/stock/StockTransactionsTab.tsx` line 372: `refetchInterval: 10000`
+
+**Fix:** `refetchInterval: 30000`.
+
+### P18-PERF-04: `Dashboard` — 10s polling with `gcTime: 0`
+
+- `src/pages/Dashboard.tsx` line 323-325: `refetchInterval: 10000, staleTime: 0, gcTime: 0`
+
+This is the main ERP dashboard. Every 10 seconds it re-fetches AND discards cache.
+
+**Fix:** `refetchInterval: 30000, staleTime: 10000`. Remove `gcTime: 0`.
+
+### P18-PERF-05: `QueryProvider` global default — 60s polling on ALL queries
+
+- `src/components/QueryProvider.tsx` line 12: `refetchInterval: 60000` as global default
+
+This means every `useQuery` in the entire app polls every 60 seconds by default, even for static data like roles, products, permissions. This is wasteful.
+
+**Fix:** Remove the global `refetchInterval`. Let individual queries opt-in to polling where needed. This alone reduces hundreds of unnecessary background requests.
+
+### P18-PERF-06: `useBinanceAssets` — 10-15s polling
+
+- `src/hooks/useBinanceAssets.tsx` lines 65-66: `refetchInterval: 15000, staleTime: 5000` (balances)
+- Line 81-82: `refetchInterval: 10000, staleTime: 3000` (ticker prices)
+
+**Fix:** Balances → `refetchInterval: 30000`. Ticker prices → `refetchInterval: 20000` (prices change faster, but 10s is excessive for a dashboard widget).
 
 ---
 
-## CATEGORY C: Code Quality (2 items)
+## CATEGORY B: Security — Hardcoded Password Backdoor (1 item)
 
-### P17-QUAL-01: Silent empty `catch {}` blocks in 5 locations
-These swallow errors without any logging:
-- `useTaskComments.ts:101`
-- `useAdActionLog.ts:111`
-- `RealDataWidgets.tsx:1090`
-- `TerminalSettings.tsx:49`
-- `ProfitLoss.tsx:265`
+### P18-SEC-01: `validate_user_credentials` still contains hardcoded admin password
 
-**Fix:** Add `console.warn` to each so failures are visible during debugging. The `TerminalSettings.tsx` one (localStorage parse) is acceptable as-is since it has a fallback.
+**Impact: CRITICAL** — The security scan confirms `validate_user_credentials` has a hardcoded plaintext password `'Blynk@0717'` for a specific admin email. This is a permanent backdoor visible in migration files and the live function.
 
-### P17-QUAL-02: `useUSDTRate.tsx` — last remaining `console.debug` call
-One `console.debug` remains gated behind `import.meta.env.DEV`, which is acceptable. No action needed — document as intentional.
+**Fix:** Create a migration to `CREATE OR REPLACE` the function, removing the hardcoded password branch entirely. All logins must go through the `crypt()` hash comparison path.
+
+---
+
+## CATEGORY C: Security — Anonymous Access to Role Data (1 item)
+
+### P18-SEC-02: `user_roles` and `roles` tables readable by anonymous users
+
+**Impact: HIGH** — The security scan found `anon_read_user_roles` and `anon_read_roles` policies that let unauthenticated users enumerate all user IDs and their roles (including Super Admin). This enables targeted attacks.
+
+**Fix:** Migration to drop both anonymous read policies:
+
+```sql
+DROP POLICY IF EXISTS "anon_read_user_roles" ON public.user_roles;
+DROP POLICY IF EXISTS "anon_read_roles" ON public.roles;
+```
+
+---
+
+
 
 ---
 
 ## Summary Table
 
-| # | ID | Action | File(s) |
-|---|------|--------|---------|
-| 1 | P17-SEC-01 | Replace 6x `'Current User'` with real user ID | CloseAccountDialog, CaseTrackingTab, InvestigationDetailsDialog, AccountStatusTab |
-| 2 | P17-SEC-02 | Document stock_transactions audit gap | Documentation only |
-| 3 | P17-SEC-03 | Document wallet_transactions audit gap | Documentation only |
-| 4 | P17-PERF-01 | Reduce WalletManagementTab polling 5s → 30s | WalletManagementTab.tsx |
-| 5 | P17-PERF-02 | Reduce ExpensesIncomesTab polling 5s → 30s | ExpensesIncomesTab.tsx |
-| 6 | P17-QUAL-01 | Add console.warn to 4 silent catch blocks | 4 files |
 
-**Total: 6 hardcoded 'Current User' strings fixed, 2 polling intervals reduced, 4 silent catch blocks instrumented**
+| #   | ID          | Severity | Action                                              | Target                                 | &nbsp; | &nbsp; |
+| --- | ----------- | -------- | --------------------------------------------------- | -------------------------------------- | ------ | ------ |
+| 1   | P18-PERF-01 | MEDIUM   | Reduce wallet stock polling 10s → 30s               | useWalletStock, useWalletStockWithCost | &nbsp; | &nbsp; |
+| 2   | P18-PERF-02 | LOW      | Reduce WalletSelector polling 10s → 30s             | WalletSelector.tsx                     | &nbsp; | &nbsp; |
+| 3   | P18-PERF-03 | LOW      | Reduce StockTransactionsTab polling 10s → 30s       | StockTransactionsTab.tsx               | &nbsp; | &nbsp; |
+| 4   | P18-PERF-04 | MEDIUM   | Reduce Dashboard polling 10s → 30s, remove gcTime:0 | Dashboard.tsx                          | &nbsp; | &nbsp; |
+| 5   | P18-PERF-05 | HIGH     | Remove global 60s refetchInterval default           | QueryProvider.tsx                      | &nbsp; | &nbsp; |
+| 6   | P18-PERF-06 | LOW      | Reduce Binance asset polling 10-15s → 20-30s        | useBinanceAssets.tsx                   | &nbsp; | &nbsp; |
+| 7   | P18-SEC-01  | CRITICAL | Remove hardcoded admin password backdoor            | SQL migration                          | &nbsp; | &nbsp; |
+| 8   | P18-SEC-02  | HIGH     | Drop anonymous read policies on user_roles/roles    | SQL migration                          | &nbsp; | &nbsp; |
+| 9   | &nbsp;      | &nbsp;   | &nbsp;                                              | &nbsp;                                 | &nbsp; | &nbsp; |
 
-No database schema changes needed. One data-fix query to backfill the 2 `closed_bank_accounts` rows.
 
+**Total: 6 polling reductions (eliminating ~600+ unnecessary queries/minute across the app), 1 critical security backdoor removed, 1 anonymous data exposure closed, 1 key leak fixed**
+
+### Technical Details
+
+The `QueryProvider` global default change is the highest-impact single fix: removing `refetchInterval: 60000` from the default query options stops every query in the app from polling unnecessarily. Only queries that explicitly set `refetchInterval` (terminal orders, chat, active ads) will continue polling — which is correct behavior.
+
+The hardcoded password removal requires checking the current live function signature to ensure we don't break the normal `crypt()` authentication path.
+
+The `verify-binance-keys` fix is a simple edge function redeploy — change the response format from partial-key strings to boolean flags.

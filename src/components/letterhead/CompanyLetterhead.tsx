@@ -1,5 +1,6 @@
 import React from 'react';
 import blynkLogo from '@/assets/blynk-logo.png';
+import blynkWatermark from '@/assets/blynk-watermark.png';
 
 interface CompanyLetterheadProps {
   children: React.ReactNode;
@@ -10,7 +11,7 @@ interface CompanyLetterheadProps {
  * Production-ready letterhead component matching the official PDF exactly.
  *
  * - Top-left chevrons are LARGER than bottom-left
- * - L-shaped watermark blocks in center
+ * - Blynk block logo as centered watermark
  * - Right navy bar with white accent line
  *
  * For Puppeteer PDF: margin: { top: '140px', bottom: '120px', left: '50px', right: '60px' }
@@ -45,14 +46,24 @@ export function CompanyLetterhead({ children, showCIN = true }: CompanyLetterhea
         </div>
       </div>
 
-      {/* ═══ WATERMARK (L-shaped blocks) ═══ */}
-      <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1, pointerEvents: 'none' }}>
-        {/* Top block */}
-        <div style={{ position: 'absolute', left: '30%', top: '28%', width: '140px', height: '120px', background: 'rgba(217,242,242,0.5)' }} />
-        {/* Middle-right block */}
-        <div style={{ position: 'absolute', left: '42%', top: '42%', width: '140px', height: '120px', background: 'rgba(217,242,242,0.5)' }} />
-        {/* Bottom spanning block */}
-        <div style={{ position: 'absolute', left: '26%', top: '53%', width: '210px', height: '120px', background: 'rgba(217,242,242,0.5)' }} />
+      {/* ═══ WATERMARK (Blynk block logo) ═══ */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 1,
+        pointerEvents: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <img
+          src={blynkWatermark}
+          alt=""
+          style={{ width: '280px', height: '280px', objectFit: 'contain', opacity: 0.08 }}
+        />
       </div>
 
       {/* ═══ FIXED FOOTER ═══ */}

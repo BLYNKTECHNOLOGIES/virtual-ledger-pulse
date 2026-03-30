@@ -246,6 +246,9 @@ export function StockTransactionsTab() {
       const convById = new Map<string, any>();
       (conversions || []).forEach((c: any) => c?.id && convById.set(c.id, c));
 
+      const avgBuyPriceByCode = new Map<string, number>();
+      (productsData || []).forEach((p: any) => p?.code && avgBuyPriceByCode.set(p.code, Number(p.average_buying_price || 0)));
+
       const avgPurchasePriceByPo = new Map<string, number>();
       (purchaseItems || []).forEach((pi: any) => {
         const poId = pi?.purchase_order_id;

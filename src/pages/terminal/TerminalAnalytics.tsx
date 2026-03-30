@@ -5,6 +5,7 @@ import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, 
 import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useCachedOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 
 // ─── Helpers ───
 function fmt(n: number, decimals = 0) {
@@ -76,8 +77,10 @@ export default function TerminalAnalytics() {
   }, [cachedOrders]);
 
   // ─── Trade Stats (30d) ───
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  const recentOrders = useMemo(() => orders.filter(o => o.createTime >= thirtyDaysAgo), [orders, thirtyDaysAgo]);
+  const recentOrders = useMemo(() => {
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    return orders.filter(o => o.createTime >= thirtyDaysAgo);
+  }, [orders]);
 
   const tradeStats = useMemo(() => {
     const completed = recentOrders.filter((o) => o.orderStatus === 'COMPLETED');

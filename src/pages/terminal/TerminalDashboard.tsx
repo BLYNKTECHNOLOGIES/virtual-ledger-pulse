@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 
 export default function TerminalDashboard() {
   const { data: cachedOrders = [], isLoading: dbLoading, refetch: refetchDb } = useCachedOrderHistory();
@@ -135,6 +136,7 @@ export default function TerminalDashboard() {
     : 'Never synced';
 
   return (
+    <TerminalPermissionGate permissions={['terminal_dashboard_view']}>
     <div className="p-4 md:p-6 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -231,5 +233,6 @@ export default function TerminalDashboard() {
         </Link>
       </div>
     </div>
+    </TerminalPermissionGate>
   );
 }

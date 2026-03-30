@@ -1,99 +1,110 @@
-# ERP Full System Audit — Phase 20 Report
+# ERP Full System Audit — Phase 21 Report
 
-## Phases 1-19 Status (completed)
+## Phases 1-20 Status (completed)
 
-All previous phases complete: data integrity, orphaned code, permissions, XSS, dead code, console.log cleanup (client-side), confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling standardization (30s), silent catch blocks, OTP system removal, hardcoded backdoor removed, anonymous policies dropped.
+All previous phases complete: data integrity, orphaned code, permissions, XSS, dead code, console.log cleanup (client+edge), confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling standardization (30s), silent catch blocks, OTP system removal, hardcoded backdoor removed, anonymous role policies dropped, payment gateway components refactored, edge function logging cleaned.
 
 ---
 
-## CATEGORY A: Security — verify-binance-keys Leaks Secrets (1 item) exempt this
+## CATEGORY A: CRITICAL — Users Table Exposes Password Hashes to Anonymous Users EXEMPT IT AS WE RUN AND GIVE ACESS TO ONLY USER INSIDE ORGANIZATION
 
-### P20-SEC-01: Edge function exposes partial API keys and proxy URL
+### P21-SEC-01: `anon_read_users_for_login` policy leaks bcrypt hashes, emails, phone numbers
 
-**Impact: HIGH** — `verify-binance-keys` has `verify_jwt = false` and returns first 4-20 characters of `BINANCE_API_KEY`, `BINANCE_API_SECRET`, `BINANCE_PROXY_TOKEN`, and `BINANCE_PROXY_URL` in its HTTP response. Anyone on the internet can call this endpoint and extract partial secrets.
+**Impact: CRITICAL** — The `users` table has an `anon_read_users_for_login` policy with `USING (true)` for the `{anon}` role. Any unauthenticated request can read **all 19 user rows** including `password_hash` (bcrypt), `email`, `phone`, `username`, and login timestamps.
 
-Lines 21-24 of `supabase/functions/verify-binance-keys/index.ts`:
+This is the single most severe vulnerability in the system. An attacker can extract all password hashes and run offline brute-force attacks.
 
-```
-BINANCE_PROXY_URL: `Set (${BINANCE_PROXY_URL.substring(0, 20)}...)`
-BINANCE_API_KEY: `Set (${BINANCE_API_KEY.substring(0, 8)}...${BINANCE_API_KEY.slice(-4)})`
-BINANCE_API_SECRET: `Set (${BINANCE_API_SECRET.substring(0, 4)}...${BINANCE_API_SECRET.slice(-4)})`
-BINANCE_PROXY_TOKEN: `Set (${BINANCE_PROXY_TOKEN.substring(0, 4)}...)`
-```
+**Fix:** SQL migration to drop this policy:
 
-**Fix:** Rewrite to return only boolean flags:
-
-```typescript
-{ proxy_url_configured: true, api_key_configured: true, api_secret_configured: true, proxy_token_configured: true, proxy_ping: "OK", api_key_valid: true }
+```sql
+DROP POLICY IF EXISTS "anon_read_users_for_login" ON public.users;
 ```
 
----
-
-## CATEGORY B: Config Hygiene — Stale config.toml entries (1 item)
-
-### P20-CFG-01: config.toml references deleted edge functions
-
-3 edge functions were deleted in Phase 19 but their `verify_jwt = false` entries remain in `supabase/config.toml`:
-
-- `send-password-reset-otp` (line 54)
-- `reset-password-with-otp` (line 48)
-- `verify-password-reset-otp` (line 62)
-
-**Fix:** Remove these 6 lines from config.toml.
+The login flow uses `validate_user_credentials` RPC (SECURITY DEFINER) which bypasses RLS — it does not need anon SELECT access to the users table.
 
 ---
 
-## CATEGORY C: Code Quality — useEffect fetch patterns (3 components)
+## CATEGORY B: CRITICAL — Storage Buckets Publicly Accessible
 
-### P20-QUAL-01: AvailablePaymentGateways uses useEffect+useState instead of useQuery
+### P21-SEC-02: 7 storage buckets allow unauthenticated read/write/delete
 
-`src/components/bams/payment-gateway/AvailablePaymentGateways.tsx` — manual `useEffect(() => { fetchPaymentGateways(); }, [])` with `useState` for loading/data. No caching, no deduplication, no error retry.
+**Impact: CRITICAL** — The following buckets have `{public}` role policies with no auth check, meaning anyone on the internet can read, upload, and delete files:
 
-**Fix:** Refactor to `useQuery` with `queryKey: ['payment-gateways']`. After mutations (add/edit), call `queryClient.invalidateQueries`.
 
-### P20-QUAL-02: PendingSettlements uses useEffect+useState
+| Bucket                    | Contains                               | Public Operations                     |
+| ------------------------- | -------------------------------------- | ------------------------------------- |
+| `kyc-documents`           | Aadhar cards, PAN cards, identity docs | SELECT, INSERT, UPDATE, DELETE        |
+| `employee-documents`      | Aadhar, PAN, resumes, offer letters    | SELECT, INSERT, UPDATE, DELETE        |
+| `internal-chat-files`     | Operator chat files                    | SELECT, INSERT, DELETE                |
+| `task-attachments`        | Task files                             | SELECT, INSERT, UPDATE, DELETE (anon) |
+| `sales_attachments`       | Payment proofs, transaction bills      | ALL                                   |
+| `documents`               | Business documents                     | SELECT, INSERT, UPDATE, DELETE        |
+| `investigation-documents` | Compliance investigation docs          | SELECT, INSERT, UPDATE, DELETE        |
 
-`src/components/bams/payment-gateway/PendingSettlements.tsx` — same pattern. Two `useEffect` fetches for settlements and bank accounts.
 
-**Fix:** Refactor both fetches to `useQuery`. Bank accounts query can be shared/cached.
+**Fix:** SQL migration to:
 
-### P20-QUAL-03: SettlementSummary uses useEffect+useState
-
-`src/components/bams/payment-gateway/SettlementSummary.tsx` — same pattern with two `useEffect` fetches.
-
-**Fix:** Refactor to `useQuery`.
+1. Drop all `{public}` and `{anon}` policies on these buckets
+2. Create `{authenticated}` policies for SELECT, INSERT, UPDATE, DELETE with `auth.role() = 'authenticated'` check
+3. Set buckets to private where currently public
 
 ---
 
-## CATEGORY D: Edge Function Console Logging (1 item)
+## CATEGORY C: HIGH — WebAuthn Credentials and Pending Registrations Exposed
 
-### P20-LOG-01: binance-assets edge function has 20+ console.log calls
+### P21-SEC-03: `terminal_webauthn_credentials` readable by anonymous users
 
-`supabase/functions/binance-assets/index.ts` has extensive `console.log` calls that expose request payloads, API responses, and partial data in Supabase edge function logs. While edge function logs are not public, this is excessive for production.
+**Fix:** Drop `anon_read_terminal_webauthn_credentials` policy. Replace with authenticated-only:
 
-**Fix:** Replace verbose `console.log` with structured logging: keep action-level logs (what action was called, success/failure) but remove payload dumps and response body logging. Use `console.info` for operational events and `console.error` for failures only.
+```sql
+DROP POLICY IF EXISTS "anon_read_terminal_webauthn_credentials" ON public.terminal_webauthn_credentials;
+```
+
+### P21-SEC-04: `pending_registrations` password hashes readable by all authenticated users
+
+The `authenticated_all_pending_registrations` policy grants ALL operations to any authenticated user. A low-privilege operator can read pending registration password hashes.
+
+**Fix:** Replace with manager-only access using `is_manager()`.PROPERPERLY CREATE A PERMISSION SYTEM THAT COULD BE GIVEN TO USER AND ADMIN AND SUPER ADMIJN SHALL HAVE IT BY DEFAULT
+
+---
+
+## CATEGORY D: HIGH — 14 Terminal/ERP Tables Readable Without Authentication
+
+### P21-SEC-05: Public-role SELECT policies on operational tables
+
+14 tables have `{public}` role SELECT policies with `USING (true)`:
+
+- `p2p_terminal_roles`, `p2p_terminal_role_permissions`, `p2p_terminal_user_roles`
+- `terminal_order_assignments`, `terminal_user_profiles`, `terminal_user_supervisor_mappings`
+- `terminal_user_size_range_mappings`, `terminal_user_exchange_mappings`, `terminal_exchange_accounts`
+- `terminal_order_size_ranges`, `terminal_wallet_links`
+- `role_permissions` (anon)
+- `stock_transactions` (public — exposes customer names and trade amounts)
+
+**Fix:** Single migration to drop all these public/anon SELECT policies and replace with `{authenticated}` equivalents.
 
 ---
 
 ## Summary Table
 
 
-| #   | ID          | Severity | Action                                                 | Target                                        |
-| --- | ----------- | -------- | ------------------------------------------------------ | --------------------------------------------- |
-| 1   | P20-SEC-01  | HIGH     | Stop leaking partial API keys/secrets                  | verify-binance-keys edge function exempt this |
-| 2   | P20-CFG-01  | LOW      | Remove stale config.toml entries for deleted functions | supabase/config.toml                          |
-| 3   | P20-QUAL-01 | MEDIUM   | Refactor AvailablePaymentGateways to useQuery          | AvailablePaymentGateways.tsx                  |
-| 4   | P20-QUAL-02 | MEDIUM   | Refactor PendingSettlements to useQuery                | PendingSettlements.tsx                        |
-| 5   | P20-QUAL-03 | MEDIUM   | Refactor SettlementSummary to useQuery                 | SettlementSummary.tsx                         |
-| 6   | P20-LOG-01  | LOW      | Reduce verbose edge function logging                   | binance-assets/index.ts                       |
+| #   | ID         | Severity | Action                                                    | Target                                                                              |
+| --- | ---------- | -------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| 1   | P21-SEC-01 | CRITICAL | Drop anon policy exposing user password hashes            | `users` tableEXEMPT IT AS WE RUN AND GIVE ACESS TO ONLY USER INSIDE ORGANIZATION    |
+| 2   | P21-SEC-02 | CRITICAL | Secure 7 storage buckets (drop public policies, add auth) | Storage policiesEXEMPT IT AS WE RUN AND GIVE ACESS TO ONLY USER INSIDE ORGANIZATION |
+| 3   | P21-SEC-03 | HIGH     | Drop anon WebAuthn credentials policy                     | `terminal_webauthn_credentials`                                                     |
+| 4   | P21-SEC-04 | HIGH     | Restrict pending_registrations to managers only           | `pending_registrations`                                                             |
+| 5   | P21-SEC-05 | HIGH     | Replace 14 public SELECT policies with authenticated      | Multiple terminal/ERP tables                                                        |
 
 
-**Total: 1 secret leak closed, 3 stale config entries removed, 3 components refactored to useQuery, 1 edge function logging cleaned up**
+**Total: 1 critical password hash exposure closed, 7 storage buckets secured, 16 public/anon table policies replaced with authenticated-only access**
 
 ### Technical Details
 
-**verify-binance-keys rewrite:** The function currently has no JWT verification and returns partial key strings. The fix keeps the proxy ping and API validity test but returns only boolean results. No frontend changes needed since the function is only called from the Binance settings panel which already handles boolean responses.
+**Why this matters consequentially:** Every prior security fix (backdoor removal, anon role policies) is undermined if the `users` table itself is readable by anonymous users — an attacker can extract all bcrypt hashes and emails without authentication. The storage bucket exposure means KYC identity documents (Aadhar/PAN cards) are downloadable by anyone with the bucket URL.
 
-**useQuery refactors:** All 3 payment gateway components follow the same pattern: `useState` + `useEffect` + manual `setLoading`. Converting to `useQuery` gives automatic caching, retry, deduplication, and loading states. The `onSuccess` callbacks after mutations become `queryClient.invalidateQueries({ queryKey: ['...'] })`.
+**Login flow impact:** The `validate_user_credentials` function is `SECURITY DEFINER`, so it bypasses RLS entirely. Removing `anon_read_users_for_login` will NOT break login. The frontend calls the RPC, not a direct table query.
 
-**config.toml cleanup:** The stale entries for deleted OTP functions are harmless but create confusion. Removing them keeps the config aligned with the actual deployed functions.
+**Storage migration approach:** For each bucket, drop all `{public}` and `{anon}` policies, then create four new policies (SELECT/INSERT/UPDATE/DELETE) scoped to `{authenticated}` with `auth.role() = 'authenticated'`. Buckets will also be set to `public = false` where applicable (except `avatars` which may legitimately need public read).
+
+**Terminal table policies:** All 14 tables currently use `{public}` because the terminal was originally designed for open access. Since the terminal now has its own permission system with `has_terminal_permission()`, the base RLS only needs to gate on `{authenticated}`.

@@ -45,21 +45,15 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.reconciliation-scan]
     verify_jwt = false
-  [functions.reset-password-with-otp]
-    verify_jwt = false
   [functions.reset-payment-limits]
     verify_jwt = false
   [functions.risk-detection]
-    verify_jwt = false
-  [functions.send-password-reset-otp]
     verify_jwt = false
   [functions.snapshot-asset-value]
     verify_jwt = false
   [functions.snapshot-daily-profit]
     verify_jwt = false
   [functions.terminal-webauthn]
-    verify_jwt = false
-  [functions.verify-password-reset-otp]
     verify_jwt = false
   [functions.send-transactional-email]
     verify_jwt = true

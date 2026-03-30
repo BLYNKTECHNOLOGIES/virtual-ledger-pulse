@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionUserId } from "@/lib/session-cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Loader2, TrendingUp, Calendar, Building, DollarSign, FileText, Filter, 
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SettlementReviewDialog } from "./SettlementReviewDialog";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface Settlement {
@@ -49,20 +49,39 @@ interface SettlementStats {
   averageSettlementAmount: number;
 }
 
+const fetchSettlementsData = async (): Promise<Settlement[]> => {
+  const { data, error } = await supabase
+    .from('payment_gateway_settlements')
+    .select(`
+      *,
+      bank_accounts ( account_name, bank_name, account_number ),
+      settled_by_user:users!payment_gateway_settlements_settled_by_fkey ( username ),
+      reversed_by_user:users!payment_gateway_settlements_reversed_by_fkey ( username ),
+      payment_gateway_settlement_items ( id, amount, sales_orders ( order_number, client_name ) )
+    `)
+    .order('updated_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []).map((settlement: any) => ({
+    ...settlement,
+    settlement_items: settlement.payment_gateway_settlement_items || []
+  }));
+};
+
+const fetchSettlementBankAccounts = async () => {
+  const { data, error } = await supabase
+    .from('bank_accounts')
+    .select('id, account_name, bank_name')
+    .eq('status', 'ACTIVE')
+    .order('account_name');
+  if (error) throw error;
+  return data || [];
+};
+
 export function SettlementSummary() {
-  const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [filteredSettlements, setFilteredSettlements] = useState<Settlement[]>([]);
-  const [stats, setStats] = useState<SettlementStats>({
-    totalSettled: 0,
-    totalTransactions: 0,
-    totalMdrDeducted: 0,
-    averageSettlementAmount: 0
-  });
-  const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [selectedBank, setSelectedBank] = useState("all");
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [selectedSettlementBatch, setSelectedSettlementBatch] = useState("");
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
@@ -72,113 +91,34 @@ export function SettlementSummary() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
 
-  useEffect(() => {
-    fetchSettlements();
-    fetchBankAccounts();
-  }, []);
+  const { data: settlements = [], isLoading: loadingSettlements } = useQuery({
+    queryKey: ['settlement-history'],
+    queryFn: fetchSettlementsData,
+  });
 
-  useEffect(() => {
-    applyFilters();
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['settlement-bank-accounts'],
+    queryFn: fetchSettlementBankAccounts,
+  });
+
+  const loading = loadingSettlements;
+
+  const filteredSettlements = useMemo(() => {
+    let filtered = [...settlements];
+    if (dateFrom) filtered = filtered.filter(s => new Date(s.settlement_date) >= new Date(dateFrom));
+    if (dateTo) filtered = filtered.filter(s => new Date(s.settlement_date) <= new Date(dateTo));
+    if (selectedBank && selectedBank !== "all") filtered = filtered.filter(s => s.bank_account_id === selectedBank);
+    return filtered;
   }, [settlements, dateFrom, dateTo, selectedBank]);
 
-  const fetchBankAccounts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('id, account_name, bank_name')
-        .eq('status', 'ACTIVE')
-        .order('account_name');
-
-      if (error) throw error;
-      setBankAccounts(data || []);
-    } catch (error) {
-      console.error('Error fetching bank accounts:', error);
-    }
-  };
-
-  const fetchSettlements = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('payment_gateway_settlements')
-        .select(`
-          *,
-          bank_accounts (
-            account_name,
-            bank_name,
-            account_number
-          ),
-          settled_by_user:users!payment_gateway_settlements_settled_by_fkey (
-            username
-          ),
-          reversed_by_user:users!payment_gateway_settlements_reversed_by_fkey (
-            username
-          ),
-          payment_gateway_settlement_items (
-            id,
-            amount,
-            sales_orders (
-              order_number,
-              client_name
-            )
-          )
-        `)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-      
-      const transformedData = (data || []).map((settlement: any) => ({
-        ...settlement,
-        settlement_items: settlement.payment_gateway_settlement_items || []
-      }));
-
-      setSettlements(transformedData);
-      calculateStats(transformedData);
-    } catch (error) {
-      console.error('Error fetching settlements:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch settlement data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...settlements];
-
-    // Date filters
-    if (dateFrom) {
-      filtered = filtered.filter(s => new Date(s.settlement_date) >= new Date(dateFrom));
-    }
-    if (dateTo) {
-      filtered = filtered.filter(s => new Date(s.settlement_date) <= new Date(dateTo));
-    }
-
-    // Bank filter
-    if (selectedBank && selectedBank !== "all") {
-      filtered = filtered.filter(s => s.bank_account_id === selectedBank);
-    }
-
-    setFilteredSettlements(filtered);
-    calculateStats(filtered);
-  };
-
-  const calculateStats = (settlementData: Settlement[]) => {
-    const activeSettlements = settlementData.filter(s => s.status !== 'REVERSED');
+  const stats = useMemo(() => {
+    const activeSettlements = filteredSettlements.filter(s => s.status !== 'REVERSED');
     const totalSettled = activeSettlements.reduce((sum, s) => sum + s.net_amount, 0);
     const totalTransactions = activeSettlements.reduce((sum, s) => sum + s.settlement_items.length, 0);
     const totalMdrDeducted = activeSettlements.reduce((sum, s) => sum + s.mdr_amount, 0);
     const averageSettlementAmount = activeSettlements.length > 0 ? totalSettled / activeSettlements.length : 0;
-
-    setStats({
-      totalSettled,
-      totalTransactions,
-      totalMdrDeducted,
-      averageSettlementAmount
-    });
-  };
+    return { totalSettled, totalTransactions, totalMdrDeducted, averageSettlementAmount };
+  }, [filteredSettlements]);
 
   const clearFilters = () => {
     setDateFrom("");
@@ -219,7 +159,8 @@ export function SettlementSummary() {
       });
       setReverseDialogOpen(false);
       setSelectedReverseSettlement(null);
-      fetchSettlements();
+      queryClient.invalidateQueries({ queryKey: ['settlement-history'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-settlements'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });

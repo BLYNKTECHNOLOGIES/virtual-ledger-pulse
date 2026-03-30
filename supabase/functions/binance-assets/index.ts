@@ -57,17 +57,11 @@ function isBinancePayMovement(movement: any): boolean {
 function isQueueEligibleMovement(movement: any, p2pOrderIds?: Set<string>): boolean {
   if (!movement) return false;
 
-  // For Binance Pay movements, only skip if they match a known P2P order
-  // (those are already handled by terminal_sales_sync).
-  // Genuine Pay transfers (to other users) should be queued.
   if (isBinancePayMovement(movement)) {
     const payOrderId = String(movement.tx_id || movement.raw_data?.orderId || "");
-    // If we have a P2P order lookup set, check against it
     if (p2pOrderIds && payOrderId) {
-      // If this pay movement matches a known P2P order, skip it
       if (p2pOrderIds.has(payOrderId)) return false;
     }
-    // If no P2P match, treat as legitimate Pay transfer — check completion status below
   }
 
   const movementType = String(movement.movement_type || "").toLowerCase();
@@ -95,7 +89,7 @@ serve(async (req) => {
     }
 
     const { action, ...payload } = await req.json();
-    console.log("binance-assets action:", action, "payload keys:", Object.keys(payload));
+    console.info(`binance-assets: action=${action}`);
 
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",
@@ -110,13 +104,12 @@ serve(async (req) => {
       const url = qs
         ? `${BINANCE_PROXY_URL}/api${path}?${qs}`
         : `${BINANCE_PROXY_URL}/api${path}`;
-      console.log(`proxyCall POST ${path} params:`, Object.keys(params));
       const res = await fetchWithRetry(url, {
         method: "POST",
         headers: proxyHeaders,
       });
       const text = await res.text();
-      console.log(`proxyCall response ${res.status}:`, text.substring(0, 500));
+      if (!res.ok) console.error(`proxyCall ${path} failed: ${res.status}`);
       try {
         return JSON.parse(text);
       } catch {
@@ -129,13 +122,12 @@ serve(async (req) => {
       const url = qs
         ? `${BINANCE_PROXY_URL}/api${path}?${qs}`
         : `${BINANCE_PROXY_URL}/api${path}`;
-      console.log(`proxyGet GET ${path} params:`, Object.keys(params));
       const res = await fetchWithRetry(url, {
         method: "GET",
         headers: proxyHeaders,
       });
       const text = await res.text();
-      console.log(`proxyGet response ${res.status}:`, text.substring(0, 500));
+      if (!res.ok) console.error(`proxyGet ${path} failed: ${res.status}`);
       try {
         return JSON.parse(text);
       } catch {
@@ -159,10 +151,9 @@ serve(async (req) => {
             headers: proxyHeaders,
           });
           const spotText = await spotRes.text();
-          console.log("Spot response status:", spotRes.status);
           spotData = JSON.parse(spotText);
         } catch (e) {
-          console.error("Spot account error:", e);
+          console.error("Spot account fetch failed:", (e as Error).message);
         }
 
         const spotBalances: any[] = spotData?.balances || [];
@@ -248,12 +239,12 @@ serve(async (req) => {
                 asset: assetToCheck,
                 amount: String(fundingFree),
               });
-              console.log("Auto-transfer result:", JSON.stringify(transferResult));
+              console.info(`Auto-transfer: ${assetToCheck} ${fundingFree} Funding→Spot`);
               fundingTransferred = true;
               await new Promise((r) => setTimeout(r, 500));
             }
           } catch (e) {
-            console.error("Transfer error:", e);
+            console.error("Transfer failed:", (e as Error).message);
           }
         }
 
@@ -270,21 +261,20 @@ serve(async (req) => {
           const factor = Math.pow(10, decimals);
           const rounded = Math.floor(parseFloat(String(quantity)) * factor) / factor;
           orderParams.quantity = rounded.toFixed(decimals);
-          console.log(`Quantity rounded: ${quantity} -> ${orderParams.quantity} (${decimals} dp for ${symbol})`);
         } else {
           throw new Error("Either quantity or quoteOrderQty required");
         }
 
         const orderQs = new URLSearchParams(orderParams).toString();
         const orderUrl = `${BINANCE_PROXY_URL}/api/api/v3/order?${orderQs}`;
-        console.log("Spot order URL:", orderUrl);
         const orderRes = await fetchWithRetry(orderUrl, { method: "POST", headers: proxyHeaders });
         const orderResult = JSON.parse(await orderRes.text());
-        console.log("Spot order result:", JSON.stringify(orderResult));
 
         if (orderResult?.code && orderResult.code < 0) {
           throw new Error(orderResult.msg || `Spot order failed: ${orderResult.code}`);
         }
+
+        console.info(`Spot order: ${symbol} ${side} — status=${orderResult?.status || 'unknown'}`);
 
         result = {
           transfer: transferResult,
@@ -353,7 +343,7 @@ serve(async (req) => {
               }
             }
           } catch (e) {
-            console.warn(`Failed to fetch trades for ${sym}:`, e);
+            console.warn(`Failed to fetch trades for ${sym}:`, (e as Error).message);
           }
         }
 
@@ -423,7 +413,6 @@ serve(async (req) => {
         const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-        // Check last sync time
         const { data: syncMeta } = await sb
           .from("asset_movement_sync_metadata")
           .select("*")
@@ -435,24 +424,18 @@ serve(async (req) => {
         const now = Date.now();
         const forceSync = payload.force === true;
 
-        // Allow force sync or if data is older than 2 minutes
         if (!forceSync && lastSync > 0 && (now - lastSync) < twoMinutes) {
-          console.log("syncAssetMovements: data is fresh, skipping sync");
           result = { synced: false, reason: "fresh" };
           break;
         }
 
-        console.log("syncAssetMovements: starting sync...");
+        console.info("syncAssetMovements: starting");
         const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
-        // Always ensure today's data is captured: use 26h ago as minimum start
         const oneDayAgo = now - 26 * 60 * 60 * 1000;
-        // If we have a previous sync, go back 2 hours before it to catch any late-arriving records;
-        // but always include at least 26h to ensure today is covered
         const syncStartTime = lastSync > 0
           ? Math.min(lastSync - 2 * 60 * 60 * 1000, oneDayAgo)
           : ninetyDaysAgo;
 
-        console.log(`syncAssetMovements: syncStartTime=${new Date(syncStartTime).toISOString()}`);
         let totalUpserted = 0;
 
         // --- Deposits ---
@@ -481,12 +464,12 @@ serve(async (req) => {
             }));
             if (rows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
-              if (error) console.error("Deposit upsert error:", error);
+              if (error) console.error("Deposit upsert error:", error.message);
               else totalUpserted += rows.length;
             }
-            console.log(`Synced ${rows.length} deposits`);
+            console.info(`Synced ${rows.length} deposits`);
           }
-        } catch (e) { console.error("Deposit sync error:", e); }
+        } catch (e) { console.error("Deposit sync error:", (e as Error).message); }
 
         // --- Withdrawals ---
         try {
@@ -514,17 +497,16 @@ serve(async (req) => {
             }));
             if (rows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
-              if (error) console.error("Withdrawal upsert error:", error);
+              if (error) console.error("Withdrawal upsert error:", error.message);
               else totalUpserted += rows.length;
             }
-            console.log(`Synced ${rows.length} withdrawals`);
+            console.info(`Synced ${rows.length} withdrawals`);
           }
-        } catch (e) { console.error("Withdrawal sync error:", e); }
+        } catch (e) { console.error("Withdrawal sync error:", (e as Error).message); }
 
         // --- Transfers (MAIN_FUNDING + FUNDING_MAIN) ---
         for (const tType of ["MAIN_FUNDING", "FUNDING_MAIN"]) {
           try {
-            // Binance transfer history API supports up to 30 days per request
             const transferStartTime = Math.max(syncStartTime, now - 30 * 24 * 60 * 60 * 1000);
             const trParams: Record<string, string> = {
               type: tType,
@@ -551,22 +533,17 @@ serve(async (req) => {
                 synced_at: new Date().toISOString(),
               }));
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
-              if (error) console.error(`Transfer upsert error (${tType}):`, error);
+              if (error) console.error(`Transfer upsert error (${tType}):`, error.message);
               else totalUpserted += rows.length;
-              console.log(`Synced ${rows.length} transfers (${tType})`);
+              console.info(`Synced ${rows.length} transfers (${tType})`);
             }
-          } catch (e) { console.error(`Transfer sync error (${tType}):`, e); }
+          } catch (e) { console.error(`Transfer sync error (${tType}):`, (e as Error).message); }
         }
 
-        // --- Binance Pay Transactions (sent=withdrawal, received=deposit) ---
-        // IMPORTANT: Only sync Pay transactions from the feature activation date onwards.
-        // We hardcode the cutoff to the moment this feature was deployed (2026-02-19T00:00:00 UTC).
-        // This prevents historical Pay transactions (already accounted for manually) from being synced.
-        // Incremental: after the first sync, we use the latest Pay record's movement_time as the floor.
+        // --- Binance Pay Transactions ---
         const PAY_FEATURE_ACTIVATION_MS = 1739923200000; // 2026-02-19T00:00:00 UTC
 
         try {
-          // Find the latest already-synced Pay record time for incremental sync
           const { data: latestPay } = await sb
             .from("asset_movement_history")
             .select("movement_time")
@@ -575,8 +552,6 @@ serve(async (req) => {
             .limit(1)
             .maybeSingle();
 
-          // Use the latest Pay record time (minus 5 min buffer) or the activation cutoff — whichever is later.
-          // This ensures: first run = activation cutoff (no old data), subsequent runs = incremental from last record.
           const latestPayTime = latestPay?.movement_time
             ? latestPay.movement_time - 5 * 60 * 1000
             : null;
@@ -590,45 +565,29 @@ serve(async (req) => {
             limit: "100",
           };
           const payData = await proxyGet("/sapi/v1/pay/transactions", payParams);
-          // Binance Pay API returns: { code: "000000", data: [...] } or just an array
           const payList: any[] = Array.isArray(payData)
             ? payData
             : Array.isArray(payData?.data)
             ? payData.data
             : [];
 
-          console.log(`Pay API returned ${payList.length} transactions`);
-
           if (payList.length > 0) {
             const payRows = payList.map((p: any) => {
-              // PRIMARY signal: Binance Pay returns a signed `amount` field.
-              // Negative amount = WE sent money (withdrawal / sales payment to buyer)
-              // Positive amount = WE received money (deposit / purchase payment from seller)
-              // This is the most reliable signal — the API does NOT consistently return transactionType.
               const rawAmount = parseFloat(p.amount || "0");
               const isSent = rawAmount < 0;
-
-              // Fallback: check transactionType / orderType if amount is ambiguous (zero)
               const txType = (p.transactionType || p.type || "").toUpperCase();
               const isSentByType =
                 txType === "PAY" ||
                 txType === "SEND" ||
                 txType === "OUT" ||
                 (txType.startsWith("PAY") && !txType.includes("REFUND") && !txType.includes("IN"));
-
-              // Use amount sign as primary, type as tiebreaker for zero-amount edge cases
               const finalIsSent = rawAmount !== 0 ? isSent : isSentByType;
               const movementType = finalIsSent ? "withdrawal" : "deposit";
-              // Store amount as positive absolute value regardless of Binance sign convention
               const absAmount = Math.abs(rawAmount);
-              // Use Binance completed statuses: 6=completed for withdrawal, 1=success for deposit
               const status = isSent ? "6" : "1";
-
-              // Counterparty info
               const counterparty = isSent
                 ? (p.receiverInfo?.name || p.receiverInfo?.nickName || p.receiverInfo?.binanceId || "")
                 : (p.payerInfo?.name || p.payerInfo?.nickName || p.payerInfo?.binanceId || "");
-
               const orderId = p.orderId || p.transactionId || String(p.transactionTime);
 
               return {
@@ -636,7 +595,7 @@ serve(async (req) => {
                 movement_type: movementType,
                 asset: p.currency || p.asset || "USDT",
                 amount: absAmount,
-                fee: 0, // Binance Pay has no network fee
+                fee: 0,
                 status,
                 network: "Binance Pay",
                 tx_id: orderId,
@@ -650,25 +609,23 @@ serve(async (req) => {
 
             if (payRows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(payRows, { onConflict: "id" });
-              if (error) console.error("Pay upsert error:", error);
+              if (error) console.error("Pay upsert error:", error.message);
               else totalUpserted += payRows.length;
             }
-            console.log(`Synced ${payRows.length} Pay transactions`);
+            console.info(`Synced ${payRows.length} Pay transactions`);
           }
-        } catch (e) { console.error("Pay sync error:", e); }
+        } catch (e) { console.error("Pay sync error:", (e as Error).message); }
 
-        // Update sync metadata — record the sync time so next run uses an incremental window
+        // Update sync metadata
         await sb.from("asset_movement_sync_metadata").upsert({
           id: "default",
           last_sync_at: new Date().toISOString(),
-          // Reset cursor times to 0 so they don't interfere with dynamic cutoff logic
           last_deposit_time: 0,
           last_withdraw_time: 0,
           last_transfer_time: 0,
         }, { onConflict: "id" });
 
-        // After syncing movements, immediately run checkNewMovements to queue any new ones
-        // This ensures the ERP queue is always up to date after a sync
+        // Auto-queue new movements
         const { data: activeLink2 } = await sb
           .from("terminal_wallet_links")
           .select("wallet_id")
@@ -679,11 +636,9 @@ serve(async (req) => {
 
         const mappedWalletId2 = activeLink2?.wallet_id || null;
 
-        // Get existing queue IDs
         const { data: existingQ } = await sb.from("erp_action_queue").select("movement_id");
         const existingQIds = new Set((existingQ || []).map((q: any) => q.movement_id));
 
-        // Look back 48h from now to find any newly synced movements not yet in queue
         const lookbackMs = now - 48 * 60 * 60 * 1000;
         const { data: newMovements } = await sb
           .from("asset_movement_history")
@@ -692,32 +647,12 @@ serve(async (req) => {
           .gte("movement_time", lookbackMs)
           .order("movement_time", { ascending: false });
 
-        let skippedExisting = 0;
-        let skippedInternalPay = 0;
-        let skippedIncomplete = 0;
-
         const toQueue = (newMovements || []).filter((m: any) => {
-          if (existingQIds.has(m.id)) {
-            skippedExisting += 1;
-            return false;
-          }
-
-          if (isBinancePayMovement(m)) {
-            skippedInternalPay += 1;
-            return false;
-          }
-
-          if (!isQueueEligibleMovement(m)) {
-            skippedIncomplete += 1;
-            return false;
-          }
-
+          if (existingQIds.has(m.id)) return false;
+          if (isBinancePayMovement(m)) return false;
+          if (!isQueueEligibleMovement(m)) return false;
           return true;
         });
-
-        console.log(
-          `syncAssetMovements queue filter: existing=${skippedExisting}, internalPay=${skippedInternalPay}, incomplete=${skippedIncomplete}, eligible=${toQueue.length}`
-        );
 
         if (toQueue.length > 0) {
           const queueRows2 = toQueue.map((m: any) => ({
@@ -735,13 +670,10 @@ serve(async (req) => {
           const { error: autoQErr } = await sb
             .from("erp_action_queue")
             .upsert(queueRows2, { onConflict: "movement_id", ignoreDuplicates: true });
-          if (autoQErr) console.error("Auto-queue after sync error:", autoQErr);
-          else console.log(`syncAssetMovements: auto-queued ${toQueue.length} new movements`);
-        } else {
-          console.log("syncAssetMovements: no new movements to auto-queue");
+          if (autoQErr) console.error("Auto-queue error:", autoQErr.message);
         }
 
-        console.log(`syncAssetMovements: total upserted ${totalUpserted}`);
+        console.info(`syncAssetMovements: done — upserted=${totalUpserted}, queued=${toQueue.length}`);
         result = { synced: true, totalUpserted, autoQueued: toQueue.length };
         break;
       }
@@ -752,7 +684,6 @@ serve(async (req) => {
         const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-        // Get active terminal wallet link
         const { data: activeLink } = await sb
           .from("terminal_wallet_links")
           .select("wallet_id")
@@ -763,9 +694,6 @@ serve(async (req) => {
 
         const mappedWalletId = activeLink?.wallet_id || null;
 
-        // Dynamic cutoff: use the last processed/rejected item's movement_time
-        // to only pick up movements that arrived AFTER our last action.
-        // Fall back to 48 hours ago if no queue history exists.
         const { data: lastQueuedItem } = await sb
           .from("erp_action_queue")
           .select("movement_time")
@@ -775,24 +703,17 @@ serve(async (req) => {
           .maybeSingle();
 
         const nowMs = Date.now();
-        // If we have a previously processed item, use its movement_time as the cutoff
-        // so we only check for movements that arrived after that point.
-        // Always look back at least 48h to catch any gaps.
         const fortyEightHoursAgo = nowMs - 48 * 60 * 60 * 1000;
         const dynamicCutoff = lastQueuedItem?.movement_time
           ? Math.min(lastQueuedItem.movement_time, fortyEightHoursAgo)
           : fortyEightHoursAgo;
 
-        console.log(`checkNewMovements: dynamic cutoff = ${new Date(dynamicCutoff).toISOString()}`);
-
-        // Get existing queue movement IDs to avoid re-queuing already queued items
         const { data: existingQueue } = await sb
           .from("erp_action_queue")
           .select("movement_id");
 
         const existingIds = new Set((existingQueue || []).map((q: any) => q.movement_id));
 
-        // Fetch completed deposits & withdrawals from cutoff onward
         const { data: allMovements } = await sb
           .from("asset_movement_history")
           .select("*")
@@ -800,58 +721,30 @@ serve(async (req) => {
           .gte("movement_time", dynamicCutoff)
           .order("movement_time", { ascending: false });
 
-        // Build a set of known P2P order numbers so we can distinguish
-        // P2P releases (skip) from genuine Pay transfers (queue).
         const { data: p2pOrders } = await sb
           .from("binance_order_history")
           .select("order_number");
         const p2pOrderIds = new Set((p2pOrders || []).map((o: any) => String(o.order_number)));
-        console.log(`checkNewMovements: loaded ${p2pOrderIds.size} known P2P order numbers for filtering`);
-
-        let skippedExisting = 0;
-        let skippedInternalPay = 0;
-        let skippedIncomplete = 0;
 
         let movements: any[] = (allMovements || []).filter((m: any) => {
-          // Skip already queued movement IDs
-          if (existingIds.has(m.id)) {
-            skippedExisting += 1;
-            return false;
-          }
+          if (existingIds.has(m.id)) return false;
 
-          // Skip Binance Pay movements that match known P2P orders
           if (isBinancePayMovement(m)) {
             const payOrderId = String(m.tx_id || m.raw_data?.orderId || "");
-            if (payOrderId && p2pOrderIds.has(payOrderId)) {
-              skippedInternalPay += 1;
-              return false;
-            }
-            // Not a P2P order — fall through to eligibility check
+            if (payOrderId && p2pOrderIds.has(payOrderId)) return false;
           }
 
-          if (!isQueueEligibleMovement(m, p2pOrderIds)) {
-            skippedIncomplete += 1;
-            return false;
-          }
-
+          if (!isQueueEligibleMovement(m, p2pOrderIds)) return false;
           return true;
         });
 
-        console.log(
-          `checkNewMovements queue filter: existing=${skippedExisting}, internalPay=${skippedInternalPay}, incomplete=${skippedIncomplete}, eligible=${movements.length}`
-        );
-
-        console.log(`checkNewMovements: ${allMovements?.length || 0} movements in window, ${movements.length} are new & completed`);
+        console.info(`checkNewMovements: ${allMovements?.length || 0} in window, ${movements.length} eligible`);
 
         if (movements.length === 0) {
-          console.log("checkNewMovements: no new movements to queue");
           result = { inserted: 0 };
           break;
         }
 
-        console.log(`checkNewMovements: found ${movements.length} new movements to queue`);
-
-        // Insert new movements into erp_action_queue
         const queueRows = movements.map((m: any) => ({
           movement_id: m.id,
           movement_type: m.movement_type,
@@ -870,11 +763,11 @@ serve(async (req) => {
           .upsert(queueRows, { onConflict: "movement_id", ignoreDuplicates: true });
 
         if (insertErr) {
-          console.error("checkNewMovements insert error:", insertErr);
+          console.error("checkNewMovements insert error:", insertErr.message);
           throw new Error(`Failed to insert queue items: ${insertErr.message}`);
         }
 
-        console.log(`checkNewMovements: inserted ${queueRows.length} new items`);
+        console.info(`checkNewMovements: queued ${queueRows.length} items`);
         result = { inserted: queueRows.length };
         break;
       }
@@ -887,7 +780,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("binance-assets error:", error);
+    console.error("binance-assets error:", error instanceof Error ? error.message : error);
     return new Response(
       JSON.stringify({
         success: false,

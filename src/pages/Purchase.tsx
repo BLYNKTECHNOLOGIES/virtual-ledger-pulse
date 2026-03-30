@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Plus, Download, ShoppingBag, Filter, Search, TrendingDown, Link2, Package } from "lucide-react";
+import { Download, ShoppingBag, Filter, Search, Link2, Package } from "lucide-react";
 import { format } from "date-fns";
 import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
 import { SmallBuysSyncTab } from "@/components/purchase/SmallBuysSyncTab";
@@ -13,16 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PendingPurchaseOrders } from "@/components/purchase/PendingPurchaseOrders";
-import { ReviewNeededOrders } from "@/components/purchase/ReviewNeededOrders";
 import { CompletedPurchaseOrders } from "@/components/purchase/CompletedPurchaseOrders";
-import { BuyOrdersTab } from "@/components/purchase/BuyOrdersTab";
-import { NewPurchaseOrderDialog } from "@/components/purchase/NewPurchaseOrderDialog";
 import { ManualPurchaseEntryDialog } from "@/components/purchase/ManualPurchaseEntryDialog";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePurchaseFunctions } from "@/hooks/usePurchaseFunctions";
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -30,21 +25,16 @@ export default function Purchase() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showPurchaseOrderDialog, setShowPurchaseOrderDialog] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('tab') || 'buy_orders';
+    return params.get('tab') || 'completed';
   });
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
 
-  // Purchase function checks for role-based visibility
-  const { canCreateOrders, isLoading: purchaseFunctionsLoading } = usePurchaseFunctions();
-
   const handleRefreshData = () => {
-    // Refetch without a full page reload
     queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
     queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
     queryClient.invalidateQueries({ queryKey: ['purchase_orders_export'] });
@@ -59,13 +49,10 @@ export default function Purchase() {
   const { data: terminalSyncCount = 0 } = useQuery({
     queryKey: ['terminal-sync-pending-count'],
     queryFn: async () => {
-      // Only count today's orders (00:00 IST onwards)
       const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
       const nowUTC = Date.now();
       const midnightISTinUTC = Math.floor((nowUTC + IST_OFFSET_MS) / 86400000) * 86400000 - IST_OFFSET_MS;
 
-      // Fetch sync records and small buys config in parallel
-      // Inline the small_buys_config query for robustness (avoid as-any cast issues)
       const [{ data, error }, { data: sbData }] = await Promise.all([
         supabase
           .from('terminal_purchase_sync')
@@ -85,8 +72,6 @@ export default function Purchase() {
       const sbMin = sbEnabled ? Number(sbConfig.min_amount || 0) : 0;
       const sbMax = sbEnabled ? Number(sbConfig.max_amount || 0) : 0;
 
-      // Filter by today's orders using order create_time from order_data
-      // and exclude small buys (those belong to Small Buys tab, not Terminal Sync tab)
       return (data || []).filter(record => {
         const od = record.order_data as any;
         const createTime = od?.create_time ? Number(od.create_time) : 0;
@@ -104,22 +89,16 @@ export default function Purchase() {
     },
   });
 
-  // Fetch purchase orders summary for badges using individual count queries
+  // Fetch purchase orders summary for badges
   const { data: ordersSummary } = useQuery({
     queryKey: ['purchase_orders_summary'],
     queryFn: async () => {
-      const [pendingRes, reviewRes, completedRes, buyOrdersRes] = await Promise.all([
-        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'PENDING'),
-        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'REVIEW_NEEDED'),
+      const [completedRes] = await Promise.all([
         supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).eq('status', 'COMPLETED'),
-        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).not('order_status', 'is', null),
       ]);
       
       return {
-        pending: pendingRes.count || 0,
-        review: reviewRes.count || 0,
         completed: completedRes.count || 0,
-        buyOrders: buyOrdersRes.count || 0,
       };
     },
   });
@@ -172,7 +151,6 @@ export default function Purchase() {
       'Fee Amount',
       'Net Amount',
       'Status',
-      'Order Status',
       'Is Off Market',
       'Is Safe Fund',
       'Total Paid',
@@ -195,12 +173,8 @@ export default function Purchase() {
       const marketRate = order.market_rate_usdt || 0;
       const productCategory = (order.product_category || '').toUpperCase();
       
-      // Determine asset type from product_category or product_name
       const assetType = productCategory || (order.product_name || 'USDT').toUpperCase();
       
-      // For USDT, effective price = price_per_unit (INR per USDT)
-      // For other coins: convert to INR-per-USDT-equivalent
-      // Formula: total_amount_INR / (quantity * market_rate_usdt) = INR cost per 1 USDT worth of the coin
       let effectivePriceUsdt = pricePerUnit;
       const quantity = order.quantity || 0;
       if (assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
@@ -210,45 +184,44 @@ export default function Purchase() {
       }
 
       return [
-      order.order_number || '',
-      order.supplier_name || '',
-      order.contact_number || '',
-      order.client_state || '',
-      assetType,
-      order.product_name || '',
-      order.product_category || '',
-      order.quantity || 0,
-      pricePerUnit,
-      effectivePriceUsdt.toFixed(6),
-      order.total_amount || 0,
-      order.tds_applied ? 'Yes' : 'No',
-      order.tds_amount || 0,
-      order.pan_number || '',
-      order.net_payable_amount || order.total_amount || 0,
-      order.tax_amount || 0,
-      order.fee_percentage || 0,
-      order.fee_amount || 0,
-      order.net_amount || order.total_amount || 0,
-      order.status || '',
-      order.order_status || '',
-      order.is_off_market ? 'Yes' : 'No',
-      order.is_safe_fund ? 'Yes' : 'No',
-      order.total_paid || 0,
-      order.payment_method_type || '',
-      order.upi_id || '',
-      order.bank_account_name || '',
-      order.bank_account_number || '',
-      order.ifsc_code || '',
-      order.warehouse_name || '',
-      order.assigned_to || '',
-      order.description || '',
-      order.notes || '',
-      order.created_by_user 
-        ? (order.created_by_user.first_name || order.created_by_user.username || '')
-        : '',
-      order.order_date ? format(new Date(order.order_date), 'MMM dd, yyyy') : '',
-      order.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm') : ''
-    ];
+        order.order_number || '',
+        order.supplier_name || '',
+        order.contact_number || '',
+        order.client_state || '',
+        assetType,
+        order.product_name || '',
+        order.product_category || '',
+        order.quantity || 0,
+        pricePerUnit,
+        effectivePriceUsdt.toFixed(6),
+        order.total_amount || 0,
+        order.tds_applied ? 'Yes' : 'No',
+        order.tds_amount || 0,
+        order.pan_number || '',
+        order.net_payable_amount || order.total_amount || 0,
+        order.tax_amount || 0,
+        order.fee_percentage || 0,
+        order.fee_amount || 0,
+        order.net_amount || order.total_amount || 0,
+        order.status || '',
+        order.is_off_market ? 'Yes' : 'No',
+        order.is_safe_fund ? 'Yes' : 'No',
+        order.total_paid || 0,
+        order.payment_method_type || '',
+        order.upi_id || '',
+        order.bank_account_name || '',
+        order.bank_account_number || '',
+        order.ifsc_code || '',
+        order.warehouse_name || '',
+        order.assigned_to || '',
+        order.description || '',
+        order.notes || '',
+        order.created_by_user 
+          ? (order.created_by_user.first_name || order.created_by_user.username || '')
+          : '',
+        order.order_date ? format(new Date(order.order_date), 'MMM dd, yyyy') : '',
+        order.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm') : ''
+      ];
     });
 
     const csvContent = [csvHeaders, ...csvData]
@@ -320,23 +293,14 @@ export default function Purchase() {
               </div>
             </div>
             
-            {/* Action buttons - always visible on mobile */}
+            {/* Action buttons */}
             <div className="flex flex-wrap gap-2 pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:justify-end">
               <Button variant="outline" onClick={handleExportCSV} size="sm" className="flex-shrink-0 whitespace-nowrap">
                 <Download className="h-4 w-4 mr-1 md:mr-2" />
                 <span className="hidden sm:inline">Export CSV</span>
               </Button>
-              {/* Only show create buttons if user has purchase_manage AND canCreateOrders (Purchase Creator or Combined) */}
               <PermissionGate permissions={["purchase_manage"]} showFallback={false}>
-                {canCreateOrders && (
-                  <>
-                    <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
-                    <Button onClick={() => setShowPurchaseOrderDialog(true)} size="sm" className="flex-shrink-0 whitespace-nowrap">
-                      <Plus className="h-4 w-4 mr-1" />
-                      <span className="whitespace-nowrap">New Purchase Stock</span>
-                    </Button>
-                  </>
-                )}
+                <ManualPurchaseEntryDialog onSuccess={handleRefreshData} />
               </PermissionGate>
             </div>
           </div>
@@ -394,30 +358,12 @@ export default function Purchase() {
             </div>
           </CardContent>
         </Card>
+
         {/* Purchase Orders Tabs */}
         <Card className="w-full">
         <CardContent className="p-3 md:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 mb-4 md:mb-6 h-auto">
-              <TabsTrigger value="buy_orders" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
-                <TrendingDown className="h-3 w-3 md:h-4 md:w-4" />
-                <span className="truncate">Buy Orders</span>
-                {ordersSummary?.buyOrders ? (
-                  <Badge variant="secondary" className="text-xs">{ordersSummary.buyOrders}</Badge>
-                ) : null}
-              </TabsTrigger>
-              <TabsTrigger value="pending" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
-                <span className="truncate">Pending</span>
-                {ordersSummary?.pending ? (
-                  <Badge variant="secondary" className="text-xs">{ordersSummary.pending}</Badge>
-                ) : null}
-              </TabsTrigger>
-              <TabsTrigger value="review" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
-                <span className="truncate">Review</span>
-                {ordersSummary?.review ? (
-                  <Badge variant="destructive" className="text-xs">{ordersSummary.review}</Badge>
-                ) : null}
-              </TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 mb-4 md:mb-6 h-auto">
               <TabsTrigger value="completed" className="flex flex-col md:flex-row items-center gap-1 md:gap-2 py-2 px-1 md:px-3 text-xs md:text-sm">
                 <span className="truncate">Completed</span>
                 {ordersSummary?.completed ? (
@@ -437,30 +383,6 @@ export default function Purchase() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="buy_orders">
-              <BuyOrdersTab
-                searchTerm={searchTerm}
-                dateFrom={filterDateFrom}
-                dateTo={filterDateTo}
-              />
-            </TabsContent>
-
-            <TabsContent value="pending">
-              <PendingPurchaseOrders 
-                searchTerm={searchTerm}
-                dateFrom={filterDateFrom}
-                dateTo={filterDateTo}
-              />
-            </TabsContent>
-
-            <TabsContent value="review">
-              <ReviewNeededOrders 
-                searchTerm={searchTerm}
-                dateFrom={filterDateFrom}
-                dateTo={filterDateTo}
-              />
-            </TabsContent>
-
             <TabsContent value="completed">
               <CompletedPurchaseOrders 
                 searchTerm={searchTerm}
@@ -479,12 +401,6 @@ export default function Purchase() {
           </Tabs>
         </CardContent>
       </Card>
-
-      {/* New Purchase Order Dialog */}
-      <NewPurchaseOrderDialog 
-        open={showPurchaseOrderDialog} 
-        onOpenChange={setShowPurchaseOrderDialog}
-      />
     </div>
     </PermissionGate>
   );

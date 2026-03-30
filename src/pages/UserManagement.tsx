@@ -639,7 +639,7 @@ export default function UserManagement() {
                                   <Button variant="ghost" size="sm" onClick={() => setEditingRole(role)} className="h-7 px-2 text-xs">
                                     <Edit className="h-3 w-3 mr-1" /> Edit
                                   </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => deleteRole(role.id)} className="h-7 px-2 text-xs text-destructive hover:text-destructive">
+                                  <Button variant="ghost" size="sm" onClick={() => setRoleToDelete(role.id)} className="h-7 px-2 text-xs text-destructive hover:text-destructive">
                                     <Trash2 className="h-3 w-3" />
                                   </Button>
                                 </PermissionGate>

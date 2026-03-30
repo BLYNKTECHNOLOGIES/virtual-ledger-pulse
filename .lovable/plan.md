@@ -1,58 +1,47 @@
 
+## Issue Found (Root Cause)
 
-# Terminal Bug Audit — Round 4
+The save failure is caused by a **DB trigger/constraint mismatch** in terminal role permission audit logging:
 
-## Bugs Found
+- Table constraint on `public.terminal_permission_change_log.action` allows only:
+  - `'grant'`, `'revoke'`
+- Trigger function `public.log_terminal_permission_change()` currently writes:
+  - `'granted'`, `'revoked'`
 
-### BUG 1 (CRITICAL): `save_terminal_role` Delegation Guard Mismatch — Admins Can't Save Roles
+So when `save_terminal_role` updates permissions (delete + insert rows in `p2p_terminal_role_permissions`), the trigger inserts invalid action values and the transaction fails with:
+`violates check constraint "terminal_permission_change_log_action_check"`.
 
-**Root cause**: The `get_terminal_permissions` RPC returns ALL permissions for users with `hierarchy_level <= 0` (Admin, Super Admin). The frontend correctly shows these users can toggle any permission. However, `save_terminal_role`'s delegation guard checks the caller's permissions from `p2p_terminal_role_permissions` directly — which only stores the specific permissions assigned to the role.
-
-The Admin role (level 0) has 53 of 55 permissions stored in DB. It's missing `terminal_pricing_delete` and `terminal_mpi_view_own`. When an Admin tries to save a role containing either of these permissions, the delegation guard raises: "Cannot grant permissions you do not have."
-
-The guard bypass condition is `v_caller_level < 0` (strictly negative), but `get_terminal_permissions` uses `hierarchy_level <= 0` (includes 0). This inconsistency is the root cause.
-
-**Fix**: Change the delegation guard bypass in `save_terminal_role` from `IF v_caller_level >= 0` to `IF v_caller_level > 0`, making it consistent with `get_terminal_permissions`. This means users with hierarchy_level 0 (Admin) bypass the delegation guard, matching the permissions they actually see in the UI.
-
-### BUG 2 (HIGH): Missing Permission Gates on 3 Pages
-
-| Page | File | Missing Gate |
-|------|------|-------------|
-| Orders | `TerminalOrders.tsx` | `terminal_orders_view` |
-| Ads Manager | `AdManager.tsx` (via TerminalAdManager) | `terminal_ads_view` |
-| Operator Detail | `TerminalOperatorDetail.tsx` | `terminal_mpi_view_own` |
-
-These pages can be accessed via direct URL regardless of permissions. The sidebar filters them, but URL bypass works.
-
-**Fix**: Wrap each page's content in `<TerminalPermissionGate>` with the appropriate permission. For AdManager (which is shared between ERP and Terminal), create a wrapper in `TerminalAdManager.tsx` instead of a bare re-export.
-
-### BUG 3 (MEDIUM): `save_terminal_role` Hierarchy Escalation
-
-When editing an existing role, the hierarchy guard checks the role's CURRENT hierarchy level, not the NEW one being set via `p_hierarchy_level`. A user at level 3 could edit a level-5 role (allowed) and change it to level 2 (above their own), escalating the role's authority.
-
-**Fix**: After determining `v_target_level` from the existing role, also check `COALESCE(p_hierarchy_level, v_target_level)` against the caller's level to prevent hierarchy escalation.
+This exactly matches your screenshot error.
 
 ---
 
-## Implementation Plan
+## Fix Plan (No New Functionality)
 
-### Step 1: Fix `save_terminal_role` (SQL Migration)
+### Step 1 — SQL migration: align trigger output with constraint
+Update `public.log_terminal_permission_change()` to emit:
+- `v_action := 'grant'` for INSERT
+- `v_action := 'revoke'` for DELETE
 
-1. Change delegation guard bypass from `v_caller_level >= 0` to `v_caller_level > 0` so Admin-level users bypass the guard (matching `get_terminal_permissions` behavior)
-2. Add hierarchy escalation guard: check the NEW hierarchy level (`p_hierarchy_level`) against the caller's level when editing existing roles
+No schema change needed; only function correction.
 
-### Step 2: Add Permission Gates to 3 Pages
+### Step 2 — Consistency safeguard for terminal save flow
+In the same migration, keep existing trigger wiring (`trg_log_terminal_permission_change`) as-is, but ensure function is recreated with:
+- `SECURITY DEFINER`
+- `SET search_path TO 'public'`
+to preserve security hygiene and deterministic behavior.
 
-- **`TerminalOrders.tsx`**: Import and wrap with `<TerminalPermissionGate permissions={['terminal_orders_view']}>`
-- **`TerminalAdManager.tsx`**: Replace bare re-export with a component that imports AdManager and wraps it with `<TerminalPermissionGate permissions={['terminal_ads_view']}>`
-- **`TerminalOperatorDetail.tsx`**: Import and wrap with `<TerminalPermissionGate permissions={['terminal_mpi_view_own']}>`
+### Step 3 — Verify end-to-end after migration
+Validate the exact failing flow:
+1. Open Terminal → Users & Roles
+2. Edit a role (e.g., Payer)
+3. Toggle permissions and save
+4. Confirm no 400 error and save succeeds
+5. Confirm rows appear in `terminal_permission_change_log` with only `grant/revoke`
 
 ---
 
-## Summary
+## Technical Notes
 
-- 1 SQL migration (fixes save failure + hierarchy escalation)
-- 3 frontend file edits (permission gates)
-- No new functionality
-- Root cause of "can't save" is the Admin-level delegation guard inconsistency
-
+- `save_terminal_role` itself is now correctly deployed (admin bypass + hierarchy escalation guard are present).
+- The blocker is downstream trigger logging, not role save permission checks.
+- This is a data-integrity bug fix only (no new feature/UI behavior changes).

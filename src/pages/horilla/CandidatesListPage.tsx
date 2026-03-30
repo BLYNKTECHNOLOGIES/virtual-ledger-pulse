@@ -256,7 +256,7 @@ export default function CandidatesListPage() {
                           <UserX className="h-3.5 w-3.5" />
                         </button>
                       )}
-                      <button onClick={() => { if (confirm(`Delete candidate "${c.name}"?`)) deleteMutation.mutate(c.id); }} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete">
+                      <button onClick={() => setDeleteTarget({ id: c.id, name: c.name })} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>

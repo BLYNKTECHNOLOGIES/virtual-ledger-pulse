@@ -51,8 +51,6 @@ export function ExpensesIncomesTab() {
   const { data: transactions } = useQuery({
     queryKey: ['bank_transactions_only'],
     queryFn: async () => {
-      console.log('🔍 Fetching bank transactions for ExpensesIncomesTab...');
-      
       // Fetch only bank transactions - exclude purchase-related ones
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')

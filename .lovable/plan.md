@@ -1,8 +1,8 @@
 
 
-# ERP Full System Audit — Phase 13 Report
+# ERP Full System Audit — Phase 14 Report
 
-## Phases 1-12 Status (completed)
+## Phases 1-13 Status (completed)
 - Phase 1-4: Data integrity, orphaned code, permissions, demo-admin cleanup — ALL FIXED
 - Phase 5: Hardcoded password, dead localStorage, native dialogs replaced — ALL FIXED
 - Phase 6: XSS fix, stale removeItems, shift delete cleanup — ALL FIXED
@@ -13,130 +13,99 @@
 - Phase 10: 4 dead auth components + TopNav + payslipPdfGenerator deleted (~1,424 lines), AuthProvider cleaned — ALL FIXED
 - Phase 11: Orphaned HorillaModulePage deleted, 138 console.log calls removed from 5 worst-offender files — ALL FIXED
 - Phase 12: 91 console.log calls removed from 12 files (batch 2) — ALL FIXED
+- Phase 13: ~85 console.log calls removed from 27 files (batch 3) — ALL FIXED
 
 ---
 
-## CATEGORY 1: CONSOLE.LOG CLEANUP — BATCH 3 (Remaining significant offenders)
+## CATEGORY 1: CRITICAL BUG — CloseAccountDialog submit button broken
 
-~672 console.log calls remain across 39 files. This phase targets the next tier of files with meaningful debug noise. Files in `src/hooks/`, `src/components/sales/`, `src/components/purchase/`, `src/components/stock/`, `src/components/terminal/`, and `src/utils/`.
+`src/components/bams/CloseAccountDialog.tsx` line 339: The "Close Account" button's `onClick` handler is `() => console.log(...)` — it does NOT call the submit function. The button is `type="submit"` inside a `<form onSubmit={handleSubmit}>`, so form submission works via Enter key, but clicking the button only logs to console and does NOT submit the form (the `onClick` intercepts before form submit bubbles).
 
-### P13-LOG-01 | StepBySalesFlow.tsx — ~10 console.log calls
+**Fix**: Remove the `onClick={() => console.log(...))` from the button entirely. The `type="submit"` will correctly trigger `handleSubmit` via the form's `onSubmit`.
 
-Order creation traces, wallet deduction logs, platform fee processing, client onboarding detection, and final submit dumps. Remove all.
+---
 
-### P13-LOG-02 | QuickSalesOrderDialog.tsx — ~6 console.log calls
+## CATEGORY 2: ORPHANED COMPONENTS — Dead code deletion
 
-Order creation, client lookup, and onboarding approval traces. Remove all.
+### P14-ORPHAN-01 | ScheduleVideoKYCDialog.tsx — never imported
 
-### P13-LOG-03 | TerminalSalesApprovalDialog.tsx — ~3 console.log calls
+`src/components/hrms/video-kyc/ScheduleVideoKYCDialog.tsx` — zero imports anywhere. Its `handleSchedule` only does `console.log`. Fully dead. Delete.
 
-Partial approval recovery, bank transaction, and client profile update traces. Remove all.
+### P14-ORPHAN-02 | EnhancedOrderCreationDialog.tsx — never imported
 
-### P13-LOG-04 | SalesEntryDialog.tsx — 2 remaining console.log calls
+`src/components/sales/EnhancedOrderCreationDialog.tsx` — zero imports anywhere in the codebase. Complete orphan. Delete.
 
-Form submit event and button click traces that survived Phase 12. Remove both.
+---
 
-### P13-LOG-05 | ManualPurchaseEntryDialog.tsx — 1 remaining console.log call
+## CATEGORY 3: CONSOLE.LOG CLEANUP — BATCH 4 (Final significant files)
 
-Wallet selection trace that survived Phase 12. Remove it.
+~267 `console.log` calls remain across 15 files. This phase targets all remaining non-WebSocket files.
 
-### P13-LOG-06 | TerminalPurchaseApprovalDialog.tsx — ~3 console.log calls
+### P14-LOG-01 | EditSalesOrderDialog.tsx — ~30 console.log calls
+Reconciliation traces, payment method change logs. Remove all.
 
-Client profile update and WAC position update traces. Remove all.
+### P14-LOG-02 | SalesEntryWrapper.tsx — 1 console.log call
+Withdrawal fee debit trace. Remove it.
 
-### P13-LOG-07 | StockTransactionsTab.tsx — ~7 remaining console.log calls
+### P14-LOG-03 | AcceptedKYCTab.tsx — 1 console.log call
+KYC status update trace. Remove it.
 
-Transfer fee, manual adjustment, and entry count debug dumps. Remove all.
+### P14-LOG-04 | useBinanceChatWebSocket.ts — ~69 console.log calls
+WebSocket connection, message frame, groupId, and session traces. These are operational for a real-time chat system but dump full WS frames including message content to console — a privacy/security concern. Remove all except connection open/close (replace with no-ops or remove entirely).
 
-### P13-LOG-08 | WalletLinkingSection.tsx — 1 console.log call
+---
 
-Wallet link success trace. Remove it.
+## CATEGORY 4: EMPTY CATCH BLOCKS — Silent error swallowing
 
-### P13-LOG-09 | usePayerModule.ts — ~7 console.log calls
+Multiple files have `catch {}` or `catch { /* ignore */ }` patterns that silently swallow errors. While some are intentional (best-effort operations), others hide real bugs.
 
-Order matching, lock assignment, and pending order debug traces. Remove all.
+**Audit-only this phase** — flag but don't change, as these are intentional patterns for:
+- IP fetch (best-effort)
+- localStorage parse (fallback)
+- Auth signout (best-effort)
 
-### P13-LOG-10 | useBinanceActions.tsx — ~2 console.log calls
+No action needed — these are correctly documented with comments.
 
-Order history phase 1/2 loading traces. Remove both.
+---
 
-### P13-LOG-11 | useSellerPaymentCapture.ts — ~5 console.log calls
+## CATEGORY 5: `useEffect(fn, [])` WITHOUT DEPS — React strict mode issues
 
-Payment capture flow traces (order counts, captured details, beneficiary saves). Remove all.
+4 files use `useEffect(() => { fetchAll(); }, [])` pattern:
+- `AutoAssignmentSettings.tsx`
+- `Feedback360Page.tsx`
+- `ObjectivesPage.tsx`
+- `PMSDashboardPage.tsx`
 
-### P13-LOG-12 | useTerminalPurchaseSync.ts — ~3 console.log calls
-
-Purchase sync cutoff, completed/appeal counts, and live status traces. Remove all.
-
-### P13-LOG-13 | useSmallBuysSync.ts — ~7 console.log calls
-
-Sync disabled, no orders, duplicates, new orders, mapping, and batch summary traces. Remove all.
-
-### P13-LOG-14 | useBinanceOrderSync.tsx — ~2 console.log calls
-
-Window/page sync counts and full sync trigger traces. Remove both.
-
-### P13-LOG-15 | useSpotTradeSync.ts — ~2 console.log calls
-
-No new trades and synced count traces. Remove both.
-
-### P13-LOG-16 | useErpActionQueue.ts — 1 console.log call
-
-syncAssetMovements result trace. Remove it.
-
-### P13-LOG-17 | Terminal components — ~15 console.log calls
-
-- `BiometricManagementDialog.tsx` — 2 calls (edge function invoke traces)
-- `TerminalRolesList.tsx` — 1 call (RPC params JSON dump — security risk)
-- `ChatImageUpload.tsx` — ~8 calls (pre-signed URL, upload steps, chat message results)
-- `OrderDetailWorkspace.tsx` — 1 call (payment signal debug)
-
-### P13-LOG-18 | Utils — ~7 console.log calls
-
-- `invoicePdfGenerator.ts` — 1 call (PDF generation start)
-- `updateClientFromOrder.ts` — 1 call (client update success)
-- `clientIdGenerator.ts` — ~5 calls (phone match, race condition traces)
-
-### P13-LOG-19 | LoginPage.tsx — 1 console.log call
-
-User authentication success trace — logs user object to console. Security concern. Remove it.
+These trigger double-fetch in React Strict Mode (dev only). Low severity — no production impact. **Deferred.**
 
 ---
 
 ## Summary
 
-| Category | Count | Severity |
+| Category | Items | Severity |
 |----------|-------|----------|
-| Debug console.log (batch 3) | ~27 files, ~85 calls | MEDIUM — production noise + security risks |
+| Critical bug: CloseAccountDialog button | 1 file | HIGH — button doesn't submit |
+| Orphaned components | 2 files deleted | LOW — dead code |
+| Console.log batch 4 | ~4 files, ~101 calls | MEDIUM — noise + security |
+| Empty catch blocks | Audit only | LOW — intentional patterns |
 
 ### Implementation Plan
 
-| # | Bug ID | Files | Count |
-|---|--------|-------|-------|
-| 1 | P13-LOG-01 | StepBySalesFlow.tsx | ~10 |
-| 2 | P13-LOG-02 | QuickSalesOrderDialog.tsx | ~6 |
-| 3 | P13-LOG-03 | TerminalSalesApprovalDialog.tsx | ~3 |
-| 4 | P13-LOG-04 | SalesEntryDialog.tsx | 2 |
-| 5 | P13-LOG-05 | ManualPurchaseEntryDialog.tsx | 1 |
-| 6 | P13-LOG-06 | TerminalPurchaseApprovalDialog.tsx | ~3 |
-| 7 | P13-LOG-07 | StockTransactionsTab.tsx | ~7 |
-| 8 | P13-LOG-08 | WalletLinkingSection.tsx | 1 |
-| 9 | P13-LOG-09–16 | 8 hooks files | ~29 |
-| 10 | P13-LOG-17 | 4 terminal component files | ~12 |
-| 11 | P13-LOG-18 | 3 utils files | ~7 |
-| 12 | P13-LOG-19 | LoginPage.tsx | 1 |
+| # | ID | Action | Files |
+|---|-----|--------|-------|
+| 1 | P14-BUG-01 | Fix CloseAccountDialog submit button | CloseAccountDialog.tsx |
+| 2 | P14-ORPHAN-01 | Delete ScheduleVideoKYCDialog | 1 file deleted |
+| 3 | P14-ORPHAN-02 | Delete EnhancedOrderCreationDialog | 1 file deleted |
+| 4 | P14-LOG-01 | Remove console.log from EditSalesOrderDialog | EditSalesOrderDialog.tsx |
+| 5 | P14-LOG-02 | Remove console.log from SalesEntryWrapper | SalesEntryWrapper.tsx |
+| 6 | P14-LOG-03 | Remove console.log from AcceptedKYCTab | AcceptedKYCTab.tsx |
+| 7 | P14-LOG-04 | Remove console.log from useBinanceChatWebSocket | useBinanceChatWebSocket.ts |
 
-**Total: ~27 files cleaned, ~85 console.log calls removed**
+**Total: 1 critical bug fixed, 2 orphaned files deleted, ~101 console.log calls removed across 4 files**
 
-No database changes needed. All `console.error` and `console.warn` preserved. Edge function logs excluded.
+No database changes needed. All `console.error` and `console.warn` preserved.
 
 ### Security-Critical Items
-
-- `TerminalRolesList.tsx` dumps full RPC params as JSON to console
-- `LoginPage.tsx` logs authenticated user object
-- `ChatImageUpload.tsx` logs pre-signed S3 URLs (temporary credentials)
-
-### Technical Details
-
-After this batch, the remaining ~580 console.log calls are spread thinly across 12+ files. The `(supabase as any)` type bypass (64 files, 1377 occurrences) remains deferred pending Supabase type regeneration.
+- `CloseAccountDialog.tsx`: Submit button is non-functional via click — users cannot close bank accounts through the UI button
+- `useBinanceChatWebSocket.ts`: Logs full WebSocket message frames to console, potentially exposing chat content and session tokens
 

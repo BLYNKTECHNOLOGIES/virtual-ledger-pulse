@@ -131,6 +131,7 @@ const InvoiceCreatorPage = () => {
   const isUsdtSales = category === "usdt_sales";
 
   return (
+    <PermissionGate permissions={["utility_view"]}>
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -245,6 +246,7 @@ const InvoiceCreatorPage = () => {
         </div>
       )}
     </div>
+    </PermissionGate>
   );
 };
 

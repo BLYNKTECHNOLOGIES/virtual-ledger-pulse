@@ -7,6 +7,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX, CheckCheck, Trash2, AlertTriangle, Info, CheckCircle, BellOff } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNotificationMute } from "@/hooks/useNotificationMute";

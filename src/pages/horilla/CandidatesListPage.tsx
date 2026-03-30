@@ -33,6 +33,7 @@ export default function CandidatesListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "hired" | "canceled" | "active">("all");
   const [viewCandidate, setViewCandidate] = useState<Candidate | null>(null);
   const [editCandidate, setEditCandidate] = useState<Candidate | null>(null);

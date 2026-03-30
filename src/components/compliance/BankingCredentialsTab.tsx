@@ -73,6 +73,7 @@ export function BankingCredentialsTab() {
     security_questions: [{ question: '', answer: '' }] as SecurityQuestion[],
     notes: ''
   });
+  const [deleteCredentialId, setDeleteCredentialId] = useState<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();

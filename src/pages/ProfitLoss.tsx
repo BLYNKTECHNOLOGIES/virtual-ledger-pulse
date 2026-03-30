@@ -348,8 +348,6 @@ export default function ProfitLoss() {
          totalUsdtFees,
          effectivePurchaseRate,
          netPurchaseQty,
-         conversionPnlUsdt,
-         conversionPnlInr,
       };
 
       // Create trade entries for table

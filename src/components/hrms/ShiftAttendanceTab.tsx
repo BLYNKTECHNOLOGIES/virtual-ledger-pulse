@@ -34,7 +34,8 @@ export function ShiftAttendanceTab() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Mock data for shifts
+  // Note: Real shift management is on the dedicated Shifts page (ShiftsPage.tsx) using hr_shifts table.
+  // This tab shows a static overview for the attendance context.
   const shifts: Shift[] = [
     { id: '1', name: 'Morning Shift', startTime: '09:00', endTime: '18:00', employeeCount: 12 },
     { id: '2', name: 'Evening Shift', startTime: '14:00', endTime: '23:00', employeeCount: 8 },

@@ -52,7 +52,7 @@ export default function Sales() {
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('tab') || 'pending';
+    return params.get('tab') || 'completed';
   });
 
   // Fetch accurate counts for tab badges (not limited by default 1000 row cap)

@@ -726,6 +726,26 @@ export default function RecruitmentPipelinePage() {
           recruitmentId={activeRec.id}
         />
       )}
+      <AlertDialog open={!!deleteStageTarget} onOpenChange={() => setDeleteStageTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Stage</AlertDialogTitle>
+            <AlertDialogDescription>Delete stage "{deleteStageTarget?.name}"? This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (deleteStageTarget) {
+                supabase.from("hr_stages").delete().eq("id", deleteStageTarget.id).then(({ error }) => {
+                  if (error) toast.error("Failed to delete");
+                  else { toast.success("Stage deleted"); queryClient.invalidateQueries({ queryKey: ["hr_stages"] }); }
+                });
+                setDeleteStageTarget(null);
+              }
+            }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

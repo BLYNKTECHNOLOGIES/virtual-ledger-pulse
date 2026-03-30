@@ -11,6 +11,7 @@ export default function StagesPage() {
   const [editStage, setEditStage] = useState<any>(null);
   const [filterRec, setFilterRec] = useState("all");
   const [form, setForm] = useState({ stage_name: "", stage_type: "initial", recruitment_id: "" });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: recruitments = [] } = useQuery({
     queryKey: ["hr_recruitments_list"],

@@ -91,34 +91,6 @@ export function useUsers() {
         description: "Failed to load users. Please try again.",
         variant: "destructive",
       });
-          first_name: 'Admin',
-          last_name: 'User',
-          phone: '+1234567890',
-          avatar_url: null,
-          status: 'ACTIVE',
-          email_verified: true,
-          last_login: new Date().toISOString(),
-          failed_login_attempts: 0,
-          account_locked_until: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          password_hash: 'demo-hash',
-          role_id: 'admin-role-id',
-          role: {
-            id: 'admin-role-id',
-            name: 'Admin',
-            description: 'Administrator with full access'
-          }
-        }
-      ];
-      
-      setUsers(demoUsers);
-      
-      toast({
-        title: "Info",
-        description: "Showing demo user data. Database connection may be limited.",
-        variant: "default",
-      });
     } finally {
       setIsLoading(false);
     }

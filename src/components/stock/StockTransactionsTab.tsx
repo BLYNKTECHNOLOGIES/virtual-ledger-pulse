@@ -368,8 +368,8 @@ export function StockTransactionsTab() {
         'id, wallet_name, wallet_type, chain_name, current_balance, fee_percentage, is_fee_enabled'
       );
     },
-    staleTime: 0,
-    refetchInterval: 10000,
+    staleTime: 10000,
+    refetchInterval: 30000,
   });
 
   const { data: assetCodes } = useAssetCodes();

@@ -145,7 +145,7 @@ export function useProductStockWithCost() {
       return summaries;
     },
     enabled: !!averageCosts,
-    refetchInterval: 10000,
-    staleTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 }

@@ -78,8 +78,8 @@ export function useBinanceTickerPrices() {
       if (!data?.success) throw new Error(data?.error || "Failed to fetch prices");
       return data.data as TickerPrice[];
     },
-    refetchInterval: 10000,
-    staleTime: 3000,
+    refetchInterval: 20000,
+    staleTime: 8000,
   });
 }
 

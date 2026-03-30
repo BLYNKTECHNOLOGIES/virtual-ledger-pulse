@@ -56,8 +56,8 @@ export function useProductStockSummary() {
         .order('asset_code');
       return (data || []) as { wallet_id: string; asset_code: string; balance: number }[];
     },
-    refetchInterval: 10000,
-    staleTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
   const { data: wallets } = useQuery({

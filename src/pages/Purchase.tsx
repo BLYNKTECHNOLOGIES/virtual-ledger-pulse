@@ -221,7 +221,6 @@ export default function Purchase() {
       pricePerUnit,
       effectivePriceUsdt.toFixed(6),
       order.total_amount || 0,
-      order.total_amount || 0,
       order.tds_applied ? 'Yes' : 'No',
       order.tds_amount || 0,
       order.pan_number || '',

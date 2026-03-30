@@ -56,6 +56,24 @@ export default function Tasks() {
     if (!task.assignee_id) return;
     try {
       const from = (table: string) => supabase.from(table as any);
+
+      // Check 30-minute cooldown for this task
+      const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const { data: recentNudge } = await (supabase as any).from('erp_task_activity_log')
+        .select('created_at')
+        .eq('task_id', task.id)
+        .eq('action', 'nudge_sent')
+        .gte('created_at', thirtyMinAgo)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (recentNudge && recentNudge.length > 0) {
+        const lastNudgeTime = new Date(recentNudge[0].created_at);
+        const minutesLeft = Math.ceil((30 * 60 * 1000 - (Date.now() - lastNudgeTime.getTime())) / 60000);
+        toast({ title: 'Cooldown active', description: `Nudge already sent for this task. Try again in ${minutesLeft} min.`, variant: 'destructive' });
+        return;
+      }
+
       // In-app notification
       await from('terminal_notifications').insert({
         user_id: task.assignee_id,

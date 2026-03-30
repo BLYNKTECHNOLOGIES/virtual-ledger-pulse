@@ -22,7 +22,6 @@ interface PurchaseOrderDetailsDialogProps {
 
 export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: PurchaseOrderDetailsDialogProps) {
   const { toast } = useToast();
-  const [selectedReceiptIndex, setSelectedReceiptIndex] = useState(0);
 
   // Fetch creator's username if created_by exists
   const { data: creatorUser } = useQuery({

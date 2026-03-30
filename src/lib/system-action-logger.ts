@@ -175,7 +175,7 @@ export function getCurrentUserId(): string | null {
   try {
     // Primary: use session cache (backed by Supabase Auth + localStorage fallback)
     const cachedId = getSessionUserId();
-    if (cachedId && cachedId !== 'demo-admin-id') {
+    if (cachedId) {
       return cachedId;
     }
 
@@ -185,7 +185,7 @@ export function getCurrentUserId(): string | null {
       const session = JSON.parse(sessionStr);
       const userId = session?.user?.id || session?.id || null;
       
-      if (typeof userId === 'string' && userId.trim() && userId !== 'demo-admin-id') {
+      if (typeof userId === 'string' && userId.trim()) {
         const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
         if (!isUuid) {
           console.warn('[SystemActionLogger] Non-UUID user id detected (allowed):', userId);

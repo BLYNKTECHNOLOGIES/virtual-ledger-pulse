@@ -102,31 +102,6 @@ export function LoginPage() {
       };
       localStorage.setItem('userSession', JSON.stringify(sessionData));
       
-      // Store permissions for admin users
-      if (authenticatedUser.roles?.some((role: string) => role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin')) {
-        const adminPermissions = [
-          'dashboard_view',
-          'sales_view', 'sales_manage',
-          'purchase_view', 'purchase_manage',
-          'bams_view', 'bams_manage',
-          'clients_view', 'clients_manage',
-          'leads_view', 'leads_manage',
-          'user_management_view', 'user_management_manage',
-          'hrms_view', 'hrms_manage',
-          'payroll_view', 'payroll_manage',
-          'compliance_view', 'compliance_manage',
-          'stock_view', 'stock_manage',
-          'accounting_view', 'accounting_manage',
-          'video_kyc_view', 'video_kyc_manage',
-          'kyc_approvals_view', 'kyc_approvals_manage',
-          'statistics_view', 'statistics_manage',
-          'erp_destructive', 'terminal_destructive', 'bams_destructive',
-          'clients_destructive', 'stock_destructive',
-          'shift_reconciliation_create', 'shift_reconciliation_approve'
-        ];
-        localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
-      }
-
       console.log('User authenticated successfully:', authenticatedUser);
 
       // Check if user must change password (ERP onboarding or transition)

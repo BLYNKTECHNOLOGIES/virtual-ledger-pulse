@@ -222,7 +222,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('Session restoration error:', error);
       localStorage.removeItem('userSession');
       localStorage.removeItem('isLoggedIn');
-      localStorage.removeItem('userEmail');
     } finally {
       setIsLoading(false);
     }
@@ -363,9 +362,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(null);
         localStorage.removeItem('userSession');
         localStorage.removeItem('isLoggedIn');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userPermissions');
       }
     });
 

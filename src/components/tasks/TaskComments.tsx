@@ -77,8 +77,13 @@ export function TaskComments({ taskId }: { taskId: string }) {
     !mentionSearch || u.full_name?.toLowerCase().includes(mentionSearch.toLowerCase())
   ).slice(0, 5);
 
+  const escapeHtml = (str: string) =>
+    str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
   const displayContent = (text: string) => {
-    return text.replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="text-primary font-medium">@$1</span>');
+    // Escape HTML first to prevent XSS, then apply mention formatting
+    const escaped = escapeHtml(text);
+    return escaped.replace(/@\[([^\]]+)\]\([^)]+\)/g, '<span class="text-primary font-medium">@$1</span>');
   };
 
   return (

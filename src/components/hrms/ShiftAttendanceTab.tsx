@@ -4,17 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Calendar, Users, AlertCircle, Edit, Trash2, Fingerprint } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Clock, Calendar, Users, AlertCircle, Edit, Fingerprint } from "lucide-react";
 import { ShiftManagementDialog } from "./ShiftManagementDialog";
 import { OvertimeRecordDialog } from "./OvertimeRecordDialog";
 import { LiveAttendanceDashboard } from "./attendance/LiveAttendanceDashboard";
@@ -34,7 +24,8 @@ export function ShiftAttendanceTab() {
   const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Mock data for shifts
+  // Note: Real shift management is on the dedicated Shifts page (ShiftsPage.tsx) using hr_shifts table.
+  // This tab shows a static overview for the attendance context.
   const shifts: Shift[] = [
     { id: '1', name: 'Morning Shift', startTime: '09:00', endTime: '18:00', employeeCount: 12 },
     { id: '2', name: 'Evening Shift', startTime: '14:00', endTime: '23:00', employeeCount: 8 },
@@ -53,19 +44,6 @@ export function ShiftAttendanceTab() {
     setShowShiftDialog(true);
   };
 
-  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
-
-  const handleDeleteShift = (shift: Shift) => {
-    setShiftToDelete(shift);
-  };
-
-  const confirmDeleteShift = () => {
-    if (shiftToDelete) {
-      // TODO: Wire up actual delete mutation when shifts are stored in DB
-      console.log(`Deleted shift: ${shiftToDelete.name}`);
-      setShiftToDelete(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -114,13 +92,6 @@ export function ShiftAttendanceTab() {
                           onClick={() => handleEditShift(shift)}
                         >
                           <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleDeleteShift(shift)}
-                        >
-                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -213,22 +184,6 @@ export function ShiftAttendanceTab() {
         onOpenChange={setShowOvertimeDialog}
       />
 
-      <AlertDialog open={!!shiftToDelete} onOpenChange={(open) => !open && setShiftToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Shift</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{shiftToDelete?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteShift} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

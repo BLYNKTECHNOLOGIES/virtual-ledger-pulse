@@ -81,6 +81,34 @@ function calculateVolumeTrend(current: number, previous: number): { trend: Volum
   }
 }
 
+// Helper to fetch all rows from a table, paginating past the 1000-row limit
+async function fetchAllRows<T>(
+  table: string,
+  select: string,
+  filter?: { column: string; op: 'neq'; value: string }
+): Promise<T[]> {
+  const PAGE_SIZE = 1000;
+  let allData: T[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase.from(table as any).select(select).range(from, from + PAGE_SIZE - 1);
+    if (filter) {
+      query = query.neq(filter.column, filter.value);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    if (data) {
+      allData = allData.concat(data as T[]);
+    }
+    hasMore = (data?.length || 0) === PAGE_SIZE;
+    from += PAGE_SIZE;
+  }
+
+  return allData;
+}
+
 export function useClientTypeFromOrders(clients: any[] | undefined) {
   return useQuery({
     queryKey: ['client-order-counts', clients?.map(c => c.id).join(',')],
@@ -98,21 +126,19 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
         phone: c.phone
       }));
 
-      // Fetch all sales orders (buyers) - exclude cancelled, include amounts and dates
-      const { data: salesOrders, error: salesError } = await supabase
-        .from('sales_orders')
-        .select('client_name, client_phone, total_amount, order_date')
-        .neq('status', 'CANCELLED');
+      // Fetch ALL sales orders (buyers) - paginated to avoid 1000-row limit
+      const salesOrders = await fetchAllRows<any>(
+        'sales_orders',
+        'client_name, client_phone, total_amount, order_date',
+        { column: 'status', op: 'neq', value: 'CANCELLED' }
+      );
 
-      if (salesError) throw salesError;
-
-      // Fetch all purchase orders (sellers) - exclude cancelled, include amounts and dates
-      const { data: purchaseOrders, error: purchaseError } = await supabase
-        .from('purchase_orders')
-        .select('supplier_name, contact_number, total_amount, order_date')
-        .neq('status', 'CANCELLED');
-
-      if (purchaseError) throw purchaseError;
+      // Fetch ALL purchase orders (sellers) - paginated to avoid 1000-row limit
+      const purchaseOrders = await fetchAllRows<any>(
+        'purchase_orders',
+        'supplier_name, contact_number, total_amount, order_date',
+        { column: 'status', op: 'neq', value: 'CANCELLED' }
+      );
 
       const today = new Date();
       

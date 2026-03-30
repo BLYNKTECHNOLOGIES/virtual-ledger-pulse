@@ -757,6 +757,26 @@ export function ResignationTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Action</AlertDialogTitle>
+            <AlertDialogDescription>{confirmAction?.label}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (!confirmAction) return;
+              const { type, id } = confirmAction;
+              if (type === 'approve') approveResignation.mutate(id);
+              else if (type === 'reject') rejectResignation.mutate(id);
+              else if (type === 'withdraw') withdrawResignation.mutate(id);
+              else if (type === 'complete') completeResignation.mutate(id);
+              setConfirmAction(null);
+            }}>Confirm</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -843,6 +843,18 @@ export default function Sales() {
           order={selectedOrderForCompletion}
         />
       </PermissionGate>
+      <AlertDialog open={!!deleteOrderId} onOpenChange={() => setDeleteOrderId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Sales Order</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete this order? This will revert all related changes.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { if (deleteOrderId) { deleteSalesOrderMutation.mutate(deleteOrderId); setDeleteOrderId(null); } }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
     </PermissionGate>
   );

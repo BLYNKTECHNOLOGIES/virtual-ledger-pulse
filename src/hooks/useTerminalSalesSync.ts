@@ -72,7 +72,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       .maybeSingle();
 
     if (!activeLink) {
-      console.log('[SalesSync] No active terminal wallet link found, skipping.');
       return { synced: 0, duplicates: 0 };
     }
 

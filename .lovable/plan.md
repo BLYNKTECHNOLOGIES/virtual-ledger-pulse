@@ -1,88 +1,99 @@
-# ERP Full System Audit — Phase 19 Report
+# ERP Full System Audit — Phase 20 Report
 
-## Phases 1-18 Status (completed)
+## Phases 1-19 Status (completed)
 
-All previous phases complete: data integrity fixes, orphaned code removal, permissions cleanup, XSS fixes, dead tabs/tables, dead hooks/utils/components, console.log cleanup (client-side complete), native confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling reduction (10s→30s), silent catch blocks, hardcoded password backdoor removed, anonymous role policies dropped.
-
----
-
-## CATEGORY A: Performance — Remaining 15s Polling (5 locations)
-
-Phase 18 reduced all 10s polling to 30s, but 5 bank-related queries still poll at 15s with `staleTime: 0`. Bank balances don't change every 15 seconds.
-
-### P19-PERF-01: Bank account queries polling at 15s (5 files)
-
-- `src/components/bams/BankAccountManagement.tsx` line 106: `refetchInterval: 15000, staleTime: 0`
-- `src/components/bams/AccountSummary.tsx` line 159: `refetchInterval: 15000`
-- `src/hooks/useActiveBankAccounts.tsx` line 52: `refetchInterval: 15000`
-- `src/components/widgets/BankBalanceFilterWidget.tsx` line 106: `refetchInterval: 15000`
-- `src/components/dashboard/DashboardWidget.tsx` line 63: `refetchInterval: 15000`
-
-**Fix:** All 5 → `refetchInterval: 30000, staleTime: 10000`. Consistent with the 30s standard established in Phase 18.
-
-### P19-PERF-02: PayerModule polling at 10s
-
-- `src/hooks/usePayerModule.ts` line 92: `refetchInterval: 10_000`
-
-Payer order locks need reasonably fresh data but 10s is excessive.
-
-**Fix:** `refetchInterval: 20000, staleTime: 8000`. Payer locks are more time-sensitive than bank balances but don't need 10s.
+All previous phases complete: data integrity, orphaned code, permissions, XSS, dead code, console.log cleanup (client-side), confirm() dialogs, manual purchase RPC rebuild, P&L backfill, useQuery refactors, hard-reload elimination, 'Current User' audit fix, polling standardization (30s), silent catch blocks, OTP system removal, hardcoded backdoor removed, anonymous policies dropped.
 
 ---
 
-## CATEGORY B: Security — OTP In-Memory Storage Bypass (1 item)
+## CATEGORY A: Security — verify-binance-keys Leaks Secrets (1 item) exempt this
 
-### P19-SEC-01: OTP stored in edge function memory, not database
+### P20-SEC-01: Edge function exposes partial API keys and proxy URL
 
-**Impact: HIGH** — The `send-password-reset-otp` and `reset-password-with-otp` edge functions store OTPs in in-memory `Map` objects. Since these are separate function instances, the verify function can never see OTPs created by the send function. This means password reset is **fundamentally broken** or accepts any OTP.
+**Impact: HIGH** — `verify-binance-keys` has `verify_jwt = false` and returns first 4-20 characters of `BINANCE_API_KEY`, `BINANCE_API_SECRET`, `BINANCE_PROXY_TOKEN`, and `BINANCE_PROXY_URL` in its HTTP response. Anyone on the internet can call this endpoint and extract partial secrets.
 
-**Fix:**
-1. Create a `password_reset_tokens` table with columns: `id`, `email`, `otp_hash`, `created_at`, `expires_at`, `used`, `attempts`
-2. Update `send-password-reset-otp` to insert hashed OTP into database
-3. Update `reset-password-with-otp` to verify against database, mark as used
-4. Add rate limiting (max 5 attempts per token)
-5. Add cleanup: delete expired tokens older than 1 hour
+Lines 21-24 of `supabase/functions/verify-binance-keys/index.ts`:
 
----
+```
+BINANCE_PROXY_URL: `Set (${BINANCE_PROXY_URL.substring(0, 20)}...)`
+BINANCE_API_KEY: `Set (${BINANCE_API_KEY.substring(0, 8)}...${BINANCE_API_KEY.slice(-4)})`
+BINANCE_API_SECRET: `Set (${BINANCE_API_SECRET.substring(0, 4)}...${BINANCE_API_SECRET.slice(-4)})`
+BINANCE_PROXY_TOKEN: `Set (${BINANCE_PROXY_TOKEN.substring(0, 4)}...)`
+```
 
-## CATEGORY C: Security — verify-binance-keys Leaks Partial API Keys (1 item)
+**Fix:** Rewrite to return only boolean flags:
 
-### P19-SEC-02: Edge function returns partial API key strings
-
-**Impact: MEDIUM** — `verify-binance-keys` returns first 4-8 chars of Binance API keys in HTTP response. Combined with `verify_jwt = false`, anyone can probe which secrets are configured and get partial key data.
-
-**Fix:** Redeploy the edge function to return only boolean flags:
 ```typescript
-{
-  api_key_configured: !!BINANCE_API_KEY,
-  api_secret_configured: !!BINANCE_API_SECRET,
-  proxy_url_configured: !!BINANCE_PROXY_URL
-}
+{ proxy_url_configured: true, api_key_configured: true, api_secret_configured: true, proxy_token_configured: true, proxy_ping: "OK", api_key_valid: true }
 ```
 
 ---
 
-## CATEGORY D: Code Quality — Silent `.catch(() => {})` in email notifications (1 item)
+## CATEGORY B: Config Hygiene — Stale config.toml entries (1 item)
 
-### P19-QUAL-01: Task email notifications silently swallow errors
+### P20-CFG-01: config.toml references deleted edge functions
 
-- `src/utils/taskEmail.ts` line 80: `.catch(() => {})`
-- `src/hooks/useTasks.ts` lines 332, 422: `.catch(() => {})`
+3 edge functions were deleted in Phase 19 but their `verify_jwt = false` entries remain in `supabase/config.toml`:
 
-These fire-and-forget notification calls silently discard errors. While notifications are non-critical, we should at least log failures.
+- `send-password-reset-otp` (line 54)
+- `reset-password-with-otp` (line 48)
+- `verify-password-reset-otp` (line 62)
 
-**Fix:** Replace `.catch(() => {})` with `.catch((err) => console.warn('Notification send failed:', err.message))`.
+**Fix:** Remove these 6 lines from config.toml.
+
+---
+
+## CATEGORY C: Code Quality — useEffect fetch patterns (3 components)
+
+### P20-QUAL-01: AvailablePaymentGateways uses useEffect+useState instead of useQuery
+
+`src/components/bams/payment-gateway/AvailablePaymentGateways.tsx` — manual `useEffect(() => { fetchPaymentGateways(); }, [])` with `useState` for loading/data. No caching, no deduplication, no error retry.
+
+**Fix:** Refactor to `useQuery` with `queryKey: ['payment-gateways']`. After mutations (add/edit), call `queryClient.invalidateQueries`.
+
+### P20-QUAL-02: PendingSettlements uses useEffect+useState
+
+`src/components/bams/payment-gateway/PendingSettlements.tsx` — same pattern. Two `useEffect` fetches for settlements and bank accounts.
+
+**Fix:** Refactor both fetches to `useQuery`. Bank accounts query can be shared/cached.
+
+### P20-QUAL-03: SettlementSummary uses useEffect+useState
+
+`src/components/bams/payment-gateway/SettlementSummary.tsx` — same pattern with two `useEffect` fetches.
+
+**Fix:** Refactor to `useQuery`.
+
+---
+
+## CATEGORY D: Edge Function Console Logging (1 item)
+
+### P20-LOG-01: binance-assets edge function has 20+ console.log calls
+
+`supabase/functions/binance-assets/index.ts` has extensive `console.log` calls that expose request payloads, API responses, and partial data in Supabase edge function logs. While edge function logs are not public, this is excessive for production.
+
+**Fix:** Replace verbose `console.log` with structured logging: keep action-level logs (what action was called, success/failure) but remove payload dumps and response body logging. Use `console.info` for operational events and `console.error` for failures only.
 
 ---
 
 ## Summary Table
 
-| # | ID | Severity | Action | Target |
-|---|------|----------|--------|--------|
-| 1 | P19-PERF-01 | MEDIUM | Reduce bank account polling 15s → 30s | 5 bank-related files |
-| 2 | P19-PERF-02 | LOW | Reduce payer module polling 10s → 20s | usePayerModule.ts |
-| 3 | P19-SEC-01 | HIGH | Move OTP storage from memory to database | 2 edge functions + migration |
-| 4 | P19-SEC-02 | MEDIUM | Stop leaking partial API keys | verify-binance-keys edge function |
-| 5 | P19-QUAL-01 | LOW | Add console.warn to silent notification catches | taskEmail.ts, useTasks.ts |
 
-**Total: 6 polling reductions (completing the 30s standardization), 1 broken OTP system fixed, 1 key leak closed, 3 silent catches instrumented**
+| #   | ID          | Severity | Action                                                 | Target                                        |
+| --- | ----------- | -------- | ------------------------------------------------------ | --------------------------------------------- |
+| 1   | P20-SEC-01  | HIGH     | Stop leaking partial API keys/secrets                  | verify-binance-keys edge function exempt this |
+| 2   | P20-CFG-01  | LOW      | Remove stale config.toml entries for deleted functions | supabase/config.toml                          |
+| 3   | P20-QUAL-01 | MEDIUM   | Refactor AvailablePaymentGateways to useQuery          | AvailablePaymentGateways.tsx                  |
+| 4   | P20-QUAL-02 | MEDIUM   | Refactor PendingSettlements to useQuery                | PendingSettlements.tsx                        |
+| 5   | P20-QUAL-03 | MEDIUM   | Refactor SettlementSummary to useQuery                 | SettlementSummary.tsx                         |
+| 6   | P20-LOG-01  | LOW      | Reduce verbose edge function logging                   | binance-assets/index.ts                       |
+
+
+**Total: 1 secret leak closed, 3 stale config entries removed, 3 components refactored to useQuery, 1 edge function logging cleaned up**
+
+### Technical Details
+
+**verify-binance-keys rewrite:** The function currently has no JWT verification and returns partial key strings. The fix keeps the proxy ping and API validity test but returns only boolean results. No frontend changes needed since the function is only called from the Binance settings panel which already handles boolean responses.
+
+**useQuery refactors:** All 3 payment gateway components follow the same pattern: `useState` + `useEffect` + manual `setLoading`. Converting to `useQuery` gives automatic caching, retry, deduplication, and loading states. The `onSuccess` callbacks after mutations become `queryClient.invalidateQueries({ queryKey: ['...'] })`.
+
+**config.toml cleanup:** The stale entries for deleted OTP functions are harmless but create confusion. Removing them keeps the config aligned with the actual deployed functions.

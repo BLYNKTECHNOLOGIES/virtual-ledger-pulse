@@ -4669,6 +4669,7 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string
+          deletion_approved_by: string | null
           dob: string | null
           email: string | null
           emergency_contact: string | null
@@ -4713,6 +4714,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          deletion_approved_by?: string | null
           dob?: string | null
           email?: string | null
           emergency_contact?: string | null
@@ -4757,6 +4759,7 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string
+          deletion_approved_by?: string | null
           dob?: string | null
           email?: string | null
           emergency_contact?: string | null

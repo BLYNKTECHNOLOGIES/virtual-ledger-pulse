@@ -11,6 +11,7 @@ export default function DepartmentsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", code: "", description: "", icon: "📁" });
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: departments, isLoading } = useQuery({
     queryKey: ["hr_departments"],

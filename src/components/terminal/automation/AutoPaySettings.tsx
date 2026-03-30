@@ -12,7 +12,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 
-export function AutoPaySettings() {
+interface AutoPaySettingsProps {
+  canToggle?: boolean;
+  canConfigure?: boolean;
+}
+
+export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoPaySettingsProps) {
   const queryClient = useQueryClient();
 
   const { data: settings, isLoading } = useQuery({
@@ -105,6 +110,7 @@ export function AutoPaySettings() {
             <Switch
               checked={settings?.is_active ?? false}
               onCheckedChange={(v) => updateSettings.mutate({ is_active: v })}
+              disabled={!canToggle}
             />
           </div>
 
@@ -130,6 +136,7 @@ export function AutoPaySettings() {
                       updateSettings.mutate({ minutes_before_expiry: val });
                     }}
                     className="w-20 h-7 text-xs"
+                    disabled={!canConfigure}
                   />
                 </div>
               </div>

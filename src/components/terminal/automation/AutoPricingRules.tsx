@@ -48,7 +48,13 @@ const ALERT_BADGE_STYLES: Record<string, string> = {
   auto_paused: 'bg-destructive/20 text-destructive border-destructive/40',
 };
 
-export function AutoPricingRules() {
+interface AutoPricingRulesProps {
+  canManage?: boolean;
+  canToggle?: boolean;
+  canDelete?: boolean;
+}
+
+export function AutoPricingRules({ canManage = true, canToggle = true, canDelete = true }: AutoPricingRulesProps) {
   const { data: rules = [], isLoading } = useAutoPricingRules();
   const updateRule = useUpdateAutoPricingRule();
   const deleteRule = useDeleteAutoPricingRule();
@@ -111,9 +117,11 @@ export function AutoPricingRules() {
           <Button variant="outline" size="sm" onClick={() => { setLogRuleId(undefined); setShowLogs(true); }}>
             <Clock className="h-3.5 w-3.5 mr-1.5" /> View Logs
           </Button>
-          <Button size="sm" onClick={handleCreate}>
-            <Plus className="h-4 w-4 mr-1.5" /> Add Rule
-          </Button>
+          {canManage && (
+            <Button size="sm" onClick={handleCreate}>
+              <Plus className="h-4 w-4 mr-1.5" /> Add Rule
+            </Button>
+          )}
         </div>
       </div>
 
@@ -193,6 +201,7 @@ export function AutoPricingRules() {
                       <Switch
                         checked={rule.is_active}
                         onCheckedChange={(v) => updateRule.mutate({ id: rule.id, is_active: v })}
+                        disabled={!canToggle}
                       />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -379,12 +388,16 @@ export function AutoPricingRules() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setLogRuleId(rule.id); setShowLogs(true); }} title="View Logs">
                         <Clock className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(rule)}>
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(rule.id); setDeleteRuleName(rule.name); }}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {canManage && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(rule)}>
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(rule.id); setDeleteRuleName(rule.name); }}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>

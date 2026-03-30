@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { useState, useEffect } from 'react';
 import { useAlternateUpiRequest } from '@/hooks/usePayerModule';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
 interface Props {
   order: P2POrderRecord;
@@ -19,6 +20,8 @@ interface Props {
 }
 
 export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail }: Props) {
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
   const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
@@ -144,13 +147,15 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
           </div>
         )}
 
-        {/* Order Actions */}
-        <OrderActions
-          orderNumber={order.binance_order_number}
-          orderStatus={order.order_status}
-          tradeType={order.trade_type}
-          additionalKycVerify={order.additional_kyc_verify}
-        />
+        {/* Order Actions — gated by terminal_orders_actions */}
+        {canActions && (
+          <OrderActions
+            orderNumber={order.binance_order_number}
+            orderStatus={order.order_status}
+            tradeType={order.trade_type}
+            additionalKycVerify={order.additional_kyc_verify}
+          />
+        )}
       </div>
 
       {/* Update Payment Method Dialog */}

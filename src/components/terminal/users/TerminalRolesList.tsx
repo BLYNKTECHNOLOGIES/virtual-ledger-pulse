@@ -93,6 +93,13 @@ const PERMISSION_MODULES: ModuleDef[] = [
     ],
   },
   {
+    key: 'automation', label: 'Automation', icon: '🤖',
+    permissions: [
+      { key: 'terminal_automation_view', label: 'View', tier: 'view' },
+      { key: 'terminal_automation_manage', label: 'Manage', tier: 'manage', requires: ['terminal_automation_view'] },
+    ],
+  },
+  {
     key: 'autopay', label: 'Autopay', icon: '🤖',
     permissions: [
       { key: 'terminal_autopay_view', label: 'View', tier: 'view' },

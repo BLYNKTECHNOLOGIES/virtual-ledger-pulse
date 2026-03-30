@@ -198,7 +198,9 @@ function TimingCard({ icon: Icon, label, value, subtitle, borderColor }: { icon:
   );
 }
 
-export default function TerminalOperatorDetail() {
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+
+function TerminalOperatorDetailContent() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -1563,5 +1565,13 @@ export default function TerminalOperatorDetail() {
         {profile?.specialization && <span>Specialization: <span className="capitalize text-foreground">{profile.specialization}</span></span>}
       </div>
     </div>
+  );
+}
+
+export default function TerminalOperatorDetail() {
+  return (
+    <TerminalPermissionGate permissions={['terminal_mpi_view_own']}>
+      <TerminalOperatorDetailContent />
+    </TerminalPermissionGate>
   );
 }

@@ -38,8 +38,8 @@ export function useWalletStock() {
 
       return result;
     },
-    refetchInterval: 10000,
-    staleTime: 0,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 }
 

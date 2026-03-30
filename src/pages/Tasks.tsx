@@ -59,7 +59,7 @@ export default function Tasks() {
 
       // Check 30-minute cooldown for this task
       const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      const { data: recentNudge } = await from('erp_task_activity_log')
+      const { data: recentNudge } = await (supabase as any).from('erp_task_activity_log')
         .select('created_at')
         .eq('task_id', task.id)
         .eq('action', 'nudge_sent')

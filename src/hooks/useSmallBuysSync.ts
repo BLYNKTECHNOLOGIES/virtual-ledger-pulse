@@ -40,7 +40,6 @@ export async function getSmallBuysConfig(): Promise<SmallBuysConfig | null> {
 export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   const config = await getSmallBuysConfig();
   if (!config || !config.is_enabled) {
-    console.log('[SmallBuysSync] Disabled or no config.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
@@ -74,7 +73,6 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   }
 
   if (allOrders.length === 0) {
-    console.log('[SmallBuysSync] No BUY orders in lookback window.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
@@ -85,7 +83,6 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   });
 
   if (smallOrders.length === 0) {
-    console.log('[SmallBuysSync] No small buy orders found.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 
@@ -130,11 +127,9 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
   const duplicates = smallOrders.length - newOrders.length;
 
   if (newOrders.length === 0) {
-    console.log('[SmallBuysSync] All orders already synced.');
     return { synced: 0, duplicates, batchId: null };
   }
 
-  console.log(`[SmallBuysSync] Found ${newOrders.length} new small buy orders (${duplicates} already synced)`);
 
   // Get active terminal wallet link
   const { data: activeLink } = await supabase
@@ -232,7 +227,6 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
       }
     }
 
-    console.log(`[SmallBuysSync] Mapped ${mapInsertCount}/${group.length} orders for sync ${(syncRecord as any).id}`);
     entriesCreated++;
   }
 
@@ -250,6 +244,5 @@ export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
     synced_by: userId || null,
   });
 
-  console.log(`[SmallBuysSync] Batch ${batchId}: ${entriesCreated} entries, ${newOrders.length} orders, ${duplicates} duplicates`);
   return { synced: entriesCreated, duplicates, batchId };
 }

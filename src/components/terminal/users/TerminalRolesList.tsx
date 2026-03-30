@@ -403,7 +403,6 @@ export function TerminalRolesList() {
       if (editDesc.trim()) rpcParams.p_description = editDesc.trim();
       if (parsedLevel !== null) rpcParams.p_hierarchy_level = parsedLevel;
       
-      console.log('[save_terminal_role] params:', JSON.stringify(rpcParams));
       const { data, error } = await supabase.rpc("save_terminal_role", rpcParams as any);
       if (error) {
         console.error('[save_terminal_role] error:', error.code, error.message, error.details, error.hint);

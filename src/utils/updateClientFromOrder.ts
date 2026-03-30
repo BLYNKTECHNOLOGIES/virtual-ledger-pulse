@@ -67,7 +67,6 @@ export async function updateClientFromOrder({
     if (error) {
       console.error('Failed to update client from order:', error);
     } else {
-      console.log('✅ Client updated from order data:', updates);
     }
   } catch (err) {
     console.error('Error in updateClientFromOrder:', err);

@@ -51,7 +51,6 @@ export function useCheckNewMovements() {
       const { data: syncResult } = await supabase.functions.invoke("binance-assets", {
         body: { action: "syncAssetMovements", force: opts?.force ?? false },
       });
-      console.log("syncAssetMovements result:", syncResult);
 
       // Then check for new movements to queue
       const { data, error } = await supabase.functions.invoke("binance-assets", {

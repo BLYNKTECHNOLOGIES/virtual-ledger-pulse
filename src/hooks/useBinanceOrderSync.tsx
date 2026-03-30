@@ -96,7 +96,6 @@ async function fetchOrdersFromBinance(
         }
       }
       windowOrders += orders.length;
-      console.log(`[Sync] window=${windowCount}, page=${page}, received=${orders.length}, total=${allOrders.length}`);
 
       if (orders.length < 50) break;
       page++;
@@ -167,23 +166,18 @@ export function useSyncOrderHistory() {
       const needsFullSync = fullSync || dbCount === 0 || !newestTs;
 
       if (needsFullSync) {
-        console.log(`[Sync] FULL sync — dbCount=${dbCount}, fullSync=${fullSync}`);
         const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365);
-        console.log(`[Sync] Full fetch: ${allOrders.length} orders. Upserting...`);
         await upsertOrdersToDB(allOrders);
         const duration = Date.now() - startTime;
         await updateSyncMetadata(allOrders.length, duration);
-        console.log(`[Sync] Full sync complete. ${allOrders.length} orders in ${(duration / 1000).toFixed(1)}s`);
         return { count: allOrders.length, duration, type: 'full' as const };
       }
 
       // INCREMENTAL: fetch from (newest - overlap) to now
       // The overlap ensures we catch status changes on recent orders
       const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
-      console.log(`[Sync] INCREMENTAL sync — from ${new Date(incrementalStart).toISOString()}, dbCount=${dbCount}`);
 
       const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5);
-      console.log(`[Sync] Incremental fetch: ${newOrders.length} orders. Upserting...`);
 
       if (newOrders.length > 0) {
         await upsertOrdersToDB(newOrders);
@@ -198,7 +192,6 @@ export function useSyncOrderHistory() {
 
       const duration = Date.now() - startTime;
       await updateSyncMetadata(newOrders.length, duration);
-      console.log(`[Sync] Incremental sync complete. ${newOrders.length} orders in ${(duration / 1000).toFixed(1)}s`);
       return { count: newOrders.length, duration, type: 'incremental' as const };
     },
     onSuccess: async ({ count, duration, type }) => {
@@ -209,7 +202,6 @@ export function useSyncOrderHistory() {
       try {
         const { captured } = await captureSellerPaymentDetails();
         if (captured > 0) {
-          console.log(`[PostSync] Captured seller payment details for ${captured} active order(s)`);
         }
       } catch (err) {
         console.error('[PostSync] Seller payment capture failed:', err);

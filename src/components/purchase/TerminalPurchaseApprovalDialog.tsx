@@ -446,7 +446,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);
-          console.log('✅ Client profile updated from terminal purchase approval:', updates);
         }
       }
 
@@ -511,7 +510,6 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                   avg_cost_usdt: marketRateUsdt,
                 });
             }
-            console.log(`✅ WAC position updated: ${asset} +${netQtyVal} @ $${marketRateUsdt} = $${costUsdt.toFixed(4)} COGS`);
           }
         }
       }

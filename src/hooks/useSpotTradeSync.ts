@@ -40,7 +40,6 @@ export function useSpotTradeSync() {
 
       const trades = data.data as any[];
       if (!trades?.length) {
-        if (manual) console.log("✅ No new spot trades to sync");
         return;
       }
 
@@ -113,7 +112,6 @@ export function useSpotTradeSync() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["spot_trade_history"] });
-      console.log(`✅ Synced ${rows.length} spot trades from Binance`);
     } catch (err) {
       console.error("Spot trade sync error:", err);
     } finally {

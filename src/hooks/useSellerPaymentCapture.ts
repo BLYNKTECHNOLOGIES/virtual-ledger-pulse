@@ -174,11 +174,9 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
     .limit(20); // Limit to prevent too many API calls per sync cycle
 
   if (error || !activeOrders || activeOrders.length === 0) {
-    console.log(`[PaymentCapture] No active BUY orders needing payment capture.`);
     return { captured: 0, checked: 0 };
   }
 
-  console.log(`[PaymentCapture] Found ${activeOrders.length} active BUY orders to capture payment details for.`);
 
   for (const order of activeOrders) {
     checked++;
@@ -210,7 +208,6 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
 
       if (!updateErr) {
         captured++;
-        console.log(`[PaymentCapture] ✓ Captured payment details for ${order.order_number}:`,
           paymentInfo ? `accountNo=${paymentInfo.accountNo}, bank=${paymentInfo.bankName}` : 'raw detail stored');
 
         // Auto-upsert into beneficiary_records so it appears immediately
@@ -227,7 +224,6 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
               p_account_type: paymentInfo.accountType?.trim() || null,
               p_account_opening_branch: paymentInfo.accountOpeningBranch?.trim() || null,
             });
-            console.log(`[PaymentCapture] ✓ Beneficiary auto-saved for ${order.order_number}: ${paymentInfo.accountNo}`);
           } catch (benErr) {
             console.warn(`[PaymentCapture] Beneficiary upsert failed (non-blocking):`, benErr);
           }
@@ -243,6 +239,5 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
     await new Promise(r => setTimeout(r, 300));
   }
 
-  console.log(`[PaymentCapture] Complete: ${captured}/${checked} orders captured.`);
   return { captured, checked };
 }

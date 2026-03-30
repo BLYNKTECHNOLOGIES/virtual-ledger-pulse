@@ -90,7 +90,6 @@ export function LoginPage() {
         roles
       };
 
-      console.log('User authenticated successfully:', authenticatedUser);
 
       // Check if user must change password (ERP onboarding or transition)
       const { data: pwdCheck } = await supabase

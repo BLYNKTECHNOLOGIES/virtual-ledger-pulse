@@ -110,7 +110,6 @@ export const createSellerClient = async (
         .limit(1)
         .single();
       if (phoneMatch) {
-        console.log(`[createSellerClient] Found existing client by phone ${contactNumber}: ${phoneMatch.name} (${phoneMatch.client_id})`);
         const updates: Record<string, any> = {};
         if (!phoneMatch.is_seller) {
           updates.is_seller = true;
@@ -160,7 +159,6 @@ export const createSellerClient = async (
       .single();
     if (error) {
       if (error.code === '23505') {
-        console.log('Client already exists (race condition), fetching existing...');
         const existing = await findClientByName(supplierName);
         if (existing) return { id: existing.id, client_id: existing.client_id };
       }
@@ -206,7 +204,6 @@ export const createBuyerClient = async (
         .limit(1)
         .single();
       if (phoneMatch) {
-        console.log(`[createBuyerClient] Found existing client by phone ${contactNumber}: ${phoneMatch.name} (${phoneMatch.client_id})`);
         return { id: phoneMatch.id, client_id: phoneMatch.client_id };
       }
     }
@@ -232,7 +229,6 @@ export const createBuyerClient = async (
     if (error) {
       // Handle race condition: unique constraint violation means another request created it
       if (error.code === '23505') {
-        console.log('Client already exists (race condition), fetching existing...');
         const existing = await findClientByName(buyerName);
         if (existing) return { id: existing.id, client_id: existing.client_id };
       }

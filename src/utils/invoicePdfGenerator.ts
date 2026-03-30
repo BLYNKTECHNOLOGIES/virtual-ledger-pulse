@@ -15,7 +15,6 @@ interface InvoiceData {
 }
 
 export const generateInvoicePDF = ({ order, bankAccountData, companyDetails }: InvoiceData) => {
-  console.log('Starting PDF generation for order:', order.order_number);
   const doc = new jsPDF();
   
   // Company details (default if not provided)

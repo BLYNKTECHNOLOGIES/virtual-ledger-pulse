@@ -105,7 +105,6 @@ export function WalletLinkingSection() {
         throw error;
       }
       
-      console.log('[WalletLink] Successfully linked:', data);
       return data;
     },
     onSuccess: () => {

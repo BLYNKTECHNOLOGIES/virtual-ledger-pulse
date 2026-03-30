@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       const { data: { user: caller } } = await adminClient.auth.getUser(token);
       if (caller?.id) callerId = caller.id;
     }
-    if (!callerId && callerUserId) callerId = callerUserId;
+    
 
     if (!callerId) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {

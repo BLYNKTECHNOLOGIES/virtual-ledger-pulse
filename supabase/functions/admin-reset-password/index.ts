@@ -28,7 +28,7 @@ serve(async (req) => {
       });
     }
 
-    const { userId, newPassword, callerUserId } = parsed.data;
+    const { userId, newPassword } = parsed.data;
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -45,11 +45,6 @@ serve(async (req) => {
         data: { user: caller },
       } = await adminClient.auth.getUser(token);
       if (caller?.id) callerId = caller.id;
-    }
-
-    // Temporary compatibility path for legacy localStorage sessions
-    if (!callerId && callerUserId) {
-      callerId = callerUserId;
     }
 
     if (!callerId) {

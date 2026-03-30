@@ -171,7 +171,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
 
 
   // Build conflict items for the banner
-  const panConflicts = useMemo(() => {
+  const dataConflicts = useMemo(() => {
     const items: { field: string; clientValue: string; counterpartyValue: string; onChoose: (v: string) => void }[] = [];
     if (clientMasterPan && counterpartyPan && clientMasterPan !== counterpartyPan) {
       items.push({
@@ -181,8 +181,14 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         onChoose: (v) => { setPanNumber(v); setTdsOption(v ? '1%' : '20%'); },
       });
     }
+    if (clientMasterPhone && counterpartyPhone && clientMasterPhone !== counterpartyPhone) {
+      items.push({ field: 'Phone', clientValue: clientMasterPhone, counterpartyValue: counterpartyPhone, onChoose: setContactNumber });
+    }
+    if (clientMasterState && counterpartyState && clientMasterState !== counterpartyState) {
+      items.push({ field: 'State', clientValue: clientMasterState, counterpartyValue: counterpartyState, onChoose: setClientState });
+    }
     return items;
-  }, [clientMasterPan, counterpartyPan]);
+  }, [clientMasterPan, counterpartyPan, clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Fetch bank accounts
   const { data: bankAccounts = [] } = useQuery({

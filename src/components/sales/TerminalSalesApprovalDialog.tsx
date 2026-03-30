@@ -162,9 +162,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         const state = normalizeIndianState(data?.state);
         setCounterpartyPhone(phone);
         setCounterpartyState(state);
-        // Pre-fill form fields from terminal-captured data (highest priority)
-        if (phone) setContactNumber(prev => prev || phone);
-        if (state) setClientState(prev => prev || state);
+        // Terminal-captured data has highest priority — unconditionally set
+        if (phone) setContactNumber(phone);
+        if (state) setClientState(state);
       });
   }, [open, syncRecord]);
 

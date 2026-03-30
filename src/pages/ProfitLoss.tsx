@@ -670,7 +670,7 @@ export default function ProfitLoss() {
                 {formatCurrency(periodMetrics?.netProfit || 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Gross + Conv. P&L - Expenses + Income
+                Gross Profit - Expenses + Income
               </p>
             </div>
             <div className="p-4 bg-pink-500/10 rounded-lg">

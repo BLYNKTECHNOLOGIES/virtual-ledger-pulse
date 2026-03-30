@@ -267,6 +267,7 @@ export function StockTransactionsTab() {
           ...(salesOrders || []).map((so: any) => so.created_by).filter(Boolean),
           ...(purchaseOrders || []).map((po: any) => po.created_by).filter(Boolean),
           ...(conversions || []).map((c: any) => c.created_by).filter(Boolean),
+          ...(tx || []).map((t: any) => t.created_by).filter(Boolean),
         ])
       ) as string[];
 

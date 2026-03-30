@@ -75,10 +75,6 @@ export default function StockManagement() {
       </div>
 
       <div className="p-4 md:p-6">
-      <div className="mb-6 hidden md:block">
-        <h1 className="text-3xl font-bold text-gray-900">Stock Management System</h1>
-        <p className="text-gray-600 mt-2">Comprehensive inventory and stock control</p>
-      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>

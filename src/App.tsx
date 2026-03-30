@@ -21,7 +21,7 @@ import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
 import Leads from './pages/Leads';
 import UserManagement from './pages/UserManagement';
-import HRMS from './pages/HRMS';
+
 
 import Compliance from './pages/Compliance';
 import StockManagement from './pages/StockManagement';

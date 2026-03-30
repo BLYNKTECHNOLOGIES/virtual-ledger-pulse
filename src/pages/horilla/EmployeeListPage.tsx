@@ -189,9 +189,7 @@ export default function EmployeeListPage() {
   };
 
   const handleDelete = (emp: HrEmployee) => {
-    if (confirm(`Delete ${emp.first_name} ${emp.last_name}? This cannot be undone.`)) {
-      deleteMutation.mutate(emp.id);
-    }
+    setDeleteTarget({ id: emp.id, name: `${emp.first_name} ${emp.last_name}` });
   };
 
   // ─── Filter logic ───

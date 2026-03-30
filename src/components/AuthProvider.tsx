@@ -1,6 +1,5 @@
 
 import { ReactNode } from 'react';
-import { Login } from './auth/Login';
 import { AuthProvider as AuthHookProvider, useAuth } from '@/hooks/useAuth';
 
 interface AuthProviderProps {
@@ -8,7 +7,7 @@ interface AuthProviderProps {
 }
 
 function AuthContent({ children }: AuthProviderProps) {
-  const { user, login, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -16,10 +15,6 @@ function AuthContent({ children }: AuthProviderProps) {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
-  }
-
-  if (!user) {
-    return <Login onLogin={login} />;
   }
 
   return <>{children}</>;

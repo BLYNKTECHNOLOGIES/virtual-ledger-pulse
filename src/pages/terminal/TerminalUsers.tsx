@@ -16,7 +16,6 @@ export default function TerminalUsers() {
   const activeTab = prefs.activeTab;
   const setActiveTab = (v: string) => setPref('activeTab', v);
   const canAssignRoles = hasPermission('terminal_users_role_assign') || isTerminalAdmin;
-  const canBypassCode = hasPermission('terminal_users_bypass_code') || isTerminalAdmin;
 
   return (
     <TerminalPermissionGate permissions={["terminal_users_view"]}>

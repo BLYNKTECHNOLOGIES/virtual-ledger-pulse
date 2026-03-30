@@ -95,7 +95,7 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-[#E8604C]" onClick={() => window.location.href = `/hrms/recruitment/candidates/${candidate.id}`}>{candidate.name}</p>
+          <p className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-[#E8604C]" onClick={() => navigate(`/hrms/recruitment/candidates/${candidate.id}`)}>{candidate.name}</p>
           {candidate.email && <p className="text-[11px] text-gray-400 truncate">{candidate.email}</p>}
         </div>
       </div>

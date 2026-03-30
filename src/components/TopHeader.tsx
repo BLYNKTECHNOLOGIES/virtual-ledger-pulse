@@ -31,7 +31,8 @@ export function TopHeader() {
   };
 
   const handleReload = () => {
-    window.location.reload();
+    queryClient.invalidateQueries();
+    toast({ title: "Refreshed", description: "All data has been refreshed." });
   };
 
   const handleDashboardClick = () => {

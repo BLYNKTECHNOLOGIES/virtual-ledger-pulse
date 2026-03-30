@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Search, Star, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Feedback {
   id: string;
@@ -47,27 +48,32 @@ const emptyForm = {
 };
 
 export default function Feedback360Page() {
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
-  useEffect(() => { fetchAll(); }, []);
+  const { data: feedbacks = [], isLoading: feedbacksLoading } = useQuery({
+    queryKey: ['hr_feedback_360'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_feedback_360").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Feedback[];
+    },
+  });
 
-  async function fetchAll() {
-    setLoading(true);
-    const [fbRes, empRes] = await Promise.all([
-      (supabase as any).from("hr_feedback_360").select("*").order("created_at", { ascending: false }),
-      (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true),
-    ]);
-    if (fbRes.data) setFeedbacks(fbRes.data);
-    if (empRes.data) setEmployees(empRes.data);
-    setLoading(false);
-  }
+  const { data: employees = [], isLoading: employeesLoading } = useQuery({
+    queryKey: ['hr_employees_active'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true);
+      if (error) throw error;
+      return data as Employee[];
+    },
+  });
+
+  const loading = feedbacksLoading || employeesLoading;
 
   async function handleCreate() {
     if (!form.employee_id || !form.review_cycle.trim()) {
@@ -85,13 +91,15 @@ export default function Feedback360Page() {
     const { error } = await (supabase as any).from("hr_feedback_360").insert(payload);
     if (error) { toast.error(error.message); return; }
     toast.success("Feedback created");
-    setDialogOpen(false); setForm(emptyForm); fetchAll();
+    setDialogOpen(false); setForm(emptyForm);
+    queryClient.invalidateQueries({ queryKey: ['hr_feedback_360'] });
   }
 
   async function handleDelete(id: string) {
     const { error } = await (supabase as any).from("hr_feedback_360").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Deleted"); fetchAll();
+    toast.success("Deleted");
+    queryClient.invalidateQueries({ queryKey: ['hr_feedback_360'] });
     setDeleteTarget(null);
   }
 

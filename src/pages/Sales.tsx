@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield, CheckCircle } from "lucide-react";
+import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -52,7 +52,7 @@ export default function Sales() {
   const [selectedOrderForCompletion, setSelectedOrderForCompletion] = useState<any>(null);
   const [activeTab, setActiveTab] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('tab') || 'pending';
+    return params.get('tab') || 'completed';
   });
 
   // Fetch accurate counts for tab badges (not limited by default 1000 row cap)
@@ -67,19 +67,13 @@ export default function Sales() {
         return q;
       };
 
-      const [pendingRes, completedRes] = await Promise.all([
+      const [completedRes] = await Promise.all([
         buildBaseFilter(
           supabase.from('sales_orders').select('id', { count: 'exact', head: true })
-            .in('payment_status', ['PENDING', 'USER_PAYING'])
-        ),
-        buildBaseFilter(
-          supabase.from('sales_orders').select('id', { count: 'exact', head: true })
-            .in('payment_status', ['COMPLETED', 'PAYMENT_DONE'])
         ),
       ]);
 
       return {
-        pending: pendingRes.count ?? 0,
         completed: completedRes.count ?? 0,
       };
     },
@@ -98,12 +92,7 @@ export default function Sales() {
         `)
         .order('created_at', { ascending: false });
 
-      // Scope query to current tab's statuses to stay within limits
-      if (activeTab === 'pending') {
-        query = query.in('payment_status', ['PENDING', 'USER_PAYING']);
-      } else if (activeTab === 'completed') {
-        query = query.in('payment_status', ['COMPLETED', 'PAYMENT_DONE']);
-      }
+      // No tab-based status filtering — show all orders in the completed tab
 
       if (searchTerm) {
         query = query.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
@@ -142,9 +131,8 @@ export default function Sales() {
     },
   });
 
-  // Orders are already filtered by tab via the query — use them directly
-  const pendingOrders = activeTab === 'pending' ? (salesOrders || []) : [];
-  const completedOrders = activeTab === 'completed' ? (salesOrders || []) : [];
+  // All orders displayed in completed tab now
+  const completedOrders = salesOrders || [];
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -723,10 +711,7 @@ export default function Sales() {
             <div className="text-center py-8">Loading sales orders...</div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="pending">
-                  Pending ({orderCounts?.pending ?? pendingOrders.length})
-                </TabsTrigger>
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="completed">
                   Completed ({orderCounts?.completed ?? completedOrders.length})
                 </TabsTrigger>
@@ -738,18 +723,8 @@ export default function Sales() {
                 </TabsTrigger>
               </TabsList>
 
-              <TabsContent value="pending" className="mt-6">
-                {renderOrdersTable(pendingOrders, false)}
-              </TabsContent>
-              
               <TabsContent value="completed" className="mt-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-green-600 font-medium">
-                    <CheckCircle className="h-5 w-5" />
-                    Completed Sales Orders
-                  </div>
-                  {renderOrdersTable(completedOrders, true)}
-                </div>
+                {renderOrdersTable(completedOrders, true)}
               </TabsContent>
 
               <TabsContent value="terminal-sync" className="mt-6">

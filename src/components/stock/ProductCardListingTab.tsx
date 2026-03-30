@@ -201,7 +201,7 @@ export function ProductCardListingTab() {
                     <div className="border-t pt-3">
                       <div className="flex items-center gap-2 mb-2">
                         <Building className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">Portfolio Distribution</span>
+                        <span className="text-sm font-medium text-gray-700">Wallet Distribution</span>
                       </div>
                       <div className="space-y-1">
                         {walletStocks

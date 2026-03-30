@@ -79,7 +79,6 @@ export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   }
 
   if (allOrders.length === 0) {
-    console.log('[SmallSalesSync] No SELL orders in lookback window.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 

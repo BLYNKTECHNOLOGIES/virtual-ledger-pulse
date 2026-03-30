@@ -1,66 +1,66 @@
 
 
-# Terminal Bug Audit & Fix Plan
+# Terminal Bug Audit — Round 3
 
 ## Bugs Found
 
-### BUG 1 (CRITICAL): Permission Parsing Failure — All Non-Admin Users Have Zero Permissions
-**File**: `src/hooks/useTerminalAuth.tsx`, line 154
-**Root cause**: The `get_terminal_permissions` RPC returns `SETOF text`. PostgREST wraps each row as `{get_terminal_permissions: "terminal_orders_view"}`. But the frontend reads `p.permission` — a key that doesn't exist. Every non-SuperAdmin terminal user gets an array of `undefined` values.
-**Impact**: All operators, payers, team leads — anyone who isn't a Super Admin — see zero sidebar items (after the `showAll` fix), zero permission gates pass, and they effectively can't use the terminal.
-**Fix**: Change `p.permission` to `(typeof p === 'string' ? p : p.get_terminal_permissions || p.permission || p)`.
+### BUG 1 (HIGH): Missing Permission Gates on 5 Pages
+The following pages have **no `TerminalPermissionGate`** wrapper, meaning any terminal user can access them via direct URL regardless of permissions:
 
-### BUG 2 (MEDIUM): BiometricAuthGate uses `useState` instead of `useRef` for timer
-**File**: `src/components/terminal/BiometricAuthGate.tsx`, line 32
-**Root cause**: `const tapTimerRef = useState<NodeJS.Timeout | null>(null)` — uses `useState` instead of `useRef`. Direct mutation of `tapTimerRef[0]` doesn't persist across renders correctly and could cause the 5-tap secret trigger to fail intermittently.
-**Fix**: Change to `useRef<NodeJS.Timeout | null>(null)` and update access from `tapTimerRef[0]` to `tapTimerRef.current`.
+| Page | File | Missing Gate |
+|------|------|-------------|
+| Dashboard | `TerminalDashboard.tsx` | `terminal_dashboard_view` |
+| Analytics | `TerminalAnalytics.tsx` | `terminal_analytics_view` |
+| Assets | `TerminalAssets.tsx` | `terminal_assets_view` |
+| MPI | `TerminalMPI.tsx` | `terminal_mpi_view_own` |
+| Automation | `TerminalAutomation.tsx` | `terminal_pricing_view` (sidebar uses this) |
 
-### BUG 3 (LOW): Missing `search_path` on 3 SECURITY DEFINER functions
-**Functions**: `extend_terminal_biometric_session`, `revoke_terminal_biometric_session`, `validate_terminal_biometric_session`
-**Risk**: Without `SET search_path`, these functions could be exploited via search_path manipulation in theory. They currently work because they use fully qualified `public.` references, but it's a security hygiene issue.
-**Fix**: Add `SET search_path TO 'public'` to all three functions.
+The sidebar already filters these items based on permissions, but a user can bypass the sidebar by typing the URL directly (e.g., `/terminal/analytics`).
 
-### BUG 4 (LOW): `resolve_terminal_escalation` has no permission guard
-**Function**: `resolve_terminal_escalation(p_escalation_id, p_resolved_by, p_resolution_note)`
-**Root cause**: Unlike `escalate_terminal_order` and `re_escalate_terminal_order` which check `has_terminal_access()`, this function has no check at all — anyone with the function name could resolve escalations.
-**Fix**: Add `has_terminal_access(p_resolved_by)` guard.
+**Fix**: Wrap each page's return in `<TerminalPermissionGate>` with the appropriate permission, matching what the sidebar already enforces.
 
-### BUG 5 (LOW): `assign_terminal_order` / `unassign_terminal_order` have no permission guards
-**Root cause**: These SECURITY DEFINER functions accept arbitrary user IDs with no verification that the caller has permission to assign/unassign orders. The frontend passes `userId` but doesn't validate server-side.
-**Fix**: Add permission checks (`has_terminal_permission(p_assigned_by, 'terminal_orders_manage')` or admin check).
+### BUG 2 (MEDIUM): Settings Page imports PermissionGate but never uses it
+`TerminalSettings.tsx` imports `TerminalPermissionGate` (line 15) but the component's return (line 282) does **not** wrap content with it. The import is dead code and the page is unguarded.
+
+**Fix**: Wrap the Settings page content with `<TerminalPermissionGate permissions={['terminal_settings_view']}>`.
+
+### BUG 3 (LOW): TerminalAnalytics `thirtyDaysAgo` causes infinite re-renders
+In `TerminalAnalytics.tsx` line 79, `thirtyDaysAgo` is computed as a plain `const` (not memoized). It creates a new number on every render. It's then used as a dependency in `useMemo` on line 80:
+```ts
+const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+const recentOrders = useMemo(() => orders.filter(...), [orders, thirtyDaysAgo]);
+```
+Since `thirtyDaysAgo` changes every render, `recentOrders` recalculates every render, defeating the purpose of `useMemo`.
+
+**Fix**: Wrap `thirtyDaysAgo` in `useMemo` with empty deps, or remove it from the dependency array since it's essentially a constant within a session.
+
+### BUG 4 (LOW): Logs page (`TerminalLogs.tsx`) has no permission gate
+The Logs page is accessible via `/terminal/logs` without checking `terminal_logs_view` permission.
+
+**Fix**: Wrap with `<TerminalPermissionGate permissions={['terminal_logs_view']}>`.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Fix Permission Parsing (Critical)
-**File**: `src/hooks/useTerminalAuth.tsx`
-Change line 154 from:
-```ts
-const perms = permsRes.data.map((p: any) => p.permission as TerminalPermission);
-```
-To:
-```ts
-const perms = permsRes.data.map((p: any) =>
-  (typeof p === 'string' ? p : p.get_terminal_permissions || p.permission || p) as TerminalPermission
-);
-```
+### Step 1: Add Permission Gates to 6 Unguarded Pages
+Add `<TerminalPermissionGate>` wrapper to:
+- `TerminalDashboard.tsx` → `terminal_dashboard_view`
+- `TerminalAnalytics.tsx` → `terminal_analytics_view`
+- `TerminalAssets.tsx` → `terminal_assets_view`
+- `TerminalMPI.tsx` → `terminal_mpi_view_own`
+- `TerminalAutomation.tsx` → `terminal_pricing_view`
+- `TerminalSettings.tsx` → `terminal_settings_view` (use existing import)
+- `TerminalLogs.tsx` → `terminal_logs_view`
 
-### Step 2: Fix BiometricAuthGate useRef
-**File**: `src/components/terminal/BiometricAuthGate.tsx`
-- Line 32: `useState` → `useRef`
-- Lines 37, 42: `tapTimerRef[0]` → `tapTimerRef.current`
-
-### Step 3: SQL Migration — Fix RPC Guards & search_path
-Single migration that:
-1. Adds `SET search_path TO 'public'` to `extend_terminal_biometric_session`, `revoke_terminal_biometric_session`, `validate_terminal_biometric_session`
-2. Adds permission guard to `resolve_terminal_escalation`
-3. Adds permission guard to `assign_terminal_order` and `unassign_terminal_order`
+### Step 2: Fix `thirtyDaysAgo` memo leak in TerminalAnalytics
+Move `thirtyDaysAgo` inside the `useMemo` for `recentOrders`, removing it as a dependency.
 
 ---
 
 ## Summary
-- 2 frontend file fixes + 1 SQL migration
-- Bug 1 is the highest priority — it breaks the terminal for all non-admin users
-- No new functionality added; all changes are guards and fixes to existing code
+- 7 frontend file edits
+- No new functionality
+- No SQL changes needed
+- Fixes direct URL bypass for all unguarded terminal pages
 

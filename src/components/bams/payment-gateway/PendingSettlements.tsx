@@ -71,11 +71,59 @@ interface GatewayGroup {
   totalAmount: number;
 }
 
+const fetchPendingSettlementsData = async () => {
+  const { data, error } = await supabase
+    .from('pending_settlements')
+    .select(`
+      *,
+      sales_payment_methods!payment_method_id (
+        id, type, upi_id, settlement_cycle, settlement_days, payment_gateway,
+        bank_accounts ( id, account_name, bank_name, account_number )
+      ),
+      bank_accounts!bank_account_id ( id, account_name, bank_name, account_number )
+    `)
+    .eq('status', 'PENDING');
+
+  if (error) throw error;
+  if (!data) return { pendingSales: [] as PendingSale[], gatewayGroups: [] as GatewayGroup[] };
+
+  const transformedData = data.map((settlement: any) => ({
+    ...settlement,
+    sales_payment_method: settlement.sales_payment_methods || {
+      id: settlement.payment_method_id, type: 'Gateway',
+      settlement_cycle: settlement.settlement_cycle, settlement_days: settlement.settlement_days,
+      payment_gateway: true, bank_account: settlement.bank_accounts
+    },
+    bank_account: settlement.bank_accounts
+  }));
+
+  const groups: { [key: string]: GatewayGroup } = {};
+  transformedData.forEach((settlement: any) => {
+    const paymentMethodId = settlement.payment_method_id || 'unknown';
+    const paymentMethod = settlement.sales_payment_method;
+    const bankAccount = settlement.bank_accounts || paymentMethod?.bank_account;
+    if (!groups[paymentMethodId]) {
+      let gatewayName = paymentMethod?.type || 'Unknown Gateway';
+      if (paymentMethod?.type === 'UPI' && paymentMethod?.upi_id) gatewayName = `UPI - ${paymentMethod.upi_id}`;
+      groups[paymentMethodId] = { paymentMethodId, gatewayType: paymentMethod?.type || 'Gateway', gatewayName, settlementBankAccount: bankAccount || null, sales: [], totalAmount: 0 };
+    }
+    groups[paymentMethodId].sales.push(settlement);
+    groups[paymentMethodId].totalAmount += settlement.settlement_amount || settlement.total_amount;
+  });
+
+  return { pendingSales: transformedData as PendingSale[], gatewayGroups: Object.values(groups) };
+};
+
+const fetchActiveBankAccounts = async (): Promise<BankAccount[]> => {
+  const { data, error } = await supabase
+    .from('bank_accounts')
+    .select('id, account_name, bank_name, account_number')
+    .eq('status', 'ACTIVE');
+  if (error) throw error;
+  return data || [];
+};
+
 export function PendingSettlements() {
-  const [pendingSales, setPendingSales] = useState<PendingSale[]>([]);
-  const [gatewayGroups, setGatewayGroups] = useState<GatewayGroup[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState("");
   const [mdrAmount, setMdrAmount] = useState("0");
@@ -89,117 +137,19 @@ export function PendingSettlements() {
   const settleInProgressRef = useRef(false);
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchPendingSettlements();
-    fetchBankAccounts();
-  }, []);
+  const { data: settlementsData, isLoading: loadingSettlements } = useQuery({
+    queryKey: ['pending-settlements'],
+    queryFn: fetchPendingSettlementsData,
+  });
 
-  const fetchPendingSettlements = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('pending_settlements')
-        .select(`
-          *,
-          sales_payment_methods!payment_method_id (
-            id,
-            type,
-            upi_id,
-            settlement_cycle,
-            settlement_days,
-            payment_gateway,
-            bank_accounts (
-              id,
-              account_name,
-              bank_name,
-              account_number
-            )
-          ),
-          bank_accounts!bank_account_id (
-            id,
-            account_name,
-            bank_name,
-            account_number
-          )
-        `)
-        .eq('status', 'PENDING');
+  const { data: bankAccounts = [], isLoading: loadingBanks } = useQuery({
+    queryKey: ['settlement-bank-accounts'],
+    queryFn: fetchActiveBankAccounts,
+  });
 
-      if (error) throw error;
-      
-      if (!data) {
-        setPendingSales([]);
-        setGatewayGroups([]);
-        return;
-      }
-
-      // Transform data
-      const transformedData = data.map((settlement: any) => ({
-        ...settlement,
-        sales_payment_method: settlement.sales_payment_methods || {
-          id: settlement.payment_method_id,
-          type: 'Gateway',
-          settlement_cycle: settlement.settlement_cycle,
-          settlement_days: settlement.settlement_days,
-          payment_gateway: true,
-          bank_account: settlement.bank_accounts
-        },
-        bank_account: settlement.bank_accounts
-      }));
-
-      // Group sales by payment gateway (payment_method_id)
-      const groups: { [key: string]: GatewayGroup } = {};
-      
-      transformedData.forEach((settlement: any) => {
-        const paymentMethodId = settlement.payment_method_id || 'unknown';
-        const paymentMethod = settlement.sales_payment_method;
-        const bankAccount = settlement.bank_accounts || paymentMethod?.bank_account;
-        
-        if (!groups[paymentMethodId]) {
-          // Build gateway name (e.g., "UPI - merchant@upi" or just "UPI")
-          let gatewayName = paymentMethod?.type || 'Unknown Gateway';
-          if (paymentMethod?.type === 'UPI' && paymentMethod?.upi_id) {
-            gatewayName = `UPI - ${paymentMethod.upi_id}`;
-          }
-          
-          groups[paymentMethodId] = {
-            paymentMethodId,
-            gatewayType: paymentMethod?.type || 'Gateway',
-            gatewayName,
-            settlementBankAccount: bankAccount || null,
-            sales: [],
-            totalAmount: 0
-          };
-        }
-        groups[paymentMethodId].sales.push(settlement);
-        groups[paymentMethodId].totalAmount += settlement.settlement_amount || settlement.total_amount;
-      });
-
-      setPendingSales(transformedData);
-      setGatewayGroups(Object.values(groups));
-    } catch (error) {
-      console.error('Error fetching pending settlements:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch pending settlements",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchBankAccounts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('id, account_name, bank_name, account_number')
-        .eq('status', 'ACTIVE');
-
-      if (error) throw error;
-      setBankAccounts(data || []);
-    } catch (error) {
-      console.error('Error fetching bank accounts:', error);
-    }
-  };
+  const pendingSales = settlementsData?.pendingSales || [];
+  const gatewayGroups = settlementsData?.gatewayGroups || [];
+  const loading = loadingSettlements || loadingBanks;
 
   const handleSelectSale = (saleId: string) => {
     const sale = pendingSales.find(s => s.id === saleId);

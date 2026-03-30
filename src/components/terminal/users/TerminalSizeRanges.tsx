@@ -43,6 +43,7 @@ export function TerminalSizeRanges() {
   const [maxAmount, setMaxAmount] = useState("");
   const [orderType, setOrderType] = useState("BOTH");
   const [isSaving, setIsSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);

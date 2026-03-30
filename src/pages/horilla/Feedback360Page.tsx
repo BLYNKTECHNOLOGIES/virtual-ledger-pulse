@@ -89,10 +89,10 @@ export default function Feedback360Page() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this feedback?")) return;
     const { error } = await (supabase as any).from("hr_feedback_360").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Deleted"); fetchAll();
+    setDeleteTarget(null);
   }
 
   const empMap = Object.fromEntries(employees.map((e) => [e.id, `${e.first_name} ${e.last_name}`]));

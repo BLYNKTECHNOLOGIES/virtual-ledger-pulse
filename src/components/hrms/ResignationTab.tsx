@@ -627,8 +627,8 @@ export function ResignationTab() {
               variant="destructive"
               disabled={completedCount < totalCount}
               onClick={() => {
-                if (selectedEmployee && confirm("Complete resignation and deactivate this employee?")) {
-                  completeResignation.mutate(selectedEmployee.id);
+                if (selectedEmployee) {
+                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation and deactivate this employee?' });
                 }
               }}
             >

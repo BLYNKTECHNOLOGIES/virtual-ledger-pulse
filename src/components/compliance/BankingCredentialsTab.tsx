@@ -265,9 +265,7 @@ export function BankingCredentialsTab() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this credential?')) {
-      deleteCredentialMutation.mutate(id);
-    }
+    setDeleteCredentialId(id);
   };
 
   const togglePasswordVisibility = (id: string) => {

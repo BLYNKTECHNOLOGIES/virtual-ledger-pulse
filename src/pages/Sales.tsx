@@ -290,9 +290,7 @@ export default function Sales() {
   };
 
   const handleDeleteOrder = async (orderId: string) => {
-    if (confirm('Are you sure you want to delete this order? This will revert all related changes.')) {
-      deleteSalesOrderMutation.mutate(orderId);
-    }
+    setDeleteOrderId(orderId);
   };
 
   // Mobile-friendly card view for orders

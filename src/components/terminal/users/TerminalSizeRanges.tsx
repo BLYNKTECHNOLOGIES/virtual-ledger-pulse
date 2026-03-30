@@ -105,10 +105,15 @@ export function TerminalSizeRanges() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete size range "${name}"? This cannot be undone.`)) return;
-    const { error } = await supabase.from("terminal_order_size_ranges").delete().eq("id", id);
-    if (error) { toast.error(error.message || "Failed to delete"); return; }
+    setDeleteTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    const { error } = await supabase.from("terminal_order_size_ranges").delete().eq("id", deleteTarget.id);
+    if (error) { toast.error(error.message || "Failed to delete"); setDeleteTarget(null); return; }
     toast.success("Size range deleted");
+    setDeleteTarget(null);
     fetchData();
   };
 

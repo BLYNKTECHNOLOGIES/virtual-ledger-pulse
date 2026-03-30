@@ -382,7 +382,11 @@ export default function EmployeeListPage() {
   // ─── Bulk delete ───
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
-    if (!confirm(`Delete ${selectedIds.size} selected employee(s)? This cannot be undone.`)) return;
+    setBulkDeleteConfirmOpen(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setBulkDeleteConfirmOpen(false);
     try {
       for (const id of selectedIds) {
         const { error } = await supabase.from("hr_employees").delete().eq("id", id);

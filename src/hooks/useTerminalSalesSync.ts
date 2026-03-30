@@ -88,7 +88,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
     const completedSells = await fetchSalesOrdersByStatus(['COMPLETED', '4'], cutoffTime);
 
     if (!completedSells || completedSells.length === 0) {
-      console.log('[SalesSync] No recent completed SELL orders found.');
       return { synced: 0, duplicates: 0 };
     }
 

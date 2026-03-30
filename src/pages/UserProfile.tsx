@@ -531,9 +531,6 @@ export default function UserProfile() {
   const [leaveRequest, setLeaveRequest] = useState({
     leave_type_id: '', from_date: '', to_date: '', reason: ''
   });
-  const [hikeRequest, setHikeRequest] = useState({
-    current_salary: '', requested_salary: '', reason: '', justification: ''
-  });
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: '', passwordResetReason: ''
   });

@@ -47,8 +47,3 @@ export function useOrderFocus() {
   return context;
 }
 
-// Hook for checking if a specific order is focused
-export function useIsOrderFocused(orderId: string): boolean {
-  const { focusedOrderId } = useOrderFocus();
-  return focusedOrderId === orderId;
-}

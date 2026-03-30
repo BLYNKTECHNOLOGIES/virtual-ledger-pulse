@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,7 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
   const [isCheckingBadge, setIsCheckingBadge] = useState(false);
   const { toast } = useToast();
   const { user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const fetchRoles = async () => {
@@ -241,11 +243,11 @@ export function EditUserDialog({ user, onSave, onClose }: EditUserDialogProps) {
         if (currentUser?.id === user.id && formData.role_id !== user.role_id) {
           toast({
             title: "Role Updated",
-            description: "Your role has been updated. The page will refresh to apply new permissions.",
+            description: "Your role has been updated. Permissions refreshed.",
           });
-          setTimeout(() => {
-            window.location.reload();
-          }, 1500);
+          queryClient.invalidateQueries({ queryKey: ['user-permissions'] });
+          queryClient.invalidateQueries({ queryKey: ['current-user'] });
+          queryClient.invalidateQueries({ queryKey: ['user-role'] });
         }
         
         onClose();

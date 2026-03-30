@@ -1,2 +1,10 @@
-// Re-exports the existing AdManager page for use within the terminal layout
-export { default } from '@/pages/AdManager';
+import AdManager from '@/pages/AdManager';
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+
+export default function TerminalAdManager() {
+  return (
+    <TerminalPermissionGate permissions={['terminal_ads_view']}>
+      <AdManager />
+    </TerminalPermissionGate>
+  );
+}

@@ -87,7 +87,9 @@ function toSyncItem(o: any): C2COrderHistoryItem {
   };
 }
 
-export default function TerminalOrders() {
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+
+function TerminalOrdersContent() {
   const [search, setSearch] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);

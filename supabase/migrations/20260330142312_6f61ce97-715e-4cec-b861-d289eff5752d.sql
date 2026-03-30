@@ -1,0 +1,4 @@
+-- Drop old overloads with wrong param ordering (by exact signature)
+DROP FUNCTION IF EXISTS public.create_manual_purchase_complete_rpc(text, text, date, numeric, uuid, numeric, numeric, uuid, text, text, uuid, text, text, numeric, boolean, uuid);
+DROP FUNCTION IF EXISTS public.create_manual_purchase_complete_v2_rpc(text, text, date, numeric, uuid, numeric, numeric, uuid, text, text, uuid, text, text, numeric, boolean, uuid);
+DROP FUNCTION IF EXISTS public.create_manual_purchase_with_split_payments(text, text, date, numeric, uuid, numeric, numeric, text, uuid, text, text, numeric, boolean, uuid, text, jsonb);

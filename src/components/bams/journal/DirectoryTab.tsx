@@ -12,8 +12,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export function DirectoryTab() {
+  const { toast } = useToast();
   // Filter states
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
@@ -491,7 +493,7 @@ export function DirectoryTab() {
       doc.save(`transaction_report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      toast({ title: "Error", description: "Error generating PDF. Please try again.", variant: "destructive" });
     }
   };
 

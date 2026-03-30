@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock, Calendar, Users, AlertCircle, Edit, Trash2, Fingerprint } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ShiftManagementDialog } from "./ShiftManagementDialog";
 import { OvertimeRecordDialog } from "./OvertimeRecordDialog";
 import { LiveAttendanceDashboard } from "./attendance/LiveAttendanceDashboard";
@@ -43,9 +53,18 @@ export function ShiftAttendanceTab() {
     setShowShiftDialog(true);
   };
 
+  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
+
   const handleDeleteShift = (shift: Shift) => {
-    // For demo purposes, just show an alert
-    alert(`Delete shift: ${shift.name}`);
+    setShiftToDelete(shift);
+  };
+
+  const confirmDeleteShift = () => {
+    if (shiftToDelete) {
+      // TODO: Wire up actual delete mutation when shifts are stored in DB
+      console.log(`Deleted shift: ${shiftToDelete.name}`);
+      setShiftToDelete(null);
+    }
   };
 
   return (
@@ -193,6 +212,23 @@ export function ShiftAttendanceTab() {
         open={showOvertimeDialog}
         onOpenChange={setShowOvertimeDialog}
       />
+
+      <AlertDialog open={!!shiftToDelete} onOpenChange={(open) => !open && setShiftToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Shift</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{shiftToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteShift} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -92,8 +92,6 @@ export function LoginPage() {
 
       // Store session data (compatibility layer)
       localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userEmail', authenticatedUser.email);
-      localStorage.setItem('userRole', authenticatedUser.roles?.some((r: string) => r.toLowerCase() === 'admin' || r.toLowerCase() === 'super admin') ? 'admin' : 'user');
       
       const sessionData = {
         user: authenticatedUser,
@@ -111,7 +109,7 @@ export function LoginPage() {
         .eq('id', authData.user.id)
         .single();
 
-      if (pwdCheck?.force_password_change || password === 'BlynkTemp2026!') {
+      if (pwdCheck?.force_password_change) {
         setShowForcedReset(true);
         return; // Don't redirect yet — force password change first
       }

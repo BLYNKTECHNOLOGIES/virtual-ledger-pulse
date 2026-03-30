@@ -349,7 +349,7 @@ export default function TerminalAutomation() {
 
         {/* ═══ AUTO-PAY ═══ */}
         <TabsContent value="auto-pay" className="mt-4">
-          <AutoPaySettings />
+          <AutoPaySettings canToggle={canToggleAutopay} canConfigure={canConfigureAutopay} />
         </TabsContent>
 
         {/* ═══ EXPORT ORDERS ═══ */}
@@ -369,7 +369,7 @@ export default function TerminalAutomation() {
 
         {/* ═══ AUTO PRICING ═══ */}
         <TabsContent value="auto-pricing" className="mt-4">
-          <AutoPricingRules />
+          <AutoPricingRules canManage={canManagePricing} canToggle={canTogglePricing} canDelete={canDeletePricing} />
         </TabsContent>
       </Tabs>
 

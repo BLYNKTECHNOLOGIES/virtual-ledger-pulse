@@ -54,19 +54,6 @@ export function ShiftAttendanceTab() {
     setShowShiftDialog(true);
   };
 
-  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
-
-  const handleDeleteShift = (shift: Shift) => {
-    setShiftToDelete(shift);
-  };
-
-  const confirmDeleteShift = () => {
-    if (shiftToDelete) {
-      // TODO: Wire up actual delete mutation when shifts are stored in DB
-      console.log(`Deleted shift: ${shiftToDelete.name}`);
-      setShiftToDelete(null);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -115,13 +102,6 @@ export function ShiftAttendanceTab() {
                           onClick={() => handleEditShift(shift)}
                         >
                           <Edit className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => handleDeleteShift(shift)}
-                        >
-                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -214,22 +194,6 @@ export function ShiftAttendanceTab() {
         onOpenChange={setShowOvertimeDialog}
       />
 
-      <AlertDialog open={!!shiftToDelete} onOpenChange={(open) => !open && setShiftToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Shift</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{shiftToDelete?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteShift} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

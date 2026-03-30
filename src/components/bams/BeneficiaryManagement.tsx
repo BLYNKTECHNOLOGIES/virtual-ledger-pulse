@@ -492,6 +492,10 @@ export function BeneficiaryManagement() {
               className="pl-9 w-64"
             />
           </div>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setShowManualAddDialog(true)}>
+            <UserPlus className="h-3.5 w-3.5" />
+            Add Manually
+          </Button>
           <Button size="sm" className="gap-1.5" onClick={() => { setShowExportDialog(true); setExportStep("configure"); }}>
             <Download className="h-3.5 w-3.5" />
             Export for Bank

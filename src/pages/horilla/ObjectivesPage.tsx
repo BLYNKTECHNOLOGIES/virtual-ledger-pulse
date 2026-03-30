@@ -114,11 +114,11 @@ export default function ObjectivesPage() {
     fetchAll();
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Delete this objective?")) return;
+  async function executeDelete(id: string) {
     const { error } = await (supabase as any).from("hr_objectives").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("Deleted"); fetchAll();
+    setDeleteTarget(null);
   }
 
   const filtered = objectives.filter((o) => {

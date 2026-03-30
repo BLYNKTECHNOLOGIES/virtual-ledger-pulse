@@ -314,27 +314,15 @@ export function PendingSettlements() {
         0
       );
 
-      // Update local state
-      setPendingSales(prev => prev.filter(s => !successfullySettledIds.includes(s.id)));
-      setGatewayGroups(prev => prev.map(group => ({
-        ...group,
-        sales: group.sales.filter(s => !successfullySettledIds.includes(s.id)),
-        totalAmount: group.sales
-          .filter(s => !successfullySettledIds.includes(s.id))
-          .reduce((sum, s) => sum + (s.settlement_amount || s.total_amount), 0)
-      })).filter(group => group.sales.length > 0));
-
       toast({
         title: "Success",
         description: `Settled ₹${settlementAmount.toLocaleString('en-IN')} to ${selectedBankAcc?.account_name}`,
       });
 
-      // Invalidate caches so expense entries appear in Expenses tab
+      queryClient.invalidateQueries({ queryKey: ['pending-settlements'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
-
-      fetchPendingSettlements();
     } catch (error) {
       console.error('Error settling payment:', error);
       toast({

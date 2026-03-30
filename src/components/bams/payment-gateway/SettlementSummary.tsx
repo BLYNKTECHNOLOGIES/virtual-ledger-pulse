@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { getSessionUserId } from "@/lib/session-cache";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Loader2, TrendingUp, Calendar, Building, DollarSign, FileText, Filter, 
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { SettlementReviewDialog } from "./SettlementReviewDialog";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/usePermissions";
 
 interface Settlement {

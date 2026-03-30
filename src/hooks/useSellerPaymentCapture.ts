@@ -208,7 +208,7 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
 
       if (!updateErr) {
         captured++;
-          paymentInfo ? `accountNo=${paymentInfo.accountNo}, bank=${paymentInfo.bankName}` : 'raw detail stored');
+          
 
         // Auto-upsert into beneficiary_records so it appears immediately
         // Don't wait for order approval — Binance strips details after completion

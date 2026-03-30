@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { firstName, lastName, email, phone, departmentId, positionId, roleId, badgeId, callerUserId } = parsed.data;
+    const { firstName, lastName, email, phone, departmentId, positionId, roleId, badgeId } = parsed.data;
 
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",

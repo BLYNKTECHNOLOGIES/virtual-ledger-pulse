@@ -272,6 +272,44 @@ export function BeneficiaryManagement() {
     setSelectedConfirmIds(new Set());
   };
 
+  // Manual add beneficiary mutation
+  const manualAddMutation = useMutation({
+    mutationFn: async (form: typeof manualForm) => {
+      if (!form.account_number.trim()) throw new Error("Account number is required");
+      // Check for duplicate account number
+      const { data: existing } = await supabase
+        .from("beneficiary_records" as any)
+        .select("id")
+        .eq("account_number", form.account_number.trim())
+        .maybeSingle();
+      if (existing) throw new Error("A beneficiary with this account number already exists");
+
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("beneficiary_records" as any).insert({
+        account_number: form.account_number.trim(),
+        account_holder_name: form.account_holder_name.trim() || null,
+        ifsc_code: form.ifsc_code.trim().toUpperCase() || null,
+        account_type: form.account_type || null,
+        account_opening_branch: form.account_opening_branch.trim() || null,
+        source_order_number: null,
+        client_name: null,
+        occurrence_count: 1,
+        first_seen_at: now,
+        last_seen_at: now,
+      } as any);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Beneficiary added manually" });
+      queryClient.invalidateQueries({ queryKey: ["beneficiary_records"] });
+      setShowManualAddDialog(false);
+      setManualForm({ account_number: "", account_holder_name: "", ifsc_code: "", account_type: "", account_opening_branch: "" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
   // Strip special characters, keep only alphanumeric and spaces
   const sanitizeName = (name: string, maxLen?: number): string => {
     let clean = name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();

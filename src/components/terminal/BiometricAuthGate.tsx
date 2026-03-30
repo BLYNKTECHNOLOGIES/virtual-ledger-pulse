@@ -29,17 +29,17 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   const [isValidatingBypass, setIsValidatingBypass] = useState(false);
   const [showHiddenOptions, setShowHiddenOptions] = useState(false);
   const [tapCount, setTapCount] = useState(0);
-  const tapTimerRef = useState<NodeJS.Timeout | null>(null);
+  const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSecretTap = () => {
     const newCount = tapCount + 1;
     setTapCount(newCount);
-    if (tapTimerRef[0]) clearTimeout(tapTimerRef[0]);
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
     if (newCount >= 5) {
       setShowHiddenOptions(true);
       setTapCount(0);
     } else {
-      tapTimerRef[0] = setTimeout(() => setTapCount(0), 1500);
+      tapTimerRef.current = setTimeout(() => setTapCount(0), 1500);
     }
   };
 

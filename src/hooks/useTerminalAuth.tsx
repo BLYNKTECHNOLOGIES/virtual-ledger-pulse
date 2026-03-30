@@ -151,7 +151,9 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (permsRes.data && Array.isArray(permsRes.data)) {
-        const perms = permsRes.data.map((p: any) => p.permission as TerminalPermission);
+        const perms = permsRes.data.map((p: any) =>
+          (typeof p === 'string' ? p : p.get_terminal_permissions || p.permission || p) as TerminalPermission
+        );
         setTerminalPermissions(perms);
       } else {
         setTerminalPermissions([]);

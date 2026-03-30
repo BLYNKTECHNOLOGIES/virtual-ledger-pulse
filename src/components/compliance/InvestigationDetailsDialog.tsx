@@ -275,14 +275,8 @@ export function InvestigationDetailsDialog({
   };
 
   const handleFinalResolutionSubmit = async () => {
-    console.log('=== SUBMIT FOR APPROVAL STARTED ===');
-    console.log('Final resolution:', finalResolution);
-    console.log('Final resolution trimmed length:', finalResolution.trim().length);
-    console.log('Files count:', finalResolutionFiles.length);
-    console.log('Files array:', finalResolutionFiles);
     
     if (!finalResolution.trim()) {
-      console.log('❌ Final resolution validation failed');
       toast({
         title: "Final Resolution Required",
         description: "Please provide a final resolution summary before submitting for approval.",
@@ -292,7 +286,6 @@ export function InvestigationDetailsDialog({
     }
 
     if (finalResolutionFiles.length === 0) {
-      console.log('❌ Files validation failed');
       toast({
         title: "Resolution Files Required",
         description: "Please attach supporting documents for the final resolution.",
@@ -301,16 +294,13 @@ export function InvestigationDetailsDialog({
       return;
     }
 
-    console.log('✅ All validations passed, starting upload process...');
 
     try {
       // Upload final resolution files
       let attachmentUrls: string[] = [];
       const investigationIdToUse = steps && steps.length > 0 ? steps[0].investigation_id : investigation.id;
-      console.log('Investigation ID to use:', investigationIdToUse);
       
       for (const file of finalResolutionFiles) {
-        console.log('📁 Uploading file:', file.name, 'Size:', file.size, 'Type:', file.type);
         
         // Sanitize filename more aggressively by replacing ALL non-alphanumeric characters except dots for extensions
         const sanitizedFileName = file.name
@@ -321,7 +311,6 @@ export function InvestigationDetailsDialog({
           .replace(/\.+/g, '.'); // Replace multiple dots with single dot
         
         const fileName = `final-resolution-${investigationIdToUse}-${Date.now()}-${sanitizedFileName}`;
-        console.log('📁 Generated filename:', fileName);
         
         const { data, error } = await supabase.storage
           .from('investigation-documents')
@@ -332,20 +321,16 @@ export function InvestigationDetailsDialog({
           throw error;
         }
         
-        console.log('✅ File uploaded successfully:', data);
         
         const { data: urlData } = supabase.storage
           .from('investigation-documents')
           .getPublicUrl(fileName);
         
-        console.log('🔗 Public URL generated:', urlData.publicUrl);
         attachmentUrls.push(urlData.publicUrl);
       }
 
-      console.log('✅ All files uploaded. Attachment URLs:', attachmentUrls);
 
       // Create approval request
-      console.log('💾 Creating approval request...');
       const approvalData = {
         investigation_id: investigationIdToUse,
         final_resolution: finalResolution,
@@ -353,7 +338,6 @@ export function InvestigationDetailsDialog({
         submitted_by: 'Current User',
         approval_status: 'PENDING'
       };
-      console.log('💾 Approval data:', approvalData);
       
       const { error: approvalError } = await supabase
         .from('investigation_approvals')
@@ -364,10 +348,8 @@ export function InvestigationDetailsDialog({
         throw approvalError;
       }
 
-      console.log('✅ Approval request created successfully');
 
       // Update investigation status to PENDING_APPROVAL
-      console.log('🔄 Updating investigation status...');
       const { error: updateError } = await supabase
         .from('account_investigations')
         .update({ status: 'PENDING_APPROVAL' })
@@ -378,23 +360,19 @@ export function InvestigationDetailsDialog({
         throw updateError;
       }
 
-      console.log('✅ Investigation status updated successfully');
 
       // Add final resolution as an update
-      console.log('📝 Adding final resolution as update...');
       await addUpdateMutation.mutateAsync({ 
         updateText: `SUBMITTED FOR APPROVAL: ${finalResolution}`, 
         files: finalResolutionFiles 
       });
 
-      console.log('✅ Final resolution update added');
 
       toast({
         title: "Submitted for Approval",
         description: "Investigation has been submitted for officer approval.",
       });
 
-      console.log('🎉 SUBMIT FOR APPROVAL COMPLETED SUCCESSFULLY');
       
       // Refetch investigation data to update status
       refetchInvestigation();
@@ -795,7 +773,6 @@ export function InvestigationDetailsDialog({
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    console.log('Cancel button clicked');
                     setShowFinalResolutionDialog(false);
                   }}
                 >
@@ -804,18 +781,11 @@ export function InvestigationDetailsDialog({
                 <Button
                   type="button"
                   onClick={(e) => {
-                    console.log('Submit button clicked - event:', e);
-                    console.log('Final resolution:', finalResolution);
-                    console.log('Final resolution trimmed:', finalResolution.trim());
-                    console.log('Files length:', finalResolutionFiles.length);
-                    console.log('Files:', finalResolutionFiles);
-                    console.log('Button disabled?', !finalResolution.trim() || finalResolutionFiles.length === 0);
                     
                     e.preventDefault();
                     e.stopPropagation();
                     
                     if (!finalResolution.trim() || finalResolutionFiles.length === 0) {
-                      console.log('Button should be disabled, but allowing click for debug');
                     }
                     
                     handleFinalResolutionSubmit();

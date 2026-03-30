@@ -13681,7 +13681,7 @@ export type Database = {
       }
       create_manual_purchase_complete_rpc: {
         Args: {
-          p_bank_account_id: string
+          p_bank_account_id?: string
           p_contact_number?: string
           p_created_by?: string
           p_credit_wallet_id?: string
@@ -13706,7 +13706,6 @@ export type Database = {
           p_contact_number?: string
           p_created_by?: string
           p_credit_wallet_id?: string
-          p_deduction_bank_account_id?: string
           p_description?: string
           p_fee_percentage?: number
           p_is_off_market?: boolean
@@ -13724,7 +13723,7 @@ export type Database = {
       }
       create_manual_purchase_complete_v2_rpc: {
         Args: {
-          p_bank_account_id: string
+          p_bank_account_id?: string
           p_contact_number?: string
           p_created_by?: string
           p_credit_wallet_id?: string

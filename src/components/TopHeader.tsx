@@ -23,6 +23,7 @@ export function TopHeader() {
   const { isDragMode, setIsDragMode, isDashboardRearrangeMode, setIsDashboardRearrangeMode } = useSidebarEdit();
   const location = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleViewWebsite = () => {

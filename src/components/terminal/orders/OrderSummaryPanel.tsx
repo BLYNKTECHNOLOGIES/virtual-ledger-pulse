@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { useState, useEffect } from 'react';
 import { useAlternateUpiRequest } from '@/hooks/usePayerModule';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
 interface Props {
   order: P2POrderRecord;

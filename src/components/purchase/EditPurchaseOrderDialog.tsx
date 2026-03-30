@@ -428,7 +428,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       toast({ title: "Success", description: "Purchase order updated successfully" });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
-      queryClient.invalidateQueries({ queryKey: ['buy_orders'] });
+      
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['wallets'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });

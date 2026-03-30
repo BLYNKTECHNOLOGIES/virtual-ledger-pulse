@@ -329,7 +329,7 @@ export function useCreateTask() {
                     recipientName: specName,
                   },
                 },
-              }).catch(() => {});
+              }).catch((err) => { console.warn('Task email notify failed (non-blocking):', err); });
             }
           }
         }
@@ -419,7 +419,7 @@ export function useUpdateTask() {
                     recipientRole: isSpectator ? 'spectator' : 'creator',
                   },
                 },
-              }).catch(() => {});
+              }).catch((err) => { console.warn('Task email notify failed (non-blocking):', err); });
             }
           }
         }

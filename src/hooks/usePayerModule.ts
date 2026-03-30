@@ -89,7 +89,7 @@ export function usePayerOrderLocks() {
       if (error) throw error;
       return (data || []) as unknown as PayerOrderLock[];
     },
-    refetchInterval: 10_000,
+    refetchInterval: 20_000,
   });
 }
 

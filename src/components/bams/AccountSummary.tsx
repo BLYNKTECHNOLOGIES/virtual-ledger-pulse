@@ -156,7 +156,7 @@ export function AccountSummary() {
     },
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    refetchInterval: 15000, // Refresh every 15 seconds
+    refetchInterval: 30000,
   });
 
   // Fetch system totals (exclude dormant from active balance calculations)

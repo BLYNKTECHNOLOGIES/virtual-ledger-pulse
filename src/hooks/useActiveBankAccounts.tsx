@@ -46,10 +46,10 @@ export function useActiveBankAccounts(enabled: boolean = true) {
       return data as ActiveBankAccount[];
     },
     enabled,
-    staleTime: 0,
+    staleTime: 10000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 }
 

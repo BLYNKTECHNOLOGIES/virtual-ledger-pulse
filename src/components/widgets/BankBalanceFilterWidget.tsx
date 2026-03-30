@@ -103,7 +103,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
       if (error) throw error;
       return data as BankAccount[];
     },
-    refetchInterval: 15000,
+    refetchInterval: 30000,
     staleTime: 10000,
   });
 

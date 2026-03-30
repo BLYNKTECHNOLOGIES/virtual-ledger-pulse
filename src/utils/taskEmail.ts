@@ -77,7 +77,7 @@ export async function sendTaskEmail({
         assignedByName, dueDate, status,
         recipientEmail: user.email,
         recipientName: name,
-      }).catch(() => {});
+      }).catch((err) => { console.warn('Task email invoke failed (non-blocking):', err); });
     }
   } catch (err) {
     // Fire-and-forget — never block task operations

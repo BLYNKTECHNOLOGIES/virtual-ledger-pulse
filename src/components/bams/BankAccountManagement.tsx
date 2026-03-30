@@ -100,10 +100,10 @@ export function BankAccountManagement() {
       return data as BankAccount[];
     },
     // Always prefer fresh balances
-    staleTime: 0,
+    staleTime: 10000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   // Fetch closed bank accounts

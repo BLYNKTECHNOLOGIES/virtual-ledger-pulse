@@ -60,7 +60,8 @@ function WalletBalanceWidgetContent() {
       const data = await fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, current_balance');
       return data || [];
     },
-    refetchInterval: 15000,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
   const totalBalance = (wallets || []).reduce((sum, w) => sum + (Number(w.current_balance) || 0), 0);

@@ -279,6 +279,7 @@ export default function TerminalSettings() {
   };
 
   return (
+    <TerminalPermissionGate permissions={['terminal_settings_view']}>
     <div className="p-4 md:p-6 space-y-6 max-w-[900px]">
       <div>
         <h1 className="text-lg font-semibold text-foreground flex items-center gap-2">
@@ -533,6 +534,7 @@ export default function TerminalSettings() {
         onSave={handleSaveReply}
       />
     </div>
+    </TerminalPermissionGate>
   );
 }
 

@@ -329,7 +329,7 @@ export function useCreateTask() {
                     recipientName: specName,
                   },
                 },
-              }).catch(() => {});
+              }).catch((err) => { console.warn('Task email notify failed (non-blocking):', err); });
             }
           }
         }

@@ -90,16 +90,6 @@ export function LoginPage() {
         roles
       };
 
-      // Store session data (compatibility layer)
-      localStorage.setItem('isLoggedIn', 'true');
-      
-      const sessionData = {
-        user: authenticatedUser,
-        timestamp: Date.now(),
-        expiresIn: 7 * 24 * 60 * 60 * 1000
-      };
-      localStorage.setItem('userSession', JSON.stringify(sessionData));
-      
       console.log('User authenticated successfully:', authenticatedUser);
 
       // Check if user must change password (ERP onboarding or transition)

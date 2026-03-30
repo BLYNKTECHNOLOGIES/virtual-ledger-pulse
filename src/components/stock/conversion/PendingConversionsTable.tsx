@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {} from "@/components/ui/select";
+
 import { CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
 import { usePendingConversions, useApproveConversion } from "@/hooks/useProductConversions";
 import { useUnsyncedSpotTrades, useSyncSpotTradesToConversions } from "@/hooks/useSpotTradeConversionSync";

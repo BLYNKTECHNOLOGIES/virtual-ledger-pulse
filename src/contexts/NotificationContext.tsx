@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useOrderFocus } from './OrderFocusContext';
+
 
 export interface GlobalNotification {
   id: string;
@@ -49,7 +49,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notificationsResetSignal, setNotificationsResetSignal] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
-  const { focusOrder } = useOrderFocus();
+  
 
   const addNotification = useCallback((notification: Omit<GlobalNotification, 'id' | 'time' | 'read'>) => {
     const newNotification: GlobalNotification = {
@@ -112,18 +112,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       // If not on the target route, navigate first
       if (location.pathname !== notification.orderRoute) {
         navigate(notification.orderRoute);
-        // Delay focus to allow page to load
         setTimeout(() => {
-          focusOrder(notification.orderId!);
           setLastOrderNavigation({ orderId: notification.orderId!, at: Date.now() });
         }, 500);
       } else {
-        // Already on the page, just focus
-        focusOrder(notification.orderId);
         setLastOrderNavigation({ orderId: notification.orderId, at: Date.now() });
       }
     }
-  }, [markAsRead, navigate, location.pathname, focusOrder]);
+  }, [markAsRead, navigate, location.pathname]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

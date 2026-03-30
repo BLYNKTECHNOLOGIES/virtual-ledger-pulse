@@ -686,13 +686,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   };
 
   const handleFinalSubmit = () => {
-      finalOrderData,
-      selectedClient,
-      newClientData,
-      orderAmount,
-      selectedPaymentMethod,
-      cosmosAlert
-    });
 
     // Validate required fields
     if (!finalOrderData.order_number) {

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -171,6 +172,7 @@ export default function TerminalLogs() {
   }, [logs, searchQuery, categoryFilter, actionFilter]);
 
   return (
+    <TerminalPermissionGate permissions={['terminal_logs_view']}>
     <div className="space-y-4 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -303,5 +305,6 @@ export default function TerminalLogs() {
         </CardContent>
       </Card>
     </div>
+    </TerminalPermissionGate>
   );
 }

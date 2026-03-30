@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -122,6 +123,7 @@ export default function TerminalAutomation() {
   const handleCreateSchedule = () => { setEditingSchedule(null); setScheduleDialogOpen(true); };
 
   return (
+    <TerminalPermissionGate permissions={['terminal_pricing_view']}>
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -389,5 +391,6 @@ export default function TerminalAutomation() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TerminalPermissionGate>
   );
 }

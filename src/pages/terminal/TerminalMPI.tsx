@@ -16,6 +16,7 @@ import {
   ClipboardList, Link2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
@@ -481,6 +482,7 @@ export default function TerminalMPI() {
   const fmtVol = (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${(v / 1000).toFixed(0)}K`;
 
   return (
+    <TerminalPermissionGate permissions={['terminal_mpi_view_own']}>
     <div className="p-3 sm:p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="space-y-3">
@@ -868,5 +870,6 @@ export default function TerminalMPI() {
         </div>
       </div>
     </div>
+    </TerminalPermissionGate>
   );
 }

@@ -176,6 +176,7 @@ export default function TerminalAnalytics() {
   }
 
   return (
+    <TerminalPermissionGate permissions={['terminal_analytics_view']}>
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px]">
       <div>
         <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
@@ -406,5 +407,6 @@ export default function TerminalAnalytics() {
         </Card>
       )}
     </div>
+    </TerminalPermissionGate>
   );
 }

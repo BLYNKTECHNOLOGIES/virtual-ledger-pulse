@@ -233,12 +233,15 @@ export function ResignationTab() {
 
       const deletionDate = empData?.notice_period_end_date || empData?.last_working_day || new Date().toISOString().split('T')[0];
 
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+
       const { error } = await (supabase as any)
         .from("hr_employees")
         .update({ 
           resignation_status: "completed",
           is_active: false,
           account_deletion_date: deletionDate,
+          deletion_approved_by: currentUser?.id || null,
         })
         .eq("id", employeeId);
       if (error) throw error;

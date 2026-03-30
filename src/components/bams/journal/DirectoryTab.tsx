@@ -491,7 +491,7 @@ export function DirectoryTab() {
       doc.save(`transaction_report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF. Please try again.');
+      toast({ title: "Error", description: "Error generating PDF. Please try again.", variant: "destructive" });
     }
   };
 

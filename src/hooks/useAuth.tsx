@@ -86,8 +86,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
     localStorage.setItem('userSession', JSON.stringify(sessionData));
     localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userEmail', authenticatedUser.email);
-    localStorage.setItem('userRole', authenticatedUser.roles?.some(r => r.toLowerCase() === 'admin' || r.toLowerCase() === 'super admin') ? 'admin' : 'user');
   };
 
   const clearAllSessions = async () => {
@@ -96,8 +94,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Clear legacy localStorage
     localStorage.removeItem('userSession');
     localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userEmail');
-    localStorage.removeItem('userRole');
     localStorage.removeItem('userPermissions');
   };
 

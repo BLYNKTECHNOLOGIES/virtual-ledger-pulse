@@ -43,9 +43,18 @@ export function ShiftAttendanceTab() {
     setShowShiftDialog(true);
   };
 
+  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
+
   const handleDeleteShift = (shift: Shift) => {
-    // For demo purposes, just show an alert
-    alert(`Delete shift: ${shift.name}`);
+    setShiftToDelete(shift);
+  };
+
+  const confirmDeleteShift = () => {
+    if (shiftToDelete) {
+      // TODO: Wire up actual delete mutation when shifts are stored in DB
+      console.log(`Deleted shift: ${shiftToDelete.name}`);
+      setShiftToDelete(null);
+    }
   };
 
   return (

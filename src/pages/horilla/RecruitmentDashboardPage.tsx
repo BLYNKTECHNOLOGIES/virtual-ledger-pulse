@@ -21,6 +21,7 @@ export default function RecruitmentDashboardPage() {
     experience_level: "mid", salary_min: "", salary_max: "",
     location: "", requirements: ""
   });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { data: recruitments, isLoading } = useQuery({
     queryKey: ["hr_recruitments"],

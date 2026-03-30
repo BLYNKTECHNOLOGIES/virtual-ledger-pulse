@@ -160,12 +160,13 @@ export function InvestigationDetailsDialog({
   // Complete step mutation
   const completeStepMutation = useMutation({
     mutationFn: async ({ stepId, notes, reportUrl }: { stepId: string; notes?: string; reportUrl?: string }) => {
+      const userId = (await getCurrentUserIdAsync()) || 'unknown';
       const { error } = await supabase
         .from('investigation_steps')
         .update({
           status: 'COMPLETED',
           completed_at: new Date().toISOString(),
-          completed_by: 'Current User',
+          completed_by: userId,
           notes,
           completion_report_url: reportUrl
         })

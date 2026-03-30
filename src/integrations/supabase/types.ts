@@ -14282,6 +14282,7 @@ export type Database = {
           is_active: boolean
           is_read: boolean
           message: string
+          metadata: Json
           notification_type: string
           related_user_id: string
           title: string

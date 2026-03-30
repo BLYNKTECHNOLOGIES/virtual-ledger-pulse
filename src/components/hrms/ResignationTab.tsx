@@ -467,10 +467,10 @@ export function ResignationTab() {
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => { if (confirm("Approve this resignation and start notice period?")) approveResignation.mutate(emp.id); }}>
+                        <Button size="sm" onClick={() => setConfirmAction({ type: 'approve', id: emp.id, label: 'Approve this resignation and start notice period?' })}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Reject this resignation?")) rejectResignation.mutate(emp.id); }}>
+                        <Button size="sm" variant="destructive" onClick={() => setConfirmAction({ type: 'reject', id: emp.id, label: 'Reject this resignation?' })}>
                           <XCircle className="h-4 w-4 mr-1" /> Reject
                         </Button>
                       </div>

@@ -681,6 +681,33 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             </div>
           </div>
 
+          {/* Contact Number & State */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label className="text-xs">Contact Number</Label>
+              <Input
+                value={contactNumber}
+                onChange={(e) => setContactNumber(e.target.value)}
+                placeholder="Seller contact number"
+                className="mt-1 h-9 text-sm"
+                maxLength={15}
+              />
+            </div>
+            <div>
+              <Label className="text-xs">State</Label>
+              <Select value={clientState} onValueChange={setClientState}>
+                <SelectTrigger className="mt-1 h-9 text-sm">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border z-50 max-h-[200px]">
+                  {INDIAN_STATES_AND_UTS.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Bank Account with Split Payment Toggle */}
           <div className="grid grid-cols-2 gap-4 items-start">
             <div>

@@ -32,10 +32,6 @@ export function InterProductConversionTab() {
               <Briefcase className="h-3.5 w-3.5" />
               Portfolio
             </TabsTrigger>
-            <TabsTrigger value="pnl" className="flex items-center gap-1.5 shrink-0">
-              <Activity className="h-3.5 w-3.5" />
-              Realized P&L
-            </TabsTrigger>
           </TabsList>
         </div>
 

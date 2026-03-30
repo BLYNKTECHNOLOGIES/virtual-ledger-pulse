@@ -157,7 +157,7 @@ export function useApproveConversion() {
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_positions'] });
-      queryClient.invalidateQueries({ queryKey: ['realized_pnl_events'] });
+      
       toast({ title: "Approved", description: "Conversion approved and posted." });
     },
     onError: (error: any) => {

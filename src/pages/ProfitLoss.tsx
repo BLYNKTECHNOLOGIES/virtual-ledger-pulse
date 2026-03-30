@@ -61,9 +61,6 @@ interface PeriodMetrics {
    effectivePurchaseRate: number | null;
    netPurchaseQty: number;
 
-   // Conversion P&L
-   conversionPnlUsdt: number;
-   conversionPnlInr: number;
 }
 
 interface TradeEntry {
@@ -250,12 +247,6 @@ export default function ProfitLoss() {
          .gte('created_at', startStr)
          .lte('created_at', endStr + 'T23:59:59');
 
-       // Fetch realized P&L events (conversion coin price gains/losses) within period
-       const { data: realizedPnlData } = await supabase
-         .from('realized_pnl_events')
-         .select('realized_pnl_usdt')
-         .gte('created_at', startStr)
-         .lte('created_at', endStr + 'T23:59:59');
 
        // Fetch USDT/INR rate for converting USDT P&L to INR
        let usdtInrRate = 84.5; // fallback
@@ -336,11 +327,8 @@ export default function ProfitLoss() {
       const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
 
-      // Conversion P&L from realized_pnl_events (coin price gains/losses)
-      const conversionPnlUsdt = realizedPnlData?.reduce((sum, item) => sum + Number(item.realized_pnl_usdt || 0), 0) || 0;
-      const conversionPnlInr = conversionPnlUsdt * usdtInrRate;
       
-      const netProfit = grossProfit - totalExpenses + totalIncome + conversionPnlInr;
+      const netProfit = grossProfit - totalExpenses + totalIncome;
       const profitMargin = totalSalesValue > 0 
         ? (netProfit / totalSalesValue) * 100 : 0;
 
@@ -360,8 +348,6 @@ export default function ProfitLoss() {
          totalUsdtFees,
          effectivePurchaseRate,
          netPurchaseQty,
-         conversionPnlUsdt,
-         conversionPnlInr,
       };
 
       // Create trade entries for table
@@ -675,32 +661,6 @@ export default function ProfitLoss() {
                 NPM × Total Sales Qty
               </p>
             </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="p-4 bg-violet-500/10 rounded-lg cursor-help">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ArrowRightLeft className="h-4 w-4 text-violet-500" />
-                      <span className="text-sm font-medium text-muted-foreground">Conversion P&L</span>
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                    <p className={`text-2xl font-bold ${(periodMetrics?.conversionPnlInr || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(periodMetrics?.conversionPnlInr || 0)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatSmartDecimal(periodMetrics?.conversionPnlUsdt || 0, 4)} USDT
-                    </p>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs p-3">
-                  <p className="font-medium mb-1">Conversion P&L</p>
-                  <p className="text-xs text-muted-foreground">
-                    Realized gains/losses from coin price movements during asset conversions (e.g., TRX→USDT). 
-                    Tracked via WAC system in wallet_asset_positions.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             <div className="p-4 bg-indigo-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Calculator className="h-4 w-4 text-indigo-500" />
@@ -710,7 +670,7 @@ export default function ProfitLoss() {
                 {formatCurrency(periodMetrics?.netProfit || 0)}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Gross + Conv. P&L - Expenses + Income
+                Gross Profit - Expenses + Income
               </p>
             </div>
             <div className="p-4 bg-pink-500/10 rounded-lg">

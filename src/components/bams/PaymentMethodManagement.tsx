@@ -392,10 +392,8 @@ export function PaymentMethodManagement() {
     
     // Skip validation for editing - just submit
     if (editingMethod) {
-      console.log('Updating existing sales method');
       updateMethodMutation.mutate({ ...formData, id: editingMethod.id });
     } else {
-      console.log('Creating new sales method');
       createMethodMutation.mutate(formData);
     }
   };

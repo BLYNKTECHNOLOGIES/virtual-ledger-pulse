@@ -139,11 +139,17 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       setClientMasterState(cMasterState);
       setCounterpartyState(cPartyState);
 
-      // Auto-resolve: sync record PAN (entered in terminal) wins, then client master, then counterparty
+      // Auto-resolve: sync record PAN (entered in terminal) wins, then counterparty, then client master
       const syncPan = syncRecord?.pan_number || '';
-      const resolvedPan = syncPan || cMasterPan || cPartyPan;
+      const resolvedPan = syncPan || cPartyPan || cMasterPan;
       setPanNumber(resolvedPan);
       setTdsOption(resolvedPan ? '1%' : '20%');
+
+      // Auto-resolve contact/state: counterparty records (terminal-captured) > client master
+      const resolvedPhone = cPartyPhone || cMasterPhone;
+      const resolvedState = cPartyState || cMasterState;
+      setContactNumber(resolvedPhone);
+      setClientState(resolvedState);
 
       if (!linkedClientId) {
         setLinkedClientId(syncRecord?.client_id || '');

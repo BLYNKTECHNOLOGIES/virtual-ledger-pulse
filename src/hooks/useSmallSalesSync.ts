@@ -46,7 +46,6 @@ export async function getSmallSalesConfig(): Promise<SmallSalesConfig | null> {
 export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
   const config = await getSmallSalesConfig();
   if (!config || !config.is_enabled) {
-    console.log('[SmallSalesSync] Disabled or no config.');
     return { synced: 0, duplicates: 0, batchId: null };
   }
 

@@ -101,8 +101,8 @@ export function WalletManagementTab() {
       if (error) throw error;
       return data as WalletType[];
     },
-    refetchInterval: 5000, // Live updates every 5 seconds
-    staleTime: 0, // Always consider data stale to ensure fresh data
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
 
   // Fetch wallet transactions with real-time updates

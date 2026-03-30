@@ -745,6 +745,10 @@ const router = createBrowserRouter([
       path: "/unsubscribe",
       element: <Unsubscribe />,
     },
+    {
+      path: "/mockup/offer-letter",
+      element: <OfferLetterMockup />,
+    },
    // Catch-all route for 404 errors
     {
       path: "*",

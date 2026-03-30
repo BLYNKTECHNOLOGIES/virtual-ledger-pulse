@@ -403,7 +403,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
           p_fee_percentage: null,
           p_is_off_market: false,
           p_created_by: userId || null,
-          p_contact_number: null,
+          p_contact_number: contactNumber || null,
         };
 
         const { data, error } = await supabase.rpc('create_manual_purchase_complete_v2_rpc' as any, rpcParams);

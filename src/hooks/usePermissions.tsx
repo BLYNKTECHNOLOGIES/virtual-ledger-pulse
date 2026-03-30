@@ -79,6 +79,7 @@ export function usePermissions() {
             'video_kyc_view', 'video_kyc_manage',
             'kyc_approvals_view', 'kyc_approvals_manage',
             'statistics_view', 'statistics_manage',
+            'risk_management_view', 'risk_management_manage',
             'erp_destructive', 'terminal_destructive', 'bams_destructive',
              'clients_destructive', 'stock_destructive',
              'shift_reconciliation_create', 'shift_reconciliation_approve',
@@ -86,33 +87,21 @@ export function usePermissions() {
              'tasks_view', 'tasks_manage'
            ];
           setPermissions(adminPermissions);
-          localStorage.setItem('userPermissions', JSON.stringify(adminPermissions));
         } else {
-          // Default permissions for regular users
-          const basicPermissions = ['dashboard_view'];
-          setPermissions(basicPermissions);
-          localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
+          setPermissions(['dashboard_view']);
         }
         return;
       }
 
       if (userPermissions && Array.isArray(userPermissions)) {
-        const permissionStrings = userPermissions.map(p => p.permission);
-        setPermissions(permissionStrings);
-        localStorage.setItem('userPermissions', JSON.stringify(permissionStrings));
+        setPermissions(userPermissions.map(p => p.permission));
       } else {
-        const basicPermissions = ['dashboard_view'];
-        setPermissions(basicPermissions);
-        localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
+        setPermissions(['dashboard_view']);
       }
       
     } catch (error) {
       console.error('Error fetching permissions:', error);
-      
-      // Fallback to basic permissions
-      const basicPermissions = ['dashboard_view'];
-      setPermissions(basicPermissions);
-      localStorage.setItem('userPermissions', JSON.stringify(basicPermissions));
+      setPermissions(['dashboard_view']);
     } finally {
       setIsLoading(false);
     }

@@ -420,8 +420,6 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
        queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       resetFlow();
       onOpenChange(false);
-      // Force a full page refresh to ensure all components show updated data
-      setTimeout(() => window.location.reload(), 1000);
     },
     onError: (error) => {
       console.error('Sales order creation failed:', error);

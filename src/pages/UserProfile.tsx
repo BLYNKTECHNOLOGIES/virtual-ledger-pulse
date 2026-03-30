@@ -780,20 +780,6 @@ export default function UserProfile() {
     }
   });
 
-  // ─── Apply for hike mutation ───
-  const applyHikeMutation = useMutation({
-    mutationFn: async (hikeData: typeof hikeRequest) => {
-      console.log('Apply for hike:', hikeData);
-      throw new Error('Salary hike requests table not implemented yet');
-    },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Salary hike request submitted successfully" });
-      setHikeRequest({ current_salary: '', requested_salary: '', reason: '', justification: '' });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  });
 
   // ─── Update username mutation ───
   const updateUsernameMutation = useMutation({

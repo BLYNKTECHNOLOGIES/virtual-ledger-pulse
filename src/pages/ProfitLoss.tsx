@@ -661,32 +661,6 @@ export default function ProfitLoss() {
                 NPM × Total Sales Qty
               </p>
             </div>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="p-4 bg-violet-500/10 rounded-lg cursor-help">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ArrowRightLeft className="h-4 w-4 text-violet-500" />
-                      <span className="text-sm font-medium text-muted-foreground">Conversion P&L</span>
-                      <Info className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                    <p className={`text-2xl font-bold ${(periodMetrics?.conversionPnlInr || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(periodMetrics?.conversionPnlInr || 0)}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatSmartDecimal(periodMetrics?.conversionPnlUsdt || 0, 4)} USDT
-                    </p>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs p-3">
-                  <p className="font-medium mb-1">Conversion P&L</p>
-                  <p className="text-xs text-muted-foreground">
-                    Realized gains/losses from coin price movements during asset conversions (e.g., TRX→USDT). 
-                    Tracked via WAC system in wallet_asset_positions.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
             <div className="p-4 bg-indigo-500/10 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Calculator className="h-4 w-4 text-indigo-500" />

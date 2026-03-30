@@ -144,8 +144,6 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
         if (healErr) {
           console.warn('[SalesSync] Auto-heal failed for mismatched links:', healErr);
-        } else {
-          console.log(`[SalesSync] Auto-healed ${mismatchedSyncIds.length} mismatched sync link(s)`);
         }
       }
     }

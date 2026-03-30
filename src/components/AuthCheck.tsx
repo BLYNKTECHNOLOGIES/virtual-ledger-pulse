@@ -27,7 +27,7 @@ export function AuthCheck({ children }: AuthCheckProps) {
       if (isLoggedIn === 'true' && userSession) {
         try {
           const parsed = JSON.parse(userSession);
-          if (parsed?.user?.id && parsed?.user?.id !== 'demo-admin-id') {
+          if (parsed?.user?.id) {
             setIsAuthenticated(true);
             return;
           }

@@ -336,6 +336,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             unit_price: data.price_per_unit,
             total_price: totalAmount,
             warehouse_id: data.warehouse_id || null,
+            product_id: data.product_id || null,
           })
           .eq('id', firstItemId);
       }

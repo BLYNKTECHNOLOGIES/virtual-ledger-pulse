@@ -44,6 +44,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     price_per_unit: 0,
     warehouse_id: '',
     bank_account_id: '',
+    product_id: '',
   });
 
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);

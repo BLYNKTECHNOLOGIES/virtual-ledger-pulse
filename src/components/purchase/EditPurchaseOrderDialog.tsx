@@ -253,8 +253,12 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           }
         }
 
-        // Get product code for asset_code
-        const productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
+        // Get product code for asset_code — use selected product if changed
+        let productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
+        if (orderData.product_id) {
+          const { data: selectedProd } = await supabase.from('products').select('code').eq('id', orderData.product_id).single();
+          if (selectedProd?.code) productCode = selectedProd.code;
+        }
 
         // Build split payments JSON if using multiple payments
         const splitPaymentsJson = isMultiplePayments && paymentSplits.length > 0

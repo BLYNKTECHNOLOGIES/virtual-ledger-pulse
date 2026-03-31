@@ -201,6 +201,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         joining_date: r.date_of_joining,
         employee_type: r.employee_type || "full_time",
         job_role: r.job_role || null,
+        reporting_manager_id: r.reporting_manager_id || null,
       });
 
       // 4. Create bank details if available

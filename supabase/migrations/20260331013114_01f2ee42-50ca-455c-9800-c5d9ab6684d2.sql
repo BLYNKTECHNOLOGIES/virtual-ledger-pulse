@@ -1,0 +1,1 @@
+ALTER TABLE hr_employee_onboarding ADD COLUMN IF NOT EXISTS reporting_manager_id uuid REFERENCES hr_employees(id);

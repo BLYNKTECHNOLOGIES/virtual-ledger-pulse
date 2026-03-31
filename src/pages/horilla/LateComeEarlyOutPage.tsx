@@ -23,7 +23,7 @@ export default function LateComeEarlyOutPage() {
     queryFn: async () => {
       let query = (supabase as any)
         .from("hr_late_come_early_out")
-        .select("*, hr_employees!hr_late_come_early_out_employee_id_fkey(badge_id, first_name, last_name, department)")
+        .select("*, hr_employees!hr_late_come_early_out_employee_id_fkey(badge_id, first_name, last_name)")
         .gte("attendance_date", monthStart)
         .lte("attendance_date", monthEnd)
         .order("attendance_date", { ascending: false });

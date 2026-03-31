@@ -29,7 +29,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     job_role: "",
     shift_id: "",
     employee_type: "",
-    reporting_manager_id: "",
   });
 
   useEffect(() => {
@@ -46,7 +45,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         job_role: data.job_role || "",
         shift_id: data.shift_id || "",
         employee_type: data.employee_type || "",
-        reporting_manager_id: data.reporting_manager_id || "",
       });
     }
   }, [data]);
@@ -80,14 +78,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     },
   });
 
-  const { data: managers } = useQuery({
-    queryKey: ["managers-list"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name");
-      if (error) throw error;
-      return data;
-    },
-  });
 
   const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -173,15 +163,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
               <SelectTrigger><SelectValue placeholder="Select shift" /></SelectTrigger>
               <SelectContent>
                 {shifts?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Reporting Manager</Label>
-            <Select value={form.reporting_manager_id} onValueChange={v => update("reporting_manager_id", v)} disabled={readOnly}>
-              <SelectTrigger><SelectValue placeholder="Select Manager" /></SelectTrigger>
-              <SelectContent>
-                {managers?.map(m => <SelectItem key={m.id} value={m.id}>{`${m.first_name} ${m.last_name || ''}`.trim()}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

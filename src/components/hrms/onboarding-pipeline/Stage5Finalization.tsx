@@ -24,6 +24,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     essl_badge_id: "",
     create_erp_account: false,
     erp_role_id: "",
+    reporting_manager_id: "",
   });
   const [finalizing, setFinalizing] = useState(false);
 
@@ -34,6 +35,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         essl_badge_id: onboardingRecord.essl_badge_id || "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
+        reporting_manager_id: onboardingRecord.reporting_manager_id || "",
       });
     }
   }, [onboardingRecord]);
@@ -49,6 +51,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
       return data?.filter(r => !["admin", "super_admin", "Admin", "Super Admin"].includes(r.name)) || [];
     },
     enabled: form.create_erp_account,
+  });
+
+  const { data: managers } = useQuery({
+    queryKey: ["managers-list-stage5"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name");
+      if (error) throw error;
+      return data;
+    },
   });
 
   const validate = () => {
@@ -115,6 +126,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               onChange={e => setForm(p => ({ ...p, essl_badge_id: e.target.value }))}
               disabled={readOnly}
             />
+          </div>
+          <div>
+            <Label>Reporting Manager</Label>
+            <Select value={form.reporting_manager_id} onValueChange={v => setForm(p => ({ ...p, reporting_manager_id: v }))} disabled={readOnly}>
+              <SelectTrigger><SelectValue placeholder="Select Manager" /></SelectTrigger>
+              <SelectContent>
+                {managers?.map(m => <SelectItem key={m.id} value={m.id}>{`${m.first_name} ${m.last_name || ''}`.trim()}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

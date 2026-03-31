@@ -3,11 +3,22 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { Search, Fingerprint } from "lucide-react";
+
+const BUSINESS_TIMEZONE = "Asia/Kolkata";
+
+const getBusinessDayBounds = (dateValue: string) => {
+  const [year, month, day] = dateValue.split("-").map(Number);
+
+  return {
+    startOfDay: fromZonedTime(new Date(year, month - 1, day, 0, 0, 0, 0), BUSINESS_TIMEZONE).toISOString(),
+    endOfDay: fromZonedTime(new Date(year, month - 1, day, 23, 59, 59, 999), BUSINESS_TIMEZONE).toISOString(),
+  };
+};
 
 export default function AttendancePunchesPage() {
   const [dateFilter, setDateFilter] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -16,8 +27,8 @@ export default function AttendancePunchesPage() {
   const { data: punches = [], isLoading } = useQuery({
     queryKey: ["hr_attendance_punches", dateFilter],
     queryFn: async () => {
-      const startOfDay = `${dateFilter}T00:00:00`;
-      const endOfDay = `${dateFilter}T23:59:59`;
+      const { startOfDay, endOfDay } = getBusinessDayBounds(dateFilter);
+
       const { data, error } = await (supabase as any).from("hr_attendance_punches")
         .select("*, hr_employees!hr_attendance_punches_employee_id_fkey(badge_id, first_name, last_name)")
         .gte("punch_time", startOfDay)
@@ -94,7 +105,7 @@ export default function AttendancePunchesPage() {
                 <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No punches for {dateFilter}</TableCell></TableRow>
               ) : filtered.map((p: any) => (
                 <TableRow key={p.id}>
-                  <TableCell className="text-sm font-mono">{format(new Date(p.punch_time), "HH:mm:ss")}</TableCell>
+                  <TableCell className="text-sm font-mono">{formatInTimeZone(new Date(p.punch_time), BUSINESS_TIMEZONE, "HH:mm:ss")}</TableCell>
                   <TableCell className="text-sm font-medium">{p.badge_id}</TableCell>
                   <TableCell className="text-sm">
                     {p.hr_employees ? `${p.hr_employees.first_name} ${p.hr_employees.last_name}` : "—"}

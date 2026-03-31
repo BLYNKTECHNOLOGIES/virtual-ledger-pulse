@@ -4,23 +4,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format } from "date-fns";
 import { Search, Clock, CalendarDays, AlertTriangle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+const toMonthValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+const formatMonthLabel = (monthValue: string) => format(new Date(`${monthValue}T00:00:00`), "MMM yyyy");
 
 export default function MonthlyHoursSummaryPage() {
   const [search, setSearch] = useState("");
   const [month, setMonth] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return toMonthValue(d);
   });
+
+  const monthLabel = useMemo(() => formatMonthLabel(month), [month]);
 
   const { data: summaries = [], isLoading } = useQuery({
     queryKey: ["hr_monthly_hours_summary", month],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("hr_monthly_hours_summary")
         .select("*")
         .eq("month", month);
+      if (error) throw error;
       return (data as any[]) || [];
     },
   });
@@ -28,10 +35,11 @@ export default function MonthlyHoursSummaryPage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_for_hours"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
+      const { data, error } = await (supabase as any)
         .from("hr_employees")
         .select("id, badge_id, first_name, last_name")
         .eq("is_active", true);
+      if (error) throw error;
       return (data as any[]) || [];
     },
   });
@@ -55,7 +63,7 @@ export default function MonthlyHoursSummaryPage() {
   const months = Array.from({ length: 12 }, (_, i) => {
     const d = new Date();
     d.setMonth(d.getMonth() - i);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return toMonthValue(d);
   });
 
   return (
@@ -90,8 +98,8 @@ export default function MonthlyHoursSummaryPage() {
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={month} onValueChange={setMonth}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-          <SelectContent>{months.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Select month" /></SelectTrigger>
+          <SelectContent>{months.map((m) => <SelectItem key={m} value={m}>{formatMonthLabel(m)}</SelectItem>)}</SelectContent>
         </Select>
       </div>
 
@@ -134,7 +142,7 @@ export default function MonthlyHoursSummaryPage() {
                 {isLoading ? (
                   <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">Loading...</td></tr>
                 ) : enriched.length === 0 ? (
-                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No data for {month}</td></tr>
+                  <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No data for {monthLabel}</td></tr>
                 ) : (
                   enriched.map((s: any, i: number) => (
                     <tr key={i} className="border-b hover:bg-muted/30">

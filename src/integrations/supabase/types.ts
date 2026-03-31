@@ -4244,6 +4244,7 @@ export type Database = {
           offer_policy_status: string | null
           phone: string | null
           position_id: string | null
+          reporting_manager_id: string | null
           salary_template_id: string | null
           shift_id: string | null
           stage_completions: Json | null
@@ -4278,6 +4279,7 @@ export type Database = {
           offer_policy_status?: string | null
           phone?: string | null
           position_id?: string | null
+          reporting_manager_id?: string | null
           salary_template_id?: string | null
           shift_id?: string | null
           stage_completions?: Json | null
@@ -4312,6 +4314,7 @@ export type Database = {
           offer_policy_status?: string | null
           phone?: string | null
           position_id?: string | null
+          reporting_manager_id?: string | null
           salary_template_id?: string | null
           shift_id?: string | null
           stage_completions?: Json | null
@@ -4338,6 +4341,13 @@ export type Database = {
             columns: ["position_id"]
             isOneToOne: false
             referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
         ]

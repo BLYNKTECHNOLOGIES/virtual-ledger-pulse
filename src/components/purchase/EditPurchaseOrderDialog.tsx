@@ -597,6 +597,24 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             </div>
 
             <div>
+              <Label>Product/Asset *</Label>
+              <Select
+                value={formData.product_id}
+                onValueChange={(value) => handleInputChange('product_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
               <Label>Quantity *</Label>
               <Input
                 type="number"

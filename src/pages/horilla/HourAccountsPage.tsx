@@ -33,7 +33,7 @@ export default function HourAccountsPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_hour_accounts")
-        .select("*, hr_employees!hr_hour_accounts_employee_id_fkey(id, badge_id, first_name, last_name, department)")
+        .select("*, hr_employees!hr_hour_accounts_employee_id_fkey(id, badge_id, first_name, last_name)")
         .eq("year", year)
         .eq("month_sequence", month)
         .order("created_at", { ascending: false });

@@ -35,6 +35,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
         essl_badge_id: onboardingRecord.essl_badge_id || "",
         create_erp_account: onboardingRecord.create_erp_account || false,
         erp_role_id: onboardingRecord.erp_role_id || "",
+        reporting_manager_id: onboardingRecord.reporting_manager_id || "",
       });
     }
   }, [onboardingRecord]);

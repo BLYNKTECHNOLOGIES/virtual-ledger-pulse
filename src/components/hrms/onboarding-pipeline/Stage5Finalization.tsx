@@ -127,6 +127,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
               disabled={readOnly}
             />
           </div>
+          <div>
+            <Label>Reporting Manager</Label>
+            <Select value={form.reporting_manager_id} onValueChange={v => setForm(p => ({ ...p, reporting_manager_id: v }))} disabled={readOnly}>
+              <SelectTrigger><SelectValue placeholder="Select Manager" /></SelectTrigger>
+              <SelectContent>
+                {managers?.map(m => <SelectItem key={m.id} value={m.id}>{`${m.first_name} ${m.last_name || ''}`.trim()}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* ERP Account */}

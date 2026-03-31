@@ -133,6 +133,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       const quantity = firstItem?.quantity || order.quantity || 0;
       const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
       const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || existingWalletCredit || '';
+      const productId = firstItem?.product_id || '';
 
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
@@ -158,6 +159,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         price_per_unit: pricePerUnit,
         warehouse_id: warehouseId,
         bank_account_id: order.bank_account_id || '',
+        product_id: productId,
       });
     }
   }, [order, existingWalletCredit]);

@@ -255,8 +255,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
         // Get product code for asset_code — use selected product if changed
         let productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
-        if (orderData.product_id) {
-          const { data: selectedProd } = await supabase.from('products').select('code').eq('id', orderData.product_id).single();
+        if (data.product_id) {
+          const { data: selectedProd } = await supabase.from('products').select('code').eq('id', data.product_id).single();
           if (selectedProd?.code) productCode = selectedProd.code;
         }
 

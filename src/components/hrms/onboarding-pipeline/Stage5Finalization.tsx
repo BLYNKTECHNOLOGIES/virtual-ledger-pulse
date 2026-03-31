@@ -24,6 +24,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     essl_badge_id: "",
     create_erp_account: false,
     erp_role_id: "",
+    reporting_manager_id: "",
   });
   const [finalizing, setFinalizing] = useState(false);
 

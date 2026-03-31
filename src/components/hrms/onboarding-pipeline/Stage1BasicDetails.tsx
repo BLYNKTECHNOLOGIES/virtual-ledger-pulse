@@ -80,6 +80,15 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     },
   });
 
+  const { data: managers } = useQuery({
+    queryKey: ["managers-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const update = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
 
   const validate = () => {

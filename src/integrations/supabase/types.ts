@@ -14740,6 +14740,8 @@ export type Database = {
         | "tasks_manage"
         | "shift_reconciliation_create"
         | "shift_reconciliation_approve"
+        | "terminal_view"
+        | "terminal_manage"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -15023,6 +15025,8 @@ export const Constants = {
         "tasks_manage",
         "shift_reconciliation_create",
         "shift_reconciliation_approve",
+        "terminal_view",
+        "terminal_manage",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

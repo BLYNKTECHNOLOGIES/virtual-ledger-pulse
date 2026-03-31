@@ -167,15 +167,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             </Select>
           </div>
           <div>
-            <Label>Reporting Manager</Label>
-            <Select value={form.reporting_manager_id} onValueChange={v => update("reporting_manager_id", v)} disabled={readOnly}>
-              <SelectTrigger><SelectValue placeholder="Select Manager" /></SelectTrigger>
-              <SelectContent>
-                {managers?.map(m => <SelectItem key={m.id} value={m.id}>{`${m.first_name} ${m.last_name || ''}`.trim()}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
             <Label>Employee Type *</Label>
             <Select value={form.employee_type} onValueChange={v => update("employee_type", v)} disabled={readOnly}>
               <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>

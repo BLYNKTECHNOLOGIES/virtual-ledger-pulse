@@ -53,6 +53,15 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onBack, readO
     enabled: form.create_erp_account,
   });
 
+  const { data: managers } = useQuery({
+    queryKey: ["managers-list-stage5"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name").eq("is_active", true).order("first_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const validate = () => {
     if (!form.date_of_joining) { toast.error("Date of Joining is mandatory"); return false; }
     if (!form.essl_badge_id.trim()) { toast.error("ESSL Badge ID is mandatory"); return false; }

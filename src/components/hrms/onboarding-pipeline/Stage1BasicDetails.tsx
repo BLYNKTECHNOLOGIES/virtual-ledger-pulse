@@ -29,6 +29,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     job_role: "",
     shift_id: "",
     employee_type: "",
+    reporting_manager_id: "",
   });
 
   useEffect(() => {

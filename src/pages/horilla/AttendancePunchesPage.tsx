@@ -46,8 +46,28 @@ export default function AttendancePunchesPage() {
     return name.toLowerCase().includes(search.toLowerCase());
   });
 
-  const totalIn = punches.filter((p: any) => p.punch_type === "check_in" || p.raw_status === 0).length;
-  const totalOut = punches.filter((p: any) => p.punch_type === "check_out" || p.raw_status === 1).length;
+  // Group punches by employee to determine first=in, last=out positionally
+  const punchPositions = useMemo(() => {
+    const byEmployee = new Map<string, any[]>();
+    for (const p of punches) {
+      const key = p.employee_id || p.badge_id;
+      if (!byEmployee.has(key)) byEmployee.set(key, []);
+      byEmployee.get(key)!.push(p);
+    }
+    const map = new Map<string, "check_in" | "check_out" | "intermediate">();
+    for (const [, empPunches] of byEmployee) {
+      empPunches.sort((a: any, b: any) => new Date(a.punch_time).getTime() - new Date(b.punch_time).getTime());
+      empPunches.forEach((p: any, i: number) => {
+        if (i === 0) map.set(p.id, "check_in");
+        else if (i === empPunches.length - 1) map.set(p.id, "check_out");
+        else map.set(p.id, "intermediate");
+      });
+    }
+    return map;
+  }, [punches]);
+
+  const totalIn = [...punchPositions.values()].filter(v => v === "check_in").length;
+  const totalOut = [...punchPositions.values()].filter(v => v === "check_out").length;
 
   return (
     <div className="space-y-4">
@@ -111,8 +131,8 @@ export default function AttendancePunchesPage() {
                     {p.hr_employees ? `${p.hr_employees.first_name} ${p.hr_employees.last_name}` : "—"}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={p.punch_type === "check_in" || p.raw_status === 0 ? "default" : "secondary"} className="text-xs">
-                      {p.punch_type || (p.raw_status === 0 ? "Check-In" : p.raw_status === 1 ? "Check-Out" : `Status ${p.raw_status}`)}
+                    <Badge variant={punchPositions.get(p.id) === "check_in" ? "default" : punchPositions.get(p.id) === "check_out" ? "secondary" : "outline"} className="text-xs">
+                      {punchPositions.get(p.id) === "check_in" ? "Check-In" : punchPositions.get(p.id) === "check_out" ? "Check-Out" : "Intermediate"}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">{p.device_name || p.device_serial || "—"}</TableCell>

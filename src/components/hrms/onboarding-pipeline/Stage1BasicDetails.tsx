@@ -46,6 +46,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         job_role: data.job_role || "",
         shift_id: data.shift_id || "",
         employee_type: data.employee_type || "",
+        reporting_manager_id: data.reporting_manager_id || "",
       });
     }
   }, [data]);

@@ -69,6 +69,17 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     enabled: open,
   });
 
+  // Fetch products
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+      return data;
+    },
+    enabled: open,
+  });
+
   // Fetch bank accounts
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank-accounts'],

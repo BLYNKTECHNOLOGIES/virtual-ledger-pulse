@@ -44,6 +44,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     price_per_unit: 0,
     warehouse_id: '',
     bank_account_id: '',
+    product_id: '',
   });
 
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
@@ -64,6 +65,17 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         name: `${e.first_name} ${e.last_name || ''}`.trim(),
         employee_id: e.badge_id
       }));
+    },
+    enabled: open,
+  });
+
+  // Fetch products
+  const { data: products } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('products').select('*');
+      if (error) throw error;
+      return data;
     },
     enabled: open,
   });
@@ -121,6 +133,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       const quantity = firstItem?.quantity || order.quantity || 0;
       const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
       const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || existingWalletCredit || '';
+      const productId = firstItem?.product_id || '';
 
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
@@ -146,6 +159,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         price_per_unit: pricePerUnit,
         warehouse_id: warehouseId,
         bank_account_id: order.bank_account_id || '',
+        product_id: productId,
       });
     }
   }, [order, existingWalletCredit]);
@@ -239,8 +253,12 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           }
         }
 
-        // Get product code for asset_code
-        const productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
+        // Get product code for asset_code — use selected product if changed
+        let productCode = order.purchase_order_items?.[0]?.products?.code || 'USDT';
+        if (data.product_id) {
+          const { data: selectedProd } = await supabase.from('products').select('code').eq('id', data.product_id).single();
+          if (selectedProd?.code) productCode = selectedProd.code;
+        }
 
         // Build split payments JSON if using multiple payments
         const splitPaymentsJson = isMultiplePayments && paymentSplits.length > 0
@@ -318,6 +336,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             unit_price: data.price_per_unit,
             total_price: totalAmount,
             warehouse_id: data.warehouse_id || null,
+            product_id: data.product_id || null,
           })
           .eq('id', firstItemId);
       }
@@ -580,6 +599,25 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                 placeholder="Select wallet..."
                 filterByType="USDT"
               />
+            </div>
+
+            <div>
+              <Label>Product/Asset *</Label>
+              <Select
+                value={formData.product_id}
+                onValueChange={(value) => handleInputChange('product_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select product" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products?.map((product) => (
+                    <SelectItem key={product.id} value={product.id}>
+                      {product.name} ({product.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

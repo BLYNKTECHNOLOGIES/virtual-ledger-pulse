@@ -615,6 +615,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
               </Select>
             </div>
 
+            <div>
               <Label>Quantity *</Label>
               <Input
                 type="number"

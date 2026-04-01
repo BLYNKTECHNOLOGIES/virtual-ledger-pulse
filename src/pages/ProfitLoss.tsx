@@ -284,32 +284,32 @@ export default function ProfitLoss() {
          if (rateData?.rate) usdtInrRate = rateData.rate;
        } catch (err) { console.warn('[ProfitLoss] Failed to fetch USDT rate:', err); }
 
-      // Calculate period-based purchase metrics
-      // For "All Assets" mode: use ONLY USDT purchases for avg purchase rate,
-      // because all sales are in USDT. Non-USDT purchases are inventory that
-      // becomes USDT through conversions — they shouldn't inflate the COGS denominator.
-      // For specific asset filter: use that asset's purchases directly.
+      // Calculate period-based purchase metrics using effective USDT values
+      // effective_usdt_qty and effective_usdt_rate normalize all assets to USDT-equivalent
       let totalPurchaseValue = 0;
       let totalPurchaseQty = 0;
 
-      purchaseItems.forEach((item: any) => {
-        const assetCode = item.products?.code || 'USDT';
-        const qty = item.quantity;
-        const unitPriceInr = item.unit_price;
-
-        if (selectedAsset === 'all') {
-          // "All Assets" mode: only count USDT purchases for rate calculation
-          // (matches daily snapshot logic — sales are all USDT)
-          if (assetCode === 'USDT') {
-            totalPurchaseValue += qty * unitPriceInr;
-            totalPurchaseQty += qty;
+      if (selectedAsset === 'all') {
+        // "All Assets" mode: use effective_usdt_qty/rate from purchase_orders directly
+        // This includes ALL assets (USDT, BTC, ETH, etc.) normalized to USDT-equivalent
+        const filteredPOs = purchaseOrders?.filter((po: any) => !excludedOrderIds.includes(po.id)) || [];
+        filteredPOs.forEach((po: any) => {
+          const effQty = Number(po.effective_usdt_qty || 0);
+          const totalAmt = Number(po.total_amount || 0);
+          if (effQty > 0) {
+            totalPurchaseQty += effQty;
+            totalPurchaseValue += totalAmt;
           }
-        } else {
-          // Specific asset filter: use that asset's raw values
+        });
+      } else {
+        // Specific asset filter: use purchase_order_items as before
+        purchaseItems.forEach((item: any) => {
+          const qty = item.quantity;
+          const unitPriceInr = item.unit_price;
           totalPurchaseValue += qty * unitPriceInr;
           totalPurchaseQty += qty;
-        }
-      });
+        });
+      }
 
       const avgPurchaseRate = totalPurchaseQty > 0 
         ? totalPurchaseValue / totalPurchaseQty : 0;

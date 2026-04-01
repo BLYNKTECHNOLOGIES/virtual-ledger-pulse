@@ -9755,6 +9755,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          effective_usdt_qty: number | null
+          effective_usdt_rate: number | null
           failure_proof_url: string | null
           fee_amount: number | null
           fee_percentage: number | null
@@ -9801,6 +9803,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          effective_usdt_qty?: number | null
+          effective_usdt_rate?: number | null
           failure_proof_url?: string | null
           fee_amount?: number | null
           fee_percentage?: number | null
@@ -9847,6 +9851,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          effective_usdt_qty?: number | null
+          effective_usdt_rate?: number | null
           failure_proof_url?: string | null
           fee_amount?: number | null
           fee_percentage?: number | null
@@ -10359,6 +10365,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          effective_usdt_qty: number | null
+          effective_usdt_rate: number | null
           fee_amount: number | null
           fee_percentage: number | null
           id: string
@@ -10396,6 +10404,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          effective_usdt_qty?: number | null
+          effective_usdt_rate?: number | null
           fee_amount?: number | null
           fee_percentage?: number | null
           id?: string
@@ -10433,6 +10443,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          effective_usdt_qty?: number | null
+          effective_usdt_rate?: number | null
           fee_amount?: number | null
           fee_percentage?: number | null
           id?: string

@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import { checkPhoneUniqueness } from "@/utils/clientDuplicateCheck";
 
 interface EditClientDetailsDialogProps {
   open: boolean;
@@ -67,6 +68,21 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
 
     setIsSubmitting(true);
     try {
+      // Check phone uniqueness (skip if same as current or empty)
+      const trimmedPhone = formData.phone?.trim();
+      if (trimmedPhone && trimmedPhone.length >= 10) {
+        const dupes = await checkPhoneUniqueness(trimmedPhone, client.id);
+        if (dupes.length > 0) {
+          toast({
+            title: "Duplicate Phone Number",
+            description: `This phone number is already assigned to: ${dupes.map(d => `${d.name} (${d.client_id})`).join(', ')}`,
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from("clients")
         .update({
@@ -85,7 +101,6 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
 
       if (error) throw error;
 
-      // Log the action
       logActionWithCurrentUser({
         actionType: ActionTypes.CLIENT_UPDATED,
         entityType: EntityTypes.CLIENT,
@@ -99,9 +114,7 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
         description: "Client details have been updated successfully.",
       });
 
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ["client", client.id] });
-      
       onOpenChange(false);
     } catch (error) {
       console.error("Error updating client:", error);

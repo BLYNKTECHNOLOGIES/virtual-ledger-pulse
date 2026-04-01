@@ -62,14 +62,14 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
 
   // Fetch sell orders (purchase_orders) - exclude cancelled
   const { data: sellOrders } = useQuery({
-    queryKey: ['client-sell-orders', clientId, client?.name, client?.phone, dateRange],
+    queryKey: ['client-sell-orders', clientId, client?.name, dateRange],
     queryFn: async () => {
       if (!clientId || !client) return [];
       
       let query = supabase
         .from('purchase_orders')
         .select('*')
-        .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone}"`)
+        .eq('supplier_name', client.name)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       

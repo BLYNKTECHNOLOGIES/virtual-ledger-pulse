@@ -42,14 +42,14 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
 
   // Fetch client's orders to calculate first order value and monthly usage
   const { data: orders } = useQuery({
-    queryKey: ['client-orders-limits', activeClientId, client?.name, client?.phone],
+    queryKey: ['client-orders-limits', activeClientId],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
       const { data, error } = await supabase
         .from('sales_orders')
         .select('*')
-        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
+        .eq('client_id', activeClientId)
         .order('order_date', { ascending: true });
       
       if (error) throw error;

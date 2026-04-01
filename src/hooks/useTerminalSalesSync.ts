@@ -111,42 +111,10 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       .select('id, binance_order_number, sync_status, sales_order_id')
       .in('binance_order_number', orderNumbers);
 
-    // Auto-heal: if a sync row points to a sales order that belongs to a different terminal_sync_id,
-    // reset it back to pending approval so it can be approved correctly.
-    const linkedSalesOrderIds = [...new Set((existingSyncs || []).map((s: any) => s.sales_order_id).filter(Boolean))];
-    if (linkedSalesOrderIds.length > 0) {
-      const { data: linkedOrders } = await supabase
-        .from('sales_orders')
-        .select('id, terminal_sync_id')
-        .in('id', linkedSalesOrderIds as string[]);
-
-      const linkedOrderMap = new Map((linkedOrders || []).map((o: any) => [o.id, o]));
-      const mismatchedSyncIds = (existingSyncs || [])
-        .filter((s: any) => {
-          if (!s.sales_order_id) return false;
-          const linked = linkedOrderMap.get(s.sales_order_id);
-          if (!linked) return true; // orphan link
-          return linked.terminal_sync_id !== s.id; // wrong link
-        })
-        .map((s: any) => s.id);
-
-      if (mismatchedSyncIds.length > 0) {
-        const { error: healErr } = await supabase
-          .from('terminal_sales_sync')
-          .update({
-            sync_status: 'synced_pending_approval',
-            sales_order_id: null,
-            reviewed_by: null,
-            reviewed_at: null,
-            rejection_reason: 'Auto-reset: mismatched sales order link detected',
-          })
-          .in('id', mismatchedSyncIds);
-
-        if (healErr) {
-          console.warn('[SalesSync] Auto-heal failed for mismatched links:', healErr);
-        }
-      }
-    }
+    // NOTE: Auto-heal logic was removed — it was aggressively resetting approved sync records
+    // back to pending when terminal_sync_id didn't match, causing 276+ records to lose their
+    // approved status. The mismatch was benign (different sync flows creating the sales order)
+    // and did not indicate actual data corruption.
 
     const existingSet = new Set((existingSyncs || []).map((s: any) => s.binance_order_number));
 

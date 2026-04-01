@@ -36,6 +36,7 @@ import UserProfile from './pages/UserProfile';
 
 import RiskManagement from './pages/RiskManagement';
 import AdManager from './pages/AdManager';
+import TerminalAdManager from './pages/terminal/TerminalAdManager';
 import TerminalDashboard from './pages/terminal/TerminalDashboard';
 import TerminalOrders from './pages/terminal/TerminalOrders';
 import TerminalAutomation from './pages/terminal/TerminalAutomation';

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { isPhoneBlocked } from "@/lib/blocked-phones";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
-import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
+import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

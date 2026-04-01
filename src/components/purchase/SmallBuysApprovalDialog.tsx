@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { getCurrentUserId } from '@/lib/system-action-logger';
-import { fetchCoinMarketRate } from '@/hooks/useCoinMarketRate';
+import { fetchAndLockMarketRate, linkSnapshotToReference, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useActiveBankAccounts } from '@/hooks/useActiveBankAccounts';
 

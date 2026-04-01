@@ -127,9 +127,10 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
       }));
 
       // Fetch ALL sales orders (buyers) - paginated to avoid 1000-row limit
+      // Include client_id for FK-based matching (primary), fall back to name/phone
       const salesOrders = await fetchAllRows<any>(
         'sales_orders',
-        'client_name, client_phone, total_amount, order_date',
+        'client_id, client_name, client_phone, total_amount, order_date',
         { column: 'status', op: 'neq', value: 'CANCELLED' }
       );
 
@@ -151,11 +152,16 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
 
       // Count orders and calculate metrics for each client
       for (const client of clientIdentifiers) {
-        // Get matching sales orders
-        const clientSalesOrders = salesOrders?.filter(order => 
-          order.client_name === client.name || 
-          (client.phone && order.client_phone === client.phone)
-        ) || [];
+        // Get matching sales orders — prioritize client_id FK match,
+        // fall back to name-only match for legacy orders without client_id.
+        // NEVER match by phone alone — phone reuse across clients causes inflation.
+        const clientSalesOrders = salesOrders?.filter(order => {
+          if (order.client_id) {
+            return order.client_id === client.id;
+          }
+          // Legacy fallback: match by exact name only (no phone matching)
+          return order.client_name === client.name;
+        }) || [];
 
         // Get matching purchase orders
         const clientPurchaseOrders = purchaseOrders?.filter(order => 

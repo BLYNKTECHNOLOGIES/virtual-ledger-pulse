@@ -243,12 +243,29 @@ export default function ProfitLoss() {
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr);
 
-       // Fetch ALL USDT fees from wallet_transactions within the period
-       const { data: usdtFeesData } = await supabase
+       // Fetch USDT fees from authoritative sources:
+       // 1. wallet_fee_deductions (sales/purchase order fees) - fee_usdt_amount
+       // 2. erp_product_conversions (conversion fees)
+       const { data: feeDeductionsData } = await supabase
+         .from('wallet_fee_deductions')
+         .select('fee_usdt_amount')
+         .gte('created_at', startStr)
+         .lte('created_at', endStr + 'T23:59:59');
+
+       const { data: conversionFeesData } = await supabase
+         .from('erp_product_conversions')
+         .select('fee_amount')
+         .eq('status', 'APPROVED')
+         .gte('approved_at', startStr)
+         .lte('approved_at', endStr + 'T23:59:59');
+
+       // Also fetch transfer fees from wallet_transactions (not in fee_deductions)
+       const { data: transferFeesData } = await supabase
          .from('wallet_transactions')
-         .select('id, amount, reference_type, created_at')
+         .select('amount')
          .eq('transaction_type', 'DEBIT')
-         .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+         .eq('reference_type', 'TRANSFER_FEE')
+         .eq('asset_code', 'USDT')
          .gte('created_at', startStr)
          .lte('created_at', endStr + 'T23:59:59');
 

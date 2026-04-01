@@ -47,7 +47,7 @@ export function TerminalSalesSyncTab() {
         .from('terminal_sales_sync')
         .select('*')
         .order('synced_at', { ascending: false })
-        .limit(500);
+        .limit(1000);
 
       if (statusFilter !== 'all') {
         query = query.eq('sync_status', statusFilter);

@@ -179,8 +179,8 @@ export default function AdManager() {
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>
-    );
+  );
 
-    if (isTerminalContext) return content;
-    return <PermissionGate permissions={["terminal_view"]}>{content}</PermissionGate>;
+  if (isTerminalContext) return content;
+  return <PermissionGate permissions={["terminal_view"]}>{content}</PermissionGate>;
 }

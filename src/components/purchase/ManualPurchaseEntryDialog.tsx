@@ -437,10 +437,20 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
       // Store market_rate_usdt (CoinUSDT rate at purchase time)
       const selectedProductCode = selectedProduct?.code?.toUpperCase() || 'USDT';
       const marketRateUsdt = await fetchCoinMarketRate(selectedProductCode);
-      if (marketRateUsdt > 0) {
+      {
+        const mpEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
+        const mpQty = parseFloat(formData.quantity) || 0;
+        const mpTotalAmt = totalAmount;
+        const mpEffUsdtQty = mpQty * mpEffRate;
+        const mpEffUsdtRate = mpEffUsdtQty > 0 ? mpTotalAmt / mpEffUsdtQty : null;
+
         await supabase
           .from('purchase_orders')
-          .update({ market_rate_usdt: marketRateUsdt })
+          .update({
+            market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
+            effective_usdt_qty: mpEffUsdtQty,
+            effective_usdt_rate: mpEffUsdtRate,
+          })
           .eq('id', orderId);
       }
 

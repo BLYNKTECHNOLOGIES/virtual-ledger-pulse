@@ -59,12 +59,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       if (!record || !paymentMethodId) throw new Error('Select a payment method');
 
       // Fetch live CoinUSDT rate for non-USDT assets
-      let marketRate: number | null = null;
-      if (isNonUsdt) {
-        marketRate = await fetchCoinMarketRate(assetCode);
-      } else {
-        marketRate = 1.0;
-      }
+      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
+      const marketRate = locked.price;
 
       const userId = await requireCurrentUserId();
 

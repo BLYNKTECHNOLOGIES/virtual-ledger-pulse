@@ -111,8 +111,16 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
     };
   }
 
-  // ── Auth / permission ──
-  if (lowerMsg.includes('session') || lowerMsg.includes('not authenticated') || lowerMsg.includes('user not found') || lowerMsg.includes('permission')) {
+  // ── Permission denied (from require_permission / RLS) ──
+  if (lowerMsg.includes('permission') || lowerMsg.includes('access denied') || lowerMsg.includes('not authorized')) {
+    return {
+      title: 'Permission Denied',
+      description: 'You do not have the required permission to perform this action. Contact your administrator to request access.',
+    };
+  }
+
+  // ── Auth / session ──
+  if (lowerMsg.includes('session') || lowerMsg.includes('not authenticated') || lowerMsg.includes('user not found')) {
     return {
       title: 'Authentication Error',
       description: 'Your session may have expired. Please refresh the page and log in again.',

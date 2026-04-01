@@ -283,7 +283,9 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
               fee_usdt_amount: feeUSDT, // Actual USDT deducted
               usdt_rate_used: orderData.usdtRate || 0,
               average_buying_price: orderData.averageBuyingPrice || 0,
-              fee_inr_value_at_buying_price: feeUSDT * (orderData.averageBuyingPrice || 0)
+              fee_inr_value_at_buying_price: feeUSDT * (orderData.averageBuyingPrice || 0),
+              market_rate_usdt_snapshot: orderData.usdtRate || null,
+              price_fetched_at: new Date().toISOString(),
             });
         }
       }

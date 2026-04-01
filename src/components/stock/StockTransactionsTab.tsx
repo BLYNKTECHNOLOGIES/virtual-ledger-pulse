@@ -855,16 +855,18 @@ export function StockTransactionsTab() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Wallet</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier/Customer</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Created By</th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-600">Closing Bal.</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Type</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">USDT Rate</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">Eff. USDT Qty</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Wallet</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Supplier/Customer</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Reference</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Created By</th>
+                    <th className="text-right py-3 px-4 font-medium text-muted-foreground">Closing Bal.</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -890,6 +892,12 @@ export function StockTransactionsTab() {
                             maximumFractionDigits: maxDecimals
                           })} ${entry.products?.unit_of_measurement}`;
                         })()}
+                      </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-sm">
+                        {entry.market_rate_usdt ? parseFloat(entry.market_rate_usdt).toLocaleString('en-IN', { maximumFractionDigits: 6 }) : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-sm">
+                        {entry.effective_usdt_qty ? parseFloat(entry.effective_usdt_qty).toLocaleString('en-IN', { maximumFractionDigits: 6 }) : '-'}
                       </td>
                       <td className="py-3 px-4">
                         {entry.wallet_name ? (

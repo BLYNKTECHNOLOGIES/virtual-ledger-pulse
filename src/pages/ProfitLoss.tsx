@@ -246,11 +246,13 @@ export default function ProfitLoss() {
        // Fetch USDT fees from authoritative sources:
        // 1. wallet_fee_deductions (sales/purchase order fees) - fee_usdt_amount
        // 2. erp_product_conversions (conversion fees)
-       const { data: feeDeductionsData } = await supabase
-         .from('wallet_fee_deductions')
-         .select('fee_usdt_amount')
-         .gte('created_at', startStr)
-         .lte('created_at', endStr + 'T23:59:59');
+       const feeDeductionsData = await fetchAllPaginated<any>(
+         () => supabase
+           .from('wallet_fee_deductions')
+           .select('fee_usdt_amount')
+           .gte('created_at', startStr)
+           .lte('created_at', endStr + 'T23:59:59')
+       );
 
        const { data: conversionFeesData } = await supabase
          .from('erp_product_conversions')

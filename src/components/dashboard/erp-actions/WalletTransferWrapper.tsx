@@ -87,6 +87,12 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
 
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
 
+      // Fetch and lock market rate for USDT valuation on wallet transactions
+      const locked = await fetchAndLockMarketRate(item.asset, { entryType: 'transfer' });
+      const mktRate = locked.price;
+      const usdtQtyDebit = transferAmount * mktRate;
+      const usdtQtyCredit = (transferAmount - feeAmount) * mktRate;
+
       // Insert transfer transactions — triggers handle balance updates
       const transactions: any[] = [
         {
@@ -97,6 +103,10 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
           description: `ERP Action: Transfer to ${toWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Network fee: ${feeAmount.toFixed(6)} ${item.asset}` : ''}`,
+          market_rate_usdt: mktRate,
+          effective_usdt_qty: usdtQtyDebit,
+          effective_usdt_rate: null,
+          price_snapshot_id: locked.snapshotId || null,
         },
         {
           wallet_id: toWalletId,
@@ -106,6 +116,10 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           reference_type: "WALLET_TRANSFER",
           reference_id: refId,
           description: `ERP Action: Transfer from ${fromWalletLabel} (${item.movement_type} reconciliation)${feeAmount > 0 ? ` | Net after ${feeAmount.toFixed(6)} ${item.asset} network fee` : ''}`,
+          market_rate_usdt: mktRate,
+          effective_usdt_qty: usdtQtyCredit,
+          effective_usdt_rate: null,
+          price_snapshot_id: locked.snapshotId || null,
         },
       ];
 

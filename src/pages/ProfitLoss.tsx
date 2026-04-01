@@ -327,12 +327,12 @@ export default function ProfitLoss() {
        
        // Calculate Effective Purchase Rate
        // Formula: Total Purchase Amount (INR) / (Total Quantity Purchased - Total USDT Fees)
-       const netPurchaseQty = totalPurchaseQtyUsdtEquiv - totalUsdtFees;
+       const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
        let effectivePurchaseRate: number | null = null;
        
-       if (totalPurchaseQtyUsdtEquiv > 0 && netPurchaseQty > 0) {
+       if (totalPurchaseQty > 0 && netPurchaseQty > 0) {
           effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
-        } else if (netPurchaseQty <= 0 && totalPurchaseQtyUsdtEquiv > 0) {
+        } else if (netPurchaseQty <= 0 && totalPurchaseQty > 0) {
          // Fees exceed or equal purchased quantity - edge case
          effectivePurchaseRate = null;
        }

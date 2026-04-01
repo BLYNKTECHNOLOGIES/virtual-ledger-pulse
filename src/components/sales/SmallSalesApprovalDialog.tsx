@@ -85,6 +85,13 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       const selectedMethod = paymentMethods?.find(m => m.id === paymentMethodId);
       const isGateway = selectedMethod?.payment_gateway === true;
 
+      // Compute effective USDT qty and rate
+      const ssEffRate = marketRate && marketRate > 0 ? marketRate : 1;
+      const ssQty = Number(record.total_quantity || 0);
+      const ssTotalAmt = Number(record.total_amount || 0);
+      const ssEffUsdtQty = ssQty * ssEffRate;
+      const ssEffUsdtRate = ssEffUsdtQty > 0 ? ssTotalAmt / ssEffUsdtQty : null;
+
       // Create sales order
       const { data: salesOrder, error: soErr } = await supabase
         .from('sales_orders')
@@ -110,6 +117,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           sale_type: 'small_sale',
           description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
           market_rate_usdt: marketRate,
+          effective_usdt_qty: ssEffUsdtQty,
+          effective_usdt_rate: ssEffUsdtRate,
         })
         .select('id')
         .single();

@@ -462,6 +462,13 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         const rawCommission = Number(od.commission || 0);
         const feeUsdt = asset === 'USDT' ? rawCommission : rawCommission * (marketRateUsdt > 0 ? marketRateUsdt : 0);
 
+        const grossQtyForUsdt = parseFloat(od.amount) || 0;
+        const commissionForUsdt = parseFloat(od.commission) || 0;
+        const netQtyForUsdt = grossQtyForUsdt - commissionForUsdt;
+        const effectiveRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
+        const effectiveUsdtQty = netQtyForUsdt * effectiveRate;
+        const effectiveUsdtRate = effectiveUsdtQty > 0 ? totalAmount / effectiveUsdtQty : null;
+
         await supabase
           .from('purchase_orders')
           .update({
@@ -469,6 +476,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
+            effective_usdt_qty: effectiveUsdtQty,
+            effective_usdt_rate: effectiveUsdtRate,
           })
           .eq('id', result.purchase_order_id);
 

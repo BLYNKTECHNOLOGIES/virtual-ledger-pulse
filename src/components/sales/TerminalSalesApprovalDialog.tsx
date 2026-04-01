@@ -413,6 +413,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         // Sales order already exists from a previous partial approval — reuse it
         salesOrder = existingSO;
       } else {
+        const tsEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
+        const tsEffUsdtQty = quantity * tsEffRate;
+        const tsEffUsdtRate = tsEffUsdtQty > 0 ? totalAmount / tsEffUsdtQty : null;
+
         const { data: newSO, error: soErr } = await supabase
           .from('sales_orders')
           .insert({
@@ -440,6 +444,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             source: 'terminal',
             terminal_sync_id: syncRecord.id,
             market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
+            effective_usdt_qty: tsEffUsdtQty,
+            effective_usdt_rate: tsEffUsdtRate,
           })
           .select('id')
           .single();

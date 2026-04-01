@@ -244,12 +244,20 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
         const rawFee = totalFee;
         const feeUsdt = assetCode === 'USDT' ? rawFee : rawFee * (marketRate > 0 ? marketRate : 0);
 
+        const sbEffRate = marketRate > 0 ? marketRate : 1;
+        const sbQty = Number(record.total_quantity || 0);
+        const sbTotalAmt = Number(record.total_amount || 0);
+        const sbEffUsdtQty = sbQty * sbEffRate;
+        const sbEffUsdtRate = sbEffUsdtQty > 0 ? sbTotalAmt / sbEffUsdtQty : null;
+
         await supabase
           .from('purchase_orders')
           .update({
             source: 'terminal_small_buys',
             market_rate_usdt: marketRate > 0 ? marketRate : null,
             fee_amount: feeUsdt > 0 ? feeUsdt : null,
+            effective_usdt_qty: sbEffUsdtQty,
+            effective_usdt_rate: sbEffUsdtRate,
           })
           .eq('id', result.purchase_order_id);
       }

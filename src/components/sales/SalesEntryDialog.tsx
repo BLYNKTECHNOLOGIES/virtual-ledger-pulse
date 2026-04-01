@@ -178,6 +178,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       const assetCode = selectedProd?.code?.toUpperCase() || 'USDT';
       const marketRateUsdt = await fetchCoinMarketRate(assetCode);
       
+      const seEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
+      const seEffUsdtQty = data.quantity * seEffRate;
+      const seEffUsdtRate = seEffUsdtQty > 0 ? data.total_amount / seEffUsdtQty : null;
+
       const { data: result, error } = await supabase
         .from('sales_orders')
         .insert([{
@@ -198,6 +202,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           is_off_market: data.is_off_market || false,
           created_by: createdBy,
           market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
+          effective_usdt_qty: seEffUsdtQty,
+          effective_usdt_rate: seEffUsdtRate,
         }])
         .select()
         .single();

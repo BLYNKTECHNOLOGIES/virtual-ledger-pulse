@@ -52,7 +52,9 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
   // Fetch live CoinUSDT rate for non-USDT assets
   useEffect(() => {
     if (open && isNonUsdt) {
-      fetchCoinMarketRate(assetCode).then(rate => setCoinUsdtRate(rate));
+      fetchAndLockMarketRate(assetCode, { entryType: 'small_buys_preview' })
+        .then(locked => setCoinUsdtRate(locked.price))
+        .catch(() => setCoinUsdtRate(null));
     } else if (!isNonUsdt) {
       setCoinUsdtRate(1.0);
     }

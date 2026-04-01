@@ -70,7 +70,7 @@ export default function AdManager() {
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSelectedAdvNos(new Set()); };
 
   return (
-    <PermissionGate permissions={["terminal_view"]}>
+    const content = (
     <div className="space-y-6 p-4 md:p-6">
       {/* Rest Timer Banner — visible to all when active */}
       <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />

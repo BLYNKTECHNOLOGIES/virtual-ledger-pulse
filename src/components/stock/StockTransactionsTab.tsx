@@ -893,6 +893,12 @@ export function StockTransactionsTab() {
                           })} ${entry.products?.unit_of_measurement}`;
                         })()}
                       </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-sm">
+                        {entry.market_rate_usdt ? parseFloat(entry.market_rate_usdt).toLocaleString('en-IN', { maximumFractionDigits: 6 }) : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-sm">
+                        {entry.effective_usdt_qty ? parseFloat(entry.effective_usdt_qty).toLocaleString('en-IN', { maximumFractionDigits: 6 }) : '-'}
+                      </td>
                       <td className="py-3 px-4">
                         {entry.wallet_name ? (
                           <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">

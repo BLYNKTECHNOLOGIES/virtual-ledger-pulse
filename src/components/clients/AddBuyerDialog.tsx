@@ -171,12 +171,31 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
 
     setIsSubmitting(true);
 
-    // Check for duplicates before inserting
+    // Hard-block on duplicate phone number
+    const trimmedPhone = formData.phone.trim();
+    if (trimmedPhone && trimmedPhone.length >= 10) {
+      try {
+        const phoneDupes = await checkPhoneUniqueness(trimmedPhone);
+        if (phoneDupes.length > 0) {
+          toast({
+            title: "Duplicate Phone Number",
+            description: `This phone number is already assigned to: ${phoneDupes.map(d => `${d.name} (${d.client_id})`).join(', ')}`,
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Phone uniqueness check failed:', e);
+      }
+    }
+
+    // Check for name duplicates (soft warning, dismissable)
     if (!duplicateAcknowledged) {
       try {
-        const dupes = await checkClientDuplicates(formData.name, formData.phone);
-        if (dupes.phoneMatches.length > 0 || dupes.nameMatches.length > 0) {
-          setDuplicateWarning(dupes);
+        const dupes = await checkClientDuplicates(formData.name, null);
+        if (dupes.nameMatches.length > 0) {
+          setDuplicateWarning({ phoneMatches: [], nameMatches: dupes.nameMatches });
           setIsSubmitting(false);
           return;
         }

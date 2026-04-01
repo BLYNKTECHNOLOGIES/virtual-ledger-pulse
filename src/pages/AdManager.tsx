@@ -69,8 +69,7 @@ export default function AdManager() {
   // Clear selection on tab change
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSelectedAdvNos(new Set()); };
 
-  return (
-    const content = (
+  const content = (
     <div className="space-y-6 p-4 md:p-6">
       {/* Rest Timer Banner — visible to all when active */}
       <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />

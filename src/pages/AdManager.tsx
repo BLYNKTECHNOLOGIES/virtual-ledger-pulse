@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PermissionGate } from '@/components/PermissionGate';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,8 @@ import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 export default function AdManager() {
+  const location = useLocation();
+  const isTerminalContext = location.pathname.startsWith('/terminal');
   const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 20 });
   const [activeTab, setActiveTab] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,8 +69,7 @@ export default function AdManager() {
   // Clear selection on tab change
   const handleTabChange = (tab: string) => { setActiveTab(tab); setSelectedAdvNos(new Set()); };
 
-  return (
-    <PermissionGate permissions={["terminal_view"]}>
+  const content = (
     <div className="space-y-6 p-4 md:p-6">
       {/* Rest Timer Banner — visible to all when active */}
       <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
@@ -177,6 +179,8 @@ export default function AdManager() {
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>
-    </PermissionGate>
   );
+
+  if (isTerminalContext) return content;
+  return <PermissionGate permissions={["terminal_view"]}>{content}</PermissionGate>;
 }

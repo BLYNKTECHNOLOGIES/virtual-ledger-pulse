@@ -11,7 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
- import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import { checkPhoneUniqueness } from "@/utils/clientDuplicateCheck";
 
 interface ViewFullProfileDialogProps {
   open: boolean;

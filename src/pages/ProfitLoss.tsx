@@ -325,8 +325,11 @@ export default function ProfitLoss() {
       const avgSalesRate = totalSalesQty > 0 
         ? totalSalesValue / totalSalesQty : 0;
       
-       // Calculate Total USDT Fees (all types)
-       const totalUsdtFees = usdtFeesData?.reduce((sum, fee) => sum + Number(fee.amount), 0) || 0;
+       // Calculate Total USDT Fees from all authoritative sources
+       const feeDeductionsTotal = feeDeductionsData?.reduce((sum, f) => sum + Number(f.fee_usdt_amount || 0), 0) || 0;
+       const conversionFeesTotal = conversionFeesData?.reduce((sum, f) => sum + Number(f.fee_amount || 0), 0) || 0;
+       const transferFeesTotal = transferFeesData?.reduce((sum, f) => sum + Number(f.amount || 0), 0) || 0;
+       const totalUsdtFees = feeDeductionsTotal + conversionFeesTotal + transferFeesTotal;
        
        // Calculate Effective Purchase Rate
        // Formula: Total Purchase Amount (INR) / (Total Quantity Purchased - Total USDT Fees)

@@ -156,6 +156,8 @@ export default function ProfitLoss() {
             quantity,
             price_per_unit,
             client_name,
+            effective_usdt_qty,
+            effective_usdt_rate,
             products:product_id(code)
           `)
           .eq('status', 'COMPLETED')
@@ -163,11 +165,11 @@ export default function ProfitLoss() {
           .lte('order_date', endStr)
       );
 
-      // Convert sales orders to items format (since quantity/price is on the order itself)
+      // Convert sales orders to items format using effective USDT values
       const salesItems = salesOrders?.map(order => ({
         sales_order_id: order.id,
-        quantity: Number(order.quantity) || 0,
-        unit_price: Number(order.price_per_unit) || 0
+        quantity: Number(order.effective_usdt_qty || order.quantity) || 0,
+        unit_price: Number(order.effective_usdt_rate || order.price_per_unit) || 0
       })) || [];
 
       // Fetch completed purchase orders within period - paginated

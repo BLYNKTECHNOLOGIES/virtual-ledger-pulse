@@ -353,7 +353,7 @@ export default function ProfitLoss() {
 
       const periodMetrics: PeriodMetrics = {
         totalPurchaseValue,
-        totalPurchaseQty: totalPurchaseQtyUsdtEquiv,
+        totalPurchaseQty,
         avgPurchaseRate,
         totalSalesValue,
         totalSalesQty,

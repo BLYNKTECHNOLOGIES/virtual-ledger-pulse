@@ -1,159 +1,78 @@
 
 
-## Universal Effective USDT Valuation System
+## Audit: Universal Effective USDT Valuation System — Gap Analysis
 
-### Current State Assessment
+### What IS implemented and working
 
-**What already exists:**
-- `purchase_orders` and `sales_orders` have `market_rate_usdt`, `effective_usdt_qty`, `effective_usdt_rate` columns — populated at entry time across all 6 entry paths (Terminal Purchase/Sales Approval, Small Buys/Sales Approval, Manual Purchase Entry, Manual Sales Entry)
-- `erp_product_conversions` has `market_rate_snapshot`, `fx_rate_to_usdt`, `execution_rate_usdt`, `gross_usd_value`, `net_usdt_change` — already well-covered
-- `fetchCoinMarketRate()` serves as the single price source, fetching from Binance via edge function
-- `useAverageCost` and `ProfitLoss.tsx` already consume effective_usdt fields
-
-**What is missing (gaps to fill):**
-1. **No price snapshot audit table** — prices fetched on-the-fly with no permanent record
-2. **`wallet_transactions` has no USDT valuation columns** — transfers, adjustments, fee deductions have no USDT layer
-3. **`wallet_fee_deductions` has `fee_usdt_amount`** but no `market_rate_usdt` snapshot or timestamp
-4. **No immutability enforcement** — effective values can be overwritten via UPDATE
-5. **No fallback blocking** — if `fetchCoinMarketRate` returns 0, entries proceed with rate=1 (silent fallback)
-6. **No batch-level valuation table** for small order approvals
-
----
-
-### Implementation Plan (6 Phases)
-
-#### Phase 1: Price Snapshot Table (Foundation)
-
-Create `price_snapshots` table to record every price fetch used in a transaction:
-
-```text
-price_snapshots
-├── id (uuid PK)
-├── asset_code (text, NOT NULL)
-├── usdt_price (numeric, NOT NULL)  -- asset price in USDT
-├── source (text)                    -- 'Binance', 'CoinGecko', 'Manual'
-├── fetched_at (timestamptz)
-├── entry_type (text)                -- 'purchase_approval', 'sales_entry', 'transfer', 'conversion', 'batch_approval'
-├── reference_id (uuid, nullable)    -- FK to the order/transaction that used this price
-├── reference_type (text)            -- 'purchase_order', 'sales_order', 'wallet_transaction', 'conversion'
-├── requested_by (uuid, nullable)    -- user who triggered the fetch
-```
-
-Modify `fetchCoinMarketRate()` to return a richer object `{ price, source, timestamp }` and create a helper `persistPriceSnapshot()` that inserts into this table after every successful fetch.
-
-#### Phase 2: Add USDT Valuation Columns to `wallet_transactions`
-
-Add columns to `wallet_transactions`:
-
-```text
-+ market_rate_usdt (numeric, nullable)
-+ effective_usdt_qty (numeric, nullable)
-+ effective_usdt_rate (numeric, nullable)
-+ price_snapshot_id (uuid, nullable FK → price_snapshots)
-```
-
-Update all wallet transaction insertion points:
-- `WalletTransferWrapper.tsx` — internal transfers
-- `SalesOrderDialog.tsx` — fee deduction wallet transactions
-- Manual adjustment RPCs
-- Purchase approval deposit reconciliation
-
-Each insertion computes `effective_usdt_qty = amount × market_rate_usdt` and stores alongside.
-
-#### Phase 3: Standardize Price Fetch with Blocking Fallback
-
-Refactor `fetchCoinMarketRate` into a new utility `fetchAndLockMarketRate()`:
-
-```typescript
-interface LockedMarketRate {
-  price: number;         // asset price in USDT
-  source: string;        // 'Binance', 'CoinGecko'
-  timestamp: Date;
-  snapshotId?: string;   // UUID after persistence
-}
-```
-
-**Rules enforced:**
-- If price returns 0 or null → throw error (block entry) unless user explicitly provides manual override
-- Manual override sets `calculation_mode = 'MANUAL_OVERRIDE'` with audit flag
-- All 6 entry dialogs updated to use this function instead of raw `fetchCoinMarketRate`
-
-#### Phase 4: Immutability Enforcement (Database Trigger)
-
-Create a trigger `protect_effective_usdt_values` on both `purchase_orders` and `sales_orders`:
-
-```sql
--- Once effective_usdt_qty and effective_usdt_rate are set (non-null),
--- prevent any UPDATE from changing them
--- Corrections must use adjustment entries
-CREATE TRIGGER protect_effective_usdt_immutability
-BEFORE UPDATE ON purchase_orders
-FOR EACH ROW
-WHEN (OLD.effective_usdt_qty IS NOT NULL)
-EXECUTE FUNCTION prevent_effective_usdt_modification();
-```
-
-The function allows updates to other columns but raises an exception if `effective_usdt_qty` or `effective_usdt_rate` values change.
-
-#### Phase 5: Batch Valuation Table
-
-Create `batch_usdt_valuations` for small order approvals:
-
-```text
-batch_usdt_valuations
-├── id (uuid PK)
-├── batch_id (text, NOT NULL)       -- e.g., 'SB-20260401-001'
-├── batch_type (text)               -- 'small_buys', 'small_sales'
-├── asset_code (text)
-├── total_inr_value (numeric)
-├── total_asset_qty (numeric)
-├── market_rate_usdt (numeric)
-├── aggregated_usdt_qty (numeric)
-├── effective_usdt_rate (numeric)   -- total_inr / aggregated_usdt_qty
-├── strategy (text DEFAULT 'AGGREGATE')  -- 'AGGREGATE' or 'INDIVIDUAL'
-├── order_id (uuid, FK → purchase_orders/sales_orders)
-├── price_snapshot_id (uuid, FK → price_snapshots)
-├── created_at (timestamptz)
-├── created_by (uuid)
-```
-
-Update `SmallBuysApprovalDialog` and `SmallSalesApprovalDialog` to insert into this table alongside order creation.
-
-#### Phase 6: Downstream Consumption Audit
-
-Verify all ERP modules read from `effective_usdt_qty` / `effective_usdt_rate`:
-- `ProfitLoss.tsx` — already uses them ✓
-- `useAverageCost.tsx` — already uses them ✓
-- `PlatformFeesSummary.tsx` — needs update to use USDT-normalized fee values
-- `StockTransactionsTab.tsx` — needs to display USDT valuation from wallet_transactions
-- Holdings/Dashboard panels — ensure valuation uses effective fields not raw quantity
+| Requirement | Status | Details |
+|---|---|---|
+| `price_snapshots` table | DONE | Created with asset_code, usdt_price, source, fetched_at, entry_type, reference_id, reference_type, requested_by |
+| `batch_usdt_valuations` table | DONE | Created with all required fields including strategy column |
+| `wallet_transactions` USDT columns | DONE | market_rate_usdt, effective_usdt_qty, effective_usdt_rate, price_snapshot_id added |
+| `wallet_fee_deductions` USDT columns | DONE | market_rate_usdt_snapshot, price_fetched_at added |
+| Immutability triggers | DONE | `protect_po_effective_usdt` and `protect_so_effective_usdt` on purchase_orders/sales_orders |
+| `effectiveUsdtEngine.ts` | DONE | fetchAndLockMarketRate, computeEffectiveUsdt, linkSnapshotToReference, persistBatchValuation |
+| Blocking fallback | DONE | Throws error if price=0 and no manual override |
+| Terminal Purchase Approval | DONE | Uses fetchAndLockMarketRate |
+| Terminal Sales Approval | DONE | Uses fetchAndLockMarketRate |
+| Manual Purchase Entry | DONE | Uses fetchAndLockMarketRate |
+| Manual Sales Entry (SalesEntryDialog) | DONE | Uses fetchAndLockMarketRate |
+| Small Buys Approval | DONE | Uses fetchAndLockMarketRate + persistBatchValuation |
+| Small Sales Approval | DONE | Uses fetchAndLockMarketRate + persistBatchValuation |
+| Wallet Transfers | DONE | Uses fetchAndLockMarketRate, stores USDT columns on wallet_transactions |
+| P&L (ProfitLoss.tsx) | DONE | Uses effective_usdt_qty/rate from orders |
+| useAverageCost | DONE | Uses effective_usdt_qty from purchase_orders |
 
 ---
 
-### Files to Create/Modify
+### Gaps Found (6 items)
 
-| File | Action |
-|------|--------|
-| New migration | Create `price_snapshots` table |
-| New migration | Add USDT columns to `wallet_transactions` |
-| New migration | Create `batch_usdt_valuations` table |
-| New migration | Create `protect_effective_usdt_immutability` trigger on purchase_orders + sales_orders |
-| `src/hooks/useCoinMarketRate.tsx` | Refactor to return `LockedMarketRate`, add `persistPriceSnapshot()` |
-| `src/lib/effectiveUsdtEngine.ts` | New — centralized compute + persist logic for effective USDT values |
-| `src/components/purchase/TerminalPurchaseApprovalDialog.tsx` | Use new engine |
-| `src/components/purchase/ManualPurchaseEntryDialog.tsx` | Use new engine |
-| `src/components/purchase/SmallBuysApprovalDialog.tsx` | Use new engine + batch table |
-| `src/components/sales/TerminalSalesApprovalDialog.tsx` | Use new engine |
-| `src/components/sales/SalesEntryDialog.tsx` | Use new engine |
-| `src/components/sales/SmallSalesApprovalDialog.tsx` | Use new engine + batch table |
-| `src/components/dashboard/erp-actions/WalletTransferWrapper.tsx` | Add USDT valuation to wallet_transactions inserts |
-| `src/components/financials/PlatformFeesSummary.tsx` | Read USDT-normalized values |
-| Backfill migration | Populate `effective_usdt_qty/rate` on historical `wallet_transactions` where possible |
+#### Gap 1: Missing UPDATE RLS policy on `price_snapshots`
+`linkSnapshotToReference()` calls `.update()` on `price_snapshots` but only SELECT and INSERT policies exist. This silently fails — snapshot-to-order linkage is broken.
 
-### Edge Cases Handled
-- **Partial fills**: Each fill gets its own price snapshot; effective values computed per-fill
-- **Fee deductions**: Fee USDT amount derived from same locked market rate as parent order
-- **Reversals/cancellations**: Create counter-entry with same effective rate (no re-fetch)
-- **Slippage**: Actual execution rate stored separately from market snapshot; variance calculable
-- **Multi-leg trades** (INR→BTC→ETH via conversions): Each leg has independent USDT snapshot
+**Fix:** Add UPDATE policy for authenticated users on `price_snapshots`.
+
+#### Gap 2: `wallet_fee_deductions` inserts do NOT populate new USDT snapshot columns
+Both `TerminalSalesApprovalDialog` (line 486-501) and `SalesOrderDialog` (line 272-287) insert into `wallet_fee_deductions` but never set `market_rate_usdt_snapshot` or `price_fetched_at`. The columns exist in the DB but are always NULL.
+
+**Fix:** Pass the locked market rate and timestamp into fee deduction inserts in both dialogs.
+
+#### Gap 3: `SalesOrderDialog.tsx` still uses raw logic instead of `effectiveUsdtEngine`
+`SalesOrderDialog` (the ERP manual sales dialog) does NOT import or use `fetchAndLockMarketRate`. It computes fee values using `orderData.usdtRate` but doesn't persist a price snapshot or link to one.
+
+**Fix:** Integrate `fetchAndLockMarketRate` into `SalesOrderDialog` for fee deduction USDT valuation and snapshot persistence.
+
+#### Gap 4: `PlatformFeesSummary.tsx` does NOT use stored USDT layer
+It falls back to live `useUSDTRate()` for INR conversion instead of reading the stored `market_rate_usdt_snapshot` from `wallet_fee_deductions`. This contradicts the "no recalculation" rule — fees should use the rate locked at entry time.
+
+**Fix:** Prioritize `market_rate_usdt_snapshot` in the `getFeeINR()` fallback chain.
+
+#### Gap 5: `StockTransactionsTab.tsx` does NOT display USDT valuation
+The stock transactions view shows raw amounts but has no USDT valuation columns. Since `wallet_transactions` now has `effective_usdt_qty` and `market_rate_usdt`, these should be displayed.
+
+**Fix:** Add USDT valuation columns to the StockTransactionsTab table display.
+
+#### Gap 6: No backfill of historical `wallet_transactions`
+The plan called for a backfill migration to populate `effective_usdt_qty/rate` on historical wallet_transactions. This was never executed. Old records have NULL USDT values.
+
+**Fix:** Run a backfill UPDATE on wallet_transactions where effective_usdt_qty IS NULL, computing from amount and a best-estimate market rate (1.0 for USDT assets, or from the related order's market_rate_usdt).
+
+---
+
+### Implementation Steps
+
+1. **Migration: Add UPDATE RLS policy on `price_snapshots`** and backfill historical `wallet_transactions`
+2. **SalesOrderDialog.tsx** — Import and use `fetchAndLockMarketRate`, populate `market_rate_usdt_snapshot` + `price_fetched_at` on fee deduction insert
+3. **TerminalSalesApprovalDialog.tsx** — Add `market_rate_usdt_snapshot` and `price_fetched_at` to fee deduction insert (market rate is already fetched as `marketRateUsdt`)
+4. **PlatformFeesSummary.tsx** — Update `getFeeINR()` to prioritize `market_rate_usdt_snapshot` over live rate
+5. **StockTransactionsTab.tsx** — Display `market_rate_usdt` and `effective_usdt_qty` columns from wallet_transactions query
+
+### Files to modify
+| File | Change |
+|---|---|
+| New migration | UPDATE policy on price_snapshots; backfill wallet_transactions |
+| `src/components/sales/SalesOrderDialog.tsx` | Use effectiveUsdtEngine for fee deductions |
+| `src/components/sales/TerminalSalesApprovalDialog.tsx` | Populate market_rate_usdt_snapshot on fee insert |
+| `src/components/financials/PlatformFeesSummary.tsx` | Prioritize stored snapshot rate in getFeeINR |
+| `src/components/stock/StockTransactionsTab.tsx` | Show USDT valuation columns |
 

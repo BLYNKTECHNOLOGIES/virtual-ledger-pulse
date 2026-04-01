@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAverageCost } from "@/hooks/useAverageCost";
 
 export function StockReportsTab() {
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30));

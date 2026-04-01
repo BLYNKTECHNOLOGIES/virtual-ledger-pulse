@@ -272,13 +272,6 @@ export default function ProfitLoss() {
          .lte('created_at', endStr + 'T23:59:59');
 
 
-       // Fetch daily gross profit snapshots — these are the SOURCE OF TRUTH for P&L
-       // because they capture the actual WAC cost basis at time of each sale
-       const { data: dailySnapshots } = await supabase
-         .from('daily_gross_profit_history')
-         .select('gross_profit, total_sales_qty, avg_sales_rate, effective_purchase_rate')
-         .gte('snapshot_date', startStr)
-         .lte('snapshot_date', endStr);
 
 
        let usdtInrRate = 84.5; // fallback
@@ -287,44 +280,35 @@ export default function ProfitLoss() {
          if (rateData?.rate) usdtInrRate = rateData.rate;
        } catch (err) { console.warn('[ProfitLoss] Failed to fetch USDT rate:', err); }
 
-      // Calculate period-based metrics
-      // For "All Assets" mode, convert non-USDT purchases to USDT-equivalent:
-      // If market_rate_usdt is stored on the purchase order, use it for conversion
-      // Otherwise fall back to WAC from wallet_asset_positions
+      // Calculate period-based purchase metrics
+      // For "All Assets" mode: use ONLY USDT purchases for avg purchase rate,
+      // because all sales are in USDT. Non-USDT purchases are inventory that
+      // becomes USDT through conversions — they shouldn't inflate the COGS denominator.
+      // For specific asset filter: use that asset's purchases directly.
       let totalPurchaseValue = 0;
-      let totalPurchaseQtyUsdtEquiv = 0;
+      let totalPurchaseQty = 0;
 
       purchaseItems.forEach((item: any) => {
         const assetCode = item.products?.code || 'USDT';
         const qty = item.quantity;
         const unitPriceInr = item.unit_price;
 
-        // Find the parent purchase order for this item to get market_rate_usdt
-        const parentOrder = purchaseOrders?.find((po: any) => po.id === item.purchase_order_id);
-        const storedMarketRate = parentOrder?.market_rate_usdt ? Number(parentOrder.market_rate_usdt) : null;
-
-        if (assetCode === 'USDT' || selectedAsset !== 'all') {
-          // USDT or specific asset filter: use raw values
-          totalPurchaseValue += qty * unitPriceInr;
-          totalPurchaseQtyUsdtEquiv += qty;
-        } else {
-          // Non-USDT in "All Assets" mode: convert to USDT-equivalent
-          // Prefer stored market_rate_usdt (snapshot at purchase time), fall back to WAC
-          const conversionRate = storedMarketRate && storedMarketRate > 0
-            ? storedMarketRate
-            : assetUsdtRates[assetCode];
-
-          if (conversionRate && conversionRate > 0) {
-            const usdtEquivQty = qty * conversionRate;
-            totalPurchaseValue += qty * unitPriceInr; // INR spent is the same
-            totalPurchaseQtyUsdtEquiv += usdtEquivQty;
+        if (selectedAsset === 'all') {
+          // "All Assets" mode: only count USDT purchases for rate calculation
+          // (matches daily snapshot logic — sales are all USDT)
+          if (assetCode === 'USDT') {
+            totalPurchaseValue += qty * unitPriceInr;
+            totalPurchaseQty += qty;
           }
-          // Skip assets with no known USDT rate to avoid distortion
+        } else {
+          // Specific asset filter: use that asset's raw values
+          totalPurchaseValue += qty * unitPriceInr;
+          totalPurchaseQty += qty;
         }
       });
 
-      const avgPurchaseRate = totalPurchaseQtyUsdtEquiv > 0 
-        ? totalPurchaseValue / totalPurchaseQtyUsdtEquiv : 0;
+      const avgPurchaseRate = totalPurchaseQty > 0 
+        ? totalPurchaseValue / totalPurchaseQty : 0;
       
       const totalSalesValue = salesItems.reduce(
         (sum, item) => sum + (item.quantity * item.unit_price), 0
@@ -343,12 +327,12 @@ export default function ProfitLoss() {
        
        // Calculate Effective Purchase Rate
        // Formula: Total Purchase Amount (INR) / (Total Quantity Purchased - Total USDT Fees)
-       const netPurchaseQty = totalPurchaseQtyUsdtEquiv - totalUsdtFees;
+       const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
        let effectivePurchaseRate: number | null = null;
        
-       if (totalPurchaseQtyUsdtEquiv > 0 && netPurchaseQty > 0) {
+       if (totalPurchaseQty > 0 && netPurchaseQty > 0) {
           effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
-        } else if (netPurchaseQty <= 0 && totalPurchaseQtyUsdtEquiv > 0) {
+        } else if (netPurchaseQty <= 0 && totalPurchaseQty > 0) {
          // Fees exceed or equal purchased quantity - edge case
          effectivePurchaseRate = null;
        }
@@ -369,7 +353,7 @@ export default function ProfitLoss() {
 
       const periodMetrics: PeriodMetrics = {
         totalPurchaseValue,
-        totalPurchaseQty: totalPurchaseQtyUsdtEquiv,
+        totalPurchaseQty,
         avgPurchaseRate,
         totalSalesValue,
         totalSalesQty,

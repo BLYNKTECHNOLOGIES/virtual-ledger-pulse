@@ -435,7 +435,7 @@ const router = createBrowserRouter([
           <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
-                <AdManager />
+                <TerminalAdManager />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

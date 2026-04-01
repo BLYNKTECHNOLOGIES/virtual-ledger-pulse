@@ -210,7 +210,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         sync_status: syncStatus,
         order_data: {
           order_number: order.order_number,
-          asset: order.asset || 'USDT',
+          asset: ((order.seller_payment_details as any)?._raw_detail?.asset || order.asset || 'USDT').toUpperCase(),
           amount: order.amount,
           total_price: order.total_price,
           unit_price: order.unit_price,

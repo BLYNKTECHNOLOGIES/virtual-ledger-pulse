@@ -265,12 +265,16 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const commission = parseFloat(order.commission || '0') > 0 ? order.commission : (raw.commission || order.commission);
     const payMethod = order.pay_method_name || raw.payType || null;
 
+    // Asset resolution: prefer raw_detail (direct from Binance API response) over cached DB field
+    // This prevents wrong-asset entries when the DB cache has stale/default values
+    const resolvedAsset = (raw.asset || order.asset || 'USDT').toUpperCase();
+
     toInsert.push({
       binance_order_number: order.order_number,
       sync_status: syncStatus,
       order_data: {
         order_number: order.order_number,
-        asset: order.asset || raw.asset || 'USDT',
+        asset: resolvedAsset,
         amount,
         total_price: totalPrice,
         unit_price: unitPrice,

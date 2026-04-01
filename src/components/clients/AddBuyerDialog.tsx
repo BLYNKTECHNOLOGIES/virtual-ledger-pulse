@@ -11,7 +11,7 @@ import { Step2KYCDocuments } from "./steps/Step2KYCDocuments";
 import { Step3BankAccounts } from "./steps/Step3BankAccounts";
 import { Step4OperatorNotes } from "./steps/Step4OperatorNotes";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { checkClientDuplicates, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
+import { checkClientDuplicates, checkPhoneUniqueness, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
 
 interface AddBuyerDialogProps {
   open: boolean;

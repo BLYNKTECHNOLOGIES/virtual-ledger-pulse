@@ -18,6 +18,7 @@ export function StockReportsTab() {
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [reportType, setReportType] = useState<string>("all");
   const [walletFilter, setWalletFilter] = useState<string>("all");
+  const { data: averageCosts } = useAverageCost();
 
   const { data: wallets } = useQuery({
     queryKey: ['wallets_for_reports'],

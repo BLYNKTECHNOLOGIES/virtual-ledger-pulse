@@ -33,13 +33,13 @@ export default function ClientDetail() {
 
   // Fetch buy orders count - exclude cancelled
   const { data: buyOrdersCount } = useQuery({
-    queryKey: ['client-buy-orders-count', clientId, client?.name, client?.phone],
+    queryKey: ['client-buy-orders-count', clientId],
     queryFn: async () => {
       if (!clientId || !client) return 0;
       const { count, error } = await supabase
         .from('sales_orders')
         .select('id', { count: 'exact', head: true })
-        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
+        .eq('client_id', clientId)
         .neq('status', 'CANCELLED');
       
       if (error) throw error;

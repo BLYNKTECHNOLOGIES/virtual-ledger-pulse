@@ -59,12 +59,14 @@ export function TerminalSalesSyncTab() {
       // Fetch small sales config to exclude small-range orders from terminal sync view
       const smallConfig = await getSmallSalesConfig();
 
-      // Filter: orders within 7-day window, excluding small sales range
+      // Filter: for approved/rejected show last 7 days; for pending statuses show ALL (no time cutoff)
+      const PENDING_STATUSES = ['synced_pending_approval', 'client_mapping_pending'];
       const filtered = (data || []).filter(r => {
         const od = r.order_data as any;
         const createTime = Number(od?.create_time || 0);
-        // Allow legacy records with no create_time; filter out very old ones
-        if (createTime > 0 && createTime < cutoffTime) return false;
+        // Never hide pending records — they need action regardless of age
+        const isPending = PENDING_STATUSES.includes(r.sync_status);
+        if (!isPending && createTime > 0 && createTime < cutoffTime) return false;
 
         // Exclude orders in small sales range — they belong in Small Sales tab
         if (smallConfig?.is_enabled) {

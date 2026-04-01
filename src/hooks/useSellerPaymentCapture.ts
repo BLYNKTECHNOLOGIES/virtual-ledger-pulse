@@ -10,6 +10,26 @@ import { supabase } from "@/integrations/supabase/client";
 
 const ACTIVE_STATUSES = ['PENDING', 'TRADING', 'BUYER_PAYED', 'DISTRIBUTING'];
 
+// Only these Binance pay types correspond to actual bank transfers
+const ALLOWED_PAY_TYPES = new Set([
+  'imps', 'impspan', 'bankindia', 'banktransfer', 'banktransferindia',
+]);
+
+function normalizePayType(payType: string): string {
+  return payType.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isAllowedBankPayType(payType: string, identifier: string): boolean {
+  if (payType && ALLOWED_PAY_TYPES.has(normalizePayType(payType))) return true;
+  if (identifier && ALLOWED_PAY_TYPES.has(normalizePayType(identifier))) return true;
+  return false;
+}
+
+function isUpiAccount(accountNo: string): boolean {
+  // Contains @ (standard UPI) or identifier/payType is UPI
+  return accountNo.includes('@');
+}
+
 interface SellerPaymentInfo {
   accountNo?: string;
   accountName?: string;
@@ -212,7 +232,10 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
 
         // Auto-upsert into beneficiary_records so it appears immediately
         // Don't wait for order approval — Binance strips details after completion
-        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4 && !paymentInfo.accountNo.includes('@')) {
+        // Only allow bank transfer methods — skip UPI, wallets, etc.
+        const isBankTransfer = isAllowedBankPayType(paymentInfo?.payType || '', paymentInfo?.identifier || '');
+        const isNotUpi = !isUpiAccount(paymentInfo?.accountNo || '');
+        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4 && isBankTransfer && isNotUpi) {
           try {
             await supabase.rpc('upsert_beneficiary_record' as any, {
               p_account_number: paymentInfo.accountNo.trim(),

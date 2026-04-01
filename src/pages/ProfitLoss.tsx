@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
-import { fetchAllRows } from '@/lib/fetchAllRows';
+import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { GrossProfitHistoryTab } from '@/components/financials/GrossProfitHistoryTab';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';

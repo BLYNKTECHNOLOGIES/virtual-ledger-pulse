@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { GrossProfitHistoryTab } from '@/components/financials/GrossProfitHistoryTab';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
@@ -144,21 +145,23 @@ export default function ProfitLoss() {
       const startStr = computedStartStr;
       const endStr = computedEndStr;
 
-      // Fetch completed sales orders within period - sales have quantity/price directly on the order
-      const { data: salesOrders } = await supabase
-        .from('sales_orders')
-        .select(`
-          id, 
-          total_amount, 
-          order_date,
-          quantity,
-          price_per_unit,
-          client_name,
-          products:product_id(code)
-        `)
-        .eq('status', 'COMPLETED')
-        .gte('order_date', startStr)
-        .lte('order_date', endStr);
+      // Fetch completed sales orders within period - paginated to handle >1000 rows
+      const salesOrders = await fetchAllPaginated<any>(
+        () => supabase
+          .from('sales_orders')
+          .select(`
+            id, 
+            total_amount, 
+            order_date,
+            quantity,
+            price_per_unit,
+            client_name,
+            products:product_id(code)
+          `)
+          .eq('status', 'COMPLETED')
+          .gte('order_date', startStr)
+          .lte('order_date', endStr)
+      );
 
       // Convert sales orders to items format (since quantity/price is on the order itself)
       const salesItems = salesOrders?.map(order => ({
@@ -167,18 +170,20 @@ export default function ProfitLoss() {
         unit_price: Number(order.price_per_unit) || 0
       })) || [];
 
-      // Fetch completed purchase orders within period (date-filtered)
-      const { data: purchaseOrders } = await supabase
-        .from('purchase_orders')
-        .select(`
-          id,
-          order_date,
-          total_amount,
-          market_rate_usdt
-        `)
-        .eq('status', 'COMPLETED')
-        .gte('order_date', startStr)
-        .lte('order_date', endStr);
+      // Fetch completed purchase orders within period - paginated
+      const purchaseOrders = await fetchAllPaginated<any>(
+        () => supabase
+          .from('purchase_orders')
+          .select(`
+            id,
+            order_date,
+            total_amount,
+            market_rate_usdt
+          `)
+          .eq('status', 'COMPLETED')
+          .gte('order_date', startStr)
+          .lte('order_date', endStr)
+      );
 
       // Fetch purchase order items for period purchases
       const periodPurchaseOrderIds = purchaseOrders?.map(order => order.id) || [];

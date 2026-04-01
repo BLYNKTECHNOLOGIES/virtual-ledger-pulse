@@ -53,6 +53,21 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
   const saveChanges = async () => {
     setIsSaving(true);
     try {
+      // Check phone uniqueness before saving
+      const trimmedPhone = editData.phone?.trim();
+      if (trimmedPhone && trimmedPhone.length >= 10) {
+        const dupes = await checkPhoneUniqueness(trimmedPhone, client.id);
+        if (dupes.length > 0) {
+          toast({
+            title: "Duplicate Phone Number",
+            description: `This phone number is already assigned to: ${dupes.map(d => `${d.name} (${d.client_id})`).join(', ')}`,
+            variant: "destructive",
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from("clients")
         .update({

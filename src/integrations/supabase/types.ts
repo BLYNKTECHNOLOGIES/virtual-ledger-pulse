@@ -1051,6 +1051,65 @@ export type Database = {
           },
         ]
       }
+      batch_usdt_valuations: {
+        Row: {
+          aggregated_usdt_qty: number
+          asset_code: string
+          batch_id: string
+          batch_type: string
+          created_at: string | null
+          created_by: string | null
+          effective_usdt_rate: number | null
+          id: string
+          market_rate_usdt: number
+          order_id: string | null
+          price_snapshot_id: string | null
+          strategy: string
+          total_asset_qty: number
+          total_inr_value: number
+        }
+        Insert: {
+          aggregated_usdt_qty?: number
+          asset_code: string
+          batch_id: string
+          batch_type: string
+          created_at?: string | null
+          created_by?: string | null
+          effective_usdt_rate?: number | null
+          id?: string
+          market_rate_usdt: number
+          order_id?: string | null
+          price_snapshot_id?: string | null
+          strategy?: string
+          total_asset_qty?: number
+          total_inr_value?: number
+        }
+        Update: {
+          aggregated_usdt_qty?: number
+          asset_code?: string
+          batch_id?: string
+          batch_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          effective_usdt_rate?: number | null
+          id?: string
+          market_rate_usdt?: number
+          order_id?: string | null
+          price_snapshot_id?: string | null
+          strategy?: string
+          total_asset_qty?: number
+          total_inr_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_usdt_valuations_price_snapshot_id_fkey"
+            columns: ["price_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "price_snapshots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beneficiary_bank_additions: {
         Row: {
           added_at: string
@@ -9544,6 +9603,45 @@ export type Database = {
           },
         ]
       }
+      price_snapshots: {
+        Row: {
+          asset_code: string
+          created_at: string | null
+          entry_type: string | null
+          fetched_at: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          requested_by: string | null
+          source: string | null
+          usdt_price: number
+        }
+        Insert: {
+          asset_code: string
+          created_at?: string | null
+          entry_type?: string | null
+          fetched_at?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          requested_by?: string | null
+          source?: string | null
+          usdt_price: number
+        }
+        Update: {
+          asset_code?: string
+          created_at?: string | null
+          entry_type?: string | null
+          fetched_at?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          requested_by?: string | null
+          source?: string | null
+          usdt_price?: number
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           average_buying_price: number | null
@@ -13174,10 +13272,12 @@ export type Database = {
           fee_usdt_amount: number | null
           gross_amount: number
           id: string
+          market_rate_usdt_snapshot: number | null
           net_amount: number
           order_id: string
           order_number: string
           order_type: string
+          price_fetched_at: string | null
           usdt_rate_used: number | null
           wallet_id: string | null
         }
@@ -13190,10 +13290,12 @@ export type Database = {
           fee_usdt_amount?: number | null
           gross_amount: number
           id?: string
+          market_rate_usdt_snapshot?: number | null
           net_amount: number
           order_id: string
           order_number: string
           order_type: string
+          price_fetched_at?: string | null
           usdt_rate_used?: number | null
           wallet_id?: string | null
         }
@@ -13206,10 +13308,12 @@ export type Database = {
           fee_usdt_amount?: number | null
           gross_amount?: number
           id?: string
+          market_rate_usdt_snapshot?: number | null
           net_amount?: number
           order_id?: string
           order_number?: string
           order_type?: string
+          price_fetched_at?: string | null
           usdt_rate_used?: number | null
           wallet_id?: string | null
         }
@@ -13232,7 +13336,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          effective_usdt_qty: number | null
+          effective_usdt_rate: number | null
           id: string
+          market_rate_usdt: number | null
+          price_snapshot_id: string | null
           reference_id: string | null
           reference_type: string | null
           related_transaction_id: string | null
@@ -13247,7 +13355,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          effective_usdt_qty?: number | null
+          effective_usdt_rate?: number | null
           id?: string
+          market_rate_usdt?: number | null
+          price_snapshot_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
           related_transaction_id?: string | null
@@ -13262,7 +13374,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          effective_usdt_qty?: number | null
+          effective_usdt_rate?: number | null
           id?: string
+          market_rate_usdt?: number | null
+          price_snapshot_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
           related_transaction_id?: string | null
@@ -13275,6 +13391,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_price_snapshot_id_fkey"
+            columns: ["price_snapshot_id"]
+            isOneToOne: false
+            referencedRelation: "price_snapshots"
             referencedColumns: ["id"]
           },
           {

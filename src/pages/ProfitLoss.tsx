@@ -146,8 +146,8 @@ export default function ProfitLoss() {
       const endStr = computedEndStr;
 
       // Fetch completed sales orders within period - paginated to handle >1000 rows
-      const salesOrders = await fetchAllRows<any>(
-        supabase
+      const salesOrders = await fetchAllPaginated<any>(
+        () => supabase
           .from('sales_orders')
           .select(`
             id, 

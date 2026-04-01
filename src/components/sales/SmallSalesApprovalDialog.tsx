@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { requireCurrentUserId } from '@/lib/system-action-logger';
-import { fetchCoinMarketRate } from '@/hooks/useCoinMarketRate';
+import { fetchAndLockMarketRate, linkSnapshotToReference, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 
 interface Props {
@@ -35,7 +35,9 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
   // Fetch live CoinUSDT rate for non-USDT assets
   useEffect(() => {
     if (open && isNonUsdt) {
-      fetchCoinMarketRate(assetCode).then(rate => setCoinUsdtRate(rate));
+      fetchAndLockMarketRate(assetCode, { entryType: 'small_sales_preview' })
+        .then(locked => setCoinUsdtRate(locked.price))
+        .catch(() => setCoinUsdtRate(null));
     }
   }, [open, assetCode, isNonUsdt]);
   const { data: paymentMethods } = useQuery({
@@ -57,12 +59,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       if (!record || !paymentMethodId) throw new Error('Select a payment method');
 
       // Fetch live CoinUSDT rate for non-USDT assets
-      let marketRate: number | null = null;
-      if (isNonUsdt) {
-        marketRate = await fetchCoinMarketRate(assetCode);
-      } else {
-        marketRate = 1.0;
-      }
+      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
+      const marketRate = locked.price;
 
       const userId = await requireCurrentUserId();
 
@@ -135,6 +133,21 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           p_asset_code: record.asset_code,
         });
       }
+
+      // Persist batch valuation record
+      await persistBatchValuation({
+        batchId: orderNumber,
+        batchType: 'small_sales',
+        assetCode,
+        totalInrValue: ssTotalAmt,
+        totalAssetQty: ssQty,
+        marketRateUsdt: marketRate,
+        aggregatedUsdtQty: ssEffUsdtQty,
+        effectiveUsdtRate: ssEffUsdtRate,
+        orderId: salesOrder.id,
+        priceSnapshotId: locked.snapshotId,
+        createdBy: userId,
+      });
 
       // Update sync record
       await supabase

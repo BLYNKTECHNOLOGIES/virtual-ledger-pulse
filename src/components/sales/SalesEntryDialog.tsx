@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
-import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
+import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -176,7 +176,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       // Fetch CoinUSDT market rate at order creation time
       const selectedProd = products?.find((p: any) => p.id === data.product_id);
       const assetCode = selectedProd?.code?.toUpperCase() || 'USDT';
-      const marketRateUsdt = await fetchCoinMarketRate(assetCode);
+      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'manual_sales' });
+      const marketRateUsdt = locked.price;
       
       const seEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
       const seEffUsdtQty = data.quantity * seEffRate;

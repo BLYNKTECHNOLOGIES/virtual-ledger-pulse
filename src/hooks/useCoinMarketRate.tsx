@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 /**
  * Fetches the current CoinUSDT market rate for a given asset code.
  * Returns 1.0 for USDT, fetches live Binance ticker price for other assets.
+ *
+ * NOTE: For new code, prefer `fetchAndLockMarketRate()` from `@/lib/effectiveUsdtEngine`
+ * which also persists an audit snapshot and blocks on zero prices.
  */
 export async function fetchCoinMarketRate(assetCode: string): Promise<number> {
   const code = assetCode?.toUpperCase() || 'USDT';

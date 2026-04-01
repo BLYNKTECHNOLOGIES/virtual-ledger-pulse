@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
-import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
+import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,7 +74,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Fetch live CoinUSDT rate for non-USDT assets
   useEffect(() => {
     if (open && isNonUsdt) {
-      fetchCoinMarketRate(assetCode).then(rate => setCoinUsdtRate(rate));
+      fetchAndLockMarketRate(assetCode, { entryType: 'terminal_purchase_preview' })
+        .then(locked => setCoinUsdtRate(locked.price))
+        .catch(() => setCoinUsdtRate(null));
     } else if (!isNonUsdt) {
       setCoinUsdtRate(1.0);
     }
@@ -456,7 +458,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
         const asset = (od.asset || 'USDT').toUpperCase();
-        const marketRateUsdt = await fetchCoinMarketRate(asset);
+        const locked = await fetchAndLockMarketRate(asset, {
+          entryType: 'purchase_approval',
+          referenceId: result.purchase_order_id,
+          referenceType: 'purchase_order',
+        });
+        const marketRateUsdt = locked.price;
 
         // Calculate fee in USDT equivalent
         const rawCommission = Number(od.commission || 0);

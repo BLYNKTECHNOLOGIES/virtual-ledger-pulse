@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
-import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
+import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -436,7 +436,12 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
 
       // Store market_rate_usdt (CoinUSDT rate at purchase time)
       const selectedProductCode = selectedProduct?.code?.toUpperCase() || 'USDT';
-      const marketRateUsdt = await fetchCoinMarketRate(selectedProductCode);
+      const locked = await fetchAndLockMarketRate(selectedProductCode, {
+        entryType: 'manual_purchase',
+        referenceId: orderId,
+        referenceType: 'purchase_order',
+      });
+      const marketRateUsdt = locked.price;
       {
         const mpEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
         const mpQty = parseFloat(formData.quantity) || 0;

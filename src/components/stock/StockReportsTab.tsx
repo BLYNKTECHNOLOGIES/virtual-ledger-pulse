@@ -157,7 +157,10 @@ export function StockReportsTab() {
 
   const calculateTotalValue = (products: any[]) => {
     return products?.reduce((total, product) => {
-      const avgPrice = product.average_buying_price || product.cost_price || 0;
+      // Use WAC from useAverageCost if available, fallback to stored average_buying_price
+      const productCode = product.code;
+      const wacCost = averageCosts?.find(c => c.product_code === productCode)?.average_cost;
+      const avgPrice = wacCost || product.average_buying_price || product.cost_price || 0;
       return total + (avgPrice * product.current_stock_quantity);
     }, 0) || 0;
   };

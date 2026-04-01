@@ -498,6 +498,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               usdt_rate_used: 0,
               average_buying_price: avgBuyPrice,
               fee_inr_value_at_buying_price: commission * avgBuyPrice,
+              market_rate_usdt_snapshot: marketRateUsdt > 0 ? marketRateUsdt : null,
+              price_fetched_at: new Date().toISOString(),
             });
         }
       }

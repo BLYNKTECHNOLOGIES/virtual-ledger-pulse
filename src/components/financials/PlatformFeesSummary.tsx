@@ -22,18 +22,23 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     if (d.fee_inr_value_at_buying_price && Number(d.fee_inr_value_at_buying_price) > 0) {
       return Number(d.fee_inr_value_at_buying_price);
     }
-    // 2. Calculate from USDT * average buying price if available
     const usdt = Number(d.fee_usdt_amount || 0);
+    // 2. Use stored market rate snapshot (locked at entry time — immutable)
+    const snapshotRate = Number(d.market_rate_usdt_snapshot || 0);
+    if (usdt > 0 && snapshotRate > 0) {
+      return usdt * snapshotRate;
+    }
+    // 3. Calculate from USDT * average buying price if available
     const avgBuy = Number(d.average_buying_price || 0);
     if (usdt > 0 && avgBuy > 0) {
       return usdt * avgBuy;
     }
-    // 3. Calculate from USDT * usdt_rate_used if available
+    // 4. Calculate from USDT * usdt_rate_used if available
     const rateUsed = Number(d.usdt_rate_used || 0);
     if (usdt > 0 && rateUsed > 0) {
       return usdt * rateUsed;
     }
-    // 4. Fallback: USDT * current live rate
+    // 5. Fallback: USDT * current live rate
     if (usdt > 0) {
       return usdt * fallbackRate;
     }

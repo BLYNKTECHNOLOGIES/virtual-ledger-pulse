@@ -272,13 +272,6 @@ export default function ProfitLoss() {
          .lte('created_at', endStr + 'T23:59:59');
 
 
-       // Fetch daily gross profit snapshots — these are the SOURCE OF TRUTH for P&L
-       // because they capture the actual WAC cost basis at time of each sale
-       const { data: dailySnapshots } = await supabase
-         .from('daily_gross_profit_history')
-         .select('gross_profit, total_sales_qty, avg_sales_rate, effective_purchase_rate')
-         .gte('snapshot_date', startStr)
-         .lte('snapshot_date', endStr);
 
 
        let usdtInrRate = 84.5; // fallback

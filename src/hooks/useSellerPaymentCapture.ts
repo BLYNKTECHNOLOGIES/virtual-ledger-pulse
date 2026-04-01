@@ -10,6 +10,26 @@ import { supabase } from "@/integrations/supabase/client";
 
 const ACTIVE_STATUSES = ['PENDING', 'TRADING', 'BUYER_PAYED', 'DISTRIBUTING'];
 
+// Only these Binance pay types correspond to actual bank transfers
+const ALLOWED_PAY_TYPES = new Set([
+  'imps', 'impspan', 'bankindia', 'banktransfer', 'banktransferindia',
+]);
+
+function normalizePayType(payType: string): string {
+  return payType.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function isAllowedBankPayType(payType: string, identifier: string): boolean {
+  if (payType && ALLOWED_PAY_TYPES.has(normalizePayType(payType))) return true;
+  if (identifier && ALLOWED_PAY_TYPES.has(normalizePayType(identifier))) return true;
+  return false;
+}
+
+function isUpiAccount(accountNo: string): boolean {
+  // Contains @ (standard UPI) or identifier/payType is UPI
+  return accountNo.includes('@');
+}
+
 interface SellerPaymentInfo {
   accountNo?: string;
   accountName?: string;

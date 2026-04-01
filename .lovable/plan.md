@@ -1,32 +1,53 @@
 
 
-## Issue: `market_rate_usdt` is 1 on the corrected ETH order
+## Problem
 
-The purchase order `469c0eef` (the ETH order we fixed from USDT) still has `market_rate_usdt = 1`. In the P&L "All Assets" calculation, this means:
+The P&L and other ERP calculations need a standardized USDT-equivalent cost basis for **every** purchase and sales order, regardless of the actual asset (BTC, ETH, BNB, etc.). Currently, `market_rate_usdt` is stored but the derived USDT-equivalent quantity and rate are computed on-the-fly (and inconsistently). This leads to incorrect aggregate metrics.
 
-- 0.255 ETH × 1 = **0.255 USDT-equivalent** (wrong)
-- ₹50,000 INR / 0.255 USDT = **₹195,693 per USDT** contribution to weighted average
+## Solution
 
-The other two ETH orders have `market_rate_usdt` of ~2100, which correctly converts:
-- 0.255 ETH × 2100 = **535 USDT-equivalent**
-- ₹50,000 / 535 = **₹93.46** per USDT contribution (reasonable)
+Add two new columns — `effective_usdt_qty` and `effective_usdt_rate` — to both `purchase_orders` and `sales_orders`. These are computed at entry time and stored permanently, making downstream P&L calculations simple lookups.
 
-This single corrupted rate is pulling the weighted average from ~₹97.19 up to ~₹98.83.
+### Calculation formula
 
-## Fix
+Given: `quantity` (asset qty), `total_amount` (INR), `market_rate_usdt` (asset/USDT price)
 
-Run a migration to correct the `market_rate_usdt` on this purchase order to the actual ETH/USDT rate at the time (~2020, derived from the order's INR price and prevailing USDT/INR rate):
-
-```sql
-UPDATE purchase_orders 
-SET market_rate_usdt = 2020
-WHERE id = '469c0eef-afa1-45fe-bdf2-d02cec8c92e9';
+```text
+effective_usdt_qty  = quantity × market_rate_usdt
+effective_usdt_rate = total_amount / effective_usdt_qty   (INR per USDT-equivalent)
 ```
 
-The value 2020 is derived from: `unit_price_inr / usdt_inr_rate` = `195,693 / 97.3 ≈ 2011`, rounded to align with the market ETH price on that date (other ETH orders show ~2100). We can use the average of the other two ETH orders' rates for accuracy: `(2103.41 + 2100.39) / 2 ≈ 2101.9`.
+For USDT orders: `market_rate_usdt = 1`, so `effective_usdt_qty = quantity` and `effective_usdt_rate = total_amount / quantity` (which equals the INR unit price).
 
-### Technical detail
-- **Table**: `purchase_orders`
-- **Column**: `market_rate_usdt` (stores the asset's USDT price at purchase time, used for multi-asset P&L conversion)
-- **Affected logic**: `ProfitLoss.tsx` line 272 reads this value to convert non-USDT purchases into USDT-equivalent quantities
+---
 
+### Step 1: Database migration
+
+Add columns to both tables:
+
+```sql
+ALTER TABLE purchase_orders
+  ADD COLUMN IF NOT EXISTS effective_usdt_qty numeric,
+  ADD COLUMN IF NOT EXISTS effective_usdt_rate numeric;
+
+ALTER TABLE sales_orders
+  ADD COLUMN IF NOT EXISTS effective_usdt_qty numeric,
+  ADD COLUMN IF NOT EXISTS effective_usdt_rate numeric;
+```
+
+Backfill existing data where `market_rate_usdt` is already stored:
+
+```sql
+UPDATE purchase_orders
+SET effective_usdt_qty  = quantity * COALESCE(market_rate_usdt, 1),
+    effective_usdt_rate = CASE
+      WHEN quantity * COALESCE(market_rate_usdt, 1) > 0
+      THEN total_amount / (quantity * COALESCE(market_rate_usdt, 1))
+      ELSE NULL END
+WHERE effective_usdt_qty IS NULL AND status = 'COMPLETED';
+
+UPDATE sales_orders
+SET effective_usdt_qty  = quantity * COALESCE(market_rate_usdt, 1),
+    effective_usdt_rate = CASE
+      WHEN quantity * COALESCE(market_rate_usdt, 1) > 0
+      THEN total_amount / (quantity * COALESCE(market_rate_usdt,

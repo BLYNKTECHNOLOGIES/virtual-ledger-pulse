@@ -2,52 +2,33 @@
 
 ## Problem
 
-The P&L and other ERP calculations need a standardized USDT-equivalent cost basis for **every** purchase and sales order, regardless of the actual asset (BTC, ETH, BNB, etc.). Currently, `market_rate_usdt` is stored but the derived USDT-equivalent quantity and rate are computed on-the-fly (and inconsistently). This leads to incorrect aggregate metrics.
+The screenshot shows "Insufficient permissions" on the **Ads Manager** page in the terminal. The root cause is a **dual permission gate conflict**:
 
-## Solution
+1. `AdManager.tsx` (shared between ERP and Terminal) wraps content in the **ERP** `PermissionGate` checking `terminal_view`
+2. Shivangi (COO) has all the correct **terminal-module** permissions (`terminal_settings_view`, `terminal_ads_view`, etc.) via `p2p_terminal_role_permissions`
+3. But her ERP role (COO) only has `terminal_destructive` — it's **missing** `terminal_view` and `terminal_manage`
 
-Add two new columns — `effective_usdt_qty` and `effective_usdt_rate` — to both `purchase_orders` and `sales_orders`. These are computed at entry time and stored permanently, making downstream P&L calculations simple lookups.
+The `/terminal/ads` route uses `<AdManager />` directly (not `<TerminalAdManager />`), so the inner ERP gate blocks access even though the terminal-level gate would pass.
 
-### Calculation formula
+## Fix
 
-Given: `quantity` (asset qty), `total_amount` (INR), `market_rate_usdt` (asset/USDT price)
+**Two changes needed:**
 
-```text
-effective_usdt_qty  = quantity × market_rate_usdt
-effective_usdt_rate = total_amount / effective_usdt_qty   (INR per USDT-equivalent)
-```
+### 1. Add missing ERP permissions to COO role
+SQL migration to grant `terminal_view` and `terminal_manage` to the COO role. Any user with terminal access via `p2p_terminal_user_roles` should also have the base ERP `terminal_view` permission to prevent this gate conflict.
 
-For USDT orders: `market_rate_usdt = 1`, so `effective_usdt_qty = quantity` and `effective_usdt_rate = total_amount / quantity` (which equals the INR unit price).
+### 2. Fix the terminal ads route to use TerminalAdManager
+In `App.tsx` line 438, change `<AdManager />` to `<TerminalAdManager />` so the terminal-specific permission gate (`terminal_ads_view`) is used instead of the ERP gate. The `TerminalAdManager` component already exists and wraps `AdManager` in a `TerminalPermissionGate`.
 
----
+Alternatively, modify `AdManager.tsx` to skip the ERP `PermissionGate` when rendered inside a terminal context (detected by checking if `TerminalAuthProvider` is available). This is cleaner long-term.
 
-### Step 1: Database migration
+### 3. Audit other shared pages for the same issue
+Check if any other terminal pages reuse ERP components with ERP-level `PermissionGate` wrappers that would similarly block terminal-only users.
 
-Add columns to both tables:
+### Files to change
+| File | Change |
+|------|--------|
+| New migration | Grant `terminal_view`, `terminal_manage` to COO role |
+| `src/App.tsx` | Use `TerminalAdManager` for `/terminal/ads` route |
+| `src/pages/AdManager.tsx` | Remove or conditionalize the ERP `PermissionGate` wrapper when inside terminal context |
 
-```sql
-ALTER TABLE purchase_orders
-  ADD COLUMN IF NOT EXISTS effective_usdt_qty numeric,
-  ADD COLUMN IF NOT EXISTS effective_usdt_rate numeric;
-
-ALTER TABLE sales_orders
-  ADD COLUMN IF NOT EXISTS effective_usdt_qty numeric,
-  ADD COLUMN IF NOT EXISTS effective_usdt_rate numeric;
-```
-
-Backfill existing data where `market_rate_usdt` is already stored:
-
-```sql
-UPDATE purchase_orders
-SET effective_usdt_qty  = quantity * COALESCE(market_rate_usdt, 1),
-    effective_usdt_rate = CASE
-      WHEN quantity * COALESCE(market_rate_usdt, 1) > 0
-      THEN total_amount / (quantity * COALESCE(market_rate_usdt, 1))
-      ELSE NULL END
-WHERE effective_usdt_qty IS NULL AND status = 'COMPLETED';
-
-UPDATE sales_orders
-SET effective_usdt_qty  = quantity * COALESCE(market_rate_usdt, 1),
-    effective_usdt_rate = CASE
-      WHEN quantity * COALESCE(market_rate_usdt, 1) > 0
-      THEN total_amount / (quantity * COALESCE(market_rate_usdt,

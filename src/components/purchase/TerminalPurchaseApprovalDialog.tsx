@@ -458,7 +458,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       // Update purchase_orders source, market_rate_usdt, and fee
       if (result?.purchase_order_id) {
         const asset = (od.asset || 'USDT').toUpperCase();
-        const marketRateUsdt = await fetchCoinMarketRate(asset);
+        const locked = await fetchAndLockMarketRate(asset, {
+          entryType: 'purchase_approval',
+          referenceId: result.purchase_order_id,
+          referenceType: 'purchase_order',
+        });
+        const marketRateUsdt = locked.price;
 
         // Calculate fee in USDT equivalent
         const rawCommission = Number(od.commission || 0);

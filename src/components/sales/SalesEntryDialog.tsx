@@ -176,7 +176,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       // Fetch CoinUSDT market rate at order creation time
       const selectedProd = products?.find((p: any) => p.id === data.product_id);
       const assetCode = selectedProd?.code?.toUpperCase() || 'USDT';
-      const marketRateUsdt = await fetchCoinMarketRate(assetCode);
+      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'manual_sales' });
+      const marketRateUsdt = locked.price;
       
       const seEffRate = marketRateUsdt > 0 ? marketRateUsdt : 1;
       const seEffUsdtQty = data.quantity * seEffRate;

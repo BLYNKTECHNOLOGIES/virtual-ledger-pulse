@@ -397,7 +397,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       // Fetch CoinUSDT market rate at approval time
       const asset = (od.asset || 'USDT').toUpperCase();
-      const marketRateUsdt = await fetchCoinMarketRate(asset);
+      const locked = await fetchAndLockMarketRate(asset, { entryType: 'sales_approval' });
+      const marketRateUsdt = locked.price;
 
       // Check if a sales order already exists for THIS sync record (partial approval recovery)
       // Use terminal_sync_id instead of order_number to avoid false matches from collisions

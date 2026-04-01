@@ -242,7 +242,12 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
 
       // Update purchase_orders source & market rate
       if (result?.purchase_order_id) {
-        const marketRate = await fetchCoinMarketRate(assetCode);
+        const locked = await fetchAndLockMarketRate(assetCode, {
+          entryType: 'batch_approval',
+          referenceId: result.purchase_order_id,
+          referenceType: 'purchase_order',
+        });
+        const marketRate = locked.price;
         const rawFee = totalFee;
         const feeUsdt = assetCode === 'USDT' ? rawFee : rawFee * (marketRate > 0 ? marketRate : 0);
 
@@ -262,6 +267,22 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
             effective_usdt_rate: sbEffUsdtRate,
           })
           .eq('id', result.purchase_order_id);
+
+        // Persist batch valuation record
+        const orderNumber = `SB${String((await supabase.from('small_buys_sync' as any).select('id', { count: 'exact', head: true }).eq('sync_status', 'approved')).count || 0).padStart(5, '0')}`;
+        await persistBatchValuation({
+          batchId: orderNumber,
+          batchType: 'small_buys',
+          assetCode,
+          totalInrValue: sbTotalAmt,
+          totalAssetQty: sbQty,
+          marketRateUsdt: marketRate,
+          aggregatedUsdtQty: sbEffUsdtQty,
+          effectiveUsdtRate: sbEffUsdtRate,
+          orderId: result.purchase_order_id,
+          priceSnapshotId: locked.snapshotId,
+          createdBy: userId || undefined,
+        });
       }
 
       // Record gateway fee as a separate expense (Finance, Banking & Compliance > Processing fees)

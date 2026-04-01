@@ -170,18 +170,20 @@ export default function ProfitLoss() {
         unit_price: Number(order.price_per_unit) || 0
       })) || [];
 
-      // Fetch completed purchase orders within period (date-filtered)
-      const { data: purchaseOrders } = await supabase
-        .from('purchase_orders')
-        .select(`
-          id,
-          order_date,
-          total_amount,
-          market_rate_usdt
-        `)
-        .eq('status', 'COMPLETED')
-        .gte('order_date', startStr)
-        .lte('order_date', endStr);
+      // Fetch completed purchase orders within period - paginated
+      const purchaseOrders = await fetchAllRows<any>(
+        supabase
+          .from('purchase_orders')
+          .select(`
+            id,
+            order_date,
+            total_amount,
+            market_rate_usdt
+          `)
+          .eq('status', 'COMPLETED')
+          .gte('order_date', startStr)
+          .lte('order_date', endStr)
+      );
 
       // Fetch purchase order items for period purchases
       const periodPurchaseOrderIds = purchaseOrders?.map(order => order.id) || [];

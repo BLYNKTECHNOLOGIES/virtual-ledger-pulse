@@ -35,18 +35,17 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
 
   // Fetch buy orders (sales_orders) - exclude cancelled
   const { data: buyOrders } = useQuery({
-    queryKey: ['client-buy-orders', clientId, client?.name, client?.phone, dateRange],
+    queryKey: ['client-buy-orders', clientId, dateRange],
     queryFn: async () => {
       if (!clientId || !client) return [];
       
       let query = supabase
         .from('sales_orders')
         .select('*')
-        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
+        .eq('client_id', clientId)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       
-      // Apply date filter if range is set
       if (dateRange?.from) {
         query = query.gte('order_date', dateRange.from.toISOString().split('T')[0]);
       }
@@ -63,14 +62,14 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
 
   // Fetch sell orders (purchase_orders) - exclude cancelled
   const { data: sellOrders } = useQuery({
-    queryKey: ['client-sell-orders', clientId, client?.name, client?.phone, dateRange],
+    queryKey: ['client-sell-orders', clientId, client?.name, dateRange],
     queryFn: async () => {
       if (!clientId || !client) return [];
       
       let query = supabase
         .from('purchase_orders')
         .select('*')
-        .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone}"`)
+        .eq('supplier_name', client.name)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       

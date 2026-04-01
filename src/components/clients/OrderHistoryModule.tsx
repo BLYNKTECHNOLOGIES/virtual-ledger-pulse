@@ -185,7 +185,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
   // Fetch buy orders (sales_orders) - exclude cancelled
   const { data: buyOrders, isLoading: buyLoading } = useQuery({
-    queryKey: ['client-buy-orders-history', activeClientId, client?.name, client?.phone],
+    queryKey: ['client-buy-orders-history', activeClientId],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
@@ -195,7 +195,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
           *,
           wallet:wallets!wallet_id(wallet_name)
         `)
-        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone}"`)
+        .eq('client_id', activeClientId)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       
@@ -207,7 +207,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
 
   // Fetch sell orders (purchase_orders) - exclude cancelled
   const { data: sellOrders, isLoading: sellLoading } = useQuery({
-    queryKey: ['client-sell-orders-history', activeClientId, client?.name, client?.phone],
+    queryKey: ['client-sell-orders-history', activeClientId, client?.name],
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
@@ -220,7 +220,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
             warehouse_id
           )
         `)
-        .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone}"`)
+        .eq('supplier_name', client.name)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: false });
       

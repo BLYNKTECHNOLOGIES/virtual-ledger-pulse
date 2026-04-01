@@ -63,7 +63,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       const { data: salesData } = await supabase
         .from('sales_orders')
         .select('id, order_number, order_date, total_amount, status, payment_status')
-        .or(`client_name.eq."${client.name}",client_phone.eq."${client.phone || 'NONE'}"`)
+        .eq('client_id', activeClientId)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       
@@ -75,7 +75,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       const { data: purchaseData } = await supabase
         .from('purchase_orders')
         .select('id, order_number, order_date, total_amount, status')
-        .or(`supplier_name.eq."${client.name}",contact_number.eq."${client.phone || 'NONE'}"`)
+        .eq('supplier_name', client.name)
         .neq('status', 'CANCELLED')
         .order('order_date', { ascending: true });
       

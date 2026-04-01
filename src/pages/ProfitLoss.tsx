@@ -180,7 +180,9 @@ export default function ProfitLoss() {
             id,
             order_date,
             total_amount,
-            market_rate_usdt
+            market_rate_usdt,
+            effective_usdt_qty,
+            effective_usdt_rate
           `)
           .eq('status', 'COMPLETED')
           .gte('order_date', startStr)

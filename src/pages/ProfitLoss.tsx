@@ -171,8 +171,8 @@ export default function ProfitLoss() {
       })) || [];
 
       // Fetch completed purchase orders within period - paginated
-      const purchaseOrders = await fetchAllRows<any>(
-        supabase
+      const purchaseOrders = await fetchAllPaginated<any>(
+        () => supabase
           .from('purchase_orders')
           .select(`
             id,

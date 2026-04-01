@@ -11,6 +11,7 @@ import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
+import { fetchAndLockMarketRate } from "@/lib/effectiveUsdtEngine";
 
 interface WalletTransferWrapperProps {
   item: ErpActionQueueItem;

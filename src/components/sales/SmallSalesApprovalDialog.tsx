@@ -134,6 +134,21 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         });
       }
 
+      // Persist batch valuation record
+      await persistBatchValuation({
+        batchId: orderNumber,
+        batchType: 'small_sales',
+        assetCode,
+        totalInrValue: ssTotalAmt,
+        totalAssetQty: ssQty,
+        marketRateUsdt: marketRate,
+        aggregatedUsdtQty: ssEffUsdtQty,
+        effectiveUsdtRate: ssEffUsdtRate,
+        orderId: salesOrder.id,
+        priceSnapshotId: locked.snapshotId,
+        createdBy: userId,
+      });
+
       // Update sync record
       await supabase
         .from('small_sales_sync')

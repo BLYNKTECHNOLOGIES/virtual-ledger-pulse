@@ -33,36 +33,36 @@ export function GrossProfitHistoryTab() {
   const { data: todayLive } = useQuery({
     queryKey: ["daily_gross_profit_live", todayStr],
     queryFn: async () => {
-      // Sales
+      // Sales — use effective USDT fields for normalized comparison
       const { data: sales } = await supabase
         .from("sales_orders")
-        .select("quantity, price_per_unit")
+        .select("quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
         .eq("status", "COMPLETED")
         .eq("order_date", todayStr);
 
-      const totalSalesQty = sales?.reduce((s, o) => s + (Number(o.quantity) || 0), 0) || 0;
-      const totalSalesValue = sales?.reduce((s, o) => s + ((Number(o.quantity) || 0) * (Number(o.price_per_unit) || 0)), 0) || 0;
+      const totalSalesQty = sales?.reduce((s, o) => s + (Number(o.effective_usdt_qty || o.quantity) || 0), 0) || 0;
+      const totalSalesValue = sales?.reduce((s, o) => {
+        const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+        const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+        return s + (qty * rate);
+      }, 0) || 0;
       const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
-      // Purchases
+      // Purchases — use effective_usdt_qty from purchase_orders directly
       const { data: purchases } = await supabase
         .from("purchase_orders")
-        .select("id")
+        .select("id, total_amount, effective_usdt_qty")
         .eq("status", "COMPLETED")
         .eq("order_date", todayStr);
 
       let totalPurchaseValue = 0;
       let totalPurchaseQty = 0;
-      const poIds = purchases?.map(p => p.id) || [];
-      if (poIds.length > 0) {
-        const { data: items } = await supabase
-          .from("purchase_order_items")
-          .select("quantity, unit_price, products!inner(code)")
-          .in("purchase_order_id", poIds)
-          .eq("products.code", "USDT");
-        for (const item of items || []) {
-          totalPurchaseQty += Number(item.quantity) || 0;
-          totalPurchaseValue += (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
+      for (const po of purchases || []) {
+        const effQty = Number(po.effective_usdt_qty) || 0;
+        const totalAmt = Number(po.total_amount) || 0;
+        if (effQty > 0) {
+          totalPurchaseQty += effQty;
+          totalPurchaseValue += totalAmt;
         }
       }
 

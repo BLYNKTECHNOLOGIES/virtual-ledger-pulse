@@ -11,12 +11,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAverageCost } from "@/hooks/useAverageCost";
 
 export function StockReportsTab() {
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30));
   const [dateTo, setDateTo] = useState<Date>(new Date());
   const [reportType, setReportType] = useState<string>("all");
   const [walletFilter, setWalletFilter] = useState<string>("all");
+  const { data: averageCosts } = useAverageCost();
 
   const { data: wallets } = useQuery({
     queryKey: ['wallets_for_reports'],
@@ -157,7 +159,10 @@ export function StockReportsTab() {
 
   const calculateTotalValue = (products: any[]) => {
     return products?.reduce((total, product) => {
-      const avgPrice = product.average_buying_price || product.cost_price || 0;
+      // Use WAC from useAverageCost if available, fallback to stored average_buying_price
+      const productCode = product.code;
+      const wacCost = averageCosts?.find(c => c.product_code === productCode)?.average_cost;
+      const avgPrice = wacCost || product.average_buying_price || product.cost_price || 0;
       return total + (avgPrice * product.current_stock_quantity);
     }, 0) || 0;
   };

@@ -10,47 +10,45 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   const dayStart = snapshotDate + "T00:00:00";
   const dayEnd = snapshotDate + "T23:59:59";
 
-  // 1. Fetch completed sales orders for the day
+  // 1. Fetch completed sales orders for the day — use effective USDT fields
   const { data: salesOrders } = await supabase
     .from("sales_orders")
-    .select("id, quantity, price_per_unit")
+    .select("id, quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
     .eq("status", "COMPLETED")
     .eq("order_date", snapshotDate);
 
+  // Use effective_usdt_qty/rate when available (normalized USDT-equivalent)
   const totalSalesQty = salesOrders?.reduce(
-    (sum: number, o: any) => sum + (Number(o.quantity) || 0), 0
+    (sum: number, o: any) => sum + (Number(o.effective_usdt_qty || o.quantity) || 0), 0
   ) || 0;
 
   const totalSalesValue = salesOrders?.reduce(
-    (sum: number, o: any) => sum + ((Number(o.quantity) || 0) * (Number(o.price_per_unit) || 0)), 0
+    (sum: number, o: any) => {
+      const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+      const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+      return sum + (qty * rate);
+    }, 0
   ) || 0;
 
   const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
-  // 2. Fetch completed purchase orders for the day
+  // 2. Fetch completed purchase orders for the day — use effective USDT fields
   const { data: purchaseOrders } = await supabase
     .from("purchase_orders")
-    .select("id")
+    .select("id, total_amount, effective_usdt_qty")
     .eq("status", "COMPLETED")
     .eq("order_date", snapshotDate);
-
-  const purchaseOrderIds = purchaseOrders?.map((po: any) => po.id) || [];
 
   let totalPurchaseValue = 0;
   let totalPurchaseQty = 0;
 
-  if (purchaseOrderIds.length > 0) {
-    const { data: purchaseItems } = await supabase
-      .from("purchase_order_items")
-      .select("quantity, unit_price, products!inner(code)")
-      .in("purchase_order_id", purchaseOrderIds)
-      .eq("products.code", "USDT");
-
-    for (const item of purchaseItems || []) {
-      const qty = Number(item.quantity) || 0;
-      const price = Number(item.unit_price) || 0;
-      totalPurchaseQty += qty;
-      totalPurchaseValue += qty * price;
+  // Use effective_usdt_qty from purchase_orders directly (already normalized)
+  for (const po of purchaseOrders || []) {
+    const effQty = Number(po.effective_usdt_qty) || 0;
+    const totalAmt = Number(po.total_amount) || 0;
+    if (effQty > 0) {
+      totalPurchaseQty += effQty;
+      totalPurchaseValue += totalAmt;
     }
   }
 

@@ -17,6 +17,8 @@ import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 export default function AdManager() {
+  const location = useLocation();
+  const isTerminalContext = location.pathname.startsWith('/terminal');
   const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 20 });
   const [activeTab, setActiveTab] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);

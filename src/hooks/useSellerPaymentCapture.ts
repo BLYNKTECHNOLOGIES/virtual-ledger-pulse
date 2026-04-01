@@ -212,7 +212,10 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
 
         // Auto-upsert into beneficiary_records so it appears immediately
         // Don't wait for order approval — Binance strips details after completion
-        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4 && !paymentInfo.accountNo.includes('@')) {
+        // Only allow bank transfer methods — skip UPI, wallets, etc.
+        const isBankTransfer = isAllowedBankPayType(paymentInfo?.payType || '', paymentInfo?.identifier || '');
+        const isNotUpi = !isUpiAccount(paymentInfo?.accountNo || '');
+        if (paymentInfo?.accountNo && paymentInfo.accountNo.length >= 4 && isBankTransfer && isNotUpi) {
           try {
             await supabase.rpc('upsert_beneficiary_record' as any, {
               p_account_number: paymentInfo.accountNo.trim(),

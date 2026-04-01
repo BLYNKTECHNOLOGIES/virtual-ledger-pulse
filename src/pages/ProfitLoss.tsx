@@ -145,21 +145,23 @@ export default function ProfitLoss() {
       const startStr = computedStartStr;
       const endStr = computedEndStr;
 
-      // Fetch completed sales orders within period - sales have quantity/price directly on the order
-      const { data: salesOrders } = await supabase
-        .from('sales_orders')
-        .select(`
-          id, 
-          total_amount, 
-          order_date,
-          quantity,
-          price_per_unit,
-          client_name,
-          products:product_id(code)
-        `)
-        .eq('status', 'COMPLETED')
-        .gte('order_date', startStr)
-        .lte('order_date', endStr);
+      // Fetch completed sales orders within period - paginated to handle >1000 rows
+      const salesOrders = await fetchAllRows<any>(
+        supabase
+          .from('sales_orders')
+          .select(`
+            id, 
+            total_amount, 
+            order_date,
+            quantity,
+            price_per_unit,
+            client_name,
+            products:product_id(code)
+          `)
+          .eq('status', 'COMPLETED')
+          .gte('order_date', startStr)
+          .lte('order_date', endStr)
+      );
 
       // Convert sales orders to items format (since quantity/price is on the order itself)
       const salesItems = salesOrders?.map(order => ({

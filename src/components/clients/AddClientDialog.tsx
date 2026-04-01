@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { checkClientDuplicates, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
+import { checkClientDuplicates, checkPhoneUniqueness, type DuplicateMatch } from "@/utils/clientDuplicateCheck";
 
 interface AddClientDialogProps {
   open: boolean;

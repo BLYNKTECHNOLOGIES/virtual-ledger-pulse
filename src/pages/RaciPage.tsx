@@ -551,6 +551,7 @@ function RoleCharterView({
           const roleAssignments = assignments.filter(a => a.role_id === role.id);
           const rCount = roleAssignments.filter(a => a.assignment_type === 'R').length;
           const aCount = roleAssignments.filter(a => a.assignment_type === 'A').length;
+          const arCount = roleAssignments.filter(a => a.assignment_type === 'A/R').length;
           const cCount = roleAssignments.filter(a => a.assignment_type === 'C').length;
           const iCount = roleAssignments.filter(a => a.assignment_type === 'I').length;
           const kraCount = allKras.filter(k => k.role_id === role.id).length;
@@ -573,7 +574,7 @@ function RoleCharterView({
                 )}
                 <Separator className="mb-3" />
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {rCount > 0 && (
                       <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.R.bg} ${RACI_COLORS.R.text}`}>
                         R {rCount}
@@ -582,6 +583,11 @@ function RoleCharterView({
                     {aCount > 0 && (
                       <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.A.bg} ${RACI_COLORS.A.text}`}>
                         A {aCount}
+                      </span>
+                    )}
+                    {arCount > 0 && (
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS['A/R'].bg} ${RACI_COLORS['A/R'].text}`}>
+                        A/R {arCount}
                       </span>
                     )}
                     {cCount > 0 && (

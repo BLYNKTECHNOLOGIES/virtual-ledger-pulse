@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import {
   ArrowLeft, Users, Target, BarChart3, Grid3X3, ChevronDown, ChevronRight,
-  Shield, Settings, Loader2, Briefcase, Scale, AlertTriangle, CheckCircle2
+  Shield, Settings, Loader2, Briefcase, Scale, AlertTriangle, CheckCircle2, Layers
 } from 'lucide-react';
 import {
   useRaciRoles, useRaciCategories, useRaciTasks, useRaciAssignments,

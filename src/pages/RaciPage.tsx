@@ -205,6 +205,10 @@ function RaciPageContent() {
                     <Briefcase className="h-3.5 w-3.5" />
                     Role Charter
                   </TabsTrigger>
+                  <TabsTrigger value="governance" className="gap-1.5 text-xs data-[state=active]:shadow-sm">
+                    <Layers className="h-3.5 w-3.5" />
+                    Governance Matrix
+                  </TabsTrigger>
                 </TabsList>
               </div>
 

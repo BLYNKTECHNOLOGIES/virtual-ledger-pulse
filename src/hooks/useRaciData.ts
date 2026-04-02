@@ -34,7 +34,7 @@ export interface RaciAssignment {
   id: string;
   task_id: string;
   role_id: string;
-  assignment_type: 'R' | 'A' | 'C' | 'I';
+  assignment_type: 'R' | 'A' | 'C' | 'I' | 'A/R';
   notes: string | null;
 }
 

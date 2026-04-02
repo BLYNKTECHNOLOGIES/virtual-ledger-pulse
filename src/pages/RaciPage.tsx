@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
 import {
   ArrowLeft, Users, Target, BarChart3, Grid3X3, ChevronDown, ChevronRight,
-  Shield, Settings, Loader2
+  Shield, Settings, Loader2, Briefcase, Scale, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import {
   useRaciRoles, useRaciCategories, useRaciTasks, useRaciAssignments,
@@ -20,11 +21,35 @@ import { RaciAdminPanel } from '@/components/raci/RaciAdminPanel';
 import { supabase } from '@/integrations/supabase/client';
 import { QueryProvider } from '@/components/QueryProvider';
 
-const RACI_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  R: { bg: 'bg-blue-500/15', text: 'text-blue-600 dark:text-blue-400', label: 'Responsible' },
-  A: { bg: 'bg-red-500/15', text: 'text-red-600 dark:text-red-400', label: 'Accountable' },
-  C: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', label: 'Consulted' },
-  I: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', label: 'Informed' },
+const RACI_COLORS: Record<string, { bg: string; text: string; border: string; label: string; description: string }> = {
+  R: {
+    bg: 'bg-blue-500/10',
+    text: 'text-blue-700 dark:text-blue-300',
+    border: 'border-blue-200 dark:border-blue-800',
+    label: 'Responsible',
+    description: 'Executes the task. The person or role who does the work to complete the activity.',
+  },
+  A: {
+    bg: 'bg-red-500/10',
+    text: 'text-red-700 dark:text-red-300',
+    border: 'border-red-200 dark:border-red-800',
+    label: 'Accountable',
+    description: 'Final owner. Only one per task — the person who is ultimately answerable for the correct completion.',
+  },
+  C: {
+    bg: 'bg-amber-500/10',
+    text: 'text-amber-700 dark:text-amber-300',
+    border: 'border-amber-200 dark:border-amber-800',
+    label: 'Consulted',
+    description: 'Must provide input before the work is done. Two-way communication — their expertise shapes the decision.',
+  },
+  I: {
+    bg: 'bg-emerald-500/10',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    border: 'border-emerald-200 dark:border-emerald-800',
+    label: 'Informed',
+    description: 'Kept in the loop after decisions or actions are taken. One-way communication — no input required.',
+  },
 };
 
 function RaciPageContent() {
@@ -43,7 +68,6 @@ function RaciPageContent() {
 
   const isLoading = rolesLoading || catsLoading || tasksLoading;
 
-  // Check if current user is super admin
   useEffect(() => {
     const checkAdmin = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -65,14 +89,12 @@ function RaciPageContent() {
     checkAdmin();
   }, []);
 
-  // Auto-expand all categories
   useEffect(() => {
     if (categories.length > 0 && expandedCategories.size === 0) {
       setExpandedCategories(new Set(categories.map(c => c.id)));
     }
   }, [categories]);
 
-  // Build assignment lookup
   const assignmentMap = useMemo(() => {
     const map = new Map<string, Map<string, string>>();
     assignments.forEach(a => {
@@ -82,7 +104,6 @@ function RaciPageContent() {
     return map;
   }, [assignments]);
 
-  // Tasks grouped by category
   const tasksByCategory = useMemo(() => {
     const map = new Map<string, typeof tasks>();
     tasks.forEach(t => {
@@ -108,54 +129,46 @@ function RaciPageContent() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading governance framework...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
-        {/* Header */}
-        <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
-          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  BlynkEx — Role Clarity & RACI
-                </h1>
-                <p className="text-xs text-muted-foreground">Responsibility Assignment, KRAs & KPIs</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* RACI Legend */}
-              <div className="hidden sm:flex items-center gap-1.5">
-                {Object.entries(RACI_COLORS).map(([letter, config]) => (
-                  <Tooltip key={letter}>
-                    <TooltipTrigger asChild>
-                      <span className={`inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-bold ${config.bg} ${config.text}`}>
-                        {letter}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>{config.label}</TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-              {isSuperAdmin && (
-                <Button variant="outline" size="sm" onClick={() => setShowAdmin(true)} className="gap-1.5">
-                  <Settings className="h-3.5 w-3.5" />
-                  Manage
+      <div className="min-h-screen bg-background">
+        {/* Header — clean corporate */}
+        <header className="sticky top-0 z-50 border-b border-border bg-background">
+          <div className="max-w-[1440px] mx-auto px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                  <ArrowLeft className="h-4 w-4" />
                 </Button>
-              )}
+                <Separator orientation="vertical" className="h-6" />
+                <div>
+                  <h1 className="text-base font-semibold text-foreground tracking-tight">
+                    BlynkEx Governance Framework
+                  </h1>
+                  <p className="text-xs text-muted-foreground">Role Clarity, RACI Matrix, KRAs & KPIs</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                {isSuperAdmin && (
+                  <Button variant="outline" size="sm" onClick={() => setShowAdmin(true)} className="gap-1.5 text-xs">
+                    <Settings className="h-3.5 w-3.5" />
+                    Manage
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </header>
 
-        <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+        <main className="max-w-[1440px] mx-auto px-6 lg:px-8 py-8">
           {roles.length === 0 ? (
             <Card className="text-center py-16">
               <CardContent>
@@ -169,24 +182,49 @@ function RaciPageContent() {
               </CardContent>
             </Card>
           ) : (
-            <Tabs defaultValue="matrix" className="space-y-4">
-              <TabsList className="bg-muted/50">
-                <TabsTrigger value="matrix" className="gap-1.5">
-                  <Grid3X3 className="h-3.5 w-3.5" />
-                  RACI Matrix
-                </TabsTrigger>
-                <TabsTrigger value="kra-kpi" className="gap-1.5">
-                  <Target className="h-3.5 w-3.5" />
-                  KRA & KPI
-                </TabsTrigger>
-                <TabsTrigger value="roles" className="gap-1.5">
-                  <Users className="h-3.5 w-3.5" />
-                  Role Overview
-                </TabsTrigger>
-              </TabsList>
+            <Tabs defaultValue="matrix" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <TabsList className="bg-muted/40 h-10">
+                  <TabsTrigger value="matrix" className="gap-1.5 text-xs data-[state=active]:shadow-sm">
+                    <Grid3X3 className="h-3.5 w-3.5" />
+                    RACI Matrix
+                  </TabsTrigger>
+                  <TabsTrigger value="kra-kpi" className="gap-1.5 text-xs data-[state=active]:shadow-sm">
+                    <Target className="h-3.5 w-3.5" />
+                    KRA & KPI
+                  </TabsTrigger>
+                  <TabsTrigger value="roles" className="gap-1.5 text-xs data-[state=active]:shadow-sm">
+                    <Briefcase className="h-3.5 w-3.5" />
+                    Role Charter
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               {/* RACI Matrix Tab */}
-              <TabsContent value="matrix" className="space-y-4">
+              <TabsContent value="matrix" className="space-y-6">
+                {/* RACI Legend Banner */}
+                <div className="rounded-lg border border-border bg-muted/20 p-5">
+                  <h3 className="text-sm font-semibold text-foreground mb-3">Understanding the RACI Framework</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {Object.entries(RACI_COLORS).map(([letter, config]) => (
+                      <div key={letter} className={`rounded-md border ${config.border} ${config.bg} p-3`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`inline-flex items-center justify-center w-6 h-6 rounded text-xs font-bold ${config.text} bg-background border ${config.border}`}>
+                            {letter}
+                          </span>
+                          <span className={`text-sm font-semibold ${config.text}`}>{config.label}</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">{config.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <p className="text-[11px] text-muted-foreground">
+                      <strong className="text-foreground">Governance Rule:</strong> Every activity has exactly one Accountable (A) owner — ensuring single-point ownership and eliminating ambiguity in the chain of command.
+                    </p>
+                  </div>
+                </div>
+
                 <RaciMatrixView
                   roles={roles}
                   categories={categories}
@@ -198,101 +236,58 @@ function RaciPageContent() {
               </TabsContent>
 
               {/* KRA & KPI Tab */}
-              <TabsContent value="kra-kpi" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <TabsContent value="kra-kpi" className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
                   {/* Role selector sidebar */}
                   <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground px-1 mb-2">Select Role</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-3">Select Role</p>
                     {roles.map(role => (
                       <button
                         key={role.id}
                         onClick={() => setSelectedRoleId(role.id)}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-all ${
                           selectedRoleId === role.id
-                            ? 'bg-primary/10 text-primary font-medium'
+                            ? 'bg-foreground text-background font-medium shadow-sm'
                             : 'hover:bg-muted text-foreground'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           {role.color && (
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: role.color }} />
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selectedRoleId === role.id ? 'currentColor' : role.color }} />
                           )}
-                          {role.name}
+                          <span className="truncate">{role.name}</span>
                         </div>
                         {role.department && (
-                          <span className="text-xs text-muted-foreground">{role.department}</span>
+                          <span className={`text-[10px] ml-[18px] block ${selectedRoleId === role.id ? 'opacity-70' : 'text-muted-foreground'}`}>{role.department}</span>
                         )}
                       </button>
                     ))}
                   </div>
 
                   {/* KRA/KPI detail */}
-                  <div className="md:col-span-3">
+                  <div>
                     {selectedRole ? (
                       <KraKpiView role={selectedRole} kras={roleKras} kpis={roleKpis} />
                     ) : (
-                      <Card className="text-center py-16">
-                        <CardContent>
-                          <Target className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-                          <p className="text-sm text-muted-foreground">Select a role to view KRAs & KPIs</p>
-                        </CardContent>
-                      </Card>
+                      <div className="flex items-center justify-center h-64 rounded-lg border border-dashed border-border">
+                        <div className="text-center">
+                          <Target className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
+                          <p className="text-sm text-muted-foreground">Select a role to view its performance framework</p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
               </TabsContent>
 
-              {/* Role Overview Tab */}
-              <TabsContent value="roles" className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {roles.map(role => {
-                    const roleAssignments = assignments.filter(a => a.role_id === role.id);
-                    const rCount = roleAssignments.filter(a => a.assignment_type === 'R').length;
-                    const aCount = roleAssignments.filter(a => a.assignment_type === 'A').length;
-                    const cCount = roleAssignments.filter(a => a.assignment_type === 'C').length;
-                    const iCount = roleAssignments.filter(a => a.assignment_type === 'I').length;
-                    const kraCount = allKras.filter(k => k.role_id === role.id).length;
-
-                    return (
-                      <Card key={role.id} className="hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {role.color && (
-                                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }} />
-                              )}
-                              <CardTitle className="text-sm">{role.name}</CardTitle>
-                            </div>
-                            {role.department && (
-                              <Badge variant="secondary" className="text-[10px]">{role.department}</Badge>
-                            )}
-                          </div>
-                          {role.description && (
-                            <p className="text-xs text-muted-foreground mt-1">{role.description}</p>
-                          )}
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {rCount > 0 && <Badge className={`${RACI_COLORS.R.bg} ${RACI_COLORS.R.text} border-0`}>R: {rCount}</Badge>}
-                            {aCount > 0 && <Badge className={`${RACI_COLORS.A.bg} ${RACI_COLORS.A.text} border-0`}>A: {aCount}</Badge>}
-                            {cCount > 0 && <Badge className={`${RACI_COLORS.C.bg} ${RACI_COLORS.C.text} border-0`}>C: {cCount}</Badge>}
-                            {iCount > 0 && <Badge className={`${RACI_COLORS.I.bg} ${RACI_COLORS.I.text} border-0`}>I: {iCount}</Badge>}
-                          </div>
-                          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                            <Target className="h-3 w-3" />
-                            {kraCount} KRAs defined
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+              {/* Role Charter Tab */}
+              <TabsContent value="roles" className="space-y-6">
+                <RoleCharterView roles={roles} assignments={assignments} allKras={allKras} />
               </TabsContent>
             </Tabs>
           )}
         </main>
 
-        {/* Admin Panel */}
         {showAdmin && isSuperAdmin && (
           <RaciAdminPanel open={showAdmin} onOpenChange={setShowAdmin} />
         )}
@@ -301,7 +296,7 @@ function RaciPageContent() {
   );
 }
 
-// RACI Matrix sub-component
+/* ─── RACI Matrix ─── */
 function RaciMatrixView({
   roles, categories, tasksByCategory, assignmentMap, expandedCategories, toggleCategory,
 }: {
@@ -314,34 +309,36 @@ function RaciMatrixView({
 }) {
   if (categories.length === 0) {
     return (
-      <Card className="text-center py-16">
-        <CardContent>
-          <Grid3X3 className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground">No RACI data available yet</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-48 rounded-lg border border-dashed border-border">
+        <p className="text-sm text-muted-foreground">No RACI data available</p>
+      </div>
     );
   }
 
   return (
     <ScrollArea className="w-full">
-      <div className="min-w-[800px]">
-        {/* Sticky header row */}
-        <div className="flex items-stretch border border-border rounded-t-lg bg-muted/30 sticky top-0 z-10">
-          <div className="w-[280px] shrink-0 px-4 py-3 font-semibold text-xs text-muted-foreground border-r border-border">
-            Task / Activity
+      <div className="min-w-[900px]">
+        {/* Header row */}
+        <div className="flex items-stretch border border-border rounded-t-lg bg-muted/40">
+          <div className="w-[300px] shrink-0 px-5 py-3 font-semibold text-xs text-muted-foreground uppercase tracking-wider border-r border-border">
+            Activity
           </div>
           {roles.map(role => (
             <div
               key={role.id}
-              className="flex-1 min-w-[90px] px-2 py-3 text-center border-r border-border last:border-r-0"
+              className="flex-1 min-w-[100px] px-2 py-3 text-center border-r border-border last:border-r-0"
             >
-              <div className="flex flex-col items-center gap-1">
-                {role.color && (
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: role.color }} />
-                )}
-                <span className="text-xs font-semibold text-foreground leading-tight">{role.name}</span>
-              </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex flex-col items-center gap-1 cursor-help">
+                    <span className="text-[10px] font-bold text-foreground leading-tight">{role.name}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <p className="text-xs font-medium">{role.name}</p>
+                  {role.description && <p className="text-[10px] text-muted-foreground mt-0.5">{role.description}</p>}
+                </TooltipContent>
+              </Tooltip>
             </div>
           ))}
         </div>
@@ -353,27 +350,24 @@ function RaciMatrixView({
 
           return (
             <div key={cat.id} className="border-x border-b border-border last:rounded-b-lg">
-              {/* Category header */}
               <button
                 onClick={() => toggleCategory(cat.id)}
-                className="w-full flex items-center gap-2 px-4 py-2.5 bg-muted/10 hover:bg-muted/20 transition-colors text-left"
+                className="w-full flex items-center gap-2 px-5 py-3 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
               >
                 {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                {cat.icon && <span className="text-sm">{cat.icon}</span>}
                 <span className="text-xs font-semibold text-foreground">{cat.name}</span>
-                <Badge variant="secondary" className="text-[10px] ml-auto">{catTasks.length}</Badge>
+                <span className="text-[10px] text-muted-foreground ml-auto">{catTasks.length} activities</span>
               </button>
 
-              {/* Tasks */}
               {isExpanded && catTasks.map((task, idx) => (
                 <div
                   key={task.id}
-                  className={`flex items-stretch ${idx < catTasks.length - 1 ? 'border-b border-border/50' : ''}`}
+                  className={`flex items-stretch hover:bg-muted/10 transition-colors ${idx < catTasks.length - 1 ? 'border-b border-border/40' : ''}`}
                 >
-                  <div className="w-[280px] shrink-0 px-4 py-2.5 border-r border-border">
+                  <div className="w-[300px] shrink-0 px-5 py-2.5 border-r border-border/50">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="text-xs text-foreground">{task.name}</span>
+                        <span className="text-xs text-foreground leading-relaxed">{task.name}</span>
                       </TooltipTrigger>
                       {task.description && (
                         <TooltipContent side="right" className="max-w-xs">
@@ -388,16 +382,19 @@ function RaciMatrixView({
                     return (
                       <div
                         key={role.id}
-                        className={`flex-1 min-w-[90px] flex items-center justify-center border-r border-border/50 last:border-r-0 ${
+                        className={`flex-1 min-w-[100px] flex items-center justify-center border-r border-border/30 last:border-r-0 ${
                           config ? config.bg : ''
                         }`}
                       >
                         {config && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className={`text-sm font-bold ${config.text}`}>{type}</span>
+                              <span className={`text-xs font-bold ${config.text}`}>{type}</span>
                             </TooltipTrigger>
-                            <TooltipContent>{config.label}</TooltipContent>
+                            <TooltipContent>
+                              <p className="font-medium">{config.label}</p>
+                              <p className="text-[10px] text-muted-foreground max-w-[200px]">{config.description}</p>
+                            </TooltipContent>
                           </Tooltip>
                         )}
                       </div>
@@ -413,7 +410,7 @@ function RaciMatrixView({
   );
 }
 
-// KRA/KPI sub-component
+/* ─── KRA / KPI View ─── */
 function KraKpiView({
   role, kras, kpis,
 }: {
@@ -423,69 +420,185 @@ function KraKpiView({
 }) {
   if (kras.length === 0) {
     return (
-      <Card className="text-center py-12">
-        <CardContent>
+      <div className="flex items-center justify-center h-48 rounded-lg border border-dashed border-border">
+        <div className="text-center">
           <Target className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No KRAs defined for {role.name}</p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        {role.color && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color }} />}
-        <h2 className="text-base font-semibold text-foreground">{role.name}</h2>
-        {role.department && <Badge variant="secondary" className="text-[10px]">{role.department}</Badge>}
+    <div className="space-y-5">
+      {/* Role header */}
+      <div className="border-b border-border pb-4">
+        <div className="flex items-center gap-3 mb-2">
+          {role.color && <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: role.color }} />}
+          <h2 className="text-lg font-semibold text-foreground">{role.name}</h2>
+          {role.department && <Badge variant="outline" className="text-[10px] font-normal">{role.department}</Badge>}
+        </div>
+        {role.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed">{role.description}</p>
+        )}
       </div>
-      {role.description && <p className="text-sm text-muted-foreground -mt-2">{role.description}</p>}
 
+      {/* KRAs */}
       {kras.map(kra => {
         const kraKpis = kpis.filter(k => k.kra_id === kra.id);
         return (
-          <Card key={kra.id}>
-            <CardHeader className="pb-2">
+          <div key={kra.id} className="rounded-lg border border-border overflow-hidden">
+            {/* KRA header */}
+            <div className="bg-muted/30 px-5 py-3 border-b border-border">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Target className="h-4 w-4 text-primary" />
-                  {kra.title}
-                </CardTitle>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                  <h3 className="text-sm font-semibold text-foreground">{kra.title}</h3>
+                </div>
                 {kra.weightage > 0 && (
-                  <Badge variant="outline" className="text-[10px]">{kra.weightage}% Weight</Badge>
+                  <span className="text-xs font-medium text-muted-foreground">{kra.weightage}% Weight</span>
                 )}
               </div>
-              {kra.description && <p className="text-xs text-muted-foreground">{kra.description}</p>}
-            </CardHeader>
-            <CardContent>
-              {kraKpis.length > 0 ? (
-                <div className="space-y-2">
-                  {kraKpis.map(kpi => (
-                    <div key={kpi.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-muted/30 border border-border/50">
+              {kra.description && <p className="text-xs text-muted-foreground mt-1 ml-4">{kra.description}</p>}
+            </div>
+
+            {/* KPIs */}
+            {kraKpis.length > 0 ? (
+              <div className="divide-y divide-border/50">
+                {kraKpis.map(kpi => (
+                  <div key={kpi.id} className="px-5 py-3 hover:bg-muted/10 transition-colors">
+                    <div className="flex items-start gap-3">
                       <BarChart3 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-foreground">{kpi.metric}</p>
-                        <div className="flex flex-wrap gap-3 mt-1 text-[10px] text-muted-foreground">
-                          {kpi.target && <span>🎯 Target: {kpi.target}</span>}
-                          {kpi.measurement_method && <span>📐 {kpi.measurement_method}</span>}
-                          {kpi.frequency && <span>🔄 {kpi.frequency}</span>}
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                          {kpi.target && (
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                              Target: {kpi.target}
+                            </span>
+                          )}
+                          {kpi.measurement_method && (
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <Scale className="h-3 w-3 text-blue-500" />
+                              {kpi.measurement_method}
+                            </span>
+                          )}
+                          {kpi.frequency && (
+                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                              <BarChart3 className="h-3 w-3 text-amber-500" />
+                              {kpi.frequency}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">No KPIs defined for this KRA</p>
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-5 py-4">
+                <p className="text-xs text-muted-foreground">No KPIs defined for this KRA</p>
+              </div>
+            )}
+          </div>
         );
       })}
     </div>
   );
 }
 
-// Wrapped with QueryProvider for public route
+/* ─── Role Charter View ─── */
+function RoleCharterView({
+  roles, assignments, allKras,
+}: {
+  roles: RaciRole[];
+  assignments: any[];
+  allKras: any[];
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Structural insight banner */}
+      <div className="rounded-lg border border-border bg-muted/20 p-5">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Organizational Governance Structure</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
+          {[
+            { label: 'Frontline Execution', role: 'Operations Manager', icon: Shield },
+            { label: 'Internal Risk Shield', role: 'Internal Compliance Officer', icon: AlertTriangle },
+            { label: 'External Risk Shield', role: 'External Compliance Officer', icon: Scale },
+            { label: 'System & Funds Control', role: 'General Manager', icon: Briefcase },
+            { label: 'Strategic Governance', role: 'Managing Directors', icon: Target },
+          ].map(item => (
+            <div key={item.label} className="p-3 rounded-md border border-border bg-background">
+              <item.icon className="h-3.5 w-3.5 text-primary mb-1.5" />
+              <p className="font-semibold text-foreground">{item.label}</p>
+              <p className="text-muted-foreground mt-0.5">{item.role}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Role cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {roles.map(role => {
+          const roleAssignments = assignments.filter(a => a.role_id === role.id);
+          const rCount = roleAssignments.filter(a => a.assignment_type === 'R').length;
+          const aCount = roleAssignments.filter(a => a.assignment_type === 'A').length;
+          const cCount = roleAssignments.filter(a => a.assignment_type === 'C').length;
+          const iCount = roleAssignments.filter(a => a.assignment_type === 'I').length;
+          const kraCount = allKras.filter(k => k.role_id === role.id).length;
+
+          return (
+            <div key={role.id} className="rounded-lg border border-border overflow-hidden hover:shadow-sm transition-shadow">
+              {/* Role color accent */}
+              <div className="h-1" style={{ backgroundColor: role.color || 'hsl(var(--primary))' }} />
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{role.name}</h3>
+                    {role.department && (
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{role.department}</span>
+                    )}
+                  </div>
+                </div>
+                {role.description && (
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">{role.description}</p>
+                )}
+                <Separator className="mb-3" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {rCount > 0 && (
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.R.bg} ${RACI_COLORS.R.text}`}>
+                        R {rCount}
+                      </span>
+                    )}
+                    {aCount > 0 && (
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.A.bg} ${RACI_COLORS.A.text}`}>
+                        A {aCount}
+                      </span>
+                    )}
+                    {cCount > 0 && (
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.C.bg} ${RACI_COLORS.C.text}`}>
+                        C {cCount}
+                      </span>
+                    )}
+                    {iCount > 0 && (
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.I.bg} ${RACI_COLORS.I.text}`}>
+                        I {iCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground">{kraCount} KRAs</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function RaciPage() {
   return (
     <QueryProvider>

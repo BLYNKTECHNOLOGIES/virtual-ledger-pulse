@@ -296,6 +296,11 @@ function RaciPageContent() {
               <TabsContent value="roles" className="space-y-6">
                 <RoleCharterView roles={roles} assignments={assignments} allKras={allKras} />
               </TabsContent>
+
+              {/* Corporate Governance Matrix Tab */}
+              <TabsContent value="governance" className="space-y-6">
+                <CorporateGovernanceMatrix />
+              </TabsContent>
             </Tabs>
           )}
         </main>

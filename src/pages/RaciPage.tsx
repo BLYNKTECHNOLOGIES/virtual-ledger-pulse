@@ -10,7 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Separator } from '@/components/ui/separator';
 import {
   ArrowLeft, Users, Target, BarChart3, Grid3X3, ChevronDown, ChevronRight,
-  Shield, Settings, Loader2, Briefcase, Scale, AlertTriangle, CheckCircle2
+  Shield, Settings, Loader2, Briefcase, Scale, AlertTriangle, CheckCircle2, Layers
 } from 'lucide-react';
 import {
   useRaciRoles, useRaciCategories, useRaciTasks, useRaciAssignments,
@@ -18,6 +18,7 @@ import {
   type RaciRole
 } from '@/hooks/useRaciData';
 import { RaciAdminPanel } from '@/components/raci/RaciAdminPanel';
+import { CorporateGovernanceMatrix } from '@/components/raci/CorporateGovernanceMatrix';
 import { supabase } from '@/integrations/supabase/client';
 import { QueryProvider } from '@/components/QueryProvider';
 
@@ -204,6 +205,10 @@ function RaciPageContent() {
                     <Briefcase className="h-3.5 w-3.5" />
                     Role Charter
                   </TabsTrigger>
+                  <TabsTrigger value="governance" className="gap-1.5 text-xs data-[state=active]:shadow-sm">
+                    <Layers className="h-3.5 w-3.5" />
+                    Governance Matrix
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
@@ -290,6 +295,11 @@ function RaciPageContent() {
               {/* Role Charter Tab */}
               <TabsContent value="roles" className="space-y-6">
                 <RoleCharterView roles={roles} assignments={assignments} allKras={allKras} />
+              </TabsContent>
+
+              {/* Corporate Governance Matrix Tab */}
+              <TabsContent value="governance" className="space-y-6">
+                <CorporateGovernanceMatrix />
               </TabsContent>
             </Tabs>
           )}

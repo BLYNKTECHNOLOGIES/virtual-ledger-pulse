@@ -18,6 +18,7 @@ import {
   type RaciRole
 } from '@/hooks/useRaciData';
 import { RaciAdminPanel } from '@/components/raci/RaciAdminPanel';
+import { CorporateGovernanceMatrix } from '@/components/raci/CorporateGovernanceMatrix';
 import { supabase } from '@/integrations/supabase/client';
 import { QueryProvider } from '@/components/QueryProvider';
 

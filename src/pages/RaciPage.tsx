@@ -525,7 +525,7 @@ function KraKpiView({
   );
 }
 
-/* ─── Role Charter View ─── */
+/* ─── Role Charter View (Comprehensive) ─── */
 function RoleCharterView({
   roles, assignments, allKras,
 }: {
@@ -533,91 +533,191 @@ function RoleCharterView({
   assignments: any[];
   allKras: any[];
 }) {
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(roles[0]?.id || null);
+  const { data: allKpisData = [] } = useRoleKpis();
+
+  const selectedRole = roles.find(r => r.id === selectedRoleId);
+  const roleAssignments = assignments.filter(a => a.role_id === selectedRoleId);
+  const rCount = roleAssignments.filter(a => a.assignment_type === 'R').length;
+  const aCount = roleAssignments.filter(a => a.assignment_type === 'A').length;
+  const arCount = roleAssignments.filter(a => a.assignment_type === 'A/R').length;
+  const cCount = roleAssignments.filter(a => a.assignment_type === 'C').length;
+  const iCount = roleAssignments.filter(a => a.assignment_type === 'I').length;
+  const totalAssignments = roleAssignments.length;
+  const roleKras = allKras.filter(k => k.role_id === selectedRoleId);
+  const roleKpis = allKpisData.filter(k => k.role_id === selectedRoleId);
+
+  // Governance positioning map
+  const GOV_POSITION: Record<string, { layer: string; nature: string; color: string }> = {
+    'Operations': { layer: 'Execution Layer (Line 1)', nature: 'Frontline execution — generates revenue, processes orders, handles appeals', color: 'border-l-amber-500' },
+    'Management': { layer: 'Executive Control Layer (Line 2)', nature: 'Finance, compliance, system control — controls risk, funds, and escalations', color: 'border-l-blue-500' },
+    'Compliance': { layer: 'Control Layer (Line 2/3)', nature: 'Compliance shield — internal policy enforcement or external legal interface', color: 'border-l-purple-500' },
+    'Executive': { layer: 'Board / Strategic Layer', nature: 'Strategy, oversight, and final authority — no operational accountability', color: 'border-l-red-500' },
+  };
+
+  const govPosition = selectedRole ? GOV_POSITION[selectedRole.department || ''] : null;
+
   return (
-    <div className="space-y-4">
-      {/* Structural insight banner */}
-      <div className="rounded-lg border border-border bg-muted/20 p-5">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Organizational Governance Structure</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-          {[
-            { label: 'Frontline Execution', role: 'Operations Manager', icon: Shield },
-            { label: 'Internal Risk Shield', role: 'Internal Compliance Officer', icon: AlertTriangle },
-            { label: 'External Risk Shield', role: 'External Compliance Officer', icon: Scale },
-            { label: 'System & Funds Control', role: 'General Manager', icon: Briefcase },
-            { label: 'Strategic Governance', role: 'Managing Directors', icon: Target },
-          ].map(item => (
-            <div key={item.label} className="p-3 rounded-md border border-border bg-background">
-              <item.icon className="h-3.5 w-3.5 text-primary mb-1.5" />
-              <p className="font-semibold text-foreground">{item.label}</p>
-              <p className="text-muted-foreground mt-0.5">{item.role}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Role cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {roles.map(role => {
-          const roleAssignments = assignments.filter(a => a.role_id === role.id);
-          const rCount = roleAssignments.filter(a => a.assignment_type === 'R').length;
-          const aCount = roleAssignments.filter(a => a.assignment_type === 'A').length;
-          const arCount = roleAssignments.filter(a => a.assignment_type === 'A/R').length;
-          const cCount = roleAssignments.filter(a => a.assignment_type === 'C').length;
-          const iCount = roleAssignments.filter(a => a.assignment_type === 'I').length;
-          const kraCount = allKras.filter(k => k.role_id === role.id).length;
-
-          return (
-            <div key={role.id} className="rounded-lg border border-border overflow-hidden hover:shadow-sm transition-shadow">
-              {/* Role color accent */}
-              <div className="h-1" style={{ backgroundColor: role.color || 'hsl(var(--primary))' }} />
-              <div className="p-5">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">{role.name}</h3>
-                    {role.department && (
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{role.department}</span>
-                    )}
-                  </div>
-                </div>
-                {role.description && (
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">{role.description}</p>
-                )}
-                <Separator className="mb-3" />
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {rCount > 0 && (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.R.bg} ${RACI_COLORS.R.text}`}>
-                        R {rCount}
-                      </span>
-                    )}
-                    {aCount > 0 && (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.A.bg} ${RACI_COLORS.A.text}`}>
-                        A {aCount}
-                      </span>
-                    )}
-                    {arCount > 0 && (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS['A/R'].bg} ${RACI_COLORS['A/R'].text}`}>
-                        A/R {arCount}
-                      </span>
-                    )}
-                    {cCount > 0 && (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.C.bg} ${RACI_COLORS.C.text}`}>
-                        C {cCount}
-                      </span>
-                    )}
-                    {iCount > 0 && (
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded ${RACI_COLORS.I.bg} ${RACI_COLORS.I.text}`}>
-                        I {iCount}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">{kraCount} KRAs</span>
-                </div>
+    <div className="flex gap-6">
+      {/* Left sidebar — role selector */}
+      <div className="w-[240px] shrink-0 space-y-1">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-2">Select Role</p>
+        {roles.map(role => (
+          <button
+            key={role.id}
+            onClick={() => setSelectedRoleId(role.id)}
+            className={`w-full text-left px-3 py-2.5 rounded-md transition-colors text-xs ${
+              selectedRoleId === role.id
+                ? 'bg-primary/10 border border-primary/20'
+                : 'hover:bg-muted/40 border border-transparent'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: role.color || 'hsl(var(--primary))' }} />
+              <div className="min-w-0">
+                <p className="font-semibold text-foreground truncate">{role.name}</p>
+                {role.department && <p className="text-[10px] text-muted-foreground">{role.department}</p>}
               </div>
             </div>
-          );
-        })}
+          </button>
+        ))}
       </div>
+
+      {/* Right — comprehensive role profile */}
+      {selectedRole && (
+        <div className="flex-1 min-w-0 space-y-6">
+          {/* Role Header */}
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: selectedRole.color || 'hsl(var(--primary))' }} />
+              <h2 className="text-xl font-bold text-foreground">{selectedRole.name}</h2>
+              {selectedRole.department && (
+                <Badge variant="outline" className="text-[10px] font-normal">{selectedRole.department}</Badge>
+              )}
+            </div>
+            {selectedRole.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed">{selectedRole.description}</p>
+            )}
+          </div>
+
+          {/* Governance Positioning */}
+          {govPosition && (
+            <div className={`rounded-lg border border-border p-4 border-l-4 ${govPosition.color} bg-muted/10`}>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Governance Positioning</p>
+              <p className="text-sm font-semibold text-foreground">{govPosition.layer}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{govPosition.nature}</p>
+            </div>
+          )}
+
+          {/* RACI Analytics */}
+          <div className="rounded-lg border border-border p-4">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Responsibility Distribution</p>
+            <div className="grid grid-cols-5 gap-3">
+              {[
+                { type: 'R', count: rCount, label: 'Responsible' },
+                { type: 'A', count: aCount, label: 'Accountable' },
+                { type: 'A/R', count: arCount, label: 'Acct. & Resp.' },
+                { type: 'C', count: cCount, label: 'Consulted' },
+                { type: 'I', count: iCount, label: 'Informed' },
+              ].map(item => {
+                const config = RACI_COLORS[item.type];
+                const pct = totalAssignments > 0 ? Math.round((item.count / totalAssignments) * 100) : 0;
+                return (
+                  <div key={item.type} className={`rounded-md border p-3 text-center ${config?.bg || ''} ${config?.border || 'border-border'}`}>
+                    <span className={`text-lg font-bold ${config?.text || 'text-foreground'}`}>{item.count}</span>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{item.label}</p>
+                    {/* Progress bar */}
+                    <div className="w-full h-1 rounded-full bg-muted mt-2">
+                      <div className="h-1 rounded-full bg-current opacity-40" style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-1">{pct}%</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* KRAs & KPIs */}
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Key Result Areas & Performance Indicators ({roleKras.length} KRAs, {roleKpis.length} KPIs)
+            </p>
+            {roleKras.length === 0 ? (
+              <div className="flex items-center justify-center h-32 rounded-lg border border-dashed border-border">
+                <p className="text-xs text-muted-foreground">No KRAs defined for this role</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {roleKras.map(kra => {
+                  const kraKpis = roleKpis.filter(k => k.kra_id === kra.id);
+                  return (
+                    <div key={kra.id} className="rounded-lg border border-border overflow-hidden">
+                      <div className="bg-muted/30 px-5 py-3 border-b border-border">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: selectedRole.color || 'hsl(var(--primary))' }} />
+                            <h3 className="text-sm font-semibold text-foreground">{kra.title}</h3>
+                          </div>
+                          {kra.weightage > 0 && (
+                            <span className="text-xs font-medium text-muted-foreground">{kra.weightage}% Weight</span>
+                          )}
+                        </div>
+                        {kra.description && <p className="text-xs text-muted-foreground mt-1 ml-4">{kra.description}</p>}
+                      </div>
+                      {kraKpis.length > 0 ? (
+                        <div className="divide-y divide-border/50">
+                          {kraKpis.map(kpi => (
+                            <div key={kpi.id} className="px-5 py-3 hover:bg-muted/10 transition-colors">
+                              <div className="flex items-start gap-3">
+                                <BarChart3 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-foreground">{kpi.metric}</p>
+                                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5">
+                                    {kpi.target && (
+                                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                        Target: {kpi.target}
+                                      </span>
+                                    )}
+                                    {kpi.measurement_method && (
+                                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <Scale className="h-3 w-3 text-blue-500" />
+                                        {kpi.measurement_method}
+                                      </span>
+                                    )}
+                                    {kpi.frequency && (
+                                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <BarChart3 className="h-3 w-3 text-amber-500" />
+                                        {kpi.frequency}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-5 py-4">
+                          <p className="text-xs text-muted-foreground">No KPIs defined for this KRA</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Accountability Summary */}
+          <div className="rounded-lg border border-border bg-muted/10 p-4">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Accountability Clause</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {selectedRole.name} shall be held directly accountable for all failures within their designated domain including operational losses, compliance breaches, negligence, and inefficiency. All actions must be logged, time-stamped, and auditable. Compliance obligations override commercial objectives in case of conflict.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

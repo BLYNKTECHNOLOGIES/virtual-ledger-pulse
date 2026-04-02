@@ -36,6 +36,13 @@ const RACI_COLORS: Record<string, { bg: string; text: string; border: string; la
     label: 'Accountable',
     description: 'Final owner. Only one per task — the person who is ultimately answerable for the correct completion.',
   },
+  'A/R': {
+    bg: 'bg-purple-500/10',
+    text: 'text-purple-700 dark:text-purple-300',
+    border: 'border-purple-200 dark:border-purple-800',
+    label: 'Accountable & Responsible',
+    description: 'Both owns and executes the task. This role is the final owner and also does the work — common in lean teams.',
+  },
   C: {
     bg: 'bg-amber-500/10',
     text: 'text-amber-700 dark:text-amber-300',

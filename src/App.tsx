@@ -736,6 +736,11 @@ const router = createBrowserRouter([
       path: "/unsubscribe",
       element: <Unsubscribe />,
     },
+    // Public RACI page
+    {
+      path: "/raci",
+      element: <RaciPage />,
+    },
    // Catch-all route for 404 errors
     {
       path: "*",

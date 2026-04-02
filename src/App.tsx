@@ -12,6 +12,7 @@ import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import UtilityHub from './pages/UtilityHub';
 import Tasks from './pages/Tasks';
 import Unsubscribe from './pages/Unsubscribe';
+import RaciPage from './pages/RaciPage';
 import { LoginPage } from './components/website/pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import Sales from './pages/Sales';
@@ -734,6 +735,11 @@ const router = createBrowserRouter([
     {
       path: "/unsubscribe",
       element: <Unsubscribe />,
+    },
+    // Public RACI page
+    {
+      path: "/raci",
+      element: <RaciPage />,
     },
    // Catch-all route for 404 errors
     {

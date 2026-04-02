@@ -10107,6 +10107,161 @@ export type Database = {
           },
         ]
       }
+      raci_assignments: {
+        Row: {
+          assignment_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          role_id: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role_id: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          role_id?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raci_assignments_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "raci_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raci_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "raci_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raci_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      raci_roles: {
+        Row: {
+          color: string | null
+          created_at: string
+          department: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          department?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      raci_tasks: {
+        Row: {
+          category_id: string
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category_id: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raci_tasks_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "raci_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rekyc_requests: {
         Row: {
           aadhar_back_url: string | null
@@ -10346,6 +10501,107 @@ export type Database = {
             columns: ["role_id"]
             isOneToOne: false
             referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_kpis: {
+        Row: {
+          created_at: string
+          display_order: number
+          frequency: string | null
+          id: string
+          is_active: boolean
+          kra_id: string
+          measurement_method: string | null
+          metric: string
+          role_id: string
+          target: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          frequency?: string | null
+          id?: string
+          is_active?: boolean
+          kra_id: string
+          measurement_method?: string | null
+          metric: string
+          role_id: string
+          target?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          frequency?: string | null
+          id?: string
+          is_active?: boolean
+          kra_id?: string
+          measurement_method?: string | null
+          metric?: string
+          role_id?: string
+          target?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_kpis_kra_id_fkey"
+            columns: ["kra_id"]
+            isOneToOne: false
+            referencedRelation: "role_kras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_kpis_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "raci_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_kras: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          role_id: string
+          title: string
+          updated_at: string
+          weightage: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          role_id: string
+          title: string
+          updated_at?: string
+          weightage?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          role_id?: string
+          title?: string
+          updated_at?: string
+          weightage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_kras_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "raci_roles"
             referencedColumns: ["id"]
           },
         ]

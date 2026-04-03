@@ -934,19 +934,44 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           {/* Editable Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs">Payment Method</Label>
-              <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border z-50 max-h-[250px]">
-                  {paymentMethods.map((m: any) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between h-5 mb-1">
+                <Label className="text-xs">Payment Method</Label>
+                <div className="flex items-center gap-1.5">
+                  <Checkbox
+                    id="split-sales-payment"
+                    checked={isMultiplePayments}
+                    onCheckedChange={(checked) => {
+                      setIsMultiplePayments(!!checked);
+                      if (checked) {
+                        setPaymentSplits([{ bank_account_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
+                      } else {
+                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="split-sales-payment" className="text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
+                    Split Payment
+                  </Label>
+                </div>
+              </div>
+              {!isMultiplePayments ? (
+                <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border z-50 max-h-[250px]">
+                    {paymentMethods.map((m: any) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-9 flex items-center">
+                  Configure payment distribution below
+                </div>
+              )}
             </div>
 
             <div>

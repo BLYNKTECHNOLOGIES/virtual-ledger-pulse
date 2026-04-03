@@ -431,12 +431,22 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     mutationFn: async () => {
       const userId = await requireCurrentUserId();
 
-      if (!paymentMethodId) {
-        throw new Error("Please select a payment method");
+      if (isMultiplePayments) {
+        if (!splitAllocation.isValid) {
+          throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`);
+        }
+        const bankIds = paymentSplits.map(s => s.bank_account_id);
+        if (new Set(bankIds).size !== bankIds.length) {
+          throw new Error("Duplicate bank accounts in split payment");
+        }
+      } else {
+        if (!paymentMethodId) {
+          throw new Error("Please select a payment method");
+        }
       }
 
-      const selectedMethod = paymentMethods.find((m: any) => m.id === paymentMethodId);
-      const isGateway = Boolean(selectedMethod?.payment_gateway);
+      const selectedMethod = isMultiplePayments ? null : paymentMethods.find((m: any) => m.id === paymentMethodId);
+      const isGateway = isMultiplePayments ? false : Boolean(selectedMethod?.payment_gateway);
 
       const orderNumber = `SO-TRM-${od.order_number?.slice(-12) || Date.now()}`;
       // Convert Binance create_time to IST date string to avoid UTC date truncation

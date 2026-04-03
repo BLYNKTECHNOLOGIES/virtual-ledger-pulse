@@ -338,6 +338,40 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const unitPrice = parseFloat(od.unit_price) || 0;
   const commission = parseFloat(od.commission) || 0;
 
+  // Split payment allocation calculation
+  const splitAllocation = useMemo(() => {
+    const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = totalAmount - totalAllocated;
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, totalAmount]);
+
+  const addPaymentSplit = () => {
+    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) {
+      setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof PaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) =>
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
+  // Auto-fill first split amount
+  useEffect(() => {
+    if (isMultiplePayments && paymentSplits.length === 1 && totalAmount > 0) {
+      const currentAmount = parseFloat(paymentSplits[0].amount) || 0;
+      if (currentAmount === 0) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: totalAmount.toFixed(2) }]);
+      }
+    }
+  }, [isMultiplePayments, totalAmount]);
+
   // Handle client selection from dropdown
   const handleClientSelect = (client: any) => {
     setLinkedClientId(client.id);

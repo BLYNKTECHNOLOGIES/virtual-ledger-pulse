@@ -1011,6 +1011,104 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             </div>
           </div>
 
+          {/* Split Payment Distribution */}
+          {isMultiplePayments && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-medium text-sm">Payment Distribution</Label>
+                    {splitAllocation.isValid ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-[10px] mb-1">Total Amount</div>
+                    <div className="font-semibold text-xs">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center border-x">
+                    <div className="text-muted-foreground text-[10px] mb-1">Allocated</div>
+                    <div className="font-medium text-xs">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
+                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                      ₹{splitAllocation.remaining.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                    <div className="col-span-4">Amount (₹)</div>
+                    <div className="col-span-7">Bank Account</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  {paymentSplits.map((split, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                      <div className="col-span-4">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={split.amount}
+                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="col-span-7">
+                        <Select
+                          value={split.bank_account_id}
+                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select bank account" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                            {bankAccounts.map((account: any) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removePaymentSplit(index)}
+                          disabled={paymentSplits.length === 1}
+                          className="h-8 w-8"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPaymentSplit}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Bank
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <div>
             <Label className="text-xs">Remarks</Label>
             <Textarea
@@ -1030,7 +1128,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || !paymentMethodId}
+            disabled={approveMutation.isPending || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

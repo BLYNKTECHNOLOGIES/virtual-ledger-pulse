@@ -305,6 +305,19 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
   });
 
+  // Fetch bank accounts for split payments
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['bank-accounts-for-sales-split'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch products
   const { data: products = [] } = useQuery({
     queryKey: ['products'],

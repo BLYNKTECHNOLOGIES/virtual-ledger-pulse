@@ -545,6 +545,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         ...formData,
         order_number: orderNumber,
         is_off_market: isOffMarket,
+        is_split_payment: isSplitPayment,
+        payment_splits: isSplitPayment ? paymentSplits : null,
         platform_fees: isOffMarket ? '0' : formData.platform_fees
       });
     };

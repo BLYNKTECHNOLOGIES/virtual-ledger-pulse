@@ -503,6 +503,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     if (stockValidationError) {
       errors.push(stockValidationError);
     }
+
+    if (isSplitPayment) {
+      if (!splitAllocation.isValid) {
+        errors.push(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`);
+      }
+      const bankIds = paymentSplits.map(s => s.bank_account_id);
+      if (new Set(bankIds).size !== bankIds.length) {
+        errors.push("Duplicate bank accounts in split payment");
+      }
+    }
     
     if (errors.length > 0) {
       

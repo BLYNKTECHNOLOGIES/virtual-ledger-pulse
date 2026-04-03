@@ -86,6 +86,21 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
     enabled: !!order?.product_id && open,
   });
 
+  // Fetch payment splits if is_split_payment
+  const { data: paymentSplits } = useQuery({
+    queryKey: ['sales_order_payment_splits', order?.id],
+    queryFn: async () => {
+      if (!order?.id) return null;
+      const { data } = await supabase
+        .from('sales_order_payment_splits')
+        .select('id, amount, bank_account_id, created_at, bank_accounts:bank_account_id(account_name, bank_name)')
+        .eq('sales_order_id', order.id)
+        .order('created_at');
+      return data;
+    },
+    enabled: !!order?.id && !!order?.is_split_payment && open,
+  });
+
   if (!order) return null;
 
   const assetCode = productData?.code || 'USDT';

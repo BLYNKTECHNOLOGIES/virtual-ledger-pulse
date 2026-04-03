@@ -10,11 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users, Plus, Minus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
+
+interface PaymentSplit {
+  bank_account_id: string;
+  amount: string;
+}
 
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";

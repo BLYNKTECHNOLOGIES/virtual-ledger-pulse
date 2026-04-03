@@ -288,6 +288,33 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
               </div>
             </div>
           )}
+
+          {/* Split Payment Breakdown */}
+          {order.is_split_payment && paymentSplits && paymentSplits.length > 0 && (
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <Coins className="h-4 w-4" />
+                Split Payment Breakdown
+              </h3>
+              <div className="space-y-2">
+                {paymentSplits.map((split: any, index: number) => (
+                  <div key={split.id} className="flex items-center justify-between p-2 bg-background rounded border">
+                    <div className="text-sm">
+                      <span className="font-medium">{split.bank_accounts?.account_name || 'Unknown'}</span>
+                      {split.bank_accounts?.bank_name && (
+                        <span className="text-muted-foreground ml-1">({split.bank_accounts.bank_name})</span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold">₹{Number(split.amount).toLocaleString('en-IN')}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pt-2 border-t text-sm font-bold">
+                  <span>Total</span>
+                  <span>₹{paymentSplits.reduce((sum: number, s: any) => sum + Number(s.amount), 0).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            </div>
+          )}
           
           {order.description && (
             <div>

@@ -11,16 +11,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { CustomerAutocomplete } from "./CustomerAutocomplete";
 import { calculateFee } from "@/hooks/useWalletFees";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+
+interface PaymentSplit {
+  bank_account_id: string;
+  amount: string;
+}
 
 interface SalesEntryDialogProps {
   open: boolean;
@@ -42,6 +49,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
 
   const [formData, setFormData] = useState(() => {
     const lastDefaults = getLastOrderDefaults('sales');
@@ -168,6 +177,55 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
+  // Fetch bank accounts for split payments
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank-accounts-for-sales-split'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Split payment allocation calculation
+  const splitAllocation = useMemo(() => {
+    const total = parseFloat(formData.total_amount) || 0;
+    const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = total - totalAllocated;
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, formData.total_amount]);
+
+  const addPaymentSplit = () => {
+    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) {
+      setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof PaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) =>
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
+  // Auto-fill first split amount when total changes
+  useEffect(() => {
+    if (isSplitPayment && paymentSplits.length === 1) {
+      const total = parseFloat(formData.total_amount) || 0;
+      const currentAmount = parseFloat(paymentSplits[0].amount) || 0;
+      if (total > 0 && currentAmount === 0) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: total.toFixed(2) }]);
+      }
+    }
+  }, [isSplitPayment, formData.total_amount]);
+
   const createSalesOrderMutation = useMutation({
     mutationFn: async (data: any) => {
       // Get current user ID for tracking creator — REQUIRED
@@ -196,11 +254,12 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,
           total_amount: data.total_amount,
-          sales_payment_method_id: data.sales_payment_method_id || null,
+          sales_payment_method_id: data.is_split_payment ? null : (data.sales_payment_method_id || null),
           payment_status: data.payment_status,
           order_date: data.order_datetime ? `${data.order_datetime}:00.000Z` : new Date().toISOString(),
           description: data.description,
           is_off_market: data.is_off_market || false,
+          is_split_payment: data.is_split_payment || false,
           created_by: createdBy,
           market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
           effective_usdt_qty: seEffUsdtQty,
@@ -211,8 +270,44 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       
       if (error) throw error;
 
-      // Set settlement status and handle bank crediting based on payment method type
-      if (data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
+      // Handle split payment bank credits
+      if (data.is_split_payment && data.payment_splits && data.payment_status === 'COMPLETED') {
+        const orderDate = data.order_datetime ? data.order_datetime.split('T')[0] : new Date().toISOString().split('T')[0];
+        for (const split of data.payment_splits) {
+          const splitAmount = parseFloat(split.amount);
+          if (splitAmount <= 0 || !split.bank_account_id) continue;
+
+          // Create INCOME bank transaction per split
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: split.bank_account_id,
+            transaction_type: 'INCOME',
+            amount: splitAmount,
+            transaction_date: orderDate,
+            description: `Sales Order - ${data.order_number} - ${data.client_name} (Split)`,
+            reference_number: data.order_number,
+            category: 'Sales',
+            related_account_name: data.client_name,
+            created_by: createdBy,
+          });
+
+          // Record split
+          await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: result.id,
+            bank_account_id: split.bank_account_id,
+            amount: splitAmount,
+            created_by: createdBy,
+          });
+        }
+
+        // Set settlement status to DIRECT for split payments
+        await supabase
+          .from('sales_orders')
+          .update({ settlement_status: 'DIRECT' })
+          .eq('id', result.id);
+      }
+
+      // Set settlement status and handle bank crediting based on payment method type (non-split)
+      if (!data.is_split_payment && data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
         const { data: paymentMethod } = await supabase
           .from('sales_payment_methods')
           .select('bank_account_id, payment_gateway, current_usage, payment_limit')
@@ -226,8 +321,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           .from('sales_orders')
           .update({ settlement_status: settlementStatus })
           .eq('id', result.id);
-
-        // Payment method usage is computed live — no manual current_usage write needed
 
         // Bank transaction will be handled by triggers if applicable
       }
@@ -368,6 +461,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       setIsOffMarket(false);
       setSelectedClientId(undefined);
       setIsNewClient(false);
+      setIsSplitPayment(false);
+      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
     },
     onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);
@@ -407,6 +502,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     
     if (stockValidationError) {
       errors.push(stockValidationError);
+    }
+
+    if (isSplitPayment) {
+      if (!splitAllocation.isValid) {
+        errors.push(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`);
+      }
+      const bankIds = paymentSplits.map(s => s.bank_account_id);
+      if (new Set(bankIds).size !== bankIds.length) {
+        errors.push("Duplicate bank accounts in split payment");
+      }
     }
     
     if (errors.length > 0) {
@@ -452,6 +557,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         ...formData,
         order_number: orderNumber,
         is_off_market: isOffMarket,
+        is_split_payment: isSplitPayment,
+        payment_splits: isSplitPayment ? paymentSplits : null,
         platform_fees: isOffMarket ? '0' : formData.platform_fees
       });
     };
@@ -758,33 +865,58 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Payment Method</Label>
-              <Select
-                value={formData.sales_payment_method_id}
-                onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
-                  {paymentMethods?.map((method) => {
-                    // Use nickname if available, otherwise fallback to payment details
-                    const displayLabel = (method as any).nickname 
-                      ? (method as any).nickname
-                      : method.type === 'UPI' && method.upi_id 
-                        ? `${method.upi_id} (${method.risk_category})` 
-                        : method.bank_accounts 
-                          ? `${method.bank_accounts.account_name} (${method.risk_category})` 
-                          : `${method.type} (${method.risk_category})`;
-                    
-                    return (
-                      <SelectItem key={method.id} value={method.id}>
-                        {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between h-6">
+                <Label>Payment Method</Label>
+                <div className="flex items-center gap-1.5">
+                  <Checkbox
+                    id="split-sales-payment-manual"
+                    checked={isSplitPayment}
+                    onCheckedChange={(checked) => {
+                      setIsSplitPayment(!!checked);
+                      if (checked) {
+                        const total = parseFloat(formData.total_amount) || 0;
+                        setPaymentSplits([{ bank_account_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
+                      } else {
+                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="split-sales-payment-manual" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                    Split Payment
+                  </Label>
+                </div>
+              </div>
+              {!isSplitPayment ? (
+                <Select
+                  value={formData.sales_payment_method_id}
+                  onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border border-border shadow-lg z-50">
+                    {paymentMethods?.map((method) => {
+                      const displayLabel = (method as any).nickname 
+                        ? (method as any).nickname
+                        : method.type === 'UPI' && method.upi_id 
+                          ? `${method.upi_id} (${method.risk_category})` 
+                          : method.bank_accounts 
+                            ? `${method.bank_accounts.account_name} (${method.risk_category})` 
+                            : `${method.type} (${method.risk_category})`;
+                      
+                      return (
+                        <SelectItem key={method.id} value={method.id}>
+                          {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-10 flex items-center">
+                  Configure payment distribution below
+                </div>
+              )}
             </div>
 
             <div>
@@ -796,6 +928,103 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
               />
             </div>
           </div>
+
+          {/* Split Payment Distribution */}
+          {isSplitPayment && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-medium">Payment Distribution</Label>
+                    {splitAllocation.isValid ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-xs mb-1">Total Amount</div>
+                    <div className="font-semibold">₹{(parseFloat(formData.total_amount) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center border-x">
+                    <div className="text-muted-foreground text-xs mb-1">Allocated</div>
+                    <div className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-xs mb-1">Remaining</div>
+                    <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                      ₹{splitAllocation.remaining.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                    <div className="col-span-4">Amount (₹)</div>
+                    <div className="col-span-7">Bank Account</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  {paymentSplits.map((split, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                      <div className="col-span-4">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={split.amount}
+                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="col-span-7">
+                        <Select
+                          value={split.bank_account_id}
+                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select bank account" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                            {bankAccounts?.map((account: any) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removePaymentSplit(index)}
+                          disabled={paymentSplits.length === 1}
+                          className="h-8 w-8"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPaymentSplit}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Bank
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <div>
             <Label>Description</Label>

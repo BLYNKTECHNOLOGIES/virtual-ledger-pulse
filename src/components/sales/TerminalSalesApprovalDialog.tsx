@@ -10,11 +10,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users, Plus, Minus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
+
+interface PaymentSplit {
+  bank_account_id: string;
+  amount: string;
+}
 
 import { createBuyerClient } from "@/utils/clientIdGenerator";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -55,6 +61,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const displayName = (rawName.includes('*')) ? '—' : rawName;
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
+  const [isMultiplePayments, setIsMultiplePayments] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
   const [settlementDate, setSettlementDate] = useState(
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );
@@ -297,6 +305,19 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
   });
 
+  // Fetch bank accounts for split payments
+  const { data: bankAccounts = [] } = useQuery({
+    queryKey: ['bank-accounts-for-sales-split'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // Fetch products
   const { data: products = [] } = useQuery({
     queryKey: ['products'],
@@ -316,6 +337,40 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const quantity = parseFloat(od.amount) || 0;
   const unitPrice = parseFloat(od.unit_price) || 0;
   const commission = parseFloat(od.commission) || 0;
+
+  // Split payment allocation calculation
+  const splitAllocation = useMemo(() => {
+    const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = totalAmount - totalAllocated;
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, totalAmount]);
+
+  const addPaymentSplit = () => {
+    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) {
+      setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof PaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) =>
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
+  // Auto-fill first split amount
+  useEffect(() => {
+    if (isMultiplePayments && paymentSplits.length === 1 && totalAmount > 0) {
+      const currentAmount = parseFloat(paymentSplits[0].amount) || 0;
+      if (currentAmount === 0) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: totalAmount.toFixed(2) }]);
+      }
+    }
+  }, [isMultiplePayments, totalAmount]);
 
   // Handle client selection from dropdown
   const handleClientSelect = (client: any) => {
@@ -376,12 +431,22 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     mutationFn: async () => {
       const userId = await requireCurrentUserId();
 
-      if (!paymentMethodId) {
-        throw new Error("Please select a payment method");
+      if (isMultiplePayments) {
+        if (!splitAllocation.isValid) {
+          throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`);
+        }
+        const bankIds = paymentSplits.map(s => s.bank_account_id);
+        if (new Set(bankIds).size !== bankIds.length) {
+          throw new Error("Duplicate bank accounts in split payment");
+        }
+      } else {
+        if (!paymentMethodId) {
+          throw new Error("Please select a payment method");
+        }
       }
 
-      const selectedMethod = paymentMethods.find((m: any) => m.id === paymentMethodId);
-      const isGateway = Boolean(selectedMethod?.payment_gateway);
+      const selectedMethod = isMultiplePayments ? null : paymentMethods.find((m: any) => m.id === paymentMethodId);
+      const isGateway = isMultiplePayments ? false : Boolean(selectedMethod?.payment_gateway);
 
       const orderNumber = `SO-TRM-${od.order_number?.slice(-12) || Date.now()}`;
       // Convert Binance create_time to IST date string to avoid UTC date truncation
@@ -435,10 +500,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             fee_percentage: 0,
             fee_amount: commission,
             net_amount: totalAmount,
-            sales_payment_method_id: paymentMethodId,
+            sales_payment_method_id: isMultiplePayments ? null : paymentMethodId,
+            is_split_payment: isMultiplePayments,
             payment_status: 'COMPLETED',
             status: 'COMPLETED',
-            settlement_status: isGateway ? 'PENDING' : 'DIRECT',
+            settlement_status: isMultiplePayments ? 'DIRECT' : (isGateway ? 'PENDING' : 'DIRECT'),
             is_off_market: false,
             description: `Terminal P2P Sale - ${od.order_number}${remarks ? ` | ${remarks}` : ''}`,
             created_by: userId,
@@ -505,6 +571,35 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       }
 
       // Payment method usage is computed live — no manual current_usage update needed
+
+      // Handle split payment bank credits
+      if (isMultiplePayments) {
+        for (const split of paymentSplits) {
+          const splitAmount = parseFloat(split.amount);
+          if (splitAmount <= 0 || !split.bank_account_id) continue;
+
+          // Create INCOME bank transaction per split
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: split.bank_account_id,
+            transaction_type: 'INCOME',
+            amount: splitAmount,
+            transaction_date: orderDate,
+            description: `Sales Order - ${orderNumber} - ${displayName} (Split)`,
+            reference_number: orderNumber,
+            category: 'Sales',
+            related_account_name: displayName,
+            created_by: userId,
+          });
+
+          // Record split in sales_order_payment_splits
+          await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: salesOrder.id,
+            bank_account_id: split.bank_account_id,
+            amount: splitAmount,
+            created_by: userId,
+          });
+        }
+      }
 
       } // end if (!existingSO)
 
@@ -839,19 +934,44 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           {/* Editable Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-xs">Payment Method</Label>
-              <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover border z-50 max-h-[250px]">
-                  {paymentMethods.map((m: any) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between h-5 mb-1">
+                <Label className="text-xs">Payment Method</Label>
+                <div className="flex items-center gap-1.5">
+                  <Checkbox
+                    id="split-sales-payment"
+                    checked={isMultiplePayments}
+                    onCheckedChange={(checked) => {
+                      setIsMultiplePayments(!!checked);
+                      if (checked) {
+                        setPaymentSplits([{ bank_account_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
+                      } else {
+                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="split-sales-payment" className="text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
+                    Split Payment
+                  </Label>
+                </div>
+              </div>
+              {!isMultiplePayments ? (
+                <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border z-50 max-h-[250px]">
+                    {paymentMethods.map((m: any) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.nickname || `${m.type}${m.bank_accounts ? ` - ${m.bank_accounts.account_name}` : ''}`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-9 flex items-center">
+                  Configure payment distribution below
+                </div>
+              )}
             </div>
 
             <div>
@@ -891,6 +1011,104 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             </div>
           </div>
 
+          {/* Split Payment Distribution */}
+          {isMultiplePayments && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-medium text-sm">Payment Distribution</Label>
+                    {splitAllocation.isValid ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-[10px] mb-1">Total Amount</div>
+                    <div className="font-semibold text-xs">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center border-x">
+                    <div className="text-muted-foreground text-[10px] mb-1">Allocated</div>
+                    <div className="font-medium text-xs">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
+                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                      ₹{splitAllocation.remaining.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                    <div className="col-span-4">Amount (₹)</div>
+                    <div className="col-span-7">Bank Account</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  {paymentSplits.map((split, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                      <div className="col-span-4">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={split.amount}
+                          onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="col-span-7">
+                        <Select
+                          value={split.bank_account_id}
+                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select bank account" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                            {bankAccounts.map((account: any) => (
+                              <SelectItem key={account.id} value={account.id}>
+                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removePaymentSplit(index)}
+                          disabled={paymentSplits.length === 1}
+                          className="h-8 w-8"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPaymentSplit}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Bank
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <div>
             <Label className="text-xs">Remarks</Label>
             <Textarea
@@ -910,7 +1128,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           <Button
             size="sm"
             onClick={() => approveMutation.mutate()}
-            disabled={approveMutation.isPending || !paymentMethodId}
+            disabled={approveMutation.isPending || (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)}
           >
             {approveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Approve & Create Sale

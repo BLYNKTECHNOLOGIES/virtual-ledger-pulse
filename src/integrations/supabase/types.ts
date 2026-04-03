@@ -10709,6 +10709,55 @@ export type Database = {
           },
         ]
       }
+      sales_order_payment_splits: {
+        Row: {
+          amount: number
+          bank_account_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          sales_order_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sales_order_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          sales_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_payment_splits_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_orders: {
         Row: {
           client_id: string | null
@@ -10725,6 +10774,7 @@ export type Database = {
           fee_percentage: number | null
           id: string
           is_off_market: boolean | null
+          is_split_payment: boolean
           market_rate_usdt: number | null
           net_amount: number | null
           order_date: string
@@ -10764,6 +10814,7 @@ export type Database = {
           fee_percentage?: number | null
           id?: string
           is_off_market?: boolean | null
+          is_split_payment?: boolean
           market_rate_usdt?: number | null
           net_amount?: number | null
           order_date: string
@@ -10803,6 +10854,7 @@ export type Database = {
           fee_percentage?: number | null
           id?: string
           is_off_market?: boolean | null
+          is_split_payment?: boolean
           market_rate_usdt?: number | null
           net_amount?: number | null
           order_date?: string

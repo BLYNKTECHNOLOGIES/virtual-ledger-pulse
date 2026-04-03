@@ -177,6 +177,55 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     },
   });
 
+  // Fetch bank accounts for split payments
+  const { data: bankAccounts } = useQuery({
+    queryKey: ['bank-accounts-for-sales-split'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_accounts')
+        .select('*')
+        .eq('status', 'ACTIVE');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Split payment allocation calculation
+  const splitAllocation = useMemo(() => {
+    const total = parseFloat(formData.total_amount) || 0;
+    const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = total - totalAllocated;
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, formData.total_amount]);
+
+  const addPaymentSplit = () => {
+    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) {
+      setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof PaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) =>
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
+  // Auto-fill first split amount when total changes
+  useEffect(() => {
+    if (isSplitPayment && paymentSplits.length === 1) {
+      const total = parseFloat(formData.total_amount) || 0;
+      const currentAmount = parseFloat(paymentSplits[0].amount) || 0;
+      if (total > 0 && currentAmount === 0) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: total.toFixed(2) }]);
+      }
+    }
+  }, [isSplitPayment, formData.total_amount]);
+
   const createSalesOrderMutation = useMutation({
     mutationFn: async (data: any) => {
       // Get current user ID for tracking creator — REQUIRED

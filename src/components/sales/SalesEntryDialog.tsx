@@ -49,6 +49,8 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [isGeneratingOrderNumber, setIsGeneratingOrderNumber] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
 
   const [formData, setFormData] = useState(() => {
     const lastDefaults = getLastOrderDefaults('sales');

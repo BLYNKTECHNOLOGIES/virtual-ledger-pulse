@@ -254,11 +254,12 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           quantity: data.quantity,
           price_per_unit: data.price_per_unit,
           total_amount: data.total_amount,
-          sales_payment_method_id: data.sales_payment_method_id || null,
+          sales_payment_method_id: data.is_split_payment ? null : (data.sales_payment_method_id || null),
           payment_status: data.payment_status,
           order_date: data.order_datetime ? `${data.order_datetime}:00.000Z` : new Date().toISOString(),
           description: data.description,
           is_off_market: data.is_off_market || false,
+          is_split_payment: data.is_split_payment || false,
           created_by: createdBy,
           market_rate_usdt: marketRateUsdt > 0 ? marketRateUsdt : null,
           effective_usdt_qty: seEffUsdtQty,
@@ -269,8 +270,44 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       
       if (error) throw error;
 
-      // Set settlement status and handle bank crediting based on payment method type
-      if (data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
+      // Handle split payment bank credits
+      if (data.is_split_payment && data.payment_splits && data.payment_status === 'COMPLETED') {
+        const orderDate = data.order_datetime ? data.order_datetime.split('T')[0] : new Date().toISOString().split('T')[0];
+        for (const split of data.payment_splits) {
+          const splitAmount = parseFloat(split.amount);
+          if (splitAmount <= 0 || !split.bank_account_id) continue;
+
+          // Create INCOME bank transaction per split
+          await supabase.from('bank_transactions').insert({
+            bank_account_id: split.bank_account_id,
+            transaction_type: 'INCOME',
+            amount: splitAmount,
+            transaction_date: orderDate,
+            description: `Sales Order - ${data.order_number} - ${data.client_name} (Split)`,
+            reference_number: data.order_number,
+            category: 'Sales',
+            related_account_name: data.client_name,
+            created_by: createdBy,
+          });
+
+          // Record split
+          await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: result.id,
+            bank_account_id: split.bank_account_id,
+            amount: splitAmount,
+            created_by: createdBy,
+          });
+        }
+
+        // Set settlement status to DIRECT for split payments
+        await supabase
+          .from('sales_orders')
+          .update({ settlement_status: 'DIRECT' })
+          .eq('id', result.id);
+      }
+
+      // Set settlement status and handle bank crediting based on payment method type (non-split)
+      if (!data.is_split_payment && data.sales_payment_method_id && data.payment_status === 'COMPLETED') {
         const { data: paymentMethod } = await supabase
           .from('sales_payment_methods')
           .select('bank_account_id, payment_gateway, current_usage, payment_limit')
@@ -284,8 +321,6 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           .from('sales_orders')
           .update({ settlement_status: settlementStatus })
           .eq('id', result.id);
-
-        // Payment method usage is computed live — no manual current_usage write needed
 
         // Bank transaction will be handled by triggers if applicable
       }

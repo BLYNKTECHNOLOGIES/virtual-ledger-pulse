@@ -189,7 +189,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   }, [paymentSplits, formData.total_amount]);
 
   const addPaymentSplit = () => {
-    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+    setPaymentSplits(prev => [...prev, { payment_method_id: '', amount: '' }]);
   };
 
   const removePaymentSplit = (index: number) => {

@@ -871,7 +871,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                         const total = parseFloat(formData.total_amount) || 0;
                         setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
                       } else {
-                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                        setPaymentSplits([{ payment_method_id: '', amount: '' }]);
                       }
                     }}
                   />

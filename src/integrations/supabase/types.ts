@@ -9330,7 +9330,7 @@ export type Database = {
           {
             foreignKeyName: "fk_pending_settlements_sales_order"
             columns: ["sales_order_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },

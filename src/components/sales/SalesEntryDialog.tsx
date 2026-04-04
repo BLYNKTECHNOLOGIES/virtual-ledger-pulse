@@ -502,9 +502,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       if (!splitAllocation.isValid) {
         errors.push(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`);
       }
-      const bankIds = paymentSplits.map(s => s.bank_account_id);
-      if (new Set(bankIds).size !== bankIds.length) {
-        errors.push("Duplicate bank accounts in split payment");
+      const methodIds = paymentSplits.map(s => s.payment_method_id);
+      if (new Set(methodIds).size !== methodIds.length) {
+        errors.push("Duplicate payment methods in split payment");
       }
     }
     

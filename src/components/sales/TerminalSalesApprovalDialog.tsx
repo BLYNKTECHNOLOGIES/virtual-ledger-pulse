@@ -424,9 +424,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         if (!splitAllocation.isValid) {
           throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`);
         }
-        const bankIds = paymentSplits.map(s => s.bank_account_id);
-        if (new Set(bankIds).size !== bankIds.length) {
-          throw new Error("Duplicate bank accounts in split payment");
+        const methodIds = paymentSplits.map(s => s.payment_method_id);
+        if (new Set(methodIds).size !== methodIds.length) {
+          throw new Error("Duplicate payment methods in split payment");
         }
       } else {
         if (!paymentMethodId) {

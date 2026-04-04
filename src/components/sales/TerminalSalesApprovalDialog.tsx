@@ -62,7 +62,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
-  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
   const [settlementDate, setSettlementDate] = useState(
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );

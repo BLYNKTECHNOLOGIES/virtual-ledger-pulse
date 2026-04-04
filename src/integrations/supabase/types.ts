@@ -9330,7 +9330,7 @@ export type Database = {
           {
             foreignKeyName: "fk_pending_settlements_sales_order"
             columns: ["sales_order_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "sales_orders"
             referencedColumns: ["id"]
           },
@@ -10716,6 +10716,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_gateway: boolean | null
+          payment_method_id: string | null
           sales_order_id: string
         }
         Insert: {
@@ -10724,6 +10726,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_gateway?: boolean | null
+          payment_method_id?: string | null
           sales_order_id: string
         }
         Update: {
@@ -10732,6 +10736,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_gateway?: boolean | null
+          payment_method_id?: string | null
           sales_order_id?: string
         }
         Relationships: [
@@ -10747,6 +10753,13 @@ export type Database = {
             columns: ["bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_payment_splits_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "sales_payment_methods"
             referencedColumns: ["id"]
           },
           {

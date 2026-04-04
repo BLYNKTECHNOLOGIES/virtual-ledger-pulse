@@ -869,7 +869,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                       setIsSplitPayment(!!checked);
                       if (checked) {
                         const total = parseFloat(formData.total_amount) || 0;
-                        setPaymentSplits([{ bank_account_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
+                        setPaymentSplits([{ payment_method_id: '', amount: total > 0 ? total.toFixed(2) : '' }]);
                       } else {
                         setPaymentSplits([{ bank_account_id: '', amount: '' }]);
                       }

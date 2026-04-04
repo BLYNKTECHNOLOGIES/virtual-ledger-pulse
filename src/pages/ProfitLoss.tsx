@@ -562,7 +562,7 @@ export default function ProfitLoss() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <DateRangePicker
                 dateRange={dateRange}
-                onDateRangeChange={setDateRange}
+                onDateRangeChange={handleDateRangeChange}
                 preset={datePreset}
                 onPresetChange={handleDatePresetChange}
                 className="w-52"

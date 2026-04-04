@@ -66,12 +66,14 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
   // Fetch payment methods
   const { data: paymentMethods } = useQuery({
-    queryKey: ['sales_payment_methods'],
+    queryKey: ['sales_payment_methods', order?.sales_payment_method_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales_payment_methods')
         .select(`
           *,
+          payment_gateway,
+          is_active,
           bank_accounts:bank_account_id(
             account_name,
             bank_name,
@@ -79,7 +81,15 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           )
         `);
       if (error) throw error;
-      return (data || []).filter(method => method.bank_accounts?.status === 'ACTIVE');
+
+      const selectedPaymentMethodId = order?.sales_payment_method_id;
+
+      return (data || []).filter((method: any) => {
+        if (method.id === selectedPaymentMethodId) return true;
+        if (!method.is_active) return false;
+        if (method.payment_gateway) return true;
+        return method.bank_accounts?.status === 'ACTIVE';
+      });
     },
     enabled: open,
   });
@@ -460,6 +470,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                   {paymentMethods?.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
                       {(method as any).nickname || `${method.bank_accounts?.account_name || method.type} - ${method.bank_accounts?.bank_name || ''}`}
+                      {method.id === order.sales_payment_method_id && !(method as any).is_active ? ' (Inactive)' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

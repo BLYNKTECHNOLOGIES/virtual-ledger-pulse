@@ -93,7 +93,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
       if (!order?.id) return null;
       const { data } = await supabase
         .from('sales_order_payment_splits')
-        .select('id, amount, bank_account_id, created_at, bank_accounts:bank_account_id(account_name, bank_name)')
+        .select('id, amount, bank_account_id, payment_method_id, is_gateway, created_at, bank_accounts:bank_account_id(account_name, bank_name), sales_payment_methods:payment_method_id(nickname, type, payment_gateway)')
         .eq('sales_order_id', order.id)
         .order('created_at');
       return data;
@@ -300,9 +300,14 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
                 {paymentSplits.map((split: any, index: number) => (
                   <div key={split.id} className="flex items-center justify-between p-2 bg-background rounded border">
                     <div className="text-sm">
-                      <span className="font-medium">{split.bank_accounts?.account_name || 'Unknown'}</span>
-                      {split.bank_accounts?.bank_name && (
-                        <span className="text-muted-foreground ml-1">({split.bank_accounts.bank_name})</span>
+                      <span className="font-medium">
+                        {split.sales_payment_methods?.nickname || split.bank_accounts?.account_name || 'Unknown'}
+                      </span>
+                      {!split.sales_payment_methods?.nickname && split.bank_accounts?.bank_name && (
+                        <span className="text-muted-foreground ml-1">({split.bank_accounts?.bank_name})</span>
+                      )}
+                      {split.is_gateway && (
+                        <Badge variant="outline" className="ml-2 text-xs">POS/Gateway</Badge>
                       )}
                     </div>
                     <span className="text-sm font-semibold">₹{Number(split.amount).toLocaleString('en-IN')}</span>

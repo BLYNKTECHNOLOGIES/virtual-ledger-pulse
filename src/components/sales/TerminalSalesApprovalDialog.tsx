@@ -563,6 +563,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
       // Handle split payment bank credits
       if (isMultiplePayments) {
+        let hasAnyGateway = false;
         for (const split of paymentSplits) {
           const splitAmount = parseFloat(split.amount);
           if (splitAmount <= 0 || !split.payment_method_id) continue;
@@ -572,26 +573,59 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           const resolvedBankAccountId = pm?.bank_account_id;
           if (!resolvedBankAccountId) continue;
 
-          // Create INCOME bank transaction per split
-          await supabase.from('bank_transactions').insert({
-            bank_account_id: resolvedBankAccountId,
-            transaction_type: 'INCOME',
-            amount: splitAmount,
-            transaction_date: orderDate,
-            description: `Sales Order - ${orderNumber} - ${displayName} (Split)`,
-            reference_number: orderNumber,
-            category: 'Sales',
-            related_account_name: displayName,
-            created_by: userId,
-          });
+          const splitIsGateway = Boolean(pm?.payment_gateway);
+
+          if (splitIsGateway) {
+            // Gateway/POS split → create pending settlement, NOT a direct INCOME entry
+            hasAnyGateway = true;
+            await supabase.from('pending_settlements').insert({
+              sales_order_id: salesOrder.id,
+              order_number: orderNumber,
+              client_name: displayName,
+              total_amount: splitAmount,
+              settlement_amount: splitAmount,
+              order_date: orderDate,
+              payment_method_id: split.payment_method_id,
+              bank_account_id: resolvedBankAccountId,
+              settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
+              settlement_days: pm?.settlement_days || null,
+              expected_settlement_date: pm?.settlement_days
+                ? new Date(new Date(orderDate).getTime() + (pm.settlement_days * 86400000)).toISOString().split('T')[0]
+                : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0],
+              status: 'PENDING',
+            });
+          } else {
+            // Direct bank split → create INCOME bank transaction
+            await supabase.from('bank_transactions').insert({
+              bank_account_id: resolvedBankAccountId,
+              transaction_type: 'INCOME',
+              amount: splitAmount,
+              transaction_date: orderDate,
+              description: `Sales Order - ${orderNumber} - ${displayName} (Split)`,
+              reference_number: orderNumber,
+              category: 'Sales',
+              related_account_name: displayName,
+              created_by: userId,
+            });
+          }
 
           // Record split in sales_order_payment_splits
           await supabase.from('sales_order_payment_splits').insert({
             sales_order_id: salesOrder.id,
             bank_account_id: resolvedBankAccountId,
             amount: splitAmount,
+            payment_method_id: split.payment_method_id,
+            is_gateway: splitIsGateway,
             created_by: userId,
           });
+        }
+
+        // If any gateway split exists, set settlement_status to PENDING
+        if (hasAnyGateway) {
+          await supabase
+            .from('sales_orders')
+            .update({ settlement_status: 'PENDING' })
+            .eq('id', salesOrder.id);
         }
       }
 

@@ -490,13 +490,12 @@ export default function ProfitLoss() {
   };
 
   const getPeriodLabel = () => {
-    if (dateRange?.from && dateRange?.to) {
-      if (format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd')) {
-        return format(dateRange.from, 'MMM dd, yyyy');
-      }
-      return `${format(dateRange.from, 'MMM dd')} - ${format(dateRange.to, 'MMM dd, yyyy')}`;
+    if (datePreset === 'allTime') return 'All Time';
+    // Use the actual computed dates (same as query) for the label
+    if (computedStartStr === computedEndStr) {
+      return format(_startDate, 'MMM dd, yyyy');
     }
-    return 'All Time';
+    return `${format(_startDate, 'MMM dd')} - ${format(_endDate, 'MMM dd, yyyy')}`;
   };
 
   if (permissionsLoading) {

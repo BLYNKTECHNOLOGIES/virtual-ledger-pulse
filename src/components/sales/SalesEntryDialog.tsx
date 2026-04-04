@@ -50,7 +50,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
   const [isSplitPayment, setIsSplitPayment] = useState(false);
-  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
 
   const [formData, setFormData] = useState(() => {
     const lastDefaults = getLastOrderDefaults('sales');

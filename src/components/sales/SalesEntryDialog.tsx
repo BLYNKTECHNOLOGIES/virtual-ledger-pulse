@@ -184,7 +184,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     const total = parseFloat(formData.total_amount) || 0;
     const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
     const remaining = total - totalAllocated;
-    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.payment_method_id && parseFloat(s.amount) > 0);
     return { totalAllocated, remaining, isValid };
   }, [paymentSplits, formData.total_amount]);
 

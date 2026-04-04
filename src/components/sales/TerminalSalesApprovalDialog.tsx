@@ -937,9 +937,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                     onCheckedChange={(checked) => {
                       setIsMultiplePayments(!!checked);
                       if (checked) {
-                        setPaymentSplits([{ bank_account_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
+                         setPaymentSplits([{ payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
                       } else {
-                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                         setPaymentSplits([{ payment_method_id: '', amount: '' }]);
                       }
                     }}
                   />

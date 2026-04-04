@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 
 interface PaymentSplit {
-  bank_account_id: string;
+  payment_method_id: string;
   amount: string;
 }
 
@@ -62,7 +62,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
-  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
   const [settlementDate, setSettlementDate] = useState(
     od.create_time ? new Date(od.create_time).toISOString() : new Date().toISOString()
   );
@@ -305,18 +305,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
   });
 
-  // Fetch bank accounts for split payments
-  const { data: bankAccounts = [] } = useQuery({
-    queryKey: ['bank-accounts-for-sales-split'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_accounts')
-        .select('*')
-        .eq('status', 'ACTIVE');
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // No longer need separate bank accounts query for split - using paymentMethods instead
 
   // Fetch products
   const { data: products = [] } = useQuery({
@@ -342,12 +331,12 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const splitAllocation = useMemo(() => {
     const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
     const remaining = totalAmount - totalAllocated;
-    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.bank_account_id && parseFloat(s.amount) > 0);
+    const isValid = Math.abs(remaining) <= 0.01 && paymentSplits.every(s => s.payment_method_id && parseFloat(s.amount) > 0);
     return { totalAllocated, remaining, isValid };
   }, [paymentSplits, totalAmount]);
 
   const addPaymentSplit = () => {
-    setPaymentSplits(prev => [...prev, { bank_account_id: '', amount: '' }]);
+    setPaymentSplits(prev => [...prev, { payment_method_id: '', amount: '' }]);
   };
 
   const removePaymentSplit = (index: number) => {
@@ -435,9 +424,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         if (!splitAllocation.isValid) {
           throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)} (must be ₹0.00)`);
         }
-        const bankIds = paymentSplits.map(s => s.bank_account_id);
-        if (new Set(bankIds).size !== bankIds.length) {
-          throw new Error("Duplicate bank accounts in split payment");
+        const methodIds = paymentSplits.map(s => s.payment_method_id);
+        if (new Set(methodIds).size !== methodIds.length) {
+          throw new Error("Duplicate payment methods in split payment");
         }
       } else {
         if (!paymentMethodId) {
@@ -576,11 +565,16 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (isMultiplePayments) {
         for (const split of paymentSplits) {
           const splitAmount = parseFloat(split.amount);
-          if (splitAmount <= 0 || !split.bank_account_id) continue;
+          if (splitAmount <= 0 || !split.payment_method_id) continue;
+
+          // Resolve bank_account_id from payment method
+          const pm = paymentMethods.find((m: any) => m.id === split.payment_method_id);
+          const resolvedBankAccountId = pm?.bank_account_id;
+          if (!resolvedBankAccountId) continue;
 
           // Create INCOME bank transaction per split
           await supabase.from('bank_transactions').insert({
-            bank_account_id: split.bank_account_id,
+            bank_account_id: resolvedBankAccountId,
             transaction_type: 'INCOME',
             amount: splitAmount,
             transaction_date: orderDate,
@@ -594,7 +588,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           // Record split in sales_order_payment_splits
           await supabase.from('sales_order_payment_splits').insert({
             sales_order_id: salesOrder.id,
-            bank_account_id: split.bank_account_id,
+            bank_account_id: resolvedBankAccountId,
             amount: splitAmount,
             created_by: userId,
           });
@@ -943,9 +937,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                     onCheckedChange={(checked) => {
                       setIsMultiplePayments(!!checked);
                       if (checked) {
-                        setPaymentSplits([{ bank_account_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
+                         setPaymentSplits([{ payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' }]);
                       } else {
-                        setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+                         setPaymentSplits([{ payment_method_id: '', amount: '' }]);
                       }
                     }}
                   />
@@ -1046,7 +1040,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                 <div className="space-y-2">
                   <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
                     <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Bank Account</div>
+                    <div className="col-span-7">Payment Method</div>
                     <div className="col-span-1"></div>
                   </div>
                   {paymentSplits.map((split, index) => (
@@ -1064,18 +1058,27 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       </div>
                       <div className="col-span-7">
                         <Select
-                          value={split.bank_account_id}
-                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                          value={split.payment_method_id}
+                          onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
                         >
                           <SelectTrigger className="h-9 text-sm">
-                            <SelectValue placeholder="Select bank account" />
+                            <SelectValue placeholder="Select payment method" />
                           </SelectTrigger>
                           <SelectContent className="bg-popover z-50 border border-border shadow-lg">
-                            {bankAccounts.map((account: any) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </SelectItem>
-                            ))}
+                            {paymentMethods.map((method: any) => {
+                              const displayLabel = method.nickname 
+                                ? method.nickname
+                                : method.type === 'UPI' && method.upi_id 
+                                  ? `${method.upi_id} (${method.risk_category})` 
+                                  : method.bank_accounts 
+                                    ? `${method.bank_accounts.account_name} (${method.risk_category})` 
+                                    : `${method.type} (${method.risk_category})`;
+                              return (
+                                <SelectItem key={method.id} value={method.id}>
+                                  {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1103,7 +1106,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Another Bank
+                  Add Another Payment Method
                 </Button>
               </CardContent>
             </Card>

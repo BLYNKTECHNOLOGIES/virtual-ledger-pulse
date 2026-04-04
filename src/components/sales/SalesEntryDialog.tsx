@@ -1023,7 +1023,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Another Bank
+                  Add Another Payment Method
                 </Button>
               </CardContent>
             </Card>

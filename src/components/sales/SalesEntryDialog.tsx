@@ -264,11 +264,16 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         const orderDate = data.order_datetime ? data.order_datetime.split('T')[0] : new Date().toISOString().split('T')[0];
         for (const split of data.payment_splits) {
           const splitAmount = parseFloat(split.amount);
-          if (splitAmount <= 0 || !split.bank_account_id) continue;
+          if (splitAmount <= 0 || !split.payment_method_id) continue;
+
+          // Resolve bank_account_id from payment method
+          const pm = paymentMethods?.find((m: any) => m.id === split.payment_method_id);
+          const resolvedBankAccountId = pm?.bank_account_id;
+          if (!resolvedBankAccountId) continue;
 
           // Create INCOME bank transaction per split
           await supabase.from('bank_transactions').insert({
-            bank_account_id: split.bank_account_id,
+            bank_account_id: resolvedBankAccountId,
             transaction_type: 'INCOME',
             amount: splitAmount,
             transaction_date: orderDate,
@@ -282,7 +287,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           // Record split
           await supabase.from('sales_order_payment_splits').insert({
             sales_order_id: result.id,
-            bank_account_id: split.bank_account_id,
+            bank_account_id: resolvedBankAccountId,
             amount: splitAmount,
             created_by: createdBy,
           });

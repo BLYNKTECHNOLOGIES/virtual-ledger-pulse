@@ -456,7 +456,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       setSelectedClientId(undefined);
       setIsNewClient(false);
       setIsSplitPayment(false);
-      setPaymentSplits([{ bank_account_id: '', amount: '' }]);
+      setPaymentSplits([{ payment_method_id: '', amount: '' }]);
     },
     onError: (error: any) => {
       console.error('❌ Error creating sales order:', error);

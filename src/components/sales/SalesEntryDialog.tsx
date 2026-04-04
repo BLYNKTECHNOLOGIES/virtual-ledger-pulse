@@ -958,7 +958,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                 <div className="space-y-2">
                   <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
                     <div className="col-span-4">Amount (₹)</div>
-                    <div className="col-span-7">Bank Account</div>
+                    <div className="col-span-7">Payment Method</div>
                     <div className="col-span-1"></div>
                   </div>
                   {paymentSplits.map((split, index) => (
@@ -975,18 +975,27 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
                       </div>
                       <div className="col-span-7">
                         <Select
-                          value={split.bank_account_id}
-                          onValueChange={(value) => updatePaymentSplit(index, 'bank_account_id', value)}
+                          value={split.payment_method_id}
+                          onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select bank account" />
+                            <SelectValue placeholder="Select payment method" />
                           </SelectTrigger>
                           <SelectContent className="bg-popover z-50 border border-border shadow-lg">
-                            {bankAccounts?.map((account: any) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.account_name} - ₹{Number(account.balance).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </SelectItem>
-                            ))}
+                            {paymentMethods?.map((method: any) => {
+                              const displayLabel = method.nickname 
+                                ? method.nickname
+                                : method.type === 'UPI' && method.upi_id 
+                                  ? `${method.upi_id} (${method.risk_category})` 
+                                  : method.bank_accounts 
+                                    ? `${method.bank_accounts.account_name} (${method.risk_category})` 
+                                    : `${method.type} (${method.risk_category})`;
+                              return (
+                                <SelectItem key={method.id} value={method.id}>
+                                  {displayLabel} - ₹{method.current_usage?.toLocaleString('en-IN')}/{method.payment_limit?.toLocaleString('en-IN')}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>

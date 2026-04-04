@@ -88,50 +88,83 @@ export default function ProfitLoss() {
   const canViewProfitLoss = hasAnyPermission(["accounting_view", "accounting_manage"]);
 
   const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
-    const saved = localStorage.getItem('pnl_date_preset');
-    return (saved as DateRangePreset) || 'today';
+    const saved = localStorage.getItem('pnl_date_preset') as DateRangePreset | null;
+    // If "custom" was saved but we can't restore the range, fall back to "allTime"
+    if (saved === 'custom') {
+      const savedRange = localStorage.getItem('pnl_custom_date_range');
+      if (!savedRange) return 'allTime';
+      try {
+        const parsed = JSON.parse(savedRange);
+        if (parsed.from && parsed.to) return 'custom';
+      } catch { return 'allTime'; }
+    }
+    return saved || 'today';
   });
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const saved = localStorage.getItem('pnl_date_preset');
-    return getDateRangeFromPreset((saved as DateRangePreset) || 'today');
+    const saved = localStorage.getItem('pnl_date_preset') as DateRangePreset | null;
+    if (saved === 'custom') {
+      const savedRange = localStorage.getItem('pnl_custom_date_range');
+      if (savedRange) {
+        try {
+          const parsed = JSON.parse(savedRange);
+          if (parsed.from && parsed.to) {
+            return { from: new Date(parsed.from), to: new Date(parsed.to) };
+          }
+        } catch { /* fall through */ }
+      }
+      // Custom range lost — will fall back to allTime via datePreset init
+      return undefined;
+    }
+    const preset = saved || 'today';
+    return getDateRangeFromPreset(preset);
   });
 
   const handleDatePresetChange = (preset: DateRangePreset) => {
     setDatePreset(preset);
     localStorage.setItem('pnl_date_preset', preset);
-    // For named presets, recompute the range so the query re-runs with fresh dates.
-    // For "custom", do NOT overwrite — the range was already set by onDateRangeChange.
     if (preset !== 'custom') {
+      // Clear saved custom range when switching away
+      localStorage.removeItem('pnl_custom_date_range');
       const newRange = getDateRangeFromPreset(preset);
       setDateRange(newRange);
     }
   };
+
+  // When dateRange changes with custom preset, persist the range
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range);
+    if (range?.from && range?.to) {
+      localStorage.setItem('pnl_custom_date_range', JSON.stringify({
+        from: range.from.toISOString(),
+        to: range.to.toISOString(),
+      }));
+    }
+  };
+
   const [selectedAsset, setSelectedAsset] = useState<string>('all');
 
+  // Centralized date computation — single source of truth for both query and labels
   const getDateRange = () => {
-    // "allTime" → widest possible range
     if (datePreset === 'allTime') {
       return { startDate: new Date(2020, 0, 1), endDate: new Date() };
     }
-    // For time-sensitive presets (today, yesterday, last7days etc.), always recompute
-    // a fresh date range so that if the page was loaded before midnight the dates
-    // don't become stale. Only for "custom" do we rely on the dateRange state.
+    // Named presets: always recompute fresh dates (prevents stale midnight crossover)
     if (datePreset && datePreset !== 'custom') {
       const freshRange = getDateRangeFromPreset(datePreset);
       if (freshRange?.from && freshRange?.to) {
         return { startDate: freshRange.from, endDate: freshRange.to };
       }
     }
+    // Custom range
     if (dateRange?.from && dateRange?.to) {
       return { startDate: dateRange.from, endDate: dateRange.to };
     }
-    const now = new Date();
-    return { startDate: startOfMonth(now), endDate: endOfMonth(now) };
+    // Final fallback — treat as allTime if nothing else matches
+    return { startDate: new Date(2020, 0, 1), endDate: new Date() };
   };
 
-
-  // Compute date strings OUTSIDE queryFn so they're stable, deterministic, and in the key
-  // This eliminates closure ambiguity entirely — queryFn receives dates as arguments
+  // Compute date strings OUTSIDE queryFn — stable, deterministic, in query key
   const { startDate: _startDate, endDate: _endDate } = getDateRange();
   const computedStartStr = format(_startDate, 'yyyy-MM-dd');
   const computedEndStr = format(_endDate, 'yyyy-MM-dd');

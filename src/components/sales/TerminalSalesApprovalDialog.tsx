@@ -565,11 +565,16 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (isMultiplePayments) {
         for (const split of paymentSplits) {
           const splitAmount = parseFloat(split.amount);
-          if (splitAmount <= 0 || !split.bank_account_id) continue;
+          if (splitAmount <= 0 || !split.payment_method_id) continue;
+
+          // Resolve bank_account_id from payment method
+          const pm = paymentMethods.find((m: any) => m.id === split.payment_method_id);
+          const resolvedBankAccountId = pm?.bank_account_id;
+          if (!resolvedBankAccountId) continue;
 
           // Create INCOME bank transaction per split
           await supabase.from('bank_transactions').insert({
-            bank_account_id: split.bank_account_id,
+            bank_account_id: resolvedBankAccountId,
             transaction_type: 'INCOME',
             amount: splitAmount,
             transaction_date: orderDate,
@@ -583,7 +588,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
           // Record split in sales_order_payment_splits
           await supabase.from('sales_order_payment_splits').insert({
             sales_order_id: salesOrder.id,
-            bank_account_id: split.bank_account_id,
+            bank_account_id: resolvedBankAccountId,
             amount: splitAmount,
             created_by: userId,
           });

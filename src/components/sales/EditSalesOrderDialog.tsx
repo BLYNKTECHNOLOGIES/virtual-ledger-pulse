@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WalletSelector } from "@/components/stock/WalletSelector";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
+import { Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+
+interface SalesPaymentSplit {
+  payment_method_id: string;
+  amount: string;
+}
 
 interface EditSalesOrderDialogProps {
   open: boolean;
@@ -24,6 +32,9 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
   const [originalWalletId, setOriginalWalletId] = useState<string | null>(null);
   const [originalPaymentMethodId, setOriginalPaymentMethodId] = useState<string | null>(null);
   
+  const [isMultiplePayments, setIsMultiplePayments] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<SalesPaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
+
   const [formData, setFormData] = useState({
     order_number: '',
     client_name: '',
@@ -75,6 +86,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           payment_gateway,
           is_active,
           bank_accounts:bank_account_id(
+            id,
             account_name,
             bank_name,
             status
@@ -94,39 +106,16 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     enabled: open,
   });
 
-  const { data: existingSplits, isLoading: isLoadingExistingSplits } = useQuery({
+  // Fetch existing split records
+  const { data: existingSplits } = useQuery({
     queryKey: ['sales_order_edit_payment_splits', order?.id],
     queryFn: async () => {
       if (!order?.id) return [];
-
       const { data, error } = await supabase
         .from('sales_order_payment_splits')
-        .select(`
-          id,
-          amount,
-          bank_account_id,
-          payment_method_id,
-          is_gateway,
-          sales_payment_methods:payment_method_id(
-            id,
-            nickname,
-            type,
-            upi_id,
-            risk_category,
-            payment_gateway,
-            bank_accounts:bank_account_id(
-              account_name,
-              bank_name
-            )
-          ),
-          bank_accounts:bank_account_id(
-            account_name,
-            bank_name
-          )
-        `)
+        .select('id, amount, bank_account_id, payment_method_id, is_gateway')
         .eq('sales_order_id', order.id)
         .order('created_at');
-
       if (error) throw error;
       return data || [];
     },
@@ -145,18 +134,14 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     return `${method.type || 'Unknown'}${method.risk_category ? ` (${method.risk_category})` : ''}`;
   };
 
-  const hasSplitPaymentDetails = Boolean(order?.is_split_payment || existingSplits?.length);
-
   useEffect(() => {
     if (order) {
       const walletId = order.wallet_id || order.wallet?.id || '';
       setOriginalWalletId(walletId);
       setOriginalPaymentMethodId(order.sales_payment_method_id || null);
 
-      // Auto-match product_id: if order has product_id use it, otherwise match by product code from description/platform
       let productId = order.product_id || '';
       if (!productId && products?.length) {
-        // Try to match product by asset code (e.g. USDT) from description or platform
         const desc = (order.description || '').toUpperCase();
         const platform = (order.platform || '').toUpperCase();
         const matchedProduct = products.find(p => {
@@ -188,18 +173,62 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     }
   }, [order, products]);
 
+  // Initialize splits from existing data
+  useEffect(() => {
+    if (existingSplits && existingSplits.length > 0) {
+      setIsMultiplePayments(existingSplits.length > 1 || !!order?.is_split_payment);
+      setPaymentSplits(existingSplits.map((s: any) => ({
+        payment_method_id: s.payment_method_id || '',
+        amount: String(s.amount || ''),
+      })));
+    } else if (order?.is_split_payment) {
+      setIsMultiplePayments(true);
+      setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+    } else {
+      setIsMultiplePayments(false);
+      setPaymentSplits([{ payment_method_id: order?.sales_payment_method_id || '', amount: '' }]);
+    }
+  }, [existingSplits, order]);
+
+  const totalAmount = formData.total_amount;
+
+  // Split payment allocation
+  const splitAllocation = useMemo(() => {
+    const totalAllocated = paymentSplits.reduce((sum, s) =>
+      sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = totalAmount - totalAllocated;
+    const isValid = Math.abs(remaining) < 0.01 && paymentSplits.every(s => s.payment_method_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, totalAmount]);
+
+  const addPaymentSplit = () => {
+    if (splitAllocation.remaining <= 0) {
+      toast({ title: "Cannot add more", description: "Total allocation already meets or exceeds the total amount", variant: "destructive" });
+      return;
+    }
+    setPaymentSplits(prev => [...prev, { payment_method_id: '', amount: '' }]);
+  };
+
+  const removePaymentSplit = (index: number) => {
+    setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePaymentSplit = (index: number, field: keyof SalesPaymentSplit, value: string) => {
+    setPaymentSplits(prev => prev.map((split, i) =>
+      i === index ? { ...split, [field]: value } : split
+    ));
+  };
+
   const updateSalesOrderMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      const isCompleted = order.payment_status === 'COMPLETED';
       const walletChanged = originalWalletId && data.warehouse_id && originalWalletId !== data.warehouse_id;
       const quantityChanged = order.quantity !== data.quantity;
       const amountChanged = order.total_amount !== data.total_amount;
       const paymentMethodChanged = originalPaymentMethodId !== data.sales_payment_method_id;
-      const isCompleted = order.payment_status === 'COMPLETED';
 
-      // For completed orders, use comprehensive reconciliation RPC
-      // when financial fields (amount, quantity, wallet) change
-      if (isCompleted && (amountChanged || quantityChanged || walletChanged)) {
-        // Get wallet fee percentage
+      // ── Handle non-split completed order reconciliation (existing logic) ──
+      if (!isMultiplePayments && isCompleted && (amountChanged || quantityChanged || walletChanged)) {
         let feePercentage = 0;
         let isOffMarket = order.is_off_market || false;
         if (data.warehouse_id) {
@@ -213,7 +242,6 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           }
         }
 
-        // Get product code for asset_code
         const productCode = order.products?.code || order.product_code || 'USDT';
 
         const { data: reconcileResult, error: reconcileError } = await supabase.rpc('reconcile_sales_order_edit', {
@@ -233,22 +261,11 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           p_product_code: productCode,
         });
 
-        if (reconcileError) {
-          console.error('Reconciliation error:', reconcileError);
-          throw new Error(`Failed to reconcile: ${reconcileError.message}`);
-        }
-
+        if (reconcileError) throw new Error(`Failed to reconcile: ${reconcileError.message}`);
         const result = reconcileResult as any;
-        if (result && !result.success) {
-          throw new Error(result.error || 'Reconciliation failed');
-        }
+        if (result && !result.success) throw new Error(result.error || 'Reconciliation failed');
 
-        
-
-        // If payment method also changed alongside financial fields,
-        // handle the payment method switch separately (pending settlements, bank tx transfer)
         if (paymentMethodChanged) {
-          
           const { data: pmResult, error: pmError } = await supabase.rpc('handle_sales_order_payment_method_change', {
             p_order_id: order.id,
             p_old_payment_method_id: originalPaymentMethodId,
@@ -257,22 +274,17 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           });
           if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
           if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
-          
         }
-      } else if (isCompleted) {
-        // Handle payment method change only (no financial field change)
+      } else if (!isMultiplePayments && isCompleted) {
         if (paymentMethodChanged) {
-          
           const { data: pmResult, error: pmError } = await supabase.rpc('handle_sales_order_payment_method_change', {
             p_order_id: order.id,
             p_old_payment_method_id: originalPaymentMethodId,
             p_new_payment_method_id: data.sales_payment_method_id || null,
             p_total_amount: data.total_amount
           });
-
           if (pmError) throw new Error(`Failed to transfer payment method: ${pmError.message}`);
           if (pmResult && !(pmResult as any).success) throw new Error((pmResult as any).error);
-          
         }
 
         // Repair: if order is completed + has payment method + no INCOME tx exists
@@ -286,7 +298,6 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             .eq('transaction_type', 'INCOME');
 
           if ((count || 0) === 0) {
-            
             await supabase.rpc('handle_sales_order_payment_method_change', {
               p_order_id: order.id,
               p_old_payment_method_id: null,
@@ -295,6 +306,102 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             });
           }
         }
+      }
+
+      // ── Handle split payment updates for completed orders ──
+      if (isMultiplePayments && isCompleted) {
+        // 1. Delete old bank transactions & pending settlements for this order's splits
+        await supabase
+          .from('bank_transactions')
+          .delete()
+          .eq('reference_number', order.order_number)
+          .eq('transaction_type', 'INCOME');
+        
+        await supabase
+          .from('pending_settlements')
+          .delete()
+          .eq('sales_order_id', order.id);
+
+        // 2. Delete existing split records
+        await supabase
+          .from('sales_order_payment_splits')
+          .delete()
+          .eq('sales_order_id', order.id);
+
+        // 3. Create new split records + bank transactions/pending settlements
+        let hasGateway = false;
+        for (const split of paymentSplits) {
+          if (!split.payment_method_id || !parseFloat(split.amount)) continue;
+
+          const pm = paymentMethods?.find((m: any) => m.id === split.payment_method_id);
+          const isGateway = Boolean(pm?.payment_gateway);
+          const bankAccountId = pm?.bank_account_id || (pm?.bank_accounts as any)?.id || null;
+
+          if (isGateway) hasGateway = true;
+
+          // Insert split record
+          await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: order.id,
+            bank_account_id: bankAccountId,
+            amount: parseFloat(split.amount),
+            payment_method_id: split.payment_method_id,
+            is_gateway: isGateway,
+          });
+
+          // Create financial entry
+          if (isGateway) {
+            await supabase.from('pending_settlements').insert({
+              sales_order_id: order.id,
+              payment_method_id: split.payment_method_id,
+              amount: parseFloat(split.amount),
+              status: 'PENDING',
+              order_number: data.order_number,
+              client_name: data.client_name,
+              order_date: data.order_date,
+            });
+          } else if (bankAccountId) {
+            await supabase.from('bank_transactions').insert({
+              bank_account_id: bankAccountId,
+              transaction_type: 'INCOME',
+              amount: parseFloat(split.amount),
+              description: `Sales Order ${data.order_number} - Split Payment (${pm?.nickname || 'Direct Bank'})`,
+              reference_number: data.order_number,
+              transaction_date: data.order_date || new Date().toISOString(),
+              category: 'SALES',
+              related_account_name: data.client_name,
+            });
+          }
+        }
+
+        // Update the sales order with split payment flag
+        await supabase.from('sales_orders').update({
+          is_split_payment: true,
+          settlement_status: hasGateway ? 'PENDING' : (order.settlement_status || null),
+        }).eq('id', order.id);
+      }
+
+      // If switching from split to single, clean up splits
+      if (!isMultiplePayments && order?.is_split_payment) {
+        // Delete old split financial entries
+        await supabase
+          .from('bank_transactions')
+          .delete()
+          .eq('reference_number', order.order_number)
+          .eq('transaction_type', 'INCOME');
+        
+        await supabase
+          .from('pending_settlements')
+          .delete()
+          .eq('sales_order_id', order.id);
+
+        await supabase
+          .from('sales_order_payment_splits')
+          .delete()
+          .eq('sales_order_id', order.id);
+
+        await supabase.from('sales_orders').update({
+          is_split_payment: false,
+        }).eq('id', order.id);
       }
       
       const { data: result, error } = await supabase
@@ -312,7 +419,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           order_date: data.order_date,
           description: data.description,
           risk_level: data.risk_level,
-          sales_payment_method_id: data.sales_payment_method_id || null,
+          sales_payment_method_id: isMultiplePayments ? null : (data.sales_payment_method_id || null),
           product_id: data.product_id || null,
           wallet_id: data.warehouse_id || null,
           updated_at: new Date().toISOString()
@@ -325,13 +432,15 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       return result;
     },
     onSuccess: (data) => {
-      // Log the action
       logActionWithCurrentUser({
         actionType: ActionTypes.SALES_ORDER_EDITED,
         entityType: EntityTypes.SALES_ORDER,
         entityId: order.id,
         module: Modules.SALES,
-        metadata: { order_number: data.order_number }
+        metadata: { 
+          order_number: data.order_number,
+          split_count: isMultiplePayments ? paymentSplits.length : 0,
+        }
       });
       
       toast({ title: "Success", description: "Sales order updated successfully" });
@@ -343,6 +452,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
       queryClient.invalidateQueries({ queryKey: ['pending_settlements'] });
+      queryClient.invalidateQueries({ queryKey: ['sales_order_edit_payment_splits'] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -364,6 +474,19 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       return;
     }
 
+    if (isMultiplePayments) {
+      const missingMethod = paymentSplits.some(s => !s.payment_method_id);
+      const missingAmount = paymentSplits.some(s => !parseFloat(s.amount));
+      if (missingMethod || missingAmount) {
+        toast({ title: "Error", description: "All split payments must have a payment method and amount", variant: "destructive" });
+        return;
+      }
+      if (!splitAllocation.isValid) {
+        toast({ title: "Error", description: `Split amounts must equal ₹${totalAmount.toFixed(2)}. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`, variant: "destructive" });
+        return;
+      }
+    }
+
     updateSalesOrderMutation.mutate(formData);
   };
 
@@ -371,12 +494,10 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       
-      // Auto-calculate total amount when quantity or price changes
       if (field === 'quantity' || field === 'price_per_unit') {
         updated.total_amount = updated.quantity * updated.price_per_unit;
       }
 
-      // Auto-set platform from wallet selection
       if (field === 'warehouse_id' && wallets) {
         const selectedWallet = wallets.find(w => w.id === value);
         if (selectedWallet) {
@@ -458,7 +579,6 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               </Select>
             </div>
 
-
             <div>
               <Label>Quantity *</Label>
               <Input
@@ -508,58 +628,6 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
                   <SelectItem value="HIGH">High</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label>Payment Method</Label>
-              {hasSplitPaymentDetails ? (
-                <div className="space-y-2">
-                  <Input value="Split Payment" readOnly className="bg-muted" />
-                  <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-                    {isLoadingExistingSplits ? (
-                      <p className="text-sm text-muted-foreground">Loading split payment details...</p>
-                    ) : existingSplits && existingSplits.length > 0 ? (
-                      existingSplits.map((split: any) => (
-                        <div key={split.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {formatPaymentMethodLabel(split.sales_payment_methods)}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                              {split.is_gateway || split.sales_payment_methods?.payment_gateway ? 'POS/Gateway' : 'Direct Bank'}
-                              {(split.sales_payment_methods?.bank_accounts?.bank_name || split.bank_accounts?.bank_name)
-                                ? ` • ${split.sales_payment_methods?.bank_accounts?.bank_name || split.bank_accounts?.bank_name}`
-                                : ''}
-                            </p>
-                          </div>
-                          <span className="text-sm font-semibold whitespace-nowrap">
-                            ₹{Number(split.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No split payment details found for this order.</p>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <Select 
-                  value={formData.sales_payment_method_id} 
-                  onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select payment method" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                    {paymentMethods?.map((method) => (
-                      <SelectItem key={method.id} value={method.id}>
-                        {formatPaymentMethodLabel(method)}
-                        {method.id === order.sales_payment_method_id && !(method as any).is_active ? ' (Inactive)' : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
             </div>
 
             <div>
@@ -615,6 +683,150 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               onChange={(e) => handleInputChange('description', e.target.value)}
               rows={3}
             />
+          </div>
+
+          {/* Payment Method with Split Payment */}
+          <div className="space-y-4 border rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-semibold">Payment Method</Label>
+              <div className="flex items-center gap-1.5">
+                <Checkbox
+                  id="edit_split_sales_payment"
+                  checked={isMultiplePayments}
+                  onCheckedChange={(checked) => {
+                    setIsMultiplePayments(checked === true);
+                    if (checked) {
+                      setPaymentSplits([{
+                        payment_method_id: formData.sales_payment_method_id || '',
+                        amount: totalAmount.toFixed(2)
+                      }]);
+                    } else {
+                      setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                    }
+                  }}
+                />
+                <Label htmlFor="edit_split_sales_payment" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                  Split Payment
+                </Label>
+              </div>
+            </div>
+
+            {!isMultiplePayments ? (
+              <Select 
+                value={formData.sales_payment_method_id} 
+                onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                  {paymentMethods?.map((method) => (
+                    <SelectItem key={method.id} value={method.id}>
+                      {formatPaymentMethodLabel(method)}
+                      {method.id === order.sales_payment_method_id && !(method as any).is_active ? ' (Inactive)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="pt-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label className="font-medium">Payment Distribution</Label>
+                      {splitAllocation.isValid ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-destructive" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Status Bar */}
+                  <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                    <div className="text-center">
+                      <div className="text-muted-foreground text-xs mb-1">Total Amount</div>
+                      <div className="font-semibold">₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                    <div className="text-center border-x">
+                      <div className="text-muted-foreground text-xs mb-1">Allocated</div>
+                      <div className="font-medium">₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-muted-foreground text-xs mb-1">Remaining</div>
+                      <div className={`font-semibold ${splitAllocation.isValid ? "text-green-600" : "text-destructive"}`}>
+                        ₹{splitAllocation.remaining.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Rows */}
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                      <div className="col-span-4">Amount (₹)</div>
+                      <div className="col-span-7">Payment Method</div>
+                      <div className="col-span-1"></div>
+                    </div>
+
+                    {paymentSplits.map((split, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                        <div className="col-span-4">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={split.amount}
+                            onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <div className="col-span-7">
+                          <Select
+                            value={split.payment_method_id}
+                            onValueChange={(value) => updatePaymentSplit(index, 'payment_method_id', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select payment method" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                              {paymentMethods?.map((method) => (
+                                <SelectItem key={method.id} value={method.id}>
+                                  {formatPaymentMethodLabel(method)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-1 flex justify-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removePaymentSplit(index)}
+                            disabled={paymentSplits.length === 1}
+                            className="h-8 w-8"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addPaymentSplit}
+                    disabled={splitAllocation.remaining <= 0}
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {splitAllocation.remaining <= 0 ? 'Fully Allocated' : 'Add Another Payment Method'}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

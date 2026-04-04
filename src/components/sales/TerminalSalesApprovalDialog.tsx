@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 
 interface PaymentSplit {
-  bank_account_id: string;
+  payment_method_id: string;
   amount: string;
 }
 

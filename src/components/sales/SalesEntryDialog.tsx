@@ -25,7 +25,7 @@ import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 
 interface PaymentSplit {
-  bank_account_id: string;
+  payment_method_id: string;
   amount: string;
 }
 

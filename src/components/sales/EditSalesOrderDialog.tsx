@@ -94,6 +94,59 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     enabled: open,
   });
 
+  const { data: existingSplits, isLoading: isLoadingExistingSplits } = useQuery({
+    queryKey: ['sales_order_edit_payment_splits', order?.id],
+    queryFn: async () => {
+      if (!order?.id) return [];
+
+      const { data, error } = await supabase
+        .from('sales_order_payment_splits')
+        .select(`
+          id,
+          amount,
+          bank_account_id,
+          payment_method_id,
+          is_gateway,
+          sales_payment_methods:payment_method_id(
+            id,
+            nickname,
+            type,
+            upi_id,
+            risk_category,
+            payment_gateway,
+            bank_accounts:bank_account_id(
+              account_name,
+              bank_name
+            )
+          ),
+          bank_accounts:bank_account_id(
+            account_name,
+            bank_name
+          )
+        `)
+        .eq('sales_order_id', order.id)
+        .order('created_at');
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: open && !!order?.id,
+  });
+
+  const formatPaymentMethodLabel = (method: any) => {
+    if (!method) return 'Unknown payment method';
+    if (method.nickname) return method.nickname;
+    if (method.type === 'UPI' && method.upi_id) {
+      return `${method.upi_id}${method.risk_category ? ` (${method.risk_category})` : ''}`;
+    }
+    if (method.bank_accounts?.account_name) {
+      return `${method.bank_accounts.account_name}${method.risk_category ? ` (${method.risk_category})` : ''}`;
+    }
+    return `${method.type || 'Unknown'}${method.risk_category ? ` (${method.risk_category})` : ''}`;
+  };
+
+  const hasSplitPaymentDetails = Boolean(order?.is_split_payment || existingSplits?.length);
+
   useEffect(() => {
     if (order) {
       const walletId = order.wallet_id || order.wallet?.id || '';
@@ -459,22 +512,54 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
             <div>
               <Label>Payment Method</Label>
-              <Select 
-                value={formData.sales_payment_method_id} 
-                onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment method" />
-                </SelectTrigger>
-                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
-                  {paymentMethods?.map((method) => (
-                    <SelectItem key={method.id} value={method.id}>
-                      {(method as any).nickname || `${method.bank_accounts?.account_name || method.type} - ${method.bank_accounts?.bank_name || ''}`}
-                      {method.id === order.sales_payment_method_id && !(method as any).is_active ? ' (Inactive)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {hasSplitPaymentDetails ? (
+                <div className="space-y-2">
+                  <Input value="Split Payment" readOnly className="bg-muted" />
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+                    {isLoadingExistingSplits ? (
+                      <p className="text-sm text-muted-foreground">Loading split payment details...</p>
+                    ) : existingSplits && existingSplits.length > 0 ? (
+                      existingSplits.map((split: any) => (
+                        <div key={split.id} className="flex items-center justify-between gap-3 rounded-md border bg-background px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {formatPaymentMethodLabel(split.sales_payment_methods)}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {split.is_gateway || split.sales_payment_methods?.payment_gateway ? 'POS/Gateway' : 'Direct Bank'}
+                              {(split.sales_payment_methods?.bank_accounts?.bank_name || split.bank_accounts?.bank_name)
+                                ? ` • ${split.sales_payment_methods?.bank_accounts?.bank_name || split.bank_accounts?.bank_name}`
+                                : ''}
+                            </p>
+                          </div>
+                          <span className="text-sm font-semibold whitespace-nowrap">
+                            ₹{Number(split.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No split payment details found for this order.</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <Select 
+                  value={formData.sales_payment_method_id} 
+                  onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                    {paymentMethods?.map((method) => (
+                      <SelectItem key={method.id} value={method.id}>
+                        {formatPaymentMethodLabel(method)}
+                        {method.id === order.sales_payment_method_id && !(method as any).is_active ? ' (Inactive)' : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div>

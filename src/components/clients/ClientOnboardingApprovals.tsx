@@ -187,8 +187,7 @@ export function ClientOnboardingApprovals() {
             risk_appetite: clientData.risk_assessment,
             operator_notes: clientData.compliance_notes || undefined,
             state: clientData.client_state || approval.client_state || undefined,
-            phone: approval.client_phone || undefined,
-            email: approval.client_email || undefined,
+            phone: clientData.client_phone || approval.client_phone || undefined,
           })
           .eq('id', existingClientId);
 
@@ -201,7 +200,7 @@ export function ClientOnboardingApprovals() {
             .from('clients')
             .select('id, name')
             .eq('is_deleted', false)
-            .or(`phone.eq.${approval.client_phone || ''},email.eq.${approval.client_email || ''}`)
+            .or(`phone.eq.${approval.client_phone || ''}`)
             .maybeSingle();
           existingByContact = data;
         }
@@ -235,7 +234,7 @@ export function ClientOnboardingApprovals() {
             .from('clients')
             .insert({
               name: clientName,
-              email: approval.client_email,
+              phone: clientData.client_phone || approval.client_phone,
               phone: clientData.client_phone || approval.client_phone,
               client_type: 'INDIVIDUAL',
               kyc_status: 'VERIFIED',
@@ -892,9 +891,6 @@ export function ClientOnboardingApprovals() {
                   </div>
                   <div>
                     <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
-                  </div>
-                  <div>
-                    <span className="font-medium">Email:</span> {selectedApproval.client_email}
                   </div>
                   <div>
                     <Label htmlFor="client_phone" className="font-medium">Phone *</Label>

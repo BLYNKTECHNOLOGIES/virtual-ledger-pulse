@@ -219,7 +219,8 @@ export function ClientOnboardingApprovals() {
               buying_purpose: clientData.purpose_of_buying,
               risk_appetite: clientData.risk_assessment,
               operator_notes: clientData.compliance_notes || undefined,
-              state: clientData.client_state || approval.client_state || undefined
+              state: clientData.client_state || approval.client_state || undefined,
+              phone: clientData.client_phone || approval.client_phone || undefined
             })
             .eq('id', existingByContact.id);
 
@@ -235,7 +236,7 @@ export function ClientOnboardingApprovals() {
             .insert({
               name: clientName,
               email: approval.client_email,
-              phone: approval.client_phone,
+              phone: clientData.client_phone || approval.client_phone,
               client_type: 'INDIVIDUAL',
               kyc_status: 'VERIFIED',
               monthly_limit: parseFloat(clientData.proposed_monthly_limit),
@@ -278,7 +279,9 @@ export function ClientOnboardingApprovals() {
           purpose_of_buying: clientData.purpose_of_buying || null,
           proposed_monthly_limit: clientData.proposed_monthly_limit ? parseFloat(clientData.proposed_monthly_limit) : null,
           risk_assessment: clientData.risk_assessment || null,
-          compliance_notes: clientData.compliance_notes || null
+          compliance_notes: clientData.compliance_notes || null,
+          client_phone: clientData.client_phone || approval.client_phone || null,
+          client_state: clientData.client_state || approval.client_state || null
         })
         .eq('id', id);
 

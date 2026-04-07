@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { INDIAN_STATES_AND_UTS } from '@/data/indianStatesAndUTs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +25,7 @@ import {
   Download,
   UserCheck,
   UserPlus,
+  Pencil,
   AlertTriangle
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
@@ -97,6 +99,8 @@ export function ClientOnboardingApprovals() {
     client_state: '',
     client_phone: ''
   });
+  const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);
+  const [stateEditEnabled, setStateEditEnabled] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -381,6 +385,8 @@ export function ClientOnboardingApprovals() {
 
   const handleApprovalClick = async (approval: ClientOnboardingApproval) => {
     setSelectedApproval(approval);
+    const phone = approval.client_phone || '';
+    const state = approval.client_state || '';
     setFormData({
       aadhar_number: approval.aadhar_number || '',
       address: approval.address || '',
@@ -388,9 +394,12 @@ export function ClientOnboardingApprovals() {
       proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
       risk_assessment: approval.risk_assessment || 'HIGH',
       compliance_notes: approval.compliance_notes || '',
-      client_state: approval.client_state || '',
-      client_phone: approval.client_phone || ''
+      client_state: state,
+      client_phone: phone
     });
+    // Lock fields if already pre-populated
+    setPhoneEditEnabled(!phone);
+    setStateEditEnabled(!state);
     
     // Pre-check for existing client with same name
     const existing = await checkExistingClient(approval.client_name);
@@ -506,6 +515,8 @@ export function ClientOnboardingApprovals() {
     setSelectedApproval(null);
     setExistingClientMatch(null);
     setApprovalMode('normal');
+    setPhoneEditEnabled(false);
+    setStateEditEnabled(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -893,23 +904,47 @@ export function ClientOnboardingApprovals() {
                   </div>
                   <div>
                     <Label htmlFor="client_phone" className="font-medium">Phone *</Label>
-                    <Input
-                      id="client_phone"
-                      value={formData.client_phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, client_phone: e.target.value }))}
-                      placeholder="Enter phone number"
-                      className="mt-1"
-                    />
+                    {phoneEditEnabled ? (
+                      <Input
+                        id="client_phone"
+                        value={formData.client_phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, client_phone: e.target.value }))}
+                        placeholder="Enter phone number"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm">{formData.client_phone || 'N/A'}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setPhoneEditEnabled(true)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="client_state_order" className="font-medium">State *</Label>
-                    <Input
-                      id="client_state_order"
-                      value={formData.client_state}
-                      onChange={(e) => setFormData(prev => ({ ...prev, client_state: e.target.value }))}
-                      placeholder="Enter client state"
-                      className="mt-1"
-                    />
+                    {stateEditEnabled ? (
+                      <Select
+                        value={formData.client_state}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, client_state: value }))}
+                      >
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {INDIAN_STATES_AND_UTS.map((state) => (
+                            <SelectItem key={state} value={state}>{state}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-sm">{formData.client_state || 'N/A'}</span>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setStateEditEnabled(true)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

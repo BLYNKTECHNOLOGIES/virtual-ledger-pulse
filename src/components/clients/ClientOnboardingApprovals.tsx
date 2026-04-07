@@ -187,8 +187,7 @@ export function ClientOnboardingApprovals() {
             risk_appetite: clientData.risk_assessment,
             operator_notes: clientData.compliance_notes || undefined,
             state: clientData.client_state || approval.client_state || undefined,
-            phone: approval.client_phone || undefined,
-            email: approval.client_email || undefined,
+            phone: clientData.client_phone || approval.client_phone || undefined,
           })
           .eq('id', existingClientId);
 
@@ -201,7 +200,7 @@ export function ClientOnboardingApprovals() {
             .from('clients')
             .select('id, name')
             .eq('is_deleted', false)
-            .or(`phone.eq.${approval.client_phone || ''},email.eq.${approval.client_email || ''}`)
+            .or(`phone.eq.${approval.client_phone || ''}`)
             .maybeSingle();
           existingByContact = data;
         }
@@ -235,7 +234,6 @@ export function ClientOnboardingApprovals() {
             .from('clients')
             .insert({
               name: clientName,
-              email: approval.client_email,
               phone: clientData.client_phone || approval.client_phone,
               client_type: 'INDIVIDUAL',
               kyc_status: 'VERIFIED',
@@ -596,8 +594,7 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{approval.client_email}</div>
-                        <div className="text-muted-foreground">{approval.client_phone}</div>
+                        <div>{approval.client_phone}</div>
                         {approval.client_state && (
                           <div className="text-muted-foreground">{approval.client_state}</div>
                         )}
@@ -774,7 +771,7 @@ export function ClientOnboardingApprovals() {
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
-                      <div><span className="text-muted-foreground">Email:</span> {existingClientMatch.email || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">PAN:</span> {existingClientMatch.pan_card_number || 'N/A'}</div>
                       <div><span className="text-muted-foreground">KYC:</span> {existingClientMatch.kyc_status}</div>
@@ -893,9 +890,6 @@ export function ClientOnboardingApprovals() {
                   </div>
                   <div>
                     <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
-                  </div>
-                  <div>
-                    <span className="font-medium">Email:</span> {selectedApproval.client_email}
                   </div>
                   <div>
                     <Label htmlFor="client_phone" className="font-medium">Phone *</Label>

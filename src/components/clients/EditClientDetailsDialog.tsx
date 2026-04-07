@@ -44,7 +44,6 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
 
   const [formData, setFormData] = useState({
     name: client?.name || "",
-    email: client?.email || "",
     phone: client?.phone || "",
     client_type: client?.client_type || "",
     risk_appetite: client?.risk_appetite || "",
@@ -87,7 +86,6 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
         .from("clients")
         .update({
           name: formData.name,
-          email: formData.email,
           phone: formData.phone,
           client_type: formData.client_type,
           risk_appetite: formData.risk_appetite,
@@ -144,16 +142,6 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
               />
             </div>
 

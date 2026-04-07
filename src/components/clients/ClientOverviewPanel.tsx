@@ -179,13 +179,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
               <span className="text-sm font-medium">{client.phone || 'Not provided'}</span>
             </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Email</label>
-            <div className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-gray-400" />
-              <span className="text-sm">{client.email || 'Not provided'}</span>
-            </div>
-          </div>
         </div>
 
         {/* Display Aadhar and Address from KYC if available */}

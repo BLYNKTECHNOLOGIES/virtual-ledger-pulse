@@ -387,7 +387,8 @@ export function ClientOnboardingApprovals() {
       proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
       risk_assessment: approval.risk_assessment || 'HIGH',
       compliance_notes: approval.compliance_notes || '',
-      client_state: approval.client_state || ''
+      client_state: approval.client_state || '',
+      client_phone: approval.client_phone || ''
     });
     
     // Pre-check for existing client with same name
@@ -407,6 +408,25 @@ export function ClientOnboardingApprovals() {
 
   const handleApprove = () => {
     if (!selectedApproval) return;
+    
+    // Buyer mandatory validation: phone and state required
+    if (!formData.client_phone?.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Phone number is mandatory for buyer approval",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!formData.client_state?.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "State is mandatory for buyer approval",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // For merge mode, monthly limit is optional (uses existing client's limit)
     const needsLimit = approvalMode !== 'merge' || !existingClientMatch?.monthly_limit;
@@ -479,7 +499,8 @@ export function ClientOnboardingApprovals() {
       proposed_monthly_limit: '',
       risk_assessment: 'HIGH',
       compliance_notes: '',
-      client_state: ''
+      client_state: '',
+      client_phone: ''
     });
     setSelectedApproval(null);
     setExistingClientMatch(null);
@@ -874,13 +895,25 @@ export function ClientOnboardingApprovals() {
                     <span className="font-medium">Email:</span> {selectedApproval.client_email}
                   </div>
                   <div>
-                    <span className="font-medium">Phone:</span> {selectedApproval.client_phone}
+                    <Label htmlFor="client_phone" className="font-medium">Phone *</Label>
+                    <Input
+                      id="client_phone"
+                      value={formData.client_phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, client_phone: e.target.value }))}
+                      placeholder="Enter phone number"
+                      className="mt-1"
+                    />
                   </div>
-                  {selectedApproval.client_state && (
-                    <div>
-                      <span className="font-medium">State:</span> {selectedApproval.client_state}
-                    </div>
-                  )}
+                  <div>
+                    <Label htmlFor="client_state_order" className="font-medium">State *</Label>
+                    <Input
+                      id="client_state_order"
+                      value={formData.client_state}
+                      onChange={(e) => setFormData(prev => ({ ...prev, client_state: e.target.value }))}
+                      placeholder="Enter client state"
+                      className="mt-1"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -952,12 +985,12 @@ export function ClientOnboardingApprovals() {
                 </div>
 
                 <div>
-                  <Label htmlFor="client_state">State</Label>
+                  <Label htmlFor="aadhar_number">Aadhar Number</Label>
                   <Input
-                    id="client_state"
-                    value={formData.client_state}
-                    onChange={(e) => setFormData(prev => ({ ...prev, client_state: e.target.value }))}
-                    placeholder={selectedApproval?.client_state || "Enter client state"}
+                    id="aadhar_number"
+                    value={formData.aadhar_number}
+                    onChange={(e) => setFormData(prev => ({ ...prev, aadhar_number: e.target.value }))}
+                    placeholder="Enter Aadhar number"
                   />
                 </div>
 

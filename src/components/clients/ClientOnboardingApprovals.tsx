@@ -235,7 +235,6 @@ export function ClientOnboardingApprovals() {
             .insert({
               name: clientName,
               phone: clientData.client_phone || approval.client_phone,
-              phone: clientData.client_phone || approval.client_phone,
               client_type: 'INDIVIDUAL',
               kyc_status: 'VERIFIED',
               monthly_limit: parseFloat(clientData.proposed_monthly_limit),

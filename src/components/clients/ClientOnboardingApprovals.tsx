@@ -596,8 +596,7 @@ export function ClientOnboardingApprovals() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{approval.client_email}</div>
-                        <div className="text-muted-foreground">{approval.client_phone}</div>
+                        <div>{approval.client_phone}</div>
                         {approval.client_state && (
                           <div className="text-muted-foreground">{approval.client_state}</div>
                         )}
@@ -774,7 +773,7 @@ export function ClientOnboardingApprovals() {
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
                       <div><span className="text-muted-foreground">Phone:</span> {existingClientMatch.phone || 'N/A'}</div>
-                      <div><span className="text-muted-foreground">Email:</span> {existingClientMatch.email || 'N/A'}</div>
+                      <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">State:</span> {existingClientMatch.state || 'N/A'}</div>
                       <div><span className="text-muted-foreground">PAN:</span> {existingClientMatch.pan_card_number || 'N/A'}</div>
                       <div><span className="text-muted-foreground">KYC:</span> {existingClientMatch.kyc_status}</div>

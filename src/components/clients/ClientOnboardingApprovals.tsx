@@ -94,7 +94,8 @@ export function ClientOnboardingApprovals() {
     proposed_monthly_limit: '',
     risk_assessment: 'HIGH',
     compliance_notes: '',
-    client_state: ''
+    client_state: '',
+    client_phone: ''
   });
   
   const { toast } = useToast();

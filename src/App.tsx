@@ -9,6 +9,7 @@ import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
 import TerminalOperatorDetail from './pages/terminal/TerminalOperatorDetail';
 import { TerminalLayout } from './components/terminal/TerminalLayout';
 import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
+import PaymentScreenshotGenerator from './pages/PaymentScreenshotGenerator';
 import UtilityHub from './pages/UtilityHub';
 import Tasks from './pages/Tasks';
 import Unsubscribe from './pages/Unsubscribe';

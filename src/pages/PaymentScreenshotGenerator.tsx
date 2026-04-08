@@ -167,18 +167,18 @@ const PaymentScreenshotGenerator = () => {
                       </div>
                       <div
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
+                          display: "inline-block",
                           background: "rgba(255,255,255,0.2)",
                           borderRadius: "20px",
-                          padding: "4px 14px",
+                          padding: "6px 16px",
                           fontSize: "12px",
                           fontWeight: "600",
                           marginTop: "10px",
+                          lineHeight: "1.4",
+                          textAlign: "center",
                         }}
                       >
-                        ✓ Completed
+                        <span style={{ marginRight: "4px" }}>✓</span><span>Completed</span>
                       </div>
                       <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>
                         {formatDateTime(form.dateTime)}

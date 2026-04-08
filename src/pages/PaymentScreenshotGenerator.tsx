@@ -14,7 +14,6 @@ const PaymentScreenshotGenerator = () => {
   const [showPreview, setShowPreview] = useState(false);
 
   const [form, setForm] = useState({
-    serialNumber: "",
     toUpiId: "",
     amount: "",
     paymentProviderFees: "",

@@ -1,4 +1,4 @@
-import { FileText, ExternalLink } from "lucide-react";
+import { FileText, ExternalLink, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PermissionGate } from "@/components/PermissionGate";
 
@@ -12,6 +12,16 @@ const tools = [
     color: "text-orange-600",
     bgColor: "bg-orange-50",
     borderColor: "border-orange-200",
+  },
+  {
+    id: "payment-screenshot",
+    title: "Payment Screenshot Generator",
+    description: "Generate payment receipt screenshots with transaction details for record keeping.",
+    icon: CreditCard,
+    route: "/utility/payment-screenshot",
+    color: "text-green-600",
+    bgColor: "bg-green-50",
+    borderColor: "border-green-200",
   },
 ];
 

@@ -15,14 +15,11 @@ const PaymentScreenshotGenerator = () => {
 
   const [form, setForm] = useState({
     serialNumber: "",
-    toAccount: "",
     toUpiId: "",
     amount: "",
     paymentProviderFees: "",
-    oldBalance: "",
     upiTransactionId: "",
     dateTime: "",
-    description: "",
   });
 
   const fromName = "Blynk Virtual Technologies Pvt. Ltd.";
@@ -34,8 +31,6 @@ const PaymentScreenshotGenerator = () => {
   const amount = parseFloat(form.amount) || 0;
   const fees = parseFloat(form.paymentProviderFees) || 0;
   const totalDebited = amount + fees;
-  const oldBalance = parseFloat(form.oldBalance) || 0;
-  const newBalance = oldBalance - totalDebited;
 
   const formatCurrency = (val: number) =>
     "₹" + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -63,7 +58,7 @@ const PaymentScreenshotGenerator = () => {
         useCORS: true,
       });
       const link = document.createElement("a");
-      link.download = `payment-receipt-${form.toAccount || "screenshot"}.png`;
+      link.download = `payment-receipt-${form.toUpiId || "screenshot"}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     } catch (e) {
@@ -71,7 +66,7 @@ const PaymentScreenshotGenerator = () => {
     }
   };
 
-  const isFormValid = form.toAccount && form.amount && form.dateTime && form.upiTransactionId;
+  const isFormValid = form.toUpiId && form.amount && form.dateTime && form.upiTransactionId;
 
   return (
     <PermissionGate permissions={["utility_view"]}>
@@ -82,9 +77,7 @@ const PaymentScreenshotGenerator = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Payment Screenshot Generator</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Generate payment receipt screenshots for transactions
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Generate payment receipt screenshots for transactions</p>
           </div>
         </div>
 
@@ -108,30 +101,19 @@ const PaymentScreenshotGenerator = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>To Account Number <span className="text-red-500">*</span></Label>
-                  <Input placeholder="e.g. 8839420199" value={form.toAccount} onChange={(e) => update("toAccount", e.target.value)} />
-                </div>
-                <div>
-                  <Label>To UPI ID</Label>
+                  <Label>To UPI ID <span className="text-red-500">*</span></Label>
                   <Input placeholder="e.g. 8839420199@omni" value={form.toUpiId} onChange={(e) => update("toUpiId", e.target.value)} />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Amount (₹) <span className="text-red-500">*</span></Label>
                   <Input type="number" placeholder="e.g. 100" value={form.amount} onChange={(e) => update("amount", e.target.value)} />
                 </div>
-                <div>
-                  <Label>Payment Provider Fees (₹)</Label>
-                  <Input type="number" placeholder="e.g. 7.50" value={form.paymentProviderFees} onChange={(e) => update("paymentProviderFees", e.target.value)} />
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Old Balance (₹)</Label>
-                  <Input type="number" placeholder="e.g. 103203.11" value={form.oldBalance} onChange={(e) => update("oldBalance", e.target.value)} />
+                  <Label>Payment Provider Fees (₹)</Label>
+                  <Input type="number" placeholder="e.g. 7.50" value={form.paymentProviderFees} onChange={(e) => update("paymentProviderFees", e.target.value)} />
                 </div>
                 <div>
                   <Label>UPI Transaction ID <span className="text-red-500">*</span></Label>
@@ -139,20 +121,10 @@ const PaymentScreenshotGenerator = () => {
                 </div>
               </div>
 
-              <div>
-                <Label>Description</Label>
-                <Input
-                  placeholder="e.g. Paid for UPI PAYMENT account no. ..."
-                  value={form.description}
-                  onChange={(e) => update("description", e.target.value)}
-                />
-              </div>
-
               <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1 border">
                 <p><span className="text-gray-500">From:</span> <span className="font-medium">{fromName}</span></p>
                 <p><span className="text-gray-500">UPI ID:</span> <span className="font-medium">{fromUpiId}</span></p>
                 <p><span className="text-gray-500">Total Debited:</span> <span className="font-medium">{formatCurrency(totalDebited)}</span></p>
-                <p><span className="text-gray-500">New Balance:</span> <span className="font-medium">{formatCurrency(newBalance)}</span></p>
               </div>
 
               <div className="flex gap-3">
@@ -213,7 +185,7 @@ const PaymentScreenshotGenerator = () => {
                         </div>
                       )}
                       <div style={{ fontSize: "13px", opacity: 0.9, marginBottom: "4px" }}>
-                        To {form.toAccount}
+                        To {form.toUpiId}
                       </div>
                       <div style={{ fontSize: "32px", fontWeight: "700", letterSpacing: "-0.5px" }}>
                         ₹{parseFloat(form.amount || "0").toFixed(2)}
@@ -244,8 +216,7 @@ const PaymentScreenshotGenerator = () => {
                       <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
                         <span style={{ color: "#888", fontSize: "13px" }}>To</span>
                         <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#222" }}>{form.toAccount}</div>
-                          {form.toUpiId && <div style={{ fontSize: "11px", color: "#888" }}>{form.toUpiId}</div>}
+                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#222" }}>{form.toUpiId}</div>
                         </div>
                       </div>
 
@@ -279,32 +250,10 @@ const PaymentScreenshotGenerator = () => {
                       )}
 
                       {/* Total Debited */}
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0" }}>
                         <span style={{ color: "#888", fontSize: "13px" }}>Total Debited</span>
                         <span style={{ fontSize: "13px", fontWeight: "700", color: "#222" }}>{formatCurrency(totalDebited)}</span>
                       </div>
-
-                      {/* Old Balance */}
-                      {form.oldBalance && (
-                        <>
-                          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                            <span style={{ color: "#888", fontSize: "13px" }}>Old Balance</span>
-                            <span style={{ fontSize: "13px", fontWeight: "500", color: "#222" }}>{formatCurrency(oldBalance)}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                            <span style={{ color: "#888", fontSize: "13px" }}>New Balance</span>
-                            <span style={{ fontSize: "13px", fontWeight: "600", color: "#222" }}>{formatCurrency(newBalance)}</span>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Description */}
-                      {form.description && (
-                        <div style={{ padding: "10px 0" }}>
-                          <div style={{ color: "#888", fontSize: "13px", marginBottom: "4px" }}>Description</div>
-                          <div style={{ fontSize: "12px", color: "#444", lineHeight: "1.5" }}>{form.description}</div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>

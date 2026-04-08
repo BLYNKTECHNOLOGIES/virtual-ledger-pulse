@@ -732,6 +732,20 @@ const router = createBrowserRouter([
       </QueryProvider>
     ),
   },
+  {
+    path: "/utility/payment-screenshot",
+    element: (
+      <QueryProvider>
+        <AuthProvider>
+          <AuthCheck>
+            <Layout>
+              <PaymentScreenshotGenerator />
+            </Layout>
+          </AuthCheck>
+        </AuthProvider>
+      </QueryProvider>
+    ),
+  },
    // Public unsubscribe route
     {
       path: "/unsubscribe",

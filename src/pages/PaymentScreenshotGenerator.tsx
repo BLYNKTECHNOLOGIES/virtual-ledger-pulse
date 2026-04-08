@@ -87,15 +87,9 @@ const PaymentScreenshotGenerator = () => {
               <CardTitle className="text-lg">Transaction Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Serial Number</Label>
-                  <Input placeholder="e.g. 8" value={form.serialNumber} onChange={(e) => update("serialNumber", e.target.value)} />
-                </div>
-                <div>
-                  <Label>Date & Time <span className="text-red-500">*</span></Label>
-                  <Input type="datetime-local" value={form.dateTime} onChange={(e) => update("dateTime", e.target.value)} />
-                </div>
+              <div>
+                <Label>Date & Time <span className="text-red-500">*</span></Label>
+                <Input type="datetime-local" value={form.dateTime} onChange={(e) => update("dateTime", e.target.value)} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -165,24 +159,6 @@ const PaymentScreenshotGenerator = () => {
                         color: "#ffffff",
                       }}
                     >
-                      {form.serialNumber && (
-                        <div
-                          style={{
-                            width: "48px",
-                            height: "48px",
-                            borderRadius: "50%",
-                            background: "rgba(255,255,255,0.2)",
-                            margin: "0 auto 12px",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "20px",
-                            fontWeight: "700",
-                          }}
-                        >
-                          {form.serialNumber}
-                        </div>
-                      )}
                       <div style={{ fontSize: "13px", opacity: 0.9, marginBottom: "4px" }}>
                         To {form.toUpiId}
                       </div>

@@ -1717,15 +1717,6 @@ export function ClientOnboardingApprovals() {
                   </Select>
                 </div>
 
-                <div>
-                  <Label htmlFor="aadhar_number">Aadhar Number</Label>
-                  <Input
-                    id="aadhar_number"
-                    value={formData.aadhar_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, aadhar_number: e.target.value }))}
-                    placeholder="Enter Aadhar number"
-                  />
-                </div>
 
                 <div className="md:col-span-2">
                   <Label htmlFor="compliance_notes">Compliance Notes</Label>

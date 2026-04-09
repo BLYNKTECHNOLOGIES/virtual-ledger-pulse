@@ -336,7 +336,44 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         </div>
 
-        <div>
+        {/* Source of Income Details */}
+        {incomeDetails && (
+          <div className="p-3 bg-amber-50 rounded-md border border-amber-200 space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Briefcase className="h-4 w-4" />
+              Source of Income
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {incomeDetails.primary_source_of_income && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Primary Source</p>
+                  <p className="text-sm font-medium">{incomeDetails.primary_source_of_income}</p>
+                </div>
+              )}
+              {incomeDetails.occupation_business_type && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Occupation / Business</p>
+                  <p className="text-sm font-medium">{incomeDetails.occupation_business_type}</p>
+                </div>
+              )}
+              {incomeDetails.monthly_income_range && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Monthly Income</p>
+                  <p className="text-sm font-medium">₹{Number(incomeDetails.monthly_income_range).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              {incomeDetails.source_of_fund_url && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Source of Fund Doc</p>
+                  <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">
+                    View Document
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
           <label className="text-sm font-medium text-gray-600">Assigned Operator</label>
           <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>

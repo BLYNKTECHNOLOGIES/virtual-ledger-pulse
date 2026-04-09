@@ -1418,6 +1418,44 @@ export type Database = {
           },
         ]
       }
+      client_income_details: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          monthly_income_range: number | null
+          occupation_business_type: string | null
+          primary_source_of_income: string | null
+          source_of_fund_url: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          monthly_income_range?: number | null
+          occupation_business_type?: string | null
+          primary_source_of_income?: string | null
+          source_of_fund_url?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          monthly_income_range?: number | null
+          occupation_business_type?: string | null
+          primary_source_of_income?: string | null
+          source_of_fund_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_income_details_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_limit_requests: {
         Row: {
           client_id: string

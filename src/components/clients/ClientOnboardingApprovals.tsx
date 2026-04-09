@@ -124,6 +124,13 @@ export function ClientOnboardingApprovals() {
   ]);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
+  // Source of Income state (all optional)
+  const [primarySourceOfIncome, setPrimarySourceOfIncome] = useState('');
+  const [occupationBusinessType, setOccupationBusinessType] = useState('');
+  const [monthlyIncomeRange, setMonthlyIncomeRange] = useState('');
+  const [sourceOfFundFile, setSourceOfFundFile] = useState<File | null>(null);
+  const sourceOfFundInputRef = useRef<HTMLInputElement | null>(null);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
@@ -194,8 +201,14 @@ export function ClientOnboardingApprovals() {
       mode: 'normal' | 'merge' | 'create_new';
       existingClientId?: string;
       bankEntries?: BankEntry[];
+      incomeDetails?: {
+        primarySourceOfIncome: string;
+        occupationBusinessType: string;
+        monthlyIncomeRange: string;
+        sourceOfFundFile: File | null;
+      };
     }) => {
-      const { id, clientData, mode, existingClientId, bankEntries: entries } = approvalData;
+      const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails } = approvalData;
       
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
@@ -412,6 +425,50 @@ export function ClientOnboardingApprovals() {
             .eq('id', targetClientId);
         }
       }
+
+      // Save income details if any field is filled
+      if (incomeDetails) {
+        const { primarySourceOfIncome: src, occupationBusinessType: occ, monthlyIncomeRange: incRange, sourceOfFundFile: fundFile } = incomeDetails;
+        const hasIncomeData = src.trim() || occ.trim() || incRange.trim() || fundFile;
+        
+        if (hasIncomeData) {
+          // Determine client ID
+          let incomeClientId = existingClientId;
+          if (!incomeClientId) {
+            const { data: clientRec } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('is_deleted', false)
+              .ilike('name', approval.client_name.trim())
+              .maybeSingle();
+            incomeClientId = clientRec?.id;
+          }
+
+          if (incomeClientId) {
+            let fundUrl: string | null = null;
+            if (fundFile) {
+              const filePath = `source-of-funds/${incomeClientId}/${Date.now()}_${fundFile.name}`;
+              const { error: uploadErr } = await supabase.storage
+                .from('kyc-documents')
+                .upload(filePath, fundFile);
+              if (!uploadErr) {
+                const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
+                fundUrl = urlD?.publicUrl || null;
+              }
+            }
+
+            await supabase
+              .from('client_income_details')
+              .upsert({
+                client_id: incomeClientId,
+                primary_source_of_income: src.trim() || null,
+                occupation_business_type: occ.trim() || null,
+                monthly_income_range: incRange ? parseFloat(incRange) : null,
+                source_of_fund_url: fundUrl,
+              }, { onConflict: 'client_id' });
+          }
+        }
+      }
     },
     onSuccess: (_, variables) => {
       logActionWithCurrentUser({
@@ -599,7 +656,13 @@ export function ClientOnboardingApprovals() {
       },
       mode: approvalMode,
       existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined,
-      bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4)
+      bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4),
+      incomeDetails: {
+        primarySourceOfIncome,
+        occupationBusinessType,
+        monthlyIncomeRange,
+        sourceOfFundFile
+      }
     });
   };
 
@@ -649,6 +712,10 @@ export function ClientOnboardingApprovals() {
     setPhoneEditEnabled(false);
     setStateEditEnabled(false);
     setBankEntries([{ bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }]);
+    setPrimarySourceOfIncome('');
+    setOccupationBusinessType('');
+    setMonthlyIncomeRange('');
+    setSourceOfFundFile(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -1252,7 +1319,67 @@ export function ClientOnboardingApprovals() {
                 </div>
               </div>
 
-              {/* Compliance Form */}
+              {/* Source of Income (Optional) */}
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Source of Income (Optional)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Primary Source of Income</Label>
+                    <Input
+                      value={primarySourceOfIncome}
+                      onChange={(e) => setPrimarySourceOfIncome(e.target.value)}
+                      placeholder="e.g. Salary, Business, Freelance"
+                    />
+                  </div>
+                  <div>
+                    <Label>Occupation / Business Type</Label>
+                    <Input
+                      value={occupationBusinessType}
+                      onChange={(e) => setOccupationBusinessType(e.target.value)}
+                      placeholder="e.g. Software Engineer, Retail Shop"
+                    />
+                  </div>
+                  <div>
+                    <Label>Monthly Income Range (₹)</Label>
+                    <Input
+                      type="number"
+                      value={monthlyIncomeRange}
+                      onChange={(e) => setMonthlyIncomeRange(e.target.value)}
+                      placeholder="e.g. 50000"
+                    />
+                  </div>
+                  <div>
+                    <Label>Source of Fund Document</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="file"
+                        ref={sourceOfFundInputRef}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => setSourceOfFundFile(e.target.files?.[0] || null)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => sourceOfFundInputRef.current?.click()}
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        {sourceOfFundFile ? 'Change File' : 'Upload'}
+                      </Button>
+                      {sourceOfFundFile && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                          {sourceOfFundFile.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label htmlFor="proposed_monthly_limit">

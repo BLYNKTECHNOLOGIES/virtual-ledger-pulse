@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee, CreditCard, Settings } from "lucide-react";
+import { User, Calendar, Tag, Phone, Mail, MapPin, FileText, IndianRupee, CreditCard, Settings, Briefcase } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
@@ -105,6 +105,22 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       return data || [];
     },
     enabled: !!activeClientId && !!client,
+  });
+
+  // Fetch income details
+  const { data: incomeDetails } = useQuery({
+    queryKey: ['client-income-details', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId) return null;
+      const { data, error } = await supabase
+        .from('client_income_details')
+        .select('*')
+        .eq('client_id', activeClientId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeClientId,
   });
 
   if (isLoading) {
@@ -319,6 +335,44 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
             </Badge>
           </div>
         </div>
+
+        {/* Source of Income Details */}
+        {incomeDetails && (
+          <div className="p-3 bg-amber-50 rounded-md border border-amber-200 space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Briefcase className="h-4 w-4" />
+              Source of Income
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {incomeDetails.primary_source_of_income && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Primary Source</p>
+                  <p className="text-sm font-medium">{incomeDetails.primary_source_of_income}</p>
+                </div>
+              )}
+              {incomeDetails.occupation_business_type && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Occupation / Business</p>
+                  <p className="text-sm font-medium">{incomeDetails.occupation_business_type}</p>
+                </div>
+              )}
+              {incomeDetails.monthly_income_range && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Monthly Income</p>
+                  <p className="text-sm font-medium">₹{Number(incomeDetails.monthly_income_range).toLocaleString('en-IN')}</p>
+                </div>
+              )}
+              {incomeDetails.source_of_fund_url && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Source of Fund Doc</p>
+                  <a href={incomeDetails.source_of_fund_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline">
+                    View Document
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="text-sm font-medium text-gray-600">Assigned Operator</label>

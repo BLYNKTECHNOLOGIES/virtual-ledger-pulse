@@ -601,7 +601,6 @@ export function ClientOnboardingApprovals() {
       bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4)
     });
   };
-  };
 
   const handleReject = (id: string, reason: string) => {
     rejectClientMutation.mutate({ id, reason });

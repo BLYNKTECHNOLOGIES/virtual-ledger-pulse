@@ -1080,6 +1080,178 @@ export function ClientOnboardingApprovals() {
                 </div>
               </div>
 
+              {/* Bank Details Section */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Bank Details *
+                  </h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBankEntries(prev => [...prev, { bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }])}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Bank Account
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {bankEntries.map((entry, index) => (
+                    <div key={index} className="bg-white p-3 rounded-md border border-blue-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-muted-foreground">Bank Account #{index + 1}</span>
+                        {index > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setBankEntries(prev => prev.filter((_, i) => i !== index))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Bank Name *</Label>
+                          <Input
+                            value={entry.bankName}
+                            onChange={(e) => {
+                              const updated = [...bankEntries];
+                              updated[index] = { ...updated[index], bankName: e.target.value };
+                              setBankEntries(updated);
+                            }}
+                            placeholder="e.g. HDFC Bank"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Last 4 Digits of Account *</Label>
+                          <Input
+                            value={entry.lastFourDigits}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              const updated = [...bankEntries];
+                              updated[index] = { ...updated[index], lastFourDigits: val };
+                              setBankEntries(updated);
+                            }}
+                            placeholder="e.g. 1234"
+                            maxLength={4}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Bank Statement (Optional)</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRefs.current[index]?.click()}
+                          >
+                            <Upload className="h-3 w-3 mr-1" />
+                            {entry.statementFile ? entry.statementFile.name : 'Upload Statement'}
+                          </Button>
+                          <input
+                            type="file"
+                            ref={(el) => { fileInputRefs.current[index] = el; }}
+                            className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              const updated = [...bankEntries];
+                              updated[index] = { 
+                                ...updated[index], 
+                                statementFile: file,
+                                statementPeriodFrom: file ? updated[index].statementPeriodFrom : undefined,
+                                statementPeriodTo: file ? updated[index].statementPeriodTo : undefined
+                              };
+                              setBankEntries(updated);
+                            }}
+                          />
+                          {entry.statementFile && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const updated = [...bankEntries];
+                                updated[index] = { ...updated[index], statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined };
+                                setBankEntries(updated);
+                                if (fileInputRefs.current[index]) fileInputRefs.current[index]!.value = '';
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {entry.statementFile && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Statement Period From</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn("w-full justify-start text-left font-normal mt-1", !entry.statementPeriodFrom && "text-muted-foreground")}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {entry.statementPeriodFrom ? format(entry.statementPeriodFrom, "PPP") : "Select date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={entry.statementPeriodFrom}
+                                  onSelect={(date) => {
+                                    const updated = [...bankEntries];
+                                    updated[index] = { ...updated[index], statementPeriodFrom: date };
+                                    setBankEntries(updated);
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Statement Period To</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn("w-full justify-start text-left font-normal mt-1", !entry.statementPeriodTo && "text-muted-foreground")}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {entry.statementPeriodTo ? format(entry.statementPeriodTo, "PPP") : "Select date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={entry.statementPeriodTo}
+                                  onSelect={(date) => {
+                                    const updated = [...bankEntries];
+                                    updated[index] = { ...updated[index], statementPeriodTo: date };
+                                    setBankEntries(updated);
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Compliance Form */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">

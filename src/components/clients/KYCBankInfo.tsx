@@ -226,7 +226,8 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                   } else if (typeof client.linked_bank_accounts === 'string') {
                     accounts = JSON.parse(client.linked_bank_accounts);
                   } else if (typeof client.linked_bank_accounts === 'object') {
-                    accounts = client.linked_bank_accounts as any[];
+                    const parsed = client.linked_bank_accounts as unknown;
+                    accounts = Array.isArray(parsed) ? parsed : [];
                   } else {
                     return <span className="text-sm text-gray-500">No linked bank accounts</span>;
                   }

@@ -4,6 +4,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { INDIAN_STATES_AND_UTS } from '@/data/indianStatesAndUTs';
+import { BankNameCombobox } from './BankNameCombobox';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1116,14 +1117,13 @@ export function ClientOnboardingApprovals() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <Label className="text-xs">Bank Name *</Label>
-                          <Input
+                          <BankNameCombobox
                             value={entry.bankName}
-                            onChange={(e) => {
+                            onChange={(val) => {
                               const updated = [...bankEntries];
-                              updated[index] = { ...updated[index], bankName: e.target.value };
+                              updated[index] = { ...updated[index], bankName: val };
                               setBankEntries(updated);
                             }}
-                            placeholder="e.g. HDFC Bank"
                             className="mt-1"
                           />
                         </div>

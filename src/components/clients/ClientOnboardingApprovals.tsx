@@ -217,6 +217,12 @@ export function ClientOnboardingApprovals() {
         monthlyIncomeRange: string;
         sourceOfFundFile: File | null;
       };
+      kycDocuments?: {
+        aadhaarFiles: File[];
+        usdtProofFile: File | null;
+        tradeHistoryFile: File | null;
+        vkycVideoFile: File | null;
+      };
     }) => {
       const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails } = approvalData;
       

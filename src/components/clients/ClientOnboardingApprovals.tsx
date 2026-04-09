@@ -537,6 +537,7 @@ export function ClientOnboardingApprovals() {
     setApprovalMode('normal');
     setPhoneEditEnabled(false);
     setStateEditEnabled(false);
+    setBankEntries([{ bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }]);
   };
 
   const getStatusBadge = (status: string) => {

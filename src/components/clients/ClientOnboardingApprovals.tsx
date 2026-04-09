@@ -1201,56 +1201,62 @@ export function ClientOnboardingApprovals() {
               {/* Client Details */}
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Order Information</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Client Name:</span> {selectedApproval.client_name}
+                <div className="space-y-4 text-sm">
+                  {/* Row 1: Client Name + Order Amount */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="font-medium">Client Name:</span> {selectedApproval.client_name}
+                    </div>
+                    <div>
+                      <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium">Order Amount:</span> ₹{selectedApproval.order_amount.toLocaleString('en-IN')}
-                  </div>
-                  <div>
-                    <Label htmlFor="client_phone" className="font-medium">Phone *</Label>
-                    {phoneEditEnabled ? (
-                      <Input
-                        id="client_phone"
-                        value={formData.client_phone}
-                        onChange={(e) => setFormData(prev => ({ ...prev, client_phone: e.target.value }))}
-                        placeholder="Enter phone number"
-                        className="mt-1"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm">{formData.client_phone || 'N/A'}</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setPhoneEditEnabled(true)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="client_state_order" className="font-medium">State *</Label>
-                    {stateEditEnabled ? (
-                      <Select
-                        value={formData.client_state}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, client_state: value }))}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select state" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {INDIAN_STATES_AND_UTS.map((state) => (
-                            <SelectItem key={state} value={state}>{state}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm">{formData.client_state || 'N/A'}</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setStateEditEnabled(true)}>
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
+                  {/* Row 2: Phone + State */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="client_phone" className="font-medium">Phone *</Label>
+                      {phoneEditEnabled ? (
+                        <Input
+                          id="client_phone"
+                          value={formData.client_phone}
+                          onChange={(e) => setFormData(prev => ({ ...prev, client_phone: e.target.value }))}
+                          placeholder="Enter phone number"
+                          className="mt-1"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm">{formData.client_phone || 'N/A'}</span>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setPhoneEditEnabled(true)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label htmlFor="client_state_order" className="font-medium">State *</Label>
+                      {stateEditEnabled ? (
+                        <Select
+                          value={formData.client_state}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, client_state: value }))}
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Select state" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {INDIAN_STATES_AND_UTS.map((state) => (
+                              <SelectItem key={state} value={state}>{state}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm">{formData.client_state || 'N/A'}</span>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => setStateEditEnabled(true)}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

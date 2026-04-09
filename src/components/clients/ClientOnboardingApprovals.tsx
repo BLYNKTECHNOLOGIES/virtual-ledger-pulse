@@ -124,6 +124,13 @@ export function ClientOnboardingApprovals() {
   ]);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
+  // Source of Income state (all optional)
+  const [primarySourceOfIncome, setPrimarySourceOfIncome] = useState('');
+  const [occupationBusinessType, setOccupationBusinessType] = useState('');
+  const [monthlyIncomeRange, setMonthlyIncomeRange] = useState('');
+  const [sourceOfFundFile, setSourceOfFundFile] = useState<File | null>(null);
+  const sourceOfFundInputRef = useRef<HTMLInputElement | null>(null);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();

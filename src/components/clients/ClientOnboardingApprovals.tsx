@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { compressVideo } from '@/utils/videoCompressor';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -493,7 +494,16 @@ export function ClientOnboardingApprovals() {
         for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
         if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
         if (tFile) allDocs.push({ file: tFile, type: 'trade_history_screenshot', folder: 'trade-history' });
-        if (vFile) allDocs.push({ file: vFile, type: 'vkyc_video', folder: 'vkyc' });
+        if (vFile) {
+          // Compress video before upload
+          let compressedVideo: File = vFile;
+          try {
+            compressedVideo = await compressVideo(vFile);
+          } catch (err) {
+            console.warn('Video compression failed, uploading original:', err);
+          }
+          allDocs.push({ file: compressedVideo, type: 'vkyc_video', folder: 'vkyc' });
+        }
 
         if (allDocs.length > 0) {
           let docClientId = existingClientId;
@@ -1599,7 +1609,7 @@ export function ClientOnboardingApprovals() {
                   {/* vKYC Video - optional */}
                   <div className="bg-white p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — keep under 50MB)</span></Label>
+                      <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — auto-compressed for large files)</span></Label>
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
@@ -1617,10 +1627,7 @@ export function ClientOnboardingApprovals() {
                           accept="video/*"
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
-                            if (file && file.size > 50 * 1024 * 1024) {
-                              toast({ title: "File too large", description: "vKYC video should be under 50MB", variant: "destructive" });
-                              return;
-                            }
+                            if (!file) return;
                             setVkycVideoFile(file);
                             if (vkycVideoInputRef.current) vkycVideoInputRef.current.value = '';
                           }}

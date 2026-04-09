@@ -130,6 +130,16 @@ export function ClientOnboardingApprovals() {
   const [monthlyIncomeRange, setMonthlyIncomeRange] = useState('');
   const [sourceOfFundFile, setSourceOfFundFile] = useState<File | null>(null);
   const sourceOfFundInputRef = useRef<HTMLInputElement | null>(null);
+
+  // KYC Documents state
+  const [aadhaarFiles, setAadhaarFiles] = useState<File[]>([]);
+  const [usdtProofFile, setUsdtProofFile] = useState<File | null>(null);
+  const [tradeHistoryFile, setTradeHistoryFile] = useState<File | null>(null);
+  const [vkycVideoFile, setVkycVideoFile] = useState<File | null>(null);
+  const aadhaarInputRef = useRef<HTMLInputElement | null>(null);
+  const usdtProofInputRef = useRef<HTMLInputElement | null>(null);
+  const tradeHistoryInputRef = useRef<HTMLInputElement | null>(null);
+  const vkycVideoInputRef = useRef<HTMLInputElement | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -207,8 +217,14 @@ export function ClientOnboardingApprovals() {
         monthlyIncomeRange: string;
         sourceOfFundFile: File | null;
       };
+      kycDocuments?: {
+        aadhaarFiles: File[];
+        usdtProofFile: File | null;
+        tradeHistoryFile: File | null;
+        vkycVideoFile: File | null;
+      };
     }) => {
-      const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails } = approvalData;
+      const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails, kycDocuments } = approvalData;
       
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
@@ -469,6 +485,68 @@ export function ClientOnboardingApprovals() {
           }
         }
       }
+
+      // Save KYC documents
+      if (kycDocuments) {
+        const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile } = kycDocuments;
+        const allDocs: { file: File; type: string; folder: string }[] = [];
+        for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
+        if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
+        if (tFile) allDocs.push({ file: tFile, type: 'trade_history_screenshot', folder: 'trade-history' });
+        if (vFile) allDocs.push({ file: vFile, type: 'vkyc_video', folder: 'vkyc' });
+
+        if (allDocs.length > 0) {
+          let docClientId = existingClientId;
+          if (!docClientId) {
+            const { data: cr } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('is_deleted', false)
+              .ilike('name', approval.client_name.trim())
+              .maybeSingle();
+            docClientId = cr?.id;
+          }
+
+          if (docClientId) {
+            for (const doc of allDocs) {
+              const filePath = `${docClientId}/${doc.folder}/${Date.now()}_${doc.file.name}`;
+              const { error: upErr } = await supabase.storage
+                .from('kyc-documents')
+                .upload(filePath, doc.file);
+              if (!upErr) {
+                const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
+                const fileUrl = urlD?.publicUrl || '';
+                await supabase.from('client_kyc_documents').insert({
+                  client_id: docClientId,
+                  document_type: doc.type,
+                  file_url: fileUrl,
+                  file_name: doc.file.name,
+                  file_size: doc.file.size,
+                  mime_type: doc.file.type || null,
+                });
+              } else {
+                console.error(`Failed to upload ${doc.type} document:`, upErr);
+              }
+            }
+
+            // Update aadhar_front_url on clients for backward compat
+            if (aFiles.length > 0) {
+              const firstPath = `${docClientId}/aadhaar/${Date.now()}_compat`;
+              const { data: firstDoc } = await supabase
+                .from('client_kyc_documents')
+                .select('file_url')
+                .eq('client_id', docClientId)
+                .eq('document_type', 'aadhaar')
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+              if (firstDoc?.file_url) {
+                await supabase.from('clients').update({ aadhar_front_url: firstDoc.file_url }).eq('id', docClientId);
+              }
+            }
+          }
+        }
+      }
     },
     onSuccess: (_, variables) => {
       logActionWithCurrentUser({
@@ -623,6 +701,16 @@ export function ClientOnboardingApprovals() {
       return;
     }
 
+    // Aadhaar validation: at least 1 file required
+    if (aadhaarFiles.length === 0) {
+      toast({
+        title: "Missing Information",
+        description: "At least one Aadhaar document is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Validate all filled entries have complete data
     for (const entry of bankEntries) {
       if (entry.bankName.trim() || entry.lastFourDigits.trim()) {
@@ -651,7 +739,6 @@ export function ClientOnboardingApprovals() {
       id: selectedApproval.id,
       clientData: {
         ...formData,
-        // For merge: if no new limit provided, pass existing client's limit
         proposed_monthly_limit: formData.proposed_monthly_limit || existingClientMatch?.monthly_limit?.toString() || '',
       },
       mode: approvalMode,
@@ -662,6 +749,12 @@ export function ClientOnboardingApprovals() {
         occupationBusinessType,
         monthlyIncomeRange,
         sourceOfFundFile
+      },
+      kycDocuments: {
+        aadhaarFiles,
+        usdtProofFile,
+        tradeHistoryFile,
+        vkycVideoFile
       }
     });
   };
@@ -716,6 +809,10 @@ export function ClientOnboardingApprovals() {
     setOccupationBusinessType('');
     setMonthlyIncomeRange('');
     setSourceOfFundFile(null);
+    setAadhaarFiles([]);
+    setUsdtProofFile(null);
+    setTradeHistoryFile(null);
+    setVkycVideoFile(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -1375,6 +1472,167 @@ export function ClientOnboardingApprovals() {
                           {sourceOfFundFile.name}
                         </span>
                       )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* KYC Documents Section */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  KYC Documents
+                </h4>
+                <div className="space-y-4">
+                  {/* Aadhaar Card - mandatory, multi-file */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Aadhaar Card * <span className="text-xs text-muted-foreground">(PDF, Image, or any file — multiple allowed)</span></Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => aadhaarInputRef.current?.click()}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {aadhaarFiles.length > 0 ? 'Add More' : 'Upload'}
+                      </Button>
+                      <input
+                        type="file"
+                        ref={aadhaarInputRef}
+                        className="hidden"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length > 0) {
+                            setAadhaarFiles(prev => [...prev, ...files]);
+                          }
+                          if (aadhaarInputRef.current) aadhaarInputRef.current.value = '';
+                        }}
+                      />
+                    </div>
+                    {aadhaarFiles.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {aadhaarFiles.map((f, i) => (
+                          <div key={i} className="flex items-center gap-1 bg-muted px-2 py-1 rounded text-xs">
+                            <FileText className="h-3 w-3" />
+                            <span className="max-w-[150px] truncate">{f.name}</span>
+                            <button type="button" onClick={() => setAadhaarFiles(prev => prev.filter((_, idx) => idx !== i))}>
+                              <X className="h-3 w-3 text-destructive" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-destructive">At least one Aadhaar document is required</p>
+                    )}
+                  </div>
+
+                  {/* USDT Usage Proof - optional */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">USDT Usage Proof <span className="text-xs text-muted-foreground">(Optional)</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => usdtProofInputRef.current?.click()}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          {usdtProofFile ? 'Change' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          ref={usdtProofInputRef}
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => {
+                            setUsdtProofFile(e.target.files?.[0] || null);
+                            if (usdtProofInputRef.current) usdtProofInputRef.current.value = '';
+                          }}
+                        />
+                        {usdtProofFile && (
+                          <>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{usdtProofFile.name}</span>
+                            <button type="button" onClick={() => setUsdtProofFile(null)}><X className="h-3 w-3 text-destructive" /></button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trade History Screenshot - optional */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Trade History Screenshot <span className="text-xs text-muted-foreground">(Optional)</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => tradeHistoryInputRef.current?.click()}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          {tradeHistoryFile ? 'Change' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          ref={tradeHistoryInputRef}
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => {
+                            setTradeHistoryFile(e.target.files?.[0] || null);
+                            if (tradeHistoryInputRef.current) tradeHistoryInputRef.current.value = '';
+                          }}
+                        />
+                        {tradeHistoryFile && (
+                          <>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{tradeHistoryFile.name}</span>
+                            <button type="button" onClick={() => setTradeHistoryFile(null)}><X className="h-3 w-3 text-destructive" /></button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* vKYC Video - optional */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — keep under 50MB)</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => vkycVideoInputRef.current?.click()}
+                        >
+                          <Video className="h-3 w-3 mr-1" />
+                          {vkycVideoFile ? 'Change' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          ref={vkycVideoInputRef}
+                          className="hidden"
+                          accept="video/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            if (file && file.size > 50 * 1024 * 1024) {
+                              toast({ title: "File too large", description: "vKYC video should be under 50MB", variant: "destructive" });
+                              return;
+                            }
+                            setVkycVideoFile(file);
+                            if (vkycVideoInputRef.current) vkycVideoInputRef.current.value = '';
+                          }}
+                        />
+                        {vkycVideoFile && (
+                          <>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{vkycVideoFile.name}</span>
+                            <span className="text-xs text-muted-foreground">({(vkycVideoFile.size / (1024 * 1024)).toFixed(1)}MB)</span>
+                            <button type="button" onClick={() => setVkycVideoFile(null)}><X className="h-3 w-3 text-destructive" /></button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

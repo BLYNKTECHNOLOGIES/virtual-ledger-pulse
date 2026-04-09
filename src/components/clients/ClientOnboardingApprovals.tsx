@@ -485,6 +485,68 @@ export function ClientOnboardingApprovals() {
           }
         }
       }
+
+      // Save KYC documents
+      if (kycDocuments) {
+        const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile } = kycDocuments;
+        const allDocs: { file: File; type: string; folder: string }[] = [];
+        for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
+        if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
+        if (tFile) allDocs.push({ file: tFile, type: 'trade_history_screenshot', folder: 'trade-history' });
+        if (vFile) allDocs.push({ file: vFile, type: 'vkyc_video', folder: 'vkyc' });
+
+        if (allDocs.length > 0) {
+          let docClientId = existingClientId;
+          if (!docClientId) {
+            const { data: cr } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('is_deleted', false)
+              .ilike('name', approval.client_name.trim())
+              .maybeSingle();
+            docClientId = cr?.id;
+          }
+
+          if (docClientId) {
+            for (const doc of allDocs) {
+              const filePath = `${docClientId}/${doc.folder}/${Date.now()}_${doc.file.name}`;
+              const { error: upErr } = await supabase.storage
+                .from('kyc-documents')
+                .upload(filePath, doc.file);
+              if (!upErr) {
+                const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
+                const fileUrl = urlD?.publicUrl || '';
+                await supabase.from('client_kyc_documents').insert({
+                  client_id: docClientId,
+                  document_type: doc.type,
+                  file_url: fileUrl,
+                  file_name: doc.file.name,
+                  file_size: doc.file.size,
+                  mime_type: doc.file.type || null,
+                });
+              } else {
+                console.error(`Failed to upload ${doc.type} document:`, upErr);
+              }
+            }
+
+            // Update aadhar_front_url on clients for backward compat
+            if (aFiles.length > 0) {
+              const firstPath = `${docClientId}/aadhaar/${Date.now()}_compat`;
+              const { data: firstDoc } = await supabase
+                .from('client_kyc_documents')
+                .select('file_url')
+                .eq('client_id', docClientId)
+                .eq('document_type', 'aadhaar')
+                .order('created_at', { ascending: true })
+                .limit(1)
+                .maybeSingle();
+              if (firstDoc?.file_url) {
+                await supabase.from('clients').update({ aadhar_front_url: firstDoc.file_url }).eq('id', docClientId);
+              }
+            }
+          }
+        }
+      }
     },
     onSuccess: (_, variables) => {
       logActionWithCurrentUser({

@@ -191,8 +191,9 @@ export function ClientOnboardingApprovals() {
       clientData: typeof formData;
       mode: 'normal' | 'merge' | 'create_new';
       existingClientId?: string;
+      bankEntries?: BankEntry[];
     }) => {
-      const { id, clientData, mode, existingClientId } = approvalData;
+      const { id, clientData, mode, existingClientId, bankEntries: entries } = approvalData;
       
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');

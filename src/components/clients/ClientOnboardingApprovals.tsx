@@ -130,6 +130,16 @@ export function ClientOnboardingApprovals() {
   const [monthlyIncomeRange, setMonthlyIncomeRange] = useState('');
   const [sourceOfFundFile, setSourceOfFundFile] = useState<File | null>(null);
   const sourceOfFundInputRef = useRef<HTMLInputElement | null>(null);
+
+  // KYC Documents state
+  const [aadhaarFiles, setAadhaarFiles] = useState<File[]>([]);
+  const [usdtProofFile, setUsdtProofFile] = useState<File | null>(null);
+  const [tradeHistoryFile, setTradeHistoryFile] = useState<File | null>(null);
+  const [vkycVideoFile, setVkycVideoFile] = useState<File | null>(null);
+  const aadhaarInputRef = useRef<HTMLInputElement | null>(null);
+  const usdtProofInputRef = useRef<HTMLInputElement | null>(null);
+  const tradeHistoryInputRef = useRef<HTMLInputElement | null>(null);
+  const vkycVideoInputRef = useRef<HTMLInputElement | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();

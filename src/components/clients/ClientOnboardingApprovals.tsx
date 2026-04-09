@@ -201,6 +201,12 @@ export function ClientOnboardingApprovals() {
       mode: 'normal' | 'merge' | 'create_new';
       existingClientId?: string;
       bankEntries?: BankEntry[];
+      incomeDetails?: {
+        primarySourceOfIncome: string;
+        occupationBusinessType: string;
+        monthlyIncomeRange: string;
+        sourceOfFundFile: File | null;
+      };
     }) => {
       const { id, clientData, mode, existingClientId, bankEntries: entries } = approvalData;
       

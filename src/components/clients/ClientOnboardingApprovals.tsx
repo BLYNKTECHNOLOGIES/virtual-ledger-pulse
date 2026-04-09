@@ -34,7 +34,8 @@ import {
   Plus,
   X,
   CalendarIcon,
-  Upload
+  Upload,
+  CreditCard
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 

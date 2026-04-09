@@ -107,6 +107,22 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
     enabled: !!activeClientId && !!client,
   });
 
+  // Fetch income details
+  const { data: incomeDetails } = useQuery({
+    queryKey: ['client-income-details', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId) return null;
+      const { data, error } = await supabase
+        .from('client_income_details')
+        .select('*')
+        .eq('client_id', activeClientId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeClientId,
+  });
+
   if (isLoading) {
     return (
       <Card>

@@ -1,36 +1,49 @@
 
 
-## Update Client Onboarding Approval Form (Buyer)
+## Add Bank Details to Buyer Onboarding Approval
 
-### Problem
-In the buyer approval dialog (`ClientOnboardingApprovals.tsx`), the "Order Information" section displays phone and state as read-only text. Phone is not editable at all, and state is editable but not mandatory. For buyer approvals, phone and state must be mandatory and editable.
+### Summary
+Add a "Bank Details" section to the buyer approval form where the approver enters bank name + last 4 digits (mandatory), optionally uploads a bank statement, and can specify statement period (unlocked only when a statement is uploaded). Multiple bank entries can be added via an "Add More" button. Data persists in a new `client_bank_details` table and displays on the client detail page.
 
-### Changes (Single File: `ClientOnboardingApprovals.tsx`)
+### Database Changes (Migration)
 
-**1. Add `client_phone` to formData state**
-- Add `client_phone` field to the `formData` state object and `resetForm`
-- Pre-populate it from `selectedApproval.client_phone` in `handleApprovalClick`
+**New table: `client_bank_details`**
+- `id` UUID PK
+- `client_id` UUID FK → clients(id) ON DELETE CASCADE
+- `bank_name` TEXT NOT NULL
+- `last_four_digits` TEXT NOT NULL (4 chars)
+- `statement_url` TEXT (nullable — path to uploaded file in storage)
+- `statement_period_from` DATE (nullable)
+- `statement_period_to` DATE (nullable)
+- `created_at` TIMESTAMPTZ default now()
 
-**2. Update "Order Information" section (lines 862-884)**
-- Client Name: keep as read-only display text (no edit)
-- Order Amount, Email: keep as read-only display
-- Phone: replace static text with an editable `Input` field bound to `formData.client_phone`, marked with `*`
-- State: replace static text with editable `Input` (or move existing state input here), marked with `*`
+RLS: authenticated users full access (matching existing ERP pattern).
 
-**3. Remove duplicate state field from compliance form**
-- The state `Input` currently at line 953-961 will be moved up into Order Information, avoiding duplication
+Also update the existing `linked_bank_accounts` JSON on the `clients` table during approval (for backward compatibility with `KYCBankInfo` display).
 
-**4. Add mandatory validation in `handleApprove`**
-- Before approval, validate that `formData.client_phone` is not empty
-- Validate that `formData.client_state` is not empty
-- Show toast errors if missing: "Phone number is mandatory for buyer approval" / "State is mandatory for buyer approval"
+**Storage**: Use existing `kyc-documents` bucket for statement uploads (path: `bank-statements/{client_id}/{filename}`).
 
-**5. Pass phone & state to mutation**
-- In `approveClientMutation`, use `formData.client_phone` and `formData.client_state` (instead of `approval.client_phone` / `approval.client_state`) when creating/updating the client record
-- Also update the approval record with the edited phone/state values
+### Frontend Changes
+
+#### 1. `ClientOnboardingApprovals.tsx` — Approval Dialog
+- Add state: `bankEntries` array of `{ bankName, lastFourDigits, statementFile, statementPeriodFrom, statementPeriodTo }`
+- Add a new "Bank Details" section between "Order Information" and "Compliance Form":
+  - Each entry row: Bank Name (text input, required), Last 4 Digits (text input, 4 chars, required), Statement Upload (file input, optional), Statement Period From/To (date inputs, enabled only when a file is selected)
+  - "+ Add Bank Account" button to append another entry row
+  - Remove button (X) on each entry except the first
+- Validation in `handleApprove`: at least one bank entry with bank name + last 4 digits filled
+- On approval mutation:
+  1. Upload any statement files to `kyc-documents` bucket
+  2. Insert rows into `client_bank_details` table referencing the client
+  3. Update `clients.linked_bank_accounts` JSON array with `{ bankName, lastFourDigits }` entries (merged with any existing)
+
+#### 2. `KYCBankInfo.tsx` — Client Detail Page
+- Query `client_bank_details` where `client_id` matches
+- Display each bank entry: bank name, last 4 digits, statement download link (if uploaded), statement period
+- Keeps existing `linked_bank_accounts` badge display as-is (now populated from approval flow)
 
 ### What stays the same
-- Client name remains non-editable (display only)
-- Seller approval form (`SellerOnboardingApprovals.tsx`) is untouched — no mandatory phone/state there
-- All other form fields (monthly limit, risk, purpose, compliance notes) unchanged
+- Seller approval form unchanged
+- All other approval fields (phone, state, monthly limit, risk, etc.) unchanged
+- Existing KYC document handling unchanged
 

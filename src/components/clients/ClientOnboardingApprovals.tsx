@@ -1319,7 +1319,67 @@ export function ClientOnboardingApprovals() {
                 </div>
               </div>
 
-              {/* Compliance Form */}
+              {/* Source of Income (Optional) */}
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Source of Income (Optional)
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Primary Source of Income</Label>
+                    <Input
+                      value={primarySourceOfIncome}
+                      onChange={(e) => setPrimarySourceOfIncome(e.target.value)}
+                      placeholder="e.g. Salary, Business, Freelance"
+                    />
+                  </div>
+                  <div>
+                    <Label>Occupation / Business Type</Label>
+                    <Input
+                      value={occupationBusinessType}
+                      onChange={(e) => setOccupationBusinessType(e.target.value)}
+                      placeholder="e.g. Software Engineer, Retail Shop"
+                    />
+                  </div>
+                  <div>
+                    <Label>Monthly Income Range (₹)</Label>
+                    <Input
+                      type="number"
+                      value={monthlyIncomeRange}
+                      onChange={(e) => setMonthlyIncomeRange(e.target.value)}
+                      placeholder="e.g. 50000"
+                    />
+                  </div>
+                  <div>
+                    <Label>Source of Fund Document</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="file"
+                        ref={sourceOfFundInputRef}
+                        className="hidden"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => setSourceOfFundFile(e.target.files?.[0] || null)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => sourceOfFundInputRef.current?.click()}
+                      >
+                        <Upload className="h-4 w-4 mr-1" />
+                        {sourceOfFundFile ? 'Change File' : 'Upload'}
+                      </Button>
+                      {sourceOfFundFile && (
+                        <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                          {sourceOfFundFile.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label htmlFor="proposed_monthly_limit">

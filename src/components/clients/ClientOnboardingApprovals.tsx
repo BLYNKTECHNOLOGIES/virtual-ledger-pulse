@@ -30,9 +30,21 @@ import {
   UserCheck,
   UserPlus,
   Pencil,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  X,
+  CalendarIcon,
+  Upload
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+
+interface BankEntry {
+  bankName: string;
+  lastFourDigits: string;
+  statementFile: File | null;
+  statementPeriodFrom: Date | undefined;
+  statementPeriodTo: Date | undefined;
+}
 
 interface ClientOnboardingApproval {
   id: string;

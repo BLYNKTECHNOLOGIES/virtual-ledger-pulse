@@ -425,6 +425,50 @@ export function ClientOnboardingApprovals() {
             .eq('id', targetClientId);
         }
       }
+
+      // Save income details if any field is filled
+      if (incomeDetails) {
+        const { primarySourceOfIncome: src, occupationBusinessType: occ, monthlyIncomeRange: incRange, sourceOfFundFile: fundFile } = incomeDetails;
+        const hasIncomeData = src.trim() || occ.trim() || incRange.trim() || fundFile;
+        
+        if (hasIncomeData) {
+          // Determine client ID
+          let incomeClientId = existingClientId;
+          if (!incomeClientId) {
+            const { data: clientRec } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('is_deleted', false)
+              .ilike('name', approval.client_name.trim())
+              .maybeSingle();
+            incomeClientId = clientRec?.id;
+          }
+
+          if (incomeClientId) {
+            let fundUrl: string | null = null;
+            if (fundFile) {
+              const filePath = `source-of-funds/${incomeClientId}/${Date.now()}_${fundFile.name}`;
+              const { error: uploadErr } = await supabase.storage
+                .from('kyc-documents')
+                .upload(filePath, fundFile);
+              if (!uploadErr) {
+                const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
+                fundUrl = urlD?.publicUrl || null;
+              }
+            }
+
+            await supabase
+              .from('client_income_details')
+              .upsert({
+                client_id: incomeClientId,
+                primary_source_of_income: src.trim() || null,
+                occupation_business_type: occ.trim() || null,
+                monthly_income_range: incRange ? parseFloat(incRange) : null,
+                source_of_fund_url: fundUrl,
+              }, { onConflict: 'client_id' });
+          }
+        }
+      }
     },
     onSuccess: (_, variables) => {
       logActionWithCurrentUser({

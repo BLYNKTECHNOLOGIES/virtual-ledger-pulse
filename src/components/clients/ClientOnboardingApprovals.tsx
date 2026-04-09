@@ -701,6 +701,16 @@ export function ClientOnboardingApprovals() {
       return;
     }
 
+    // Aadhaar validation: at least 1 file required
+    if (aadhaarFiles.length === 0) {
+      toast({
+        title: "Missing Information",
+        description: "At least one Aadhaar document is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Validate all filled entries have complete data
     for (const entry of bankEntries) {
       if (entry.bankName.trim() || entry.lastFourDigits.trim()) {

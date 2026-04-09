@@ -606,7 +606,13 @@ export function ClientOnboardingApprovals() {
       },
       mode: approvalMode,
       existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined,
-      bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4)
+      bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4),
+      incomeDetails: {
+        primarySourceOfIncome,
+        occupationBusinessType,
+        monthlyIncomeRange,
+        sourceOfFundFile
+      }
     });
   };
 

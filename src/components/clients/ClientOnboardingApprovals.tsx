@@ -809,6 +809,10 @@ export function ClientOnboardingApprovals() {
     setOccupationBusinessType('');
     setMonthlyIncomeRange('');
     setSourceOfFundFile(null);
+    setAadhaarFiles([]);
+    setUsdtProofFile(null);
+    setTradeHistoryFile(null);
+    setVkycVideoFile(null);
   };
 
   const getStatusBadge = (status: string) => {

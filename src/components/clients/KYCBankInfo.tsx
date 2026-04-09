@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, CheckCircle, AlertCircle, CreditCard, ExternalLink } from "lucide-react";
+import { FileText, CheckCircle, AlertCircle, CreditCard, ExternalLink, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,11 +29,24 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
     enabled: !!clientId,
   });
 
+  const { data: bankDetails } = useQuery({
+    queryKey: ['client_bank_details', clientId],
+    queryFn: async () => {
+      if (!clientId) return [];
+      const { data, error } = await supabase
+        .from('client_bank_details')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clientId,
+  });
+
   const handleViewDocument = (url: string, docType: string) => {
     if (url) {
       window.open(url, '_blank');
-    } else {
-      
     }
   };
 
@@ -51,32 +64,6 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
 
   const getStatusColor = (hasDoc: boolean) => {
     return hasDoc ? "text-green-600" : "text-red-600";
-  };
-
-  const getBankAccountBadges = () => {
-    if (!client?.linked_bank_accounts) return [];
-    
-    try {
-      let accounts;
-      if (Array.isArray(client.linked_bank_accounts)) {
-        accounts = client.linked_bank_accounts;
-      } else if (typeof client.linked_bank_accounts === 'string') {
-        accounts = JSON.parse(client.linked_bank_accounts);
-      } else if (typeof client.linked_bank_accounts === 'object') {
-        accounts = client.linked_bank_accounts;
-      } else {
-        return [];
-      }
-      
-      return accounts.map((account: any, index: number) => (
-        <Badge key={index} variant="outline" className="text-blue-600">
-          {account.bankName} x{account.lastFourDigits}
-        </Badge>
-      ));
-    } catch (error) {
-      console.error('Error parsing linked bank accounts:', error);
-      return [];
-    }
   };
 
   const getKYCStatusBadge = () => {
@@ -192,35 +179,87 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
           </div>
         </div>
 
-        {/* Only show linked bank accounts, pattern mismatch, and re-kyc for buyers */}
-        {!isSeller && (
-          <>
-            <div>
-              <label className="text-sm font-medium text-gray-600">Linked Bank Accounts</label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {getBankAccountBadges().length > 0 ? (
-                  getBankAccountBadges()
-                ) : (
-                  <span className="text-sm text-gray-500">No linked bank accounts</span>
-                )}
-              </div>
+        {/* Bank Details from client_bank_details table */}
+        {bankDetails && bankDetails.length > 0 && (
+          <div>
+            <label className="text-sm font-medium text-gray-600">Bank Accounts</label>
+            <div className="space-y-2 mt-1">
+              {bankDetails.map((bank) => (
+                <div key={bank.id} className="bg-gray-50 rounded-md p-2 border text-sm space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">
+                      {bank.bank_name} <span className="text-muted-foreground">x{bank.last_four_digits}</span>
+                    </span>
+                    {bank.statement_url && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(bank.statement_url!, '_blank')}
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Statement
+                      </Button>
+                    )}
+                  </div>
+                  {bank.statement_period_from && bank.statement_period_to && (
+                    <div className="text-xs text-muted-foreground">
+                      Statement Period: {new Date(bank.statement_period_from).toLocaleDateString('en-IN')} — {new Date(bank.statement_period_to).toLocaleDateString('en-IN')}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-600">Pattern Mismatch</label>
-                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                  ✅ No Alert
-                </Badge>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-600">Re-KYC Needed</label>
-                <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                  No
-                </Badge>
-              </div>
+        {/* Fallback: linked_bank_accounts badges (for legacy data without detail records) */}
+        {(!bankDetails || bankDetails.length === 0) && !isSeller && (
+          <div>
+            <label className="text-sm font-medium text-gray-600">Linked Bank Accounts</label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {(() => {
+                if (!client?.linked_bank_accounts) return <span className="text-sm text-gray-500">No linked bank accounts</span>;
+                try {
+                  let accounts: any[];
+                  if (Array.isArray(client.linked_bank_accounts)) {
+                    accounts = client.linked_bank_accounts;
+                  } else if (typeof client.linked_bank_accounts === 'string') {
+                    accounts = JSON.parse(client.linked_bank_accounts);
+                  } else if (typeof client.linked_bank_accounts === 'object') {
+                    accounts = client.linked_bank_accounts as any[];
+                  } else {
+                    return <span className="text-sm text-gray-500">No linked bank accounts</span>;
+                  }
+                  if (!accounts.length) return <span className="text-sm text-gray-500">No linked bank accounts</span>;
+                  return accounts.map((account: any, index: number) => (
+                    <Badge key={index} variant="outline" className="text-blue-600">
+                      {account.bankName} x{account.lastFourDigits}
+                    </Badge>
+                  ));
+                } catch {
+                  return <span className="text-sm text-gray-500">No linked bank accounts</span>;
+                }
+              })()}
             </div>
-          </>
+          </div>
+        )}
+
+        {/* Pattern mismatch and re-kyc for buyers only */}
+        {!isSeller && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-600">Pattern Mismatch</label>
+              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                ✅ No Alert
+              </Badge>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Re-KYC Needed</label>
+              <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                No
+              </Badge>
+            </div>
+          </div>
         )}
 
         <Button size="sm" variant="outline" className="w-full">

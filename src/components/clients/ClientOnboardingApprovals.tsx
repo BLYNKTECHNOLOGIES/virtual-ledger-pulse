@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { INDIAN_STATES_AND_UTS } from '@/data/indianStatesAndUTs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,9 +30,22 @@ import {
   UserCheck,
   UserPlus,
   Pencil,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  X,
+  CalendarIcon,
+  Upload,
+  CreditCard
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+
+interface BankEntry {
+  bankName: string;
+  lastFourDigits: string;
+  statementFile: File | null;
+  statementPeriodFrom: Date | undefined;
+  statementPeriodTo: Date | undefined;
+}
 
 interface ClientOnboardingApproval {
   id: string;
@@ -101,6 +118,10 @@ export function ClientOnboardingApprovals() {
   });
   const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);
   const [stateEditEnabled, setStateEditEnabled] = useState(false);
+  const [bankEntries, setBankEntries] = useState<BankEntry[]>([
+    { bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }
+  ]);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -171,8 +192,9 @@ export function ClientOnboardingApprovals() {
       clientData: typeof formData;
       mode: 'normal' | 'merge' | 'create_new';
       existingClientId?: string;
+      bankEntries?: BankEntry[];
     }) => {
-      const { id, clientData, mode, existingClientId } = approvalData;
+      const { id, clientData, mode, existingClientId, bankEntries: entries } = approvalData;
       
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
@@ -306,6 +328,88 @@ export function ClientOnboardingApprovals() {
 
       if (batchError) {
         console.error('Failed to batch-approve sibling records:', batchError);
+      }
+
+      // Save bank details
+      if (entries && entries.length > 0) {
+        // Determine the client ID to link bank details to
+        let targetClientId = existingClientId;
+        if (!targetClientId) {
+          // Look up the client we just created/updated
+          const { data: clientRecord } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('is_deleted', false)
+            .ilike('name', approval.client_name.trim())
+            .maybeSingle();
+          targetClientId = clientRecord?.id;
+        }
+
+        if (targetClientId) {
+          // Upload statement files and insert bank detail records
+          for (const entry of entries) {
+            let statementUrl: string | null = null;
+            
+            if (entry.statementFile) {
+              const filePath = `bank-statements/${targetClientId}/${Date.now()}_${entry.statementFile.name}`;
+              const { error: uploadError } = await supabase.storage
+                .from('kyc-documents')
+                .upload(filePath, entry.statementFile);
+              
+              if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                  .from('kyc-documents')
+                  .getPublicUrl(filePath);
+                statementUrl = urlData?.publicUrl || null;
+              } else {
+                console.error('Failed to upload bank statement:', uploadError);
+              }
+            }
+
+            const { error: bankInsertError } = await supabase
+              .from('client_bank_details')
+              .insert({
+                client_id: targetClientId,
+                bank_name: entry.bankName.trim(),
+                last_four_digits: entry.lastFourDigits.trim(),
+                statement_url: statementUrl,
+                statement_period_from: entry.statementPeriodFrom ? entry.statementPeriodFrom.toISOString().split('T')[0] : null,
+                statement_period_to: entry.statementPeriodTo ? entry.statementPeriodTo.toISOString().split('T')[0] : null,
+              });
+
+            if (bankInsertError) {
+              console.error('Failed to insert bank detail:', bankInsertError);
+            }
+          }
+
+          // Update linked_bank_accounts JSON on clients table for backward compatibility
+          const bankAccountsJson = entries.map(e => ({
+            bankName: e.bankName.trim(),
+            lastFourDigits: e.lastFourDigits.trim()
+          }));
+
+          const { data: currentClient } = await supabase
+            .from('clients')
+            .select('linked_bank_accounts')
+            .eq('id', targetClientId)
+            .single();
+
+          let existingAccounts: any[] = [];
+          if (currentClient?.linked_bank_accounts) {
+            try {
+              existingAccounts = Array.isArray(currentClient.linked_bank_accounts)
+                ? currentClient.linked_bank_accounts
+                : JSON.parse(currentClient.linked_bank_accounts as string);
+            } catch { existingAccounts = []; }
+          }
+
+          const mergedAccounts = [...existingAccounts, ...bankAccountsJson];
+
+          await supabase
+            .from('clients')
+            .update({ linked_bank_accounts: mergedAccounts as any })
+            .eq('id', targetClientId);
+        }
       }
     },
     onSuccess: (_, variables) => {
@@ -450,6 +554,31 @@ export function ClientOnboardingApprovals() {
       return;
     }
 
+    // Bank details validation: at least one entry with bank name + last 4 digits
+    const hasValidBank = bankEntries.some(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4);
+    if (!hasValidBank) {
+      toast({
+        title: "Missing Information",
+        description: "At least one bank account with bank name and last 4 digits is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate all filled entries have complete data
+    for (const entry of bankEntries) {
+      if (entry.bankName.trim() || entry.lastFourDigits.trim()) {
+        if (!entry.bankName.trim() || entry.lastFourDigits.trim().length !== 4) {
+          toast({
+            title: "Incomplete Bank Details",
+            description: "Each bank entry must have a bank name and exactly 4 digits",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+    }
+
     // If there's a name match and operator hasn't chosen, block
     if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
       toast({
@@ -468,8 +597,10 @@ export function ClientOnboardingApprovals() {
         proposed_monthly_limit: formData.proposed_monthly_limit || existingClientMatch?.monthly_limit?.toString() || '',
       },
       mode: approvalMode,
-      existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
+      existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined,
+      bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4)
     });
+  };
   };
 
   const handleReject = (id: string, reason: string) => {
@@ -517,6 +648,7 @@ export function ClientOnboardingApprovals() {
     setApprovalMode('normal');
     setPhoneEditEnabled(false);
     setStateEditEnabled(false);
+    setBankEntries([{ bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }]);
   };
 
   const getStatusBadge = (status: string) => {
@@ -946,6 +1078,178 @@ export function ClientOnboardingApprovals() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Bank Details Section */}
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Bank Details *
+                  </h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBankEntries(prev => [...prev, { bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }])}
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Bank Account
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {bankEntries.map((entry, index) => (
+                    <div key={index} className="bg-white p-3 rounded-md border border-blue-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-muted-foreground">Bank Account #{index + 1}</span>
+                        {index > 0 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setBankEntries(prev => prev.filter((_, i) => i !== index))}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Bank Name *</Label>
+                          <Input
+                            value={entry.bankName}
+                            onChange={(e) => {
+                              const updated = [...bankEntries];
+                              updated[index] = { ...updated[index], bankName: e.target.value };
+                              setBankEntries(updated);
+                            }}
+                            placeholder="e.g. HDFC Bank"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Last 4 Digits of Account *</Label>
+                          <Input
+                            value={entry.lastFourDigits}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                              const updated = [...bankEntries];
+                              updated[index] = { ...updated[index], lastFourDigits: val };
+                              setBankEntries(updated);
+                            }}
+                            placeholder="e.g. 1234"
+                            maxLength={4}
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Bank Statement (Optional)</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => fileInputRefs.current[index]?.click()}
+                          >
+                            <Upload className="h-3 w-3 mr-1" />
+                            {entry.statementFile ? entry.statementFile.name : 'Upload Statement'}
+                          </Button>
+                          <input
+                            type="file"
+                            ref={(el) => { fileInputRefs.current[index] = el; }}
+                            className="hidden"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              const updated = [...bankEntries];
+                              updated[index] = { 
+                                ...updated[index], 
+                                statementFile: file,
+                                statementPeriodFrom: file ? updated[index].statementPeriodFrom : undefined,
+                                statementPeriodTo: file ? updated[index].statementPeriodTo : undefined
+                              };
+                              setBankEntries(updated);
+                            }}
+                          />
+                          {entry.statementFile && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const updated = [...bankEntries];
+                                updated[index] = { ...updated[index], statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined };
+                                setBankEntries(updated);
+                                if (fileInputRefs.current[index]) fileInputRefs.current[index]!.value = '';
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      {entry.statementFile && (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Statement Period From</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn("w-full justify-start text-left font-normal mt-1", !entry.statementPeriodFrom && "text-muted-foreground")}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {entry.statementPeriodFrom ? format(entry.statementPeriodFrom, "PPP") : "Select date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={entry.statementPeriodFrom}
+                                  onSelect={(date) => {
+                                    const updated = [...bankEntries];
+                                    updated[index] = { ...updated[index], statementPeriodFrom: date };
+                                    setBankEntries(updated);
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div>
+                            <Label className="text-xs">Statement Period To</Label>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn("w-full justify-start text-left font-normal mt-1", !entry.statementPeriodTo && "text-muted-foreground")}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {entry.statementPeriodTo ? format(entry.statementPeriodTo, "PPP") : "Select date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={entry.statementPeriodTo}
+                                  onSelect={(date) => {
+                                    const updated = [...bankEntries];
+                                    updated[index] = { ...updated[index], statementPeriodTo: date };
+                                    setBankEntries(updated);
+                                  }}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 

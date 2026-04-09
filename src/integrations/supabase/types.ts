@@ -1339,6 +1339,47 @@ export type Database = {
         }
         Relationships: []
       }
+      client_bank_details: {
+        Row: {
+          bank_name: string
+          client_id: string
+          created_at: string
+          id: string
+          last_four_digits: string
+          statement_period_from: string | null
+          statement_period_to: string | null
+          statement_url: string | null
+        }
+        Insert: {
+          bank_name: string
+          client_id: string
+          created_at?: string
+          id?: string
+          last_four_digits: string
+          statement_period_from?: string | null
+          statement_period_to?: string | null
+          statement_url?: string | null
+        }
+        Update: {
+          bank_name?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          last_four_digits?: string
+          statement_period_from?: string | null
+          statement_period_to?: string | null
+          statement_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_bank_details_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_communication_logs: {
         Row: {
           client_id: string

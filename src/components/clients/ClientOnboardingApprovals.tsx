@@ -1477,6 +1477,167 @@ export function ClientOnboardingApprovals() {
                 </div>
               </div>
 
+              {/* KYC Documents Section */}
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  KYC Documents
+                </h4>
+                <div className="space-y-4">
+                  {/* Aadhaar Card - mandatory, multi-file */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Aadhaar Card * <span className="text-xs text-muted-foreground">(PDF, Image, or any file — multiple allowed)</span></Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => aadhaarInputRef.current?.click()}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        {aadhaarFiles.length > 0 ? 'Add More' : 'Upload'}
+                      </Button>
+                      <input
+                        type="file"
+                        ref={aadhaarInputRef}
+                        className="hidden"
+                        multiple
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          if (files.length > 0) {
+                            setAadhaarFiles(prev => [...prev, ...files]);
+                          }
+                          if (aadhaarInputRef.current) aadhaarInputRef.current.value = '';
+                        }}
+                      />
+                    </div>
+                    {aadhaarFiles.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {aadhaarFiles.map((f, i) => (
+                          <div key={i} className="flex items-center gap-1 bg-muted px-2 py-1 rounded text-xs">
+                            <FileText className="h-3 w-3" />
+                            <span className="max-w-[150px] truncate">{f.name}</span>
+                            <button type="button" onClick={() => setAadhaarFiles(prev => prev.filter((_, idx) => idx !== i))}>
+                              <X className="h-3 w-3 text-destructive" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-destructive">At least one Aadhaar document is required</p>
+                    )}
+                  </div>
+
+                  {/* USDT Usage Proof - optional */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">USDT Usage Proof <span className="text-xs text-muted-foreground">(Optional)</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => usdtProofInputRef.current?.click()}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          {usdtProofFile ? 'Change' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          ref={usdtProofInputRef}
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => {
+                            setUsdtProofFile(e.target.files?.[0] || null);
+                            if (usdtProofInputRef.current) usdtProofInputRef.current.value = '';
+                          }}
+                        />
+                        {usdtProofFile && (
+                          <>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{usdtProofFile.name}</span>
+                            <button type="button" onClick={() => setUsdtProofFile(null)}><X className="h-3 w-3 text-destructive" /></button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trade History Screenshot - optional */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Trade History Screenshot <span className="text-xs text-muted-foreground">(Optional)</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => tradeHistoryInputRef.current?.click()}
+                        >
+                          <Upload className="h-3 w-3 mr-1" />
+                          {tradeHistoryFile ? 'Change' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          ref={tradeHistoryInputRef}
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => {
+                            setTradeHistoryFile(e.target.files?.[0] || null);
+                            if (tradeHistoryInputRef.current) tradeHistoryInputRef.current.value = '';
+                          }}
+                        />
+                        {tradeHistoryFile && (
+                          <>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{tradeHistoryFile.name}</span>
+                            <button type="button" onClick={() => setTradeHistoryFile(null)}><X className="h-3 w-3 text-destructive" /></button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* vKYC Video - optional */}
+                  <div className="bg-white p-3 rounded-md border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — keep under 50MB)</span></Label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => vkycVideoInputRef.current?.click()}
+                        >
+                          <Video className="h-3 w-3 mr-1" />
+                          {vkycVideoFile ? 'Change' : 'Upload'}
+                        </Button>
+                        <input
+                          type="file"
+                          ref={vkycVideoInputRef}
+                          className="hidden"
+                          accept="video/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            if (file && file.size > 50 * 1024 * 1024) {
+                              toast({ title: "File too large", description: "vKYC video should be under 50MB", variant: "destructive" });
+                              return;
+                            }
+                            setVkycVideoFile(file);
+                            if (vkycVideoInputRef.current) vkycVideoInputRef.current.value = '';
+                          }}
+                        />
+                        {vkycVideoFile && (
+                          <>
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{vkycVideoFile.name}</span>
+                            <span className="text-xs text-muted-foreground">({(vkycVideoFile.size / (1024 * 1024)).toFixed(1)}MB)</span>
+                            <button type="button" onClick={() => setVkycVideoFile(null)}><X className="h-3 w-3 text-destructive" /></button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label htmlFor="proposed_monthly_limit">

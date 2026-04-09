@@ -374,6 +374,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
         )}
 
+        <div>
           <label className="text-sm font-medium text-gray-600">Assigned Operator</label>
           <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>

@@ -739,7 +739,6 @@ export function ClientOnboardingApprovals() {
       id: selectedApproval.id,
       clientData: {
         ...formData,
-        // For merge: if no new limit provided, pass existing client's limit
         proposed_monthly_limit: formData.proposed_monthly_limit || existingClientMatch?.monthly_limit?.toString() || '',
       },
       mode: approvalMode,
@@ -750,6 +749,12 @@ export function ClientOnboardingApprovals() {
         occupationBusinessType,
         monthlyIncomeRange,
         sourceOfFundFile
+      },
+      kycDocuments: {
+        aadhaarFiles,
+        usdtProofFile,
+        tradeHistoryFile,
+        vkycVideoFile
       }
     });
   };

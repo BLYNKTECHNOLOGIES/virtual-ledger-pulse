@@ -117,6 +117,10 @@ export function ClientOnboardingApprovals() {
   });
   const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);
   const [stateEditEnabled, setStateEditEnabled] = useState(false);
+  const [bankEntries, setBankEntries] = useState<BankEntry[]>([
+    { bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }
+  ]);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();

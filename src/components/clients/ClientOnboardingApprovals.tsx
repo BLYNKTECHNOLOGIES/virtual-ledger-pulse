@@ -712,6 +712,10 @@ export function ClientOnboardingApprovals() {
     setPhoneEditEnabled(false);
     setStateEditEnabled(false);
     setBankEntries([{ bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }]);
+    setPrimarySourceOfIncome('');
+    setOccupationBusinessType('');
+    setMonthlyIncomeRange('');
+    setSourceOfFundFile(null);
   };
 
   const getStatusBadge = (status: string) => {

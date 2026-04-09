@@ -361,15 +361,11 @@ export function ClientDashboard() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="directory" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="directory">Client Directory</TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
-            Buyer Approvals
-          </TabsTrigger>
-          <TabsTrigger value="seller-approvals" className="flex items-center gap-2">
-            <ShoppingCart className="h-4 w-4" />
-            Seller Approvals
+            Approvals
           </TabsTrigger>
         </TabsList>
 
@@ -667,11 +663,24 @@ export function ClientDashboard() {
         </TabsContent>
 
         <TabsContent value="approvals">
-          <ClientOnboardingApprovals />
-        </TabsContent>
-
-        <TabsContent value="seller-approvals">
-          <SellerOnboardingApprovals />
+          <Tabs defaultValue="buyer-approvals" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="buyer-approvals" className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4" />
+                Buyer Approvals
+              </TabsTrigger>
+              <TabsTrigger value="seller-approvals" className="flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Seller Approvals
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="buyer-approvals">
+              <ClientOnboardingApprovals />
+            </TabsContent>
+            <TabsContent value="seller-approvals">
+              <SellerOnboardingApprovals />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
 

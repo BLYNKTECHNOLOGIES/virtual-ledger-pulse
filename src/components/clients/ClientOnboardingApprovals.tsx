@@ -224,7 +224,7 @@ export function ClientOnboardingApprovals() {
         vkycVideoFile: File | null;
       };
     }) => {
-      const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails } = approvalData;
+      const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails, kycDocuments } = approvalData;
       
       const approval = approvals?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');

@@ -328,6 +328,88 @@ export function ClientOnboardingApprovals() {
       if (batchError) {
         console.error('Failed to batch-approve sibling records:', batchError);
       }
+
+      // Save bank details
+      if (entries && entries.length > 0) {
+        // Determine the client ID to link bank details to
+        let targetClientId = existingClientId;
+        if (!targetClientId) {
+          // Look up the client we just created/updated
+          const { data: clientRecord } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('is_deleted', false)
+            .ilike('name', approval.client_name.trim())
+            .maybeSingle();
+          targetClientId = clientRecord?.id;
+        }
+
+        if (targetClientId) {
+          // Upload statement files and insert bank detail records
+          for (const entry of entries) {
+            let statementUrl: string | null = null;
+            
+            if (entry.statementFile) {
+              const filePath = `bank-statements/${targetClientId}/${Date.now()}_${entry.statementFile.name}`;
+              const { error: uploadError } = await supabase.storage
+                .from('kyc-documents')
+                .upload(filePath, entry.statementFile);
+              
+              if (!uploadError) {
+                const { data: urlData } = supabase.storage
+                  .from('kyc-documents')
+                  .getPublicUrl(filePath);
+                statementUrl = urlData?.publicUrl || null;
+              } else {
+                console.error('Failed to upload bank statement:', uploadError);
+              }
+            }
+
+            const { error: bankInsertError } = await supabase
+              .from('client_bank_details')
+              .insert({
+                client_id: targetClientId,
+                bank_name: entry.bankName.trim(),
+                last_four_digits: entry.lastFourDigits.trim(),
+                statement_url: statementUrl,
+                statement_period_from: entry.statementPeriodFrom ? entry.statementPeriodFrom.toISOString().split('T')[0] : null,
+                statement_period_to: entry.statementPeriodTo ? entry.statementPeriodTo.toISOString().split('T')[0] : null,
+              });
+
+            if (bankInsertError) {
+              console.error('Failed to insert bank detail:', bankInsertError);
+            }
+          }
+
+          // Update linked_bank_accounts JSON on clients table for backward compatibility
+          const bankAccountsJson = entries.map(e => ({
+            bankName: e.bankName.trim(),
+            lastFourDigits: e.lastFourDigits.trim()
+          }));
+
+          const { data: currentClient } = await supabase
+            .from('clients')
+            .select('linked_bank_accounts')
+            .eq('id', targetClientId)
+            .single();
+
+          let existingAccounts: any[] = [];
+          if (currentClient?.linked_bank_accounts) {
+            try {
+              existingAccounts = Array.isArray(currentClient.linked_bank_accounts)
+                ? currentClient.linked_bank_accounts
+                : JSON.parse(currentClient.linked_bank_accounts as string);
+            } catch { existingAccounts = []; }
+          }
+
+          const mergedAccounts = [...existingAccounts, ...bankAccountsJson];
+
+          await supabase
+            .from('clients')
+            .update({ linked_bank_accounts: mergedAccounts as any })
+            .eq('id', targetClientId);
+        }
+      }
     },
     onSuccess: (_, variables) => {
       logActionWithCurrentUser({

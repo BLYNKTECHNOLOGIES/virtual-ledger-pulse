@@ -470,6 +470,31 @@ export function ClientOnboardingApprovals() {
       return;
     }
 
+    // Bank details validation: at least one entry with bank name + last 4 digits
+    const hasValidBank = bankEntries.some(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4);
+    if (!hasValidBank) {
+      toast({
+        title: "Missing Information",
+        description: "At least one bank account with bank name and last 4 digits is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate all filled entries have complete data
+    for (const entry of bankEntries) {
+      if (entry.bankName.trim() || entry.lastFourDigits.trim()) {
+        if (!entry.bankName.trim() || entry.lastFourDigits.trim().length !== 4) {
+          toast({
+            title: "Incomplete Bank Details",
+            description: "Each bank entry must have a bank name and exactly 4 digits",
+            variant: "destructive"
+          });
+          return;
+        }
+      }
+    }
+
     // If there's a name match and operator hasn't chosen, block
     if (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new') {
       toast({
@@ -488,8 +513,10 @@ export function ClientOnboardingApprovals() {
         proposed_monthly_limit: formData.proposed_monthly_limit || existingClientMatch?.monthly_limit?.toString() || '',
       },
       mode: approvalMode,
-      existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined
+      existingClientId: approvalMode === 'merge' ? existingClientMatch?.id : undefined,
+      bankEntries: bankEntries.filter(e => e.bankName.trim() && e.lastFourDigits.trim().length === 4)
     });
+  };
   };
 
   const handleReject = (id: string, reason: string) => {

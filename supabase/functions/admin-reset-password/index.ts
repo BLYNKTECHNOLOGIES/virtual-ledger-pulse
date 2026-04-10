@@ -35,14 +35,12 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
+    // ── Authenticate caller ──
     let callerId: string | null = null;
-
     const authHeader = req.headers.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.replace("Bearer ", "").trim();
-      const {
-        data: { user: caller },
-      } = await adminClient.auth.getUser(token);
+      const { data: { user: caller } } = await adminClient.auth.getUser(token);
       if (caller?.id) callerId = caller.id;
     }
 
@@ -53,6 +51,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Verify caller is Admin/Super Admin ──
     const { data: roleRows, error: roleError } = await adminClient
       .from("user_roles")
       .select("roles:role_id(name)")
@@ -79,99 +78,51 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── Step 1: Try direct auth password update ──
     let { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
       password: newPassword,
     });
 
-    // Fallback for legacy records where public.users.id != auth.users.id
+    // ── Step 2: Fallback for legacy users (public.users exists but auth.users doesn't) ──
     if (updateError?.message?.toLowerCase().includes("user not found")) {
-      console.log("User not found in auth by ID, attempting email-based fallback for userId:", userId);
-      
-      const { data: targetUser, error: lookupError } = await adminClient
+      console.log("Auth user not found by ID, attempting email-based fallback for userId:", userId);
+
+      const { data: targetUser } = await adminClient
         .from("users")
         .select("email")
         .eq("id", userId)
         .single();
 
-      console.log("Public user lookup result:", { email: targetUser?.email, error: lookupError?.message });
+      console.log("Public user lookup result:", { email: targetUser?.email });
 
       if (targetUser?.email) {
-        // Search across multiple pages to handle large user bases
+        // Search all auth users by email (paginated)
         let authMatch: { id: string } | undefined;
         let page = 1;
         const perPage = 1000;
-        
+
         while (!authMatch) {
           const { data: listed, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage });
-          if (listError || !listed?.users?.length) {
-            console.log("listUsers ended at page", page, "error:", listError?.message);
-            break;
-          }
-          
+          if (listError || !listed?.users?.length) break;
+
           authMatch = listed.users.find(
             (u) => (u.email ?? "").toLowerCase() === targetUser.email.toLowerCase()
           );
-          
-          if (listed.users.length < perPage) break; // last page
+
+          if (listed.users.length < perPage) break;
           page++;
         }
 
         if (authMatch?.id) {
+          // Auth user exists with this email but a different UUID — update their password
           console.log("Found auth user by email, auth.id:", authMatch.id);
-          const retry = await adminClient.auth.admin.updateUserById(authMatch.id, {
-            password: newPassword,
-          });
+          const retry = await adminClient.auth.admin.updateUserById(authMatch.id, { password: newPassword });
           updateError = retry.error;
         } else {
-          console.error("No auth user found with email:", targetUser.email);
-        }
-      }
-    }
-    // Fallback for legacy records where public.users.id != auth.users.id
-    if (updateError?.message?.toLowerCase().includes("user not found")) {
-      console.log("User not found in auth by ID, attempting email-based fallback for userId:", userId);
-      
-      const { data: targetUser, error: lookupError } = await adminClient
-        .from("users")
-        .select("email")
-        .eq("id", userId)
-        .single();
-
-      console.log("Public user lookup result:", { email: targetUser?.email, error: lookupError?.message });
-
-      if (targetUser?.email) {
-        // Search across multiple pages to handle large user bases
-        let authMatch: { id: string } | undefined;
-        let page = 1;
-        const perPage = 1000;
-        
-        while (!authMatch) {
-          const { data: listed, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage });
-          if (listError || !listed?.users?.length) {
-            console.log("listUsers ended at page", page, "error:", listError?.message);
-            break;
-          }
-          
-          authMatch = listed.users.find(
-            (u) => (u.email ?? "").toLowerCase() === targetUser.email.toLowerCase()
-          );
-          
-          if (listed.users.length < perPage) break; // last page
-          page++;
-        }
-
-        if (authMatch?.id) {
-          // Auth user exists with this email but different ID — update password
-          console.log("Found auth user by email, auth.id:", authMatch.id);
-          const retry = await adminClient.auth.admin.updateUserById(authMatch.id, {
-            password: newPassword,
-          });
-          updateError = retry.error;
-        } else {
-          // No auth user at all — create one linked to the public.users record
-          console.log("No auth user found, creating new auth account for:", targetUser.email);
+          // No auth user at all — create one linked to the public.users UUID
+          console.log("No auth user found at all. Creating new auth account for:", targetUser.email);
           const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
-            id: userId, // Use the same UUID as public.users.id
+            id: userId,
             email: targetUser.email,
             password: newPassword,
             email_confirm: true,
@@ -182,9 +133,9 @@ Deno.serve(async (req) => {
             updateError = createError;
           } else {
             console.log("Auth user created successfully with id:", createdUser?.user?.id);
-            updateError = null; // Clear the error — user is now created with the new password
+            updateError = null;
 
-            // Mark force_password_change so user must set their own password on first login
+            // Mark force_password_change so the user must set their own password on first login
             await adminClient
               .from("users")
               .update({ force_password_change: true, password_hash: "SUPABASE_AUTH" })
@@ -202,15 +153,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    try {
-      await adminClient.rpc("admin_reset_user_password", {
-        p_user_id: userId,
-        p_new_password: newPassword,
-      });
-    } catch (e: any) {
-      console.warn("Legacy password hash sync skipped:", e?.message ?? e);
-    }
-    // Sync legacy password hash (best-effort, non-blocking)
+    // ── Sync legacy password hash (best-effort) ──
     try {
       await adminClient.rpc("admin_reset_user_password", {
         p_user_id: userId,

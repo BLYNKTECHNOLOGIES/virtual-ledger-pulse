@@ -86,23 +86,45 @@ serve(async (req) => {
 
     // Fallback for legacy records where public.users.id != auth.users.id
     if (updateError?.message?.toLowerCase().includes("user not found")) {
-      const { data: targetUser } = await adminClient
+      console.log("User not found in auth by ID, attempting email-based fallback for userId:", userId);
+      
+      const { data: targetUser, error: lookupError } = await adminClient
         .from("users")
         .select("email")
         .eq("id", userId)
         .single();
 
+      console.log("Public user lookup result:", { email: targetUser?.email, error: lookupError?.message });
+
       if (targetUser?.email) {
-        const { data: listed } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        const authMatch = listed?.users?.find(
-          (u) => (u.email ?? "").toLowerCase() === targetUser.email.toLowerCase()
-        );
+        // Search across multiple pages to handle large user bases
+        let authMatch: { id: string } | undefined;
+        let page = 1;
+        const perPage = 1000;
+        
+        while (!authMatch) {
+          const { data: listed, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage });
+          if (listError || !listed?.users?.length) {
+            console.log("listUsers ended at page", page, "error:", listError?.message);
+            break;
+          }
+          
+          authMatch = listed.users.find(
+            (u) => (u.email ?? "").toLowerCase() === targetUser.email.toLowerCase()
+          );
+          
+          if (listed.users.length < perPage) break; // last page
+          page++;
+        }
 
         if (authMatch?.id) {
+          console.log("Found auth user by email, auth.id:", authMatch.id);
           const retry = await adminClient.auth.admin.updateUserById(authMatch.id, {
             password: newPassword,
           });
           updateError = retry.error;
+        } else {
+          console.error("No auth user found with email:", targetUser.email);
         }
       }
     }

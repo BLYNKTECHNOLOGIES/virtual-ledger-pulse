@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.50.0";
 import { z } from "npm:zod@3.23.8";
 
@@ -12,7 +11,7 @@ const BodySchema = z.object({
   newPassword: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -128,6 +127,72 @@ serve(async (req) => {
         }
       }
     }
+    // Fallback for legacy records where public.users.id != auth.users.id
+    if (updateError?.message?.toLowerCase().includes("user not found")) {
+      console.log("User not found in auth by ID, attempting email-based fallback for userId:", userId);
+      
+      const { data: targetUser, error: lookupError } = await adminClient
+        .from("users")
+        .select("email")
+        .eq("id", userId)
+        .single();
+
+      console.log("Public user lookup result:", { email: targetUser?.email, error: lookupError?.message });
+
+      if (targetUser?.email) {
+        // Search across multiple pages to handle large user bases
+        let authMatch: { id: string } | undefined;
+        let page = 1;
+        const perPage = 1000;
+        
+        while (!authMatch) {
+          const { data: listed, error: listError } = await adminClient.auth.admin.listUsers({ page, perPage });
+          if (listError || !listed?.users?.length) {
+            console.log("listUsers ended at page", page, "error:", listError?.message);
+            break;
+          }
+          
+          authMatch = listed.users.find(
+            (u) => (u.email ?? "").toLowerCase() === targetUser.email.toLowerCase()
+          );
+          
+          if (listed.users.length < perPage) break; // last page
+          page++;
+        }
+
+        if (authMatch?.id) {
+          // Auth user exists with this email but different ID — update password
+          console.log("Found auth user by email, auth.id:", authMatch.id);
+          const retry = await adminClient.auth.admin.updateUserById(authMatch.id, {
+            password: newPassword,
+          });
+          updateError = retry.error;
+        } else {
+          // No auth user at all — create one linked to the public.users record
+          console.log("No auth user found, creating new auth account for:", targetUser.email);
+          const { data: createdUser, error: createError } = await adminClient.auth.admin.createUser({
+            id: userId, // Use the same UUID as public.users.id
+            email: targetUser.email,
+            password: newPassword,
+            email_confirm: true,
+          });
+
+          if (createError) {
+            console.error("Failed to create auth user:", createError);
+            updateError = createError;
+          } else {
+            console.log("Auth user created successfully with id:", createdUser?.user?.id);
+            updateError = null; // Clear the error — user is now created with the new password
+
+            // Mark force_password_change so user must set their own password on first login
+            await adminClient
+              .from("users")
+              .update({ force_password_change: true, password_hash: "SUPABASE_AUTH" })
+              .eq("id", userId);
+          }
+        }
+      }
+    }
 
     if (updateError) {
       console.error("Failed to update auth password:", updateError);
@@ -137,6 +202,15 @@ serve(async (req) => {
       });
     }
 
+    try {
+      await adminClient.rpc("admin_reset_user_password", {
+        p_user_id: userId,
+        p_new_password: newPassword,
+      });
+    } catch (e: any) {
+      console.warn("Legacy password hash sync skipped:", e?.message ?? e);
+    }
+    // Sync legacy password hash (best-effort, non-blocking)
     try {
       await adminClient.rpc("admin_reset_user_password", {
         p_user_id: userId,

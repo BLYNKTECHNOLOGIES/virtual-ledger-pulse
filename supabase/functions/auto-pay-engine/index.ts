@@ -21,6 +21,43 @@ interface BinanceOrder {
   counterPartNickName: string;
   notifyPayEndTime?: number;
   notifyPayedExpireMinute?: number;
+  paymentWindow?: number; // actual payment window in minutes from order detail
+}
+
+/**
+ * Fetch the actual payment window for an order from Binance order detail.
+ * Returns the payment window in minutes, or null if unavailable.
+ */
+async function fetchOrderPaymentWindow(
+  proxyUrl: string,
+  proxyHeaders: Record<string, string>,
+  orderNumber: string,
+): Promise<{ paymentWindowMinutes: number | null; notifyPayEndTime: number | null }> {
+  try {
+    const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
+      method: "POST",
+      headers: proxyHeaders,
+      body: JSON.stringify({ orderNo: orderNumber }),
+    });
+    const data = await res.json();
+    const detail = data?.data;
+    if (!detail) return { paymentWindowMinutes: null, notifyPayEndTime: null };
+
+    // Try multiple field names Binance uses for payment window
+    const endTime = detail.notifyPayEndTime || detail.payEndTime || detail.paymentEndTime || null;
+    const expireMinute = detail.notifyPayedExpireMinute || detail.payExpireMinute || detail.payTimeLimit || null;
+
+    if (endTime && typeof endTime === 'number') {
+      return { paymentWindowMinutes: null, notifyPayEndTime: endTime };
+    }
+    if (expireMinute && typeof expireMinute === 'number') {
+      return { paymentWindowMinutes: expireMinute, notifyPayEndTime: null };
+    }
+
+    return { paymentWindowMinutes: null, notifyPayEndTime: null };
+  } catch {
+    return { paymentWindowMinutes: null, notifyPayEndTime: null };
+  }
 }
 
 /**

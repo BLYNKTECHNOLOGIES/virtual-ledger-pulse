@@ -21,6 +21,43 @@ interface BinanceOrder {
   counterPartNickName: string;
   notifyPayEndTime?: number;
   notifyPayedExpireMinute?: number;
+  paymentWindow?: number; // actual payment window in minutes from order detail
+}
+
+/**
+ * Fetch the actual payment window for an order from Binance order detail.
+ * Returns the payment window in minutes, or null if unavailable.
+ */
+async function fetchOrderPaymentWindow(
+  proxyUrl: string,
+  proxyHeaders: Record<string, string>,
+  orderNumber: string,
+): Promise<{ paymentWindowMinutes: number | null; notifyPayEndTime: number | null }> {
+  try {
+    const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
+      method: "POST",
+      headers: proxyHeaders,
+      body: JSON.stringify({ orderNo: orderNumber }),
+    });
+    const data = await res.json();
+    const detail = data?.data;
+    if (!detail) return { paymentWindowMinutes: null, notifyPayEndTime: null };
+
+    // Try multiple field names Binance uses for payment window
+    const endTime = detail.notifyPayEndTime || detail.payEndTime || detail.paymentEndTime || null;
+    const expireMinute = detail.notifyPayedExpireMinute || detail.payExpireMinute || detail.payTimeLimit || null;
+
+    if (endTime && typeof endTime === 'number') {
+      return { paymentWindowMinutes: null, notifyPayEndTime: endTime };
+    }
+    if (expireMinute && typeof expireMinute === 'number') {
+      return { paymentWindowMinutes: expireMinute, notifyPayEndTime: null };
+    }
+
+    return { paymentWindowMinutes: null, notifyPayEndTime: null };
+  } catch {
+    return { paymentWindowMinutes: null, notifyPayEndTime: null };
+  }
 }
 
 /**
@@ -241,15 +278,31 @@ serve(async (req) => {
           continue;
         }
 
-        // Calculate time remaining
+        // Calculate time remaining — MUST use actual payment window, not a hardcoded default
         let expiryTimeMs: number | null = null;
         if (order.notifyPayEndTime) {
           expiryTimeMs = order.notifyPayEndTime;
         } else if (order.notifyPayedExpireMinute && order.createTime) {
           expiryTimeMs = order.createTime + order.notifyPayedExpireMinute * 60 * 1000;
         }
+
+        // If expiry not available from list API, fetch from order detail
         if (!expiryTimeMs) {
-          expiryTimeMs = order.createTime + 15 * 60 * 1000;
+          console.log(`⏳ Order ${order.orderNumber}: no expiry in list response, fetching detail...`);
+          const windowInfo = await fetchOrderPaymentWindow(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
+          if (windowInfo.notifyPayEndTime) {
+            expiryTimeMs = windowInfo.notifyPayEndTime;
+          } else if (windowInfo.paymentWindowMinutes && order.createTime) {
+            expiryTimeMs = order.createTime + windowInfo.paymentWindowMinutes * 60 * 1000;
+          }
+          // Brief delay after detail fetch to avoid rate-limiting
+          await new Promise((r) => setTimeout(r, 200));
+        }
+
+        // If still no expiry info, SKIP the order rather than using a wrong default
+        if (!expiryTimeMs) {
+          console.warn(`⚠️ Order ${order.orderNumber}: cannot determine payment window, SKIPPING (refusing to guess)`);
+          continue;
         }
 
         const timeRemainingMs = expiryTimeMs - Date.now();

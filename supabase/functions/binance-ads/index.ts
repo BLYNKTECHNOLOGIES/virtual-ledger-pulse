@@ -491,6 +491,9 @@ serve(async (req) => {
           page: String(payload.page || 1),
           rows: String(payload.rows || 50),
         });
+        if (payload.sort) {
+          chatParams.set('sort', payload.sort);
+        }
         const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
         console.log("getChatMessages URL (GET):", chatUrl);
         const response = await fetchWithRetry(chatUrl, {

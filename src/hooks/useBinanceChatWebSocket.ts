@@ -109,31 +109,56 @@ export function useBinanceChatWebSocket(
     }
   }, []);
 
-  // ---- Fetch chat history via REST ----
+  // ---- Fetch chat history via REST (all pages) ----
   const fetchChatHistory = useCallback(async (orderNo: string) => {
     try {
-      const result = await callBinanceAds('getChatMessages', {
-        orderNo,
-        page: 1,
-        rows: 50,
-        sort: 'asc',
-      });
-      const list = result?.data?.data || result?.data || result?.list || [];
-      // Capture groupId from REST response metadata or individual messages
-      const restGroupId = result?.data?.groupId || result?.groupId;
-      if (restGroupId && orderNo) {
-        groupIdMapRef.current.set(orderNo, restGroupId);
-      }
-      if (Array.isArray(list) && list.length > 0) {
-        for (const msg of list) {
-          if (msg.groupId && orderNo && !groupIdMapRef.current.has(orderNo)) {
-            groupIdMapRef.current.set(orderNo, msg.groupId);
-            break;
-          }
+      const allMessages: any[] = [];
+      let page = 1;
+      const maxPages = 5; // Safety limit
+
+      while (page <= maxPages) {
+        const result = await callBinanceAds('getChatMessages', {
+          orderNo,
+          page,
+          rows: 50,
+          sort: 'asc',
+        });
+        const list = result?.data?.data || result?.data || result?.list || [];
+        // Capture groupId from REST response metadata or individual messages
+        const restGroupId = result?.data?.groupId || result?.groupId;
+        if (restGroupId && orderNo) {
+          groupIdMapRef.current.set(orderNo, restGroupId);
         }
+        if (Array.isArray(list) && list.length > 0) {
+          for (const msg of list) {
+            if (msg.groupId && orderNo && !groupIdMapRef.current.has(orderNo)) {
+              groupIdMapRef.current.set(orderNo, msg.groupId);
+              break;
+            }
+          }
+          allMessages.push(...list);
+          // If we got fewer than requested rows, we've reached the last page
+          if (list.length < 50) break;
+          page++;
+        } else {
+          break;
+        }
+      }
+
+      if (allMessages.length > 0) {
+        // Deduplicate by message id
+        const seen = new Set<number>();
+        const deduped = allMessages.filter((msg) => {
+          if (seen.has(msg.id)) return false;
+          seen.add(msg.id);
+          return true;
+        });
+        // Sort by createTime ascending
+        deduped.sort((a, b) => (a.createTime || 0) - (b.createTime || 0));
+
         // CRITICAL: Only update messages if this order is still the active one
         if (activeOrderRef.current === orderNo) {
-          setMessages(() => [...list]);
+          setMessages(() => deduped);
         }
         pollIntervalRef.current = 5000;
         return true;

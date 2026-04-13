@@ -111,6 +111,11 @@ export default function Purchase() {
         .from('purchase_orders')
         .select(`
           *,
+          purchase_order_items (
+            products (
+              code
+            )
+          ),
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .order('created_at', { ascending: false });
@@ -169,20 +174,31 @@ export default function Purchase() {
     ];
 
     const csvData = allPurchaseOrders.map(order => {
-      const pricePerUnit = order.price_per_unit || 0;
-      const marketRate = order.market_rate_usdt || 0;
+      const pricePerUnit = Number(order.price_per_unit) || 0;
+      const marketRate = Number(order.market_rate_usdt) || 0;
       const productCategory = (order.product_category || '').toUpperCase();
+      const itemProductCode = order.purchase_order_items?.[0]?.products?.code?.toUpperCase() || '';
       
-      const assetType = productCategory || (order.product_name || 'USDT').toUpperCase();
+      const assetType = itemProductCode || productCategory || (order.product_name || 'USDT').toUpperCase();
       
-      // Use stored effective_usdt_rate (source of truth), fall back to manual calc for legacy orders
-      let effectivePriceUsdt = order.effective_usdt_rate 
-        ? Number(order.effective_usdt_rate)
-        : pricePerUnit;
-      const quantity = order.quantity || 0;
+      const quantity = Number(order.quantity) || 0;
+      const totalAmountInr = Number(order.total_amount) || 0;
+      const storedEffectiveRate = Number(order.effective_usdt_rate || 0);
+      const storedEffectiveQty = Number(order.effective_usdt_qty || 0);
+      const hasStoredEffectiveRate = order.effective_usdt_rate !== null && order.effective_usdt_rate !== undefined;
+      const isLegacyBrokenEffectiveRate =
+        hasStoredEffectiveRate &&
+        storedEffectiveRate === 1 &&
+        pricePerUnit > 1 &&
+        quantity > 0 &&
+        Math.abs(storedEffectiveQty - totalAmountInr) < 0.000001 &&
+        Math.abs(marketRate - pricePerUnit) < 0.000001;
 
-      if (!order.effective_usdt_rate && assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
-        const totalAmountInr = order.total_amount || 0;
+      let effectivePriceUsdt = hasStoredEffectiveRate && !isLegacyBrokenEffectiveRate
+        ? storedEffectiveRate
+        : pricePerUnit;
+
+      if ((!hasStoredEffectiveRate || isLegacyBrokenEffectiveRate) && assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
         const usdtEquivQty = quantity * marketRate;
         effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;
       }

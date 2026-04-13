@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { SupplierAutocomplete } from "@/components/purchase/SupplierAutocomplete";
+import { fetchAndLockMarketRate } from "@/lib/effectiveUsdtEngine";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 
@@ -378,6 +379,35 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
       const rpcFailureMessage = extractRpcFailureMessage(result);
       if (rpcFailureMessage) {
         throw new Error(rpcFailureMessage);
+      }
+
+      const createdOrderId = typeof result?.purchase_order_id === 'string' ? result.purchase_order_id : null;
+      if (createdOrderId) {
+        const selectedProductCode =
+          products?.find((product: any) => product.id === formData.product_id)?.code?.toUpperCase() ||
+          item.asset.toUpperCase();
+
+        const locked = await fetchAndLockMarketRate(selectedProductCode, {
+          entryType: 'erp_purchase_entry',
+          referenceId: createdOrderId,
+          referenceType: 'purchase_order',
+          requestedBy: currentUserId || undefined,
+        });
+
+        const effectiveUsdtQty = netCreditQty * locked.price;
+        const effectiveUsdtRate = effectiveUsdtQty > 0 ? totalAmount / effectiveUsdtQty : null;
+
+        const { error: valuationError } = await supabase
+          .from('purchase_orders')
+          .update({
+            market_rate_usdt: locked.price,
+            effective_usdt_qty: effectiveUsdtQty,
+            effective_usdt_rate: effectiveUsdtRate,
+          })
+          .eq('id', createdOrderId)
+          .is('effective_usdt_qty', null);
+
+        if (valuationError) throw valuationError;
       }
 
       toast({ title: "Purchase Entry Created", description: `Order ${orderNumber} created.` });

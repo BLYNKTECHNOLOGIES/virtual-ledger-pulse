@@ -207,6 +207,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   }, [clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Helper: lookup contact records by nickname(s) and pre-fill
+  // Terminal-captured data has highest priority per form-autofill-precedence-rules
   const lookupContact = async (nicknames: string[]) => {
     // Filter out masked nicknames (containing *) to prevent cross-contamination
     const unique = [...new Set(nicknames.filter(n => !!n && !n.includes('*')))];
@@ -218,11 +219,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       .in('counterparty_nickname', unique);
     const exactFound = (exactRecords || []).find(r => r.contact_number || r.state);
     if (exactFound?.contact_number) {
-      setContactNumber(prev => prev || exactFound.contact_number!);
+      setCounterpartyPhone(exactFound.contact_number);
+      // Terminal data = highest priority — unconditionally set
+      setContactNumber(exactFound.contact_number);
     }
     const normalizedState = normalizeIndianState(exactFound?.state);
     if (normalizedState) {
-      setClientState(prev => prev || normalizedState);
+      setCounterpartyState(normalizedState);
+      setClientState(normalizedState);
     }
   };
 
@@ -255,7 +259,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     const maskedNickname = orderData.counterparty_nickname || currentSync.counterparty_name;
     const orderNumber = orderData.order_number || currentSync.binance_order_number;
     const hasVerifiedName = !!orderData.verified_name;
-    const needsContactLookup = !currentSync.contact_number && !currentSync.state;
+    
 
     if (orderNumber) {
       supabase.functions.invoke('binance-ads', {
@@ -263,7 +267,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       }).then(({ data }) => {
         const detail = data?.data;
         const buyerRealName = detail?.buyerRealName || detail?.buyerName || null;
-        const buyerNickname = detail?.buyerNickname || null;
+        // Binance API returns buyerNickName (capital N) — handle both casings
+        const buyerNickname = detail?.buyerNickName || detail?.buyerNickname || null;
 
         if (!hasVerifiedName && buyerRealName) {
           setEnrichedName(buyerRealName);
@@ -279,15 +284,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             });
         }
 
-        if (needsContactLookup) {
-          lookupContact([buyerNickname, maskedNickname, buyerRealName].filter(Boolean) as string[]);
-        }
+        // Always lookup contact records — contact may have been captured AFTER sync
+        lookupContact([buyerNickname, maskedNickname, buyerRealName].filter(Boolean) as string[]);
       }).catch(() => {
-        if (needsContactLookup && maskedNickname) {
+        if (maskedNickname) {
           lookupContact([maskedNickname]);
         }
       });
-    } else if (needsContactLookup && maskedNickname) {
+    } else if (maskedNickname) {
       lookupContact([maskedNickname]);
     }
   }, [open, syncRecordId]);

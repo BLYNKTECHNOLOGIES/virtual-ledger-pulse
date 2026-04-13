@@ -1,72 +1,40 @@
 
 
-## Revamp KYC Documents Section in Buyer Approval Form
+## Fix: Effective Purchase Rate in CSV Export
 
-### Summary
-Replace the current minimal document handling in the buyer approval form with a structured KYC Documents section containing four document categories: Aadhaar Card (mandatory, multi-file), USDT Usage Proof (optional), Trade History Screenshot (optional), and vKYC Video (optional, compressed). All documents are stored in client-specific folders in `kyc-documents` bucket and displayed/downloadable from the client overview page.
+### Problem
+The CSV export in `src/pages/Purchase.tsx` (lines 178-184) manually calculates the effective USDT rate using `market_rate_usdt`, `quantity`, and `total_amount`. This produces incorrect values for non-USDT coins because it doesn't match the normalized `effective_usdt_rate` that is stored on the purchase order record (computed at order time by the Effective USDT Engine and locked via price snapshot).
 
-### Database Changes
+### Root Cause
+```typescript
+// Current (WRONG) — recalculates at export time
+let effectivePriceUsdt = pricePerUnit;
+if (assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
+  const totalAmountInr = order.total_amount || 0;
+  const usdtEquivQty = quantity * marketRate;
+  effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;
+}
+```
 
-**New table: `client_kyc_documents`**
-- `id` UUID PK
-- `client_id` UUID FK → clients(id) ON DELETE CASCADE
-- `document_type` TEXT NOT NULL — one of: `aadhaar`, `usdt_usage_proof`, `trade_history_screenshot`, `vkyc_video`
-- `file_url` TEXT NOT NULL
-- `file_name` TEXT NOT NULL
-- `file_size` BIGINT (nullable)
-- `mime_type` TEXT (nullable)
-- `created_at` TIMESTAMPTZ default now()
+### Fix
+Use the stored `effective_usdt_rate` field from the purchase order record (already fetched via `select *`). Fall back to the manual calculation only if the field is null (for legacy orders).
 
-RLS: authenticated users full CRUD.
+### File to Modify
+**`src/pages/Purchase.tsx`** — lines 178-184
 
-This replaces the old pattern of storing `aadhar_front_url`/`aadhar_back_url` on the clients table for new approvals. Existing data remains untouched.
+Replace the manual calculation block with:
+```typescript
+// Use stored effective_usdt_rate (source of truth), fall back to manual calc for legacy orders
+let effectivePriceUsdt = order.effective_usdt_rate 
+  ? Number(order.effective_usdt_rate)
+  : pricePerUnit;
 
-### Storage Structure
-All files stored in `kyc-documents` bucket with path: `{client_id}/aadhaar/`, `{client_id}/usdt-proof/`, `{client_id}/trade-history/`, `{client_id}/vkyc/`.
+if (!order.effective_usdt_rate && assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
+  const totalAmountInr = order.total_amount || 0;
+  const usdtEquivQty = quantity * marketRate;
+  effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;
+}
+```
 
-### Frontend Changes
-
-#### 1. `ClientOnboardingApprovals.tsx` — New "KYC Documents" Section
-
-Add between "Source of Income" and "Compliance Form" (before the monthly limit fields):
-
-**State variables:**
-- `aadhaarFiles: File[]` (multi-file, mandatory — at least 1 required)
-- `usdtProofFile: File | null` (optional)
-- `tradeHistoryFile: File | null` (optional)
-- `vkycVideoFile: File | null` (optional)
-
-**UI Layout (4 rows):**
-1. **Aadhaar Card \*** — multi-file upload (accepts image/\*, .pdf, any). Shows all selected files with remove buttons. "Add More" button to append. Validation: at least 1 file required.
-2. **USDT Usage Proof** (Optional) — single file upload, accepts image/\*, .pdf.
-3. **Trade History Screenshot** (Optional) — single file upload, accepts image/\*, .pdf.
-4. **vKYC Video** (Optional) — single file upload, accepts video/\*. Label notes compression will be applied.
-
-**On approval mutation:**
-1. Determine target `client_id` (same logic as bank details).
-2. Upload each file to `kyc-documents` bucket under `{client_id}/{category}/` path.
-3. For vKYC video: upload as-is (client-side compression not feasible, but use a reasonable file size note in the UI). The file is stored directly.
-4. Insert rows into `client_kyc_documents` for each uploaded file.
-5. Also update `aadhar_front_url` on the clients table with the first Aadhaar file URL for backward compatibility.
-
-**Validation:** Block approval if no Aadhaar file is selected.
-
-#### 2. `KYCBankInfo.tsx` — Display Documents in Client Overview
-
-- Query `client_kyc_documents` where `client_id` matches, grouped by `document_type`.
-- Replace the current static PAN/Aadhaar/Other Docs display with a dynamic section showing all document categories.
-- Each document shows: file name, type badge, view/download button.
-- vKYC video entries get a play/download button.
-- Keep existing PAN Card and legacy Aadhaar URL display as fallback for older clients.
-
-### What stays the same
-- Bank Details section unchanged
-- Source of Income section unchanged
-- Seller approval form unchanged
-- PAN card field on clients table stays (used by older onboarding flow)
-- All existing validation for mandatory fields unchanged
-
-### Technical Notes
-- Video files: stored as-is in Supabase storage. A UI hint will suggest keeping videos under 50MB. Server-side compression is not implemented (would require an edge function with ffmpeg which is out of scope). The bucket already has public access per project security policy.
-- Multi-file Aadhaar: uses a standard `<input type="file" multiple>` with a list display and individual remove buttons.
+This ensures the CSV export shows the same effective purchase rate used in WAC/P&L calculations.
 

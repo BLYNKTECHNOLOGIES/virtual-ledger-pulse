@@ -77,6 +77,7 @@ export function useInternalMessages(orderNumber: string | null) {
 
 export function useSendInternalMessage() {
   const { userId, username } = useTerminalAuth();
+  const queryClient = useQueryClient();
 
   const send = useCallback(
     async (params: {
@@ -97,8 +98,10 @@ export function useSendInternalMessage() {
         message_type: params.messageType || 'text',
       });
       if (error) throw error;
+      // Invalidate the messages query so the new message appears immediately
+      queryClient.invalidateQueries({ queryKey: ['internal-messages', params.orderNumber] });
     },
-    [userId, username]
+    [userId, username, queryClient]
   );
 
   return { send };

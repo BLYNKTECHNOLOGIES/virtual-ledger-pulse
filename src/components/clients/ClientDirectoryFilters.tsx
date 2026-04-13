@@ -79,7 +79,7 @@ interface ClientDirectoryFiltersProps {
   clientType: 'buyers' | 'sellers';
 }
 
-const RISK_LEVELS = ['HIGH', 'MEDIUM', 'LOW', 'NO_RISK'];
+const RISK_LEVELS = ['PREMIUM', 'ESTABLISHED', 'STANDARD', 'CAUTIOUS', 'HIGH_RISK'];
 const KYC_STATUSES = ['VERIFIED', 'PENDING', 'REJECTED'];
 const PRIORITIES = ['Platinum', 'Gold', 'Silver', 'General'];
 const CLIENT_STATUSES = [

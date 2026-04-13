@@ -279,7 +279,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <div>
             <label className="text-sm font-medium text-muted-foreground">Risk Appetite</label>
             <Select
-              value={client.risk_appetite || 'MEDIUM'}
+              value={client.risk_appetite || 'STANDARD'}
               onValueChange={async (value) => {
                 const { error } = await supabase
                   .from('clients')
@@ -297,14 +297,20 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="LOW">
-                  <span className="text-green-600 font-medium">LOW</span>
+                <SelectItem value="PREMIUM">
+                  <span className="text-emerald-600 font-medium">Premium</span>
                 </SelectItem>
-                <SelectItem value="MEDIUM">
-                  <span className="text-orange-600 font-medium">MEDIUM</span>
+                <SelectItem value="ESTABLISHED">
+                  <span className="text-blue-600 font-medium">Established</span>
                 </SelectItem>
-                <SelectItem value="HIGH">
-                  <span className="text-red-600 font-medium">HIGH</span>
+                <SelectItem value="STANDARD">
+                  <span className="text-yellow-600 font-medium">Standard</span>
+                </SelectItem>
+                <SelectItem value="CAUTIOUS">
+                  <span className="text-orange-600 font-medium">Cautious</span>
+                </SelectItem>
+                <SelectItem value="HIGH_RISK">
+                  <span className="text-red-600 font-medium">High Risk</span>
                 </SelectItem>
               </SelectContent>
             </Select>

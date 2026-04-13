@@ -316,12 +316,20 @@ export function ClientDashboard() {
 
   const getRiskBadge = (risk: string) => {
     const colors = {
-      'HIGH': 'bg-red-100 text-red-800',
-      'MEDIUM': 'bg-yellow-100 text-yellow-800',
-      'LOW': 'bg-green-100 text-green-800',
-      'NO_RISK': 'bg-blue-100 text-blue-800'
+      'PREMIUM': 'bg-emerald-100 text-emerald-800',
+      'ESTABLISHED': 'bg-blue-100 text-blue-800',
+      'STANDARD': 'bg-yellow-100 text-yellow-800',
+      'CAUTIOUS': 'bg-orange-100 text-orange-800',
+      'HIGH_RISK': 'bg-red-100 text-red-800',
     };
-    return <Badge className={colors[risk as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{risk}</Badge>;
+    const labels: Record<string, string> = {
+      'PREMIUM': 'Premium',
+      'ESTABLISHED': 'Established',
+      'STANDARD': 'Standard',
+      'CAUTIOUS': 'Cautious',
+      'HIGH_RISK': 'High Risk',
+    };
+    return <Badge className={colors[risk as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{labels[risk] || risk}</Badge>;
   };
 
   const getKYCBadge = (status: string) => {

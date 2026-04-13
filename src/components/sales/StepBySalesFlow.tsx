@@ -35,7 +35,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     phone: '',
     walletId: '',
     client_type: 'INDIVIDUAL',
-    risk_appetite: 'HIGH'
+    risk_appetite: 'HIGH_RISK'
   });
   const [orderAmount, setOrderAmount] = useState('');
   const [usdtAmount, setUsdtAmount] = useState(0);
@@ -426,7 +426,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
     setCurrentStep('order-type');
     setOrderType(null);
     setSelectedClient(null);
-    setNewClientData({ name: '', phone: '', walletId: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH' });
+    setNewClientData({ name: '', phone: '', walletId: '', client_type: 'INDIVIDUAL', risk_appetite: 'HIGH_RISK' });
     setOrderAmount('');
     setCosmosAlert(false);
     setPaymentType(null);

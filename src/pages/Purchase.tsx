@@ -175,9 +175,13 @@ export default function Purchase() {
       
       const assetType = productCategory || (order.product_name || 'USDT').toUpperCase();
       
-      let effectivePriceUsdt = pricePerUnit;
+      // Use stored effective_usdt_rate (source of truth), fall back to manual calc for legacy orders
+      let effectivePriceUsdt = order.effective_usdt_rate 
+        ? Number(order.effective_usdt_rate)
+        : pricePerUnit;
       const quantity = order.quantity || 0;
-      if (assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
+
+      if (!order.effective_usdt_rate && assetType !== 'USDT' && marketRate > 0 && quantity > 0) {
         const totalAmountInr = order.total_amount || 0;
         const usdtEquivQty = quantity * marketRate;
         effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;

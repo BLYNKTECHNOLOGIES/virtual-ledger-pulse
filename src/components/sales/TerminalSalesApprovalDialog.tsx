@@ -263,7 +263,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       }).then(({ data }) => {
         const detail = data?.data;
         const buyerRealName = detail?.buyerRealName || detail?.buyerName || null;
-        const buyerNickname = detail?.buyerNickname || null;
+        // Binance API returns buyerNickName (capital N) — handle both casings
+        const buyerNickname = detail?.buyerNickName || detail?.buyerNickname || null;
 
         if (!hasVerifiedName && buyerRealName) {
           setEnrichedName(buyerRealName);
@@ -279,9 +280,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             });
         }
 
-        if (needsContactLookup) {
-          lookupContact([buyerNickname, maskedNickname, buyerRealName].filter(Boolean) as string[]);
-        }
+        // Always lookup contact records — contact may have been captured AFTER sync
+        lookupContact([buyerNickname, maskedNickname, buyerRealName].filter(Boolean) as string[]);
       }).catch(() => {
         if (needsContactLookup && maskedNickname) {
           lookupContact([maskedNickname]);

@@ -259,7 +259,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     const maskedNickname = orderData.counterparty_nickname || currentSync.counterparty_name;
     const orderNumber = orderData.order_number || currentSync.binance_order_number;
     const hasVerifiedName = !!orderData.verified_name;
-    const needsContactLookup = !currentSync.contact_number && !currentSync.state;
+    
 
     if (orderNumber) {
       supabase.functions.invoke('binance-ads', {

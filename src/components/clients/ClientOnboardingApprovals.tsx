@@ -113,7 +113,7 @@ export function ClientOnboardingApprovals() {
     address: '',
     purpose_of_buying: '',
     proposed_monthly_limit: '',
-    risk_assessment: 'HIGH',
+    risk_assessment: 'HIGH_RISK',
     compliance_notes: '',
     client_state: '',
     client_phone: ''
@@ -642,7 +642,7 @@ export function ClientOnboardingApprovals() {
       address: approval.address || '',
       purpose_of_buying: approval.purpose_of_buying || '',
       proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
-      risk_assessment: approval.risk_assessment || 'HIGH',
+      risk_assessment: approval.risk_assessment || 'HIGH_RISK',
       compliance_notes: approval.compliance_notes || '',
       client_state: state,
       client_phone: phone
@@ -804,7 +804,7 @@ export function ClientOnboardingApprovals() {
       address: '',
       purpose_of_buying: '',
       proposed_monthly_limit: '',
-      risk_assessment: 'HIGH',
+      risk_assessment: 'HIGH_RISK',
       compliance_notes: '',
       client_state: '',
       client_phone: ''
@@ -1710,9 +1710,11 @@ export function ClientOnboardingApprovals() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="LOW">Low Risk</SelectItem>
-                      <SelectItem value="MEDIUM">Medium Risk</SelectItem>
-                      <SelectItem value="HIGH">High Risk</SelectItem>
+                      <SelectItem value="PREMIUM">Premium</SelectItem>
+                      <SelectItem value="ESTABLISHED">Established</SelectItem>
+                      <SelectItem value="STANDARD">Standard</SelectItem>
+                      <SelectItem value="CAUTIOUS">Cautious</SelectItem>
+                      <SelectItem value="HIGH_RISK">High Risk</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

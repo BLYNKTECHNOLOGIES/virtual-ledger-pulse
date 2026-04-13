@@ -181,9 +181,11 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
                   <SelectValue placeholder="Select risk appetite" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="PREMIUM">Premium</SelectItem>
+                  <SelectItem value="ESTABLISHED">Established</SelectItem>
+                  <SelectItem value="STANDARD">Standard</SelectItem>
+                  <SelectItem value="CAUTIOUS">Cautious</SelectItem>
+                  <SelectItem value="HIGH_RISK">High Risk</SelectItem>
                 </SelectContent>
               </Select>
             </div>

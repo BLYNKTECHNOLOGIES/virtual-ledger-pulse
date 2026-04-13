@@ -149,7 +149,7 @@ export const createSellerClient = async (
         kyc_status: 'PENDING',
         date_of_onboarding: new Date().toISOString().split('T')[0],
         phone: contactNumber || null,
-        risk_appetite: 'MEDIUM',
+        risk_appetite: 'STANDARD',
         is_seller: true,
         is_buyer: false,
         seller_approval_status: 'PENDING',
@@ -218,7 +218,7 @@ export const createBuyerClient = async (
         date_of_onboarding: new Date().toISOString().split('T')[0],
         phone: contactNumber || null,
         state: null,  // ALWAYS null — state must be entered manually during Buyer Approval
-        risk_appetite: 'MEDIUM',
+        risk_appetite: 'STANDARD',
         is_buyer: true,
         is_seller: false,
         buyer_approval_status: 'PENDING',

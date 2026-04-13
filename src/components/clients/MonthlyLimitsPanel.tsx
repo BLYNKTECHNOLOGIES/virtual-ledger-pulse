@@ -163,7 +163,7 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
           <div>
             <label className="text-sm font-medium text-gray-600">Risk Level</label>
             <Badge variant="outline" className="text-purple-600 border-purple-200 bg-purple-50">
-              {client.default_risk_level || 'MEDIUM'}
+              {client.default_risk_level || 'STANDARD'}
             </Badge>
           </div>
         </div>

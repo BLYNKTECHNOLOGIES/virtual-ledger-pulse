@@ -121,12 +121,18 @@ export function CustomerAutocomplete({
     if (onRiskLevelChange) {
       // Map client risk appetite to payment method risk categories
       const riskMapping: Record<string, string> = {
+        'PREMIUM': 'Premium',
+        'ESTABLISHED': 'Established',
+        'STANDARD': 'Standard',
+        'CAUTIOUS': 'Cautious',
+        'HIGH_RISK': 'High Risk',
+        // Legacy fallbacks
         'HIGH': 'High Risk',
-        'MEDIUM': 'Medium Risk', 
-        'LOW': 'Low Risk',
-        'NONE': 'No Risk'
+        'MEDIUM': 'Standard', 
+        'LOW': 'Premium',
+        'NONE': 'Standard'
       };
-      const mappedRisk = riskMapping[client.risk_appetite as keyof typeof riskMapping] || 'Medium Risk';
+      const mappedRisk = riskMapping[client.risk_appetite as keyof typeof riskMapping] || 'Standard';
       onRiskLevelChange(mappedRisk);
     }
     

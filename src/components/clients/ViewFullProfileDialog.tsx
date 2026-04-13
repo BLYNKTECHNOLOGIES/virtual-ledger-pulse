@@ -247,7 +247,7 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Default Risk Level</label>
                 <Badge variant="outline" className="mt-1">
-                  {client.default_risk_level || 'MEDIUM'}
+                  {client.default_risk_level || 'STANDARD'}
                 </Badge>
               </div>
             </CardContent>

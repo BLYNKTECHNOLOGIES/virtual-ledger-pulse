@@ -287,11 +287,11 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         // Always lookup contact records — contact may have been captured AFTER sync
         lookupContact([buyerNickname, maskedNickname, buyerRealName].filter(Boolean) as string[]);
       }).catch(() => {
-        if (needsContactLookup && maskedNickname) {
+        if (maskedNickname) {
           lookupContact([maskedNickname]);
         }
       });
-    } else if (needsContactLookup && maskedNickname) {
+    } else if (maskedNickname) {
       lookupContact([maskedNickname]);
     }
   }, [open, syncRecordId]);

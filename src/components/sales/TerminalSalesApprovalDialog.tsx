@@ -207,6 +207,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   }, [clientMasterPhone, counterpartyPhone, clientMasterState, counterpartyState]);
 
   // Helper: lookup contact records by nickname(s) and pre-fill
+  // Terminal-captured data has highest priority per form-autofill-precedence-rules
   const lookupContact = async (nicknames: string[]) => {
     // Filter out masked nicknames (containing *) to prevent cross-contamination
     const unique = [...new Set(nicknames.filter(n => !!n && !n.includes('*')))];
@@ -218,11 +219,14 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       .in('counterparty_nickname', unique);
     const exactFound = (exactRecords || []).find(r => r.contact_number || r.state);
     if (exactFound?.contact_number) {
-      setContactNumber(prev => prev || exactFound.contact_number!);
+      setCounterpartyPhone(exactFound.contact_number);
+      // Terminal data = highest priority — unconditionally set
+      setContactNumber(exactFound.contact_number);
     }
     const normalizedState = normalizeIndianState(exactFound?.state);
     if (normalizedState) {
-      setClientState(prev => prev || normalizedState);
+      setCounterpartyState(normalizedState);
+      setClientState(normalizedState);
     }
   };
 

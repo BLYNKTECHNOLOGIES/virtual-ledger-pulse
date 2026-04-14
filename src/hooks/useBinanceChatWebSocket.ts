@@ -376,7 +376,7 @@ export function useBinanceChatWebSocket(
         }
 
         // Mark all sending messages as queued since connection dropped
-        setQueuedMessages(prev => prev.map(m => m._status === 'sending' ? { ...m } : m));
+        setQueuedMessages(prev => [...prev]);
 
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;

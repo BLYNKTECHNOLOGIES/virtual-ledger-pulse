@@ -650,7 +650,7 @@ export function ClientOnboardingApprovals() {
         }
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       logActionWithCurrentUser({
         actionType: ActionTypes.CLIENT_BUYER_APPROVED,
         entityType: EntityTypes.CLIENT_ONBOARDING,
@@ -662,6 +662,37 @@ export function ClientOnboardingApprovals() {
           merged_with: variables.existingClientId || null
         }
       });
+
+      // Auto-capture Binance nickname → client link
+      const nickInfo = nicknameEnrichment?.[variables.id];
+      if (nickInfo?.nickname) {
+        try {
+          // Find the client ID we just created/merged
+          let targetClientId = variables.existingClientId;
+          if (!targetClientId) {
+            const approval = approvals?.find(a => a.id === variables.id);
+            if (approval) {
+              const { data: cl } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('is_deleted', false)
+                .ilike('name', approval.client_name.trim())
+                .maybeSingle();
+              targetClientId = cl?.id;
+            }
+          }
+          if (targetClientId) {
+            await supabase.from('client_binance_nicknames').upsert({
+              client_id: targetClientId,
+              nickname: nickInfo.nickname,
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'nickname' });
+          }
+        } catch (e) {
+          console.error('Failed to auto-capture nickname link:', e);
+        }
+      }
       
       toast({
         title: "Client Approved",
@@ -671,6 +702,7 @@ export function ClientOnboardingApprovals() {
       });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-nicknames'] });
       setDialogOpen(false);
       resetForm();
     },

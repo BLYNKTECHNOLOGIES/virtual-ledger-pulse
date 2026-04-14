@@ -476,7 +476,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   </p>
                 )}
               </div>
-            ) : (
+              );
+            })() : (
               <div>
                 <Label>Floating Ratio (%)</Label>
                 <Input

@@ -91,6 +91,102 @@ export function SellerOnboardingApprovals() {
     gcTime: 10 * 60 * 1000,
   });
 
+  // Enrich sellers with Binance nicknames via terminal_purchase_sync → p2p_order_records
+  const { data: sellerNicknameMap } = useQuery({
+    queryKey: ['seller-approval-nicknames', sellerNames.sort().join(',')],
+    queryFn: async () => {
+      if (sellerNames.length === 0) return {} as Record<string, { nickname: string; existingClient?: { id: string; name: string } }>;
+
+      const { data: syncRows } = await supabase
+        .from('terminal_purchase_sync')
+        .select('counterparty_name, binance_order_number')
+        .in('counterparty_name', sellerNames);
+
+      if (!syncRows?.length) return {};
+
+      const orderNumberToName: Record<string, string> = {};
+      for (const row of syncRows) {
+        if (row.binance_order_number && row.counterparty_name) {
+          orderNumberToName[row.binance_order_number] = row.counterparty_name;
+        }
+      }
+
+      const orderNumbers = Object.keys(orderNumberToName);
+      if (orderNumbers.length === 0) return {};
+
+      const { data: p2pRows } = await supabase
+        .from('p2p_order_records')
+        .select('binance_order_number, counterparty_nickname')
+        .in('binance_order_number', orderNumbers)
+        .not('counterparty_nickname', 'is', null);
+
+      if (!p2pRows?.length) return {};
+
+      const nameToNickname: Record<string, string> = {};
+      const allNicknames = new Set<string>();
+      for (const row of p2pRows) {
+        const nick = row.counterparty_nickname?.trim();
+        if (!nick) continue;
+        const sellerName = orderNumberToName[row.binance_order_number];
+        if (sellerName && !nameToNickname[sellerName]) {
+          nameToNickname[sellerName] = nick;
+          allNicknames.add(nick);
+        }
+      }
+
+      const nickArr = Array.from(allNicknames);
+      let nicknameToClient: Record<string, { id: string; name: string }> = {};
+      if (nickArr.length > 0) {
+        const { data: linkRows } = await supabase
+          .from('client_binance_nicknames')
+          .select('nickname, client_id')
+          .in('nickname', nickArr)
+          .eq('is_active', true);
+
+        if (linkRows?.length) {
+          const clientIds = linkRows.map(r => r.client_id);
+          const { data: clientRows } = await supabase
+            .from('clients')
+            .select('id, name')
+            .in('id', clientIds)
+            .eq('is_deleted', false);
+
+          const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
+          for (const link of linkRows) {
+            const clientName = clientMap.get(link.client_id);
+            if (clientName) {
+              nicknameToClient[link.nickname] = { id: link.client_id, name: clientName };
+            }
+          }
+        }
+      }
+
+      const result: Record<string, { nickname: string; existingClient?: { id: string; name: string } }> = {};
+      for (const [name, nick] of Object.entries(nameToNickname)) {
+        result[name] = { nickname: nick, existingClient: nicknameToClient[nick] };
+      }
+      return result;
+    },
+    enabled: sellerNames.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // "Same User" detection for sellers
+  const sellerSameUser = new Map<string, string>();
+  if (sellerNicknameMap) {
+    const groups = new Map<string, string[]>();
+    for (const [name, info] of Object.entries(sellerNicknameMap)) {
+      const arr = groups.get(info.nickname) || [];
+      if (!arr.includes(name)) arr.push(name);
+      groups.set(info.nickname, arr);
+    }
+    for (const [nick, names] of groups) {
+      if (names.length > 1) {
+        for (const n of names) sellerSameUser.set(n, nick);
+      }
+    }
+  }
+
   // Approve seller mutation
   const approveMutation = useMutation({
     mutationFn: async (sellerId: string) => {
@@ -105,16 +201,34 @@ export function SellerOnboardingApprovals() {
       
       if (error) throw error;
     },
-    onSuccess: (_data, sellerId) => {
+    onSuccess: async (_data, sellerId) => {
+      // Auto-capture Binance nickname → client link
+      const seller = pendingSellers?.find(s => s.id === sellerId);
+      if (seller) {
+        const nickInfo = sellerNicknameMap?.[seller.name];
+        if (nickInfo?.nickname) {
+          try {
+            await supabase.from('client_binance_nicknames').upsert({
+              client_id: sellerId,
+              nickname: nickInfo.nickname,
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'nickname' });
+          } catch (e) {
+            console.error('Failed to auto-capture seller nickname link:', e);
+          }
+        }
+      }
+
       toast({
         title: "Seller Approved",
         description: "The seller has been approved successfully.",
       });
-      // Remove approved seller from the pending list cache without refetching
       queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
         old ? old.filter(s => s.id !== sellerId) : []
       );
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-approval-nicknames'] });
     },
     onError: (error: any) => {
       toast({
@@ -246,6 +360,7 @@ export function SellerOnboardingApprovals() {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Binance ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Contact</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">First Order Date</th>
@@ -257,6 +372,8 @@ export function SellerOnboardingApprovals() {
                 <tbody>
                   {filteredSellers.map((seller) => {
                     const firstOrder = sellerOrders?.[seller.name];
+                    const nickInfo = sellerNicknameMap?.[seller.name];
+                    const isSameUser = sellerSameUser.has(seller.name);
                     return (
                       <tr key={seller.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
@@ -267,6 +384,19 @@ export function SellerOnboardingApprovals() {
                             {seller.name}
                             <Eye className="h-3 w-3" />
                           </button>
+                          {isSameUser && (
+                            <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                              ⚠ Same User — different name
+                            </Badge>
+                          )}
+                          {nickInfo?.existingClient && !isSameUser && (
+                            <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                              🔗 Known: {nickInfo.existingClient.name}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-sm">{nickInfo?.nickname || '—'}</span>
                         </td>
                         <td className="py-3 px-4 font-mono text-sm">{seller.client_id}</td>
                         <td className="py-3 px-4">{seller.phone || '-'}</td>

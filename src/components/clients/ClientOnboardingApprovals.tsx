@@ -170,6 +170,98 @@ export function ClientOnboardingApprovals() {
     }
   });
 
+  // Enrich pending approvals with Binance nicknames
+  const pendingSalesOrderIds = approvals
+    ?.filter(a => a.approval_status === 'PENDING' && a.sales_order_id)
+    .map(a => a.sales_order_id) || [];
+
+  const { data: nicknameEnrichment } = useQuery({
+    queryKey: ['buyer-approval-nicknames', pendingSalesOrderIds.sort().join(',')],
+    queryFn: async () => {
+      if (pendingSalesOrderIds.length === 0) return {} as Record<string, { nickname: string; existingClient?: { id: string; name: string } }>;
+
+      // Step 1: sales_order_id → terminal_sales_sync → binance_order_number
+      const { data: syncRows } = await supabase
+        .from('terminal_sales_sync')
+        .select('sales_order_id, binance_order_number')
+        .in('sales_order_id', pendingSalesOrderIds);
+
+      if (!syncRows?.length) return {};
+
+      const orderNumberToSalesId: Record<string, string> = {};
+      for (const row of syncRows) {
+        if (row.binance_order_number && row.sales_order_id) {
+          orderNumberToSalesId[row.binance_order_number] = row.sales_order_id;
+        }
+      }
+
+      const orderNumbers = Object.keys(orderNumberToSalesId);
+      if (orderNumbers.length === 0) return {};
+
+      // Step 2: binance_order_number → p2p_order_records → counterparty_nickname
+      const { data: p2pRows } = await supabase
+        .from('p2p_order_records')
+        .select('binance_order_number, counterparty_nickname')
+        .in('binance_order_number', orderNumbers)
+        .not('counterparty_nickname', 'is', null);
+
+      if (!p2pRows?.length) return {};
+
+      // Build salesOrderId → nickname map
+      const salesIdToNickname: Record<string, string> = {};
+      const allNicknames = new Set<string>();
+      for (const row of p2pRows) {
+        const nick = row.counterparty_nickname?.trim();
+        if (!nick) continue;
+        const salesId = orderNumberToSalesId[row.binance_order_number];
+        if (salesId) {
+          salesIdToNickname[salesId] = nick;
+          allNicknames.add(nick);
+        }
+      }
+
+      // Step 3: Check client_binance_nicknames for known links
+      const nickArr = Array.from(allNicknames);
+      let nicknameToClient: Record<string, { id: string; name: string }> = {};
+      if (nickArr.length > 0) {
+        const { data: linkRows } = await supabase
+          .from('client_binance_nicknames')
+          .select('nickname, client_id')
+          .in('nickname', nickArr)
+          .eq('is_active', true);
+
+        if (linkRows?.length) {
+          const clientIds = linkRows.map(r => r.client_id);
+          const { data: clientRows } = await supabase
+            .from('clients')
+            .select('id, name')
+            .in('id', clientIds)
+            .eq('is_deleted', false);
+
+          const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
+          for (const link of linkRows) {
+            const clientName = clientMap.get(link.client_id);
+            if (clientName) {
+              nicknameToClient[link.nickname] = { id: link.client_id, name: clientName };
+            }
+          }
+        }
+      }
+
+      // Build final map: approvalId → { nickname, existingClient? }
+      const result: Record<string, { nickname: string; existingClient?: { id: string; name: string } }> = {};
+      for (const a of (approvals || [])) {
+        if (a.sales_order_id && salesIdToNickname[a.sales_order_id]) {
+          const nick = salesIdToNickname[a.sales_order_id];
+          result[a.id] = { nickname: nick, existingClient: nicknameToClient[nick] };
+        }
+      }
+      return result;
+    },
+    enabled: pendingSalesOrderIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const generateClientId = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
@@ -558,7 +650,7 @@ export function ClientOnboardingApprovals() {
         }
       }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       logActionWithCurrentUser({
         actionType: ActionTypes.CLIENT_BUYER_APPROVED,
         entityType: EntityTypes.CLIENT_ONBOARDING,
@@ -570,6 +662,37 @@ export function ClientOnboardingApprovals() {
           merged_with: variables.existingClientId || null
         }
       });
+
+      // Auto-capture Binance nickname → client link
+      const nickInfo = nicknameEnrichment?.[variables.id];
+      if (nickInfo?.nickname) {
+        try {
+          // Find the client ID we just created/merged
+          let targetClientId = variables.existingClientId;
+          if (!targetClientId) {
+            const approval = approvals?.find(a => a.id === variables.id);
+            if (approval) {
+              const { data: cl } = await supabase
+                .from('clients')
+                .select('id')
+                .eq('is_deleted', false)
+                .ilike('name', approval.client_name.trim())
+                .maybeSingle();
+              targetClientId = cl?.id;
+            }
+          }
+          if (targetClientId) {
+            await supabase.from('client_binance_nicknames').upsert({
+              client_id: targetClientId,
+              nickname: nickInfo.nickname,
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'nickname' });
+          }
+        } catch (e) {
+          console.error('Failed to auto-capture nickname link:', e);
+        }
+      }
       
       toast({
         title: "Client Approved",
@@ -579,6 +702,7 @@ export function ClientOnboardingApprovals() {
       });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-nicknames'] });
       setDialogOpen(false);
       resetForm();
     },
@@ -860,6 +984,24 @@ export function ClientOnboardingApprovals() {
   const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
+  // Build nickname-based "Same User" detection across different client names
+  const nicknameGroups = new Map<string, string[]>(); // nickname → list of client name keys
+  for (const [nameKey, entry] of pendingByClient) {
+    const nickInfo = nicknameEnrichment?.[entry.primary.id];
+    if (nickInfo?.nickname) {
+      const existing = nicknameGroups.get(nickInfo.nickname) || [];
+      if (!existing.includes(nameKey)) existing.push(nameKey);
+      nicknameGroups.set(nickInfo.nickname, existing);
+    }
+  }
+  // Only keep groups with 2+ different names (actual duplicates)
+  const sameUserNicknames = new Map<string, string>(); // nameKey → nickname (only if shared)
+  for (const [nick, nameKeys] of nicknameGroups) {
+    if (nameKeys.length > 1) {
+      for (const nk of nameKeys) sameUserNicknames.set(nk, nick);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -882,26 +1024,45 @@ export function ClientOnboardingApprovals() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Client Name</TableHead>
-                  <TableHead>Order Details</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Documents</TableHead>
-                  <TableHead>VKYC</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
+                 <TableRow>
+                   <TableHead>Client Name</TableHead>
+                   <TableHead>Binance ID</TableHead>
+                   <TableHead>Order Details</TableHead>
+                   <TableHead>Contact</TableHead>
+                   <TableHead>Documents</TableHead>
+                   <TableHead>VKYC</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead>Actions</TableHead>
+                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pendingApprovals.map((entry) => {
                   const approval = entry.primary;
+                  const nameKey = approval.client_name.trim().toLowerCase();
+                  const nickInfo = nicknameEnrichment?.[approval.id];
+                  const sameUserNick = sameUserNicknames.get(nameKey);
                   return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
-                      {approval.client_name}
-                      {entry.orderCount > 1 && (
-                        <Badge variant="outline" className="ml-2 text-xs">{entry.orderCount} orders</Badge>
+                      <div>
+                        {approval.client_name}
+                        {entry.orderCount > 1 && (
+                          <Badge variant="outline" className="ml-2 text-xs">{entry.orderCount} orders</Badge>
+                        )}
+                      </div>
+                      {sameUserNick && (
+                        <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                          ⚠ Same User — different name
+                        </Badge>
                       )}
+                      {nickInfo?.existingClient && !sameUserNick && (
+                        <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                          🔗 Known Client: {nickInfo.existingClient.name}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-mono">{nickInfo?.nickname || '—'}</span>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
@@ -992,7 +1153,7 @@ export function ClientOnboardingApprovals() {
                 })}
                 {pendingApprovals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       No pending approvals found.
                     </TableCell>
                   </TableRow>

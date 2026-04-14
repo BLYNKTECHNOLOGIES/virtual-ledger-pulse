@@ -267,7 +267,18 @@ export function useBinanceChatWebSocket(
 
   // ---- Connect to WebSocket via relay ----
   const connect = useCallback(async () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (!shouldReconnectRef.current) return;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    if (connectTimeoutRef.current) {
+      clearTimeout(connectTimeoutRef.current);
+      connectTimeoutRef.current = null;
+    }
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
 
     setIsConnecting(true);
     setError(null);
@@ -290,8 +301,9 @@ export function useBinanceChatWebSocket(
       const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
 
       const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-      const connectTimeout = setTimeout(() => {
+      connectTimeoutRef.current = setTimeout(() => {
         if (ws.readyState !== WebSocket.OPEN) {
           setError('Connection timed out. Check relay server.');
           setIsConnecting(false);
@@ -300,7 +312,10 @@ export function useBinanceChatWebSocket(
       }, 10000);
 
       ws.onopen = () => {
-        clearTimeout(connectTimeout);
+        if (connectTimeoutRef.current) {
+          clearTimeout(connectTimeoutRef.current);
+          connectTimeoutRef.current = null;
+        }
         setIsConnected(true);
         setIsConnecting(false);
         setError(null);
@@ -367,6 +382,9 @@ export function useBinanceChatWebSocket(
       };
 
       ws.onclose = (event) => {
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+        }
         setIsConnected(false);
         setIsConnecting(false);
 
@@ -374,20 +392,28 @@ export function useBinanceChatWebSocket(
           clearInterval(pingIntervalRef.current);
           pingIntervalRef.current = null;
         }
+        if (connectTimeoutRef.current) {
+          clearTimeout(connectTimeoutRef.current);
+          connectTimeoutRef.current = null;
+        }
 
-        // Mark all sending messages as queued since connection dropped
-        setQueuedMessages(prev => [...prev]);
+        if (!shouldReconnectRef.current) {
+          return;
+        }
 
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          reconnectTimerRef.current = setTimeout(() => connect(), delay);
+          reconnectTimerRef.current = setTimeout(() => {
+            reconnectTimerRef.current = null;
+            connect();
+          }, delay);
         } else {
           setError('Max reconnection attempts reached. Please refresh.');
-          // Mark remaining queued messages as failed
           setQueuedMessages(prev => prev.map(m => ({ ...m, retries: 99 })));
         }
       };
+
 
       wsRef.current = ws;
     } catch (err) {
@@ -399,14 +425,18 @@ export function useBinanceChatWebSocket(
 
   // Connect on mount, cleanup on unmount
   useEffect(() => {
+    shouldReconnectRef.current = true;
     connect();
 
     return () => {
+      shouldReconnectRef.current = false;
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       if (wsRef.current) {
-        wsRef.current.close(1000, 'Component unmounted');
+        const ws = wsRef.current;
         wsRef.current = null;
+        ws.close(1000, 'Component unmounted');
       }
     };
   }, [connect]);

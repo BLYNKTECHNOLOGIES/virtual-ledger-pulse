@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
-import { ImageOff } from 'lucide-react';
+import { ImageOff, Clock, RefreshCw, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface UnifiedMessage {
   id: string;
@@ -11,8 +12,10 @@ export interface UnifiedMessage {
   imageUrl?: string;
   timestamp: number;
   isQuickReply?: boolean;
-  /** Terminal operator username who sent this message (only for operator messages) */
   senderName?: string | null;
+  _deliveryStatus?: 'queued' | 'failed';
+  _tempId?: number;
+  _onRetry?: (tempId: number) => void;
 }
 
 // Parse system message JSON content into readable text
@@ -117,10 +120,32 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
             <p className="text-[9px] text-muted-foreground">
               {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''}
             </p>
-            {message.source === 'binance' && (
+            {message._deliveryStatus === 'queued' && (
+              <span className="flex items-center gap-0.5 text-[8px] text-warning">
+                <Clock className="h-2.5 w-2.5" />
+                Queued
+              </span>
+            )}
+            {message._deliveryStatus === 'failed' && (
+              <span className="flex items-center gap-0.5 text-[8px] text-destructive">
+                <AlertCircle className="h-2.5 w-2.5" />
+                Failed
+                {message._onRetry && message._tempId && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-4 w-4 ml-0.5"
+                    onClick={() => message._onRetry!(message._tempId!)}
+                  >
+                    <RefreshCw className="h-2.5 w-2.5 text-destructive" />
+                  </Button>
+                )}
+              </span>
+            )}
+            {!message._deliveryStatus && message.source === 'binance' && (
               <span className="text-[8px] text-primary bg-primary/10 px-1 rounded">Binance</span>
             )}
-            {message.source === 'local' && (
+            {!message._deliveryStatus && message.source === 'local' && (
               <span className="text-[8px] text-muted-foreground bg-muted/30 px-1 rounded">Local</span>
             )}
             {isOperator && message.senderName && (

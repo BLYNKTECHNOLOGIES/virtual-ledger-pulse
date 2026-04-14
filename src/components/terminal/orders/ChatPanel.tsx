@@ -25,7 +25,7 @@ interface Props {
 }
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName }: Props) {
-  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, error: wsError } = useBinanceChatWebSocket(orderNumber);
+  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
   const { userId, username } = useTerminalAuth();
@@ -80,8 +80,28 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         senderName: isSelf ? getSenderName(orderNumber, content) : null,
       });
     }
+
+    // Append queued messages (not yet confirmed by server)
+    const MAX_QUEUE_RETRIES = 3;
+    for (const qm of queuedMessages) {
+      if (qm.orderNo !== orderNumber) continue;
+      const isFailed = qm.retries >= MAX_QUEUE_RETRIES;
+      messages.push({
+        id: `queued-${qm.tempId}`,
+        source: 'local',
+        senderType: 'operator',
+        text: qm.type === 'text' ? qm.content : null,
+        imageUrl: qm.type === 'image' ? qm.content : undefined,
+        timestamp: qm.createdAt,
+        senderName: username || 'Operator',
+        _deliveryStatus: isFailed ? 'failed' : 'queued',
+        _tempId: qm.tempId,
+        _onRetry: retryMessage,
+      });
+    }
+
     return messages.sort((a, b) => a.timestamp - b.timestamp);
-  }, [wsMessages, isImageUrl, orderNumber, getSenderName]);
+  }, [wsMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {
@@ -193,12 +213,9 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
     try {
       wsSendMessage(orderNumber, msg);
-      // Log which operator sent this message
       if (userId && username) {
         logSender(orderNumber, msg, userId, username);
       }
-    } catch (err) {
-      // Error handled by WS hook
     } finally {
       setIsSending(false);
     }

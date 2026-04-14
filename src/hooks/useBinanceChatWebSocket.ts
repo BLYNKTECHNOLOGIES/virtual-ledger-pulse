@@ -7,11 +7,20 @@ interface RelayInfo {
   relayToken: string;
 }
 
-type MessageStatus = 'sending' | 'sent' | 'failed';
+export type MessageStatus = 'sending' | 'sent' | 'failed' | 'queued';
 
-interface TrackedMessage extends BinanceChatMessage {
+export interface TrackedMessage extends BinanceChatMessage {
   _status?: MessageStatus;
   _tempId?: number;
+}
+
+interface QueuedMessage {
+  tempId: number;
+  orderNo: string;
+  content: string;
+  type: 'text' | 'image';
+  createdAt: number;
+  retries: number;
 }
 
 interface UseBinanceChatWebSocketReturn {
@@ -20,7 +29,9 @@ interface UseBinanceChatWebSocketReturn {
   isConnecting: boolean;
   sendMessage: (orderNo: string, content: string) => void;
   sendImageMessage: (orderNo: string, imageUrl: string) => void;
+  retryMessage: (tempId: number) => void;
   error: string | null;
+  queuedMessages: QueuedMessage[];
 }
 
 function generateUUID(): string {
@@ -39,6 +50,8 @@ async function wsDataToString(data: any): Promise<string> {
   return String(data);
 }
 
+let tempIdCounter = 1;
+
 export function useBinanceChatWebSocket(
   activeOrderNo: string | null
 ): UseBinanceChatWebSocketReturn {
@@ -46,6 +59,7 @@ export function useBinanceChatWebSocket(
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
 
   // Track the active order in a ref so WS callbacks always see the current value
   const activeOrderRef = useRef<string | null>(activeOrderNo);
@@ -54,52 +68,49 @@ export function useBinanceChatWebSocket(
   const wsRef = useRef<WebSocket | null>(null);
   const relayInfoRef = useRef<RelayInfo | null>(null);
   const sessionIdRef = useRef<string | null>(null);
-  const groupIdMapRef = useRef<Map<string, string>>(new Map()); // orderNo → groupId
+  const groupIdMapRef = useRef<Map<string, string>>(new Map());
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollIntervalRef = useRef(5000);
   const maxReconnectAttempts = 5;
+  const queueRef = useRef<QueuedMessage[]>([]);
+  const isConnectedRef = useRef(false);
+
+  // Keep refs in sync
+  useEffect(() => {
+    queueRef.current = queuedMessages;
+  }, [queuedMessages]);
 
   // Helper to capture sessionId and groupId from any frame
   const captureMetadata = useCallback((data: any) => {
     if (data.sessionId && !sessionIdRef.current) {
       sessionIdRef.current = data.sessionId;
-      
     }
-    // Capture groupId from any field that might contain it
     const gid = data.groupId || data.chatGroupId || data.threadId;
     const orderKey = data.orderNo || data.topicId;
     if (gid && orderKey) {
-      if (!groupIdMapRef.current.has(orderKey)) {
-        
-      }
       groupIdMapRef.current.set(orderKey, gid);
     }
   }, []);
 
-  // ---- Pre-fetch groupId for an order (so we can send before receiving) ----
+  // ---- Pre-fetch groupId for an order ----
   const fetchGroupId = useCallback(async (orderNo: string) => {
-    if (groupIdMapRef.current.has(orderNo)) return; // Already have it
+    if (groupIdMapRef.current.has(orderNo)) return;
     try {
-      
       const result = await callBinanceAds('getChatGroupId', { orderNo });
       const data = result?.data?.data || result?.data || result;
-      // Try to extract groupId from response
       const gid = data?.groupId || data?.chatGroupId;
       if (gid) {
         groupIdMapRef.current.set(orderNo, gid);
-        
       } else {
-        // Try from group list if returned as array
         const groups = data?.groups || data?.list || (Array.isArray(data) ? data : []);
         for (const g of groups) {
           const id = g?.groupId || g?.chatGroupId;
           const topic = g?.topicId || g?.orderNo;
           if (id && (!topic || topic === orderNo)) {
             groupIdMapRef.current.set(orderNo, id);
-            
             break;
           }
         }
@@ -114,7 +125,7 @@ export function useBinanceChatWebSocket(
     try {
       const allMessages: any[] = [];
       let page = 1;
-      const maxPages = 5; // Safety limit
+      const maxPages = 5;
 
       while (page <= maxPages) {
         const result = await callBinanceAds('getChatMessages', {
@@ -124,7 +135,6 @@ export function useBinanceChatWebSocket(
           sort: 'asc',
         });
         const list = result?.data?.data || result?.data || result?.list || [];
-        // Capture groupId from REST response metadata or individual messages
         const restGroupId = result?.data?.groupId || result?.groupId;
         if (restGroupId && orderNo) {
           groupIdMapRef.current.set(orderNo, restGroupId);
@@ -137,7 +147,6 @@ export function useBinanceChatWebSocket(
             }
           }
           allMessages.push(...list);
-          // If we got fewer than requested rows, we've reached the last page
           if (list.length < 50) break;
           page++;
         } else {
@@ -146,19 +155,23 @@ export function useBinanceChatWebSocket(
       }
 
       if (allMessages.length > 0) {
-        // Deduplicate by message id
         const seen = new Set<number>();
         const deduped = allMessages.filter((msg) => {
           if (seen.has(msg.id)) return false;
           seen.add(msg.id);
           return true;
         });
-        // Sort by createTime ascending
         deduped.sort((a, b) => (a.createTime || 0) - (b.createTime || 0));
 
-        // CRITICAL: Only update messages if this order is still the active one
         if (activeOrderRef.current === orderNo) {
           setMessages(() => deduped);
+
+          // Check if any queued messages now appear in server response (delivered)
+          const serverContents = new Set(deduped.filter(m => m.self).map(m => (m.content || m.message || '').trim()));
+          setQueuedMessages(prev => {
+            const remaining = prev.filter(q => !serverContents.has(q.content.trim()));
+            return remaining.length !== prev.length ? remaining : prev;
+          });
         }
         pollIntervalRef.current = 5000;
         return true;
@@ -172,17 +185,14 @@ export function useBinanceChatWebSocket(
 
   // ---- Clear messages and restart polling when order changes ----
   useEffect(() => {
-    // Immediately clear stale messages from previous order
     setMessages([]);
 
     if (!activeOrderNo) return;
 
-    // Pre-fetch groupId so we can send messages even before receiving any
     fetchGroupId(activeOrderNo);
     fetchChatHistory(activeOrderNo);
 
     const poll = async () => {
-      // Guard: only poll if this order is still active
       if (activeOrderRef.current !== activeOrderNo) return;
       await fetchChatHistory(activeOrderNo);
       pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
@@ -197,7 +207,64 @@ export function useBinanceChatWebSocket(
     };
   }, [activeOrderNo, fetchChatHistory, fetchGroupId]);
 
-  // ---- Connect to WebSocket via relay (for real-time push) ----
+  // ---- Internal send (actual WS send) ----
+  const doWsSend = useCallback((orderNo: string, content: string, type: 'text' | 'image') => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+
+    try {
+      const now = Date.now();
+      const groupId = groupIdMapRef.current.get(orderNo);
+      const payload: Record<string, any> = {
+        type: 'text',
+        uuid: String(now),
+        orderNo,
+        content,
+        self: true,
+        clientType: 'web',
+        createTime: now,
+        sendStatus: 0,
+        topicId: orderNo,
+        topicType: 'ORDER',
+      };
+      if (groupId) payload.groupId = groupId;
+
+      ws.send(JSON.stringify(payload));
+
+      pollIntervalRef.current = 1500;
+      setTimeout(() => fetchChatHistory(orderNo), 1500);
+      return true;
+    } catch (err) {
+      console.error('WS send error:', err);
+      return false;
+    }
+  }, [fetchChatHistory]);
+
+  // ---- Flush queued messages when WS connects ----
+  const flushQueue = useCallback(() => {
+    const queue = [...queueRef.current];
+    if (queue.length === 0) return;
+
+    const remaining: QueuedMessage[] = [];
+    for (const msg of queue) {
+      if (msg.orderNo === activeOrderRef.current) {
+        const sent = doWsSend(msg.orderNo, msg.content, msg.type);
+        if (!sent) {
+          remaining.push({ ...msg, retries: msg.retries + 1 });
+        }
+        // If sent, it'll be removed once confirmed via REST poll
+      } else {
+        remaining.push(msg); // Keep messages for other orders
+      }
+    }
+    setQueuedMessages(remaining);
+
+    if (queue.length > remaining.length) {
+      toast.success(`${queue.length - remaining.length} queued message(s) sent`);
+    }
+  }, [doWsSend]);
+
+  // ---- Connect to WebSocket via relay ----
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -220,7 +287,6 @@ export function useBinanceChatWebSocket(
 
       const binanceTarget = `${credData.chatWssUrl}/${credData.listenKey}?token=${credData.listenToken}&clientType=web`;
       const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
-      
 
       const ws = new WebSocket(wsUrl);
 
@@ -234,15 +300,14 @@ export function useBinanceChatWebSocket(
 
       ws.onopen = () => {
         clearTimeout(connectTimeout);
-        
         setIsConnected(true);
+        isConnectedRef.current = true;
         setIsConnecting(false);
         setError(null);
         reconnectAttemptsRef.current = 0;
 
-        // Use WebSocket protocol-level ping instead of text frame
-        // The relay already handles WS pings/pongs natively
-        // No manual ping needed - relay.js bridges protocol pings
+        // Flush any queued messages
+        setTimeout(() => flushQueue(), 500);
       };
 
       ws.onmessage = async (event) => {
@@ -256,67 +321,42 @@ export function useBinanceChatWebSocket(
           if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
           if (data.type === 'pong' || data.e === 'pong') return;
 
-          // Always try to capture metadata from ANY frame
           captureMetadata(data);
 
-          // Log all frames with full detail for debugging
-          
-          
-          // Skip error frames (don't add to messages list)
           if (data.type === 'error') {
             console.error('❌ Binance WS error:', data.content, '| Full frame:', JSON.stringify(data));
             return;
           }
 
-          // Handle new chat message
           const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
           if (isChatMessage) {
-            // CRITICAL: Only process messages belonging to the currently active order
             const msgOrderNo = data.orderNo || data.topicId || data.order?.orderNo;
             if (msgOrderNo && msgOrderNo !== activeOrderRef.current) {
-              
               return;
             }
 
             const isSelfEcho = data.self === true || data.self === 'true';
 
-            // Skip WS echoes of our own messages — the poll already covers it
             if (isSelfEcho) {
               pollIntervalRef.current = 2000;
               return;
             }
 
-            const msgId = Number(data.id || data.msgId || data.E) || Date.now();
-            const newMsg: TrackedMessage = {
-              id: msgId,
-              type: data.type || data.msgType === 'U_TEXT' ? 'text' : data.msgType === 'U_IMAGE' ? 'image' : (data.chatMessageType || 'text'),
-              content: data.content || data.message || '',
-              message: data.content || data.message || '',
-              createTime: data.createTime || data.timestamp || data.E || Date.now(),
-              self: false,
-              fromNickName: data.fromNickName || data.senderNickName || '',
-              imageUrl: data.imageUrl,
-              thumbnailUrl: data.thumbnailUrl,
-            };
-
-            // Don't add WS messages to state directly — triggers duplicate flash.
-            // Instead, immediately poll REST for the authoritative list (single source of truth).
             pollIntervalRef.current = 500;
             if (activeOrderRef.current) {
               fetchChatHistory(activeOrderRef.current);
             }
           }
 
-          // Capture sessionId from confirmation frames
           if (data.scenario !== undefined && data.localId) {
-            
+            // confirmation frame
           }
 
           if (data.e === 'orderStatus' || data.type === 'orderStatusUpdate') {
-            
+            // order status update
           }
         } catch {
-          // Truly unparseable — ignore silently
+          // Unparseable — ignore
         }
       };
 
@@ -326,8 +366,8 @@ export function useBinanceChatWebSocket(
       };
 
       ws.onclose = (event) => {
-        
         setIsConnected(false);
+        isConnectedRef.current = false;
         setIsConnecting(false);
 
         if (pingIntervalRef.current) {
@@ -335,12 +375,17 @@ export function useBinanceChatWebSocket(
           pingIntervalRef.current = null;
         }
 
+        // Mark all sending messages as queued since connection dropped
+        setQueuedMessages(prev => [...prev]);
+
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
           reconnectTimerRef.current = setTimeout(() => connect(), delay);
         } else {
           setError('Max reconnection attempts reached. Please refresh.');
+          // Mark remaining queued messages as failed
+          setQueuedMessages(prev => prev.map(m => ({ ...m, retries: 99 })));
         }
       };
 
@@ -350,7 +395,7 @@ export function useBinanceChatWebSocket(
       setError(err instanceof Error ? err.message : 'Connection failed');
       setIsConnecting(false);
     }
-  }, [captureMetadata]);
+  }, [captureMetadata, flushQueue]);
 
   // Connect on mount, cleanup on unmount
   useEffect(() => {
@@ -371,78 +416,60 @@ export function useBinanceChatWebSocket(
     sessionIdRef.current = null;
   }, [activeOrderNo]);
 
-  // ---- Send message via WebSocket ----
-  const sendMessage = useCallback(async (orderNo: string, content: string) => {
+  // ---- Send message (with queue fallback) ----
+  const sendMessage = useCallback((orderNo: string, content: string) => {
     const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      toast.error('Chat not connected');
-      return;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const sent = doWsSend(orderNo, content, 'text');
+      if (!sent) {
+        // WS open but send failed — queue it
+        const id = tempIdCounter++;
+        setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0 }]);
+        toast.warning('Message queued — will retry when connection stabilizes');
+      }
+    } else {
+      // WS not connected — queue the message
+      const id = tempIdCounter++;
+      setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0 }]);
+      toast.warning('Chat not connected — message queued for delivery');
     }
+  }, [doWsSend]);
 
-    try {
-      const now = Date.now();
-      const groupId = groupIdMapRef.current.get(orderNo);
-      const payload: Record<string, any> = {
-        type: 'text',
-        uuid: String(now),
-        orderNo,
-        content,
-        self: true,
-        clientType: 'web',
-        createTime: now,
-        sendStatus: 0,
-        topicId: orderNo,
-        topicType: 'ORDER',
-      };
-      if (groupId) payload.groupId = groupId;
-
-      ws.send(JSON.stringify(payload));
-      
-
-      // Fast poll to pick up confirmed message from server
-      pollIntervalRef.current = 1500;
-      setTimeout(() => fetchChatHistory(orderNo), 1500);
-    } catch (err) {
-      console.error('WS send error:', err);
-      toast.error('Message may not have been delivered');
-    }
-  }, [fetchChatHistory]);
-
-  // ---- Send image message via WebSocket ----
-  const sendImageMessage = useCallback(async (orderNo: string, imageUrl: string) => {
+  // ---- Send image (with queue fallback) ----
+  const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
     const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      toast.error('Chat not connected');
-      return;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const sent = doWsSend(orderNo, imageUrl, 'image');
+      if (!sent) {
+        const id = tempIdCounter++;
+        setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0 }]);
+        toast.warning('Image queued — will retry when connection stabilizes');
+      }
+    } else {
+      const id = tempIdCounter++;
+      setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0 }]);
+      toast.warning('Chat not connected — image queued for delivery');
     }
+  }, [doWsSend]);
 
-    try {
-      const now = Date.now();
-      const groupId = groupIdMapRef.current.get(orderNo);
-      const imgPayload: Record<string, any> = {
-        type: 'text',
-        uuid: String(now),
-        orderNo,
-        content: imageUrl,
-        self: true,
-        clientType: 'web',
-        createTime: now,
-        sendStatus: 0,
-        topicId: orderNo,
-        topicType: 'ORDER',
-      };
-      if (groupId) imgPayload.groupId = groupId;
+  // ---- Manual retry for a failed message ----
+  const retryMessage = useCallback((tempId: number) => {
+    const msg = queueRef.current.find(m => m.tempId === tempId);
+    if (!msg) return;
 
-      ws.send(JSON.stringify(imgPayload));
-      
-
-      pollIntervalRef.current = 1500;
-      setTimeout(() => fetchChatHistory(orderNo), 1500);
-    } catch (err) {
-      console.error('WS image send error:', err);
-      toast.error('Image may not have been delivered');
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const sent = doWsSend(msg.orderNo, msg.content, msg.type);
+      if (sent) {
+        setQueuedMessages(prev => prev.filter(m => m.tempId !== tempId));
+        toast.success('Message resent');
+      } else {
+        toast.error('Still unable to send — will retry on reconnect');
+      }
+    } else {
+      toast.error('Chat still not connected — message remains queued');
     }
-  }, [fetchChatHistory]);
+  }, [doWsSend]);
 
-  return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, error };
+  return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, retryMessage, error, queuedMessages };
 }

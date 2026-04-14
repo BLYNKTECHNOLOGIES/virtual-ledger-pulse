@@ -255,7 +255,7 @@ serve(async (req) => {
         } else if (quantity) {
           const stepSizes: Record<string, number> = {
             BTCUSDT: 5, ETHUSDT: 4, BNBUSDT: 3, XRPUSDT: 1, SOLUSDT: 3,
-            TRXUSDT: 0, SHIBUSDT: 0, TONUSDT: 2, USDCUSDT: 2, FDUSDUSDT: 2,
+            TRXUSDT: 0, SHIBUSDT: 0, TONUSDT: 2, USDCUSDT: 0, FDUSDUSDT: 0,
           };
           const decimals = stepSizes[symbol] ?? 5;
           const factor = Math.pow(10, decimals);

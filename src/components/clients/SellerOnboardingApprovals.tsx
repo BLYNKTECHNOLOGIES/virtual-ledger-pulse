@@ -342,6 +342,7 @@ export function SellerOnboardingApprovals() {
                 <thead>
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Binance ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Contact</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">First Order Date</th>
@@ -353,6 +354,8 @@ export function SellerOnboardingApprovals() {
                 <tbody>
                   {filteredSellers.map((seller) => {
                     const firstOrder = sellerOrders?.[seller.name];
+                    const nickInfo = sellerNicknameMap?.[seller.name];
+                    const isSameUser = sellerSameUser.has(seller.name);
                     return (
                       <tr key={seller.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
@@ -363,6 +366,19 @@ export function SellerOnboardingApprovals() {
                             {seller.name}
                             <Eye className="h-3 w-3" />
                           </button>
+                          {isSameUser && (
+                            <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                              ⚠ Same User — different name
+                            </Badge>
+                          )}
+                          {nickInfo?.existingClient && !isSameUser && (
+                            <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                              🔗 Known: {nickInfo.existingClient.name}
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-sm">{nickInfo?.nickname || '—'}</span>
                         </td>
                         <td className="py-3 px-4 font-mono text-sm">{seller.client_id}</td>
                         <td className="py-3 px-4">{seller.phone || '-'}</td>

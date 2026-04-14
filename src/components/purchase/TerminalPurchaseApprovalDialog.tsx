@@ -487,6 +487,23 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         if (Object.keys(updates).length > 0) {
           await supabase.from('clients').update(updates).eq('id', linkedClientId);
         }
+
+        // Auto-capture nickname→client link for future auto-matching
+        const unmaskedNick = od.counterparty_nickname_unmasked || od.counterparty_nickname || syncRecord?.counterparty_name || '';
+        const safeNick = unmaskedNick.trim();
+        if (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') {
+          await supabase
+            .from('client_binance_nicknames')
+            .upsert({
+              client_id: linkedClientId,
+              nickname: safeNick,
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'nickname' })
+            .then(({ error }) => {
+              if (error) console.warn('[PurchaseApproval] Nickname link upsert failed:', error.message);
+            });
+        }
       }
 
       // Update purchase_orders source, market_rate_usdt, and fee

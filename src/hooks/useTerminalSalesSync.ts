@@ -118,6 +118,16 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
 
     const existingSet = new Set((existingSyncs || []).map((s: any) => s.binance_order_number));
 
+    // 3b. Fetch unmasked nicknames from p2p_order_records
+    const { data: p2pNicknames } = await supabase
+      .from('p2p_order_records')
+      .select('binance_order_number, counterparty_nickname')
+      .in('binance_order_number', orderNumbers);
+
+    const p2pNicknameMap = new Map(
+      (p2pNicknames || []).map((r: any) => [r.binance_order_number, r.counterparty_nickname])
+    );
+
     // 4. Get contact records for counterparties
     // Filter out masked nicknames (containing *) to prevent cross-contamination of contact data
     const nicknames = [...new Set(
@@ -126,12 +136,32 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         .filter(Boolean)
         .filter((n: string) => !n.includes('*'))
     )];
+    // Also collect unmasked nicknames from p2p_order_records
+    const unmaskedNicks = [...new Set(
+      filteredSells
+        .map(o => p2pNicknameMap.get(o.order_number))
+        .filter(Boolean)
+        .filter((n: string) => !n.includes('*'))
+    )];
+    const allSafeNicknames = [...new Set([...nicknames, ...unmaskedNicks])];
+
     const { data: contactRecords } = await supabase
       .from('counterparty_contact_records')
       .select('counterparty_nickname, contact_number, state')
-      .in('counterparty_nickname', nicknames.length > 0 ? nicknames : ['__none__']);
+      .in('counterparty_nickname', allSafeNicknames.length > 0 ? allSafeNicknames : ['__none__']);
 
     const contactMap = new Map((contactRecords || []).map(c => [c.counterparty_nickname, c]));
+
+    // 4b. Lookup client_binance_nicknames for auto-matching by nickname
+    const { data: nicknameLinks } = await supabase
+      .from('client_binance_nicknames')
+      .select('nickname, client_id')
+      .eq('is_active', true)
+      .in('nickname', allSafeNicknames.length > 0 ? allSafeNicknames : ['__none__']);
+
+    const nicknameClientMap = new Map(
+      (nicknameLinks || []).map((l: any) => [l.nickname, l.client_id])
+    );
 
     // 5. Try to match clients — use case-insensitive matching to prevent duplicates
     const verifiedNames = [...new Set(filteredSells.map(o => o.verified_name || o.counter_part_nick_name).filter(Boolean))];
@@ -169,7 +199,22 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
       const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
       const contact = contactMap.get(order.counter_part_nick_name || '') || null;
-      const clientId = (counterpartyName !== 'Unknown') ? (clientMap.get(counterpartyName.toLowerCase()) || null) : null;
+
+      // Resolve unmasked nickname from p2p_order_records
+      const unmaskedNickname = p2pNicknameMap.get(order.order_number) || null;
+      const safeUnmasked = unmaskedNickname && !unmaskedNickname.includes('*') ? unmaskedNickname : null;
+      const safeNick = !isMaskedNick ? order.counter_part_nick_name : null;
+
+      // Priority 1: Lookup client via nickname link table (most reliable)
+      let clientId: string | null = null;
+      if (safeUnmasked) clientId = nicknameClientMap.get(safeUnmasked) || null;
+      if (!clientId && safeNick) clientId = nicknameClientMap.get(safeNick) || null;
+
+      // Priority 2: Fall back to name-based matching
+      if (!clientId && counterpartyName !== 'Unknown') {
+        clientId = clientMap.get(counterpartyName.toLowerCase()) || null;
+      }
+
       // Force manual mapping if we couldn't resolve a real name
       const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');
 
@@ -185,6 +230,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
           commission: order.commission,
           counterparty_name: counterpartyName,
           counterparty_nickname: order.counter_part_nick_name,
+          counterparty_nickname_unmasked: unmaskedNickname,
           verified_name: verifiedName,
           create_time: order.create_time,
           pay_method: order.pay_method_name,

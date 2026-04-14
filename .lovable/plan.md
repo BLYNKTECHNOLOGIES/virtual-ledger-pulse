@@ -1,78 +1,68 @@
 
 
-## Migrate Risk Levels from 3-Category to 5-Category System
+## Binance Nickname-to-Client Linking System
 
-### New Risk Level Categories
+### Problem
+Client mapping during sales/purchase sync relies on fragile name matching, causing many orders to land in `client_mapping_pending`. Additionally, unmasked Binance nicknames are only visible while orders are active — once completed, Binance masks them (e.g., `Use***`).
 
-| Old Value | New Value | Display Label | Color Scheme |
-|-----------|-----------|---------------|--------------|
-| LOW | PREMIUM | Premium | `bg-emerald-100 text-emerald-800` |
-| *(new)* | ESTABLISHED | Established | `bg-blue-100 text-blue-800` |
-| MEDIUM | STANDARD | Standard | `bg-yellow-100 text-yellow-800` |
-| *(new)* | CAUTIOUS | Cautious | `bg-orange-100 text-orange-800` |
-| HIGH | HIGH_RISK | High Risk | `bg-red-100 text-red-800` |
-| NO_RISK | *(remove)* | — | — |
+### Key Insight
+The `sync_p2p_order` RPC already captures the **unmasked nickname** into `p2p_order_records.counterparty_nickname` while the order is active. This is the reliable capture point. Once an operator maps a client during approval, we persist that nickname→client link. All future orders from the same nickname auto-resolve.
 
-### Data Migration (SQL)
+### Architecture
 
-Update all existing client records to map old values to new:
-```sql
-UPDATE clients SET risk_appetite = 'PREMIUM' WHERE risk_appetite = 'LOW';
-UPDATE clients SET risk_appetite = 'STANDARD' WHERE risk_appetite = 'MEDIUM';
-UPDATE clients SET risk_appetite = 'HIGH_RISK' WHERE risk_appetite = 'HIGH';
-UPDATE clients SET risk_appetite = 'STANDARD' WHERE risk_appetite = 'NO_RISK';
+```text
+Order active on terminal
+  └─ sync_p2p_order() saves unmasked nickname to p2p_order_records ✓ (already works)
 
--- Same for default_risk_level
-UPDATE clients SET default_risk_level = 'PREMIUM' WHERE default_risk_level = 'LOW';
-UPDATE clients SET default_risk_level = 'STANDARD' WHERE default_risk_level = 'MEDIUM';
-UPDATE clients SET default_risk_level = 'HIGH_RISK' WHERE default_risk_level = 'HIGH';
-
--- Update onboarding approvals risk_assessment
-UPDATE client_onboarding_approvals SET risk_assessment = 'PREMIUM' WHERE risk_assessment = 'LOW';
-UPDATE client_onboarding_approvals SET risk_assessment = 'STANDARD' WHERE risk_assessment = 'MEDIUM';
-UPDATE client_onboarding_approvals SET risk_assessment = 'HIGH_RISK' WHERE risk_assessment = 'HIGH';
+Sales/Purchase sync runs
+  ├─ Step 1: Lookup client_binance_nicknames WHERE nickname = unmasked_nick
+  │   ├─ FOUND → auto-assign client_id → "synced_pending_approval"
+  │   └─ NOT FOUND → fall back to name matching (existing logic)
+  └─ Step 2: On approval (operator maps client)
+      └─ INSERT nickname → client_binance_nicknames (auto-capture)
 ```
 
-### Files to Update (10 files)
+### Implementation Steps
 
-**1. `src/components/clients/steps/Step1BasicInfo.tsx`**
-- Replace LOW/MEDIUM/HIGH/NO_RISK SelectItems with PREMIUM/ESTABLISHED/STANDARD/CAUTIOUS/HIGH_RISK
+**1. Database Migration — `client_binance_nicknames` table**
+- Columns: `id` (uuid PK), `client_id` (FK to clients), `nickname` (text, UNIQUE), `is_active` (bool), `source` (text: `sync_auto` | `manual` | `approval`), `first_seen_at`, `last_seen_at`, `created_at`
+- RLS: authenticated read/insert/update
+- Unique constraint on `nickname` ensures one nickname = one client
 
-**2. `src/components/clients/ClientDashboard.tsx`**
-- Update `getRiskBadge()` color map with all 5 new levels
-- Update any default values
+**2. Update `useTerminalSalesSync.ts`**
+- After building the client name map, also fetch `client_binance_nicknames` for all unmasked nicknames from `p2p_order_records`
+- If a nickname match is found, use that `client_id` directly (bypasses name matching)
+- Store the unmasked nickname in `order_data.counterparty_nickname_unmasked` (same pattern as purchase sync)
 
-**3. `src/components/clients/ClientOverviewPanel.tsx`**
-- Replace 3 SelectItems (LOW/MEDIUM/HIGH) with 5 new levels
-- Change default fallback from `'MEDIUM'` to `'STANDARD'`
+**3. Update `useTerminalPurchaseSync.ts`**
+- Same nickname-based client lookup before name matching
+- Already fetches unmasked nicknames from `p2p_order_records` — add the `client_binance_nicknames` lookup step
 
-**4. `src/components/clients/EditClientDetailsDialog.tsx`**
-- Replace 3 SelectItems with 5 new levels
+**4. Update `TerminalSalesApprovalDialog.tsx`**
+- On successful approval with a client mapping, auto-insert/upsert the counterparty's unmasked nickname into `client_binance_nicknames` linked to the selected client
+- Source: `approval`
 
-**5. `src/components/clients/AddClientDialog.tsx`**
-- Replace default `risk_appetite: 'MEDIUM'` with `'STANDARD'`
-- Replace 3 SelectItems with 5 new levels
+**5. Update `TerminalPurchaseApprovalDialog.tsx`**
+- Same auto-capture logic on approval
 
-**6. `src/components/clients/ClientOnboardingApprovals.tsx`**
-- Replace default `risk_assessment: 'HIGH'` with `'HIGH_RISK'`
-- Replace 3 SelectItems in the approval form with 5 new levels
-- Update all other default references
+**6. Client Overview Panel**
+- Display linked Binance nicknames in a read-only section on the client detail view
+- Allow manual nickname addition/removal for admin users
 
-**7. `src/components/clients/ClientDirectoryFilters.tsx`**
-- Update `RISK_LEVELS` array from `['HIGH', 'MEDIUM', 'LOW', 'NO_RISK']` to `['PREMIUM', 'ESTABLISHED', 'STANDARD', 'CAUTIOUS', 'HIGH_RISK']`
+**7. Backfill script**
+- One-time SQL to populate `client_binance_nicknames` from existing approved sync records that have unmasked nicknames and valid `client_id` values (from both `terminal_purchase_sync` and `terminal_sales_sync`)
 
-**8. `src/components/clients/ViewFullProfileDialog.tsx`**
-- No code change needed (displays dynamic value), but badge will show new labels automatically
+### Critical Design Decisions
+- **Capture timing**: Unmasked nicknames are already saved by `sync_p2p_order` while orders are active — no additional capture needed at that stage
+- **Conflict handling**: If a nickname already exists for a different client, the system flags it in the approval UI rather than silently reassigning
+- **Nickname changes**: Old nicknames remain linked (historical); new ones get added on next approval. Array of nicknames per client is natural
+- **No two clients share a nickname**: Enforced by UNIQUE constraint on `nickname` column
 
-**9. `src/components/clients/MonthlyLimitsPanel.tsx`**
-- Update fallback from `'MEDIUM'` to `'STANDARD'`
-
-**10. `src/components/clients/KYCDocumentsDialog.tsx`**
-- Displays `risk_assessment` dynamically — no change needed
-
-### Summary
-- 1 data migration (update existing LOW→PREMIUM, MEDIUM→STANDARD, HIGH→HIGH_RISK, NO_RISK→STANDARD)
-- ~8 UI files updated to reflect the new 5-level system with consistent color coding
-- All defaults changed from MEDIUM to STANDARD
-- Approval flow defaults changed from HIGH to HIGH_RISK
+### Files to Modify
+- New migration SQL (create `client_binance_nicknames` table)
+- `src/hooks/useTerminalSalesSync.ts`
+- `src/hooks/useTerminalPurchaseSync.ts`
+- `src/components/sales/TerminalSalesApprovalDialog.tsx`
+- `src/components/purchase/TerminalPurchaseApprovalDialog.tsx`
+- `src/components/clients/ClientOverviewPanel.tsx` (or equivalent client detail component)
 

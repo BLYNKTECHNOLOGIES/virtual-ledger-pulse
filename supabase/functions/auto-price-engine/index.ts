@@ -463,7 +463,20 @@ async function processAsset(
     if (minFloor && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
-    const baseRef = marketReferencePrice && marketReferencePrice > 0 ? marketReferencePrice : competitorPrice;
+    // Try to infer Binance's actual index price from one of our own floating ads
+    let binanceIndex: number | null = null;
+    for (const adNo of adNumbers) {
+      binanceIndex = await inferBinanceIndex(adNo, supabase);
+      if (binanceIndex && binanceIndex > 0) break;
+    }
+
+    const baseRef = binanceIndex && binanceIndex > 0
+      ? binanceIndex
+      : (marketReferencePrice && marketReferencePrice > 0 ? marketReferencePrice : competitorPrice);
+    
+    const indexSource = binanceIndex && binanceIndex > 0 ? "binance_index" : (marketReferencePrice && marketReferencePrice > 0 ? "coingecko" : "competitor");
+    console.log(`[FLOATING] ${asset}: Using ${indexSource} as base reference: ₹${baseRef.toFixed(2)}${binanceIndex ? ` (Binance index inferred: ₹${binanceIndex.toFixed(2)})` : ''}`);
+    
     const competitorRatio = (competitorPrice / baseRef) * 100;
 
     if (rule.offset_direction === "OVERCUT") {

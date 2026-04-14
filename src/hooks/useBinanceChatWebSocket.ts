@@ -368,7 +368,6 @@ export function useBinanceChatWebSocket(
 
       ws.onclose = (event) => {
         setIsConnected(false);
-        isConnectedRef.current = false;
         setIsConnecting(false);
 
         if (pingIntervalRef.current) {

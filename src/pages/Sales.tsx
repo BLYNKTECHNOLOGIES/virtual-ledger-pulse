@@ -198,12 +198,31 @@ export default function Sales() {
   const handleExportCSV = async () => {
     if (!salesOrders || salesOrders.length === 0) return;
 
-    // Fetch all payment splits with bank details
+    // Fetch all payment splits with bank details (batch in chunks)
     const orderIds = salesOrders.map(o => o.id);
-    const { data: allSplits } = await supabase
-      .from('sales_order_payment_splits')
-      .select('sales_order_id, amount, bank_account_id, is_gateway, bank_accounts:bank_account_id(account_name, bank_name), payment_method:payment_method_id(nickname)')
-      .in('sales_order_id', orderIds);
+    const orderNumbers = salesOrders.map(o => o.order_number).filter(Boolean);
+    const CHUNK = 200;
+    
+    let allSplits: any[] = [];
+    for (let i = 0; i < orderIds.length; i += CHUNK) {
+      const chunk = orderIds.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('sales_order_payment_splits')
+        .select('sales_order_id, amount, bank_account_id, is_gateway, bank_accounts:bank_account_id(account_name, bank_name), payment_method:payment_method_id(nickname)')
+        .in('sales_order_id', chunk);
+      if (data) allSplits = allSplits.concat(data);
+    }
+
+    // Fetch bank transactions as fallback (most sales don't have splits)
+    let allBankTxns: any[] = [];
+    for (let i = 0; i < orderNumbers.length; i += CHUNK) {
+      const chunk = orderNumbers.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('bank_transactions')
+        .select('reference_number, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+        .in('reference_number', chunk);
+      if (data) allBankTxns = allBankTxns.concat(data);
+    }
 
     // Group splits by order id
     const splitsByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string; nickname: string; is_gateway: boolean }>> = {};
@@ -216,6 +235,18 @@ export default function Sales() {
         account_name: s.bank_accounts?.account_name || '',
         nickname: s.payment_method?.nickname || '',
         is_gateway: !!s.is_gateway,
+      });
+    });
+
+    // Group bank transactions by order number as fallback
+    const bankTxnsByOrderNo: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
+    (allBankTxns || []).forEach((t: any) => {
+      const ref = t.reference_number;
+      if (!bankTxnsByOrderNo[ref]) bankTxnsByOrderNo[ref] = [];
+      bankTxnsByOrderNo[ref].push({
+        amount: Number(t.amount) || 0,
+        bank_name: t.bank_accounts?.bank_name || '',
+        account_name: t.bank_accounts?.account_name || '',
       });
     });
 
@@ -249,8 +280,14 @@ export default function Sales() {
     const csvData: any[][] = [];
 
     salesOrders.forEach(order => {
+      // Use splits first, fall back to bank_transactions
       const splits = splitsByOrder[order.id];
-      const hasSplits = order.is_split_payment && splits && splits.length > 1;
+      const bankTxns = bankTxnsByOrderNo[order.order_number || ''];
+      const hasSplitData = splits && splits.length > 0;
+      const paymentSources = hasSplitData 
+        ? splits.map(s => ({ bank_name: s.bank_name, account_label: s.nickname || s.account_name, amount: s.amount }))
+        : (bankTxns || []).map(t => ({ bank_name: t.bank_name, account_label: t.account_name, amount: t.amount }));
+      const hasSplits = (order.is_split_payment && paymentSources.length > 1) || paymentSources.length > 1;
 
       const buildRow = (bankName: string, accountLabel: string, splitAmount: string, isSplit: string) => [
         order.order_number,
@@ -282,19 +319,19 @@ export default function Sales() {
       ];
 
       if (hasSplits) {
-        splits.forEach(split => {
+        paymentSources.forEach(src => {
           csvData.push(buildRow(
-            split.bank_name,
-            split.nickname || split.account_name,
-            String(split.amount),
+            src.bank_name,
+            src.account_label,
+            String(src.amount),
             'Yes'
           ));
         });
       } else {
-        const single = splits?.[0];
+        const single = paymentSources[0];
         csvData.push(buildRow(
           single?.bank_name || '',
-          single?.nickname || single?.account_name || '',
+          single?.account_label || '',
           single ? String(single.amount) : '',
           'No'
         ));

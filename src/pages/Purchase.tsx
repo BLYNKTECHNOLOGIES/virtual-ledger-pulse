@@ -135,12 +135,31 @@ export default function Purchase() {
       return;
     }
 
-    // Fetch all payment splits with bank details
+    // Fetch all payment splits with bank details (batch in chunks to avoid URL limits)
     const orderIds = allPurchaseOrders.map(o => o.id);
-    const { data: allSplits } = await supabase
-      .from('purchase_order_payment_splits')
-      .select('purchase_order_id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
-      .in('purchase_order_id', orderIds);
+    const orderNumbers = allPurchaseOrders.map(o => o.order_number).filter(Boolean);
+    
+    let allSplits: any[] = [];
+    const CHUNK = 200;
+    for (let i = 0; i < orderIds.length; i += CHUNK) {
+      const chunk = orderIds.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('purchase_order_payment_splits')
+        .select('purchase_order_id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+        .in('purchase_order_id', chunk);
+      if (data) allSplits = allSplits.concat(data);
+    }
+
+    // Fetch bank transactions as fallback for orders without splits
+    let allBankTxns: any[] = [];
+    for (let i = 0; i < orderNumbers.length; i += CHUNK) {
+      const chunk = orderNumbers.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('bank_transactions')
+        .select('reference_number, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+        .in('reference_number', chunk);
+      if (data) allBankTxns = allBankTxns.concat(data);
+    }
 
     // Group splits by order id
     const splitsByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
@@ -151,6 +170,18 @@ export default function Purchase() {
         amount: Number(s.amount) || 0,
         bank_name: s.bank_accounts?.bank_name || '',
         account_name: s.bank_accounts?.account_name || '',
+      });
+    });
+
+    // Group bank transactions by order number as fallback
+    const bankTxnsByOrderNo: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
+    (allBankTxns || []).forEach((t: any) => {
+      const ref = t.reference_number;
+      if (!bankTxnsByOrderNo[ref]) bankTxnsByOrderNo[ref] = [];
+      bankTxnsByOrderNo[ref].push({
+        amount: Number(t.amount) || 0,
+        bank_name: t.bank_accounts?.bank_name || '',
+        account_name: t.bank_accounts?.account_name || '',
       });
     });
 
@@ -235,10 +266,13 @@ export default function Purchase() {
         : order.source === 'terminal_small_buys' ? 'Binance P2P (Small Buys)'
         : order.source === 'manual' ? 'Manual' : (order.source || '');
 
+      // Use splits first, fall back to bank_transactions
       const splits = splitsByOrder[order.id];
-      const hasSplits = splits && splits.length > 1;
+      const bankTxns = bankTxnsByOrderNo[order.order_number || ''];
+      const paymentSources = (splits && splits.length > 0) ? splits : (bankTxns || []);
+      const hasSplits = paymentSources.length > 1;
 
-      const buildBaseRow = (splitBankName: string, splitAccountName: string, splitAmount: string, isSplit: string) => [
+      const buildBaseRow = (bankName: string, accountName: string, paidAmount: string, isSplit: string) => [
         order.order_number || '',
         order.supplier_name || '',
         order.contact_number || '',
@@ -265,14 +299,14 @@ export default function Purchase() {
         order.total_paid || 0,
         order.payment_method_type || '',
         order.upi_id || '',
-        splits?.[0]?.bank_name || '',
-        order.bank_account_name || splits?.[0]?.account_name || '',
+        bankName,
+        accountName,
         order.bank_account_number || '',
         order.ifsc_code || '',
         isSplit,
-        splitBankName,
-        splitAccountName,
-        splitAmount,
+        bankName,
+        accountName,
+        paidAmount,
         order.warehouse_name || '',
         order.assigned_to || '',
         order.description || '',
@@ -285,15 +319,15 @@ export default function Purchase() {
       ];
 
       if (hasSplits) {
-        splits.forEach(split => {
-          csvData.push(buildBaseRow(split.bank_name, split.account_name, String(split.amount), 'Yes'));
+        paymentSources.forEach(src => {
+          csvData.push(buildBaseRow(src.bank_name, src.account_name, String(src.amount), 'Yes'));
         });
       } else {
-        const singleBank = splits?.[0];
+        const single = paymentSources[0];
         csvData.push(buildBaseRow(
-          singleBank?.bank_name || '',
-          singleBank?.account_name || '',
-          singleBank ? String(singleBank.amount) : '',
+          single?.bank_name || '',
+          single?.account_name || '',
+          single ? String(single.amount) : '',
           'No'
         ));
       }

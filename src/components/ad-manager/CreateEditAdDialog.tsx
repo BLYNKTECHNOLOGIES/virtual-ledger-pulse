@@ -490,6 +490,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                 {priceRange && (
                   <p className="text-[11px] mt-1 text-muted-foreground">
                     Reference price: ₹{priceRange.referencePrice}
+                    {form.priceFloatingRatio && Number(form.priceFloatingRatio) > 0 && (
+                      <span className="ml-1">
+                        → Effective price: ₹{(Number(priceRange.referencePrice) * Number(form.priceFloatingRatio) / 100).toFixed(2)}
+                      </span>
+                    )}
                   </p>
                 )}
               </div>

@@ -195,8 +195,29 @@ export default function Sales() {
     }
   });
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!salesOrders || salesOrders.length === 0) return;
+
+    // Fetch all payment splits with bank details
+    const orderIds = salesOrders.map(o => o.id);
+    const { data: allSplits } = await supabase
+      .from('sales_order_payment_splits')
+      .select('sales_order_id, amount, bank_account_id, is_gateway, bank_accounts:bank_account_id(account_name, bank_name), payment_method:payment_method_id(nickname)')
+      .in('sales_order_id', orderIds);
+
+    // Group splits by order id
+    const splitsByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string; nickname: string; is_gateway: boolean }>> = {};
+    (allSplits || []).forEach((s: any) => {
+      const oid = s.sales_order_id;
+      if (!splitsByOrder[oid]) splitsByOrder[oid] = [];
+      splitsByOrder[oid].push({
+        amount: Number(s.amount) || 0,
+        bank_name: s.bank_accounts?.bank_name || '',
+        account_name: s.bank_accounts?.account_name || '',
+        nickname: s.payment_method?.nickname || '',
+        is_gateway: !!s.is_gateway,
+      });
+    });
 
     const csvHeaders = [
       'Order Number',
@@ -214,6 +235,10 @@ export default function Sales() {
       'Payment Status',
       'Settlement Status',
       'Is Off Market',
+      'Split Payment',
+      'Bank Name',
+      'Bank Account / Method',
+      'Split Amount',
       'Description',
       'Risk Level',
       'Created By',
@@ -221,30 +246,60 @@ export default function Sales() {
       'Created At'
     ];
 
-    const csvData = salesOrders.map(order => [
-      order.order_number,
-      order.client_name,
-      order.client_phone || '',
-      order.client_state || '',
-      order.platform || '',
-      order.total_amount,
-      order.quantity || 1,
-      order.price_per_unit || order.total_amount,
-      order.fee_percentage || 0,
-      order.fee_amount || 0,
-      order.net_amount || order.total_amount,
-      order.status || '',
-      order.payment_status || '',
-      order.settlement_status || '',
-      order.is_off_market ? 'Yes' : 'No',
-      order.description || '',
-      order.risk_level || '',
-      order.created_by_user 
-        ? (order.created_by_user.first_name || order.created_by_user.username || '')
-        : '',
-      format(new Date(order.order_date), 'MMM dd, yyyy'),
-      format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
-    ]);
+    const csvData: any[][] = [];
+
+    salesOrders.forEach(order => {
+      const splits = splitsByOrder[order.id];
+      const hasSplits = order.is_split_payment && splits && splits.length > 1;
+
+      const buildRow = (bankName: string, accountLabel: string, splitAmount: string, isSplit: string) => [
+        order.order_number,
+        order.client_name,
+        order.client_phone || '',
+        order.client_state || '',
+        order.platform || '',
+        order.total_amount,
+        order.quantity || 1,
+        order.price_per_unit || order.total_amount,
+        order.fee_percentage || 0,
+        order.fee_amount || 0,
+        order.net_amount || order.total_amount,
+        order.status || '',
+        order.payment_status || '',
+        order.settlement_status || '',
+        order.is_off_market ? 'Yes' : 'No',
+        isSplit,
+        bankName,
+        accountLabel,
+        splitAmount,
+        order.description || '',
+        order.risk_level || '',
+        order.created_by_user 
+          ? (order.created_by_user.first_name || order.created_by_user.username || '')
+          : '',
+        format(new Date(order.order_date), 'MMM dd, yyyy'),
+        format(new Date(order.created_at), 'MMM dd, yyyy HH:mm')
+      ];
+
+      if (hasSplits) {
+        splits.forEach(split => {
+          csvData.push(buildRow(
+            split.bank_name,
+            split.nickname || split.account_name,
+            String(split.amount),
+            'Yes'
+          ));
+        });
+      } else {
+        const single = splits?.[0];
+        csvData.push(buildRow(
+          single?.bank_name || '',
+          single?.nickname || single?.account_name || '',
+          single ? String(single.amount) : '',
+          'No'
+        ));
+      }
+    });
 
     const csvContent = [csvHeaders, ...csvData]
       .map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))

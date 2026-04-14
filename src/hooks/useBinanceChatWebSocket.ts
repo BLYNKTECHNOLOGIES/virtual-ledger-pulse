@@ -302,8 +302,8 @@ export function useBinanceChatWebSocket(
       ws.onopen = () => {
         clearTimeout(connectTimeout);
         setIsConnected(true);
-        isConnectedRef.current = true;
         setIsConnecting(false);
+        setError(null);
         setError(null);
         reconnectAttemptsRef.current = 0;
 

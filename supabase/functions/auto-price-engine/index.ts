@@ -768,28 +768,7 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
 }
 
 async function fetchUsdtInr(supabase: any): Promise<number> {
-  try {
-    const resp = await fetch("https://open.er-api.com/v6/latest/USD");
-    const data = await resp.json();
-    if (data?.result === "success" && data?.rates?.INR && data.rates.INR > 70) {
-      console.log(`[fetchUsdtInr] USD/INR forex (er-api): ${data.rates.INR}`);
-      return data.rates.INR;
-    }
-  } catch (e) {
-    console.error("[fetchUsdtInr] er-api failed:", e);
-  }
-
-  try {
-    const resp = await fetch("https://api.frankfurter.app/latest?from=USD&to=INR");
-    const data = await resp.json();
-    if (data?.rates?.INR && data.rates.INR > 70) {
-      console.log(`[fetchUsdtInr] USD/INR forex (frankfurter): ${data.rates.INR}`);
-      return data.rates.INR;
-    }
-  } catch (e) {
-    console.error("[fetchUsdtInr] frankfurter failed:", e);
-  }
-
+  // PRIMARY: CoinGecko USDT/INR — gives actual crypto USDT/INR rate (closest to Binance index)
   try {
     const cgResp = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
@@ -797,11 +776,48 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
     );
     const cgData = await cgResp.json();
     if (cgData?.tether?.inr && cgData.tether.inr > 70) {
-      console.log(`[fetchUsdtInr] CoinGecko fallback: ${cgData.tether.inr}`);
+      console.log(`[fetchUsdtInr] USDT/INR (CoinGecko primary): ${cgData.tether.inr}`);
       return cgData.tether.inr;
     }
   } catch (e) {
     console.error("[fetchUsdtInr] CoinGecko failed:", e);
+  }
+
+  // FALLBACK 1: Coinbase USDT exchange rate
+  try {
+    const cbResp = await fetch("https://api.coinbase.com/v2/exchange-rates?currency=USDT");
+    const cbData = await cbResp.json();
+    const inrRate = parseFloat(cbData?.data?.rates?.INR || "0");
+    if (inrRate > 70) {
+      console.log(`[fetchUsdtInr] USDT/INR (Coinbase fallback): ${inrRate}`);
+      return inrRate;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] Coinbase failed:", e);
+  }
+
+  // FALLBACK 2: USD/INR forex (less accurate for USDT but still reasonable)
+  try {
+    const resp = await fetch("https://open.er-api.com/v6/latest/USD");
+    const data = await resp.json();
+    if (data?.result === "success" && data?.rates?.INR && data.rates.INR > 70) {
+      console.log(`[fetchUsdtInr] USD/INR forex fallback (er-api): ${data.rates.INR}`);
+      return data.rates.INR;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] er-api failed:", e);
+  }
+
+  // FALLBACK 3: Frankfurter forex
+  try {
+    const resp = await fetch("https://api.frankfurter.app/latest?from=USD&to=INR");
+    const data = await resp.json();
+    if (data?.rates?.INR && data.rates.INR > 70) {
+      console.log(`[fetchUsdtInr] USD/INR forex fallback (frankfurter): ${data.rates.INR}`);
+      return data.rates.INR;
+    }
+  } catch (e) {
+    console.error("[fetchUsdtInr] frankfurter failed:", e);
   }
 
   return 91;

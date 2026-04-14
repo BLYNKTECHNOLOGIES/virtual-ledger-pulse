@@ -992,15 +992,16 @@ export function ClientOnboardingApprovals() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Client Name</TableHead>
-                  <TableHead>Order Details</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Documents</TableHead>
-                  <TableHead>VKYC</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
+                 <TableRow>
+                   <TableHead>Client Name</TableHead>
+                   <TableHead>Binance ID</TableHead>
+                   <TableHead>Order Details</TableHead>
+                   <TableHead>Contact</TableHead>
+                   <TableHead>Documents</TableHead>
+                   <TableHead>VKYC</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead>Actions</TableHead>
+                 </TableRow>
               </TableHeader>
               <TableBody>
                 {pendingApprovals.map((entry) => {

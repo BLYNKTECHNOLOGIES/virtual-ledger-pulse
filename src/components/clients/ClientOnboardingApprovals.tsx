@@ -170,6 +170,98 @@ export function ClientOnboardingApprovals() {
     }
   });
 
+  // Enrich pending approvals with Binance nicknames
+  const pendingSalesOrderIds = approvals
+    ?.filter(a => a.approval_status === 'PENDING' && a.sales_order_id)
+    .map(a => a.sales_order_id) || [];
+
+  const { data: nicknameEnrichment } = useQuery({
+    queryKey: ['buyer-approval-nicknames', pendingSalesOrderIds.sort().join(',')],
+    queryFn: async () => {
+      if (pendingSalesOrderIds.length === 0) return {} as Record<string, { nickname: string; existingClient?: { id: string; name: string } }>;
+
+      // Step 1: sales_order_id → terminal_sales_sync → binance_order_number
+      const { data: syncRows } = await supabase
+        .from('terminal_sales_sync')
+        .select('sales_order_id, binance_order_number')
+        .in('sales_order_id', pendingSalesOrderIds);
+
+      if (!syncRows?.length) return {};
+
+      const orderNumberToSalesId: Record<string, string> = {};
+      for (const row of syncRows) {
+        if (row.binance_order_number && row.sales_order_id) {
+          orderNumberToSalesId[row.binance_order_number] = row.sales_order_id;
+        }
+      }
+
+      const orderNumbers = Object.keys(orderNumberToSalesId);
+      if (orderNumbers.length === 0) return {};
+
+      // Step 2: binance_order_number → p2p_order_records → counterparty_nickname
+      const { data: p2pRows } = await supabase
+        .from('p2p_order_records')
+        .select('binance_order_number, counterparty_nickname')
+        .in('binance_order_number', orderNumbers)
+        .not('counterparty_nickname', 'is', null);
+
+      if (!p2pRows?.length) return {};
+
+      // Build salesOrderId → nickname map
+      const salesIdToNickname: Record<string, string> = {};
+      const allNicknames = new Set<string>();
+      for (const row of p2pRows) {
+        const nick = row.counterparty_nickname?.trim();
+        if (!nick) continue;
+        const salesId = orderNumberToSalesId[row.binance_order_number];
+        if (salesId) {
+          salesIdToNickname[salesId] = nick;
+          allNicknames.add(nick);
+        }
+      }
+
+      // Step 3: Check client_binance_nicknames for known links
+      const nickArr = Array.from(allNicknames);
+      let nicknameToClient: Record<string, { id: string; name: string }> = {};
+      if (nickArr.length > 0) {
+        const { data: linkRows } = await supabase
+          .from('client_binance_nicknames')
+          .select('nickname, client_id')
+          .in('nickname', nickArr)
+          .eq('is_active', true);
+
+        if (linkRows?.length) {
+          const clientIds = linkRows.map(r => r.client_id);
+          const { data: clientRows } = await supabase
+            .from('clients')
+            .select('id, name')
+            .in('id', clientIds)
+            .eq('is_deleted', false);
+
+          const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
+          for (const link of linkRows) {
+            const clientName = clientMap.get(link.client_id);
+            if (clientName) {
+              nicknameToClient[link.nickname] = { id: link.client_id, name: clientName };
+            }
+          }
+        }
+      }
+
+      // Build final map: approvalId → { nickname, existingClient? }
+      const result: Record<string, { nickname: string; existingClient?: { id: string; name: string } }> = {};
+      for (const a of (approvals || [])) {
+        if (a.sales_order_id && salesIdToNickname[a.sales_order_id]) {
+          const nick = salesIdToNickname[a.sales_order_id];
+          result[a.id] = { nickname: nick, existingClient: nicknameToClient[nick] };
+        }
+      }
+      return result;
+    },
+    enabled: pendingSalesOrderIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const generateClientId = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';

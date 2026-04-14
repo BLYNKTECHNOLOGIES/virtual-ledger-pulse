@@ -123,6 +123,22 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
     enabled: !!activeClientId,
   });
 
+  // Fetch linked Binance nicknames
+  const { data: binanceNicknames = [] } = useQuery({
+    queryKey: ['client-binance-nicknames', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId) return [];
+      const { data, error } = await supabase
+        .from('client_binance_nicknames')
+        .select('nickname, is_active, source, last_seen_at')
+        .eq('client_id', activeClientId)
+        .order('last_seen_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!activeClientId,
+  });
+
   if (isLoading) {
     return (
       <Card>

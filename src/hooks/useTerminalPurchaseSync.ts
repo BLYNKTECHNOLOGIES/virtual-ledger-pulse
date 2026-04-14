@@ -176,19 +176,33 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
 
   const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
-  // 4. Get PAN records (only for unmasked, reliable counterparty nicknames)
+  // 4. Get PAN records — resolve unmasked nicknames from p2p_order_records first
   const getSafeCounterpartyKey = (value?: string | null) => {
     const normalized = (value || '').trim();
     if (!normalized || normalized.includes('*')) return null;
     return normalized;
   };
 
+  // Fetch unmasked nicknames from p2p_order_records for orders with masked binance_order_history nicknames
+  const { data: p2pNicknames } = await supabase
+    .from('p2p_order_records')
+    .select('binance_order_number, counterparty_nickname')
+    .in('binance_order_number', orderNumbers);
+
+  const p2pNicknameMap = new Map(
+    (p2pNicknames || []).map(r => [r.binance_order_number, r.counterparty_nickname])
+  );
+
+  // Collect all safe nicknames — from both binance_order_history AND p2p_order_records (unmasked)
   const safeNicknames = [
-    ...new Set(
-      allEligible
+    ...new Set([
+      ...allEligible
         .map(o => getSafeCounterpartyKey(o.counter_part_nick_name))
-        .filter((v): v is string => Boolean(v))
-    ),
+        .filter((v): v is string => Boolean(v)),
+      ...allEligible
+        .map(o => getSafeCounterpartyKey(p2pNicknameMap.get(o.order_number)))
+        .filter((v): v is string => Boolean(v)),
+    ]),
   ];
 
   const { data: panRecords } = await supabase

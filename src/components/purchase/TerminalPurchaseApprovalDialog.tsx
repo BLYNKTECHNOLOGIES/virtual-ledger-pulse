@@ -89,6 +89,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
     const nicknameRaw = syncRecord.order_data?.counterparty_nickname || syncRecord.counterparty_name;
     const nickname = (nicknameRaw || '').trim();
     const isMaskedNickname = nickname.includes('*');
+    // Use unmasked nickname from p2p_order_records (stored during sync or fetched live)
+    const unmaskedNickname = (syncRecord.order_data?.counterparty_nickname_unmasked || '').trim();
 
     const fetchResolvedData = async () => {
       let cMasterPan = '';
@@ -115,19 +117,36 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         }
       }
 
-      // 2) Fetch counterparty records (PAN + contact) — only when nickname is unmasked
-      if (nickname && !isMaskedNickname) {
+      // 2) Fetch counterparty records (PAN + contact)
+      // Try unmasked nickname first (from p2p_order_records), then fall back to masked
+      let lookupNickname = unmaskedNickname || '';
+      if (!lookupNickname && !isMaskedNickname) {
+        lookupNickname = nickname;
+      }
+      // If nickname is masked and no unmasked stored, try fetching from p2p_order_records
+      if (!lookupNickname && isMaskedNickname && syncRecord?.binance_order_number) {
+        const { data: p2pRec } = await supabase
+          .from('p2p_order_records')
+          .select('counterparty_nickname')
+          .eq('binance_order_number', syncRecord.binance_order_number)
+          .maybeSingle();
+        if (p2pRec?.counterparty_nickname && !p2pRec.counterparty_nickname.includes('*')) {
+          lookupNickname = p2pRec.counterparty_nickname.trim();
+        }
+      }
+
+      if (lookupNickname) {
         const { data: panRec } = await supabase
           .from('counterparty_pan_records')
           .select('pan_number')
-          .eq('counterparty_nickname', nickname)
+          .eq('counterparty_nickname', lookupNickname)
           .maybeSingle();
         if (panRec?.pan_number) cPartyPan = panRec.pan_number;
 
         const { data: contactRec } = await supabase
           .from('counterparty_contact_records')
           .select('contact_number, state')
-          .eq('counterparty_nickname', nickname)
+          .eq('counterparty_nickname', lookupNickname)
           .maybeSingle();
         if (contactRec?.contact_number) cPartyPhone = contactRec.contact_number;
         if (contactRec?.state) cPartyState = contactRec.state;

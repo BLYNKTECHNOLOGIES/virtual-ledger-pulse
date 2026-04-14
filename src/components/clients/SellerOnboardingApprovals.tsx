@@ -201,16 +201,34 @@ export function SellerOnboardingApprovals() {
       
       if (error) throw error;
     },
-    onSuccess: (_data, sellerId) => {
+    onSuccess: async (_data, sellerId) => {
+      // Auto-capture Binance nickname → client link
+      const seller = pendingSellers?.find(s => s.id === sellerId);
+      if (seller) {
+        const nickInfo = sellerNicknameMap?.[seller.name];
+        if (nickInfo?.nickname) {
+          try {
+            await supabase.from('client_binance_nicknames').upsert({
+              client_id: sellerId,
+              nickname: nickInfo.nickname,
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'nickname' });
+          } catch (e) {
+            console.error('Failed to auto-capture seller nickname link:', e);
+          }
+        }
+      }
+
       toast({
         title: "Seller Approved",
         description: "The seller has been approved successfully.",
       });
-      // Remove approved seller from the pending list cache without refetching
       queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
         old ? old.filter(s => s.id !== sellerId) : []
       );
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-approval-nicknames'] });
     },
     onError: (error: any) => {
       toast({

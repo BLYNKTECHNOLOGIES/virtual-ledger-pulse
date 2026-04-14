@@ -80,8 +80,28 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         senderName: isSelf ? getSenderName(orderNumber, content) : null,
       });
     }
+
+    // Append queued messages (not yet confirmed by server)
+    const MAX_QUEUE_RETRIES = 3;
+    for (const qm of queuedMessages) {
+      if (qm.orderNo !== orderNumber) continue;
+      const isFailed = qm.retries >= MAX_QUEUE_RETRIES;
+      messages.push({
+        id: `queued-${qm.tempId}`,
+        source: 'local',
+        senderType: 'operator',
+        text: qm.type === 'text' ? qm.content : null,
+        imageUrl: qm.type === 'image' ? qm.content : undefined,
+        timestamp: qm.createdAt,
+        senderName: username || 'Operator',
+        _deliveryStatus: isFailed ? 'failed' : 'queued',
+        _tempId: qm.tempId,
+        _onRetry: retryMessage,
+      });
+    }
+
     return messages.sort((a, b) => a.timestamp - b.timestamp);
-  }, [wsMessages, isImageUrl, orderNumber, getSenderName]);
+  }, [wsMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {

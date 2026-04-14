@@ -1006,13 +1006,31 @@ export function ClientOnboardingApprovals() {
               <TableBody>
                 {pendingApprovals.map((entry) => {
                   const approval = entry.primary;
+                  const nameKey = approval.client_name.trim().toLowerCase();
+                  const nickInfo = nicknameEnrichment?.[approval.id];
+                  const sameUserNick = sameUserNicknames.get(nameKey);
                   return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
-                      {approval.client_name}
-                      {entry.orderCount > 1 && (
-                        <Badge variant="outline" className="ml-2 text-xs">{entry.orderCount} orders</Badge>
+                      <div>
+                        {approval.client_name}
+                        {entry.orderCount > 1 && (
+                          <Badge variant="outline" className="ml-2 text-xs">{entry.orderCount} orders</Badge>
+                        )}
+                      </div>
+                      {sameUserNick && (
+                        <Badge className="mt-1 bg-purple-100 text-purple-800 text-xs">
+                          ⚠ Same User — different name
+                        </Badge>
                       )}
+                      {nickInfo?.existingClient && !sameUserNick && (
+                        <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                          🔗 Known Client: {nickInfo.existingClient.name}
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm font-mono">{nickInfo?.nickname || '—'}</span>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">

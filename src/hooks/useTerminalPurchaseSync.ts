@@ -257,7 +257,12 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
     const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
     const safeNickname = getSafeCounterpartyKey(order.counter_part_nick_name);
-    const pan = safeNickname ? (panMap.get(safeNickname) || null) : null;
+    // Also try unmasked nickname from p2p_order_records (terminal uses this for PAN/contact storage)
+    const unmaskedNickname = p2pNicknameMap.get(order.order_number) || null;
+    const safeUnmasked = getSafeCounterpartyKey(unmaskedNickname);
+    const pan = (safeNickname ? panMap.get(safeNickname) : null)
+             || (safeUnmasked ? panMap.get(safeUnmasked) : null)
+             || null;
 
     // Try to match client only from explicit previously mapped counterparty keys.
     // Never use fuzzy/exact name lookup in clients during sync (prevents wrong-client assignment).

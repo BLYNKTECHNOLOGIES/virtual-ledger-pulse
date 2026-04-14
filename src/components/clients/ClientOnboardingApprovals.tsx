@@ -952,6 +952,24 @@ export function ClientOnboardingApprovals() {
   const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
+  // Build nickname-based "Same User" detection across different client names
+  const nicknameGroups = new Map<string, string[]>(); // nickname → list of client name keys
+  for (const [nameKey, entry] of pendingByClient) {
+    const nickInfo = nicknameEnrichment?.[entry.primary.id];
+    if (nickInfo?.nickname) {
+      const existing = nicknameGroups.get(nickInfo.nickname) || [];
+      if (!existing.includes(nameKey)) existing.push(nameKey);
+      nicknameGroups.set(nickInfo.nickname, existing);
+    }
+  }
+  // Only keep groups with 2+ different names (actual duplicates)
+  const sameUserNicknames = new Map<string, string>(); // nameKey → nickname (only if shared)
+  for (const [nick, nameKeys] of nicknameGroups) {
+    if (nameKeys.length > 1) {
+      for (const nk of nameKeys) sameUserNicknames.set(nk, nick);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">

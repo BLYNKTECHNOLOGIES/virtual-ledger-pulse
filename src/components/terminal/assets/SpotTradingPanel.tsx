@@ -6,6 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TRADING_PAIRS, useBinanceBalances, useBinanceTickerPrices, useExecuteTrade, COIN_COLORS } from "@/hooks/useBinanceAssets";
 import { Loader2, ArrowDownUp, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function SpotTradingPanel() {
   const [selectedPair, setSelectedPair] = useState(TRADING_PAIRS[0].symbol);

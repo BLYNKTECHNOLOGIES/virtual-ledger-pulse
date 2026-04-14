@@ -436,11 +436,14 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             </Select>
             {isEditing && <p className="text-[10px] text-muted-foreground">Price type cannot change after creation</p>}
 
-            {form.priceType === 1 ? (
+            {form.priceType === 1 ? (() => {
+              const stableAssets = ['USDT', 'USDC', 'FDUSD'];
+              const priceStep = stableAssets.includes(form.asset) ? 0.01 : 0.5;
+              return (
               <div>
                 <Label>Price ({form.fiatUnit})</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(-0.5)}>
+                  <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(-priceStep)}>
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
@@ -452,7 +455,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     className={cn("text-center", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
                   />
-                  <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(0.5)}>
+                  <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(priceStep)}>
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>

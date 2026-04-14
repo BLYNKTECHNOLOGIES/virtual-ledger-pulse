@@ -22,6 +22,7 @@ export function SpotTradingPanel() {
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [amount, setAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [buyConfirmPending, setBuyConfirmPending] = useState(false);
 
   const { data: balances } = useBinanceBalances();
   const { data: prices } = useBinanceTickerPrices();

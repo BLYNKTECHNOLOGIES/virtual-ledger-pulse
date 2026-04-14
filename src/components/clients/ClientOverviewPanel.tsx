@@ -412,6 +412,28 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>
 
+        {/* Linked Binance Nicknames */}
+        {binanceNicknames.length > 0 && (
+          <div className="p-3 bg-indigo-50 rounded-md border border-indigo-200 space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Link2 className="h-4 w-4" />
+              Linked Binance Nicknames
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {binanceNicknames.map((n: any) => (
+                <Badge
+                  key={n.nickname}
+                  variant={n.is_active ? "default" : "secondary"}
+                  className="text-xs"
+                >
+                  {n.nickname}
+                  {!n.is_active && <span className="ml-1 opacity-60">(inactive)</span>}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="space-y-4 pt-4 border-t">
           <div className="grid grid-cols-2 gap-2">

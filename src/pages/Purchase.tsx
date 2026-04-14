@@ -125,7 +125,7 @@ export default function Purchase() {
     },
   });
 
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     if (!allPurchaseOrders || allPurchaseOrders.length === 0) {
       toast({
         title: "No data to export",
@@ -135,11 +135,31 @@ export default function Purchase() {
       return;
     }
 
+    // Fetch all payment splits with bank details
+    const orderIds = allPurchaseOrders.map(o => o.id);
+    const { data: allSplits } = await supabase
+      .from('purchase_order_payment_splits')
+      .select('purchase_order_id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+      .in('purchase_order_id', orderIds);
+
+    // Group splits by order id
+    const splitsByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
+    (allSplits || []).forEach((s: any) => {
+      const oid = s.purchase_order_id;
+      if (!splitsByOrder[oid]) splitsByOrder[oid] = [];
+      splitsByOrder[oid].push({
+        amount: Number(s.amount) || 0,
+        bank_name: s.bank_accounts?.bank_name || '',
+        account_name: s.bank_accounts?.account_name || '',
+      });
+    });
+
     const csvHeaders = [
       'Order Number',
       'Supplier Name',
       'Contact Number',
       'State',
+      'Platform',
       'Asset/Product Type',
       'Product Name',
       'Product Category',
@@ -161,9 +181,14 @@ export default function Purchase() {
       'Total Paid',
       'Payment Method Type',
       'UPI ID',
+      'Bank Name',
       'Bank Account Name',
       'Bank Account Number',
       'IFSC Code',
+      'Split Payment',
+      'Split Bank Name',
+      'Split Bank Account',
+      'Split Amount',
       'Warehouse Name',
       'Assigned To',
       'Description',
@@ -173,7 +198,9 @@ export default function Purchase() {
       'Created At'
     ];
 
-    const csvData = allPurchaseOrders.map(order => {
+    const csvData: any[][] = [];
+
+    allPurchaseOrders.forEach(order => {
       const pricePerUnit = Number(order.price_per_unit) || 0;
       const marketRate = Number(order.market_rate_usdt) || 0;
       const productCategory = (order.product_category || '').toUpperCase();
@@ -203,11 +230,20 @@ export default function Purchase() {
         effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;
       }
 
-      return [
+      // Determine platform label from source
+      const platformLabel = order.source === 'terminal' ? 'Binance P2P' 
+        : order.source === 'terminal_small_buys' ? 'Binance P2P (Small Buys)'
+        : order.source === 'manual' ? 'Manual' : (order.source || '');
+
+      const splits = splitsByOrder[order.id];
+      const hasSplits = splits && splits.length > 1;
+
+      const buildBaseRow = (splitBankName: string, splitAccountName: string, splitAmount: string, isSplit: string) => [
         order.order_number || '',
         order.supplier_name || '',
         order.contact_number || '',
         order.client_state || '',
+        platformLabel,
         assetType,
         order.product_name || '',
         order.product_category || '',
@@ -229,9 +265,14 @@ export default function Purchase() {
         order.total_paid || 0,
         order.payment_method_type || '',
         order.upi_id || '',
-        order.bank_account_name || '',
+        splits?.[0]?.bank_name || '',
+        order.bank_account_name || splits?.[0]?.account_name || '',
         order.bank_account_number || '',
         order.ifsc_code || '',
+        isSplit,
+        splitBankName,
+        splitAccountName,
+        splitAmount,
         order.warehouse_name || '',
         order.assigned_to || '',
         order.description || '',
@@ -242,6 +283,20 @@ export default function Purchase() {
         order.order_date ? format(new Date(order.order_date), 'MMM dd, yyyy') : '',
         order.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm') : ''
       ];
+
+      if (hasSplits) {
+        splits.forEach(split => {
+          csvData.push(buildBaseRow(split.bank_name, split.account_name, String(split.amount), 'Yes'));
+        });
+      } else {
+        const singleBank = splits?.[0];
+        csvData.push(buildBaseRow(
+          singleBank?.bank_name || '',
+          singleBank?.account_name || '',
+          singleBank ? String(singleBank.amount) : '',
+          'No'
+        ));
+      }
     });
 
     const csvContent = [csvHeaders, ...csvData]

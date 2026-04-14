@@ -1,59 +1,95 @@
 
 
-## Nickname-Based Client Deduplication in Approvals
+## Future-Proof Nickname-to-Client Linking for Terminal Order View
 
-### Problem
-Currently, buyer onboarding approvals group pending records by **client name** (case-insensitive). If the same person trades under different verified names (e.g., "Vanshaj Kaistha" vs "VANSHAJ KAISTHA"), they appear as separate entries. Operators must manually cross-check order histories to determine if two clients are the same person. Seller approvals have the same issue.
+### Current State & Shortfalls Identified
 
-The `p2p_order_records` table already has **5,580 records with unmasked nicknames** — a reliable unique identifier per Binance user. We can use this to automatically detect and surface when multiple pending approvals belong to the same counterparty.
+**Critical Issue: Backfill is empty.** The `client_binance_nicknames` table has **0 rows**. The original backfill SQL tried to extract nicknames from `terminal_sales_sync.order_data->>'counterparty_nickname'` — but those are **masked** (e.g., `Ast***`). Unmasked nicknames only exist in `p2p_order_records.counterparty_nickname`. The backfill must join through `p2p_order_records` instead.
 
-### Architecture
+**Available data for backfill:**
+- 382 unique unmasked nicknames from approved sales sync records
+- 275 unique unmasked nicknames from approved purchase sync records
+- 5,581 total unmasked nicknames in `p2p_order_records`
 
-```text
-Buyer/Seller Approval Page loads
-  ├─ Fetch pending approvals (existing)
-  ├─ For each approval, join via sales_order_id → terminal_sales_sync → p2p_order_records
-  │   to resolve the unmasked Binance nickname
-  ├─ Also check client_binance_nicknames for known client links
-  ├─ Group approvals by nickname (in addition to existing name grouping)
-  └─ Surface in UI:
-      ├─ "Binance ID" column showing unmasked nickname
-      ├─ "Same User" badge when multiple different-name approvals share a nickname
-      └─ Auto-suggest "Link to Existing" when nickname already maps to approved client
+### What This Plan Delivers
+
+1. **Fix the backfill** — populate `client_binance_nicknames` with correct data by joining through `p2p_order_records`
+2. **Future-proof the lookup path** for terminal → client directory: `p2p_order_records.counterparty_nickname` → `client_binance_nicknames.nickname` → `clients.*`
+3. **No schema changes needed** — the existing table structure (`client_binance_nicknames` with UNIQUE on `nickname`, FK to `clients.id`) already supports direct terminal lookups
+
+### Implementation
+
+**Step 1: Run correct backfill migration**
+
+```sql
+-- Backfill from approved SALES sync via p2p_order_records (unmasked nicknames)
+INSERT INTO public.client_binance_nicknames (client_id, nickname, source, first_seen_at, last_seen_at)
+SELECT DISTINCT ON (por.counterparty_nickname)
+  tss.client_id,
+  por.counterparty_nickname,
+  'backfill',
+  MIN(tss.synced_at) OVER (PARTITION BY por.counterparty_nickname),
+  MAX(tss.synced_at) OVER (PARTITION BY por.counterparty_nickname)
+FROM terminal_sales_sync tss
+JOIN p2p_order_records por ON por.binance_order_number = tss.binance_order_number
+WHERE tss.client_id IS NOT NULL
+  AND tss.sync_status = 'approved'
+  AND por.counterparty_nickname IS NOT NULL
+  AND por.counterparty_nickname NOT LIKE '%*%'
+ORDER BY por.counterparty_nickname, tss.synced_at DESC
+ON CONFLICT (nickname) DO NOTHING;
+
+-- Same for PURCHASE sync
+INSERT INTO public.client_binance_nicknames (client_id, nickname, source, first_seen_at, last_seen_at)
+SELECT DISTINCT ON (por.counterparty_nickname)
+  tps.client_id,
+  por.counterparty_nickname,
+  'backfill',
+  MIN(tps.synced_at) OVER (PARTITION BY por.counterparty_nickname),
+  MAX(tps.synced_at) OVER (PARTITION BY por.counterparty_nickname)
+FROM terminal_purchase_sync tps
+JOIN p2p_order_records por ON por.binance_order_number = tps.binance_order_number
+WHERE tps.client_id IS NOT NULL
+  AND tps.sync_status = 'approved'
+  AND por.counterparty_nickname IS NOT NULL
+  AND por.counterparty_nickname NOT LIKE '%*%'
+ORDER BY por.counterparty_nickname, tps.synced_at DESC
+ON CONFLICT (nickname) DO NOTHING;
 ```
 
-### Implementation Steps
+**Step 2: No code changes needed now**
 
-**1. Enrich pending approvals with Binance nicknames (buyer approvals)**
-- In `ClientOnboardingApprovals.tsx`, after fetching pending approvals, batch-query `terminal_sales_sync` for all `sales_order_id`s to get `binance_order_number`
-- Then batch-query `p2p_order_records` for those order numbers to get unmasked `counterparty_nickname`
-- Also query `client_binance_nicknames` to check if any nickname already maps to an existing approved client
-- Build a `Map<approvalId, { nickname, existingClientId? }>` for UI consumption
+The existing schema already supports the future terminal use case:
 
-**2. Enhance the buyer approval table UI**
-- Add a "Binance ID" column showing the unmasked nickname (or "—" for legacy/non-terminal records)
-- Group pending approvals by nickname when multiple different-name approvals share one — show a colored "Same User" badge linking them
-- When a nickname already exists in `client_binance_nicknames`, show an auto-match indicator with the linked client name, pre-selecting "Link to Existing" mode
+```text
+Terminal Running Order
+  └─ p2p_order_records.counterparty_nickname (captured while order is active)
+      └─ client_binance_nicknames.nickname (UNIQUE index, instant lookup)
+          └─ clients.* (full directory: name, phone, PAN, risk level, bank accounts, KYC status, monthly limits)
+```
 
-**3. Enhance the seller approval table (SellerOnboardingApprovals.tsx)**
-- Same nickname enrichment via `terminal_purchase_sync` → `p2p_order_records`
-- Add "Binance ID" column
-- Show "Same User" badge for sellers that share a nickname with different names
-- Auto-suggest merge when nickname links to an existing approved client
+When you're ready to show client data in the terminal order view, a single query like this will work:
 
-**4. Auto-capture nickname on buyer approval**
-- When a buyer is approved (normal or merge), upsert the unmasked nickname into `client_binance_nicknames` — same pattern already used in sales/purchase approval dialogs
+```sql
+SELECT c.name, c.phone, c.pan_card_number, c.risk_appetite, c.monthly_limit, c.current_month_used, c.kyc_status, c.state
+FROM client_binance_nicknames cbn
+JOIN clients c ON c.id = cbn.client_id
+WHERE cbn.nickname = 'User-d79e3' AND cbn.is_active = true AND c.is_deleted = false;
+```
 
-**5. Legacy data safety**
-- All nickname enrichment is additive (read-only lookups) — no modification to existing approval records
-- Approvals without terminal sync records (manual sales entries, legacy data) will show "—" in the Binance ID column and work exactly as before
-- The existing name-based grouping (`pendingByClient`) remains as the primary grouping; nickname grouping adds a secondary visual indicator
-- No schema changes needed — uses existing `p2p_order_records` and `client_binance_nicknames` tables
+### Why No Additional Schema Changes Are Needed
 
-### Files to Modify
-- `src/components/clients/ClientOnboardingApprovals.tsx` — Nickname enrichment query + UI column + grouping badges + auto-capture on approval
-- `src/components/clients/SellerOnboardingApprovals.tsx` — Same enrichment for sellers via purchase_orders/terminal_purchase_sync
+| Concern | Status |
+|---------|--------|
+| Nickname uniqueness | UNIQUE constraint on `nickname` — enforced |
+| Fast lookup from terminal | Index `idx_client_binance_nicknames_active` on `(nickname) WHERE is_active = true` — covered |
+| Client FK integrity | `ON DELETE CASCADE` from `clients(id)` — covered |
+| Nickname changes by user | `is_active` flag allows deactivating old nicknames; new ones auto-captured on approval |
+| Multiple nicknames per client | Supported (one row per nickname, all pointing to same `client_id`) |
+| Legacy orders without nicknames | Will show "—" / no client match — graceful fallback |
+| Auto-capture going forward | Already implemented in sales/purchase approval dialogs (upsert on approval) |
 
-### No database migration needed
-All data already exists in `p2p_order_records` and `client_binance_nicknames`.
+### Summary
+
+The only action needed is the **corrected backfill migration** to populate `client_binance_nicknames` with ~500+ nickname-to-client links from historical approved orders. The database design is already future-proof for the terminal order → client directory lookup you described. No structural changes required.
 

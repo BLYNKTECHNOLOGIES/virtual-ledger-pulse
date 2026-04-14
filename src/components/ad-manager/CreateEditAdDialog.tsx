@@ -487,16 +487,33 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                   onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
                   placeholder="e.g., 1.5 for 1.5% above market"
                 />
-                {priceRange && (
-                  <p className="text-[11px] mt-1 text-muted-foreground">
-                    Reference price: ₹{priceRange.referencePrice}
-                    {form.priceFloatingRatio && Number(form.priceFloatingRatio) > 0 && (
-                      <span className="ml-1">
-                        → Effective price: ₹{(Number(priceRange.referencePrice) * Number(form.priceFloatingRatio) / 100).toFixed(2)}
-                      </span>
-                    )}
-                  </p>
-                )}
+                {(() => {
+                  const ratio = Number(form.priceFloatingRatio);
+                  // Back-calculate the index price Binance uses for floating ads
+                  // Index price = current ad price / (current ratio / 100)
+                  const editPrice = editingAd ? Number(editingAd.price) : 0;
+                  const editRatio = editingAd ? Number(editingAd.priceFloatingRatio) : 0;
+                  const indexPrice = (editPrice > 0 && editRatio > 0)
+                    ? editPrice / (editRatio / 100)
+                    : null;
+
+                  if (indexPrice && ratio > 0) {
+                    const effectivePrice = indexPrice * ratio / 100;
+                    return (
+                      <p className="text-[11px] mt-1 text-muted-foreground">
+                        Pricing formula: ₹{indexPrice.toFixed(2)} × {ratio}% = <span className="font-medium text-foreground">₹{effectivePrice.toFixed(2)}</span>
+                      </p>
+                    );
+                  }
+                  if (priceRange) {
+                    return (
+                      <p className="text-[11px] mt-1 text-muted-foreground">
+                        Highest ad price: ₹{priceRange.referencePrice}
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             )}
           </div>

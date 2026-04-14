@@ -288,13 +288,28 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   const createClientMutation = useMutation({
     mutationFn: async () => {
       const nickname = syncRecord?.order_data?.counterparty_nickname || syncRecord?.counterparty_name;
-      // Only look up contact for unmasked nicknames to prevent cross-contamination
+      const unmasked = syncRecord?.order_data?.counterparty_nickname_unmasked || '';
+      // Resolve contact using unmasked nickname (from p2p_order_records) or unmasked binance nickname
       let contactPhone: string | undefined;
-      if (nickname && !nickname.includes('*')) {
+      let lookupNick = unmasked || '';
+      if (!lookupNick && nickname && !nickname.includes('*')) {
+        lookupNick = nickname;
+      }
+      if (!lookupNick && nickname?.includes('*') && syncRecord?.binance_order_number) {
+        const { data: p2pRec } = await supabase
+          .from('p2p_order_records')
+          .select('counterparty_nickname')
+          .eq('binance_order_number', syncRecord.binance_order_number)
+          .maybeSingle();
+        if (p2pRec?.counterparty_nickname && !p2pRec.counterparty_nickname.includes('*')) {
+          lookupNick = p2pRec.counterparty_nickname.trim();
+        }
+      }
+      if (lookupNick) {
         const { data: contactRec } = await supabase
           .from('counterparty_contact_records')
           .select('contact_number')
-          .eq('counterparty_nickname', nickname)
+          .eq('counterparty_nickname', lookupNick)
           .maybeSingle();
         contactPhone = contactRec?.contact_number || undefined;
       }

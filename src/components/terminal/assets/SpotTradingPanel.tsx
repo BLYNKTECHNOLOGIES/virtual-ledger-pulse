@@ -207,13 +207,65 @@ export function SpotTradingPanel() {
                 : "bg-trade-sell hover:bg-trade-sell/90 text-white"
             }`}
             disabled={!amount || parseFloat(amount) <= 0 || executeTrade.isPending}
-            onClick={handleExecute}
+            onClick={() => {
+              if (side === "BUY") {
+                setBuyConfirmPending(true);
+              } else {
+                handleExecute();
+              }
+            }}
           >
             {executeTrade.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin mr-2" />
             ) : null}
             {side === "BUY" ? `Buy ${pair.base}` : `Sell ${pair.base}`}
           </Button>
+
+          {/* Buy Confirmation Dialog */}
+          <AlertDialog open={buyConfirmPending} onOpenChange={setBuyConfirmPending}>
+            <AlertDialogContent className="bg-card border-border max-w-sm">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-foreground">
+                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  Confirm Buy Order
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-muted-foreground space-y-2">
+                  <p>You are about to execute a <strong className="text-trade-buy">BUY</strong> market order:</p>
+                  <div className="bg-background rounded-lg p-3 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span>Pair</span>
+                      <span className="font-medium text-foreground">{pair.base}/{pair.quote}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Spend</span>
+                      <span className="font-medium text-foreground">{parseFloat(amount || "0").toLocaleString()} {pair.quote}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Est. Receive</span>
+                      <span className="font-medium text-foreground">≈ {estimatedResult.toFixed(8)} {pair.base}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Price</span>
+                      <span className="font-medium text-foreground">{priceValue.toLocaleString("en-US", { maximumFractionDigits: 8 })}</span>
+                    </div>
+                  </div>
+                  <p className="text-[11px]">Are you sure you want to proceed?</p>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="text-xs">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-trade-buy hover:bg-trade-buy/90 text-white text-xs"
+                  onClick={() => {
+                    setBuyConfirmPending(false);
+                    handleExecute();
+                  }}
+                >
+                  Confirm Buy
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 

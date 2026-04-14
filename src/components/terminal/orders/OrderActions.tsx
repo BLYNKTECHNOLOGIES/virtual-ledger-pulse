@@ -297,37 +297,64 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 
 function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
   const cancelOrder = useCancelOrder();
+  const [step, setStep] = useState<0 | 1 | 2>(0); // 0=closed, 1=first confirm, 2=final confirm
+
+  const handleReset = () => setStep(0);
 
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full h-8 text-xs gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5"
-          disabled={cancelOrder.isPending}
-        >
-          {cancelOrder.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-          Cancel Order
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Cancel Order</AlertDialogTitle>
-          <AlertDialogDescription>
-            Are you sure you want to cancel this order? This action cannot be undone.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep Order</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive hover:bg-destructive/90"
-            onClick={() => cancelOrder.mutate({ orderNumber })}
-          >
-            Cancel Order
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full h-8 text-xs gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5"
+        disabled={cancelOrder.isPending}
+        onClick={() => setStep(1)}
+      >
+        {cancelOrder.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+        Cancel Order
+      </Button>
+
+      {/* Step 1: First confirmation */}
+      <AlertDialog open={step === 1} onOpenChange={(open) => { if (!open) handleReset(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Order #{orderNumber}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this order? This is a sensitive action and cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleReset}>Keep Order</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); setStep(2); }}
+            >
+              Yes, Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Step 2: Final confirmation */}
+      <AlertDialog open={step === 2} onOpenChange={(open) => { if (!open) handleReset(); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">⚠️ Final Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="font-medium">
+              This is your FINAL confirmation. Order #{orderNumber} will be permanently cancelled. Are you absolutely sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleReset}>No, Keep Order</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => { cancelOrder.mutate({ orderNumber }); handleReset(); }}
+            >
+              Confirm Cancel Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

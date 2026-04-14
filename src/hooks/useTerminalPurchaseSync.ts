@@ -273,6 +273,9 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     if (!clientId && safeNickname) {
       clientId = salesClientMap.get(safeNickname.toLowerCase().trim()) || null;
     }
+    if (!clientId && safeUnmasked) {
+      clientId = salesClientMap.get(safeUnmasked.toLowerCase().trim()) || null;
+    }
 
     const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
 

@@ -266,10 +266,13 @@ export default function Purchase() {
         : order.source === 'terminal_small_buys' ? 'Binance P2P (Small Buys)'
         : order.source === 'manual' ? 'Manual' : (order.source || '');
 
+      // Use splits first, fall back to bank_transactions
       const splits = splitsByOrder[order.id];
-      const hasSplits = splits && splits.length > 1;
+      const bankTxns = bankTxnsByOrderNo[order.order_number || ''];
+      const paymentSources = (splits && splits.length > 0) ? splits : (bankTxns || []);
+      const hasSplits = paymentSources.length > 1;
 
-      const buildBaseRow = (splitBankName: string, splitAccountName: string, splitAmount: string, isSplit: string) => [
+      const buildBaseRow = (bankName: string, accountName: string, paidAmount: string, isSplit: string) => [
         order.order_number || '',
         order.supplier_name || '',
         order.contact_number || '',
@@ -296,14 +299,14 @@ export default function Purchase() {
         order.total_paid || 0,
         order.payment_method_type || '',
         order.upi_id || '',
-        splits?.[0]?.bank_name || '',
-        order.bank_account_name || splits?.[0]?.account_name || '',
+        bankName,
+        accountName,
         order.bank_account_number || '',
         order.ifsc_code || '',
         isSplit,
-        splitBankName,
-        splitAccountName,
-        splitAmount,
+        bankName,
+        accountName,
+        paidAmount,
         order.warehouse_name || '',
         order.assigned_to || '',
         order.description || '',
@@ -316,15 +319,15 @@ export default function Purchase() {
       ];
 
       if (hasSplits) {
-        splits.forEach(split => {
-          csvData.push(buildBaseRow(split.bank_name, split.account_name, String(split.amount), 'Yes'));
+        paymentSources.forEach(src => {
+          csvData.push(buildBaseRow(src.bank_name, src.account_name, String(src.amount), 'Yes'));
         });
       } else {
-        const singleBank = splits?.[0];
+        const single = paymentSources[0];
         csvData.push(buildBaseRow(
-          singleBank?.bank_name || '',
-          singleBank?.account_name || '',
-          singleBank ? String(singleBank.amount) : '',
+          single?.bank_name || '',
+          single?.account_name || '',
+          single ? String(single.amount) : '',
           'No'
         ));
       }

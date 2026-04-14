@@ -212,70 +212,84 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
 
   const panMap = new Map((panRecords || []).map(p => [p.counterparty_nickname, p.pan_number]));
 
-  // 5. Cross-reference explicit client mappings from sales sync
-  const { data: existingSalesMappings } = await supabase
-    .from('terminal_sales_sync')
-    .select('counterparty_name, client_id')
-    .in('counterparty_name', safeNicknames.length > 0 ? safeNicknames : ['__none__'])
-    .not('client_id', 'is', null);
+    // 5. Cross-reference explicit client mappings from sales sync
+    const { data: existingSalesMappings } = await supabase
+      .from('terminal_sales_sync')
+      .select('counterparty_name, client_id')
+      .in('counterparty_name', safeNicknames.length > 0 ? safeNicknames : ['__none__'])
+      .not('client_id', 'is', null);
 
-  const salesClientMap = new Map(
-    (existingSalesMappings || [])
-      .filter(s => s.counterparty_name && s.client_id)
-      .map(s => [s.counterparty_name!.toLowerCase().trim(), s.client_id!])
-  );
+    const salesClientMap = new Map(
+      (existingSalesMappings || [])
+        .filter(s => s.counterparty_name && s.client_id)
+        .map(s => [s.counterparty_name!.toLowerCase().trim(), s.client_id!])
+    );
 
-  const userId = getCurrentUserId();
+    // 5b. Lookup client_binance_nicknames for auto-matching by nickname
+    const { data: nicknameLinks } = await supabase
+      .from('client_binance_nicknames')
+      .select('nickname, client_id')
+      .eq('is_active', true)
+      .in('nickname', safeNicknames.length > 0 ? safeNicknames : ['__none__']);
 
-  // 6. Process each order — enrich verified names from Binance API
-  //    Limit concurrent API calls to avoid hanging
-  const toInsert: any[] = [];
-  const newOrders = allEligible.filter(o => !existingSet.has(o.order_number));
-  duplicates = allEligible.length - newOrders.length;
+    const nicknameClientMap = new Map(
+      (nicknameLinks || []).map((l: any) => [l.nickname, l.client_id])
+    );
+
+    const userId = getCurrentUserId();
+
+    // 6. Process each order — enrich verified names from Binance API
+    //    Limit concurrent API calls to avoid hanging
+    const toInsert: any[] = [];
+    const newOrders = allEligible.filter(o => !existingSet.has(o.order_number));
+    duplicates = allEligible.length - newOrders.length;
 
 
-  for (const order of newOrders) {
-    // Enrich: fetch verified seller name if not already available
-    let verifiedName = order.verified_name || null;
-    if (!verifiedName || verifiedName === order.counter_part_nick_name) {
-      try {
-        const { sellerName } = await fetchOrderDetail(order.order_number);
-        if (sellerName) {
-          verifiedName = sellerName;
-          await supabase
-            .from('binance_order_history')
-            .update({ verified_name: sellerName })
-            .eq('order_number', order.order_number);
+    for (const order of newOrders) {
+      // Enrich: fetch verified seller name if not already available
+      let verifiedName = order.verified_name || null;
+      if (!verifiedName || verifiedName === order.counter_part_nick_name) {
+        try {
+          const { sellerName } = await fetchOrderDetail(order.order_number);
+          if (sellerName) {
+            verifiedName = sellerName;
+            await supabase
+              .from('binance_order_history')
+              .update({ verified_name: sellerName })
+              .eq('order_number', order.order_number);
+          }
+        } catch (e) {
+          console.warn(`[PurchaseSync] Failed to enrich order ${order.order_number}:`, e);
         }
-      } catch (e) {
-        console.warn(`[PurchaseSync] Failed to enrich order ${order.order_number}:`, e);
+        await new Promise(r => setTimeout(r, 200));
       }
-      await new Promise(r => setTimeout(r, 200));
-    }
 
-    const isMaskedNick = (order.counter_part_nick_name || '').includes('*');
-    // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
-    const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
-    const safeNickname = getSafeCounterpartyKey(order.counter_part_nick_name);
-    // Also try unmasked nickname from p2p_order_records (terminal uses this for PAN/contact storage)
-    const unmaskedNickname = p2pNicknameMap.get(order.order_number) || null;
-    const safeUnmasked = getSafeCounterpartyKey(unmaskedNickname);
-    const pan = (safeNickname ? panMap.get(safeNickname) : null)
-             || (safeUnmasked ? panMap.get(safeUnmasked) : null)
-             || null;
+      const isMaskedNick = (order.counter_part_nick_name || '').includes('*');
+      // NEVER use masked nickname as counterparty name — only verified names or unmasked nicknames
+      const counterpartyName = verifiedName || (!isMaskedNick ? order.counter_part_nick_name : null) || 'Unknown';
+      const safeNickname = getSafeCounterpartyKey(order.counter_part_nick_name);
+      // Also try unmasked nickname from p2p_order_records (terminal uses this for PAN/contact storage)
+      const unmaskedNickname = p2pNicknameMap.get(order.order_number) || null;
+      const safeUnmasked = getSafeCounterpartyKey(unmaskedNickname);
+      const pan = (safeNickname ? panMap.get(safeNickname) : null)
+               || (safeUnmasked ? panMap.get(safeUnmasked) : null)
+               || null;
 
-    // Try to match client only from explicit previously mapped counterparty keys.
-    // Never use fuzzy/exact name lookup in clients during sync (prevents wrong-client assignment).
-    let clientId: string | null = null;
-    if (verifiedName) {
-      clientId = salesClientMap.get(verifiedName.toLowerCase().trim()) || null;
-    }
-    if (!clientId && safeNickname) {
-      clientId = salesClientMap.get(safeNickname.toLowerCase().trim()) || null;
-    }
-    if (!clientId && safeUnmasked) {
-      clientId = salesClientMap.get(safeUnmasked.toLowerCase().trim()) || null;
-    }
+      // Priority 1: Lookup client via nickname link table (most reliable)
+      let clientId: string | null = null;
+      if (safeUnmasked) clientId = nicknameClientMap.get(safeUnmasked) || null;
+      if (!clientId && safeNickname) clientId = nicknameClientMap.get(safeNickname) || null;
+
+      // Priority 2: Fall back to explicit sales sync mappings
+      if (!clientId && verifiedName) {
+        clientId = salesClientMap.get(verifiedName.toLowerCase().trim()) || null;
+      }
+      if (!clientId && safeNickname) {
+        clientId = salesClientMap.get(safeNickname.toLowerCase().trim()) || null;
+      }
+      if (!clientId && safeUnmasked) {
+        clientId = salesClientMap.get(safeUnmasked.toLowerCase().trim()) || null;
+      }
 
     const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, Calendar, Tag, Phone, MapPin, FileText, IndianRupee, CreditCard, Settings, Briefcase } from "lucide-react";
+import { User, Calendar, Tag, Phone, MapPin, FileText, IndianRupee, CreditCard, Settings, Briefcase, Link2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams } from "react-router-dom";
@@ -119,6 +119,22 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         .maybeSingle();
       if (error) throw error;
       return data;
+    },
+    enabled: !!activeClientId,
+  });
+
+  // Fetch linked Binance nicknames
+  const { data: binanceNicknames = [] } = useQuery({
+    queryKey: ['client-binance-nicknames', activeClientId],
+    queryFn: async () => {
+      if (!activeClientId) return [];
+      const { data, error } = await supabase
+        .from('client_binance_nicknames')
+        .select('nickname, is_active, source, last_seen_at')
+        .eq('client_id', activeClientId)
+        .order('last_seen_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!activeClientId,
   });
@@ -395,6 +411,28 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <label className="text-sm font-medium text-gray-600">Assigned Operator</label>
           <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>
+
+        {/* Linked Binance Nicknames */}
+        {binanceNicknames.length > 0 && (
+          <div className="p-3 bg-indigo-50 rounded-md border border-indigo-200 space-y-2">
+            <label className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Link2 className="h-4 w-4" />
+              Linked Binance Nicknames
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {binanceNicknames.map((n: any) => (
+                <Badge
+                  key={n.nickname}
+                  variant={n.is_active ? "default" : "secondary"}
+                  className="text-xs"
+                >
+                  {n.nickname}
+                  {!n.is_active && <span className="ml-1 opacity-60">(inactive)</span>}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="space-y-4 pt-4 border-t">

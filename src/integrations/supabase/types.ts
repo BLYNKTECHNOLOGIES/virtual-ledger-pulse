@@ -1380,6 +1380,47 @@ export type Database = {
           },
         ]
       }
+      client_binance_nicknames: {
+        Row: {
+          client_id: string
+          created_at: string
+          first_seen_at: string
+          id: string
+          is_active: boolean
+          last_seen_at: string
+          nickname: string
+          source: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string
+          nickname: string
+          source?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          is_active?: boolean
+          last_seen_at?: string
+          nickname?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_binance_nicknames_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_communication_logs: {
         Row: {
           client_id: string

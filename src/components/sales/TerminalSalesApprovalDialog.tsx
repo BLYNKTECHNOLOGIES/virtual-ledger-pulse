@@ -683,6 +683,25 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
       }
 
+      // Auto-capture nickname→client link for future auto-matching
+      if (linkedClientId) {
+        const unmaskedNick = od.counterparty_nickname_unmasked || od.counterparty_nickname || syncRecord?.counterparty_name || '';
+        const safeNick = unmaskedNick.trim();
+        if (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') {
+          await supabase
+            .from('client_binance_nicknames')
+            .upsert({
+              client_id: linkedClientId,
+              nickname: safeNick,
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'nickname' })
+            .then(({ error }) => {
+              if (error) console.warn('[SalesApproval] Nickname link upsert failed:', error.message);
+            });
+        }
+      }
+
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval
       if (linkedClientId) {
         const { data: clientRecord } = await supabase

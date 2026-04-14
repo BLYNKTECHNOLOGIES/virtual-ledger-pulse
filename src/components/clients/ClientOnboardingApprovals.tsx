@@ -1121,7 +1121,7 @@ export function ClientOnboardingApprovals() {
                 })}
                 {pendingApprovals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                       No pending approvals found.
                     </TableCell>
                   </TableRow>

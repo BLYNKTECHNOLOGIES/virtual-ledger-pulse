@@ -135,12 +135,31 @@ export default function Purchase() {
       return;
     }
 
-    // Fetch all payment splits with bank details
+    // Fetch all payment splits with bank details (batch in chunks to avoid URL limits)
     const orderIds = allPurchaseOrders.map(o => o.id);
-    const { data: allSplits } = await supabase
-      .from('purchase_order_payment_splits')
-      .select('purchase_order_id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
-      .in('purchase_order_id', orderIds);
+    const orderNumbers = allPurchaseOrders.map(o => o.order_number).filter(Boolean);
+    
+    let allSplits: any[] = [];
+    const CHUNK = 200;
+    for (let i = 0; i < orderIds.length; i += CHUNK) {
+      const chunk = orderIds.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('purchase_order_payment_splits')
+        .select('purchase_order_id, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+        .in('purchase_order_id', chunk);
+      if (data) allSplits = allSplits.concat(data);
+    }
+
+    // Fetch bank transactions as fallback for orders without splits
+    let allBankTxns: any[] = [];
+    for (let i = 0; i < orderNumbers.length; i += CHUNK) {
+      const chunk = orderNumbers.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('bank_transactions')
+        .select('reference_number, amount, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+        .in('reference_number', chunk);
+      if (data) allBankTxns = allBankTxns.concat(data);
+    }
 
     // Group splits by order id
     const splitsByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
@@ -151,6 +170,18 @@ export default function Purchase() {
         amount: Number(s.amount) || 0,
         bank_name: s.bank_accounts?.bank_name || '',
         account_name: s.bank_accounts?.account_name || '',
+      });
+    });
+
+    // Group bank transactions by order number as fallback
+    const bankTxnsByOrderNo: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
+    (allBankTxns || []).forEach((t: any) => {
+      const ref = t.reference_number;
+      if (!bankTxnsByOrderNo[ref]) bankTxnsByOrderNo[ref] = [];
+      bankTxnsByOrderNo[ref].push({
+        amount: Number(t.amount) || 0,
+        bank_name: t.bank_accounts?.bank_name || '',
+        account_name: t.bank_accounts?.account_name || '',
       });
     });
 

@@ -71,12 +71,13 @@ export function useBinanceChatWebSocket(
   const groupIdMapRef = useRef<Map<string, string>>(new Map());
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const connectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollIntervalRef = useRef(5000);
   const maxReconnectAttempts = 5;
   const queueRef = useRef<QueuedMessage[]>([]);
-  const isConnectedRef = useRef(false);
+  const shouldReconnectRef = useRef(true);
 
   // Keep refs in sync
   useEffect(() => {

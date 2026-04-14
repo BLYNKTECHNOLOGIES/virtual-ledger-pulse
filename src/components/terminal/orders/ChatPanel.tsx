@@ -213,12 +213,9 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
     try {
       wsSendMessage(orderNumber, msg);
-      // Log which operator sent this message
       if (userId && username) {
         logSender(orderNumber, msg, userId, username);
       }
-    } catch (err) {
-      // Error handled by WS hook
     } finally {
       setIsSending(false);
     }

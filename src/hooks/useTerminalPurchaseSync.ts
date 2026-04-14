@@ -303,6 +303,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
         commission,
         counterparty_name: counterpartyName,
         counterparty_nickname: order.counter_part_nick_name,
+        counterparty_nickname_unmasked: unmaskedNickname,
         verified_name: verifiedName,
         create_time: order.create_time,
         pay_method: payMethod,

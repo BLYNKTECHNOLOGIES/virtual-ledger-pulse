@@ -1,68 +1,59 @@
 
 
-## Binance Nickname-to-Client Linking System
+## Nickname-Based Client Deduplication in Approvals
 
 ### Problem
-Client mapping during sales/purchase sync relies on fragile name matching, causing many orders to land in `client_mapping_pending`. Additionally, unmasked Binance nicknames are only visible while orders are active — once completed, Binance masks them (e.g., `Use***`).
+Currently, buyer onboarding approvals group pending records by **client name** (case-insensitive). If the same person trades under different verified names (e.g., "Vanshaj Kaistha" vs "VANSHAJ KAISTHA"), they appear as separate entries. Operators must manually cross-check order histories to determine if two clients are the same person. Seller approvals have the same issue.
 
-### Key Insight
-The `sync_p2p_order` RPC already captures the **unmasked nickname** into `p2p_order_records.counterparty_nickname` while the order is active. This is the reliable capture point. Once an operator maps a client during approval, we persist that nickname→client link. All future orders from the same nickname auto-resolve.
+The `p2p_order_records` table already has **5,580 records with unmasked nicknames** — a reliable unique identifier per Binance user. We can use this to automatically detect and surface when multiple pending approvals belong to the same counterparty.
 
 ### Architecture
 
 ```text
-Order active on terminal
-  └─ sync_p2p_order() saves unmasked nickname to p2p_order_records ✓ (already works)
-
-Sales/Purchase sync runs
-  ├─ Step 1: Lookup client_binance_nicknames WHERE nickname = unmasked_nick
-  │   ├─ FOUND → auto-assign client_id → "synced_pending_approval"
-  │   └─ NOT FOUND → fall back to name matching (existing logic)
-  └─ Step 2: On approval (operator maps client)
-      └─ INSERT nickname → client_binance_nicknames (auto-capture)
+Buyer/Seller Approval Page loads
+  ├─ Fetch pending approvals (existing)
+  ├─ For each approval, join via sales_order_id → terminal_sales_sync → p2p_order_records
+  │   to resolve the unmasked Binance nickname
+  ├─ Also check client_binance_nicknames for known client links
+  ├─ Group approvals by nickname (in addition to existing name grouping)
+  └─ Surface in UI:
+      ├─ "Binance ID" column showing unmasked nickname
+      ├─ "Same User" badge when multiple different-name approvals share a nickname
+      └─ Auto-suggest "Link to Existing" when nickname already maps to approved client
 ```
 
 ### Implementation Steps
 
-**1. Database Migration — `client_binance_nicknames` table**
-- Columns: `id` (uuid PK), `client_id` (FK to clients), `nickname` (text, UNIQUE), `is_active` (bool), `source` (text: `sync_auto` | `manual` | `approval`), `first_seen_at`, `last_seen_at`, `created_at`
-- RLS: authenticated read/insert/update
-- Unique constraint on `nickname` ensures one nickname = one client
+**1. Enrich pending approvals with Binance nicknames (buyer approvals)**
+- In `ClientOnboardingApprovals.tsx`, after fetching pending approvals, batch-query `terminal_sales_sync` for all `sales_order_id`s to get `binance_order_number`
+- Then batch-query `p2p_order_records` for those order numbers to get unmasked `counterparty_nickname`
+- Also query `client_binance_nicknames` to check if any nickname already maps to an existing approved client
+- Build a `Map<approvalId, { nickname, existingClientId? }>` for UI consumption
 
-**2. Update `useTerminalSalesSync.ts`**
-- After building the client name map, also fetch `client_binance_nicknames` for all unmasked nicknames from `p2p_order_records`
-- If a nickname match is found, use that `client_id` directly (bypasses name matching)
-- Store the unmasked nickname in `order_data.counterparty_nickname_unmasked` (same pattern as purchase sync)
+**2. Enhance the buyer approval table UI**
+- Add a "Binance ID" column showing the unmasked nickname (or "—" for legacy/non-terminal records)
+- Group pending approvals by nickname when multiple different-name approvals share one — show a colored "Same User" badge linking them
+- When a nickname already exists in `client_binance_nicknames`, show an auto-match indicator with the linked client name, pre-selecting "Link to Existing" mode
 
-**3. Update `useTerminalPurchaseSync.ts`**
-- Same nickname-based client lookup before name matching
-- Already fetches unmasked nicknames from `p2p_order_records` — add the `client_binance_nicknames` lookup step
+**3. Enhance the seller approval table (SellerOnboardingApprovals.tsx)**
+- Same nickname enrichment via `terminal_purchase_sync` → `p2p_order_records`
+- Add "Binance ID" column
+- Show "Same User" badge for sellers that share a nickname with different names
+- Auto-suggest merge when nickname links to an existing approved client
 
-**4. Update `TerminalSalesApprovalDialog.tsx`**
-- On successful approval with a client mapping, auto-insert/upsert the counterparty's unmasked nickname into `client_binance_nicknames` linked to the selected client
-- Source: `approval`
+**4. Auto-capture nickname on buyer approval**
+- When a buyer is approved (normal or merge), upsert the unmasked nickname into `client_binance_nicknames` — same pattern already used in sales/purchase approval dialogs
 
-**5. Update `TerminalPurchaseApprovalDialog.tsx`**
-- Same auto-capture logic on approval
-
-**6. Client Overview Panel**
-- Display linked Binance nicknames in a read-only section on the client detail view
-- Allow manual nickname addition/removal for admin users
-
-**7. Backfill script**
-- One-time SQL to populate `client_binance_nicknames` from existing approved sync records that have unmasked nicknames and valid `client_id` values (from both `terminal_purchase_sync` and `terminal_sales_sync`)
-
-### Critical Design Decisions
-- **Capture timing**: Unmasked nicknames are already saved by `sync_p2p_order` while orders are active — no additional capture needed at that stage
-- **Conflict handling**: If a nickname already exists for a different client, the system flags it in the approval UI rather than silently reassigning
-- **Nickname changes**: Old nicknames remain linked (historical); new ones get added on next approval. Array of nicknames per client is natural
-- **No two clients share a nickname**: Enforced by UNIQUE constraint on `nickname` column
+**5. Legacy data safety**
+- All nickname enrichment is additive (read-only lookups) — no modification to existing approval records
+- Approvals without terminal sync records (manual sales entries, legacy data) will show "—" in the Binance ID column and work exactly as before
+- The existing name-based grouping (`pendingByClient`) remains as the primary grouping; nickname grouping adds a secondary visual indicator
+- No schema changes needed — uses existing `p2p_order_records` and `client_binance_nicknames` tables
 
 ### Files to Modify
-- New migration SQL (create `client_binance_nicknames` table)
-- `src/hooks/useTerminalSalesSync.ts`
-- `src/hooks/useTerminalPurchaseSync.ts`
-- `src/components/sales/TerminalSalesApprovalDialog.tsx`
-- `src/components/purchase/TerminalPurchaseApprovalDialog.tsx`
-- `src/components/clients/ClientOverviewPanel.tsx` (or equivalent client detail component)
+- `src/components/clients/ClientOnboardingApprovals.tsx` — Nickname enrichment query + UI column + grouping badges + auto-capture on approval
+- `src/components/clients/SellerOnboardingApprovals.tsx` — Same enrichment for sellers via purchase_orders/terminal_purchase_sync
+
+### No database migration needed
+All data already exists in `p2p_order_records` and `client_binance_nicknames`.
 

@@ -755,57 +755,67 @@ export function DirectoryTab() {
               {hasActiveFilters ? "No transactions match the selected filters" : "No transactions found"}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredTransactions.map((transaction) => (
                 <div
                   key={`${transaction.source}-${transaction.id}`}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  className="p-3 md:p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-gray-100 rounded-full">
+                  <div className="flex items-start gap-2 md:gap-4">
+                    <div className="p-1.5 md:p-2 bg-gray-100 rounded-full shrink-0 mt-0.5">
                       {getTransactionIcon(transaction.display_type)}
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{transaction.display_account}</span>
-                        <Badge variant={getBadgeVariant(transaction.display_type)}>
-                          {transaction.display_type.replace('_', ' ')}
-                        </Badge>
-                        <Badge variant="outline">{transaction.source}</Badge>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm md:text-base truncate">{transaction.display_account}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            <Badge variant={getBadgeVariant(transaction.display_type)} className="text-[10px] md:text-xs px-1.5 py-0">
+                              {transaction.display_type.replace('_', ' ')}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] md:text-xs px-1.5 py-0">{transaction.source}</Badge>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className={`font-semibold text-base md:text-lg ${getTransactionColor(transaction.display_type, transaction)}`}>
+                            {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' || (transaction.display_type === 'ADJUSTMENT' && (transaction as any).adjustment_direction === 'WITHDRAWAL') ? '-' : '+'}
+                            ₹{parseFloat(transaction.display_amount.toString()).toLocaleString('en-IN')}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-xs md:text-sm text-muted-foreground">
                         {format(new Date(transaction.display_date), "MMM dd, yyyy")}{' '}
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs">
                           {format(new Date(transaction.created_at), "HH:mm:ss")}
                         </span>
                         {transaction.display_created_by && (
-                          <span className="ml-2 text-xs text-muted-foreground">
+                          <span className="ml-1 md:ml-2 text-xs">
                             by <span className="font-medium text-foreground">{transaction.display_created_by}</span>
                           </span>
                         )}
                       </div>
                       {transaction.display_description && (
-                        <div className="text-sm text-gray-500">{transaction.display_description}</div>
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">{transaction.display_description}</p>
                       )}
                       {transaction.display_reference && (
-                        <div className="text-xs text-gray-400">
+                        <p className="text-[10px] md:text-xs text-muted-foreground/70 truncate">
                           Ref: {transaction.display_reference}
-                        </div>
+                        </p>
                       )}
-                      {transaction.source === 'PURCHASE' && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          Payment from: {transaction.display_account}
-                        </div>
+                      {/* Delete button for BANK source (expense/income) only */}
+                      {transaction.source === 'BANK' && (
+                        <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 mt-1"
+                            onClick={() => handleDeleteClick(transaction)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            <span className="text-xs">Delete</span>
+                          </Button>
+                        </PermissionGate>
                       )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-semibold text-lg ${getTransactionColor(transaction.display_type, transaction)}`}>
-                      {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' || (transaction.display_type === 'ADJUSTMENT' && (transaction as any).adjustment_direction === 'WITHDRAWAL') ? '-' : '+'}
-                      ₹{parseFloat(transaction.display_amount.toString()).toLocaleString('en-IN')}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {format(new Date(transaction.created_at), "HH:mm")}
                     </div>
                   </div>
                 </div>
@@ -814,6 +824,45 @@ export function DirectoryTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Are you sure you want to delete this <strong>{transactionToDelete?.display_type?.toLowerCase()}</strong> of{' '}
+                <strong>₹{Number(transactionToDelete?.display_amount || 0).toLocaleString('en-IN')}</strong>?
+              </p>
+              <p className="text-xs">
+                <strong>Bank Account:</strong> {transactionToDelete?.display_account}
+              </p>
+              {transactionToDelete?.display_description && (
+                <p className="text-xs">
+                  <strong>Description:</strong> {transactionToDelete?.display_description}
+                </p>
+              )}
+              <p className="text-destructive font-medium text-sm mt-2">
+                {transactionToDelete?.display_type === 'EXPENSE'
+                  ? '⚠️ The bank balance will be credited back (increased) by this amount.'
+                  : '⚠️ The bank balance will be debited (decreased) by this amount.'}
+              </p>
+              <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTransactionMutation.isPending}
+            >
+              {deleteTransactionMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -8,7 +8,14 @@ import { TradeVolumeChart } from '@/components/terminal/dashboard/TradeVolumeCha
 import { AdPerformanceWidget } from '@/components/terminal/dashboard/AdPerformanceWidget';
 import { OperationalAlerts } from '@/components/terminal/dashboard/OperationalAlerts';
 import { OrderStatusBreakdown } from '@/components/terminal/dashboard/OrderStatusBreakdown';
-import { TimePeriodFilter, TimePeriod, getTimestampsForPeriod } from '@/components/terminal/dashboard/TimePeriodFilter';
+import {
+  TimePeriodFilter,
+  TimeFilter,
+  getTimestampsForFilter,
+  getFilterLabel,
+  serializeTimeFilter,
+  deserializeTimeFilter,
+} from '@/components/terminal/dashboard/TimePeriodFilter';
 import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncMetadata } from '@/hooks/useBinanceOrderSync';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
@@ -29,9 +36,15 @@ export default function TerminalDashboard() {
   const { data: syncMeta } = useSyncMetadata();
   const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   const canExport = hasPermission('terminal_dashboard_export') || isTerminalAdmin;
-  const [prefs, setPref] = useTerminalUserPrefs(userId, 'dashboard', { period: '30d' as string });
-  const period = prefs.period as any;
-  const setPeriod = (v: any) => setPref('period', v);
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'dashboard', { filter: '' as string });
+
+  // Deserialize filter from prefs
+  const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
+  const setFilter = useCallback(
+    (f: TimeFilter) => setPref('filter', serializeTimeFilter(f)),
+    [setPref]
+  );
+
   const [universalSyncing, setUniversalSyncing] = useState(false);
 
   // Universal sync: triggers all terminal sync operations in parallel
@@ -43,9 +56,7 @@ export default function TerminalDashboard() {
     const errors: string[] = [];
 
     try {
-      // Run all syncs in parallel
       const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
-        // 1. Order history sync
         new Promise<string>((resolve, reject) => {
           syncMutation.mutate(
             { fullSync: false },
@@ -55,37 +66,24 @@ export default function TerminalDashboard() {
             }
           );
         }),
-        // 2. Purchase sync (completed BUY orders → terminal_purchase_sync)
         syncCompletedBuyOrders().then(r => `Purchases: ${r.synced} synced, ${r.duplicates} skipped`),
-        // 3. Sales sync (completed SELL orders → terminal_sales_sync)
         syncCompletedSellOrders().then(r => `Sales: ${r.synced} synced, ${r.duplicates} skipped`),
-        // 4. Small sales sync
         syncSmallSales().then(r => `Small Sales: ${r.synced} synced`).catch(() => 'Small Sales: skipped (not configured)'),
-        // 5. Small buys sync
         syncSmallBuys().then(r => `Small Buys: ${r.synced} synced`).catch(() => 'Small Buys: skipped (not configured)'),
-        // 6. Asset movement sync
         supabase.functions.invoke('binance-assets', {
           body: { action: 'syncAssetMovements', force: false },
         }).then(() => 'Asset movements synced'),
-        // 7. Spot trade sync from Binance
         syncSpotTradesFromBinance().then(r => `Spot Trades: ${r.synced} synced`),
-        // 8. Spot trades → ERP conversions
         syncSpotTradesToConversions().then(r => `Spot Conversions: ${r.inserted} created`).catch(() => 'Spot Conversions: skipped'),
       ]);
 
-      // Collect results
       for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult]) {
-        if (r.status === 'fulfilled') {
-          results.push(r.value);
-        } else {
-          errors.push(String(r.reason));
-        }
+        if (r.status === 'fulfilled') results.push(r.value);
+        else errors.push(String(r.reason));
       }
 
       if (errors.length === 0) {
-        toast.success('Universal sync complete', {
-          description: results.join(' · '),
-        });
+        toast.success('Universal sync complete', { description: results.join(' · ') });
       } else {
         toast.warning(`Sync partially complete (${errors.length} errors)`, {
           description: [...results, ...errors.map(e => `❌ ${e}`)].join(' · '),
@@ -121,15 +119,15 @@ export default function TerminalDashboard() {
     }));
   }, [cachedOrders]);
 
-  // Filter orders by selected period
+  // Filter orders by selected filter
   const orders = useMemo(() => {
-    const { startTimestamp } = getTimestampsForPeriod(period);
-    return allOrders.filter(o => o.createTime >= startTimestamp);
-  }, [allOrders, period]);
+    const { startTimestamp, endTimestamp } = getTimestampsForFilter(filter);
+    return allOrders.filter(o => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
+  }, [allOrders, filter]);
 
   const stats = useMemo(() => computeOrderStats(orders), [orders]);
 
-  const periodLabel = period === '1d' ? 'Today' : period === '7d' ? 'Last 7 Days' : period === '30d' ? 'Last 30 Days' : 'Last 1 Year';
+  const periodLabel = getFilterLabel(filter);
 
   const lastSyncLabel = syncMeta?.last_sync_at
     ? `Synced ${new Date(syncMeta.last_sync_at).toLocaleTimeString()}`
@@ -144,8 +142,8 @@ export default function TerminalDashboard() {
           <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
           <p className="text-xs text-muted-foreground mt-0.5">P2P Trading Operations · {periodLabel}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <TimePeriodFilter value={period} onChange={setPeriod} />
+        <div className="flex items-center gap-3 flex-wrap">
+          <TimePeriodFilter value={filter} onChange={setFilter} />
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Database className="h-3 w-3" />
             <span>{orders.length.toLocaleString('en-IN')} orders</span>
@@ -190,7 +188,7 @@ export default function TerminalDashboard() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TradeVolumeChart orders={orders} isLoading={dbLoading} period={period} />
+        <TradeVolumeChart orders={orders} isLoading={dbLoading} period={filter.mode === '1d' ? '1d' : filter.mode} />
         <OrderStatusBreakdown orders={orders} isLoading={dbLoading} />
       </div>
 

@@ -359,7 +359,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       synced_by: userId || null,
       synced_at: new Date().toISOString(),
       resolved_via: resolvedVia,
-  }
+    });
 
   if (toInsert.length > 0) {
     const { error: insertErr } = await supabase

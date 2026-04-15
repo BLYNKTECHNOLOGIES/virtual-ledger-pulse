@@ -235,6 +235,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         clientNameMap: clientMap,
       });
       const clientId = resolved.clientId;
+      const resolvedVia = resolved.resolvedVia;
 
       // Force manual mapping if we couldn't resolve a real name
       const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');

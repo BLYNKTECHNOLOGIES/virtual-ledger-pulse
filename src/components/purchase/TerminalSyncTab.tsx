@@ -328,6 +328,13 @@ export function TerminalSyncTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8">
+                  <Checkbox
+                    checked={allPendingSelected && pendingRecordsList.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all pending"
+                  />
+                </TableHead>
                 <TableHead className="text-xs">Order #</TableHead>
                 <TableHead className="text-xs">Seller</TableHead>
                 <TableHead className="text-xs">Amount (₹)</TableHead>

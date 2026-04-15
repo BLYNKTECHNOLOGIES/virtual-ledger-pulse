@@ -173,14 +173,22 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     }
   }, [order, products]);
 
-  // Initialize splits from existing data
+  // Initialize splits from existing data — also backfill formData if main field is empty
   useEffect(() => {
     if (existingSplits && existingSplits.length > 0) {
-      setIsMultiplePayments(existingSplits.length > 1 || !!order?.is_split_payment);
+      const isMulti = existingSplits.length > 1 || !!order?.is_split_payment;
+      setIsMultiplePayments(isMulti);
       setPaymentSplits(existingSplits.map((s: any) => ({
         payment_method_id: s.payment_method_id || '',
         amount: String(s.amount || ''),
       })));
+      // Backfill single-select value from split when main order field is empty
+      if (!isMulti && existingSplits.length === 1 && existingSplits[0].payment_method_id) {
+        setFormData(prev => prev.sales_payment_method_id
+          ? prev
+          : { ...prev, sales_payment_method_id: existingSplits[0].payment_method_id }
+        );
+      }
     } else if (order?.is_split_payment) {
       setIsMultiplePayments(true);
       setPaymentSplits([{ payment_method_id: '', amount: '' }]);

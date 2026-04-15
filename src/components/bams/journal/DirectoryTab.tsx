@@ -54,19 +54,19 @@ export function DirectoryTab() {
       if (error) throw error;
 
       // Log the action
-      await logActionWithCurrentUser(
-        ActionTypes.DELETE,
-        EntityTypes.BANK_TRANSACTION,
-        Modules.BAMS,
-        {
-          transaction_id: transaction.id,
+      await logActionWithCurrentUser({
+        actionType: 'bank.transaction_deleted',
+        entityType: EntityTypes.BANK_TRANSACTION,
+        entityId: transaction.id,
+        module: Modules.BAMS,
+        metadata: {
           transaction_type: transaction.display_type,
           amount: transaction.display_amount,
           bank_account: transaction.display_account,
           category: transaction.category,
           description: transaction.display_description,
         }
-      );
+      });
     },
     onSuccess: () => {
       toast({

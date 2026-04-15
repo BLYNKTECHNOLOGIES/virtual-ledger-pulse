@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -28,6 +28,9 @@ interface Props {
   onClose: () => void;
   onOpenChat: (conversation: ChatConversation) => void;
 }
+
+/** Session-level set of order numbers whose chats have been opened in this terminal session */
+const readOrderNumbers = new Set<string>();
 
 export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [tab, setTab] = useState<'all' | 'unread'>('all');

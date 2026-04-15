@@ -358,7 +358,15 @@ export function TerminalSyncTab() {
 
                 return (
                   <TableRow key={record.id}>
-                    <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
+                    <TableCell className="w-8">
+                      {PENDING_SYNC_STATUSES.includes(record.sync_status) ? (
+                        <Checkbox
+                          checked={selectedIds.has(record.id)}
+                          onCheckedChange={() => toggleSelect(record.id)}
+                          aria-label={`Select order ${record.binance_order_number}`}
+                        />
+                      ) : null}
+                    </TableCell>
                     <TableCell className="text-xs">
                       {isMaskedName ? (
                         <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">

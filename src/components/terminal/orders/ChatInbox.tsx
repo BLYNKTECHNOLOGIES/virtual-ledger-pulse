@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -29,9 +29,20 @@ interface Props {
   onOpenChat: (conversation: ChatConversation) => void;
 }
 
+/** Session-level set of order numbers whose chats have been opened in this terminal session */
+export const readOrderNumbers = new Set<string>();
+
 export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const [search, setSearch] = useState('');
+  // Force re-render when we mark an order as read locally
+  const [, setReadVersion] = useState(0);
+
+  const handleOpenChat = useCallback((conv: ChatConversation) => {
+    readOrderNumbers.add(conv.orderNumber);
+    setReadVersion(v => v + 1);
+    onOpenChat(conv);
+  }, [onOpenChat]);
 
   const { data: activeOrdersData, isLoading: activeLoading } = useBinanceActiveOrders();
   const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();
@@ -54,7 +65,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         amount: o.amount || '0',
         totalPrice: o.totalPrice || '0',
         orderStatus: String(o.orderStatus),
-        chatUnreadCount: o.chatUnreadCount || 0,
+        chatUnreadCount: readOrderNumbers.has(o.orderNumber) ? 0 : (o.chatUnreadCount || 0),
         createTime: o.createTime || 0,
         source: 'active',
       });
@@ -176,7 +187,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
               <ConversationRow
                 key={conv.orderNumber}
                 conversation={conv}
-                onClick={() => onOpenChat(conv)}
+                onClick={() => handleOpenChat(conv)}
               />
             ))}
           </div>

@@ -14,6 +14,7 @@ import { QuickReplyBar } from './chat/QuickReplyBar';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
+import { readOrderNumbers } from './ChatInbox';
 
 interface Props {
   orderId: string;
@@ -42,7 +43,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   const shouldAutoScrollRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
 
-  // Persist sound preference
+  // Mark this order's chat as read locally so ChatInbox clears the unread badge
+  useEffect(() => {
+    if (orderNumber) {
+      readOrderNumbers.add(orderNumber);
+    }
+  }, [orderNumber]);
+
   useEffect(() => {
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
   }, [soundEnabled]);

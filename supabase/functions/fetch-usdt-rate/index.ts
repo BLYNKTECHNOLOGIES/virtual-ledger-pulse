@@ -21,7 +21,7 @@ serve(async (req) => {
       throw new Error("Missing Binance configuration secrets");
     }
 
-    // Priority 1: Binance P2P / ticker
+    // Priority 1: Binance P2P / ticker (primary — our own exchange)
     try {
       const rate = await fetchBinanceP2PRate(BINANCE_PROXY_URL, BINANCE_API_KEY);
       if (rate) {
@@ -31,7 +31,7 @@ serve(async (req) => {
       console.error("Binance P2P fetch failed:", e);
     }
 
-    // Priority 2: Binance ticker (cross-rate via BTC)
+    // Priority 2: Binance ticker cross-rate (BTC/INR ÷ BTC/USDT)
     try {
       const rate = await fetchBinanceTickerRate(BINANCE_PROXY_URL, BINANCE_API_KEY);
       if (rate) {
@@ -41,17 +41,7 @@ serve(async (req) => {
       console.error("Binance ticker fetch failed:", e);
     }
 
-    // Fallback 1: CryptoCompare (free, no auth, direct USDT→INR)
-    try {
-      const rate = await fetchCryptoCompareRate();
-      if (rate) {
-        return jsonResponse({ rate, source: "CryptoCompare", timestamp: new Date().toISOString() });
-      }
-    } catch (e) {
-      console.error("CryptoCompare fetch failed:", e);
-    }
-
-    // Fallback 2: CoinGecko (free, no auth)
+    // Fallback 1: CoinGecko (free, no auth, 0.04% accuracy)
     try {
       const cgResponse = await fetch(
         "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
@@ -67,17 +57,34 @@ serve(async (req) => {
       console.error("CoinGecko fetch failed:", e);
     }
 
-    // Fallback 3: CoinCap + ExchangeRate-API cross-rate (USDT→USD * USD→INR)
+    // Fallback 2: Coinbase (free, no auth, 0.06% accuracy)
     try {
-      const rate = await fetchCoinCapCrossRate();
-      if (rate) {
-        return jsonResponse({ rate, source: "CoinCap+ER-API", timestamp: new Date().toISOString() });
+      const cbResponse = await fetch(
+        "https://api.coinbase.com/v2/exchange-rates?currency=USDT",
+        { headers: { Accept: "application/json" } }
+      );
+      if (cbResponse.ok) {
+        const data = await cbResponse.json();
+        const inrRate = parseFloat(data?.data?.rates?.INR);
+        if (inrRate > 0) {
+          return jsonResponse({ rate: parseFloat(inrRate.toFixed(2)), source: "Coinbase", timestamp: new Date().toISOString() });
+        }
       }
     } catch (e) {
-      console.error("CoinCap cross-rate fetch failed:", e);
+      console.error("Coinbase fetch failed:", e);
     }
 
-    // All sources exhausted — return unavailable
+    // Fallback 3: Kraken USDT/USD × USD/INR cross-rate (0.10% accuracy)
+    try {
+      const rate = await fetchKrakenCrossRate();
+      if (rate) {
+        return jsonResponse({ rate, source: "Kraken", timestamp: new Date().toISOString() });
+      }
+    } catch (e) {
+      console.error("Kraken cross-rate fetch failed:", e);
+    }
+
+    // All sources exhausted
     console.error("All USDT/INR price sources failed");
     return jsonResponse({ rate: null, source: "Unavailable", timestamp: new Date().toISOString(), error: "All price sources failed" });
 
@@ -97,34 +104,22 @@ function jsonResponse(data: Record<string, unknown>, status = 200) {
   });
 }
 
-async function fetchCryptoCompareRate(): Promise<number | null> {
-  const response = await fetch(
-    "https://min-api.cryptocompare.com/data/price?fsym=USDT&tsyms=INR",
-    { headers: { Accept: "application/json" } }
-  );
-  if (response.ok) {
-    const data = await response.json();
-    if (data.INR && typeof data.INR === "number" && data.INR > 0) {
-      return parseFloat(data.INR.toFixed(2));
-    }
-  }
-  return null;
-}
-
-async function fetchCoinCapCrossRate(): Promise<number | null> {
-  // CoinCap gives USDT price in USD, then convert USD→INR via free forex API
-  const [capRes, fxRes] = await Promise.all([
-    fetch("https://api.coincap.io/v2/rates/tether", { headers: { Accept: "application/json" } }),
+async function fetchKrakenCrossRate(): Promise<number | null> {
+  const [krakenRes, fxRes] = await Promise.all([
+    fetch("https://api.kraken.com/0/public/Ticker?pair=USDTUSD", { headers: { Accept: "application/json" } }),
     fetch("https://open.er-api.com/v6/latest/USD", { headers: { Accept: "application/json" } }),
   ]);
 
-  if (capRes.ok && fxRes.ok) {
-    const capData = await capRes.json();
+  if (krakenRes.ok && fxRes.ok) {
+    const krakenData = await krakenRes.json();
     const fxData = await fxRes.json();
-    const usdtUsd = parseFloat(capData?.data?.rateUsd);
-    const usdInr = fxData?.rates?.INR;
-    if (usdtUsd > 0 && usdInr > 0) {
-      return parseFloat((usdtUsd * usdInr).toFixed(2));
+    const pairKey = Object.keys(krakenData?.result || {})[0];
+    if (pairKey) {
+      const usdtUsd = parseFloat(krakenData.result[pairKey].c[0]);
+      const usdInr = fxData?.rates?.INR;
+      if (usdtUsd > 0 && usdInr > 0) {
+        return parseFloat((usdtUsd * usdInr).toFixed(2));
+      }
     }
   }
   return null;

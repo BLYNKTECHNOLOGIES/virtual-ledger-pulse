@@ -286,7 +286,11 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           <div>
             <label className="text-sm font-medium text-muted-foreground">Risk Appetite</label>
             <Select
-              value={client.risk_appetite || 'STANDARD'}
+              value={
+                ['PREMIUM', 'ESTABLISHED', 'STANDARD', 'CAUTIOUS', 'HIGH_RISK'].includes(client.risk_appetite)
+                  ? client.risk_appetite
+                  : 'STANDARD'
+              }
               onValueChange={async (value) => {
                 const { error } = await supabase
                   .from('clients')

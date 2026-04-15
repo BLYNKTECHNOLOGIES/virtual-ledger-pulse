@@ -164,17 +164,23 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     }
   }, [order, existingWalletCredit]);
 
-  // Initialize splits from existing data
+  // Initialize splits from existing data — also backfill formData if main field is empty
   useEffect(() => {
     if (existingSplits && existingSplits.length > 0) {
-      // Existing split payment records found — load them faithfully
-      setIsMultiplePayments(existingSplits.length > 1);
+      const isMulti = existingSplits.length > 1;
+      setIsMultiplePayments(isMulti);
       setPaymentSplits(existingSplits.map((s: any) => ({
         bank_account_id: s.bank_account_id || '',
         amount: String(s.amount || ''),
       })));
+      // Backfill single-select value from split when main order field is empty
+      if (!isMulti && existingSplits.length === 1 && existingSplits[0].bank_account_id) {
+        setFormData(prev => prev.bank_account_id
+          ? prev
+          : { ...prev, bank_account_id: existingSplits[0].bank_account_id }
+        );
+      }
     } else if (order?.bank_account_id) {
-      // Single bank account order — initialize with that bank and net payable
       setIsMultiplePayments(false);
       setPaymentSplits([{ 
         bank_account_id: order.bank_account_id, 

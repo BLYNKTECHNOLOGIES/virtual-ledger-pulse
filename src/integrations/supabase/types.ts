@@ -1689,6 +1689,44 @@ export type Database = {
           },
         ]
       }
+      client_verified_names: {
+        Row: {
+          client_id: string
+          created_at: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          source: string
+          verified_name: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          source?: string
+          verified_name: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          source?: string
+          verified_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_verified_names_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           aadhar_back_url: string | null

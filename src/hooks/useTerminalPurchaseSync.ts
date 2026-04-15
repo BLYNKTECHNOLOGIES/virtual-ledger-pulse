@@ -262,7 +262,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const toInsert: any[] = [];
     const newOrders = allEligible.filter(o => !existingSet.has(o.order_number));
     duplicates = allEligible.length - newOrders.length;
-
+  }
 
     for (const order of newOrders) {
       // Enrich: fetch verified seller name if not already available

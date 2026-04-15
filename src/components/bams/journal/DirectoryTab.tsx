@@ -716,14 +716,14 @@ export function DirectoryTab() {
 
       {/* Transactions List */}
       <Card className="shadow-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
-              All Transactions Directory
-              <Badge variant="secondary">{filteredTransactions?.length || 0} entries</Badge>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3">
+            <CardTitle className="flex items-center gap-2 flex-wrap">
+              <ArrowRightLeft className="h-5 w-5 text-blue-600 shrink-0" />
+              <span className="text-base md:text-lg">All Transactions</span>
+              <Badge variant="secondary" className="text-xs">{filteredTransactions?.length || 0}</Badge>
               {hasActiveFilters && (
-                <Badge variant="outline" className="text-blue-600">
+                <Badge variant="outline" className="text-blue-600 text-xs">
                   Filtered
                 </Badge>
               )}
@@ -731,20 +731,22 @@ export function DirectoryTab() {
             <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
+                size="sm"
                 onClick={downloadCSV} 
-                className="flex items-center gap-2"
+                className="flex items-center gap-1.5 text-xs"
                 disabled={!filteredTransactions || filteredTransactions.length === 0}
               >
-                <Download className="h-4 w-4" />
-                Download CSV
+                <Download className="h-3.5 w-3.5" />
+                CSV
               </Button>
               <Button 
+                size="sm"
                 onClick={generatePDF} 
-                className="flex items-center gap-2"
+                className="flex items-center gap-1.5 text-xs"
                 disabled={!filteredTransactions || filteredTransactions.length === 0}
               >
-                <FileText className="h-4 w-4" />
-                Generate PDF
+                <FileText className="h-3.5 w-3.5" />
+                PDF
               </Button>
             </div>
           </div>

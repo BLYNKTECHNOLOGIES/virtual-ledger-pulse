@@ -272,9 +272,13 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       synced = toInsert.length;
     }
 
-    // Auto-backfill: capture unmasked nicknames for matched clients into client_binance_nicknames
+    // Auto-backfill: capture unmasked nicknames + verified names for matched clients
     for (const rec of toInsert) {
       if (!rec.client_id) continue;
+
+      // Capture verified name into client_verified_names
+      await captureVerifiedName(rec.client_id, rec.order_data?.verified_name, 'auto_sync');
+
       const unmasked = rec.order_data?.counterparty_nickname_unmasked;
       const safeNick = rec.order_data?.counterparty_nickname;
       const nicksToCapture = [

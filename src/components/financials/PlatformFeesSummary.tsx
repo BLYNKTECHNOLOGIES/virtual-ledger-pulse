@@ -14,7 +14,7 @@ interface PlatformFeesSummaryProps {
 
 export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryProps) {
   const { data: usdtRateData } = useUSDTRate();
-  const fallbackRate = usdtRateData?.rate || 84.5;
+  const fallbackRate = usdtRateData?.rate || 0;
 
   // Helper: get the best INR value for a fee deduction record
   const getFeeINR = (d: any): number => {

@@ -163,12 +163,12 @@ export function BulkHybridAdjustDialog({ open, onOpenChange, ads, onComplete }: 
               </div>
             </div>
 
-            <div className="bg-muted/50 rounded-lg p-3 flex items-center gap-2 text-sm">
-              <Info className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className={`rounded-lg p-3 flex items-center gap-2 text-sm ${rateData?.isFallback ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/50'}`}>
+              <Info className={`h-4 w-4 shrink-0 ${rateData?.isFallback ? 'text-destructive' : 'text-muted-foreground'}`} />
               <div>
-                <span className="text-muted-foreground">Live USDT/INR: </span>
-                <span className="font-medium">₹{liveRate.toFixed(2)}</span>
-                <span className="text-xs text-muted-foreground ml-2">({rateData?.source})</span>
+                <span className={rateData?.isFallback ? 'text-destructive' : 'text-muted-foreground'}>Live USDT/INR: </span>
+                <span className={`font-medium ${rateData?.isFallback ? 'text-destructive' : ''}`}>₹{liveRate.toFixed(2)}</span>
+                <span className={`text-xs ml-2 ${rateData?.isFallback ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>({rateData?.source})</span>
               </div>
             </div>
 

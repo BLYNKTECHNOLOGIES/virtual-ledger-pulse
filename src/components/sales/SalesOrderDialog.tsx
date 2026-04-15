@@ -151,7 +151,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       return { feeINR: 0, feeUSDT: 0, feePercentage: 0 };
     }
 
-    const usdtRate = usdtRateData?.rate || 84.5;
+    const usdtRate = usdtRateData?.rate || 0;
     const { feeINR, feeUSDT } = calculatePlatformFeeInUSDT(
       formData.amount,
       selectedWallet.fee_percentage,

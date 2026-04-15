@@ -216,7 +216,49 @@ export function TerminalSyncTab() {
 
   const pendingCount = syncRecords.filter((r: any) => PENDING_SYNC_STATUSES.includes(r.sync_status)).length;
 
-  return (
+  const pendingRecordsList = syncRecords.filter((r: any) => PENDING_SYNC_STATUSES.includes(r.sync_status));
+  const allPendingSelected = pendingRecordsList.length > 0 && pendingRecordsList.every((r: any) => selectedIds.has(r.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingRecordsList.map((r: any) => r.id)));
+    }
+  };
+
+  // Bulk reject mutation
+  const bulkRejectMutation = useMutation({
+    mutationFn: async ({ ids, reason }: { ids: string[]; reason: string }) => {
+      const userId = getCurrentUserId();
+      const { error } = await supabase
+        .from('terminal_purchase_sync')
+        .update({
+          sync_status: 'rejected',
+          rejection_reason: reason,
+          reviewed_by: userId || null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast({ title: `${count} orders rejected` });
+      queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      setSelectedIds(new Set());
+      setBulkRejectOpen(false);
+      setBulkRejectReason("");
+    },
+  });
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">

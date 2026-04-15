@@ -35,6 +35,14 @@ const readOrderNumbers = new Set<string>();
 export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const [search, setSearch] = useState('');
+  // Force re-render when we mark an order as read locally
+  const [, setReadVersion] = useState(0);
+
+  const handleOpenChat = useCallback((conv: ChatConversation) => {
+    readOrderNumbers.add(conv.orderNumber);
+    setReadVersion(v => v + 1);
+    onOpenChat(conv);
+  }, [onOpenChat]);
 
   const { data: activeOrdersData, isLoading: activeLoading } = useBinanceActiveOrders();
   const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();

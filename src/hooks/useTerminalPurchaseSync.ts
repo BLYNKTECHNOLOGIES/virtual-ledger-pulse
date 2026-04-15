@@ -305,6 +305,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
         clientNameMap,
       });
       let clientId = resolved.clientId;
+      const resolvedVia = resolved.resolvedVia;
 
       // Fallback: explicit sales sync mappings (purchase-specific cross-reference)
       if (!clientId && verifiedName) {

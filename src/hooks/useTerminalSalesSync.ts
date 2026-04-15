@@ -266,6 +266,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
         state: contact?.state || null,
         synced_by: userId || null,
         synced_at: new Date().toISOString(),
+        resolved_via: resolvedVia,
       });
     }
 

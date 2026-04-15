@@ -355,6 +355,13 @@ export function TerminalSalesSyncTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8">
+                  <Checkbox
+                    checked={allPendingSelected && pendingRecordsList.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all pending"
+                  />
+                </TableHead>
                 <TableHead className="text-xs">Order #</TableHead>
                 <TableHead className="text-xs">Buyer</TableHead>
                 <TableHead className="text-xs">Amount (₹)</TableHead>
@@ -372,11 +379,20 @@ export function TerminalSalesSyncTab() {
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
                 const verifiedName = od?.verified_name;
                 const buyerDisplay = verifiedName || null;
-                const isPendingVerifiedName = !verifiedName && (record.sync_status === 'synced_pending_approval' || record.sync_status === 'client_mapping_pending');
+                const isPendingVerifiedName = !verifiedName && PENDING_STATUSES.includes(record.sync_status);
                 const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
 
                 return (
                   <TableRow key={record.id} className={isPendingVerifiedName ? 'opacity-60' : ''}>
+                    <TableCell className="w-8">
+                      {PENDING_STATUSES.includes(record.sync_status) ? (
+                        <Checkbox
+                          checked={selectedIds.has(record.id)}
+                          onCheckedChange={() => toggleSelect(record.id)}
+                          aria-label={`Select order ${record.binance_order_number}`}
+                        />
+                      ) : null}
+                    </TableCell>
                     <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
                     <TableCell className="text-xs">
                       {buyerDisplay ? buyerDisplay : (

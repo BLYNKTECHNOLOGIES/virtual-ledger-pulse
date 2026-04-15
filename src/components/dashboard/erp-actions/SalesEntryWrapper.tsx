@@ -600,7 +600,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               </div>
               <Input
                 type="number"
-                step="0.0001"
+                step="any"
                 min="0"
                 value={binanceCommission || ''}
                 onChange={(e) => setBinanceCommission(parseFloat(e.target.value) || 0)}

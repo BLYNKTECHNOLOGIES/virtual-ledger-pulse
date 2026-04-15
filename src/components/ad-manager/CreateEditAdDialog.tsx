@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -341,13 +341,36 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
   };
 
   const adjustPrice = (delta: number) => {
-    const current = Number(form.price) || 0;
-    let next = current + delta;
-    if (priceRange) {
-      next = Math.max(priceRange.min, Math.min(priceRange.max, next));
-    }
-    setForm({ ...form, price: String(Math.max(0, next)) });
+    setForm(prev => {
+      const current = Number(prev.price) || 0;
+      // Round to avoid floating-point drift (e.g. 98.66 + 0.01 = 98.6699...)
+      const decimals = (String(delta).split('.')[1] || '').length;
+      let next = parseFloat((current + delta).toFixed(Math.max(decimals, 2)));
+      if (priceRange) {
+        next = Math.max(priceRange.min, Math.min(priceRange.max, next));
+      }
+      return { ...prev, price: String(Math.max(0, next)) };
+    });
   };
+
+  // Press-and-hold: continuously adjust price while button is held down
+  const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startHold = (delta: number) => {
+    adjustPrice(delta); // immediate first step
+    holdTimeoutRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => adjustPrice(delta), 100);
+    }, 400); // 400ms delay before continuous repeat
+  };
+
+  const stopHold = () => {
+    if (holdTimeoutRef.current) { clearTimeout(holdTimeoutRef.current); holdTimeoutRef.current = null; }
+    if (holdIntervalRef.current) { clearInterval(holdIntervalRef.current); holdIntervalRef.current = null; }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => () => stopHold(), []);
 
   const isSubmitting = postAd.isPending || updateAd.isPending;
   const noSellMethods = !isBuyAd && !isLoadingPayMethods && sellAdPayMethods.length === 0;
@@ -443,7 +466,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
               <div>
                 <Label>Price ({form.fiatUnit})</Label>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(-priceStep)}>
+                  <Button variant="outline" size="icon" type="button"
+                    onMouseDown={() => startHold(-priceStep)}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={() => startHold(-priceStep)}
+                    onTouchEnd={stopHold}
+                  >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
@@ -455,7 +484,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
                     onChange={(e) => setForm({ ...form, price: e.target.value })}
                     className={cn("text-center", isPriceOutOfRange && "border-destructive focus-visible:ring-destructive")}
                   />
-                  <Button variant="outline" size="icon" type="button" onClick={() => adjustPrice(priceStep)}>
+                  <Button variant="outline" size="icon" type="button"
+                    onMouseDown={() => startHold(priceStep)}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={() => startHold(priceStep)}
+                    onTouchEnd={stopHold}
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>

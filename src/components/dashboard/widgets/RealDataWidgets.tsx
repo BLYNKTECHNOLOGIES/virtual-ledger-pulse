@@ -1083,10 +1083,10 @@ export function InventoryStatusWidget() {
       ]);
 
       // Get USDT/INR rate
-      let usdtInrRate = 84.5;
+      let usdtInrRate = 0;
       try {
         const { data: rateData } = await supabase.functions.invoke('fetch-usdt-rate');
-        if (rateData?.rate) usdtInrRate = rateData.rate;
+        if (rateData?.rate && rateData?.source !== 'Fallback') usdtInrRate = rateData.rate;
       } catch (err) { console.warn('[RealDataWidgets] Failed to fetch USDT rate:', err); }
 
       // Aggregate balances

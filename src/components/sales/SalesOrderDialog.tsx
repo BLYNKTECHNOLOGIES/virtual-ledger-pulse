@@ -151,7 +151,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
       return { feeINR: 0, feeUSDT: 0, feePercentage: 0 };
     }
 
-    const usdtRate = usdtRateData?.rate || 84.5;
+    const usdtRate = usdtRateData?.rate || 0;
     const { feeINR, feeUSDT } = calculatePlatformFeeInUSDT(
       formData.amount,
       selectedWallet.fee_percentage,
@@ -659,9 +659,10 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                       <Label htmlFor="off_market" className="font-medium">Off Market (No Platform Fee)</Label>
                     </div>
                     {usdtRateData && (
-                      <Badge variant="outline" className="flex items-center gap-1">
+                      <Badge variant={usdtRateData.isFallback ? "destructive" : "outline"} className="flex items-center gap-1">
                         <TrendingUp className="h-3 w-3" />
                         USDT/INR: ₹{usdtRateData.rate.toFixed(2)}
+                        {usdtRateData.isFallback && <span className="text-[10px]">({usdtRateData.source})</span>}
                       </Badge>
                     )}
                   </div>

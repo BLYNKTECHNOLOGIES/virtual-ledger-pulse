@@ -5,10 +5,29 @@ interface USDTRateData {
   rate: number;
   timestamp: Date;
   source: string;
+  isFallback: boolean;
 }
 
-// Default fallback rate when all sources are unavailable
-const FALLBACK_RATE = 84.5;
+const CACHE_KEY = "usdt_inr_last_known_rate";
+
+function getLastKnownRate(): number | null {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed?.rate && typeof parsed.rate === "number" && parsed.rate > 0) {
+        return parsed.rate;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function cacheRate(rate: number) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ rate, cachedAt: Date.now() }));
+  } catch {}
+}
 
 async function fetchUSDTRate(): Promise<USDTRateData> {
   try {
@@ -19,23 +38,41 @@ async function fetchUSDTRate(): Promise<USDTRateData> {
       throw error;
     }
 
-    if (data?.rate) {
+    if (data?.rate && data?.source !== "Fallback") {
+      cacheRate(data.rate);
       return {
         rate: data.rate,
         timestamp: new Date(data.timestamp || Date.now()),
         source: data.source || "Binance",
+        isFallback: false,
       };
     }
 
-    throw new Error("Invalid response from edge function");
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.debug("[useUSDTRate] Using fallback rate due to:", error instanceof Error ? error.message : "API unavailable");
+    // Edge function returned fallback — use last known rate instead
+    if (data?.source === "Fallback") {
+      console.warn("[useUSDTRate] Edge function returned fallback, using last known rate");
     }
+
+    throw new Error("Primary source unavailable");
+  } catch (error) {
+    const lastKnown = getLastKnownRate();
+    if (lastKnown) {
+      console.warn(`[useUSDTRate] Using last known rate: ₹${lastKnown}`);
+      return {
+        rate: lastKnown,
+        timestamp: new Date(),
+        source: "Last Known Rate",
+        isFallback: true,
+      };
+    }
+
+    // No cached rate available — return 0 to force UI to show error state
+    console.error("[useUSDTRate] No cached rate available. Rate unavailable.");
     return {
-      rate: FALLBACK_RATE,
+      rate: 0,
       timestamp: new Date(),
-      source: "Fallback",
+      source: "Unavailable",
+      isFallback: true,
     };
   }
 }

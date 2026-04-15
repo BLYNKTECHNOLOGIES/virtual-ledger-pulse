@@ -51,7 +51,7 @@ export function AddProductDialog({ open, onOpenChange, editingProduct, onProduct
   const saveProductMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Auto-calculate prices from live market rate
-      const marketRate = usdtRateData?.rate || 84.5;
+      const marketRate = usdtRateData?.rate || 0;
       const costPrice = parseFloat(marketRate.toFixed(2));
       const sellingPrice = parseFloat((costPrice * 1.05).toFixed(2));
 

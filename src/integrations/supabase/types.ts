@@ -13009,6 +13009,7 @@ export type Database = {
           pan_number: string | null
           purchase_order_id: string | null
           rejection_reason: string | null
+          resolved_via: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           sync_status: string
@@ -13025,6 +13026,7 @@ export type Database = {
           pan_number?: string | null
           purchase_order_id?: string | null
           rejection_reason?: string | null
+          resolved_via?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           sync_status?: string
@@ -13041,6 +13043,7 @@ export type Database = {
           pan_number?: string | null
           purchase_order_id?: string | null
           rejection_reason?: string | null
+          resolved_via?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           sync_status?: string
@@ -13073,6 +13076,7 @@ export type Database = {
           id: string
           order_data: Json | null
           rejection_reason: string | null
+          resolved_via: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           sales_order_id: string | null
@@ -13089,6 +13093,7 @@ export type Database = {
           id?: string
           order_data?: Json | null
           rejection_reason?: string | null
+          resolved_via?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           sales_order_id?: string | null
@@ -13105,6 +13110,7 @@ export type Database = {
           id?: string
           order_data?: Json | null
           rejection_reason?: string | null
+          resolved_via?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           sales_order_id?: string | null

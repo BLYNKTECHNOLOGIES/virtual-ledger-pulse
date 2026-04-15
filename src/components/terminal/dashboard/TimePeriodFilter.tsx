@@ -8,9 +8,9 @@ import { cn } from '@/lib/utils';
 
 // ─── Shift definitions (IST boundaries in hours/minutes) ───
 const SHIFTS = {
-  shift1: { label: 'S1', fullLabel: 'Shift 1 (1AM–9AM)', startH: 1, startM: 0, endH: 9, endM: 0 },
-  shift2: { label: 'S2', fullLabel: 'Shift 2 (9AM–5:30PM)', startH: 9, startM: 0, endH: 17, endM: 30 },
-  shift3: { label: 'S3', fullLabel: 'Shift 3 (5:30PM–1AM)', startH: 17, startM: 30, endH: 25, endM: 0 }, // 25 = next day 1AM
+  shift1: { label: 'Night', fullLabel: 'Night (1AM–9AM)', startH: 1, startM: 0, endH: 9, endM: 0 },
+  shift2: { label: 'Morning', fullLabel: 'Morning (9AM–5:30PM)', startH: 9, startM: 0, endH: 17, endM: 30 },
+  shift3: { label: 'Evening', fullLabel: 'Evening (5:30PM–1AM)', startH: 17, startM: 30, endH: 25, endM: 0 },
 } as const;
 
 export type ShiftKey = 'all' | 'shift1' | 'shift2' | 'shift3';

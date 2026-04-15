@@ -65,7 +65,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         amount: o.amount || '0',
         totalPrice: o.totalPrice || '0',
         orderStatus: String(o.orderStatus),
-        chatUnreadCount: o.chatUnreadCount || 0,
+        chatUnreadCount: readOrderNumbers.has(o.orderNumber) ? 0 : (o.chatUnreadCount || 0),
         createTime: o.createTime || 0,
         source: 'active',
       });

@@ -1,95 +1,63 @@
 
 
-## Future-Proof Nickname-to-Client Linking for Terminal Order View
+# Shift-Based Calendar Filter for Terminal
 
-### Current State & Shortfalls Identified
+## Overview
+Replace the simple period buttons (1d/7d/30d/1y) with a richer filter system that supports:
+1. **Date picker** — select any specific date (defaults to today)
+2. **Shift sub-filter** — optionally narrow down to a specific shift within the selected day
+3. **Existing range presets** — keep 7d/30d/1y for multi-day views (no shift filter for these)
 
-**Critical Issue: Backfill is empty.** The `client_binance_nicknames` table has **0 rows**. The original backfill SQL tried to extract nicknames from `terminal_sales_sync.order_data->>'counterparty_nickname'` — but those are **masked** (e.g., `Ast***`). Unmasked nicknames only exist in `p2p_order_records.counterparty_nickname`. The backfill must join through `p2p_order_records` instead.
+## Shift Definitions (IST)
+| Shift | Label | Start | End |
+|-------|-------|-------|-----|
+| Shift 1 | Morning | 01:00 AM | 09:00 AM |
+| Shift 2 | Day | 09:00 AM | 05:30 PM |
+| Shift 3 | Night | 05:30 PM | 01:00 AM (next day) |
 
-**Available data for backfill:**
-- 382 unique unmasked nicknames from approved sales sync records
-- 275 unique unmasked nicknames from approved purchase sync records
-- 5,581 total unmasked nicknames in `p2p_order_records`
+When "Full Day" is selected (default), timestamps span 12:00 AM to now (or end of day if past date). When a shift is selected, timestamps narrow to that shift's window.
 
-### What This Plan Delivers
+## Affected Files
 
-1. **Fix the backfill** — populate `client_binance_nicknames` with correct data by joining through `p2p_order_records`
-2. **Future-proof the lookup path** for terminal → client directory: `p2p_order_records.counterparty_nickname` → `client_binance_nicknames.nickname` → `clients.*`
-3. **No schema changes needed** — the existing table structure (`client_binance_nicknames` with UNIQUE on `nickname`, FK to `clients.id`) already supports direct terminal lookups
+### 1. `src/components/terminal/dashboard/TimePeriodFilter.tsx` — Major rewrite
+- New exported type: `TimeFilter = { mode: '1d'; date: Date; shift: 'all' | 'shift1' | 'shift2' | 'shift3' } | { mode: '7d' | '30d' | '1y' }`
+- New `getTimestampsForFilter(filter: TimeFilter)` function replacing `getTimestampsForPeriod`
+- Keep backward-compatible `TimePeriod` type and `getTimestampsForPeriod` temporarily if needed
+- UI: Row with date picker (calendar icon + formatted date), shift chip group (Full Day / S1 / S2 / S3), and 7d/30d/1y buttons
+- Shift chips only visible when in single-day mode
+- Compact mobile-friendly layout using Popover calendar
 
-### Implementation
+### 2. `src/pages/terminal/TerminalDashboard.tsx` — Update filter state
+- Change state from `TimePeriod` to `TimeFilter`
+- Use `getTimestampsForFilter` for order filtering
+- Update `periodLabel` to show date + shift name
+- Update user prefs serialization
 
-**Step 1: Run correct backfill migration**
+### 3. `src/pages/terminal/TerminalAnalytics.tsx` — Add filter support
+- Add the same `TimePeriodFilter` component (currently hardcoded to 30d)
+- Replace the hardcoded `thirtyDaysAgo` filter with the new filter system
+- Wire all stats and charts to filtered data
 
-```sql
--- Backfill from approved SALES sync via p2p_order_records (unmasked nicknames)
-INSERT INTO public.client_binance_nicknames (client_id, nickname, source, first_seen_at, last_seen_at)
-SELECT DISTINCT ON (por.counterparty_nickname)
-  tss.client_id,
-  por.counterparty_nickname,
-  'backfill',
-  MIN(tss.synced_at) OVER (PARTITION BY por.counterparty_nickname),
-  MAX(tss.synced_at) OVER (PARTITION BY por.counterparty_nickname)
-FROM terminal_sales_sync tss
-JOIN p2p_order_records por ON por.binance_order_number = tss.binance_order_number
-WHERE tss.client_id IS NOT NULL
-  AND tss.sync_status = 'approved'
-  AND por.counterparty_nickname IS NOT NULL
-  AND por.counterparty_nickname NOT LIKE '%*%'
-ORDER BY por.counterparty_nickname, tss.synced_at DESC
-ON CONFLICT (nickname) DO NOTHING;
+### 4. No ERP changes — scoped exclusively to terminal pages
 
--- Same for PURCHASE sync
-INSERT INTO public.client_binance_nicknames (client_id, nickname, source, first_seen_at, last_seen_at)
-SELECT DISTINCT ON (por.counterparty_nickname)
-  tps.client_id,
-  por.counterparty_nickname,
-  'backfill',
-  MIN(tps.synced_at) OVER (PARTITION BY por.counterparty_nickname),
-  MAX(tps.synced_at) OVER (PARTITION BY por.counterparty_nickname)
-FROM terminal_purchase_sync tps
-JOIN p2p_order_records por ON por.binance_order_number = tps.binance_order_number
-WHERE tps.client_id IS NOT NULL
-  AND tps.sync_status = 'approved'
-  AND por.counterparty_nickname IS NOT NULL
-  AND por.counterparty_nickname NOT LIKE '%*%'
-ORDER BY por.counterparty_nickname, tps.synced_at DESC
-ON CONFLICT (nickname) DO NOTHING;
+## Technical Details
+
+**Timestamp calculation for shifts (IST):**
+```
+// Shift 1: date 01:00 IST → date 09:00 IST
+// Shift 2: date 09:00 IST → date 17:30 IST
+// Shift 3: date 17:30 IST → date+1 01:00 IST
+// Full day: date 00:00 IST → min(date+1 00:00, now)
 ```
 
-**Step 2: No code changes needed now**
+All shift boundaries calculated using IST offset (+5:30) from UTC to ensure consistency regardless of user browser timezone.
 
-The existing schema already supports the future terminal use case:
-
+**UI Layout (mobile 390px):**
 ```text
-Terminal Running Order
-  └─ p2p_order_records.counterparty_nickname (captured while order is active)
-      └─ client_binance_nicknames.nickname (UNIQUE index, instant lookup)
-          └─ clients.* (full directory: name, phone, PAN, risk level, bank accounts, KYC status, monthly limits)
+┌──────────────────────────────────┐
+│ [📅 15 Apr] [Full Day|S1|S2|S3] │
+│ [7D] [30D] [1Y]                 │
+└──────────────────────────────────┘
 ```
-
-When you're ready to show client data in the terminal order view, a single query like this will work:
-
-```sql
-SELECT c.name, c.phone, c.pan_card_number, c.risk_appetite, c.monthly_limit, c.current_month_used, c.kyc_status, c.state
-FROM client_binance_nicknames cbn
-JOIN clients c ON c.id = cbn.client_id
-WHERE cbn.nickname = 'User-d79e3' AND cbn.is_active = true AND c.is_deleted = false;
-```
-
-### Why No Additional Schema Changes Are Needed
-
-| Concern | Status |
-|---------|--------|
-| Nickname uniqueness | UNIQUE constraint on `nickname` — enforced |
-| Fast lookup from terminal | Index `idx_client_binance_nicknames_active` on `(nickname) WHERE is_active = true` — covered |
-| Client FK integrity | `ON DELETE CASCADE` from `clients(id)` — covered |
-| Nickname changes by user | `is_active` flag allows deactivating old nicknames; new ones auto-captured on approval |
-| Multiple nicknames per client | Supported (one row per nickname, all pointing to same `client_id`) |
-| Legacy orders without nicknames | Will show "—" / no client match — graceful fallback |
-| Auto-capture going forward | Already implemented in sales/purchase approval dialogs (upsert on approval) |
-
-### Summary
-
-The only action needed is the **corrected backfill migration** to populate `client_binance_nicknames` with ~500+ nickname-to-client links from historical approved orders. The database design is already future-proof for the terminal order → client directory lookup you described. No structural changes required.
+When 7D/30D/1Y is active, shift chips are hidden and date picker is inactive. When date is picked, mode switches to single-day.
 

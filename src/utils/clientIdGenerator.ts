@@ -139,6 +139,37 @@ export const createSellerClient = async (
       }
       return { id: existingClient.id, client_id: existingClient.client_id };
     }
+
+    // Check by verified name — prevents duplicate sellers for the same Binance counterparty
+    const { data: verifiedNameMatch } = await supabase
+      .from('client_verified_names')
+      .select('client_id')
+      .eq('verified_name', supplierName.trim())
+      .limit(1)
+      .maybeSingle();
+
+    if (verifiedNameMatch) {
+      const { data: existingByVN } = await supabase
+        .from('clients')
+        .select('id, client_id, is_seller, seller_approval_status')
+        .eq('id', verifiedNameMatch.client_id)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      if (existingByVN) {
+        const updates: Record<string, any> = {};
+        if (!existingByVN.is_seller) {
+          updates.is_seller = true;
+          if (!existingByVN.seller_approval_status || existingByVN.seller_approval_status === 'NOT_APPLICABLE') {
+            updates.seller_approval_status = 'PENDING';
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          await supabase.from('clients').update(updates).eq('id', existingByVN.id);
+        }
+        return { id: existingByVN.id, client_id: existingByVN.client_id };
+      }
+    }
+
     const clientId = await generateUniqueClientId();
     const { data, error } = await supabase
       .from('clients')

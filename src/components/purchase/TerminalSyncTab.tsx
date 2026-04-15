@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CheckCircle2, XCircle, Loader2, RefreshCw, Link2, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,9 @@ export function TerminalSyncTab() {
   const [approvalRecord, setApprovalRecord] = useState<any>(null);
   const [rejectRecord, setRejectRecord] = useState<any>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState("");
 
   // Fetch sync records + reviewer usernames
   const { data: syncData = { records: [], userMap: {} as Record<string, string> }, isLoading, refetch } = useQuery({
@@ -212,8 +216,68 @@ export function TerminalSyncTab() {
 
   const pendingCount = syncRecords.filter((r: any) => PENDING_SYNC_STATUSES.includes(r.sync_status)).length;
 
+  const pendingRecordsList = syncRecords.filter((r: any) => PENDING_SYNC_STATUSES.includes(r.sync_status));
+  const allPendingSelected = pendingRecordsList.length > 0 && pendingRecordsList.every((r: any) => selectedIds.has(r.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingRecordsList.map((r: any) => r.id)));
+    }
+  };
+
+  // Bulk reject mutation
+  const bulkRejectMutation = useMutation({
+    mutationFn: async ({ ids, reason }: { ids: string[]; reason: string }) => {
+      const userId = getCurrentUserId();
+      const { error } = await supabase
+        .from('terminal_purchase_sync')
+        .update({
+          sync_status: 'rejected',
+          rejection_reason: reason,
+          reviewed_by: userId || null,
+          reviewed_at: new Date().toISOString(),
+        })
+        .in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast({ title: `${count} orders rejected` });
+      queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      setSelectedIds(new Set());
+      setBulkRejectOpen(false);
+      setBulkRejectReason("");
+    },
+  });
+
   return (
     <div className="space-y-4">
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+          <Badge variant="secondary" className="text-xs">{selectedIds.size} selected</Badge>
+          {hasPermission('terminal_destructive') && (
+            <Button variant="destructive" size="sm" className="h-7 text-[10px]" onClick={() => setBulkRejectOpen(true)}>
+              <XCircle className="h-3 w-3 mr-1" />
+              Bulk Reject
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSelectedIds(new Set())}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
@@ -264,6 +328,13 @@ export function TerminalSyncTab() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8">
+                  <Checkbox
+                    checked={allPendingSelected && pendingRecordsList.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all pending"
+                  />
+                </TableHead>
                 <TableHead className="text-xs">Order #</TableHead>
                 <TableHead className="text-xs">Seller</TableHead>
                 <TableHead className="text-xs">Amount (₹)</TableHead>
@@ -287,7 +358,15 @@ export function TerminalSyncTab() {
 
                 return (
                   <TableRow key={record.id}>
-                    <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
+                    <TableCell className="w-8">
+                      {PENDING_SYNC_STATUSES.includes(record.sync_status) ? (
+                        <Checkbox
+                          checked={selectedIds.has(record.id)}
+                          onCheckedChange={() => toggleSelect(record.id)}
+                          aria-label={`Select order ${record.binance_order_number}`}
+                        />
+                      ) : null}
+                    </TableCell>
                     <TableCell className="text-xs">
                       {isMaskedName ? (
                         <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
@@ -417,6 +496,38 @@ export function TerminalSyncTab() {
             >
               {rejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
               Reject
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Rejection Dialog */}
+      <Dialog open={bulkRejectOpen} onOpenChange={(open) => { if (!open) { setBulkRejectOpen(false); setBulkRejectReason(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Bulk Reject {selectedIds.size} Orders</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label className="text-xs">Rejection Reason (applies to all)</Label>
+            <Textarea
+              value={bulkRejectReason}
+              onChange={(e) => setBulkRejectReason(e.target.value)}
+              placeholder="Enter reason for rejection..."
+              className="mt-1 text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setBulkRejectOpen(false); setBulkRejectReason(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => bulkRejectMutation.mutate({ ids: [...selectedIds], reason: bulkRejectReason })}
+              disabled={!bulkRejectReason.trim() || bulkRejectMutation.isPending}
+            >
+              {bulkRejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+              Reject {selectedIds.size} Orders
             </Button>
           </DialogFooter>
         </DialogContent>

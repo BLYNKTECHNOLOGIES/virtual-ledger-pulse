@@ -263,7 +263,6 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const newOrders = allEligible.filter(o => !existingSet.has(o.order_number));
     duplicates = allEligible.length - newOrders.length;
 
-
     for (const order of newOrders) {
       // Enrich: fetch verified seller name if not already available
       let verifiedName = order.verified_name || null;
@@ -305,6 +304,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
         clientNameMap,
       });
       let clientId = resolved.clientId;
+      const resolvedVia = resolved.resolvedVia;
 
       // Fallback: explicit sales sync mappings (purchase-specific cross-reference)
       if (!clientId && verifiedName) {
@@ -357,6 +357,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       pan_number: pan,
       synced_by: userId || null,
       synced_at: new Date().toISOString(),
+      resolved_via: resolvedVia,
     });
   }
 

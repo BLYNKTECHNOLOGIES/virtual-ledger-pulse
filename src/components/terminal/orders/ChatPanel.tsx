@@ -14,6 +14,7 @@ import { QuickReplyBar } from './chat/QuickReplyBar';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
+import { readOrderNumbers } from './ChatInbox';
 
 interface Props {
   orderId: string;

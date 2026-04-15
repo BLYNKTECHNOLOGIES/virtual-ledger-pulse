@@ -237,6 +237,24 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       (nicknameLinks || []).map((l: any) => [l.nickname, l.client_id])
     );
 
+    // 5c. Lookup client_verified_names for Priority 0 identity resolution
+    const allVerifiedNames = [...new Set(
+      allEligible
+        .map(o => o.verified_name || null)
+        .filter((v): v is string => Boolean(v) && v !== 'Unknown')
+    )];
+    const verifiedNameMap = await fetchVerifiedNameMap(allVerifiedNames);
+
+    // 5d. Build client name map for Priority 3 fallback
+    const { data: allClients } = await supabase
+      .from('clients')
+      .select('id, name')
+      .eq('is_deleted', false);
+    const clientNameMap = new Map<string, string>();
+    for (const c of (allClients || [])) {
+      clientNameMap.set(c.name.trim().toLowerCase(), c.id);
+    }
+
     const userId = getCurrentUserId();
 
     // 6. Process each order — enrich verified names from Binance API
@@ -276,12 +294,19 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
                || (safeUnmasked ? panMap.get(safeUnmasked) : null)
                || null;
 
-      // Priority 1: Lookup client via nickname link table (most reliable)
-      let clientId: string | null = null;
-      if (safeUnmasked) clientId = nicknameClientMap.get(safeUnmasked) || null;
-      if (!clientId && safeNickname) clientId = nicknameClientMap.get(safeNickname) || null;
+      // Multi-signal identity resolution (verified name → nickname → intersection → name match)
+      const resolved = resolveClientId({
+        verifiedName,
+        unmaskedNickname: safeUnmasked,
+        safeNickname,
+        counterpartyName,
+        verifiedNameMap,
+        nicknameClientMap,
+        clientNameMap,
+      });
+      let clientId = resolved.clientId;
 
-      // Priority 2: Fall back to explicit sales sync mappings
+      // Fallback: explicit sales sync mappings (purchase-specific cross-reference)
       if (!clientId && verifiedName) {
         clientId = salesClientMap.get(verifiedName.toLowerCase().trim()) || null;
       }

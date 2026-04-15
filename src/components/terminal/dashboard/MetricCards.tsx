@@ -1,13 +1,20 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { ShoppingCart, Clock, TrendingUp, AlertTriangle, IndianRupee, BarChart3, Percent, ArrowLeftRight } from 'lucide-react';
+import { ShoppingCart, Clock, TrendingUp, AlertTriangle, IndianRupee, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+
+function formatVolume(v: number): string {
+  if (v >= 10000000) return `₹${(v / 10000000).toFixed(2)}Cr`;
+  if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+  return `₹${v.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+}
 
 interface MetricCardsProps {
   activeOrders: number;
   pendingPayments: number;
   completedToday: number;
   appeals: number;
-  totalVolume: number;
+  totalBuyVolume: number;
+  totalSellVolume: number;
   avgOrderSize: number;
   completionRate: number;
   buySellRatio: string;
@@ -16,10 +23,9 @@ interface MetricCardsProps {
 
 export function MetricCards({
   activeOrders, pendingPayments, completedToday, appeals,
-  totalVolume, avgOrderSize, completionRate, buySellRatio,
+  totalBuyVolume, totalSellVolume, avgOrderSize, completionRate, buySellRatio,
   isLoading,
 }: MetricCardsProps) {
-  const vol = totalVolume || 0;
   const avg = avgOrderSize || 0;
   const rate = completionRate || 0;
   const ratio = buySellRatio || '0 / 0';
@@ -29,7 +35,8 @@ export function MetricCards({
     { label: 'Pending Payments', formatted: String(pendingPayments || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
     { label: 'Completed Today', formatted: String(completedToday || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Appeals', formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
-    { label: 'Total Volume', formatted: `₹${vol >= 100000 ? (vol / 100000).toFixed(1) + 'L' : vol.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-primary', bg: 'bg-primary/10' },
+    { label: 'Buy Volume', formatted: formatVolume(totalBuyVolume || 0), icon: ArrowDownLeft, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Sell Volume', formatted: formatVolume(totalSellVolume || 0), icon: ArrowUpRight, color: 'text-trade-sell', bg: 'bg-trade-sell/10' },
     { label: 'Avg Order Size', formatted: `₹${avg.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: BarChart3, color: 'text-accent-foreground', bg: 'bg-accent/30' },
     { label: 'Completion Rate', formatted: `${rate.toFixed(1)}%`, icon: Percent, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Buy / Sell', formatted: ratio, icon: ArrowLeftRight, color: 'text-muted-foreground', bg: 'bg-secondary' },

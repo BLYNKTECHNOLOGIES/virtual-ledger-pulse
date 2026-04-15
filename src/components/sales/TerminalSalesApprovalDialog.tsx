@@ -700,6 +700,21 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
               if (error) console.warn('[SalesApproval] Nickname link upsert failed:', error.message);
             });
         }
+        // Auto-capture verified name
+        const verifiedName = od.verified_name || syncRecord?.counterparty_name;
+        if (verifiedName && verifiedName !== 'Unknown' && !verifiedName.includes('*')) {
+          await supabase
+            .from('client_verified_names')
+            .upsert({
+              client_id: linkedClientId,
+              verified_name: verifiedName.trim(),
+              source: 'approval',
+              last_seen_at: new Date().toISOString(),
+            }, { onConflict: 'client_id,verified_name' })
+            .then(({ error }) => {
+              if (error) console.warn('[SalesApproval] Verified name upsert failed:', error.message);
+            });
+        }
       }
 
       // If client is newly created (buyer_approval_status = PENDING), create onboarding approval

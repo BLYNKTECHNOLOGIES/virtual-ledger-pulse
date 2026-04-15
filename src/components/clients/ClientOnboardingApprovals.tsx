@@ -689,6 +689,18 @@ export function ClientOnboardingApprovals() {
               last_seen_at: new Date().toISOString(),
             }, { onConflict: 'nickname' });
           }
+          // Auto-capture verified name for the client
+          if (targetClientId) {
+            const approval = approvals?.find(a => a.id === variables.id);
+            if (approval?.client_name) {
+              await supabase.from('client_verified_names').upsert({
+                client_id: targetClientId,
+                verified_name: approval.client_name.trim(),
+                source: 'approval',
+                last_seen_at: new Date().toISOString(),
+              }, { onConflict: 'client_id,verified_name' });
+            }
+          }
         } catch (e) {
           console.error('Failed to auto-capture nickname link:', e);
         }

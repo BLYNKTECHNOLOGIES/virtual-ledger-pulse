@@ -218,6 +218,17 @@ export function SellerOnboardingApprovals() {
             console.error('Failed to auto-capture seller nickname link:', e);
           }
         }
+        // Auto-capture verified name (seller.name is KYC-verified)
+        try {
+          await supabase.from('client_verified_names').upsert({
+            client_id: sellerId,
+            verified_name: seller.name.trim(),
+            source: 'approval',
+            last_seen_at: new Date().toISOString(),
+          }, { onConflict: 'client_id,verified_name' });
+        } catch (e) {
+          console.error('Failed to auto-capture seller verified name:', e);
+        }
       }
 
       toast({

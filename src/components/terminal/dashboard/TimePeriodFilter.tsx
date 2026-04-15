@@ -18,8 +18,11 @@ export function getTimestampsForPeriod(period: TimePeriod) {
   const now = Date.now();
 
   switch (period) {
-    case '1d':
-      return { startTimestamp: now - 1 * 24 * 60 * 60 * 1000, endTimestamp: now };
+    case '1d': {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return { startTimestamp: today.getTime(), endTimestamp: now };
+    }
     case '7d':
       return { startTimestamp: now - 7 * 24 * 60 * 60 * 1000, endTimestamp: now };
     case '30d':

@@ -727,7 +727,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               <Input
                 id="quantity"
                 type="number"
-                step="0.0001"
+                step="any"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange('quantity', e.target.value)}
                 placeholder="0.00"

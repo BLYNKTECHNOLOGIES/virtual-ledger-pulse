@@ -499,7 +499,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
             </div>
             <div>
               <Label>Quantity *</Label>
-              <Input type="number" step="0.0001" value={formData.quantity} onChange={(e) => handleInputChange('quantity', e.target.value)} placeholder="0.00" />
+              <Input type="number" step="any" value={formData.quantity} onChange={(e) => handleInputChange('quantity', e.target.value)} placeholder="0.00" />
             </div>
           </div>
 

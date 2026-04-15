@@ -1073,7 +1073,7 @@ export function StockTransactionsTab() {
                 </Label>
                 <Input
                   type="number"
-                  step="0.0001"
+                  step="any"
                   min="0"
                   placeholder="Enter fee amount (optional)"
                   value={adjustmentData.transferFee}

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
+import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName } from "@/lib/clientIdentityResolver";
 
 /**
  * Fetch verified buyer name from Binance order detail API.

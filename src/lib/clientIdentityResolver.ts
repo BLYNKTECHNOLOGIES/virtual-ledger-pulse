@@ -80,7 +80,7 @@ export function resolveClientId(params: {
 
   // Priority 3: Name-based match
   if (counterpartyName !== 'Unknown') {
-    const id = clientNameMap.get(counterpartyName.toLowerCase()) || null;
+    const id = clientNameMap.get(counterpartyName.trim().toLowerCase()) || null;
     if (id) return { clientId: id, resolvedVia: 'name_match' };
   }
 

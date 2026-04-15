@@ -198,7 +198,14 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       let verifiedName = order.verified_name || null;
       if (!verifiedName || verifiedName === order.counter_part_nick_name) {
         const fetched = await fetchVerifiedBuyerName(order.order_number);
-        if (fetched) verifiedName = fetched;
+        if (fetched) {
+          verifiedName = fetched;
+          // Persist verified name back to binance_order_history (parity with purchase sync)
+          await supabase
+            .from('binance_order_history')
+            .update({ verified_name: fetched })
+            .eq('order_number', order.order_number);
+        }
         // Small delay to avoid rate limiting
         await new Promise(r => setTimeout(r, 200));
       }

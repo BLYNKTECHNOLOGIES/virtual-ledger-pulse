@@ -164,8 +164,15 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       (nicknameLinks || []).map((l: any) => [l.nickname, l.client_id])
     );
 
+    // 4c. Lookup client_verified_names for Priority 0 identity resolution
+    const allVerifiedNames = [...new Set(
+      filteredSells
+        .map(o => o.verified_name || null)
+        .filter((v): v is string => Boolean(v) && v !== 'Unknown')
+    )];
+    const verifiedNameMap = await fetchVerifiedNameMap(allVerifiedNames);
+
     // 5. Try to match clients — use case-insensitive matching to prevent duplicates
-    const verifiedNames = [...new Set(filteredSells.map(o => o.verified_name || o.counter_part_nick_name).filter(Boolean))];
     const { data: matchedClients } = await supabase
       .from('clients')
       .select('id, name')
@@ -206,15 +213,21 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       const safeUnmasked = unmaskedNickname && !unmaskedNickname.includes('*') ? unmaskedNickname : null;
       const safeNick = !isMaskedNick ? order.counter_part_nick_name : null;
 
-      // Priority 1: Lookup client via nickname link table (most reliable)
-      let clientId: string | null = null;
-      if (safeUnmasked) clientId = nicknameClientMap.get(safeUnmasked) || null;
-      if (!clientId && safeNick) clientId = nicknameClientMap.get(safeNick) || null;
-
-      // Priority 2: Fall back to name-based matching
-      if (!clientId && counterpartyName !== 'Unknown') {
-        clientId = clientMap.get(counterpartyName.toLowerCase()) || null;
+      // Multi-signal identity resolution
+      // If we just fetched a new verified name, add it to the map for resolution
+      if (verifiedName && !verifiedNameMap.has(verifiedName)) {
+        // New verified name not yet in DB — won't match, but that's correct
       }
+      const resolved = resolveClientId({
+        verifiedName,
+        unmaskedNickname: safeUnmasked,
+        safeNickname: safeNick,
+        counterpartyName,
+        verifiedNameMap,
+        nicknameClientMap,
+        clientNameMap: clientMap,
+      });
+      const clientId = resolved.clientId;
 
       // Force manual mapping if we couldn't resolve a real name
       const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');

@@ -500,6 +500,38 @@ export function TerminalSyncTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Rejection Dialog */}
+      <Dialog open={bulkRejectOpen} onOpenChange={(open) => { if (!open) { setBulkRejectOpen(false); setBulkRejectReason(""); } }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">Bulk Reject {selectedIds.size} Orders</DialogTitle>
+          </DialogHeader>
+          <div>
+            <Label className="text-xs">Rejection Reason (applies to all)</Label>
+            <Textarea
+              value={bulkRejectReason}
+              onChange={(e) => setBulkRejectReason(e.target.value)}
+              placeholder="Enter reason for rejection..."
+              className="mt-1 text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setBulkRejectOpen(false); setBulkRejectReason(""); }}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => bulkRejectMutation.mutate({ ids: [...selectedIds], reason: bulkRejectReason })}
+              disabled={!bulkRejectReason.trim() || bulkRejectMutation.isPending}
+            >
+              {bulkRejectMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+              Reject {selectedIds.size} Orders
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

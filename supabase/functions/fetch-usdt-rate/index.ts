@@ -66,15 +66,15 @@ serve(async (req) => {
       console.error("CoinGecko fetch failed:", e);
     }
 
-    // Final fallback
+    // Final fallback — signal that no live rate is available
     return new Response(
-      JSON.stringify({ rate: 84.5, source: "Fallback", timestamp: new Date().toISOString() }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ rate: null, source: "Unavailable", timestamp: new Date().toISOString(), error: "All price sources failed" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("fetch-usdt-rate error:", error);
     return new Response(
-      JSON.stringify({ rate: 84.5, source: "Fallback", error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ rate: null, source: "Unavailable", error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -28,12 +28,77 @@ import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/l
 
 export function DirectoryTab() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   // Filter states
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+
+  // Delete mutation with balance reversal
+  const deleteTransactionMutation = useMutation({
+    mutationFn: async (transaction: any) => {
+      // Only allow deleting direct bank transactions (EXPENSE/INCOME from BANK source)
+      if (transaction.source !== 'BANK') {
+        throw new Error('Only direct expense/income transactions can be deleted from the directory.');
+      }
+
+      const { error } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', transaction.id);
+
+      if (error) throw error;
+
+      // Log the action
+      await logActionWithCurrentUser(
+        ActionTypes.DELETE,
+        EntityTypes.BANK_TRANSACTION,
+        Modules.BAMS,
+        {
+          transaction_id: transaction.id,
+          transaction_type: transaction.display_type,
+          amount: transaction.display_amount,
+          bank_account: transaction.display_account,
+          category: transaction.category,
+          description: transaction.display_description,
+        }
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Transaction Deleted",
+        description: "Transaction deleted and bank balance reversed successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['all_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+      setDeleteDialogOpen(false);
+      setTransactionToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete transaction",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteClick = (transaction: any) => {
+    setTransactionToDelete(transaction);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (transactionToDelete) {
+      deleteTransactionMutation.mutate(transactionToDelete);
+    }
+  };
 
   // Fetch bank accounts for filter dropdown
   const { data: bankAccounts } = useQuery({

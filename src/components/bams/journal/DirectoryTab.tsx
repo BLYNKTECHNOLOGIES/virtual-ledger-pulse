@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,18 +10,95 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { PermissionGate } from "@/components/PermissionGate";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 export function DirectoryTab() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   // Filter states
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+
+  // Delete mutation with balance reversal
+  const deleteTransactionMutation = useMutation({
+    mutationFn: async (transaction: any) => {
+      // Only allow deleting direct bank transactions (EXPENSE/INCOME from BANK source)
+      if (transaction.source !== 'BANK') {
+        throw new Error('Only direct expense/income transactions can be deleted from the directory.');
+      }
+
+      const { error } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', transaction.id);
+
+      if (error) throw error;
+
+      // Log the action
+      await logActionWithCurrentUser({
+        actionType: 'bank.transaction_deleted',
+        entityType: EntityTypes.BANK_TRANSACTION,
+        entityId: transaction.id,
+        module: Modules.BAMS,
+        metadata: {
+          transaction_type: transaction.display_type,
+          amount: transaction.display_amount,
+          bank_account: transaction.display_account,
+          category: transaction.category,
+          description: transaction.display_description,
+        }
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Transaction Deleted",
+        description: "Transaction deleted and bank balance reversed successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['all_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+      setDeleteDialogOpen(false);
+      setTransactionToDelete(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message || "Failed to delete transaction",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteClick = (transaction: any) => {
+    setTransactionToDelete(transaction);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (transactionToDelete) {
+      deleteTransactionMutation.mutate(transactionToDelete);
+    }
+  };
 
   // Fetch bank accounts for filter dropdown
   const { data: bankAccounts } = useQuery({
@@ -639,14 +716,14 @@ export function DirectoryTab() {
 
       {/* Transactions List */}
       <Card className="shadow-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
-              All Transactions Directory
-              <Badge variant="secondary">{filteredTransactions?.length || 0} entries</Badge>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3">
+            <CardTitle className="flex items-center gap-2 flex-wrap">
+              <ArrowRightLeft className="h-5 w-5 text-blue-600 shrink-0" />
+              <span className="text-base md:text-lg">All Transactions</span>
+              <Badge variant="secondary" className="text-xs">{filteredTransactions?.length || 0}</Badge>
               {hasActiveFilters && (
-                <Badge variant="outline" className="text-blue-600">
+                <Badge variant="outline" className="text-blue-600 text-xs">
                   Filtered
                 </Badge>
               )}
@@ -654,20 +731,22 @@ export function DirectoryTab() {
             <div className="flex items-center gap-2">
               <Button 
                 variant="outline" 
+                size="sm"
                 onClick={downloadCSV} 
-                className="flex items-center gap-2"
+                className="flex items-center gap-1.5 text-xs"
                 disabled={!filteredTransactions || filteredTransactions.length === 0}
               >
-                <Download className="h-4 w-4" />
-                Download CSV
+                <Download className="h-3.5 w-3.5" />
+                CSV
               </Button>
               <Button 
+                size="sm"
                 onClick={generatePDF} 
-                className="flex items-center gap-2"
+                className="flex items-center gap-1.5 text-xs"
                 disabled={!filteredTransactions || filteredTransactions.length === 0}
               >
-                <FileText className="h-4 w-4" />
-                Generate PDF
+                <FileText className="h-3.5 w-3.5" />
+                PDF
               </Button>
             </div>
           </div>
@@ -678,57 +757,67 @@ export function DirectoryTab() {
               {hasActiveFilters ? "No transactions match the selected filters" : "No transactions found"}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredTransactions.map((transaction) => (
                 <div
                   key={`${transaction.source}-${transaction.id}`}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  className="p-3 md:p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-gray-100 rounded-full">
+                  <div className="flex items-start gap-2 md:gap-4">
+                    <div className="p-1.5 md:p-2 bg-gray-100 rounded-full shrink-0 mt-0.5">
                       {getTransactionIcon(transaction.display_type)}
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{transaction.display_account}</span>
-                        <Badge variant={getBadgeVariant(transaction.display_type)}>
-                          {transaction.display_type.replace('_', ' ')}
-                        </Badge>
-                        <Badge variant="outline">{transaction.source}</Badge>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm md:text-base truncate">{transaction.display_account}</p>
+                          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                            <Badge variant={getBadgeVariant(transaction.display_type)} className="text-[10px] md:text-xs px-1.5 py-0">
+                              {transaction.display_type.replace('_', ' ')}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] md:text-xs px-1.5 py-0">{transaction.source}</Badge>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className={`font-semibold text-base md:text-lg ${getTransactionColor(transaction.display_type, transaction)}`}>
+                            {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' || (transaction.display_type === 'ADJUSTMENT' && (transaction as any).adjustment_direction === 'WITHDRAWAL') ? '-' : '+'}
+                            ₹{parseFloat(transaction.display_amount.toString()).toLocaleString('en-IN')}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-xs md:text-sm text-muted-foreground">
                         {format(new Date(transaction.display_date), "MMM dd, yyyy")}{' '}
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs">
                           {format(new Date(transaction.created_at), "HH:mm:ss")}
                         </span>
                         {transaction.display_created_by && (
-                          <span className="ml-2 text-xs text-muted-foreground">
+                          <span className="ml-1 md:ml-2 text-xs">
                             by <span className="font-medium text-foreground">{transaction.display_created_by}</span>
                           </span>
                         )}
                       </div>
                       {transaction.display_description && (
-                        <div className="text-sm text-gray-500">{transaction.display_description}</div>
+                        <p className="text-xs md:text-sm text-muted-foreground truncate">{transaction.display_description}</p>
                       )}
                       {transaction.display_reference && (
-                        <div className="text-xs text-gray-400">
+                        <p className="text-[10px] md:text-xs text-muted-foreground/70 truncate">
                           Ref: {transaction.display_reference}
-                        </div>
+                        </p>
                       )}
-                      {transaction.source === 'PURCHASE' && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          Payment from: {transaction.display_account}
-                        </div>
+                      {/* Delete button for BANK source (expense/income) only */}
+                      {transaction.source === 'BANK' && (
+                        <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 mt-1"
+                            onClick={() => handleDeleteClick(transaction)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            <span className="text-xs">Delete</span>
+                          </Button>
+                        </PermissionGate>
                       )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className={`font-semibold text-lg ${getTransactionColor(transaction.display_type, transaction)}`}>
-                      {transaction.display_type === 'EXPENSE' || transaction.display_type === 'TRANSFER_OUT' || transaction.display_type === 'PURCHASE_ORDER' || (transaction.display_type === 'ADJUSTMENT' && (transaction as any).adjustment_direction === 'WITHDRAWAL') ? '-' : '+'}
-                      ₹{parseFloat(transaction.display_amount.toString()).toLocaleString('en-IN')}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {format(new Date(transaction.created_at), "HH:mm")}
                     </div>
                   </div>
                 </div>
@@ -737,6 +826,45 @@ export function DirectoryTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Are you sure you want to delete this <strong>{transactionToDelete?.display_type?.toLowerCase()}</strong> of{' '}
+                <strong>₹{Number(transactionToDelete?.display_amount || 0).toLocaleString('en-IN')}</strong>?
+              </p>
+              <p className="text-xs">
+                <strong>Bank Account:</strong> {transactionToDelete?.display_account}
+              </p>
+              {transactionToDelete?.display_description && (
+                <p className="text-xs">
+                  <strong>Description:</strong> {transactionToDelete?.display_description}
+                </p>
+              )}
+              <p className="text-destructive font-medium text-sm mt-2">
+                {transactionToDelete?.display_type === 'EXPENSE'
+                  ? '⚠️ The bank balance will be credited back (increased) by this amount.'
+                  : '⚠️ The bank balance will be debited (decreased) by this amount.'}
+              </p>
+              <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTransactionMutation.isPending}
+            >
+              {deleteTransactionMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -22,9 +22,9 @@ export function useCachedOrderHistory() {
       let from = 0;
 
       while (true) {
-        const { data, error } = await supabase
+      const { data, error } = await supabase
           .from('binance_order_history')
-          .select('*')
+          .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name')
           .gte('create_time', cutoff)
           .order('create_time', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);

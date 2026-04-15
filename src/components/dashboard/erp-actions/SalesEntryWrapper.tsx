@@ -515,7 +515,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                 type="number"
                 value={formData.quantity}
                 onChange={(e) => handleInputChange('quantity', e.target.value)}
-                min="0" step="0.01" placeholder="Enter quantity"
+                min="0" step="any" placeholder="Enter quantity"
                 className={stockValidationError ? "border-destructive" : ""}
               />
               {binanceNetworkFee > 0 && (
@@ -600,7 +600,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
               </div>
               <Input
                 type="number"
-                step="0.0001"
+                step="any"
                 min="0"
                 value={binanceCommission || ''}
                 onChange={(e) => setBinanceCommission(parseFloat(e.target.value) || 0)}

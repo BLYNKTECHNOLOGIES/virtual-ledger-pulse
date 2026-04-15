@@ -311,10 +311,10 @@ export default function ProfitLoss() {
 
 
 
-       let usdtInrRate = 84.5; // fallback
+       let usdtInrRate = 0;
        try {
          const { data: rateData } = await supabase.functions.invoke('fetch-usdt-rate');
-         if (rateData?.rate) usdtInrRate = rateData.rate;
+         if (rateData?.rate && rateData?.source !== 'Fallback') usdtInrRate = rateData.rate;
        } catch (err) { console.warn('[ProfitLoss] Failed to fetch USDT rate:', err); }
 
       // Calculate period-based purchase metrics using effective USDT values

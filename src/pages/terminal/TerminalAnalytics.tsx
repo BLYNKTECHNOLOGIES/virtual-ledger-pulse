@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, ArrowUpDown, Banknote, Clock, Shield } from 'lucide-react';
@@ -6,6 +6,16 @@ import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBina
 import { useCachedOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import {
+  TimePeriodFilter,
+  TimeFilter,
+  getTimestampsForFilter,
+  getFilterLabel,
+  serializeTimeFilter,
+  deserializeTimeFilter,
+} from '@/components/terminal/dashboard/TimePeriodFilter';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 
 // ─── Helpers ───
 function fmt(n: number, decimals = 0) {
@@ -55,8 +65,15 @@ function StatCard({ icon: Icon, label, value, sub, trend }: {
 // ─── Main Page ───
 export default function TerminalAnalytics() {
   const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
-  // Use cached DB data instead of live API calls
   const { data: cachedOrders = [], isLoading: ordersLoading } = useCachedOrderHistory();
+  const { userId } = useTerminalAuth();
+  const [prefs, setPref] = useTerminalUserPrefs(userId, 'analytics', { filter: '' as string });
+
+  const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
+  const setFilter = useCallback(
+    (f: TimeFilter) => setPref('filter', serializeTimeFilter(f)),
+    [setPref]
+  );
 
   const ads: BinanceAd[] = useMemo(() => {
     if (!adsRaw) return [];
@@ -76,16 +93,16 @@ export default function TerminalAnalytics() {
     }));
   }, [cachedOrders]);
 
-  // ─── Trade Stats (30d) ───
-  const recentOrders = useMemo(() => {
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    return orders.filter(o => o.createTime >= thirtyDaysAgo);
-  }, [orders]);
+  // ─── Filter orders by selected period ───
+  const filteredOrders = useMemo(() => {
+    const { startTimestamp, endTimestamp } = getTimestampsForFilter(filter);
+    return orders.filter(o => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
+  }, [orders, filter]);
 
   const tradeStats = useMemo(() => {
-    const completed = recentOrders.filter((o) => o.orderStatus === 'COMPLETED');
-    const cancelled = recentOrders.filter((o) => ['CANCELLED', 'CANCELLED_BY_SYSTEM'].includes(o.orderStatus));
-    const appealed = recentOrders.filter((o) => o.orderStatus === 'APPEAL');
+    const completed = filteredOrders.filter((o) => o.orderStatus === 'COMPLETED');
+    const cancelled = filteredOrders.filter((o) => ['CANCELLED', 'CANCELLED_BY_SYSTEM'].includes(o.orderStatus));
+    const appealed = filteredOrders.filter((o) => o.orderStatus === 'APPEAL');
     const buyOrders = completed.filter((o) => o.tradeType === 'BUY');
     const sellOrders = completed.filter((o) => o.tradeType === 'SELL');
 
@@ -94,10 +111,10 @@ export default function TerminalAnalytics() {
     const buyVolume = buyOrders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
     const sellVolume = sellOrders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
     const avgOrderSize = completed.length > 0 ? totalFiat / completed.length : 0;
-    const completionRate = recentOrders.length > 0 ? (completed.length / recentOrders.length) * 100 : 0;
+    const completionRate = filteredOrders.length > 0 ? (completed.length / filteredOrders.length) * 100 : 0;
 
     return {
-      total: recentOrders.length,
+      total: filteredOrders.length,
       completed: completed.length,
       cancelled: cancelled.length,
       appealed: appealed.length,
@@ -110,12 +127,12 @@ export default function TerminalAnalytics() {
       avgOrderSize,
       completionRate,
     };
-  }, [recentOrders]);
+  }, [filteredOrders]);
 
   // ─── Daily trade chart data ───
   const dailyChart = useMemo(() => {
     const map: Record<string, { date: string; buy: number; sell: number }> = {};
-    const completed = recentOrders.filter((o) => o.orderStatus === 'COMPLETED');
+    const completed = filteredOrders.filter((o) => o.orderStatus === 'COMPLETED');
     completed.forEach((o) => {
       if (!o.createTime) return;
       const d = new Date(Number(o.createTime)).toISOString().slice(0, 10);
@@ -125,7 +142,7 @@ export default function TerminalAnalytics() {
       else map[d].sell += vol;
     });
     return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
-  }, [recentOrders]);
+  }, [filteredOrders]);
 
   // ─── Ad Stats ───
   const adStats = useMemo(() => {
@@ -165,6 +182,7 @@ export default function TerminalAnalytics() {
     return { byStatus, byType, assets, statusPie, payMethodBars, total: ads.length };
   }, [ads]);
 
+  const periodLabel = getFilterLabel(filter);
   const isLoading = adsLoading || ordersLoading;
 
   if (isLoading) {
@@ -178,22 +196,25 @@ export default function TerminalAnalytics() {
   return (
     <TerminalPermissionGate permissions={['terminal_analytics_view']}>
     <div className="p-4 md:p-6 space-y-6 max-w-[1400px]">
-      <div>
-        <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
-        <p className="text-xs text-muted-foreground">30-day trading & ad performance · {orders.length.toLocaleString('en-IN')} total orders synced</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
+          <p className="text-xs text-muted-foreground">{periodLabel} · {orders.length.toLocaleString('en-IN')} total orders synced</p>
+        </div>
+        <TimePeriodFilter value={filter} onChange={setFilter} />
       </div>
 
       {/* ─── KPI Cards ─── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           icon={ShoppingCart}
-          label="Completed Trades (30d)"
+          label="Completed Trades"
           value={String(tradeStats.completed)}
           sub={`Buy ${tradeStats.buyCount} | Sell ${tradeStats.sellCount}`}
         />
         <StatCard
           icon={Banknote}
-          label="Total Volume (30d)"
+          label="Total Volume"
           value={fmtINR(tradeStats.totalFiat)}
           sub={`${fmt(tradeStats.totalCrypto, 4)} crypto`}
         />
@@ -216,7 +237,7 @@ export default function TerminalAnalytics() {
         <Card className="lg:col-span-2 bg-card border-border">
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-              <BarChart3 className="h-3.5 w-3.5" /> Daily Trade Volume (30d)
+              <BarChart3 className="h-3.5 w-3.5" /> Daily Trade Volume
             </CardTitle>
           </CardHeader>
           <CardContent className="px-2 pb-3">
@@ -253,7 +274,7 @@ export default function TerminalAnalytics() {
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[220px] text-xs text-muted-foreground">
-                No completed trades in the last 30 days
+                No completed trades in selected period
               </div>
             )}
           </CardContent>

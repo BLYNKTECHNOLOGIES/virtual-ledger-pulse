@@ -1,83 +1,78 @@
 
 
-# Updated Plan — Verified Name Identity System (Non-Unique)
+# Updated Plan — Data Integrity Improvements (Corrected Assumptions)
 
-## Critical Correction
+## Corrections Applied
 
-Verified names are **immutable per client** but **NOT globally unique**. Two different people can share the same KYC-verified name (e.g., "AMBER GANDOTRA" currently maps to 2 different clients). Therefore:
+| Wrong Assumption | Corrected Understanding |
+|-----------------|------------------------|
+| Manual entries = system failure | Manual entries are from **other trading platforms** (not Binance). Only Binance has API sync. This is by design. |
+| Uppercase normalization of verified names | **Do NOT normalize case.** Binance always returns the same casing for a given client. Case differences between a verified name and a client name are a **useful signal** — they can help distinguish different clients or flag data issues. |
+| Nicknames available for all orders | Nicknames/user IDs are **Binance-only**. Other platform orders will never have nicknames. Identity resolution must gracefully handle orders with no nickname data at all. |
 
-- `client_verified_names` must use a **composite unique constraint** on `(client_id, verified_name)` — NOT a unique constraint on `verified_name` alone.
-- Identity resolution by verified name alone may return **multiple candidates** — it must be combined with nickname or other signals to disambiguate.
+## What This Changes in the Current Code
 
-Live data confirms: 2 verified names currently map to 2+ clients each.
+### 1. Remove Case-Insensitive Verified Name Matching
 
----
+**Current code issue** in `clientIdentityResolver.ts` line 57: `verifiedNameMap.get(verifiedName)` — this is already case-sensitive (exact match), which is correct.
 
-## Revised Plan (5 Steps)
+**However**, Priority 3 (line 83) uses `counterpartyName.toLowerCase()` for the name-match fallback against clients. This is acceptable for the fallback since client names in the DB may have inconsistent casing from manual entry. But verified name lookups must remain **exact case**.
 
-### Step 1: Create `client_verified_names` Table (Corrected Schema)
+**Action**: No code change needed for the resolver — it already does exact-match for verified names. Good.
 
-```sql
-client_verified_names
-├── id (UUID PK)
-├── client_id (FK → clients, NOT NULL)
-├── verified_name (TEXT, NOT NULL)
-├── source (TEXT: 'approval', 'auto_sync', 'backfill')
-├── first_seen_at (TIMESTAMPTZ)
-├── last_seen_at (TIMESTAMPTZ)
-├── created_at (TIMESTAMPTZ)
-└── UNIQUE(client_id, verified_name)  -- NOT unique on verified_name alone
-```
+### 2. Clean Up Case-Duplicate Verified Names in DB
 
-Index on `verified_name` (non-unique) for fast lookups. RLS for authenticated users.
+The backfill created duplicate entries like "RAHUL" and "Rahul" for the same client. Since Binance always returns consistent casing, only one is the real Binance-sourced name. The other came from the client name field during backfill.
 
-### Step 2: Add Index on `p2p_order_records(counterparty_nickname)`
+**Action**: One-time data cleanup — for each client with multiple case-variants of the same verified name, keep only the one that matches actual Binance order data (from `terminal_sales_sync.order_data->>'verified_name'`). Delete the backfill-generated duplicate.
 
-Single migration — btree index for the heavily queried nickname column.
+### 3. Fix Mislinked Verified Names
 
-### Step 3: One-Time Backfill
+Three clients have verified names that don't belong to them (e.g., "Gursharan Singh" linked to "SUJAY A P"). These were created by the backfill matching on masked nicknames.
 
-**A.** Populate `client_verified_names` from `terminal_sales_sync` where `client_id` is set and `verified_name` exists in order_data.
+**Action**: Delete these 3 incorrect entries from `client_verified_names`. The correct linkage will be rebuilt naturally when future orders for these clients come through with proper verified names.
 
-**B.** Link orphaned unmasked nicknames from `p2p_order_records` to clients via sync tables that already have `client_id`.
+### 4. Persist Verified Names to `binance_order_history` in Sales Sync
 
-**C.** Backfill `client_id` on unmatched sync records — but ONLY where the verified_name + nickname combination resolves to exactly ONE client (skip ambiguous matches).
+**Current gap**: `useTerminalSalesSync.ts` fetches verified buyer names from the API but doesn't save them back to `binance_order_history`. The purchase sync already does this. This means 14,699 SELL orders lack verified names in the history table, and every re-sync re-fetches from the API.
 
-### Step 4: Update Sync Hooks — Multi-Signal Resolution
+**Action**: Add one line in `useTerminalSalesSync.ts` after successful API enrichment to update `binance_order_history.verified_name`.
 
-**Files:** `useTerminalSalesSync.ts`, `useTerminalPurchaseSync.ts`
+### 5. Link 46 Orphaned Nicknames
 
-New resolution hierarchy with disambiguation:
+46 unmasked nicknames in `p2p_order_records` can be linked to clients via their verified names. Missed by initial backfill.
 
-1. **Priority 0**: Lookup `client_verified_names` by verified name. If exactly 1 client → use it. If multiple clients share the name → fall through to nickname for disambiguation.
-2. **Priority 1**: Lookup `client_binance_nicknames` by unmasked nickname (existing).
-3. **Priority 2**: If verified name returned multiple candidates AND nickname matched one of them → use that intersection.
-4. **Priority 3**: Case-insensitive name match against clients table (existing fallback).
+**Action**: One-time SQL insert into `client_binance_nicknames`.
 
-After matching, auto-upsert verified name into `client_verified_names` with composite key.
+### 6. Fix 29 Pending Records That Match Existing Clients
 
-### Step 5: Update Approval Flows
+29 `client_mapping_pending` sales records have counterparty names matching existing clients but weren't caught during sync — likely whitespace issues.
 
-**Files:** `ClientOnboardingApprovals.tsx`, `SellerOnboardingApprovals.tsx`, `TerminalSalesApprovalDialog.tsx`, `TerminalPurchaseApprovalDialog.tsx`
+**Action**: One-time SQL update to set `client_id` and change status to `synced_pending_approval` for these 29 records. Add `trim()` to the name-matching logic in the resolver.
 
-On approval, upsert verified name into `client_verified_names` (using composite `client_id + verified_name`). This builds the identity graph over time.
+### 7. Update Memory
 
-### Step 6: Save Memory
-
-Store the verified name rules: immutable per client, NOT globally unique, must combine with nickname for disambiguation.
+Save three new rules:
+- Manual entries are from non-Binance platforms — not system failures
+- Do NOT normalize verified name casing — Binance casing is consistent and case differences are an identity signal
+- Nicknames/user IDs are Binance-only; other platform orders have no nickname data
 
 ---
 
-## Key Difference from Previous Plan
+## Files Changed
 
-| Aspect | Previous Plan | Updated Plan |
-|--------|--------------|--------------|
-| `verified_name` uniqueness | UNIQUE (global) | UNIQUE(client_id, verified_name) — composite |
-| Lookup by verified name | Direct → single client | May return multiple → requires disambiguation |
-| Resolution logic | Verified name alone sufficient | Verified name + nickname intersection |
-| Backfill matching | All verified name matches | Only unambiguous matches (1 client per name) |
+| File | Change |
+|------|--------|
+| `useTerminalSalesSync.ts` | Add `binance_order_history` update after verified name fetch |
+| `clientIdentityResolver.ts` | Add `trim()` to name-match fallback |
+| Migration (data cleanup) | Remove 3 mislinked + ~4 case-duplicate verified names |
+| Migration (data enrichment) | Link 46 orphaned nicknames, fix 29 pending matches |
+| Memory files | Update identity rules with corrected assumptions |
 
-## Impact
+## What Is NOT Changed (Confirmed Correct)
 
-Same benefits as before (improved match rates, progressive enrichment) but without the risk of misattributing orders when two different clients share the same verified name.
+- Verified name lookup remains **exact case match** (no normalization)
+- Identity resolution gracefully returns `null` when no nickname exists (works for non-Binance orders)
+- Manual entries flow remains untouched — it works as designed for multi-platform trading
+- The composite unique constraint `(client_id, verified_name)` on `client_verified_names` remains correct
 

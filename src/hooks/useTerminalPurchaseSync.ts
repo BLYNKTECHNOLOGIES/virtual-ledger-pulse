@@ -345,5 +345,28 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     synced = toInsert.length;
   }
 
+  // Auto-backfill: capture unmasked nicknames for matched clients into client_binance_nicknames
+  for (const rec of toInsert) {
+    if (!rec.client_id) continue;
+    const unmasked = rec.order_data?.counterparty_nickname_unmasked;
+    const safeNick = rec.order_data?.counterparty_nickname;
+    const nicksToCapture = [
+      unmasked && !unmasked.includes('*') ? unmasked : null,
+      safeNick && !safeNick.includes('*') ? safeNick : null,
+    ].filter(Boolean) as string[];
+
+    for (const nick of nicksToCapture) {
+      if (nicknameClientMap.has(nick)) continue; // Already linked
+      try {
+        await supabase.from('client_binance_nicknames').upsert({
+          client_id: rec.client_id,
+          nickname: nick,
+          source: 'auto_sync',
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'nickname' });
+      } catch { /* best effort */ }
+    }
+  }
+
   return { synced, duplicates };
 }

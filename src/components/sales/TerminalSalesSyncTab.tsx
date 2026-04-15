@@ -238,10 +238,68 @@ export function TerminalSalesSyncTab() {
     },
   });
 
-  const pendingCount = syncRecords.filter((r: any) => r.sync_status === 'synced_pending_approval' || r.sync_status === 'client_mapping_pending').length;
+  const pendingCount = syncRecords.filter((r: any) => PENDING_STATUSES.includes(r.sync_status)).length;
+  const pendingRecordsList = syncRecords.filter((r: any) => PENDING_STATUSES.includes(r.sync_status));
+  const allPendingSelected = pendingRecordsList.length > 0 && pendingRecordsList.every((r: any) => selectedIds.has(r.id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingRecordsList.map((r: any) => r.id)));
+    }
+  };
+
+  const bulkRejectMutation = useMutation({
+    mutationFn: async ({ ids, reason }: { ids: string[]; reason: string }) => {
+      const userId = await requireCurrentUserId();
+      const { error } = await supabase
+        .from('terminal_sales_sync')
+        .update({
+          sync_status: 'rejected',
+          rejection_reason: reason,
+          reviewed_by: userId,
+          reviewed_at: new Date().toISOString(),
+        })
+        .in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      toast({ title: `${count} orders rejected` });
+      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      setSelectedIds(new Set());
+      setBulkRejectOpen(false);
+      setBulkRejectReason("");
+    },
+  });
 
   return (
     <div className="space-y-4">
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+          <Badge variant="secondary" className="text-xs">{selectedIds.size} selected</Badge>
+          {hasPermission('terminal_destructive') && (
+            <Button variant="destructive" size="sm" className="h-7 text-[10px]" onClick={() => setBulkRejectOpen(true)}>
+              <XCircle className="h-3 w-3 mr-1" />
+              Bulk Reject
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSelectedIds(new Set())}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">

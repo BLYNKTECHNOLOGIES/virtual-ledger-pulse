@@ -30,7 +30,7 @@ interface Props {
 }
 
 /** Session-level set of order numbers whose chats have been opened in this terminal session */
-const readOrderNumbers = new Set<string>();
+export const readOrderNumbers = new Set<string>();
 
 export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [tab, setTab] = useState<'all' | 'unread'>('all');

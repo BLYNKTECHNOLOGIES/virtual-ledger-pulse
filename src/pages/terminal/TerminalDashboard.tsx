@@ -179,7 +179,8 @@ export default function TerminalDashboard() {
         pendingPayments={stats.pendingPayments}
         completedToday={stats.completedToday}
         appeals={stats.appeals}
-        totalVolume={stats.totalVolume}
+        totalBuyVolume={stats.totalBuyVolume}
+        totalSellVolume={stats.totalSellVolume}
         avgOrderSize={stats.avgOrderSize}
         completionRate={stats.completionRate}
         buySellRatio={stats.buySellRatio}

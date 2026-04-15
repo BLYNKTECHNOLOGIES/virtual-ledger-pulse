@@ -21,33 +21,37 @@ serve(async (req) => {
       throw new Error("Missing Binance configuration secrets");
     }
 
-    // Try Binance C2C advertisment data for accurate OTC rate
+    // Priority 1: Binance P2P / ticker
     try {
       const rate = await fetchBinanceP2PRate(BINANCE_PROXY_URL, BINANCE_API_KEY);
       if (rate) {
-        return new Response(
-          JSON.stringify({ rate, source: "Binance P2P", timestamp: new Date().toISOString() }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ rate, source: "Binance P2P", timestamp: new Date().toISOString() });
       }
     } catch (e) {
-      console.error("Binance P2P fetch failed, trying ticker:", e);
+      console.error("Binance P2P fetch failed:", e);
     }
 
-    // Fallback: Binance ticker price (USDT/INR if available)
+    // Priority 2: Binance ticker (cross-rate via BTC)
     try {
       const rate = await fetchBinanceTickerRate(BINANCE_PROXY_URL, BINANCE_API_KEY);
       if (rate) {
-        return new Response(
-          JSON.stringify({ rate, source: "Binance Ticker", timestamp: new Date().toISOString() }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse({ rate, source: "Binance Ticker", timestamp: new Date().toISOString() });
       }
     } catch (e) {
-      console.error("Binance ticker fetch failed, trying CoinGecko:", e);
+      console.error("Binance ticker fetch failed:", e);
     }
 
-    // Fallback: CoinGecko (no auth needed)
+    // Fallback 1: CryptoCompare (free, no auth, direct USDT→INR)
+    try {
+      const rate = await fetchCryptoCompareRate();
+      if (rate) {
+        return jsonResponse({ rate, source: "CryptoCompare", timestamp: new Date().toISOString() });
+      }
+    } catch (e) {
+      console.error("CryptoCompare fetch failed:", e);
+    }
+
+    // Fallback 2: CoinGecko (free, no auth)
     try {
       const cgResponse = await fetch(
         "https://api.coingecko.com/api/v3/simple/price?ids=tether&vs_currencies=inr",
@@ -56,32 +60,77 @@ serve(async (req) => {
       if (cgResponse.ok) {
         const data = await cgResponse.json();
         if (data.tether?.inr) {
-          return new Response(
-            JSON.stringify({ rate: data.tether.inr, source: "CoinGecko", timestamp: new Date().toISOString() }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return jsonResponse({ rate: data.tether.inr, source: "CoinGecko", timestamp: new Date().toISOString() });
         }
       }
     } catch (e) {
       console.error("CoinGecko fetch failed:", e);
     }
 
-    // Final fallback — signal that no live rate is available
-    return new Response(
-      JSON.stringify({ rate: null, source: "Unavailable", timestamp: new Date().toISOString(), error: "All price sources failed" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Fallback 3: CoinCap + ExchangeRate-API cross-rate (USDT→USD * USD→INR)
+    try {
+      const rate = await fetchCoinCapCrossRate();
+      if (rate) {
+        return jsonResponse({ rate, source: "CoinCap+ER-API", timestamp: new Date().toISOString() });
+      }
+    } catch (e) {
+      console.error("CoinCap cross-rate fetch failed:", e);
+    }
+
+    // All sources exhausted — return unavailable
+    console.error("All USDT/INR price sources failed");
+    return jsonResponse({ rate: null, source: "Unavailable", timestamp: new Date().toISOString(), error: "All price sources failed" });
+
   } catch (error) {
     console.error("fetch-usdt-rate error:", error);
-    return new Response(
-      JSON.stringify({ rate: null, source: "Unavailable", error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    return jsonResponse(
+      { rate: null, source: "Unavailable", error: error instanceof Error ? error.message : "Unknown error" },
+      200
     );
   }
 });
 
+function jsonResponse(data: Record<string, unknown>, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function fetchCryptoCompareRate(): Promise<number | null> {
+  const response = await fetch(
+    "https://min-api.cryptocompare.com/data/price?fsym=USDT&tsyms=INR",
+    { headers: { Accept: "application/json" } }
+  );
+  if (response.ok) {
+    const data = await response.json();
+    if (data.INR && typeof data.INR === "number" && data.INR > 0) {
+      return parseFloat(data.INR.toFixed(2));
+    }
+  }
+  return null;
+}
+
+async function fetchCoinCapCrossRate(): Promise<number | null> {
+  // CoinCap gives USDT price in USD, then convert USD→INR via free forex API
+  const [capRes, fxRes] = await Promise.all([
+    fetch("https://api.coincap.io/v2/rates/tether", { headers: { Accept: "application/json" } }),
+    fetch("https://open.er-api.com/v6/latest/USD", { headers: { Accept: "application/json" } }),
+  ]);
+
+  if (capRes.ok && fxRes.ok) {
+    const capData = await capRes.json();
+    const fxData = await fxRes.json();
+    const usdtUsd = parseFloat(capData?.data?.rateUsd);
+    const usdInr = fxData?.rates?.INR;
+    if (usdtUsd > 0 && usdInr > 0) {
+      return parseFloat((usdtUsd * usdInr).toFixed(2));
+    }
+  }
+  return null;
+}
+
 async function fetchBinanceP2PRate(proxyUrl: string, apiKey: string): Promise<number | null> {
-  // Binance C2C /c2c/orderMatch/listUserOrderHistory or public P2P ads
   const response = await fetch(`${proxyUrl}/api/v3/ticker/price?symbol=USDTINR`, {
     headers: { "X-MBX-APIKEY": apiKey },
   });
@@ -99,7 +148,6 @@ async function fetchBinanceP2PRate(proxyUrl: string, apiKey: string): Promise<nu
 }
 
 async function fetchBinanceTickerRate(proxyUrl: string, apiKey: string): Promise<number | null> {
-  // Try USDTBIDR or calculate via USDT/BUSD pairs
   const response = await fetch(`${proxyUrl}/api/v3/ticker/price?symbol=USDTINR`, {
     headers: { "X-MBX-APIKEY": apiKey },
   });

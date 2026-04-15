@@ -126,7 +126,7 @@ export function SellerOnboardingApprovals() {
       const allNicknames = new Set<string>();
       for (const row of p2pRows) {
         const nick = row.counterparty_nickname?.trim();
-        if (!nick) continue;
+        if (!nick || nick.includes('*')) continue; // Skip masked nicknames
         const sellerName = orderNumberToName[row.binance_order_number];
         if (sellerName && !nameToNickname[sellerName]) {
           nameToNickname[sellerName] = nick;
@@ -206,7 +206,7 @@ export function SellerOnboardingApprovals() {
       const seller = pendingSellers?.find(s => s.id === sellerId);
       if (seller) {
         const nickInfo = sellerNicknameMap?.[seller.name];
-        if (nickInfo?.nickname) {
+        if (nickInfo?.nickname && !nickInfo.nickname.includes('*')) {
           try {
             await supabase.from('client_binance_nicknames').upsert({
               client_id: sellerId,

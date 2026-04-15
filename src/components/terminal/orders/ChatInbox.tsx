@@ -187,7 +187,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
               <ConversationRow
                 key={conv.orderNumber}
                 conversation={conv}
-                onClick={() => onOpenChat(conv)}
+                onClick={() => handleOpenChat(conv)}
               />
             ))}
           </div>

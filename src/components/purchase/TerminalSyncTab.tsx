@@ -259,7 +259,25 @@ export function TerminalSyncTab() {
       setBulkRejectReason("");
     },
   });
+
+  return (
     <div className="space-y-4">
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
+          <Badge variant="secondary" className="text-xs">{selectedIds.size} selected</Badge>
+          {hasPermission('terminal_destructive') && (
+            <Button variant="destructive" size="sm" className="h-7 text-[10px]" onClick={() => setBulkRejectOpen(true)}>
+              <XCircle className="h-3 w-3 mr-1" />
+              Bulk Reject
+            </Button>
+          )}
+          <Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setSelectedIds(new Set())}>
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">

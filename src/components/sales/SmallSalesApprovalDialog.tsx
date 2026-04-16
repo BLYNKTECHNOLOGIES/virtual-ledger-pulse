@@ -90,7 +90,10 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       const ssEffUsdtQty = ssQty * ssEffRate;
       const ssEffUsdtRate = ssEffUsdtQty > 0 ? ssTotalAmt / ssEffUsdtQty : null;
 
-      // Create sales order
+      const resolvedBankAccountId = selectedMethod?.bank_account_id;
+      const orderDate = new Date().toISOString().split('T')[0];
+
+      // Create sales order — include payment method ID
       const { data: salesOrder, error: soErr } = await supabase
         .from('sales_orders')
         .insert({
@@ -98,11 +101,12 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           client_name: 'Small Sales',
           client_phone: null,
           client_state: null,
-          order_date: new Date().toISOString().split('T')[0],
+          order_date: orderDate,
           total_amount: record.total_amount,
           quantity: record.total_quantity,
           price_per_unit: record.avg_price,
           product_id: productRow.id,
+          sales_payment_method_id: paymentMethodId,
           fee_percentage: 0,
           fee_amount: record.total_fee,
           net_amount: Number(record.total_amount) - Number(record.total_fee),
@@ -122,6 +126,38 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         .single();
 
       if (soErr || !salesOrder) throw soErr || new Error('Failed to create sales order');
+
+      // Create pending settlement or bank transaction based on payment method type
+      if (isGateway && resolvedBankAccountId) {
+        await supabase.from('pending_settlements').insert({
+          sales_order_id: salesOrder.id,
+          order_number: orderNumber,
+          client_name: 'Small Sales',
+          total_amount: Number(record.total_amount),
+          settlement_amount: Number(record.total_amount),
+          order_date: orderDate,
+          payment_method_id: paymentMethodId,
+          bank_account_id: resolvedBankAccountId,
+          settlement_cycle: selectedMethod?.settlement_cycle || 'T+1 Day',
+          settlement_days: selectedMethod?.settlement_days || null,
+          expected_settlement_date: selectedMethod?.settlement_days
+            ? new Date(Date.now() + (selectedMethod.settlement_days * 86400000)).toISOString().split('T')[0]
+            : new Date(Date.now() + 86400000).toISOString().split('T')[0],
+          status: 'PENDING',
+        });
+      } else if (resolvedBankAccountId) {
+        // Direct payment → create INCOME bank transaction
+        await supabase.from('bank_transactions').insert({
+          bank_account_id: resolvedBankAccountId,
+          transaction_type: 'INCOME',
+          amount: Number(record.total_amount),
+          transaction_date: orderDate,
+          description: `Sales Order - ${orderNumber} - Small Sales`,
+          reference_number: orderNumber,
+          category: 'Sales',
+          created_by: userId,
+        });
+      }
 
       // Binance SELL wallet impact = sold quantity + commission.
       if (record.wallet_id) {
@@ -149,7 +185,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         createdBy: userId,
       });
 
-      // Update sync record
+      // Update sync record ONLY after sales order is confirmed created
       await supabase
         .from('small_sales_sync')
         .update({

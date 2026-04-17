@@ -63,6 +63,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       const marketRate = locked.price;
 
       const userId = await requireCurrentUserId();
+      const approvalTimestamp = new Date().toISOString();
 
       // Resolve product_id from asset code
       const { data: productRow } = await supabase
@@ -81,6 +82,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       const orderNumber = `SM${String(seqNum).padStart(5, '0')}`;
 
       const selectedMethod = paymentMethods?.find(m => m.id === paymentMethodId);
+      if (!selectedMethod) throw new Error('Selected payment method was not found');
+
       const isGateway = selectedMethod?.payment_gateway === true;
 
       // Compute effective USDT qty and rate
@@ -91,7 +94,12 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       const ssEffUsdtRate = ssEffUsdtQty > 0 ? ssTotalAmt / ssEffUsdtQty : null;
 
       const resolvedBankAccountId = selectedMethod?.bank_account_id;
-      const orderDate = new Date().toISOString().split('T')[0];
+      if (!resolvedBankAccountId) {
+        throw new Error(`No bank account is linked to ${selectedMethod.nickname || selectedMethod.type || 'the selected payment method'}`);
+      }
+
+      const orderDateSource = record.time_window_end || record.time_window_start || approvalTimestamp;
+      const orderDate = new Date(orderDateSource).toISOString().split('T')[0];
 
       // Create sales order — include payment method ID
       const { data: salesOrder, error: soErr } = await supabase
@@ -109,15 +117,16 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           sales_payment_method_id: paymentMethodId,
           fee_percentage: 0,
           fee_amount: record.total_fee,
-          net_amount: Number(record.total_amount) - Number(record.total_fee),
+          net_amount: Number(record.total_amount),
           payment_status: 'COMPLETED',
           settlement_status: isGateway ? 'PENDING' : 'DIRECT',
-          status: 'approved',
+          status: 'COMPLETED',
           platform: 'Binance',
           wallet_id: record.wallet_id,
           source: 'terminal_small_sales',
           sale_type: 'small_sale',
           description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
+          created_by: userId,
           market_rate_usdt: marketRate,
           effective_usdt_qty: ssEffUsdtQty,
           effective_usdt_rate: ssEffUsdtRate,
@@ -129,7 +138,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
       // Create pending settlement or bank transaction based on payment method type
       if (isGateway && resolvedBankAccountId) {
-        await supabase.from('pending_settlements').insert({
+        const { error: settlementErr } = await supabase.from('pending_settlements').insert({
           sales_order_id: salesOrder.id,
           order_number: orderNumber,
           client_name: 'Small Sales',
@@ -145,9 +154,10 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
             : new Date(Date.now() + 86400000).toISOString().split('T')[0],
           status: 'PENDING',
         });
+        if (settlementErr) throw settlementErr;
       } else if (resolvedBankAccountId) {
         // Direct payment → create INCOME bank transaction
-        await supabase.from('bank_transactions').insert({
+        const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
           bank_account_id: resolvedBankAccountId,
           transaction_type: 'INCOME',
           amount: Number(record.total_amount),
@@ -157,17 +167,19 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           category: 'Sales',
           created_by: userId,
         });
+        if (bankTxErr) throw bankTxErr;
       }
 
       // Binance SELL wallet impact = sold quantity + commission.
       if (record.wallet_id) {
         const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
-        await supabase.rpc('process_sales_order_wallet_deduction', {
+        const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
           sales_order_id: salesOrder.id,
           usdt_amount: totalWalletDebit,
           wallet_id: record.wallet_id,
           p_asset_code: record.asset_code,
         });
+        if (walletErr) throw walletErr;
       }
 
       // Persist batch valuation record
@@ -186,7 +198,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       });
 
       // Update sync record ONLY after sales order is confirmed created
-      await supabase
+      const { error: syncUpdateErr } = await supabase
         .from('small_sales_sync')
         .update({
           sync_status: 'approved',
@@ -195,6 +207,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           reviewed_at: new Date().toISOString(),
         })
         .eq('id', record.id);
+      if (syncUpdateErr) throw syncUpdateErr;
 
       return salesOrder;
     },
@@ -202,6 +215,8 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       toast({ title: 'Approved', description: 'Small sales entry created in ERP' });
       queryClient.invalidateQueries({ queryKey: ['small_sales_sync'] });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
+      queryClient.invalidateQueries({ queryKey: ['pending_settlements'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['crypto_wallets'] });
       onOpenChange(false);
     },

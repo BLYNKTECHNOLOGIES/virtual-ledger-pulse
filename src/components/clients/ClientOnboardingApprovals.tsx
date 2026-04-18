@@ -76,6 +76,8 @@ interface ClientOnboardingApproval {
   compliance_notes?: string;
   created_at: string;
   updated_at: string;
+  binance_nickname?: string | null;
+  verified_name?: string | null;
 }
 
 interface ExistingClientMatch {
@@ -170,96 +172,219 @@ export function ClientOnboardingApprovals() {
     }
   });
 
-  // Enrich pending approvals with Binance nicknames
-  const pendingSalesOrderIds = approvals
-    ?.filter(a => a.approval_status === 'PENDING' && a.sales_order_id)
-    .map(a => a.sales_order_id) || [];
+  // 4-state identity resolution per pending approval — uses persisted
+  // binance_nickname / verified_name first, falls back to legacy 3-hop join.
+  type ClientLite = {
+    id: string;
+    name: string;
+    client_id: string | null;
+    risk_appetite: string | null;
+    buyer_approval_status: string | null;
+    seller_approval_status: string | null;
+  };
+  type IdentityState = 'linked_known' | 'verified_name_match' | 'name_collision' | 'new_client';
+  interface IdentityInfo {
+    nickname: string | null;
+    verifiedName: string | null;
+    state: IdentityState;
+    matchedClient?: ClientLite;
+  }
 
-  const { data: nicknameEnrichment } = useQuery({
-    queryKey: ['buyer-approval-nicknames', pendingSalesOrderIds.sort().join(',')],
+  const pendingApprovalsRaw = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const pendingSalesOrderIds = pendingApprovalsRaw
+    .filter(a => a.sales_order_id)
+    .map(a => a.sales_order_id);
+
+  const { data: identityMap } = useQuery({
+    queryKey: ['buyer-approval-identity', pendingApprovalsRaw.map(a => a.id).sort().join(',')],
+    enabled: pendingApprovalsRaw.length > 0,
+    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      if (pendingSalesOrderIds.length === 0) return {} as Record<string, { nickname: string; existingClient?: { id: string; name: string } }>;
+      const result: Record<string, IdentityInfo> = {};
+      if (pendingApprovalsRaw.length === 0) return result;
 
-      // Step 1: sales_order_id → terminal_sales_sync → binance_order_number
-      const { data: syncRows } = await supabase
-        .from('terminal_sales_sync')
-        .select('sales_order_id, binance_order_number')
-        .in('sales_order_id', pendingSalesOrderIds);
-
-      if (!syncRows?.length) return {};
-
-      const orderNumberToSalesId: Record<string, string> = {};
-      for (const row of syncRows) {
-        if (row.binance_order_number && row.sales_order_id) {
-          orderNumberToSalesId[row.binance_order_number] = row.sales_order_id;
+      // Step 1 — Determine nickname + verified name per approval (persisted first, fallback to join)
+      const needsLegacyLookup: string[] = [];
+      const identitySeed: Record<string, { nickname: string | null; verifiedName: string | null }> = {};
+      for (const a of pendingApprovalsRaw) {
+        const persistedNick = a.binance_nickname?.trim() || null;
+        const persistedVName = a.verified_name?.trim() || null;
+        identitySeed[a.id] = { nickname: persistedNick, verifiedName: persistedVName };
+        if ((!persistedNick || !persistedVName) && a.sales_order_id) {
+          needsLegacyLookup.push(a.sales_order_id);
         }
       }
 
-      const orderNumbers = Object.keys(orderNumberToSalesId);
-      if (orderNumbers.length === 0) return {};
+      // Legacy enrichment for un-backfilled rows
+      if (needsLegacyLookup.length > 0) {
+        const { data: syncRows } = await supabase
+          .from('terminal_sales_sync')
+          .select('sales_order_id, binance_order_number, order_data')
+          .in('sales_order_id', needsLegacyLookup);
 
-      // Step 2: binance_order_number → p2p_order_records → counterparty_nickname
-      const { data: p2pRows } = await supabase
-        .from('p2p_order_records')
-        .select('binance_order_number, counterparty_nickname')
-        .in('binance_order_number', orderNumbers)
-        .not('counterparty_nickname', 'is', null);
-
-      if (!p2pRows?.length) return {};
-
-      // Build salesOrderId → nickname map
-      const salesIdToNickname: Record<string, string> = {};
-      const allNicknames = new Set<string>();
-      for (const row of p2pRows) {
-        const nick = row.counterparty_nickname?.trim();
-        if (!nick || nick.includes('*')) continue; // Skip masked nicknames
-        const salesId = orderNumberToSalesId[row.binance_order_number];
-        if (salesId) {
-          salesIdToNickname[salesId] = nick;
-          allNicknames.add(nick);
+        const orderNumberToSalesId: Record<string, string> = {};
+        const salesIdToVName: Record<string, string> = {};
+        for (const row of syncRows || []) {
+          if (row.binance_order_number && row.sales_order_id) {
+            orderNumberToSalesId[row.binance_order_number] = row.sales_order_id;
+          }
+          const vn = (row.order_data as any)?.verified_name?.trim?.();
+          if (vn && row.sales_order_id) salesIdToVName[row.sales_order_id] = vn;
         }
-      }
-
-      // Step 3: Check client_binance_nicknames for known links
-      const nickArr = Array.from(allNicknames);
-      let nicknameToClient: Record<string, { id: string; name: string }> = {};
-      if (nickArr.length > 0) {
-        const { data: linkRows } = await supabase
-          .from('client_binance_nicknames')
-          .select('nickname, client_id')
-          .in('nickname', nickArr)
-          .eq('is_active', true);
-
-        if (linkRows?.length) {
-          const clientIds = linkRows.map(r => r.client_id);
-          const { data: clientRows } = await supabase
-            .from('clients')
-            .select('id, name')
-            .in('id', clientIds)
-            .eq('is_deleted', false);
-
-          const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
-          for (const link of linkRows) {
-            const clientName = clientMap.get(link.client_id);
-            if (clientName) {
-              nicknameToClient[link.nickname] = { id: link.client_id, name: clientName };
+        const orderNumbers = Object.keys(orderNumberToSalesId);
+        if (orderNumbers.length > 0) {
+          const { data: p2pRows } = await supabase
+            .from('p2p_order_records')
+            .select('binance_order_number, counterparty_nickname')
+            .in('binance_order_number', orderNumbers)
+            .not('counterparty_nickname', 'is', null);
+          for (const row of p2pRows || []) {
+            const nick = row.counterparty_nickname?.trim();
+            if (!nick || nick.includes('*')) continue;
+            const salesId = orderNumberToSalesId[row.binance_order_number];
+            if (!salesId) continue;
+            for (const a of pendingApprovalsRaw) {
+              if (a.sales_order_id === salesId) {
+                identitySeed[a.id].nickname ||= nick;
+                identitySeed[a.id].verifiedName ||= salesIdToVName[salesId] || null;
+              }
             }
           }
         }
       }
 
-      // Build final map: approvalId → { nickname, existingClient? }
-      const result: Record<string, { nickname: string; existingClient?: { id: string; name: string } }> = {};
-      for (const a of (approvals || [])) {
-        if (a.sales_order_id && salesIdToNickname[a.sales_order_id]) {
-          const nick = salesIdToNickname[a.sales_order_id];
-          result[a.id] = { nickname: nick, existingClient: nicknameToClient[nick] };
+      // Step 2 — Build lookup maps from clients table
+      const allNicks = new Set<string>();
+      const allVNames = new Set<string>();
+      const allDisplayNames = new Set<string>();
+      for (const a of pendingApprovalsRaw) {
+        const seed = identitySeed[a.id];
+        if (seed.nickname) allNicks.add(seed.nickname);
+        if (seed.verifiedName) allVNames.add(seed.verifiedName);
+        const dn = a.client_name?.trim().toLowerCase();
+        if (dn) allDisplayNames.add(dn);
+      }
+
+      const nicknameToClient = new Map<string, ClientLite>();
+      const verifiedNameToClient = new Map<string, ClientLite>();
+      const displayNameToClient = new Map<string, ClientLite>();
+
+      // Nickname → client_id
+      const nickArr = Array.from(allNicks);
+      const linkedClientIds = new Set<string>();
+      const nickRows: Array<{ nickname: string; client_id: string }> = [];
+      if (nickArr.length > 0) {
+        const { data } = await supabase
+          .from('client_binance_nicknames')
+          .select('nickname, client_id')
+          .in('nickname', nickArr)
+          .eq('is_active', true);
+        for (const r of data || []) {
+          nickRows.push(r);
+          linkedClientIds.add(r.client_id);
         }
+      }
+
+      // Verified name → client_id
+      const vnameArr = Array.from(allVNames);
+      const vnRows: Array<{ verified_name: string; client_id: string }> = [];
+      if (vnameArr.length > 0) {
+        const { data } = await supabase
+          .from('client_verified_names')
+          .select('verified_name, client_id')
+          .in('verified_name', vnameArr);
+        for (const r of data || []) {
+          vnRows.push(r);
+          linkedClientIds.add(r.client_id);
+        }
+      }
+
+      // Fetch client master rows we need (linked + display-name candidates)
+      const dnameArr = Array.from(allDisplayNames);
+      const { data: clientsByLinked } = linkedClientIds.size > 0
+        ? await supabase
+            .from('clients')
+            .select('id, name, client_id, risk_appetite, buyer_approval_status, seller_approval_status, is_deleted')
+            .in('id', Array.from(linkedClientIds))
+        : { data: [] };
+      const { data: clientsByName } = dnameArr.length > 0
+        ? await supabase
+            .from('clients')
+            .select('id, name, client_id, risk_appetite, buyer_approval_status, seller_approval_status, is_deleted')
+            .in('name', pendingApprovalsRaw.map(a => a.client_name).filter(Boolean))
+        : { data: [] };
+
+      const clientById = new Map<string, ClientLite>();
+      for (const c of [...(clientsByLinked || []), ...(clientsByName || [])]) {
+        if ((c as any).is_deleted) continue;
+        clientById.set(c.id, {
+          id: c.id, name: c.name, client_id: c.client_id,
+          risk_appetite: c.risk_appetite,
+          buyer_approval_status: c.buyer_approval_status,
+          seller_approval_status: c.seller_approval_status,
+        });
+      }
+      for (const r of nickRows) {
+        const cl = clientById.get(r.client_id);
+        if (cl) nicknameToClient.set(r.nickname, cl);
+      }
+      for (const r of vnRows) {
+        const cl = clientById.get(r.client_id);
+        if (cl) verifiedNameToClient.set(r.verified_name, cl);
+      }
+      for (const c of clientsByName || []) {
+        if ((c as any).is_deleted) continue;
+        displayNameToClient.set(c.name.trim().toLowerCase(), clientById.get(c.id)!);
+      }
+
+      // Step 3 — Classify each approval
+      for (const a of pendingApprovalsRaw) {
+        const seed = identitySeed[a.id];
+        const nick = seed.nickname;
+        const vname = seed.verifiedName;
+
+        let state: IdentityState = 'new_client';
+        let matched: ClientLite | undefined;
+
+        if (nick && nicknameToClient.has(nick)) {
+          state = 'linked_known';
+          matched = nicknameToClient.get(nick);
+        } else if (vname && verifiedNameToClient.has(vname)) {
+          state = 'verified_name_match';
+          matched = verifiedNameToClient.get(vname);
+        } else {
+          const dn = a.client_name?.trim().toLowerCase();
+          if (dn && displayNameToClient.has(dn)) {
+            state = 'name_collision';
+            matched = displayNameToClient.get(dn);
+          }
+        }
+        result[a.id] = { nickname: nick, verifiedName: vname, state, matchedClient: matched };
       }
       return result;
     },
-    enabled: pendingSalesOrderIds.length > 0,
-    staleTime: 5 * 60 * 1000,
+  });
+
+  // Link a nickname to an existing client (used in name_collision flow)
+  const linkNicknameMutation = useMutation({
+    mutationFn: async ({ clientId, nickname }: { clientId: string; nickname: string }) => {
+      const { error } = await supabase.from('client_binance_nicknames').upsert(
+        {
+          client_id: clientId,
+          nickname,
+          source: 'manual_collision_link',
+          is_active: true,
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: 'nickname' }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Nickname linked', description: 'Future orders will auto-match this client.' });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
+    },
+    onError: (e: any) => toast({ title: 'Link failed', description: e.message, variant: 'destructive' }),
   });
 
   const generateClientId = () => {
@@ -663,11 +788,12 @@ export function ClientOnboardingApprovals() {
         }
       });
 
-      // Auto-capture Binance nickname → client link
-      const nickInfo = nicknameEnrichment?.[variables.id];
-      if (nickInfo?.nickname) {
+      // Auto-capture Binance nickname → client link (uses identityMap)
+      const idInfo = identityMap?.[variables.id];
+      const nickname = idInfo?.nickname || null;
+      const verifiedName = idInfo?.verifiedName || null;
+      if (nickname || verifiedName) {
         try {
-          // Find the client ID we just created/merged
           let targetClientId = variables.existingClientId;
           if (!targetClientId) {
             const approval = approvals?.find(a => a.id === variables.id);
@@ -681,21 +807,21 @@ export function ClientOnboardingApprovals() {
               targetClientId = cl?.id;
             }
           }
-          if (targetClientId && !nickInfo.nickname.includes('*')) {
+          if (targetClientId && nickname && !nickname.includes('*')) {
             await supabase.from('client_binance_nicknames').upsert({
               client_id: targetClientId,
-              nickname: nickInfo.nickname,
+              nickname,
               source: 'approval',
               last_seen_at: new Date().toISOString(),
             }, { onConflict: 'nickname' });
           }
-          // Auto-capture verified name for the client
           if (targetClientId) {
             const approval = approvals?.find(a => a.id === variables.id);
-            if (approval?.client_name) {
+            const vname = (verifiedName || approval?.client_name || '').trim();
+            if (vname) {
               await supabase.from('client_verified_names').upsert({
                 client_id: targetClientId,
-                verified_name: approval.client_name.trim(),
+                verified_name: vname,
                 source: 'approval',
                 last_seen_at: new Date().toISOString(),
               }, { onConflict: 'client_id,verified_name' });
@@ -714,7 +840,7 @@ export function ClientOnboardingApprovals() {
       });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['buyer-approval-nicknames'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
       setDialogOpen(false);
       resetForm();
     },
@@ -996,18 +1122,17 @@ export function ClientOnboardingApprovals() {
   const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
-  // Build nickname-based "Same User" detection across different client names
-  const nicknameGroups = new Map<string, string[]>(); // nickname → list of client name keys
+  // Build nickname-based "Same User" detection across different client names (uses identityMap)
+  const nicknameGroups = new Map<string, string[]>();
   for (const [nameKey, entry] of pendingByClient) {
-    const nickInfo = nicknameEnrichment?.[entry.primary.id];
-    if (nickInfo?.nickname) {
-      const existing = nicknameGroups.get(nickInfo.nickname) || [];
+    const idInfo = identityMap?.[entry.primary.id];
+    if (idInfo?.nickname) {
+      const existing = nicknameGroups.get(idInfo.nickname) || [];
       if (!existing.includes(nameKey)) existing.push(nameKey);
-      nicknameGroups.set(nickInfo.nickname, existing);
+      nicknameGroups.set(idInfo.nickname, existing);
     }
   }
-  // Only keep groups with 2+ different names (actual duplicates)
-  const sameUserNicknames = new Map<string, string>(); // nameKey → nickname (only if shared)
+  const sameUserNicknames = new Map<string, string>();
   for (const [nick, nameKeys] of nicknameGroups) {
     if (nameKeys.length > 1) {
       for (const nk of nameKeys) sameUserNicknames.set(nk, nick);
@@ -1051,8 +1176,10 @@ export function ClientOnboardingApprovals() {
                 {pendingApprovals.map((entry) => {
                   const approval = entry.primary;
                   const nameKey = approval.client_name.trim().toLowerCase();
-                  const nickInfo = nicknameEnrichment?.[approval.id];
+                  const idInfo = identityMap?.[approval.id];
                   const sameUserNick = sameUserNicknames.get(nameKey);
+                  const state = idInfo?.state || 'new_client';
+                  const matched = idInfo?.matchedClient;
                   return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
@@ -1067,14 +1194,54 @@ export function ClientOnboardingApprovals() {
                           ⚠ Same User — different name
                         </Badge>
                       )}
-                      {nickInfo?.existingClient && !sameUserNick && (
-                        <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
-                          🔗 Known Client: {nickInfo.existingClient.name}
+                      {!sameUserNick && state === 'linked_known' && matched && (
+                        <Badge
+                          className="mt-1 bg-blue-100 text-blue-800 text-xs"
+                          title={`Client ID: ${matched.client_id || matched.id} • Risk: ${matched.risk_appetite || '—'} • Buyer: ${matched.buyer_approval_status || '—'} • Seller: ${matched.seller_approval_status || '—'}`}
+                        >
+                          🔗 Known Client: {matched.name}{idInfo?.nickname ? ` · @${idInfo.nickname}` : ''}
                         </Badge>
+                      )}
+                      {!sameUserNick && state === 'verified_name_match' && matched && (
+                        <Badge
+                          className="mt-1 bg-teal-100 text-teal-800 text-xs"
+                          title={`KYC name matches existing client ${matched.name} (${matched.client_id || matched.id}). Approving will link this nickname.`}
+                        >
+                          🪪 Same KYC name — {matched.name}
+                        </Badge>
+                      )}
+                      {!sameUserNick && state === 'name_collision' && matched && (
+                        <div className="mt-1 flex flex-col gap-1">
+                          <Badge
+                            className="bg-amber-100 text-amber-800 text-xs"
+                            title={`A client named "${matched.name}" already exists, but neither the Binance nickname nor verified name match — likely a different person.`}
+                          >
+                            ⚠ Different person — same name as {matched.name}
+                          </Badge>
+                          {idInfo?.nickname && hasPermission('clients_destructive') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] px-2"
+                              disabled={linkNicknameMutation.isPending}
+                              onClick={() => linkNicknameMutation.mutate({ clientId: matched.id, nickname: idInfo.nickname! })}
+                            >
+                              This is actually {matched.name} — link nickname
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {!sameUserNick && state === 'new_client' && (
+                        <Badge variant="outline" className="mt-1 text-xs">New Client</Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm font-mono">{nickInfo?.nickname || '—'}</span>
+                      <div className="text-sm">
+                        <div className="font-mono">{idInfo?.nickname || '—'}</div>
+                        {idInfo?.verifiedName && (
+                          <div className="text-xs text-muted-foreground">{idInfo.verifiedName}</div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">

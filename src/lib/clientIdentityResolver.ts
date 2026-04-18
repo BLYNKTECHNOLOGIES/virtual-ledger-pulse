@@ -88,6 +88,68 @@ export function resolveClientId(params: {
 }
 
 /**
+ * 4-state identity classification for an onboarding approval row.
+ *
+ *   linked_known        — Binance nickname is already linked to an existing client (highest trust).
+ *   verified_name_match — KYC verified name matches an existing client; nickname not yet linked.
+ *   name_collision      — A client with the same display name exists, but neither nickname nor
+ *                         verified name match → almost certainly a different person.
+ *   new_client          — No match on any signal.
+ */
+export type ApprovalIdentityState =
+  | 'linked_known'
+  | 'verified_name_match'
+  | 'name_collision'
+  | 'new_client';
+
+export interface ApprovalIdentityMatch {
+  state: ApprovalIdentityState;
+  matchedClient?: {
+    id: string;
+    name: string;
+    client_id?: string | null;
+    risk_appetite?: string | null;
+    buyer_approval_status?: string | null;
+    seller_approval_status?: string | null;
+  };
+}
+
+export function resolveApprovalIdentityState(params: {
+  displayName: string;
+  binanceNickname: string | null;
+  verifiedName: string | null;
+  nicknameToClient: Map<string, { id: string; name: string; client_id?: string | null; risk_appetite?: string | null; buyer_approval_status?: string | null; seller_approval_status?: string | null }>;
+  verifiedNameToClient: Map<string, { id: string; name: string; client_id?: string | null; risk_appetite?: string | null; buyer_approval_status?: string | null; seller_approval_status?: string | null }>;
+  displayNameToClient: Map<string, { id: string; name: string; client_id?: string | null; risk_appetite?: string | null; buyer_approval_status?: string | null; seller_approval_status?: string | null }>;
+}): ApprovalIdentityMatch {
+  const { displayName, binanceNickname, verifiedName, nicknameToClient, verifiedNameToClient, displayNameToClient } = params;
+
+  // Priority 1 — nickname link (skip masked)
+  const nick = binanceNickname?.trim();
+  if (nick && !nick.includes('*')) {
+    const c = nicknameToClient.get(nick);
+    if (c) return { state: 'linked_known', matchedClient: c };
+  }
+
+  // Priority 2 — verified-name link (KYC trust)
+  const vname = verifiedName?.trim();
+  if (vname) {
+    const c = verifiedNameToClient.get(vname);
+    if (c) return { state: 'verified_name_match', matchedClient: c };
+  }
+
+  // Priority 3 — name collision: a client with same display name but no
+  // nickname/verified-name correlation → almost certainly a different person.
+  const dname = displayName?.trim().toLowerCase();
+  if (dname) {
+    const c = displayNameToClient.get(dname);
+    if (c) return { state: 'name_collision', matchedClient: c };
+  }
+
+  return { state: 'new_client' };
+}
+
+/**
  * Auto-upsert verified name into client_verified_names for progressive enrichment.
  * Best-effort — errors are silently ignored.
  */

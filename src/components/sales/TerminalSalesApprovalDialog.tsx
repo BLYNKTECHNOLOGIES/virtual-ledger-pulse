@@ -29,7 +29,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
-import { resolveTerminalApprovalClient, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveTerminalApprovalClient, sanitizeNickname, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
 
 interface Props {
   open: boolean;
@@ -668,12 +668,16 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         .eq('id', syncRecord.id);
       if (updateErr) throw updateErr;
 
-      // Update counterparty contact records
-      if (contactNumber || clientState) {
+      // Update counterparty contact records — only when we have a real (unmasked) nickname.
+      // Masked values like "Sa***" are useless as identity keys and cause cross-contamination.
+      const contactNick = sanitizeNickname(od.counterparty_nickname_unmasked)
+        || sanitizeNickname(od.counterparty_nickname)
+        || sanitizeNickname(syncRecord.counterparty_name);
+      if (contactNick && (contactNumber || clientState)) {
         await supabase
           .from('counterparty_contact_records')
           .upsert({
-            counterparty_nickname: od.counterparty_nickname || syncRecord.counterparty_name,
+            counterparty_nickname: contactNick,
             contact_number: contactNumber || null,
             state: clientState || null,
             collected_by: userId,
@@ -701,11 +705,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         }
       }
 
-      // Auto-capture nickname→client link for future auto-matching
+      // Auto-capture nickname→client link for future auto-matching.
+      // Strict: only persist a real unmasked nickname — never the masked "S***" form.
       if (linkedClientId) {
-        const unmaskedNick = od.counterparty_nickname_unmasked || od.counterparty_nickname || syncRecord?.counterparty_name || '';
-        const safeNick = unmaskedNick.trim();
-        if (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') {
+        const safeNick = sanitizeNickname(od.counterparty_nickname_unmasked)
+          || sanitizeNickname(od.counterparty_nickname)
+          || sanitizeNickname(syncRecord?.counterparty_name);
+        if (safeNick) {
           await supabase
             .from('client_binance_nicknames')
             .upsert({

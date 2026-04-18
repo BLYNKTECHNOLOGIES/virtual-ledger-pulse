@@ -1,6 +1,19 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
+ * Returns a clean, unmasked nickname (no '*'), trimmed and non-empty,
+ * or null. Masked values from the Binance public chat must NEVER be
+ * persisted, looked up by, or used as identity — they reveal nothing
+ * about the actual counterparty and cause cross-contamination.
+ */
+export function sanitizeNickname(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (!v || v === 'Unknown' || v.includes('*')) return null;
+  return v;
+}
+
+/**
  * Multi-signal client identity resolution.
  * 
  * Resolution hierarchy:

@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
-import { resolveTerminalApprovalClient, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveTerminalApprovalClient, sanitizeNickname, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -89,11 +89,12 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   useEffect(() => {
     if (!open || !syncRecord?.counterparty_name) return;
 
-    const nicknameRaw = syncRecord.order_data?.counterparty_nickname || syncRecord.counterparty_name;
-    const nickname = (nicknameRaw || '').trim();
-    const isMaskedNickname = nickname.includes('*');
-    // Use unmasked nickname from p2p_order_records (stored during sync or fetched live)
-    const unmaskedNickname = (syncRecord.order_data?.counterparty_nickname_unmasked || '').trim();
+    // Only consider unmasked nicknames as identity. Masked values are intentionally ignored.
+    const unmaskedNickname = sanitizeNickname(syncRecord.order_data?.counterparty_nickname_unmasked)
+      || sanitizeNickname(syncRecord.order_data?.counterparty_nickname)
+      || sanitizeNickname(syncRecord.counterparty_name)
+      || '';
+    const isMaskedNickname = !unmaskedNickname; // i.e. we have nothing usable
 
     const fetchResolvedData = async () => {
       let cMasterPan = '';
@@ -120,22 +121,17 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         }
       }
 
-      // 2) Fetch counterparty records (PAN + contact)
-      // Try unmasked nickname first (from p2p_order_records), then fall back to masked
+      // 2) Fetch counterparty records (PAN + contact) — only by unmasked nickname
       let lookupNickname = unmaskedNickname || '';
-      if (!lookupNickname && !isMaskedNickname) {
-        lookupNickname = nickname;
-      }
-      // If nickname is masked and no unmasked stored, try fetching from p2p_order_records
-      if (!lookupNickname && isMaskedNickname && syncRecord?.binance_order_number) {
+      // If we have nothing usable, try the live p2p_order_records for an unmasked value
+      if (!lookupNickname && syncRecord?.binance_order_number) {
         const { data: p2pRec } = await supabase
           .from('p2p_order_records')
           .select('counterparty_nickname')
           .eq('binance_order_number', syncRecord.binance_order_number)
           .maybeSingle();
-        if (p2pRec?.counterparty_nickname && !p2pRec.counterparty_nickname.includes('*')) {
-          lookupNickname = p2pRec.counterparty_nickname.trim();
-        }
+        const safe = sanitizeNickname(p2pRec?.counterparty_nickname);
+        if (safe) lookupNickname = safe;
       }
 
       if (lookupNickname) {

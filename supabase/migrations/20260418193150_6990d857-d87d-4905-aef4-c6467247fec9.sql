@@ -1,0 +1,1 @@
+ALTER FUNCTION public.create_client_onboarding_approval() SET search_path = public;

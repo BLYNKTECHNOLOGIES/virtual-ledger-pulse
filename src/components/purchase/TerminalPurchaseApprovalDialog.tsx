@@ -121,22 +121,17 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         }
       }
 
-      // 2) Fetch counterparty records (PAN + contact)
-      // Try unmasked nickname first (from p2p_order_records), then fall back to masked
+      // 2) Fetch counterparty records (PAN + contact) — only by unmasked nickname
       let lookupNickname = unmaskedNickname || '';
-      if (!lookupNickname && !isMaskedNickname) {
-        lookupNickname = nickname;
-      }
-      // If nickname is masked and no unmasked stored, try fetching from p2p_order_records
-      if (!lookupNickname && isMaskedNickname && syncRecord?.binance_order_number) {
+      // If we have nothing usable, try the live p2p_order_records for an unmasked value
+      if (!lookupNickname && syncRecord?.binance_order_number) {
         const { data: p2pRec } = await supabase
           .from('p2p_order_records')
           .select('counterparty_nickname')
           .eq('binance_order_number', syncRecord.binance_order_number)
           .maybeSingle();
-        if (p2pRec?.counterparty_nickname && !p2pRec.counterparty_nickname.includes('*')) {
-          lookupNickname = p2pRec.counterparty_nickname.trim();
-        }
+        const safe = sanitizeNickname(p2pRec?.counterparty_nickname);
+        if (safe) lookupNickname = safe;
       }
 
       if (lookupNickname) {

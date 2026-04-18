@@ -1,112 +1,90 @@
-# Deep Dive Analysis — Post-Cleanup System State & Improvement Plan
-
-Proceed with all the solutions except A2 provide me a clear explanation what you will be doing in a two solution then I will decide and tell you except this proceed with all
-
-## Current Health Dashboard
 
 
-| Metric                                | Value                                                                       | Status                              |
-| ------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------- |
-| **Sales sync match rate**             | 78.6% (2,342 / 2,980) — 1,925 approved + 361 pending approval + 56 rejected | Improved                            |
-| **Purchase sync match rate**          | 58.5% (781 / 1,335)                                                         | Needs work                          |
-| **Verified name links**               | 979 (974 unique clients)                                                    | Good                                |
-| **Nickname links**                    | 742 (704 unique clients)                                                    | Good                                |
-| **Clients with BOTH signals**         | 703 / 1,299 (54%)                                                           | Baseline                            |
-| **Clients with NEITHER signal**       | 324 (263 sellers, 53 individual, 8 buyers)                                  | Expected — mostly non-Binance       |
-| **SELL orders missing verified_name** | 14,699 / 26,015 (56.5%) in binance_order_history                            | Major gap — now self-healing        |
-| **BUY orders missing verified_name**  | 332 / 4,423 (7.5%)                                                          | Healthy                             |
-| **Pending sales approvals**           | 361 (99% older than 14 days)                                                | Bottleneck                          |
-| **Pending purchase approvals**        | 137 (98% older than 14 days)                                                | Bottleneck                          |
-| **Pending mapping (sales)**           | 638 — 613 have new verified names not yet in system                         | Genuinely new clients               |
-| **Pending mapping (purchases)**       | 395 — 20 matchable by name, 191 have unmasked nicknames                     | Recoverable                         |
-| **Wallet txns without reference_id**  | 42 (0.6%)                                                                   | Low risk, audit needed              |
-| **Sales orders with no client_id**    | 53                                                                          | Manual entries from other platforms |
-| **Ambiguous verified names**          | 1 (CHARUDATTA VIJAY PAWAR → 2 clients)                                      | Manageable                          |
+## Goal
 
+Use Binance **nickname + verified name** as the primary identity signal (instead of just the human name) so that:
 
----
+1. In **Buyer/Seller Approvals**, the operator immediately sees whether the pending applicant is *truly* the same person as an existing client, or just a name collision.
+2. In **Terminal Sales / Purchase approvals**, auto-matching to a client never silently merges two different people who happen to share a name.
+3. Every approval row visibly carries the **Binance nickname + verified name** so reviewers can act on identity, not just on the display name.
 
-## Findings & Proposed Improvements
+## Current gaps (root cause)
 
-### A. Approval Pipeline Bottleneck (High Priority)
+- `client_onboarding_approvals` has no `binance_nickname` / `verified_name` columns. Today the badge "Known Client" is computed at render via a 3-hop join (`sales_order_id → terminal_sales_sync → p2p_order_records → client_binance_nicknames`). Fragile and not visible per-row.
+- `TerminalSalesApprovalDialog` auto-links a client by **name string equality** (line 132). If two clients share a name, it forces manual choice — but if a nickname-linked client exists, that one should *win* and the other warning surfaced.
+- "Known Client" badge today means only "this nickname is in `client_binance_nicknames`". It does not say "approved buyer" vs "approved seller" vs "deleted/rejected" — leading to operator confusion.
 
-**Problem**: 361 sales + 137 purchase records have been sitting in `synced_pending_approval` for 30+ days. Zero `synced_approved` records exist — the full status is just `approved`. This means the approval pipeline is working but slowly, creating a growing backlog.
+## Solution
 
-**A1. Bulk Approval UI**
-Add multi-select checkboxes to the approval views with a "Bulk Approve" action. Currently each record requires individual review — this doesn't scale with 498 pending items.
+### A. Persist identity on every approval row
 
-**A2. Auto-Approve Returning Clients**
-When a `synced_pending_approval` record maps to a client who already has 3+ approved orders, auto-approve it. These are established clients — no manual verification needed. This would clear a significant portion of the backlog automatically.
+Add two columns to `client_onboarding_approvals` (and the seller equivalent):
 
-### B. Purchase Sync Match Rate (Medium Priority)
+- `binance_nickname text` — unmasked nickname from `p2p_order_records`
+- `verified_name text` — KYC verified name from Binance order detail
 
-**Problem**: 58.5% match rate. 395 records stuck in `client_mapping_pending`. 20 match existing clients by name (the migration should have caught these — let me check if it ran against purchases too). 191 have unmasked nicknames available.
+Backfill from existing `terminal_sales_sync.order_data` and `p2p_order_records`. Update the trigger that creates approval rows so new approvals always populate both.
 
-**B1. Fix 20 Remaining Name-Matchable Purchase Records**
-The cleanup migration only fixed `terminal_sales_sync`. The same trim+case-insensitive match should run for `terminal_purchase_sync` too.
+### B. New 4-state identity match (replaces the single "Known Client" badge)
 
-**B2. Re-Run Identity Resolution on Purchase Pending**
-191 pending purchase records have unmasked nicknames. If those nicknames are already in `client_binance_nicknames`, they can be auto-resolved. This requires a one-time re-resolution pass.
+Computed per pending approval using nickname + verified name first, name only as last resort:
 
-### C. Verified Name Backfill for SELL Orders (Medium Priority)
+| State | Meaning | Badge |
+|---|---|---|
+| `linked_known` | Nickname is already in `client_binance_nicknames` → exact same person | Blue: "Known Client: {name} · @{nick}" |
+| `verified_name_match` | Verified name matches an existing client's `client_verified_names` but nickname not yet linked | Teal: "Same KYC name — link nickname?" |
+| `name_collision` | A client with the same display name exists, but nickname/verified name do NOT match → **different person, same name** | Amber: "⚠ Different person — same name as {existing}" |
+| `new_client` | No match on any signal | Grey: "New Client" |
 
-**Problem**: 14,699 SELL orders in `binance_order_history` lack verified names. The persistence fix in `useTerminalSalesSync.ts` will prevent new gaps, but the historical 14.7k records remain empty. These are valuable for future identity resolution.
+This directly answers the user's "two different people, same name" requirement — they will be **visually segregated**.
 
-**C1. Background Backfill Edge Function**
-Create a scheduled edge function that batch-fetches order details from Binance API for SELL orders missing verified names. Rate-limited to respect API limits (e.g., 5 orders/second, running in 500-order batches). This progressively enriches historical data without manual effort.
+### C. Make the badge actionable
 
-### D. Resolution Method Tracking (Medium Priority)
+- Hovering `linked_known` shows: client_id, buyer/seller approval status, risk appetite, last order date.
+- `name_collision` row gets a one-click "Confirm new person" or "This is actually {existing} — link nickname" button. The latter writes to `client_binance_nicknames` so the next order auto-matches correctly.
 
-**Problem**: No visibility into HOW orders are being matched. When debugging identity issues or measuring improvement, there's no way to know if a match came from verified name, nickname, intersection, or name fallback.
+### D. Fix terminal approval auto-match precedence
 
-**D1. Add `resolved_via` Column**
-Add a `resolved_via TEXT` column to both `terminal_sales_sync` and `terminal_purchase_sync`. Populate it from the `resolvedVia` field already returned by `resolveClientId()`. This is a one-line code change + migration.
+In `TerminalSalesApprovalDialog` (and the purchase twin), change auto-link priority to:
 
-### E. Client Identity Coverage Gaps (Low Priority)
+1. **Nickname link** (`client_binance_nicknames`) — highest trust
+2. **Verified name link** (`client_verified_names`) — KYC trust
+3. **Single exact name match** — only if no nickname/verified-name candidate exists
+4. **Multiple/ambiguous** → force manual selection with a warning banner showing each candidate's nickname so operator picks the right person
 
-**Problem**: 324 clients have neither verified name nor nickname. Breakdown: 263 sellers (expected — 98% have no phone, likely non-Binance platform clients), 53 individual, 8 buyers.
+If steps 1–2 return a client whose name *differs* from the displayed name, show a "Linked by nickname — name on Binance differs" notice so operator confirms intentionally.
 
-**E1. Verified Name Dedup for Seller Creation**
-Before creating a new SELLER, check if any existing client shares the same verified name. This prevents duplicate seller records for the same Binance counterparty — especially important since 98% of sellers lack phone numbers for dedup.
+### E. Always show nickname on the approval table
 
-### F. 42 Orphaned Wallet Transactions (Low Priority)
+Add a dedicated **"Binance ID / Nickname"** column to:
 
-**Problem**: 42 transactions (22 CREDIT, 20 DEBIT) have no `reference_id`, making them untraceable. This is only 0.6% of all transactions but violates the ledger-as-truth principle.
+- Buyer Onboarding Approvals (already partially shown — make it primary, not derived)
+- Seller Onboarding Approvals
+- Terminal Sales Sync table (already shows nickname; add verified_name underneath)
+- Terminal Purchase Sync table (mirror)
 
-**F1. Audit Report**
-Generate a one-time report of these 42 transactions with amounts, dates, and wallet IDs for manual investigation and linking.
+Each row shows: `@nickname` (mono) and below it `verified_name` if present. This is the user's "each order also carries the nickname while approval" requirement.
 
-### G. Stale Pending Mapping Queue (Operational)
+## Files involved
 
-**Problem**: 638 sales + 395 purchase records stuck in `client_mapping_pending`. 613 of the sales records have verified names not yet in `client_verified_names` — these are genuinely new clients who haven't been onboarded yet.
+| File | Change |
+|---|---|
+| Migration: `client_onboarding_approvals`, `seller_onboarding_approvals` | Add `binance_nickname`, `verified_name` cols + backfill |
+| Migration: trigger that inserts approval rows | Populate the two new fields |
+| `src/components/clients/ClientOnboardingApprovals.tsx` | New 4-state badge logic, nickname column, "link nickname" action |
+| `src/components/clients/SellerOnboardingApprovals.tsx` | Same as above |
+| `src/components/sales/TerminalSalesApprovalDialog.tsx` | Reorder auto-match: nickname → verified name → name. Warn on cross-name link. |
+| `src/components/purchase/TerminalPurchaseApprovalDialog.tsx` | Mirror the sales-side change |
+| `src/lib/clientIdentityResolver.ts` | Add `resolveApprovalIdentityState()` for the 4-state classification (reuses existing hierarchy) |
+| `src/components/sales/TerminalSalesSyncTab.tsx` + purchase twin | Show verified_name under nickname in the table |
 
-**G1. "Unmapped Orders" Dashboard Card**
-Surface the mapping-pending count prominently in the ERP dashboard or client management section. Currently these records are invisible unless someone manually checks sync status. A visible counter with drill-down would drive faster resolution.
+## Out of scope / not changing
 
-**G2. One-Click "Create Client & Link"**
-From the unmapped orders view, allow operators to create a new client record directly from the order data (pre-filled name, verified name, nickname) and immediately link the pending record.
+- Binance API contract — we only consume `counterparty_nickname` and `buyerRealName` / `sellerRealName` already fetched.
+- No changes to KYC document flow or risk appetite logic.
+- No deletion or merging of existing client records — the operator always confirms.
 
----
+## Open question (one)
 
-## Recommended Implementation Order
+For the **`name_collision` → "This is actually {existing}"** action: should it require a Super Admin / specific permission to link a nickname to a different-named client, or is the regular client-approval permission enough? (Linking writes a nickname row that affects all future auto-matching.)
 
-
-| #   | Item                                            | Effort                  | Impact                     |
-| --- | ----------------------------------------------- | ----------------------- | -------------------------- |
-| 1   | B1: Fix 20 purchase name-matches                | Migration               | Quick win                  |
-| 2   | D1: Add `resolved_via` tracking column          | Migration + 1-line code | Future analytics           |
-| 3   | A2: Auto-approve returning clients              | Code change             | Clears approval backlog    |
-| 4   | A1: Bulk approval UI                            | UI component            | Operational efficiency     |
-| 5   | B2: Re-resolve pending purchases with nicknames | Migration               | +191 potential matches     |
-| 6   | E1: Verified name dedup for sellers             | Code change             | Prevents future duplicates |
-| 7   | C1: Background verified name backfill           | Edge function           | 14.7k records enriched     |
-| 8   | G1+G2: Unmapped orders visibility               | UI components           | Operational awareness      |
-| 9   | F1: Orphaned wallet txn audit                   | One-time query          | Data integrity             |
-
-
-## What is NOT Needed
-
-- **No case normalization** — confirmed: Binance casing is consistent and a useful signal
-- **No nickname fetching for non-Binance orders** — nicknames are Binance-only by design
-- **No changes to manual entry flows** — they serve multi-platform trading correctly
-- **No duplicate client cleanup needed** — zero name duplicates found across the entire client base

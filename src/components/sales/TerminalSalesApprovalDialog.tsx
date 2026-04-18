@@ -886,6 +886,23 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       Change
                     </Button>
                   </div>
+                  {/* Auto-match precedence info — surfaces nickname/verified-name vs name match */}
+                  {clientAutoMatched && autoMatchVia && autoMatchVia !== 'name_exact' && (
+                    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-blue-700 dark:text-blue-400">
+                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
+                      </span>
+                    </div>
+                  )}
+                  {clientAutoMatched && crossNameWarning && (
+                    <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                        Linked by nickname/KYC — name on Binance ("{displayName}") differs from client master ("{selectedClient.name}"). Confirm this is intentional.
+                      </span>
+                    </div>
+                  )}
                   {/* Show Buyer Approval Pending warning for newly created clients */}
                   {selectedClient.buyer_approval_status === 'PENDING' && (
                     <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">

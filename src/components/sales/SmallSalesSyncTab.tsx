@@ -23,7 +23,6 @@ export function SmallSalesSyncTab() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Fetch sync records
   const { data: syncRecords, isLoading } = useQuery({
     queryKey: ['small_sales_sync'],
     queryFn: async () => {
@@ -80,7 +79,6 @@ export function SmallSalesSyncTab() {
     }
   };
 
-  // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
       const userId = await requireCurrentUserId();
@@ -116,20 +114,37 @@ export function SmallSalesSyncTab() {
     }
   };
 
+  const sortedSyncRecords = [...(syncRecords || [])].sort((a, b) => {
+    const aPriority = a.sync_status === 'pending_approval' ? 0 : 1;
+    const bPriority = b.sync_status === 'pending_approval' ? 0 : 1;
+
+    if (aPriority !== bPriority) return aPriority - bPriority;
+
+    return new Date(b.synced_at).getTime() - new Date(a.synced_at).getTime();
+  });
+
+  const pendingCount = sortedSyncRecords.filter((record) => record.sync_status === 'pending_approval').length;
+
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Package className="h-5 w-5 text-primary" />
           <div>
             <h3 className="font-semibold">Small Sales Sync</h3>
-            {lastSync && (
-              <p className="text-xs text-muted-foreground">
-                Last sync: {format(new Date(lastSync.sync_started_at), 'dd MMM yyyy HH:mm')} •{' '}
-                {lastSync.total_orders_processed} orders → {lastSync.entries_created} entries
-              </p>
-            )}
+            <div className="space-y-0.5">
+              {pendingCount > 0 && (
+                <p className="text-xs text-amber-700">
+                  {pendingCount} pending approval{pendingCount > 1 ? 's' : ''} shown first
+                </p>
+              )}
+              {lastSync && (
+                <p className="text-xs text-muted-foreground">
+                  Last sync: {format(new Date(lastSync.sync_started_at), 'dd MMM yyyy HH:mm')} •{' '}
+                  {lastSync.total_orders_processed} orders → {lastSync.entries_created} entries
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <Button onClick={handleSync} disabled={syncing} size="sm">
@@ -138,7 +153,6 @@ export function SmallSalesSyncTab() {
         </Button>
       </div>
 
-      {/* Records */}
       {isLoading ? (
         <div className="flex justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -153,7 +167,7 @@ export function SmallSalesSyncTab() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {syncRecords.map((record) => (
+          {sortedSyncRecords.map((record) => (
             <Card key={record.id} className="overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex items-center justify-between p-4">
@@ -227,14 +241,12 @@ export function SmallSalesSyncTab() {
         </div>
       )}
 
-      {/* Approval Dialog */}
       <SmallSalesApprovalDialog
         open={!!selectedRecord}
         onOpenChange={(open) => !open && setSelectedRecord(null)}
         record={selectedRecord}
       />
 
-      {/* Rejection Dialog */}
       <Dialog open={!!rejectRecord} onOpenChange={(open) => { if (!open) { setRejectRecord(null); setRejectionReason(''); } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>

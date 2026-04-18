@@ -444,6 +444,8 @@ export function SellerOnboardingApprovals() {
                     const firstOrder = sellerOrders?.[seller.name];
                     const nickInfo = sellerNicknameMap?.[seller.name];
                     const isSameUser = sellerSameUser.has(seller.name);
+                    const identityState = computeSellerIdentityState(seller.name);
+                    const collision = collisionMap?.[seller.name];
                     return (
                       <tr key={seller.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
@@ -459,14 +461,32 @@ export function SellerOnboardingApprovals() {
                               ⚠ Same User — different name
                             </Badge>
                           )}
-                          {nickInfo?.existingClient && !isSameUser && (
+                          {!isSameUser && identityState === 'linked_known' && nickInfo?.existingClient && (
                             <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
-                              🔗 Known: {nickInfo.existingClient.name}
+                              🔗 Known Client: {nickInfo.existingClient.name} · @{nickInfo.nickname}
+                            </Badge>
+                          )}
+                          {!isSameUser && identityState === 'verified_name_match' && collision?.verifiedNameClient && (
+                            <Badge className="mt-1 bg-teal-100 text-teal-800 text-xs">
+                              ✓ Same KYC name as {collision.verifiedNameClient.name} — link nickname?
+                            </Badge>
+                          )}
+                          {!isSameUser && identityState === 'name_collision' && collision?.displayNameClient && (
+                            <Badge className="mt-1 bg-amber-100 text-amber-800 text-xs">
+                              ⚠ Different person — same name as {collision.displayNameClient.name}
+                            </Badge>
+                          )}
+                          {!isSameUser && identityState === 'new_client' && (
+                            <Badge className="mt-1 bg-gray-100 text-gray-700 text-xs">
+                              New Client
                             </Badge>
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="font-mono text-sm">{nickInfo?.nickname || '—'}</span>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-mono text-sm">{nickInfo?.nickname ? `@${nickInfo.nickname}` : '—'}</span>
+                            <span className="text-[10px] text-muted-foreground">{seller.name}</span>
+                          </div>
                         </td>
                         <td className="py-3 px-4 font-mono text-sm">{seller.client_id}</td>
                         <td className="py-3 px-4">{seller.phone || '-'}</td>

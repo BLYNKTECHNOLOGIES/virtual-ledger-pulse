@@ -176,14 +176,39 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (!linkedClientId) {
         setLinkedClientId(syncRecord?.client_id || '');
       }
-      
-      // Check for multiple clients with same name (disambiguation needed)
-      if (!linkedClientId && !syncRecord?.client_id && syncRecord?.counterparty_name) {
-        const matches = await findAllClientsByName(syncRecord.counterparty_name);
-        if (matches.length > 1) {
-          setDuplicateClients(matches);
-        } else {
+
+      // Strict precedence auto-match: nickname → verified name → exact name
+      if (!linkedClientId && !syncRecord?.client_id) {
+        const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
+          || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
+          || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
+          || null) as string | null;
+        const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
+        const displayName = verifiedName || syncRecord?.counterparty_name || null;
+
+        const result = await resolveTerminalApprovalClient({
+          unmaskedNickname: unmaskedNick,
+          verifiedName,
+          displayName,
+          side: 'seller',
+        });
+        if (result.clientId) {
+          setLinkedClientId(result.clientId);
+          setLinkedClientName(result.clientName || '');
+          setAutoMatchVia(result.resolvedVia);
+          setCrossNameWarning(result.crossNameWarning);
           setDuplicateClients([]);
+        } else if (result.ambiguousCandidates.length > 1 && syncRecord?.counterparty_name) {
+          // Fall back to name-based ambiguity surfacing
+          const matches = await findAllClientsByName(syncRecord.counterparty_name);
+          setDuplicateClients(matches.length > 1 ? matches : []);
+          setAutoMatchVia(null);
+          setCrossNameWarning(false);
+        } else if (syncRecord?.counterparty_name) {
+          const matches = await findAllClientsByName(syncRecord.counterparty_name);
+          setDuplicateClients(matches.length > 1 ? matches : []);
+          setAutoMatchVia(null);
+          setCrossNameWarning(false);
         }
       }
     };

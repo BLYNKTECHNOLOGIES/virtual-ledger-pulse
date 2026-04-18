@@ -1603,6 +1603,7 @@ export type Database = {
           address: string | null
           approval_status: string
           binance_id_screenshot_url: string | null
+          binance_nickname: string | null
           client_email: string | null
           client_name: string
           client_phone: string | null
@@ -1620,6 +1621,7 @@ export type Database = {
           risk_assessment: string | null
           sales_order_id: string | null
           updated_at: string
+          verified_name: string | null
           vkyc_notes: string | null
           vkyc_recording_url: string | null
         }
@@ -1631,6 +1633,7 @@ export type Database = {
           address?: string | null
           approval_status?: string
           binance_id_screenshot_url?: string | null
+          binance_nickname?: string | null
           client_email?: string | null
           client_name: string
           client_phone?: string | null
@@ -1648,6 +1651,7 @@ export type Database = {
           risk_assessment?: string | null
           sales_order_id?: string | null
           updated_at?: string
+          verified_name?: string | null
           vkyc_notes?: string | null
           vkyc_recording_url?: string | null
         }
@@ -1659,6 +1663,7 @@ export type Database = {
           address?: string | null
           approval_status?: string
           binance_id_screenshot_url?: string | null
+          binance_nickname?: string | null
           client_email?: string | null
           client_name?: string
           client_phone?: string | null
@@ -1676,6 +1681,7 @@ export type Database = {
           risk_assessment?: string | null
           sales_order_id?: string | null
           updated_at?: string
+          verified_name?: string | null
           vkyc_notes?: string | null
           vkyc_recording_url?: string | null
         }

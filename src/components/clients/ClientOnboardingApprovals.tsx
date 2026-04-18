@@ -840,7 +840,7 @@ export function ClientOnboardingApprovals() {
       });
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['buyer-approval-nicknames'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
       setDialogOpen(false);
       resetForm();
     },
@@ -1122,18 +1122,17 @@ export function ClientOnboardingApprovals() {
   const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
-  // Build nickname-based "Same User" detection across different client names
-  const nicknameGroups = new Map<string, string[]>(); // nickname → list of client name keys
+  // Build nickname-based "Same User" detection across different client names (uses identityMap)
+  const nicknameGroups = new Map<string, string[]>();
   for (const [nameKey, entry] of pendingByClient) {
-    const nickInfo = nicknameEnrichment?.[entry.primary.id];
-    if (nickInfo?.nickname) {
-      const existing = nicknameGroups.get(nickInfo.nickname) || [];
+    const idInfo = identityMap?.[entry.primary.id];
+    if (idInfo?.nickname) {
+      const existing = nicknameGroups.get(idInfo.nickname) || [];
       if (!existing.includes(nameKey)) existing.push(nameKey);
-      nicknameGroups.set(nickInfo.nickname, existing);
+      nicknameGroups.set(idInfo.nickname, existing);
     }
   }
-  // Only keep groups with 2+ different names (actual duplicates)
-  const sameUserNicknames = new Map<string, string>(); // nameKey → nickname (only if shared)
+  const sameUserNicknames = new Map<string, string>();
   for (const [nick, nameKeys] of nicknameGroups) {
     if (nameKeys.length > 1) {
       for (const nk of nameKeys) sameUserNicknames.set(nk, nick);
@@ -1177,8 +1176,10 @@ export function ClientOnboardingApprovals() {
                 {pendingApprovals.map((entry) => {
                   const approval = entry.primary;
                   const nameKey = approval.client_name.trim().toLowerCase();
-                  const nickInfo = nicknameEnrichment?.[approval.id];
+                  const idInfo = identityMap?.[approval.id];
                   const sameUserNick = sameUserNicknames.get(nameKey);
+                  const state = idInfo?.state || 'new_client';
+                  const matched = idInfo?.matchedClient;
                   return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
@@ -1193,14 +1194,54 @@ export function ClientOnboardingApprovals() {
                           ⚠ Same User — different name
                         </Badge>
                       )}
-                      {nickInfo?.existingClient && !sameUserNick && (
-                        <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
-                          🔗 Known Client: {nickInfo.existingClient.name}
+                      {!sameUserNick && state === 'linked_known' && matched && (
+                        <Badge
+                          className="mt-1 bg-blue-100 text-blue-800 text-xs"
+                          title={`Client ID: ${matched.client_id || matched.id} • Risk: ${matched.risk_appetite || '—'} • Buyer: ${matched.buyer_approval_status || '—'} • Seller: ${matched.seller_approval_status || '—'}`}
+                        >
+                          🔗 Known Client: {matched.name}{idInfo?.nickname ? ` · @${idInfo.nickname}` : ''}
                         </Badge>
+                      )}
+                      {!sameUserNick && state === 'verified_name_match' && matched && (
+                        <Badge
+                          className="mt-1 bg-teal-100 text-teal-800 text-xs"
+                          title={`KYC name matches existing client ${matched.name} (${matched.client_id || matched.id}). Approving will link this nickname.`}
+                        >
+                          🪪 Same KYC name — {matched.name}
+                        </Badge>
+                      )}
+                      {!sameUserNick && state === 'name_collision' && matched && (
+                        <div className="mt-1 flex flex-col gap-1">
+                          <Badge
+                            className="bg-amber-100 text-amber-800 text-xs"
+                            title={`A client named "${matched.name}" already exists, but neither the Binance nickname nor verified name match — likely a different person.`}
+                          >
+                            ⚠ Different person — same name as {matched.name}
+                          </Badge>
+                          {idInfo?.nickname && hasPermission('clients_destructive') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px] px-2"
+                              disabled={linkNicknameMutation.isPending}
+                              onClick={() => linkNicknameMutation.mutate({ clientId: matched.id, nickname: idInfo.nickname! })}
+                            >
+                              This is actually {matched.name} — link nickname
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      {!sameUserNick && state === 'new_client' && (
+                        <Badge variant="outline" className="mt-1 text-xs">New Client</Badge>
                       )}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm font-mono">{nickInfo?.nickname || '—'}</span>
+                      <div className="text-sm">
+                        <div className="font-mono">{idInfo?.nickname || '—'}</div>
+                        {idInfo?.verifiedName && (
+                          <div className="text-xs text-muted-foreground">{idInfo.verifiedName}</div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">

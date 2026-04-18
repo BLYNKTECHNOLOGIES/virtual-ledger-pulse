@@ -13,6 +13,8 @@ import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
 import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages } from '@/hooks/useBinanceActions';
+import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
+import { ShieldAlert } from 'lucide-react';
 
 interface Props {
   order: P2POrderRecord;
@@ -246,6 +248,15 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
 
 function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string }) {
   const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
+  const { data: linkedClient } = useCounterpartyLinkedClient(
+    counterpartyNickname,
+    counterpartyVerifiedName,
+    order.trade_type as 'BUY' | 'SELL'
+  );
+  const riskKey = linkedClient?.risk_appetite && RISK_BADGE_STYLES[linkedClient.risk_appetite]
+    ? linkedClient.risk_appetite
+    : null;
+  const riskStyle = riskKey ? RISK_BADGE_STYLES[riskKey] : null;
   // Parse Binance stats — API returns fields like completedOrderNum, finishRateLatest30Day, etc.
   const stats = binanceStats?.data || binanceStats;
   const hasApiStats = stats && (
@@ -283,6 +294,26 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
             <span className="text-[11px] font-medium text-foreground">Orders Completed With Us</span>
           </div>
           <span className="text-sm font-bold text-primary tabular-nums">{completedWithUs}</span>
+        </div>
+      )}
+
+      {/* Approved client risk level */}
+      {riskStyle && (
+        <div className={`rounded-md border px-3 py-2.5 flex items-center justify-between ${riskStyle.className}`}>
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[11px] font-medium">Client Risk Level</span>
+              {linkedClient?.name && (
+                <span className="text-[10px] opacity-80 truncate max-w-[160px]">
+                  {linkedClient.name}
+                </span>
+              )}
+            </div>
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-wide">
+            {riskStyle.label}
+          </span>
         </div>
       )}
 

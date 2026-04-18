@@ -690,19 +690,37 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             <CardContent className="p-4 space-y-2">
               <Label className="text-xs font-semibold">Client Mapping</Label>
               {linkedClientId ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
-                  <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
-                  {duplicateClients.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px]"
-                      onClick={() => { setLinkedClientId(''); setLinkedClientName(''); }}
-                    >
-                      Change
-                    </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
+                    <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
+                    {(duplicateClients.length > 1 || autoMatchVia) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px]"
+                        onClick={() => { setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); setCrossNameWarning(false); }}
+                      >
+                        Change
+                      </Button>
+                    )}
+                  </div>
+                  {autoMatchVia && autoMatchVia !== 'name_exact' && (
+                    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-blue-700 dark:text-blue-400">
+                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
+                      </span>
+                    </div>
+                  )}
+                  {crossNameWarning && (
+                    <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                        Linked by nickname/KYC — name on Binance ("{syncRecord?.counterparty_name}") differs from client master ("{linkedClientName}"). Confirm this is intentional.
+                      </span>
+                    </div>
                   )}
                 </div>
               ) : duplicateClients.length > 1 ? (

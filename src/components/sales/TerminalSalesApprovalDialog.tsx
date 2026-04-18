@@ -119,42 +119,59 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     return [...exact, ...partial];
   }, [displayName, allClients]);
 
-  // Auto-select client when dialog opens or verified name changes
+  // Track how the auto-match was resolved so we can warn the operator
+  const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
+  const [crossNameWarning, setCrossNameWarning] = useState(false);
+
+  // Auto-select client using strict precedence: nickname → verified name → exact name
   useEffect(() => {
     if (!open || !displayName || displayName === '—') return;
-    // Don't auto-match if user has already manually selected or if already matched
     if (linkedClientId && !clientAutoMatched) return;
 
-    const name = displayName.trim().toLowerCase();
-    if (!name) return;
+    const unmaskedNick = (od?.counterparty_nickname_unmasked
+      || (od?.counterparty_nickname && !String(od.counterparty_nickname).includes('*') ? od.counterparty_nickname : null)
+      || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
+      || null) as string | null;
+    const verifiedName = (od?.verified_name || enrichedName || null) as string | null;
 
-    // Find ALL exact matches — only among non-deleted, non-rejected clients
-    const exactMatches = allClients.filter(
-      c => !(c as any).is_deleted && c.buyer_approval_status !== 'REJECTED' && c.name.trim().toLowerCase() === name
-    );
-
-    if (exactMatches.length === 1) {
-      // Single exact match — safe to auto-link
-      const exactMatch = exactMatches[0];
-      setLinkedClientId(exactMatch.id);
-      setLinkedClientName(exactMatch.name);
-      setClientAutoMatched(true);
-      const isApprovedClient = String(exactMatch.buyer_approval_status || '').toUpperCase() === 'APPROVED';
-      if (!contactNumber && exactMatch.phone) setContactNumber(exactMatch.phone);
-      if (!clientState && exactMatch.state && isApprovedClient) {
-        const normalizedState = normalizeIndianState(exactMatch.state);
-        if (normalizedState) setClientState(normalizedState);
+    let cancelled = false;
+    resolveTerminalApprovalClient({
+      unmaskedNickname: unmaskedNick,
+      verifiedName,
+      displayName,
+      side: 'buyer',
+    }).then(result => {
+      if (cancelled) return;
+      if (result.clientId) {
+        setLinkedClientId(result.clientId);
+        setLinkedClientName(result.clientName || '');
+        setClientAutoMatched(true);
+        setAutoMatchVia(result.resolvedVia);
+        setCrossNameWarning(result.crossNameWarning);
+        const matched = allClients.find(c => c.id === result.clientId);
+        if (matched) {
+          const isApprovedClient = String(matched.buyer_approval_status || '').toUpperCase() === 'APPROVED';
+          if (!contactNumber && matched.phone) setContactNumber(matched.phone);
+          if (!clientState && matched.state && isApprovedClient) {
+            const normalizedState = normalizeIndianState(matched.state);
+            if (normalizedState) setClientState(normalizedState);
+          }
+        }
+      } else if (result.ambiguousCandidates.length > 1) {
+        console.warn(`[SalesApproval] Ambiguous match for "${displayName}" — requires manual selection`);
+        setLinkedClientId('');
+        setLinkedClientName('');
+        setClientAutoMatched(false);
+        setAutoMatchVia(null);
+        setCrossNameWarning(false);
+        setShowClientDropdown(true);
+      } else {
+        setAutoMatchVia(null);
+        setCrossNameWarning(false);
       }
-    } else if (exactMatches.length > 1) {
-      // Multiple clients with same name — force operator to choose
-      console.warn(`[SalesApproval] Multiple clients found for "${displayName}" — requires manual selection`);
-      setLinkedClientId('');
-      setLinkedClientName('');
-      setClientAutoMatched(false);
-      setShowClientDropdown(true);
-    }
-    // Don't blank out contact/state when no client match — counterparty data may already be filled
-  }, [open, displayName, allClients, linkedClientId, clientAutoMatched, contactNumber, clientState]);
+    });
+    return () => { cancelled = true; };
+  }, [open, displayName, allClients, linkedClientId, clientAutoMatched, contactNumber, clientState, od, enrichedName, syncRecord]);
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)
   useEffect(() => {

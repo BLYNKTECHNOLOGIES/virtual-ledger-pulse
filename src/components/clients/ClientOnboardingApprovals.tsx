@@ -788,11 +788,12 @@ export function ClientOnboardingApprovals() {
         }
       });
 
-      // Auto-capture Binance nickname → client link
-      const nickInfo = nicknameEnrichment?.[variables.id];
-      if (nickInfo?.nickname) {
+      // Auto-capture Binance nickname → client link (uses identityMap)
+      const idInfo = identityMap?.[variables.id];
+      const nickname = idInfo?.nickname || null;
+      const verifiedName = idInfo?.verifiedName || null;
+      if (nickname || verifiedName) {
         try {
-          // Find the client ID we just created/merged
           let targetClientId = variables.existingClientId;
           if (!targetClientId) {
             const approval = approvals?.find(a => a.id === variables.id);
@@ -806,21 +807,21 @@ export function ClientOnboardingApprovals() {
               targetClientId = cl?.id;
             }
           }
-          if (targetClientId && !nickInfo.nickname.includes('*')) {
+          if (targetClientId && nickname && !nickname.includes('*')) {
             await supabase.from('client_binance_nicknames').upsert({
               client_id: targetClientId,
-              nickname: nickInfo.nickname,
+              nickname,
               source: 'approval',
               last_seen_at: new Date().toISOString(),
             }, { onConflict: 'nickname' });
           }
-          // Auto-capture verified name for the client
           if (targetClientId) {
             const approval = approvals?.find(a => a.id === variables.id);
-            if (approval?.client_name) {
+            const vname = (verifiedName || approval?.client_name || '').trim();
+            if (vname) {
               await supabase.from('client_verified_names').upsert({
                 client_id: targetClientId,
-                verified_name: approval.client_name.trim(),
+                verified_name: vname,
                 source: 'approval',
                 last_seen_at: new Date().toISOString(),
               }, { onConflict: 'client_id,verified_name' });

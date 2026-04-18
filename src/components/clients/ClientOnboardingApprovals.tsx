@@ -76,6 +76,8 @@ interface ClientOnboardingApproval {
   compliance_notes?: string;
   created_at: string;
   updated_at: string;
+  binance_nickname?: string | null;
+  verified_name?: string | null;
 }
 
 interface ExistingClientMatch {

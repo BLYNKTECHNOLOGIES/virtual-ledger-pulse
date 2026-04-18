@@ -187,6 +187,65 @@ export function SellerOnboardingApprovals() {
     }
   }
 
+  // Verified-name & display-name collision check against existing approved/active clients
+  // (clients other than the pending sellers in this view). Used for the 4-state badge.
+  const { data: collisionMap } = useQuery({
+    queryKey: ['seller-approval-collisions', sellerNames.sort().join(',')],
+    enabled: sellerNames.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const result: Record<string, { verifiedNameClient?: { id: string; name: string }; displayNameClient?: { id: string; name: string } }> = {};
+      const pendingIds = pendingSellers?.map(s => s.id) || [];
+
+      // Verified name match: any other client whose client_verified_names contains this seller's name
+      const { data: vnRows } = await supabase
+        .from('client_verified_names')
+        .select('verified_name, client_id')
+        .in('verified_name', sellerNames);
+      const vnIds = Array.from(new Set((vnRows || []).map(r => r.client_id).filter(id => !pendingIds.includes(id))));
+      let vnClientMap = new Map<string, { id: string; name: string }>();
+      if (vnIds.length > 0) {
+        const { data: vnClients } = await supabase
+          .from('clients')
+          .select('id, name')
+          .in('id', vnIds)
+          .eq('is_deleted', false);
+        for (const c of vnClients || []) vnClientMap.set(c.id, { id: c.id, name: c.name });
+      }
+      for (const row of vnRows || []) {
+        if (pendingIds.includes(row.client_id)) continue;
+        const client = vnClientMap.get(row.client_id);
+        if (client && !result[row.verified_name]?.verifiedNameClient) {
+          result[row.verified_name] = { ...(result[row.verified_name] || {}), verifiedNameClient: client };
+        }
+      }
+
+      // Display-name collision: another non-pending client with same name (case-insensitive)
+      const { data: dnClients } = await supabase
+        .from('clients')
+        .select('id, name')
+        .in('name', sellerNames)
+        .eq('is_deleted', false);
+      for (const c of dnClients || []) {
+        if (pendingIds.includes(c.id)) continue;
+        if (!result[c.name]?.displayNameClient) {
+          result[c.name] = { ...(result[c.name] || {}), displayNameClient: { id: c.id, name: c.name } };
+        }
+      }
+      return result;
+    },
+  });
+
+  // Compute 4-state identity for each pending seller
+  const computeSellerIdentityState = (sellerName: string): 'linked_known' | 'verified_name_match' | 'name_collision' | 'new_client' => {
+    const nickInfo = sellerNicknameMap?.[sellerName];
+    if (nickInfo?.existingClient) return 'linked_known';
+    const collision = collisionMap?.[sellerName];
+    if (collision?.verifiedNameClient) return 'verified_name_match';
+    if (collision?.displayNameClient) return 'name_collision';
+    return 'new_client';
+  };
+
   // Approve seller mutation
   const approveMutation = useMutation({
     mutationFn: async (sellerId: string) => {

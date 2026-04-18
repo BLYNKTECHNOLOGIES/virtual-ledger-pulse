@@ -373,7 +373,16 @@ export function TerminalSyncTab() {
                           Awaiting Verified Name
                         </Badge>
                       ) : (
-                        sellerDisplay
+                        <div className="flex flex-col gap-0.5">
+                          <span>{sellerDisplay}</span>
+                          {(() => {
+                            const nick = (od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
+                            // Only show nickname row when nickname is a separate signal from the displayed verified name
+                            return nick && !nick.includes('*') && nick !== sellerDisplay ? (
+                              <span className="font-mono text-[10px] text-muted-foreground">@{nick}</span>
+                            ) : null;
+                          })()}
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>

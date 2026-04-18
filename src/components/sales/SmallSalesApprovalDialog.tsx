@@ -58,158 +58,172 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
     mutationFn: async () => {
       if (!record || !paymentMethodId) throw new Error('Select a payment method');
 
+      let createdSalesOrderId: string | null = null;
+
       // Fetch live CoinUSDT rate for non-USDT assets
-      const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
-      const marketRate = locked.price;
+      try {
+        const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
+        const marketRate = locked.price;
 
-      const userId = await requireCurrentUserId();
-      const approvalTimestamp = new Date().toISOString();
+        const userId = await requireCurrentUserId();
+        const approvalTimestamp = new Date().toISOString();
 
-      // Resolve product_id from asset code
-      const { data: productRow } = await supabase
-        .from('products')
-        .select('id')
-        .eq('code', assetCode)
-        .single();
-      if (!productRow) throw new Error(`Product not found for asset: ${assetCode}`);
+        const { data: productRow } = await supabase
+          .from('products')
+          .select('id')
+          .eq('code', assetCode)
+          .single();
+        if (!productRow) throw new Error(`Product not found for asset: ${assetCode}`);
 
-      // Generate SM order number using a simple counter approach
-      const { count } = await supabase
-        .from('small_sales_sync')
-        .select('id', { count: 'exact', head: true })
-        .eq('sync_status', 'approved');
-      const seqNum = (count || 0) + 1;
-      const orderNumber = `SM${String(seqNum).padStart(5, '0')}`;
+        const { count } = await supabase
+          .from('small_sales_sync')
+          .select('id', { count: 'exact', head: true })
+          .eq('sync_status', 'approved');
+        const seqNum = (count || 0) + 1;
+        const orderNumber = `SM${String(seqNum).padStart(5, '0')}`;
 
-      const selectedMethod = paymentMethods?.find(m => m.id === paymentMethodId);
-      if (!selectedMethod) throw new Error('Selected payment method was not found');
+        const selectedMethod = paymentMethods?.find(m => m.id === paymentMethodId);
+        if (!selectedMethod) throw new Error('Selected payment method was not found');
 
-      const isGateway = selectedMethod?.payment_gateway === true;
+        const isGateway = selectedMethod.payment_gateway === true;
+        const ssEffRate = marketRate && marketRate > 0 ? marketRate : 1;
+        const ssQty = Number(record.total_quantity || 0);
+        const ssTotalAmt = Number(record.total_amount || 0);
+        const ssEffUsdtQty = ssQty * ssEffRate;
+        const ssEffUsdtRate = ssEffUsdtQty > 0 ? ssTotalAmt / ssEffUsdtQty : null;
 
-      // Compute effective USDT qty and rate
-      const ssEffRate = marketRate && marketRate > 0 ? marketRate : 1;
-      const ssQty = Number(record.total_quantity || 0);
-      const ssTotalAmt = Number(record.total_amount || 0);
-      const ssEffUsdtQty = ssQty * ssEffRate;
-      const ssEffUsdtRate = ssEffUsdtQty > 0 ? ssTotalAmt / ssEffUsdtQty : null;
+        const resolvedBankAccountId = selectedMethod.bank_account_id;
+        if (!resolvedBankAccountId) {
+          throw new Error(`No bank account is linked to ${selectedMethod.nickname || selectedMethod.type || 'the selected payment method'}`);
+        }
 
-      const resolvedBankAccountId = selectedMethod?.bank_account_id;
-      if (!resolvedBankAccountId) {
-        throw new Error(`No bank account is linked to ${selectedMethod.nickname || selectedMethod.type || 'the selected payment method'}`);
-      }
+        const orderDateSource = record.time_window_end || record.time_window_start || approvalTimestamp;
+        const orderDate = new Date(orderDateSource).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-      const orderDateSource = record.time_window_end || record.time_window_start || approvalTimestamp;
-      const orderDate = new Date(orderDateSource).toISOString().split('T')[0];
+        const { data: salesOrder, error: soErr } = await supabase
+          .from('sales_orders')
+          .insert({
+            order_number: orderNumber,
+            client_name: 'Small Sales',
+            client_phone: null,
+            client_state: null,
+            order_date: orderDate,
+            total_amount: record.total_amount,
+            quantity: record.total_quantity,
+            price_per_unit: record.avg_price,
+            product_id: productRow.id,
+            sales_payment_method_id: paymentMethodId,
+            fee_percentage: 0,
+            fee_amount: record.total_fee,
+            net_amount: Number(record.total_amount),
+            payment_status: 'COMPLETED',
+            settlement_status: isGateway ? 'PENDING' : 'DIRECT',
+            status: 'COMPLETED',
+            platform: 'Binance',
+            wallet_id: record.wallet_id,
+            source: 'terminal_small_sales',
+            sale_type: 'small_sale',
+            description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
+            created_by: userId,
+            market_rate_usdt: marketRate,
+            effective_usdt_qty: ssEffUsdtQty,
+            effective_usdt_rate: ssEffUsdtRate,
+          })
+          .select('id')
+          .single();
 
-      // Create sales order — include payment method ID
-      const { data: salesOrder, error: soErr } = await supabase
-        .from('sales_orders')
-        .insert({
-          order_number: orderNumber,
-          client_name: 'Small Sales',
-          client_phone: null,
-          client_state: null,
-          order_date: orderDate,
-          total_amount: record.total_amount,
-          quantity: record.total_quantity,
-          price_per_unit: record.avg_price,
-          product_id: productRow.id,
-          sales_payment_method_id: paymentMethodId,
-          fee_percentage: 0,
-          fee_amount: record.total_fee,
-          net_amount: Number(record.total_amount),
-          payment_status: 'COMPLETED',
-          settlement_status: isGateway ? 'PENDING' : 'DIRECT',
-          status: 'COMPLETED',
-          platform: 'Binance',
-          wallet_id: record.wallet_id,
-          source: 'terminal_small_sales',
-          sale_type: 'small_sale',
-          description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
-          created_by: userId,
-          market_rate_usdt: marketRate,
-          effective_usdt_qty: ssEffUsdtQty,
-          effective_usdt_rate: ssEffUsdtRate,
-        })
-        .select('id')
-        .single();
+        if (soErr || !salesOrder) throw soErr || new Error('Failed to create sales order');
+        createdSalesOrderId = salesOrder.id;
 
-      if (soErr || !salesOrder) throw soErr || new Error('Failed to create sales order');
-
-      // Create pending settlement or bank transaction based on payment method type
-      if (isGateway && resolvedBankAccountId) {
-        const { error: settlementErr } = await supabase.from('pending_settlements').insert({
+        const { error: splitErr } = await supabase.from('sales_order_payment_splits').insert({
           sales_order_id: salesOrder.id,
-          order_number: orderNumber,
-          client_name: 'Small Sales',
-          total_amount: Number(record.total_amount),
-          settlement_amount: Number(record.total_amount),
-          order_date: orderDate,
-          payment_method_id: paymentMethodId,
           bank_account_id: resolvedBankAccountId,
-          settlement_cycle: selectedMethod?.settlement_cycle || 'T+1 Day',
-          settlement_days: selectedMethod?.settlement_days || null,
-          expected_settlement_date: selectedMethod?.settlement_days
-            ? new Date(Date.now() + (selectedMethod.settlement_days * 86400000)).toISOString().split('T')[0]
-            : new Date(Date.now() + 86400000).toISOString().split('T')[0],
-          status: 'PENDING',
-        });
-        if (settlementErr) throw settlementErr;
-      } else if (resolvedBankAccountId) {
-        // Direct payment → create INCOME bank transaction
-        const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
-          bank_account_id: resolvedBankAccountId,
-          transaction_type: 'INCOME',
           amount: Number(record.total_amount),
-          transaction_date: orderDate,
-          description: `Sales Order - ${orderNumber} - Small Sales`,
-          reference_number: orderNumber,
-          category: 'Sales',
+          payment_method_id: paymentMethodId,
+          is_gateway: isGateway,
           created_by: userId,
         });
-        if (bankTxErr) throw bankTxErr;
-      }
+        if (splitErr) throw splitErr;
 
-      // Binance SELL wallet impact = sold quantity + commission.
-      if (record.wallet_id) {
-        const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
-        const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
-          sales_order_id: salesOrder.id,
-          usdt_amount: totalWalletDebit,
-          wallet_id: record.wallet_id,
-          p_asset_code: record.asset_code,
+        if (isGateway) {
+          const expectedSettlementDate = selectedMethod.settlement_days
+            ? new Date(new Date(orderDate).getTime() + (selectedMethod.settlement_days * 86400000)).toISOString().split('T')[0]
+            : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0];
+
+          const { error: settlementErr } = await supabase.from('pending_settlements').insert({
+            sales_order_id: salesOrder.id,
+            order_number: orderNumber,
+            client_name: 'Small Sales',
+            total_amount: Number(record.total_amount),
+            settlement_amount: Number(record.total_amount),
+            order_date: orderDate,
+            payment_method_id: paymentMethodId,
+            bank_account_id: resolvedBankAccountId,
+            settlement_cycle: selectedMethod.settlement_cycle || 'T+1 Day',
+            settlement_days: selectedMethod.settlement_days || null,
+            expected_settlement_date: expectedSettlementDate,
+            status: 'PENDING',
+            created_by: userId,
+          });
+          if (settlementErr) throw settlementErr;
+        } else {
+          const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
+            bank_account_id: resolvedBankAccountId,
+            transaction_type: 'INCOME',
+            amount: Number(record.total_amount),
+            transaction_date: orderDate,
+            description: `Sales Order - ${orderNumber} - Small Sales`,
+            reference_number: orderNumber,
+            category: 'Sales',
+            related_account_name: 'Small Sales',
+            created_by: userId,
+          });
+          if (bankTxErr) throw bankTxErr;
+        }
+
+        if (record.wallet_id) {
+          const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
+          const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
+            sales_order_id: salesOrder.id,
+            usdt_amount: totalWalletDebit,
+            wallet_id: record.wallet_id,
+            p_asset_code: record.asset_code,
+          });
+          if (walletErr) throw walletErr;
+        }
+
+        await persistBatchValuation({
+          batchId: orderNumber,
+          batchType: 'small_sales',
+          assetCode,
+          totalInrValue: ssTotalAmt,
+          totalAssetQty: ssQty,
+          marketRateUsdt: marketRate,
+          aggregatedUsdtQty: ssEffUsdtQty,
+          effectiveUsdtRate: ssEffUsdtRate,
+          orderId: salesOrder.id,
+          priceSnapshotId: locked.snapshotId,
+          createdBy: userId,
         });
-        if (walletErr) throw walletErr;
+
+        const { error: syncUpdateErr } = await supabase
+          .from('small_sales_sync')
+          .update({
+            sync_status: 'approved',
+            sales_order_id: salesOrder.id,
+            reviewed_by: userId,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq('id', record.id);
+        if (syncUpdateErr) throw syncUpdateErr;
+
+        return salesOrder;
+      } catch (error) {
+        if (createdSalesOrderId) {
+          await supabase.rpc('delete_sales_order_with_reversal', { p_order_id: createdSalesOrderId });
+        }
+        throw error;
       }
-
-      // Persist batch valuation record
-      await persistBatchValuation({
-        batchId: orderNumber,
-        batchType: 'small_sales',
-        assetCode,
-        totalInrValue: ssTotalAmt,
-        totalAssetQty: ssQty,
-        marketRateUsdt: marketRate,
-        aggregatedUsdtQty: ssEffUsdtQty,
-        effectiveUsdtRate: ssEffUsdtRate,
-        orderId: salesOrder.id,
-        priceSnapshotId: locked.snapshotId,
-        createdBy: userId,
-      });
-
-      // Update sync record ONLY after sales order is confirmed created
-      const { error: syncUpdateErr } = await supabase
-        .from('small_sales_sync')
-        .update({
-          sync_status: 'approved',
-          sales_order_id: salesOrder.id,
-          reviewed_by: userId,
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq('id', record.id);
-      if (syncUpdateErr) throw syncUpdateErr;
-
-      return salesOrder;
     },
     onSuccess: () => {
       toast({ title: 'Approved', description: 'Small sales entry created in ERP' });

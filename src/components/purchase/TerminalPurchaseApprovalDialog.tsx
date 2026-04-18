@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
+import { resolveTerminalApprovalClient, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -62,6 +63,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Contact & State form fields (like Sales dialog)
   const [contactNumber, setContactNumber] = useState('');
   const [clientState, setClientState] = useState('');
+  const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
+  const [crossNameWarning, setCrossNameWarning] = useState(false);
 
   // Conflict tracking between client master and counterparty records
   const [clientMasterPan, setClientMasterPan] = useState('');
@@ -175,14 +178,39 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (!linkedClientId) {
         setLinkedClientId(syncRecord?.client_id || '');
       }
-      
-      // Check for multiple clients with same name (disambiguation needed)
-      if (!linkedClientId && !syncRecord?.client_id && syncRecord?.counterparty_name) {
-        const matches = await findAllClientsByName(syncRecord.counterparty_name);
-        if (matches.length > 1) {
-          setDuplicateClients(matches);
-        } else {
+
+      // Strict precedence auto-match: nickname → verified name → exact name
+      if (!linkedClientId && !syncRecord?.client_id) {
+        const unmaskedNick = (syncRecord?.order_data?.counterparty_nickname_unmasked
+          || (syncRecord?.order_data?.counterparty_nickname && !String(syncRecord.order_data.counterparty_nickname).includes('*') ? syncRecord.order_data.counterparty_nickname : null)
+          || (syncRecord?.counterparty_name && !String(syncRecord.counterparty_name).includes('*') ? syncRecord.counterparty_name : null)
+          || null) as string | null;
+        const verifiedName = (syncRecord?.order_data?.verified_name || null) as string | null;
+        const displayName = verifiedName || syncRecord?.counterparty_name || null;
+
+        const result = await resolveTerminalApprovalClient({
+          unmaskedNickname: unmaskedNick,
+          verifiedName,
+          displayName,
+          side: 'seller',
+        });
+        if (result.clientId) {
+          setLinkedClientId(result.clientId);
+          setLinkedClientName(result.clientName || '');
+          setAutoMatchVia(result.resolvedVia);
+          setCrossNameWarning(result.crossNameWarning);
           setDuplicateClients([]);
+        } else if (result.ambiguousCandidates.length > 1 && syncRecord?.counterparty_name) {
+          // Fall back to name-based ambiguity surfacing
+          const matches = await findAllClientsByName(syncRecord.counterparty_name);
+          setDuplicateClients(matches.length > 1 ? matches : []);
+          setAutoMatchVia(null);
+          setCrossNameWarning(false);
+        } else if (syncRecord?.counterparty_name) {
+          const matches = await findAllClientsByName(syncRecord.counterparty_name);
+          setDuplicateClients(matches.length > 1 ? matches : []);
+          setAutoMatchVia(null);
+          setCrossNameWarning(false);
         }
       }
     };
@@ -662,19 +690,37 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
             <CardContent className="p-4 space-y-2">
               <Label className="text-xs font-semibold">Client Mapping</Label>
               {linkedClientId ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                  <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
-                  <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
-                  {duplicateClients.length > 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 text-[10px]"
-                      onClick={() => { setLinkedClientId(''); setLinkedClientName(''); }}
-                    >
-                      Change
-                    </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">{linkedClientName || syncRecord?.counterparty_name}</span>
+                    <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700">Linked</Badge>
+                    {(duplicateClients.length > 1 || autoMatchVia) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-[10px]"
+                        onClick={() => { setLinkedClientId(''); setLinkedClientName(''); setAutoMatchVia(null); setCrossNameWarning(false); }}
+                      >
+                        Change
+                      </Button>
+                    )}
+                  </div>
+                  {autoMatchVia && autoMatchVia !== 'name_exact' && (
+                    <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 px-3 py-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-blue-700 dark:text-blue-400">
+                        Auto-linked by {autoMatchVia === 'nickname' ? 'Binance nickname' : 'KYC verified name'} — strongest identity signal.
+                      </span>
+                    </div>
+                  )}
+                  {crossNameWarning && (
+                    <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                        Linked by nickname/KYC — name on Binance ("{syncRecord?.counterparty_name}") differs from client master ("{linkedClientName}"). Confirm this is intentional.
+                      </span>
+                    </div>
                   )}
                 </div>
               ) : duplicateClients.length > 1 ? (

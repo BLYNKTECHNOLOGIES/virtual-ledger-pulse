@@ -395,7 +395,17 @@ export function TerminalSalesSyncTab() {
                     </TableCell>
                     <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
                     <TableCell className="text-xs">
-                      {buyerDisplay ? buyerDisplay : (
+                      {buyerDisplay ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span>{buyerDisplay}</span>
+                          {(() => {
+                            const nick = (od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
+                            return nick && !nick.includes('*') ? (
+                              <span className="font-mono text-[10px] text-muted-foreground">@{nick}</span>
+                            ) : null;
+                          })()}
+                        </div>
+                      ) : (
                         <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
                           Name Pending
                         </Badge>

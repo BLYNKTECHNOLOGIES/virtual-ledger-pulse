@@ -150,6 +150,108 @@ export function resolveApprovalIdentityState(params: {
 }
 
 /**
+ * Resolve a terminal sync row to a client using the strict precedence:
+ *   1. Binance nickname link  (`client_binance_nicknames`, is_active)
+ *   2. Verified-name link     (`client_verified_names`)
+ *   3. Single exact name match (`clients.name` case-insensitive, non-deleted, non-rejected)
+ *   4. Multiple/ambiguous     → return null + candidates (UI must force manual pick)
+ *
+ * Returns also a `crossNameWarning` flag set when the auto-linked client's name
+ * differs from the displayed name on Binance — the operator should confirm.
+ */
+export type TerminalAutoMatchVia = 'nickname' | 'verified_name' | 'name_exact' | null;
+export interface TerminalAutoMatchResult {
+  clientId: string | null;
+  clientName: string | null;
+  resolvedVia: TerminalAutoMatchVia;
+  crossNameWarning: boolean;
+  ambiguousCandidates: { id: string; name: string }[];
+}
+
+export async function resolveTerminalApprovalClient(params: {
+  unmaskedNickname: string | null;
+  verifiedName: string | null;
+  displayName: string | null;
+  /** 'buyer' for sales orders (counterparty is buyer), 'seller' for purchase orders */
+  side: 'buyer' | 'seller';
+}): Promise<TerminalAutoMatchResult> {
+  const { unmaskedNickname, verifiedName, displayName, side } = params;
+  const empty: TerminalAutoMatchResult = {
+    clientId: null, clientName: null, resolvedVia: null,
+    crossNameWarning: false, ambiguousCandidates: [],
+  };
+  const isRejected = (c: { buyer_approval_status: string | null; seller_approval_status: string | null }) =>
+    side === 'buyer' ? c.buyer_approval_status === 'REJECTED' : c.seller_approval_status === 'REJECTED';
+
+  // 1) Nickname
+  const nick = unmaskedNickname?.trim();
+  if (nick && !nick.includes('*')) {
+    const { data: link } = await supabase
+      .from('client_binance_nicknames')
+      .select('client_id')
+      .eq('nickname', nick)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (link?.client_id) {
+      const { data: c } = await supabase
+        .from('clients')
+        .select('id, name, is_deleted, buyer_approval_status, seller_approval_status')
+        .eq('id', link.client_id)
+        .maybeSingle();
+      if (c && !c.is_deleted && !isRejected(c)) {
+        const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
+        return { clientId: c.id, clientName: c.name, resolvedVia: 'nickname', crossNameWarning: cross, ambiguousCandidates: [] };
+      }
+    }
+  }
+
+  // 2) Verified name
+  const vname = verifiedName?.trim();
+  if (vname) {
+    const { data: rows } = await supabase
+      .from('client_verified_names')
+      .select('client_id')
+      .eq('verified_name', vname);
+    const ids = Array.from(new Set((rows || []).map(r => r.client_id)));
+    if (ids.length > 0) {
+      const { data: clients } = await supabase
+        .from('clients')
+        .select('id, name, is_deleted, buyer_approval_status, seller_approval_status')
+        .in('id', ids);
+      const valid = (clients || []).filter(c => !c.is_deleted && !isRejected(c));
+      if (valid.length === 1) {
+        const c = valid[0];
+        const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
+        return { clientId: c.id, clientName: c.name, resolvedVia: 'verified_name', crossNameWarning: cross, ambiguousCandidates: [] };
+      }
+      if (valid.length > 1) {
+        return { ...empty, ambiguousCandidates: valid.map(c => ({ id: c.id, name: c.name })) };
+      }
+    }
+  }
+
+  // 3) Single exact name
+  const dname = displayName?.trim().toLowerCase();
+  if (dname) {
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id, name, is_deleted, buyer_approval_status, seller_approval_status')
+      .ilike('name', displayName!.trim());
+    const exact = (clients || []).filter(c =>
+      !c.is_deleted && !isRejected(c) && c.name.trim().toLowerCase() === dname
+    );
+    if (exact.length === 1) {
+      return { clientId: exact[0].id, clientName: exact[0].name, resolvedVia: 'name_exact', crossNameWarning: false, ambiguousCandidates: [] };
+    }
+    if (exact.length > 1) {
+      return { ...empty, ambiguousCandidates: exact.map(c => ({ id: c.id, name: c.name })) };
+    }
+  }
+
+  return empty;
+}
+
+/**
  * Auto-upsert verified name into client_verified_names for progressive enrichment.
  * Best-effort — errors are silently ignored.
  */

@@ -63,6 +63,8 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
   // Contact & State form fields (like Sales dialog)
   const [contactNumber, setContactNumber] = useState('');
   const [clientState, setClientState] = useState('');
+  const [autoMatchVia, setAutoMatchVia] = useState<TerminalAutoMatchVia>(null);
+  const [crossNameWarning, setCrossNameWarning] = useState(false);
 
   // Conflict tracking between client master and counterparty records
   const [clientMasterPan, setClientMasterPan] = useState('');

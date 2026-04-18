@@ -180,7 +180,8 @@ export async function resolveTerminalApprovalClient(params: {
     clientId: null, clientName: null, resolvedVia: null,
     crossNameWarning: false, ambiguousCandidates: [],
   };
-  const rejectedField = side === 'buyer' ? 'buyer_approval_status' : 'seller_approval_status';
+  const isRejected = (c: { buyer_approval_status: string | null; seller_approval_status: string | null }) =>
+    side === 'buyer' ? c.buyer_approval_status === 'REJECTED' : c.seller_approval_status === 'REJECTED';
 
   // 1) Nickname
   const nick = unmaskedNickname?.trim();
@@ -194,10 +195,10 @@ export async function resolveTerminalApprovalClient(params: {
     if (link?.client_id) {
       const { data: c } = await supabase
         .from('clients')
-        .select('id, name, is_deleted, ' + rejectedField)
+        .select('id, name, is_deleted, buyer_approval_status, seller_approval_status')
         .eq('id', link.client_id)
         .maybeSingle();
-      if (c && !(c as any).is_deleted && (c as any)[rejectedField] !== 'REJECTED') {
+      if (c && !c.is_deleted && !isRejected(c)) {
         const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
         return { clientId: c.id, clientName: c.name, resolvedVia: 'nickname', crossNameWarning: cross, ambiguousCandidates: [] };
       }
@@ -215,9 +216,9 @@ export async function resolveTerminalApprovalClient(params: {
     if (ids.length > 0) {
       const { data: clients } = await supabase
         .from('clients')
-        .select('id, name, is_deleted, ' + rejectedField)
+        .select('id, name, is_deleted, buyer_approval_status, seller_approval_status')
         .in('id', ids);
-      const valid = (clients || []).filter(c => !(c as any).is_deleted && (c as any)[rejectedField] !== 'REJECTED');
+      const valid = (clients || []).filter(c => !c.is_deleted && !isRejected(c));
       if (valid.length === 1) {
         const c = valid[0];
         const cross = !!(displayName && c.name.trim().toLowerCase() !== displayName.trim().toLowerCase());
@@ -234,12 +235,10 @@ export async function resolveTerminalApprovalClient(params: {
   if (dname) {
     const { data: clients } = await supabase
       .from('clients')
-      .select('id, name, is_deleted, ' + rejectedField)
+      .select('id, name, is_deleted, buyer_approval_status, seller_approval_status')
       .ilike('name', displayName!.trim());
     const exact = (clients || []).filter(c =>
-      !(c as any).is_deleted &&
-      (c as any)[rejectedField] !== 'REJECTED' &&
-      c.name.trim().toLowerCase() === dname
+      !c.is_deleted && !isRejected(c) && c.name.trim().toLowerCase() === dname
     );
     if (exact.length === 1) {
       return { clientId: exact[0].id, clientName: exact[0].name, resolvedVia: 'name_exact', crossNameWarning: false, ambiguousCandidates: [] };

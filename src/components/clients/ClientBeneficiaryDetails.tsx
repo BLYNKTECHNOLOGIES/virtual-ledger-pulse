@@ -81,7 +81,7 @@ export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBenefic
                         key={ab.bank_account_id}
                         className="flex items-center gap-1.5 text-xs text-foreground"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                         <span className="font-medium">{ab.bank_name || "Bank"}</span>
                         <span className="text-muted-foreground">· {ab.account_name}</span>
                         {ab.account_number_last4 && (

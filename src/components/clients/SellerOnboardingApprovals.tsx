@@ -26,6 +26,7 @@ import {
   ShoppingCart
 } from "lucide-react";
 import { ClientOrderSummaryDialog } from "./ClientOrderSummaryDialog";
+import { sanitizeNickname, sanitizeVerifiedName } from "@/lib/clientIdentityResolver";
 
 export function SellerOnboardingApprovals() {
   const [searchTerm, setSearchTerm] = useState("");

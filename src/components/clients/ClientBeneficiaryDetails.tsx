@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Landmark, CreditCard } from "lucide-react";
+import { Landmark, CreditCard, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { useClientBeneficiaries } from "@/hooks/useClientBeneficiaries";
 
@@ -69,6 +69,28 @@ export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBenefic
                     {b.ifsc_code && <span className="font-mono">{b.ifsc_code}</span>}
                     {b.ifsc_code && b.account_opening_branch && " · "}
                     {b.account_opening_branch}
+                  </div>
+                )}
+                {b.added_to_banks && b.added_to_banks.length > 0 && (
+                  <div className="pt-2 mt-1 border-t border-border/50 space-y-1">
+                    <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                      Added in BAMS to
+                    </div>
+                    {b.added_to_banks.map((ab) => (
+                      <div
+                        key={ab.bank_account_id}
+                        className="flex items-center gap-1.5 text-xs text-foreground"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                        <span className="font-medium">{ab.bank_name || "Bank"}</span>
+                        <span className="text-muted-foreground">· {ab.account_name}</span>
+                        {ab.account_number_last4 && (
+                          <span className="font-mono text-muted-foreground">
+                            (••{ab.account_number_last4})
+                          </span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
                 <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/50">

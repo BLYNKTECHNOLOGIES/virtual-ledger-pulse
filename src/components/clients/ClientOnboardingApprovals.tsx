@@ -1246,7 +1246,15 @@ export function ClientOnboardingApprovals() {
                           ⚠ Same User — different name
                         </Badge>
                       )}
-                      {!sameUserNick && state === 'linked_known' && matched && (
+                      {sameUserVName && (
+                        <Badge
+                          className="mt-1 bg-purple-100 text-purple-800 text-xs"
+                          title="Multiple pending approvals share this verified KYC name."
+                        >
+                          ⚠ Same User — same KYC name
+                        </Badge>
+                      )}
+                      {!sameUserNick && !sameUserVName && state === 'linked_known' && matched && (
                         <Badge
                           className="mt-1 bg-blue-100 text-blue-800 text-xs"
                           title={`Client ID: ${matched.client_id || matched.id} • Risk: ${matched.risk_appetite || '—'} • Buyer: ${matched.buyer_approval_status || '—'} • Seller: ${matched.seller_approval_status || '—'}`}
@@ -1254,7 +1262,7 @@ export function ClientOnboardingApprovals() {
                           🔗 Known Client: {matched.name}{idInfo?.nickname ? ` · @${idInfo.nickname}` : ''}
                         </Badge>
                       )}
-                      {!sameUserNick && state === 'verified_name_match' && matched && (
+                      {!sameUserNick && !sameUserVName && state === 'verified_name_match' && matched && (
                         <Badge
                           className="mt-1 bg-teal-100 text-teal-800 text-xs"
                           title={`KYC name matches existing client ${matched.name} (${matched.client_id || matched.id}). Approving will link this nickname.`}
@@ -1262,7 +1270,7 @@ export function ClientOnboardingApprovals() {
                           🪪 Same KYC name — {matched.name}
                         </Badge>
                       )}
-                      {!sameUserNick && state === 'name_collision' && matched && (
+                      {!sameUserNick && !sameUserVName && state === 'name_collision' && matched && (
                         <div className="mt-1 flex flex-col gap-1">
                           <Badge
                             className="bg-amber-100 text-amber-800 text-xs"
@@ -1283,8 +1291,16 @@ export function ClientOnboardingApprovals() {
                           )}
                         </div>
                       )}
-                      {!sameUserNick && state === 'new_client' && (
+                      {!sameUserNick && !sameUserVName && state === 'new_client' && !noIdentitySignal && (
                         <Badge variant="outline" className="mt-1 text-xs">New Client</Badge>
+                      )}
+                      {noIdentitySignal && (
+                        <Badge
+                          className="mt-1 bg-amber-100 text-amber-900 text-xs border border-amber-300"
+                          title="No real Binance nickname and no verified KYC name — verify identity manually before approving."
+                        >
+                          ⚠ No identity signal — review manually
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>

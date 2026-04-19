@@ -230,7 +230,7 @@ export function ClientOnboardingApprovals() {
           if (row.binance_order_number && row.sales_order_id) {
             orderNumberToSalesId[row.binance_order_number] = row.sales_order_id;
           }
-          const vn = (row.order_data as any)?.verified_name?.trim?.();
+          const vn = sanitizeVerifiedName((row.order_data as any)?.verified_name);
           if (vn && row.sales_order_id) salesIdToVName[row.sales_order_id] = vn;
         }
         const orderNumbers = Object.keys(orderNumberToSalesId);
@@ -241,8 +241,8 @@ export function ClientOnboardingApprovals() {
             .in('binance_order_number', orderNumbers)
             .not('counterparty_nickname', 'is', null);
           for (const row of p2pRows || []) {
-            const nick = row.counterparty_nickname?.trim();
-            if (!nick || nick.includes('*')) continue;
+            const nick = sanitizeNickname(row.counterparty_nickname);
+            if (!nick) continue;
             const salesId = orderNumberToSalesId[row.binance_order_number];
             if (!salesId) continue;
             for (const a of pendingApprovalsRaw) {

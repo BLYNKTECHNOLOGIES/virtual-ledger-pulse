@@ -126,8 +126,8 @@ export function SellerOnboardingApprovals() {
       const nameToNickname: Record<string, string> = {};
       const allNicknames = new Set<string>();
       for (const row of p2pRows) {
-        const nick = row.counterparty_nickname?.trim();
-        if (!nick || nick.includes('*')) continue; // Skip masked nicknames
+        const nick = sanitizeNickname(row.counterparty_nickname);
+        if (!nick) continue; // Skip null / empty / 'Unknown' / masked
         const sellerName = orderNumberToName[row.binance_order_number];
         if (sellerName && !nameToNickname[sellerName]) {
           nameToNickname[sellerName] = nick;

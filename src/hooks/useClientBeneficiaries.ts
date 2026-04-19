@@ -180,9 +180,42 @@ export function useClientBeneficiaries(clientId: string | undefined, clientName?
         merged.set(key, existing ? mergeBeneficiary(existing, row) : row);
       }
 
-      return Array.from(merged.values()).sort(
+      const result = Array.from(merged.values()).sort(
         (a, b) => new Date(b.last_seen_at).getTime() - new Date(a.last_seen_at).getTime()
       );
+
+      // Step E — enrich with bank-account additions from BAMS (beneficiary_bank_additions).
+      // We only have bank-addition rows for persisted beneficiary_records IDs (not synthetic "sync-..." rows),
+      // so collect those IDs and look up the linked bank accounts.
+      const persistedIds = result.map((r) => r.id).filter((id) => !id.startsWith("sync-"));
+      if (persistedIds.length > 0) {
+        const { data: addRows, error: addErr } = await supabase
+          .from("beneficiary_bank_additions")
+          .select("beneficiary_id, bank_account_id, added_at, bank_accounts:bank_account_id(bank_name, account_name, account_number)")
+          .in("beneficiary_id", persistedIds);
+        if (addErr) throw addErr;
+
+        const byBeneficiary = new Map<string, ClientBeneficiaryAddedBank[]>();
+        for (const row of (addRows || []) as any[]) {
+          const ba = row.bank_accounts || {};
+          const acc = String(ba.account_number || "");
+          const list = byBeneficiary.get(row.beneficiary_id) || [];
+          list.push({
+            bank_account_id: row.bank_account_id,
+            bank_name: ba.bank_name || null,
+            account_name: ba.account_name || null,
+            account_number_last4: acc ? acc.slice(-4) : null,
+            added_at: row.added_at,
+          });
+          byBeneficiary.set(row.beneficiary_id, list);
+        }
+        for (const r of result) {
+          const adds = byBeneficiary.get(r.id);
+          if (adds && adds.length > 0) r.added_to_banks = adds;
+        }
+      }
+
+      return result;
     },
   });
 }

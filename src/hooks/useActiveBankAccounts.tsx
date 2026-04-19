@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 export interface ActiveBankAccount {
   id: string;
@@ -58,24 +59,32 @@ export function useActiveBankAccounts(enabled: boolean = true) {
  */
 export function calculateTotalAvailableBalance(accounts: ActiveBankAccount[] | undefined): number {
   if (!accounts) return 0;
-  return accounts.reduce((sum, account) => {
-    const availableBalance = Number(account.balance) - Number(account.lien_amount || 0);
-    return sum + availableBalance;
-  }, 0);
+  return accounts
+    .filter((account) => !isAdjustmentBank(account.account_name))
+    .reduce((sum, account) => {
+      const availableBalance = Number(account.balance) - Number(account.lien_amount || 0);
+      return sum + availableBalance;
+    }, 0);
 }
 
 /**
- * Calculate total balance (including lien) from active, non-dormant bank accounts
+ * Calculate total balance (including lien) from active, non-dormant bank accounts.
+ * Excludes audit/contra-entry adjustment buckets.
  */
 export function calculateTotalBalance(accounts: ActiveBankAccount[] | undefined): number {
   if (!accounts) return 0;
-  return accounts.reduce((sum, account) => sum + Number(account.balance), 0);
+  return accounts
+    .filter((account) => !isAdjustmentBank(account.account_name))
+    .reduce((sum, account) => sum + Number(account.balance), 0);
 }
 
 /**
- * Calculate total lien amount from active, non-dormant bank accounts
+ * Calculate total lien amount from active, non-dormant bank accounts.
+ * Excludes audit/contra-entry adjustment buckets.
  */
 export function calculateTotalLienAmount(accounts: ActiveBankAccount[] | undefined): number {
   if (!accounts) return 0;
-  return accounts.reduce((sum, account) => sum + Number(account.lien_amount || 0), 0);
+  return accounts
+    .filter((account) => !isAdjustmentBank(account.account_name))
+    .reduce((sum, account) => sum + Number(account.lien_amount || 0), 0);
 }

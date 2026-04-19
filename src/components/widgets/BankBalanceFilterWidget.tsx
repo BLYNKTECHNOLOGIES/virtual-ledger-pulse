@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface BankAccount {
   id: string;
@@ -101,7 +102,8 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
         .is('dormant_at', null)
         .order('bank_name');
       if (error) throw error;
-      return data as BankAccount[];
+      // Hide audit/contra-entry adjustment buckets from selector
+      return (data as BankAccount[]).filter((b) => !isAdjustmentBank(b.account_name));
     },
     refetchInterval: 30000,
     staleTime: 10000,

@@ -31,6 +31,7 @@ import { EditWalletDialog } from "./EditWalletDialog";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { PermissionGate } from "@/components/PermissionGate";
+import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
 interface WalletType {
   id: string;
@@ -620,7 +621,14 @@ export function WalletManagementTab() {
     );
   };
 
-  const totalBalance = wallets?.reduce((sum, wallet) => wallet.is_active ? sum + wallet.current_balance : sum, 0) || 0;
+  // Exclude audit/contra-entry adjustment wallets from the headline total (kept visible in list below)
+  const totalBalance = wallets?.reduce(
+    (sum, wallet) =>
+      wallet.is_active && !isAdjustmentWallet(wallet.wallet_name)
+        ? sum + wallet.current_balance
+        : sum,
+    0
+  ) || 0;
 
   return (
     <div className="space-y-6">

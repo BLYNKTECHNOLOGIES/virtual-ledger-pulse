@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -94,11 +95,12 @@ export default function Financials() {
         .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
         .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
 
-      // Get bank balances
-      const { data: bankData } = await supabase
+      // Get bank balances (exclude audit/adjustment buckets)
+      const { data: bankDataRaw } = await supabase
         .from('bank_accounts')
         .select('account_name, balance, bank_name')
         .eq('status', 'ACTIVE');
+      const bankData = (bankDataRaw || []).filter(b => !isAdjustmentBank(b.account_name));
 
       // Get recent transactions
       const { data: transactionsData } = await supabase

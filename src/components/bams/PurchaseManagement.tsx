@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface PurchaseMethod {
   id: string;
@@ -361,9 +362,10 @@ export function PurchaseManagement() {
         .map(m => m.bankAccountName)
     );
 
-    // Sum balances of unique bank accounts
+    // Sum balances of unique bank accounts (exclude audit/adjustment buckets)
     return bankAccounts
       .filter(account => uniqueAccountNames.has(account.account_name))
+      .filter(account => !isAdjustmentBank(account.account_name))
       .reduce((sum, account) => sum + account.balance, 0);
   };
 

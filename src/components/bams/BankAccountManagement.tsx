@@ -22,6 +22,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { ImportBankAccountsDialog } from "./ImportBankAccountsDialog";
 import { ManualBalanceAdjustmentDialog } from "./ManualBalanceAdjustmentDialog";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface BankAccount {
   id: string;
@@ -780,7 +781,16 @@ export function BankAccountManagement() {
                     <TableBody>
                       {filteredAndSortedAccounts?.map((account) => (
                         <TableRow key={account.id} className={account.status === "INACTIVE" ? "bg-gray-50" : ""}>
-                          <TableCell className="font-medium">{account.account_name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>{account.account_name}</span>
+                              {isAdjustmentBank(account.account_name) && (
+                                <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-700 bg-amber-50">
+                                  Audit Bucket — excluded from totals
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{account.bank_account_holder_name || "-"}</TableCell>
                           <TableCell>{account.bank_name}</TableCell>
                           <TableCell>

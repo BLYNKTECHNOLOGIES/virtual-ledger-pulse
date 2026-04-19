@@ -33,6 +33,7 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 // Default active widgets for new users (built-in IDs)
 const DEFAULT_ACTIVE_WIDGETS = [
@@ -268,7 +269,7 @@ export default function Dashboard() {
           .lte('created_at', prevEnd.toISOString()),
         supabase.from('clients').select('id').eq('kyc_status', 'VERIFIED'),
         supabase.from('clients').select('id'),
-        supabase.from('bank_accounts').select('balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null),
+        supabase.from('bank_accounts').select('account_name, balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null),
         supabase.from('products').select('code, cost_price'),
         supabase.from('wallet_asset_balances').select('asset_code, balance'),
       ]);
@@ -288,7 +289,9 @@ export default function Dashboard() {
       const salesGrowth = prevTotalSales > 0 ? ((totalSales - prevTotalSales) / prevTotalSales) * 100 : (totalSales > 0 ? 100 : 0);
       const ordersGrowth = prevTotalSalesOrders > 0 ? ((totalSalesOrders - prevTotalSalesOrders) / prevTotalSalesOrders) * 100 : (totalSalesOrders > 0 ? 100 : 0);
 
-      const bankBalance = bankData?.reduce((sum, a) => sum + (Number(a.balance) - Number(a.lien_amount || 0)), 0) || 0;
+      const bankBalance = bankData
+        ?.filter(a => !isAdjustmentBank((a as any).account_name))
+        .reduce((sum, a) => sum + (Number(a.balance) - Number(a.lien_amount || 0)), 0) || 0;
 
       const costPriceMap: Record<string, number> = {};
       productsData?.forEach(p => { if (p.code) costPriceMap[p.code] = Number(p.cost_price || 0); });

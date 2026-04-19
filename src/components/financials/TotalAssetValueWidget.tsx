@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { isAdjustmentBank, isAdjustmentWallet } from "@/lib/adjustment-accounts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -24,10 +25,12 @@ export function useTotalAssetValue() {
         .in("status", ["ACTIVE", "DORMANT"])
         .order("account_name");
 
-      const bankDetails: BankDetail[] = (banks || []).map(b => ({
-        account_name: b.account_name, bank_name: b.bank_name,
-        balance: Number(b.balance || 0), status: b.status, dormant_at: b.dormant_at,
-      }));
+      const bankDetails: BankDetail[] = (banks || [])
+        .filter(b => !isAdjustmentBank(b.account_name))
+        .map(b => ({
+          account_name: b.account_name, bank_name: b.bank_name,
+          balance: Number(b.balance || 0), status: b.status, dormant_at: b.dormant_at,
+        }));
       const totalBank = bankDetails.reduce((s, a) => s + a.balance, 0);
 
       // 2. POS / Gateway — group by gateway, not individual transactions
@@ -67,10 +70,12 @@ export function useTotalAssetValue() {
       // 3a. USDT balances from ledger-backed wallet utility
       const wallets = await fetchActiveWalletsWithLedgerUsdtBalance("wallet_name, current_balance");
 
-      const walletDetails: WalletDetail[] = (wallets || []).map((w) => ({
-        wallet_name: String(w.wallet_name),
-        current_balance: Number(w.current_balance || 0),
-      }));
+      const walletDetails: WalletDetail[] = (wallets || [])
+        .filter((w) => !isAdjustmentWallet(String(w.wallet_name)))
+        .map((w) => ({
+          wallet_name: String(w.wallet_name),
+          current_balance: Number(w.current_balance || 0),
+        }));
       const totalUsdtUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
 
       // 3b. Non-USDT asset balances

@@ -79,6 +79,7 @@ export function BeneficiaryManagement() {
     ifsc_code: "",
     account_type: "",
     account_opening_branch: "",
+    binance_nickname: "",
   });
 
   // Export dialog state
@@ -284,6 +285,25 @@ export function BeneficiaryManagement() {
         .maybeSingle();
       if (existing) throw new Error("A beneficiary with this account number already exists");
 
+      // Optional: resolve client via Binance nickname mapping
+      let resolvedClientName: string | null = null;
+      const nickname = form.binance_nickname.trim();
+      if (nickname) {
+        const { data: nickRow } = await supabase
+          .from("client_binance_nicknames")
+          .select("client_id, clients!inner(name, is_deleted)")
+          .ilike("nickname", nickname)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        const client = (nickRow as any)?.clients;
+        if (client && !client.is_deleted) {
+          resolvedClientName = client.name;
+        } else {
+          throw new Error(`No active client is linked to Binance nickname "${nickname}"`);
+        }
+      }
+
       const now = new Date().toISOString();
       const { error } = await supabase.from("beneficiary_records" as any).insert({
         account_number: form.account_number.trim(),
@@ -292,18 +312,24 @@ export function BeneficiaryManagement() {
         account_type: form.account_type || null,
         account_opening_branch: form.account_opening_branch.trim() || null,
         source_order_number: null,
-        client_name: null,
+        client_name: resolvedClientName,
         occurrence_count: 1,
         first_seen_at: now,
         last_seen_at: now,
       } as any);
       if (error) throw error;
+      return { resolvedClientName };
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "Beneficiary added manually" });
+    onSuccess: (result) => {
+      toast({
+        title: "Success",
+        description: result?.resolvedClientName
+          ? `Beneficiary added and linked to ${result.resolvedClientName}`
+          : "Beneficiary added manually",
+      });
       queryClient.invalidateQueries({ queryKey: ["beneficiary_records"] });
       setShowManualAddDialog(false);
-      setManualForm({ account_number: "", account_holder_name: "", ifsc_code: "", account_type: "", account_opening_branch: "" });
+      setManualForm({ account_number: "", account_holder_name: "", ifsc_code: "", account_type: "", account_opening_branch: "", binance_nickname: "" });
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -733,7 +759,7 @@ export function BeneficiaryManagement() {
       {/* Manual Add Beneficiary Dialog */}
       <Dialog open={showManualAddDialog} onOpenChange={(open) => {
         setShowManualAddDialog(open);
-        if (!open) setManualForm({ account_number: "", account_holder_name: "", ifsc_code: "", account_type: "", account_opening_branch: "" });
+        if (!open) setManualForm({ account_number: "", account_holder_name: "", ifsc_code: "", account_type: "", account_opening_branch: "", binance_nickname: "" });
       }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -789,6 +815,17 @@ export function BeneficiaryManagement() {
                 value={manualForm.account_opening_branch}
                 onChange={(e) => setManualForm((p) => ({ ...p, account_opening_branch: e.target.value }))}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Binance Nickname <span className="text-muted-foreground">(optional)</span></Label>
+              <Input
+                placeholder="Enter Binance nickname to auto-link client"
+                value={manualForm.binance_nickname}
+                onChange={(e) => setManualForm((p) => ({ ...p, binance_nickname: e.target.value }))}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                If provided, this beneficiary will be mapped to the client linked to this Binance nickname.
+              </p>
             </div>
           </div>
           <DialogFooter>

@@ -288,8 +288,12 @@ export function ClientDashboard() {
       // are shown in the directory.
       if (client.buyer_approval_status === 'PENDING') return false;
 
-      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
+      const normalizedSearch = searchTerm.trim().replace(/\s+/g, ' ').toLowerCase();
+      const normalizedName = (client.name || '').replace(/\s+/g, ' ').toLowerCase();
+      const normalizedClientId = (client.client_id || '').toLowerCase();
+      const matchesSearch = !normalizedSearch ||
+                            normalizedName.includes(normalizedSearch) ||
+                            normalizedClientId.includes(normalizedSearch);
       if (!matchesSearch) return false;
 
       return applyFilters(client, orderInfo, buyerFilters, true);

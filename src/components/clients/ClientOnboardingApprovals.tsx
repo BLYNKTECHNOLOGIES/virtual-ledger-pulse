@@ -271,6 +271,14 @@ export function ClientOnboardingApprovals() {
       const verifiedNameToClient = new Map<string, ClientLite>();
       const displayNameToClient = new Map<string, ClientLite>();
 
+      // Self-match guard: a pending approval's own resolved_client_id must NEVER
+      // be returned as evidence of being a "Known Client".
+      const selfClientIds = new Set(
+        (pendingApprovalsRaw || [])
+          .map((a: any) => a.resolved_client_id)
+          .filter((id: any): id is string => typeof id === 'string' && !!id)
+      );
+
       // Nickname → client_id
       const nickArr = Array.from(allNicks);
       const linkedClientIds = new Set<string>();
@@ -282,6 +290,7 @@ export function ClientOnboardingApprovals() {
           .in('nickname', nickArr)
           .eq('is_active', true);
         for (const r of data || []) {
+          if (selfClientIds.has(r.client_id)) continue;
           nickRows.push(r);
           linkedClientIds.add(r.client_id);
         }
@@ -296,6 +305,7 @@ export function ClientOnboardingApprovals() {
           .select('verified_name, client_id')
           .in('verified_name', vnameArr);
         for (const r of data || []) {
+          if (selfClientIds.has(r.client_id)) continue;
           vnRows.push(r);
           linkedClientIds.add(r.client_id);
         }

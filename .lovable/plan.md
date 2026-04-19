@@ -1,92 +1,94 @@
 
+The user wants the "Balance Adjustment Account" excluded from all financial calculations (Total Asset Value, P&L, Total Bank Balance widgets, stats). It should still exist as a bucket but not contribute to any aggregate.
 
-## Root Cause — Confirmed via DB
+Let me explore how this account is identified and where it's used.
+<lov-tool-use id="toolu_vrtx_01Gba8VyUk97aLaLFUvc5YsJ" name="code--exec" integration-id="code" data="{\"command\": \"psql -c \\\"SELECT id, account_name, bank_name, account_type, status, balance FROM bank_accounts WHERE account_name ILIKE '%adjust%' OR bank_name ILIKE '%adjust%' OR account_name ILIKE '%balance adjust%';\\\"\", \"user_facing_description\": \"Looking up the Balance Adjustment account in the database\"}">
+</lov-tool-use>
 
-DB query results for "Arnab Jyoti Das":
+<lov-tool-use id="toolu_vrtx_01JT7sjSMot5dfdamJdhHVmV" name="code--search_files" integration-id="code" data="{\"query\": \"Balance Adjustment|balance_adjustment|BALANCE ADJUSTMENT\", \"include_patterns\": \"*.ts,*.tsx\"}">
+</lov-tool-use>
 
-**`client_verified_names`:**
-```
-verified_name: "Arnab Jyoti Das"
-client_id:     36f39e6e-c90f-4543-8544-01c62303de60
-source:        approval
-→ that client_id maps to a clients row named "Arnab Jyoti Das"
-   with buyer_approval_status = PENDING (created today, 2026-04-19)
-```
+<lov-tool-use id="toolu_vrtx_01SBFi6132DG2hZz9C5nLHiu" name="code--search_files" integration-id="code" data="{\"query\": \"Balance Adjustment|balance_adjustment\", \"include_patterns\": \"*.ts,*.tsx\"}">
+</lov-tool-use>
 
-So the pending row in the queue and the verified-name link **both point to the same PENDING stub client** — that is why the Directory search returns zero results (Directory only shows APPROVED clients) yet the badge fires.
+<lov-tool-use id="toolu_vrtx_01GjMRyySXcPDk5m6PY2bneK" name="tool_search" data="{\"target\": \"supabase--read_query\"}">
+</lov-tool-use>
 
-There are only two clients in the DB with similar names:
-1. `36f39e6e…` "Arnab Jyoti Das" — **PENDING buyer** (the stub itself, hidden from Directory)
-2. `87f1b7e2…` "Pranab Jyoti Das" — APPROVED seller (different first name, NOT the cause)
+<lov-tool-use id="toolu_vrtx_01Gemh64w8shrwaiXZzK27ck" name="supabase--read_query" integration-id="supabase" data="{\"query\": \"SELECT id, account_name, bank_name, account_type, status, balance FROM bank_accounts WHERE account_name ILIKE '%adjust%' OR bank_name ILIKE '%adjust%';\"}">
+</lov-tool-use>
 
-There is NO real cross-contamination this time. This is a **self-match / backlog-echo bug** on the verified-name lookup, exactly like the ones we previously fixed for nickname and display-name lookups in `ClientOnboardingApprovals.tsx`.
+<lov-tool-use id="toolu_vrtx_01PY5Kyr5iW1GrTcRQXG2vje" name="code--search_files" integration-id="code" data="{\"query\": \"Total Asset Value|total_asset_value|Net Total Asset|TAV\", \"include_patterns\": \"*.ts,*.tsx\"}">
+</lov-tool-use>
 
-## Why the existing guards missed it
+<lov-tool-use id="toolu_vrtx_01BASm3qkQQNFNyNAGaAZCA3" name="code--search_files" integration-id="code" data="{\"include_patterns\": \"*.ts,*.tsx\", \"query\": \"Bank Balances \\\\(Active|bank_accounts.*ACTIVE.*DORMANT|totalBankBalance\"}">
+</lov-tool-use>
 
-In `src/components/clients/ClientOnboardingApprovals.tsx` lines 270-358 we already have:
+<lov-tool-use id="toolu_vrtx_01C8F9Le2dDxkTYujcTDL1iC" name="code--view" integration-id="code" data="{\"file_path\": \"src/components/financials/TotalAssetValueWidget.tsx\", \"lines\": \"1-100\"}">
+</lov-tool-use>
 
-- `selfClientIds` filter on `nickname → client` lookup (line 293) ✅
-- `selfClientIds` filter on `verified_name → client` lookup (line 308) ✅
-- `selfClientIds` + PENDING-only filter on `display_name → client` lookup (lines 351-357) ✅
+<lov-tool-use id="toolu_vrtx_01X6tihaJQdazHyAxxwuuS2w" name="code--view" integration-id="code" data="{\"file_path\": \"src/pages/Financials.tsx\", \"lines\": \"80-130\"}">
+</lov-tool-use>
 
-But the verified-name path **only filters `selfClientIds`** — it does NOT filter out other PENDING-only stubs the way the display-name path does. Worse, here the row's *own* `resolved_client_id` is being matched: `36f39e6e…` IS in the pending queue, so it should already be in `selfClientIds`.
+<lov-tool-use id="toolu_vrtx_01Jq2mj6REgW9NwvdhYRp13H" name="code--view" integration-id="code" data="{\"file_path\": \"src/pages/Dashboard.tsx\", \"lines\": \"260-310\"}">
+</lov-tool-use>
+I have enough context. Let me also check for "Balance Adjustment Wallet" usage in stock/wallet calculations.
+<lov-tool-use id="toolu_vrtx_015pQAqWBArJ4H9Be6mWNL64" name="supabase--read_query" integration-id="supabase" data="{\"query\": \"SELECT id, wallet_name, current_balance, is_active FROM wallets WHERE wallet_name ILIKE '%adjust%';\"}">
+</lov-tool-use>
 
-That means one of two things is happening:
-- **(most likely)** The pending approval row for Arnab Jyoti Das has `resolved_client_id = NULL` (the stub client `36f39e6e…` was created by an earlier sync and never written back to the approval row), so `selfClientIds` does not contain `36f39e6e…`, so the verified-name lookup happily returns it.
-- The same fix we applied to the display-name path needs to be applied to the verified-name path: skip clients that are PENDING/NOT_APPLICABLE on both sides.
+<lov-tool-use id="toolu_vrtx_013qP47di6Sd9L4MGvwd49bE" name="code--search_files" integration-id="code" data="{\"include_patterns\": \"*.ts,*.tsx\", \"query\": \"Balance Adjustment Wallet|ADJUSTMENT_WALLET\"}">
+</lov-tool-use>
+<lov-plan>
+## Issue
+The "Balance Adjustment Account" (Bank: Internal, balance ₹48,073) is a contra-entry bucket used purely for audit balancing of manual adjustments. It is currently being summed into:
+- `TotalAssetValueWidget` (Bank Balances breakdown + Net TAV)
+- `snapshot-asset-value` edge function (daily TAV history)
+- `Financials` page (Bank Balance card)
+- `Dashboard` page (bankBalance / totalCash widget)
+- `PurchaseManagement` totals
+- Anywhere else `bank_accounts` is summed
 
-Either way, the fix is the same.
+This double-counts a non-real ledger and inflates stats. The same applies to a future "Balance Adjustment Wallet" if created.
 
-## Fix
+## Plan
 
-In `src/components/clients/ClientOnboardingApprovals.tsx`, mirror the display-name PENDING-stub guard onto the verified-name lookup:
+Introduce a single source-of-truth filter that excludes adjustment-bucket accounts/wallets from all aggregations while keeping them visible in BAMS for audit.
 
-```ts
-for (const r of vnRows) {
-  const cl = clientById.get(r.client_id);
-  if (!cl) continue;
-  // Skip PENDING-only stubs — same logic as displayNameToClient.
-  const buyerPending  = !cl.buyer_approval_status  || cl.buyer_approval_status  === 'PENDING' || cl.buyer_approval_status  === 'NOT_APPLICABLE';
-  const sellerPending = !cl.seller_approval_status || cl.seller_approval_status === 'PENDING' || cl.seller_approval_status === 'NOT_APPLICABLE';
-  if (buyerPending && sellerPending) continue;
-  verifiedNameToClient.set(r.verified_name, cl);
-}
-```
+### 1. Add exclusion constants
+Create `src/lib/adjustment-accounts.ts` exporting:
+- `ADJUSTMENT_BANK_NAMES = ["Balance Adjustment Account"]`
+- `ADJUSTMENT_WALLET_NAMES = ["Balance Adjustment Wallet"]`
+- Helper `isAdjustmentBank(name)` / `isAdjustmentWallet(name)` (case-insensitive).
 
-Apply the **same change** in `src/components/clients/SellerOnboardingApprovals.tsx` (it has the equivalent block).
+### 2. Filter in all aggregation sites
+Apply `.not('account_name', 'in', '("Balance Adjustment Account")')` (or post-filter) in:
+- `src/components/financials/TotalAssetValueWidget.tsx` (bank query + breakdown list)
+- `src/pages/Financials.tsx` (bank balance card query)
+- `src/pages/Dashboard.tsx` (bankBalance calculation)
+- `src/components/bams/PurchaseManagement.tsx` (`getTotalBankBalance`)
+- `supabase/functions/snapshot-asset-value/index.ts` (daily snapshot — bank sum)
 
-Optionally tighten the nickname loop the same way for symmetry — a nickname linked to a client that is PENDING on every side is also a backlog echo, not a "Known Client".
+For wallets, add the same exclusion in `fetchActiveWalletsWithLedgerUsdtBalance` consumers and the snapshot edge function (in case a Balance Adjustment Wallet exists).
 
-## DB cleanup (one-time)
+### 3. Keep BAMS visibility intact
+Do NOT filter the adjustment account out of:
+- BAMS bank account listing / management screens
+- Manual adjustment dialog target picker
+- Journal/transaction views (the contra entry must remain auditable)
 
-The stub row in `client_verified_names` (id `ad950304…`) for Arnab pointing to its own pending client is harmless after the UI guard, but it should be deleted because verified-name links should never auto-attach to a pending client — that was the contract introduced in the previous "approval correlation check" migration. Sweep:
+### 4. Optional UI marker
+In BAMS list, add a small "Audit Bucket — excluded from totals" badge next to the adjustment account so users understand its role.
 
-```sql
-DELETE FROM public.client_verified_names cvn
-USING public.clients c
-WHERE cvn.client_id = c.id
-  AND (c.buyer_approval_status  IN ('PENDING','NOT_APPLICABLE') OR c.buyer_approval_status  IS NULL)
-  AND (c.seller_approval_status IN ('PENDING','NOT_APPLICABLE') OR c.seller_approval_status IS NULL);
+### Files to edit
+- `src/lib/adjustment-accounts.ts` (new)
+- `src/components/financials/TotalAssetValueWidget.tsx`
+- `src/pages/Financials.tsx`
+- `src/pages/Dashboard.tsx`
+- `src/components/bams/PurchaseManagement.tsx`
+- `supabase/functions/snapshot-asset-value/index.ts`
+- `src/components/bams/BankAccountManagement.tsx` (optional badge)
 
-DELETE FROM public.client_binance_nicknames cbn
-USING public.clients c
-WHERE cbn.client_id = c.id
-  AND (c.buyer_approval_status  IN ('PENDING','NOT_APPLICABLE') OR c.buyer_approval_status  IS NULL)
-  AND (c.seller_approval_status IN ('PENDING','NOT_APPLICABLE') OR c.seller_approval_status IS NULL);
-```
+### Memory
+Save a constraint memory: "Balance Adjustment Account / Wallet are audit contra-buckets — must be excluded from all balance/TAV/PnL/dashboard aggregations but remain visible in BAMS."
 
-(These mirror the rule already enforced in the sync hooks: never auto-link identity to a non-approved client.)
-
-## Files to change
-
-- `src/components/clients/ClientOnboardingApprovals.tsx` — add PENDING-stub guard to verified-name (and nickname) lookups
-- `src/components/clients/SellerOnboardingApprovals.tsx` — same
-- New migration `supabase/migrations/<ts>_purge_pending_stub_identity_links.sql` — one-time DELETE of stub-only rows in `client_verified_names` and `client_binance_nicknames`
-
-## Result
-
-- "Arnab Jyoti Das" pending row → tag becomes **"New Client"**.
-- No future PENDING stub can produce false "Same KYC name" / "Known Client" badges, regardless of whether the approval row's `resolved_client_id` was written back or not.
-
-Reply **approved** to execute.
-
+### Note on historical TAV
+The previously stored `asset_value_history` snapshots already include the adjustment balance. New snapshots after the fix will be clean. Backfilling history is out of scope unless you want it — flag if needed.

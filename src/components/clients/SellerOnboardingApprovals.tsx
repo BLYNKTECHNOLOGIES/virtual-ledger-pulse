@@ -500,9 +500,14 @@ export function SellerOnboardingApprovals() {
                   {filteredSellers.map((seller) => {
                     const firstOrder = sellerOrders?.[seller.name];
                     const nickInfo = sellerNicknameMap?.[seller.name];
+                    const safeNick = sanitizeNickname(nickInfo?.nickname);
                     const isSameUser = sellerSameUser.has(seller.name);
+                    const isSameUserByVName = !isSameUser && sellerSameUserByVName.has(seller.name);
                     const identityState = computeSellerIdentityState(seller.name);
                     const collision = collisionMap?.[seller.name];
+                    // Amber "no identity signal" — true New Client with neither a real nickname
+                    // nor any verified-name / phone match.
+                    const noIdentitySignal = identityState === 'new_client' && !safeNick && !isSameUserByVName;
                     return (
                       <tr key={seller.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
@@ -518,24 +523,40 @@ export function SellerOnboardingApprovals() {
                               ⚠ Same User — different name
                             </Badge>
                           )}
-                          {!isSameUser && identityState === 'linked_known' && nickInfo?.existingClient && (
+                          {isSameUserByVName && (
+                            <Badge
+                              className="mt-1 bg-purple-100 text-purple-800 text-xs"
+                              title="Multiple pending sellers share this verified KYC name."
+                            >
+                              ⚠ Same User — same KYC name
+                            </Badge>
+                          )}
+                          {!isSameUser && !isSameUserByVName && identityState === 'linked_known' && nickInfo?.existingClient && (
                             <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
                               🔗 Known Client: {nickInfo.existingClient.name} · @{nickInfo.nickname}
                             </Badge>
                           )}
-                          {!isSameUser && identityState === 'verified_name_match' && collision?.verifiedNameClient && (
+                          {!isSameUser && !isSameUserByVName && identityState === 'verified_name_match' && collision?.verifiedNameClient && (
                             <Badge className="mt-1 bg-teal-100 text-teal-800 text-xs">
                               ✓ Same KYC name as {collision.verifiedNameClient.name} — link nickname?
                             </Badge>
                           )}
-                          {!isSameUser && identityState === 'name_collision' && collision?.displayNameClient && (
+                          {!isSameUser && !isSameUserByVName && identityState === 'name_collision' && collision?.displayNameClient && (
                             <Badge className="mt-1 bg-amber-100 text-amber-800 text-xs">
                               ⚠ Different person — same name as {collision.displayNameClient.name}
                             </Badge>
                           )}
-                          {!isSameUser && identityState === 'new_client' && (
+                          {!isSameUser && !isSameUserByVName && identityState === 'new_client' && !noIdentitySignal && (
                             <Badge className="mt-1 bg-gray-100 text-gray-700 text-xs">
                               New Client
+                            </Badge>
+                          )}
+                          {noIdentitySignal && (
+                            <Badge
+                              className="mt-1 bg-amber-100 text-amber-900 text-xs border border-amber-300"
+                              title="No real Binance nickname and no KYC name match — verify identity manually before approving."
+                            >
+                              ⚠ No identity signal — review manually
                             </Badge>
                           )}
                         </td>

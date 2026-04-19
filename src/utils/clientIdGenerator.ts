@@ -94,7 +94,8 @@ export const findAllClientsByName = async (name: string) => {
  */
 export const createSellerClient = async (
   supplierName: string,
-  contactNumber?: string
+  contactNumber?: string,
+  evidence?: { binanceNickname?: string | null; verifiedName?: string | null }
 ): Promise<{ id: string; client_id: string } | null> => {
   try {
     // Check by name first
@@ -108,7 +109,7 @@ export const createSellerClient = async (
         .eq('is_deleted', false)
         .eq('phone', contactNumber.trim())
         .limit(1)
-        .single();
+        .maybeSingle();
       if (phoneMatch) {
         const updates: Record<string, any> = {};
         if (!phoneMatch.is_seller) {
@@ -126,10 +127,8 @@ export const createSellerClient = async (
     if (existingClient) {
       const updates: Record<string, string> = {};
       if (contactNumber && !existingClient.phone) updates.phone = contactNumber;
-      // Ensure seller flags are set on existing client
       if (!existingClient.is_seller) {
         updates.is_seller = 'true' as any;
-        // Only set to PENDING if not already approved
         if (!existingClient.seller_approval_status || existingClient.seller_approval_status === 'NOT_APPLICABLE') {
           updates.seller_approval_status = 'PENDING' as any;
         }
@@ -171,32 +170,25 @@ export const createSellerClient = async (
     }
 
     const clientId = await generateUniqueClientId();
-    const { data, error } = await supabase
-      .from('clients')
-      .insert({
-        name: supplierName.trim(),
-        client_id: clientId,
-        client_type: 'SELLER',
-        kyc_status: 'PENDING',
-        date_of_onboarding: new Date().toISOString().split('T')[0],
-        phone: contactNumber || null,
-        risk_appetite: 'STANDARD',
-        is_seller: true,
-        is_buyer: false,
-        seller_approval_status: 'PENDING',
-        buyer_approval_status: 'NOT_APPLICABLE',
-      })
-      .select('id, client_id')
-      .single();
+    // Use atomic RPC that creates client + supporting evidence in a single
+    // transaction, satisfying the deferred trg_prevent_ghost_pending_client check.
+    const { data, error } = await supabase.rpc('create_seller_client_with_evidence' as any, {
+      p_name: supplierName.trim(),
+      p_client_id: clientId,
+      p_phone: contactNumber || null,
+      p_nickname: evidence?.binanceNickname || null,
+      p_verified_name: evidence?.verifiedName || null,
+    });
     if (error) {
-      if (error.code === '23505') {
+      if ((error as any).code === '23505') {
         const existing = await findClientByName(supplierName);
         if (existing) return { id: existing.id, client_id: existing.client_id };
       }
       console.error('Error creating seller client:', error);
       return null;
     }
-    return data;
+    const row = Array.isArray(data) ? (data as any[])[0] : data;
+    return row ? { id: (row as any).id, client_id: (row as any).client_id } : null;
   } catch (error) {
     console.error('Error in createSellerClient:', error);
     return null;

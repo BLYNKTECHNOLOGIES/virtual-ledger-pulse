@@ -343,9 +343,15 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (!clientName || clientName === 'Unknown' || clientName.includes('*')) {
         throw new Error('Cannot create client with a masked or unknown name. Please resolve the verified name first.');
       }
+      const verifiedNameRaw = od.verified_name || '';
+      const cleanVerifiedName = sanitizeVerifiedName(verifiedNameRaw);
       const clientData = await createSellerClient(
         clientName,
-        contactPhone
+        contactPhone,
+        {
+          binanceNickname: lookupNick || null,
+          verifiedName: cleanVerifiedName,
+        }
       );
       if (!clientData?.id) {
         throw new Error('Failed to create seller client. Check console for details — the insert may have been blocked by a database constraint or duplicate.');

@@ -186,6 +186,27 @@ export function useSyncOrderHistory() {
         await upsertOrdersToDB(newOrders);
       }
 
+      // GAP-FILL: every ~24h, run a deep scan over the last 7 days to catch
+      // out-of-order Binance updates (e.g. delayed completions, post-appeal status changes)
+      // that fell outside the trailing incremental window.
+      let gapFillCount = 0;
+      try {
+        const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(GAP_FILL_KEY) : null;
+        const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
+        if (Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
+          const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
+          const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60);
+          if (gapOrders.length > 0) {
+            await upsertOrdersToDB(gapOrders);
+          }
+          gapFillCount = gapOrders.length;
+          if (typeof localStorage !== 'undefined') localStorage.setItem(GAP_FILL_KEY, String(Date.now()));
+          console.log(`[Sync] Gap-fill complete: scanned 7d, upserted ${gapFillCount} orders`);
+        }
+      } catch (err) {
+        console.warn('[Sync] Gap-fill pass failed (non-fatal):', err);
+      }
+
       // Also clean up orders older than 30 days
       const { error: cleanupError } = await supabase
         .from('binance_order_history')
@@ -194,8 +215,9 @@ export function useSyncOrderHistory() {
       if (cleanupError) console.warn('[Sync] Cleanup failed:', cleanupError);
 
       const duration = Date.now() - startTime;
-      await updateSyncMetadata(newOrders.length, duration);
-      return { count: newOrders.length, duration, type: 'incremental' as const };
+      const totalCount = newOrders.length + gapFillCount;
+      await updateSyncMetadata(totalCount, duration);
+      return { count: totalCount, duration, type: 'incremental' as const };
     },
     onSuccess: async ({ count, duration, type }) => {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';

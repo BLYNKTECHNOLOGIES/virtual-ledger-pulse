@@ -361,9 +361,10 @@ export function PurchaseManagement() {
         .map(m => m.bankAccountName)
     );
 
-    // Sum balances of unique bank accounts
+    // Sum balances of unique bank accounts (exclude audit/adjustment buckets)
     return bankAccounts
       .filter(account => uniqueAccountNames.has(account.account_name))
+      .filter(account => !isAdjustmentBank(account.account_name))
       .reduce((sum, account) => sum + account.balance, 0);
   };
 

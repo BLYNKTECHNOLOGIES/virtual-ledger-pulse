@@ -33,8 +33,7 @@ export default function Statistics() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="p-4 md:p-6">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3">

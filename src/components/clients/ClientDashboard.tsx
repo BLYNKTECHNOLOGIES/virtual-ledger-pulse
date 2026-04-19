@@ -31,18 +31,27 @@ export function ClientDashboard() {
   const [sellerSort, setSellerSort] = useState("onboarding-desc");
   const navigate = useNavigate();
 
-  // Fetch clients
+  // Fetch clients (paginated past Supabase's 1000-row default cap)
   const { data: clients, isLoading } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      const PAGE_SIZE = 1000;
+      let all: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all = all.concat(data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      return all;
     },
   });
 

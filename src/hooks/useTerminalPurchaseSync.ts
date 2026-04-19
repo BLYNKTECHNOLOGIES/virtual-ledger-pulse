@@ -178,11 +178,8 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
   // 4. Get PAN records — resolve unmasked nicknames from p2p_order_records first
-  const getSafeCounterpartyKey = (value?: string | null) => {
-    const normalized = (value || '').trim();
-    if (!normalized || normalized.includes('*')) return null;
-    return normalized;
-  };
+  // Reuse central sentinel filter — rejects null/empty/'Unknown'/masked '*' values.
+  const getSafeCounterpartyKey = (value?: string | null) => sanitizeNickname(value);
 
   // Fetch unmasked nicknames from p2p_order_records for orders with masked binance_order_history nicknames
   const { data: p2pNicknames } = await supabase

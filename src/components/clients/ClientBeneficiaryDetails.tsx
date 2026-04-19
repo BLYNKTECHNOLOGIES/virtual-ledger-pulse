@@ -10,16 +10,9 @@ interface ClientBeneficiaryDetailsProps {
   clientName?: string | null;
 }
 
-function maskAccount(acc: string): string {
-  const v = (acc || "").trim();
-  if (v.length <= 4) return v;
-  return `••••${v.slice(-4)}`;
-}
-
-function maskOrder(ord: string | null | undefined): string {
+function formatOrder(ord: string | null | undefined): string {
   const v = (ord || "").trim();
-  if (!v) return "—";
-  return `…${v.slice(-4)}`;
+  return v || "—";
 }
 
 export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBeneficiaryDetailsProps) {
@@ -68,7 +61,7 @@ export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBenefic
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CreditCard className="h-3.5 w-3.5" />
-                  <span className="font-mono">{maskAccount(b.account_number)}</span>
+                  <span className="font-mono">{(b.account_number || "").trim()}</span>
                   {b.bank_name && <span>· {b.bank_name}</span>}
                 </div>
                 {(b.ifsc_code || b.account_opening_branch) && (
@@ -80,7 +73,7 @@ export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBenefic
                 )}
                 <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/50">
                   Captured from order{" "}
-                  <span className="font-mono">{maskOrder(b.source_order_number)}</span>
+                  <span className="font-mono">{formatOrder(b.source_order_number)}</span>
                   {" · "}last seen {format(new Date(b.last_seen_at), "dd MMM yyyy")}
                   {b.occurrence_count > 1 && ` · seen ${b.occurrence_count}×`}
                 </div>

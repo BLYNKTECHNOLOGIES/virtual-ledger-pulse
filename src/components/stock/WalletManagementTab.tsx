@@ -31,6 +31,7 @@ import { EditWalletDialog } from "./EditWalletDialog";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { PermissionGate } from "@/components/PermissionGate";
+import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
 interface WalletType {
   id: string;

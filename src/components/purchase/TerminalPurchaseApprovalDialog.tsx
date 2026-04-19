@@ -528,20 +528,31 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
               if (error) console.warn('[PurchaseApproval] Nickname link upsert failed:', error.message);
             });
         }
-        // Auto-capture verified name
+        // Auto-capture verified name — only when correlated to this client
         const verifiedName = od.verified_name || syncRecord?.counterparty_name;
-        if (verifiedName && verifiedName !== 'Unknown' && !verifiedName.includes('*')) {
-          await supabase
-            .from('client_verified_names')
-            .upsert({
-              client_id: linkedClientId,
-              verified_name: verifiedName.trim(),
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'client_id,verified_name' })
-            .then(({ error }) => {
-              if (error) console.warn('[PurchaseApproval] Verified name upsert failed:', error.message);
-            });
+        const cleanVName = sanitizeVerifiedName(verifiedName);
+        if (cleanVName) {
+          const supportingNick = (safeNick && !safeNick.includes('*') && safeNick !== 'Unknown') ? safeNick : null;
+          const ok = await canAttachVerifiedName({
+            clientId: linkedClientId,
+            verifiedName: cleanVName,
+            supportingNickname: supportingNick,
+          });
+          if (ok) {
+            await supabase
+              .from('client_verified_names')
+              .upsert({
+                client_id: linkedClientId,
+                verified_name: cleanVName,
+                source: 'approval',
+                last_seen_at: new Date().toISOString(),
+              }, { onConflict: 'client_id,verified_name' })
+              .then(({ error }) => {
+                if (error) console.warn('[PurchaseApproval] Verified name upsert failed:', error.message);
+              });
+          } else {
+            console.warn(`[PurchaseApproval] Skipped verified-name attachment "${cleanVName}" → client ${linkedClientId}: no correlation evidence (prevents cross-contamination).`);
+          }
         }
       }
 

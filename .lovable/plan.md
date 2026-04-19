@@ -1,38 +1,30 @@
 
-## Extended Audit — Additional Aggregation Sites Found
+User wants to disable all remaining auto-task generators: P2P counterparty volume breach trigger and the stale pending settlements daily cron job. Also purge their existing auto-generated entries.
 
-After scanning the entire ERP, I found **4 more sites** that aggregate bank/wallet balances without excluding the Balance Adjustment Account/Wallet, plus **1 selector** that should hide the adjustment account from picker UI.
+## Plan: Disable All Remaining Auto-Task Generators
 
-### New aggregation sites to fix
+### DB Migration
+1. **Drop P2P volume breach trigger + function**
+   - Drop trigger on `p2p_order_records` that calls `check_counterparty_volume_threshold()`
+   - Drop function `check_counterparty_volume_threshold()`
 
-1. **`src/pages/Financials.tsx` line 117** — `totalBankBalance` reduce loop (separate from the line 103 filter that was already added; this one operates on the same filtered `bankData`, but let me re-verify... actually `bankData` IS already filtered at line 103, so this one is fine ✅).
+2. **Unschedule stale settlements cron + drop function**
+   - `cron.unschedule('flag-stale-settlements-daily')`
+   - Drop function `flag_stale_pending_settlements()`
 
-2. **`src/components/dashboard/DashboardWidget.tsx` line 67** — `WalletBalanceWidgetContent` sums `wallets.current_balance` for the dashboard "Wallet Balance" widget. **Needs `isAdjustmentWallet` filter.**
+3. **Drop dormant TDS function** (cleanup, since it's unused)
+   - Drop function `check_tds_overdue_and_alert()`
 
-3. **`src/components/stock/WalletManagementTab.tsx` line 623** — `totalBalance` displayed at the top of the Wallet Management tab. **Needs `isAdjustmentWallet` filter** (or kept as-is since this is a management view? — recommend filter + show adjustment wallet separately with a badge, mirroring the BAMS pattern).
+### Data Cleanup (insert tool)
+Purge existing auto-generated tasks:
+```sql
+DELETE FROM public.erp_tasks
+WHERE 'auto-flagged' = ANY(tags)
+  AND ('volume-breach' = ANY(tags) OR 'stale' = ANY(tags));
+```
 
-4. **`src/hooks/useActiveBankAccounts.tsx` (lines 59–73)** — `calculateTotalAvailableBalance`, `calculateTotalBalance`, `calculateTotalLienAmount` are reusable aggregators. Currently only consumed by `SmallBuysApprovalDialog` (selector context — fine) and `BeneficiaryManagement` (selector — fine). But to make these helpers safe for any future consumer, **add a filter inside the helpers themselves** so any future aggregation use is automatically clean.
+### Result
+No automatic task generation remains in the system. All tasks going forward will be manually created only. Existing noise from these generators is purged.
 
-### Selector UI to update (hide from picker)
-
-5. **`src/components/widgets/BankBalanceFilterWidget.tsx`** — the user-pickable bank filter widget. The adjustment account should not appear in the selectable bank list (it would skew any user-selected total). **Filter it out of `bankAccounts` list.**
-
-### Sites confirmed safe (no change needed)
-
-- `useActiveBankAccounts` consumers (`SmallBuysApprovalDialog`, `BeneficiaryManagement`) — pure selectors, user picks one specific bank.
-- `QuickSalesOrderDialog`, `TaxManagementTab`, `EditSalesOrderDialog`, etc. — all bank/wallet selectors for assigning a transaction to one specific account.
-- `erp-balance-snapshot` edge function — writes per-row audit snapshots, must include the adjustment account for auditability.
-- `ShiftReconciliationWidget` — operator manually reconciles each bank individually; adjustment account shouldn't be on the reconciliation roster but isn't summed into a total here.
-- All `invalidateQueries(['bank_accounts'])` / CRUD references — non-aggregating.
-
-### Files to edit
-1. `src/components/dashboard/DashboardWidget.tsx` — filter `isAdjustmentWallet` in `WalletBalanceWidgetContent`
-2. `src/components/stock/WalletManagementTab.tsx` — filter `isAdjustmentWallet` from `totalBalance` and the displayed wallet list (with a small "Audit Bucket" badge for visibility, like BAMS)
-3. `src/hooks/useActiveBankAccounts.tsx` — add `isAdjustmentBank` filter inside the three `calculate*` helpers
-4. `src/components/widgets/BankBalanceFilterWidget.tsx` — exclude adjustment account from the selectable bank list
-
-### Out of scope
-- `useActiveBankAccounts` hook query itself — kept unfiltered so selector dialogs (BAMS, Beneficiary mgmt) can still target the adjustment account when needed for manual contra entries.
-
-### No DB migration required
-All changes are client-side filters using the existing `src/lib/adjustment-accounts.ts` helpers.
+### Memory update
+Update `mem://features/erp/task-management-system-v2` to note that all automated task generators (spot-trade-failed, P2P volume breach, stale settlements) have been removed — task creation is now strictly manual.

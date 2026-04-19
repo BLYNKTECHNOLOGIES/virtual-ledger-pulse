@@ -1,87 +1,92 @@
 
 
-## Root Cause
+## Root Cause — Confirmed via DB
 
-The badge "🪪 Same KYC name — SHARAD KUMAR JAISWAL" is appearing on MIKHII THEODORE DIAS's pending row because the database table `client_verified_names` has been **polluted with cross-contaminated entries** for one client.
+DB query results for "Arnab Jyoti Das":
 
-### What I found in the DB
-
-Client `1ee750ac…` (real name "SHARAD KUMAR JAISWAL", buyer APPROVED) has **6 different KYC verified names** attached to it:
-
+**`client_verified_names`:**
 ```
-SHARAD KUMAR JAISWAL   (own — correct)
-MIKHII THEODORE DIAS   ← causing this bug
-RAHUL BAWEJA
-MOHAMMAD JISHAN
-Rahul Singh
-SHAIF AHMED JAGIRDAR
+verified_name: "Arnab Jyoti Das"
+client_id:     36f39e6e-c90f-4543-8544-01c62303de60
+source:        approval
+→ that client_id maps to a clients row named "Arnab Jyoti Das"
+   with buyer_approval_status = PENDING (created today, 2026-04-19)
 ```
 
-All 6 rows have `source = 'approval'`. So when MIKHII's pending row is evaluated, the lookup `verifiedNameToClient.get("MIKHII THEODORE DIAS")` returns SHARAD's client record → tag fires.
+So the pending row in the queue and the verified-name link **both point to the same PENDING stub client** — that is why the Directory search returns zero results (Directory only shows APPROVED clients) yet the badge fires.
 
-This is the SAME class of cross-contamination we have seen earlier with nickname links — but on the verified-name side.
+There are only two clients in the DB with similar names:
+1. `36f39e6e…` "Arnab Jyoti Das" — **PENDING buyer** (the stub itself, hidden from Directory)
+2. `87f1b7e2…` "Pranab Jyoti Das" — APPROVED seller (different first name, NOT the cause)
 
-### Why it happened (code paths that polluted the table)
+There is NO real cross-contamination this time. This is a **self-match / backlog-echo bug** on the verified-name lookup, exactly like the ones we previously fixed for nickname and display-name lookups in `ClientOnboardingApprovals.tsx`.
 
-The "merge into existing client" approval flows blindly upsert the **incoming Binance verified name** onto the **chosen target client**, with no sanity check that the name actually belongs to that person:
+## Why the existing guards missed it
 
-1. `TerminalSalesApprovalDialog.tsx` lines 727-741
-2. `TerminalPurchaseApprovalDialog.tsx` lines 531-545
-3. `ClientOnboardingApprovals.tsx` lines 839-849 — even worse: falls back to `approval.client_name` when verified_name is missing.
+In `src/components/clients/ClientOnboardingApprovals.tsx` lines 270-358 we already have:
 
-So whenever an operator approved an order/onboarding and clicked "Merge into existing client = SHARAD KUMAR JAISWAL" while the Binance counterparty was actually MIKHII / RAHUL / etc., the wrong KYC name got attached to SHARAD. Six wrong merges over time = 6 rogue verified names.
+- `selfClientIds` filter on `nickname → client` lookup (line 293) ✅
+- `selfClientIds` filter on `verified_name → client` lookup (line 308) ✅
+- `selfClientIds` + PENDING-only filter on `display_name → client` lookup (lines 351-357) ✅
 
-The same risk exists for `client_binance_nicknames` (single nickname uniquely owned globally — but cross-attachment via merge still possible).
+But the verified-name path **only filters `selfClientIds`** — it does NOT filter out other PENDING-only stubs the way the display-name path does. Worse, here the row's *own* `resolved_client_id` is being matched: `36f39e6e…` IS in the pending queue, so it should already be in `selfClientIds`.
 
----
+That means one of two things is happening:
+- **(most likely)** The pending approval row for Arnab Jyoti Das has `resolved_client_id = NULL` (the stub client `36f39e6e…` was created by an earlier sync and never written back to the approval row), so `selfClientIds` does not contain `36f39e6e…`, so the verified-name lookup happily returns it.
+- The same fix we applied to the display-name path needs to be applied to the verified-name path: skip clients that are PENDING/NOT_APPLICABLE on both sides.
 
-## Fix Plan
+Either way, the fix is the same.
 
-### 1. Data cleanup migration (one-time)
+## Fix
 
-Delete cross-contaminated `client_verified_names` rows: for each client, keep only verified names that match the client's actual `clients.name` (case-insensitive) **OR** appear in at least one of that client's Binance orders' `verified_name` field. Anything else is a misattribution from a past wrong merge — delete.
+In `src/components/clients/ClientOnboardingApprovals.tsx`, mirror the display-name PENDING-stub guard onto the verified-name lookup:
 
-Apply the same audit to `client_binance_nicknames`: a nickname linked to client X is suspect if no order with that counterparty nickname has client X as the matched/approved party.
+```ts
+for (const r of vnRows) {
+  const cl = clientById.get(r.client_id);
+  if (!cl) continue;
+  // Skip PENDING-only stubs — same logic as displayNameToClient.
+  const buyerPending  = !cl.buyer_approval_status  || cl.buyer_approval_status  === 'PENDING' || cl.buyer_approval_status  === 'NOT_APPLICABLE';
+  const sellerPending = !cl.seller_approval_status || cl.seller_approval_status === 'PENDING' || cl.seller_approval_status === 'NOT_APPLICABLE';
+  if (buyerPending && sellerPending) continue;
+  verifiedNameToClient.set(r.verified_name, cl);
+}
+```
 
-For SHARAD's record specifically, this will remove the 5 foreign verified names and keep only "SHARAD KUMAR JAISWAL".
+Apply the **same change** in `src/components/clients/SellerOnboardingApprovals.tsx` (it has the equivalent block).
 
-### 2. Guard against future cross-contamination
+Optionally tighten the nickname loop the same way for symmetry — a nickname linked to a client that is PENDING on every side is also a backlog echo, not a "Known Client".
 
-**A. Approval-time correlation check** (in all 3 approval paths above): before upserting a verified name onto a target client, require ONE of:
-- `target client's name` matches `verified_name` (case-insensitive), OR
-- the same `verified_name` already exists on `client_verified_names` for that client, OR
-- the unmasked nickname being linked already belongs to that client in `client_binance_nicknames`.
+## DB cleanup (one-time)
 
-If none match → still create the order linkage, but **do NOT auto-upsert the verified name**. Log a warning. The operator can attach it manually later if intended.
+The stub row in `client_verified_names` (id `ad950304…`) for Arnab pointing to its own pending client is harmless after the UI guard, but it should be deleted because verified-name links should never auto-attach to a pending client — that was the contract introduced in the previous "approval correlation check" migration. Sweep:
 
-**B. DB-level safety trigger** `trg_validate_verified_name_attachment` on `client_verified_names` BEFORE INSERT/UPDATE: blocks attachment when the verified name has zero similarity to either the client's stored name or any prior verified name on that client AND no supporting nickname link exists. Emits a clear error so the UI can surface it.
+```sql
+DELETE FROM public.client_verified_names cvn
+USING public.clients c
+WHERE cvn.client_id = c.id
+  AND (c.buyer_approval_status  IN ('PENDING','NOT_APPLICABLE') OR c.buyer_approval_status  IS NULL)
+  AND (c.seller_approval_status IN ('PENDING','NOT_APPLICABLE') OR c.seller_approval_status IS NULL);
 
-**C. Same nickname-side trigger** (already partially mitigated by `unique(nickname)` but not by ownership): block re-pointing an existing nickname to a different client unless the operator explicitly invokes a "transfer nickname" admin action.
+DELETE FROM public.client_binance_nicknames cbn
+USING public.clients c
+WHERE cbn.client_id = c.id
+  AND (c.buyer_approval_status  IN ('PENDING','NOT_APPLICABLE') OR c.buyer_approval_status  IS NULL)
+  AND (c.seller_approval_status IN ('PENDING','NOT_APPLICABLE') OR c.seller_approval_status IS NULL);
+```
 
-### 3. UI surface — Approvals queue
-
-Once cleanup runs, the "MIKHII THEODORE DIAS" row will correctly drop to "New Client" tag. No UI code change needed in the approvals component — the bug was purely data-side.
-
----
+(These mirror the rule already enforced in the sync hooks: never auto-link identity to a non-approved client.)
 
 ## Files to change
 
-- **New migration**: `supabase/migrations/<ts>_verified_name_cleanup_and_guards.sql`
-  - DELETE cross-contaminated rows in `client_verified_names`
-  - DELETE cross-contaminated rows in `client_binance_nicknames`
-  - CREATE FUNCTION + BEFORE-INSERT/UPDATE trigger on `client_verified_names`
-  - CREATE FUNCTION + BEFORE-UPDATE trigger on `client_binance_nicknames` (block client_id reassignment without admin override flag)
-- `src/components/sales/TerminalSalesApprovalDialog.tsx` — add correlation check before verified-name upsert
-- `src/components/purchase/TerminalPurchaseApprovalDialog.tsx` — same
-- `src/components/clients/ClientOnboardingApprovals.tsx` — same, plus remove the `|| approval.client_name` fallback that conflates display name with KYC name
+- `src/components/clients/ClientOnboardingApprovals.tsx` — add PENDING-stub guard to verified-name (and nickname) lookups
+- `src/components/clients/SellerOnboardingApprovals.tsx` — same
+- New migration `supabase/migrations/<ts>_purge_pending_stub_identity_links.sql` — one-time DELETE of stub-only rows in `client_verified_names` and `client_binance_nicknames`
 
----
+## Result
 
-## What you'll see after the fix
+- "Arnab Jyoti Das" pending row → tag becomes **"New Client"**.
+- No future PENDING stub can produce false "Same KYC name" / "Known Client" badges, regardless of whether the approval row's `resolved_client_id` was written back or not.
 
-- The MIKHII THEODORE DIAS pending buyer row → tag becomes **"New Client"** (or accurate match if MIKHII actually exists elsewhere).
-- SHARAD KUMAR JAISWAL's record stays clean with only his own KYC name.
-- Any future wrong "merge into existing client" click cannot pollute the KYC table again — the DB trigger will reject it and the UI will get a clear toast.
-
-Reply **approved** to execute cleanup + guards.
+Reply **approved** to execute.
 

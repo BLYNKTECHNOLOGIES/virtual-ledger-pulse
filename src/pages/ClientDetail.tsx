@@ -10,6 +10,7 @@ import { ClientTDSRecords } from "@/components/clients/ClientTDSRecords";
 import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnalysis";
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
+import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();
@@ -111,6 +112,13 @@ export default function ClientDetail() {
           <ClientTDSRecords clientId={clientId} clientName={client?.name} clientPhone={client?.phone} />
         )}
       </div>
+
+      {/* Row 4.5: Beneficiary Bank Details (sellers/composite only) */}
+      {(isSeller || showAsSellerOnly || isComposite) && (
+        <div className="grid grid-cols-1 gap-6">
+          <ClientBeneficiaryDetails clientId={clientId} />
+        </div>
+      )}
 
       {/* Row 5: Trading Pattern Analysis */}
       <div className="grid grid-cols-1 gap-6">

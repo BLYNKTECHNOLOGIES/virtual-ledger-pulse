@@ -29,7 +29,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
-import { resolveTerminalApprovalClient, sanitizeNickname, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveTerminalApprovalClient, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
 
 interface Props {
   open: boolean;

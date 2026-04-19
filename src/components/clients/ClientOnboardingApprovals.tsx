@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import { sanitizeNickname, sanitizeVerifiedName } from '@/lib/clientIdentityResolver';
+import { sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName } from '@/lib/clientIdentityResolver';
 import { 
   CheckCircle, 
   XCircle, 

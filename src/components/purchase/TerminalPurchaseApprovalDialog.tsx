@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { createSellerClient, findAllClientsByName } from "@/utils/clientIdGenerator";
-import { resolveTerminalApprovalClient, sanitizeNickname, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { resolveTerminalApprovalClient, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";

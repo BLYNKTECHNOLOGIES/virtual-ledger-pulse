@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
+import { sanitizeNickname, sanitizeVerifiedName } from '@/lib/clientIdentityResolver';
 import { 
   CheckCircle, 
   XCircle, 
@@ -208,8 +209,8 @@ export function ClientOnboardingApprovals() {
       const needsLegacyLookup: string[] = [];
       const identitySeed: Record<string, { nickname: string | null; verifiedName: string | null }> = {};
       for (const a of pendingApprovalsRaw) {
-        const persistedNick = a.binance_nickname?.trim() || null;
-        const persistedVName = a.verified_name?.trim() || null;
+        const persistedNick = sanitizeNickname(a.binance_nickname);
+        const persistedVName = sanitizeVerifiedName(a.verified_name);
         identitySeed[a.id] = { nickname: persistedNick, verifiedName: persistedVName };
         if ((!persistedNick || !persistedVName) && a.sales_order_id) {
           needsLegacyLookup.push(a.sales_order_id);
@@ -229,7 +230,7 @@ export function ClientOnboardingApprovals() {
           if (row.binance_order_number && row.sales_order_id) {
             orderNumberToSalesId[row.binance_order_number] = row.sales_order_id;
           }
-          const vn = (row.order_data as any)?.verified_name?.trim?.();
+          const vn = sanitizeVerifiedName((row.order_data as any)?.verified_name);
           if (vn && row.sales_order_id) salesIdToVName[row.sales_order_id] = vn;
         }
         const orderNumbers = Object.keys(orderNumberToSalesId);
@@ -240,8 +241,8 @@ export function ClientOnboardingApprovals() {
             .in('binance_order_number', orderNumbers)
             .not('counterparty_nickname', 'is', null);
           for (const row of p2pRows || []) {
-            const nick = row.counterparty_nickname?.trim();
-            if (!nick || nick.includes('*')) continue;
+            const nick = sanitizeNickname(row.counterparty_nickname);
+            if (!nick) continue;
             const salesId = orderNumberToSalesId[row.binance_order_number];
             if (!salesId) continue;
             for (const a of pendingApprovalsRaw) {
@@ -1147,20 +1148,40 @@ export function ClientOnboardingApprovals() {
   const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
-  // Build nickname-based "Same User" detection across different client names (uses identityMap)
+  // Build nickname-based "Same User" detection — sanitized so 'Unknown' / masked
+  // values can NEVER be grouping keys (these were creating false N-way merges).
   const nicknameGroups = new Map<string, string[]>();
   for (const [nameKey, entry] of pendingByClient) {
     const idInfo = identityMap?.[entry.primary.id];
-    if (idInfo?.nickname) {
-      const existing = nicknameGroups.get(idInfo.nickname) || [];
-      if (!existing.includes(nameKey)) existing.push(nameKey);
-      nicknameGroups.set(idInfo.nickname, existing);
-    }
+    const safeNick = sanitizeNickname(idInfo?.nickname);
+    if (!safeNick) continue;
+    const existing = nicknameGroups.get(safeNick) || [];
+    if (!existing.includes(nameKey)) existing.push(nameKey);
+    nicknameGroups.set(safeNick, existing);
   }
   const sameUserNicknames = new Map<string, string>();
   for (const [nick, nameKeys] of nicknameGroups) {
     if (nameKeys.length > 1) {
       for (const nk of nameKeys) sameUserNicknames.set(nk, nick);
+    }
+  }
+
+  // Secondary grouping by verified KYC name — only for rows with no real nickname.
+  // Two pending approvals sharing the same verified KYC name → legitimate "same user".
+  const vnameGroups = new Map<string, string[]>();
+  for (const [nameKey, entry] of pendingByClient) {
+    const idInfo = identityMap?.[entry.primary.id];
+    if (sanitizeNickname(idInfo?.nickname)) continue; // already handled by nickname grouping
+    const vname = sanitizeVerifiedName(idInfo?.verifiedName);
+    if (!vname) continue;
+    const existing = vnameGroups.get(vname) || [];
+    if (!existing.includes(nameKey)) existing.push(nameKey);
+    vnameGroups.set(vname, existing);
+  }
+  const sameUserVNames = new Map<string, string>();
+  for (const [vn, nameKeys] of vnameGroups) {
+    if (nameKeys.length > 1) {
+      for (const nk of nameKeys) sameUserVNames.set(nk, vn);
     }
   }
 
@@ -1203,8 +1224,14 @@ export function ClientOnboardingApprovals() {
                   const nameKey = approval.client_name.trim().toLowerCase();
                   const idInfo = identityMap?.[approval.id];
                   const sameUserNick = sameUserNicknames.get(nameKey);
+                  const sameUserVName = !sameUserNick ? sameUserVNames.get(nameKey) : undefined;
                   const state = idInfo?.state || 'new_client';
                   const matched = idInfo?.matchedClient;
+                  const safeNick = sanitizeNickname(idInfo?.nickname);
+                  const safeVName = sanitizeVerifiedName(idInfo?.verifiedName);
+                  // True "no identity signal" — new client with neither real nickname nor KYC name.
+                  const noIdentitySignal =
+                    !sameUserNick && !sameUserVName && state === 'new_client' && !safeNick && !safeVName;
                   return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">
@@ -1219,7 +1246,15 @@ export function ClientOnboardingApprovals() {
                           ⚠ Same User — different name
                         </Badge>
                       )}
-                      {!sameUserNick && state === 'linked_known' && matched && (
+                      {sameUserVName && (
+                        <Badge
+                          className="mt-1 bg-purple-100 text-purple-800 text-xs"
+                          title="Multiple pending approvals share this verified KYC name."
+                        >
+                          ⚠ Same User — same KYC name
+                        </Badge>
+                      )}
+                      {!sameUserNick && !sameUserVName && state === 'linked_known' && matched && (
                         <Badge
                           className="mt-1 bg-blue-100 text-blue-800 text-xs"
                           title={`Client ID: ${matched.client_id || matched.id} • Risk: ${matched.risk_appetite || '—'} • Buyer: ${matched.buyer_approval_status || '—'} • Seller: ${matched.seller_approval_status || '—'}`}
@@ -1227,7 +1262,7 @@ export function ClientOnboardingApprovals() {
                           🔗 Known Client: {matched.name}{idInfo?.nickname ? ` · @${idInfo.nickname}` : ''}
                         </Badge>
                       )}
-                      {!sameUserNick && state === 'verified_name_match' && matched && (
+                      {!sameUserNick && !sameUserVName && state === 'verified_name_match' && matched && (
                         <Badge
                           className="mt-1 bg-teal-100 text-teal-800 text-xs"
                           title={`KYC name matches existing client ${matched.name} (${matched.client_id || matched.id}). Approving will link this nickname.`}
@@ -1235,7 +1270,7 @@ export function ClientOnboardingApprovals() {
                           🪪 Same KYC name — {matched.name}
                         </Badge>
                       )}
-                      {!sameUserNick && state === 'name_collision' && matched && (
+                      {!sameUserNick && !sameUserVName && state === 'name_collision' && matched && (
                         <div className="mt-1 flex flex-col gap-1">
                           <Badge
                             className="bg-amber-100 text-amber-800 text-xs"
@@ -1256,8 +1291,16 @@ export function ClientOnboardingApprovals() {
                           )}
                         </div>
                       )}
-                      {!sameUserNick && state === 'new_client' && (
+                      {!sameUserNick && !sameUserVName && state === 'new_client' && !noIdentitySignal && (
                         <Badge variant="outline" className="mt-1 text-xs">New Client</Badge>
+                      )}
+                      {noIdentitySignal && (
+                        <Badge
+                          className="mt-1 bg-amber-100 text-amber-900 text-xs border border-amber-300"
+                          title="No real Binance nickname and no verified KYC name — verify identity manually before approving."
+                        >
+                          ⚠ No identity signal — review manually
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>

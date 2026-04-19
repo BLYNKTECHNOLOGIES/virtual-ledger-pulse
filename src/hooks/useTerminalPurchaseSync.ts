@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { getSmallBuysConfig } from "@/hooks/useSmallBuysSync";
-import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName } from "@/lib/clientIdentityResolver";
+import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNickname } from "@/lib/clientIdentityResolver";
 
 /**
  * Fetch order detail from Binance API.
@@ -178,11 +178,8 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   const existingSet = new Set((existingSyncs || []).map(s => s.binance_order_number));
 
   // 4. Get PAN records — resolve unmasked nicknames from p2p_order_records first
-  const getSafeCounterpartyKey = (value?: string | null) => {
-    const normalized = (value || '').trim();
-    if (!normalized || normalized.includes('*')) return null;
-    return normalized;
-  };
+  // Reuse central sentinel filter — rejects null/empty/'Unknown'/masked '*' values.
+  const getSafeCounterpartyKey = (value?: string | null) => sanitizeNickname(value);
 
   // Fetch unmasked nicknames from p2p_order_records for orders with masked binance_order_history nicknames
   const { data: p2pNicknames } = await supabase
@@ -382,9 +379,9 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const unmasked = rec.order_data?.counterparty_nickname_unmasked;
     const safeNick = rec.order_data?.counterparty_nickname;
     const nicksToCapture = [
-      unmasked && !unmasked.includes('*') ? unmasked : null,
-      safeNick && !safeNick.includes('*') ? safeNick : null,
-    ].filter(Boolean) as string[];
+      sanitizeNickname(unmasked),
+      sanitizeNickname(safeNick),
+    ].filter((v): v is string => Boolean(v));
 
     for (const nick of nicksToCapture) {
       if (nicknameClientMap.has(nick)) continue; // Already linked
@@ -395,7 +392,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
           source: 'auto_sync',
           last_seen_at: new Date().toISOString(),
         }, { onConflict: 'nickname' });
-      } catch { /* best effort */ }
+      } catch { /* best effort — DB trigger now also rejects sentinels */ }
     }
   }
 

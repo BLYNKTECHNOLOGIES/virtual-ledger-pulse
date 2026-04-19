@@ -336,13 +336,26 @@ export function ClientOnboardingApprovals() {
           seller_approval_status: c.seller_approval_status,
         });
       }
+      // Helper: a client is a "PENDING-only stub" if it has never been
+      // approved on either buyer or seller side. Such clients are backlog
+      // echoes (often the very same person awaiting approval) and must not
+      // produce "Known Client" / "Same KYC name" badges.
+      const isPendingOnlyStub = (cl: ClientLite) => {
+        const buyerPending = !cl.buyer_approval_status || cl.buyer_approval_status === 'PENDING' || cl.buyer_approval_status === 'NOT_APPLICABLE';
+        const sellerPending = !cl.seller_approval_status || cl.seller_approval_status === 'PENDING' || cl.seller_approval_status === 'NOT_APPLICABLE';
+        return buyerPending && sellerPending;
+      };
       for (const r of nickRows) {
         const cl = clientById.get(r.client_id);
-        if (cl) nicknameToClient.set(r.nickname, cl);
+        if (!cl) continue;
+        if (isPendingOnlyStub(cl)) continue;
+        nicknameToClient.set(r.nickname, cl);
       }
       for (const r of vnRows) {
         const cl = clientById.get(r.client_id);
-        if (cl) verifiedNameToClient.set(r.verified_name, cl);
+        if (!cl) continue;
+        if (isPendingOnlyStub(cl)) continue;
+        verifiedNameToClient.set(r.verified_name, cl);
       }
       for (const c of clientsByName || []) {
         if ((c as any).is_deleted) continue;

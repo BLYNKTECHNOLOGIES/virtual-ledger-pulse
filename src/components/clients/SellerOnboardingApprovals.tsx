@@ -152,11 +152,21 @@ export function SellerOnboardingApprovals() {
           if (clientIds.length > 0) {
             const { data: clientRows } = await supabase
               .from('clients')
-              .select('id, name')
+              .select('id, name, buyer_approval_status, seller_approval_status')
               .in('id', clientIds)
               .eq('is_deleted', false);
 
-            const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
+            // Skip PENDING-only stubs (never approved on either side) — they
+            // are backlog echoes, not real "Known Clients".
+            const clientMap = new Map(
+              (clientRows || [])
+                .filter((c: any) => {
+                  const buyerPending = !c.buyer_approval_status || c.buyer_approval_status === 'PENDING' || c.buyer_approval_status === 'NOT_APPLICABLE';
+                  const sellerPending = !c.seller_approval_status || c.seller_approval_status === 'PENDING' || c.seller_approval_status === 'NOT_APPLICABLE';
+                  return !(buyerPending && sellerPending);
+                })
+                .map((c: any) => [c.id, c.name])
+            );
             for (const link of linkRows) {
               if (pendingIds.has(link.client_id)) continue;
               const clientName = clientMap.get(link.client_id);

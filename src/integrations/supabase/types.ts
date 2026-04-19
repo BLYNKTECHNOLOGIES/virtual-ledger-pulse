@@ -14644,7 +14644,6 @@ export type Database = {
         Args: { account_entry: Json }
         Returns: string
       }
-      flag_stale_pending_settlements: { Args: never; Returns: number }
       fn_calculate_monthly_penalties: {
         Args: { p_month: number; p_year: number }
         Returns: {

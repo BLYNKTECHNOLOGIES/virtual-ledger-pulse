@@ -78,6 +78,7 @@ interface ClientOnboardingApproval {
   updated_at: string;
   binance_nickname?: string | null;
   verified_name?: string | null;
+  resolved_client_id?: string | null;
 }
 
 interface ExistingClientMatch {

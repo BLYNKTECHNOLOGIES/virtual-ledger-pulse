@@ -16,15 +16,23 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Sum all bank balances (Active + Dormant)
+    // Adjustment/audit buckets — excluded from totals (kept visible in BAMS only)
+    const ADJUSTMENT_BANK_NAMES = ["balance adjustment account"];
+    const ADJUSTMENT_WALLET_NAMES = ["balance adjustment wallet"];
+    const isAdjBank = (n?: string | null) =>
+      !!n && ADJUSTMENT_BANK_NAMES.includes(n.trim().toLowerCase());
+    const isAdjWallet = (n?: string | null) =>
+      !!n && ADJUSTMENT_WALLET_NAMES.includes(n.trim().toLowerCase());
+
+    // 1. Sum all bank balances (Active + Dormant), excluding adjustment buckets
     const { data: bankAccounts } = await supabase
       .from("bank_accounts")
-      .select("balance, status")
+      .select("account_name, balance, status")
       .in("status", ["ACTIVE", "DORMANT"]);
 
-    const totalBankBalance = bankAccounts?.reduce(
-      (sum, a) => sum + Number(a.balance || 0), 0
-    ) || 0;
+    const totalBankBalance = (bankAccounts || [])
+      .filter((a: any) => !isAdjBank(a.account_name))
+      .reduce((sum: number, a: any) => sum + Number(a.balance || 0), 0);
 
     // 2. POS / Payment gateway balances = pending settlements awaiting clearing
     const { data: pendingSettlements } = await supabase
@@ -37,15 +45,15 @@ serve(async (req) => {
     ) || 0;
 
     // 3. Stock valuation: multi-asset (USDT from wallets, others from wallet_asset_balances)
-    // 3a. USDT from wallets
+    // 3a. USDT from wallets (excluding adjustment wallets)
     const { data: wallets } = await supabase
       .from("wallets")
-      .select("current_balance")
+      .select("wallet_name, current_balance")
       .eq("is_active", true);
 
-    const totalUsdtUnits = wallets?.reduce(
-      (sum, w) => sum + Number(w.current_balance || 0), 0
-    ) || 0;
+    const totalUsdtUnits = (wallets || [])
+      .filter((w: any) => !isAdjWallet(w.wallet_name))
+      .reduce((sum: number, w: any) => sum + Number(w.current_balance || 0), 0);
 
     // 3b. Non-USDT from wallet_asset_balances
     const { data: assetBalances } = await supabase

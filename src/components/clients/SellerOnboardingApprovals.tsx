@@ -548,9 +548,16 @@ export function SellerOnboardingApprovals() {
                               onClick={() => handleApprove(seller.id)}
                               disabled={approveMutation.isPending}
                               className="bg-green-600 hover:bg-green-700"
+                              title={
+                                identityState === 'linked_known' && nickInfo?.existingClient
+                                  ? `Approve seller side on existing client: ${nickInfo.existingClient.name}`
+                                  : 'Approve seller'
+                              }
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Approve
+                              {identityState === 'linked_known' && nickInfo?.existingClient
+                                ? 'Approve as Seller'
+                                : 'Approve'}
                             </Button>
                             {hasPermission('clients_destructive') && (
                               <Button

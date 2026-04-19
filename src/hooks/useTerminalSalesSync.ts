@@ -281,9 +281,25 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       synced = toInsert.length;
     }
 
-    // Auto-backfill: capture unmasked nicknames + verified names for matched clients
+    // Auto-backfill: capture unmasked nicknames + verified names ONLY for clients
+    // already APPROVED as buyers. Linking a nickname to a still-PENDING client
+    // creates a self-match in the Approvals queue. Wait for the operator-approval
+    // flow to do the upsert at approve-time instead.
+    const matchedClientIds = Array.from(new Set(toInsert.map(r => r.client_id).filter(Boolean) as string[]));
+    const approvedBuyerIds = new Set<string>();
+    if (matchedClientIds.length > 0) {
+      const { data: approvedRows } = await supabase
+        .from('clients')
+        .select('id')
+        .in('id', matchedClientIds)
+        .eq('is_deleted', false)
+        .eq('buyer_approval_status', 'APPROVED');
+      for (const r of approvedRows || []) approvedBuyerIds.add(r.id);
+    }
+
     for (const rec of toInsert) {
       if (!rec.client_id) continue;
+      if (!approvedBuyerIds.has(rec.client_id)) continue; // Skip pending/rejected — avoid self-match pollution
 
       // Capture verified name into client_verified_names
       await captureVerifiedName(rec.client_id, rec.order_data?.verified_name, 'auto_sync');

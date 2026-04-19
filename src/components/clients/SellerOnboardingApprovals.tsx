@@ -145,18 +145,24 @@ export function SellerOnboardingApprovals() {
           .eq('is_active', true);
 
         if (linkRows?.length) {
-          const clientIds = linkRows.map(r => r.client_id);
-          const { data: clientRows } = await supabase
-            .from('clients')
-            .select('id, name')
-            .in('id', clientIds)
-            .eq('is_deleted', false);
+          // Exclude self-matches: a pending seller's own row in client_binance_nicknames
+          // is NOT evidence of being a "Known Client".
+          const pendingIds = new Set((pendingSellers || []).map(s => s.id));
+          const clientIds = linkRows.map(r => r.client_id).filter(id => !pendingIds.has(id));
+          if (clientIds.length > 0) {
+            const { data: clientRows } = await supabase
+              .from('clients')
+              .select('id, name')
+              .in('id', clientIds)
+              .eq('is_deleted', false);
 
-          const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
-          for (const link of linkRows) {
-            const clientName = clientMap.get(link.client_id);
-            if (clientName) {
-              nicknameToClient[link.nickname] = { id: link.client_id, name: clientName };
+            const clientMap = new Map((clientRows || []).map(c => [c.id, c.name]));
+            for (const link of linkRows) {
+              if (pendingIds.has(link.client_id)) continue;
+              const clientName = clientMap.get(link.client_id);
+              if (clientName) {
+                nicknameToClient[link.nickname] = { id: link.client_id, name: clientName };
+              }
             }
           }
         }

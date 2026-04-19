@@ -39,20 +39,17 @@ export default function Compliance() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-50 rounded-xl shadow-sm">
-              <Shield className="h-8 w-8 text-purple-600" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Compliance Management</h1>
-              <p className="text-gray-600 mt-1">Legal, regulatory, and compliance monitoring</p>
-            </div>
-          </div>
+    <div className="p-4 md:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-purple-50 rounded-xl shadow-sm">
+          <Shield className="h-8 w-8 text-purple-600" />
         </div>
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Compliance Management</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Legal, regulatory, and compliance monitoring</p>
+        </div>
+      </div>
 
       <ErrorBoundary>
         <Tabs defaultValue="banking" className="space-y-6">
@@ -104,7 +101,6 @@ export default function Compliance() {
           </TabsContent>
         </Tabs>
       </ErrorBoundary>
-      </div>
     </div>
     </PermissionGate>
   );

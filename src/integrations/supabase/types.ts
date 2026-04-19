@@ -1616,6 +1616,7 @@ export type Database = {
           proposed_monthly_limit: number | null
           purpose_of_buying: string | null
           rejection_reason: string | null
+          resolved_client_id: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           risk_assessment: string | null
@@ -1646,6 +1647,7 @@ export type Database = {
           proposed_monthly_limit?: number | null
           purpose_of_buying?: string | null
           rejection_reason?: string | null
+          resolved_client_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           risk_assessment?: string | null
@@ -1676,6 +1678,7 @@ export type Database = {
           proposed_monthly_limit?: number | null
           purpose_of_buying?: string | null
           rejection_reason?: string | null
+          resolved_client_id?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           risk_assessment?: string | null
@@ -1686,6 +1689,13 @@ export type Database = {
           vkyc_recording_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "client_onboarding_approvals_resolved_client_id_fkey"
+            columns: ["resolved_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "client_onboarding_approvals_sales_order_id_fkey"
             columns: ["sales_order_id"]

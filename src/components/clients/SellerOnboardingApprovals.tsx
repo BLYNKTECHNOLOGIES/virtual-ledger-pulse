@@ -249,6 +249,35 @@ export function SellerOnboardingApprovals() {
   // Approve seller mutation
   const approveMutation = useMutation({
     mutationFn: async (sellerId: string) => {
+      // If this pending seller record is actually a duplicate of an already-known client
+      // (matched by Binance nickname), redirect approval to that existing client and soft-
+      // delete the duplicate to prevent a parallel record.
+      const seller = pendingSellers?.find(s => s.id === sellerId);
+      const linkedExisting = seller ? sellerNicknameMap?.[seller.name]?.existingClient : null;
+
+      if (linkedExisting && linkedExisting.id !== sellerId) {
+        // Flip existing client's seller side to APPROVED
+        const { error: updErr } = await supabase
+          .from('clients')
+          .update({
+            is_seller: true,
+            kyc_status: 'VERIFIED',
+            seller_approval_status: 'APPROVED',
+            seller_approved_at: new Date().toISOString(),
+          })
+          .eq('id', linkedExisting.id);
+        if (updErr) throw updErr;
+
+        // Soft-delete the duplicate pending record
+        const { error: delErr } = await supabase
+          .from('clients')
+          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+          .eq('id', sellerId);
+        if (delErr) throw delErr;
+
+        return { mergedInto: linkedExisting.id };
+      }
+
       const { error } = await supabase
         .from('clients')
         .update({ 
@@ -259,16 +288,18 @@ export function SellerOnboardingApprovals() {
         .eq('id', sellerId);
       
       if (error) throw error;
+      return { mergedInto: null };
     },
-    onSuccess: async (_data, sellerId) => {
-      // Auto-capture Binance nickname → client link
+    onSuccess: async (result, sellerId) => {
+      // Auto-capture Binance nickname → client link (point to merged target if applicable)
       const seller = pendingSellers?.find(s => s.id === sellerId);
+      const targetClientId = result?.mergedInto || sellerId;
       if (seller) {
         const nickInfo = sellerNicknameMap?.[seller.name];
         if (nickInfo?.nickname && !nickInfo.nickname.includes('*')) {
           try {
             await supabase.from('client_binance_nicknames').upsert({
-              client_id: sellerId,
+              client_id: targetClientId,
               nickname: nickInfo.nickname,
               source: 'approval',
               last_seen_at: new Date().toISOString(),
@@ -280,7 +311,7 @@ export function SellerOnboardingApprovals() {
         // Auto-capture verified name (seller.name is KYC-verified)
         try {
           await supabase.from('client_verified_names').upsert({
-            client_id: sellerId,
+            client_id: targetClientId,
             verified_name: seller.name.trim(),
             source: 'approval',
             last_seen_at: new Date().toISOString(),
@@ -291,8 +322,10 @@ export function SellerOnboardingApprovals() {
       }
 
       toast({
-        title: "Seller Approved",
-        description: "The seller has been approved successfully.",
+        title: result?.mergedInto ? "Merged into existing client" : "Seller Approved",
+        description: result?.mergedInto
+          ? "Seller side approved on the already-existing client; duplicate record removed."
+          : "The seller has been approved successfully.",
       });
       queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
         old ? old.filter(s => s.id !== sellerId) : []
@@ -327,7 +360,6 @@ export function SellerOnboardingApprovals() {
         title: "Seller Rejected",
         description: "The seller has been rejected.",
       });
-      // Remove rejected seller from cache without refetching
       queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
         old ? old.filter(s => s.id !== sellerToReject?.id) : []
       );
@@ -516,9 +548,16 @@ export function SellerOnboardingApprovals() {
                               onClick={() => handleApprove(seller.id)}
                               disabled={approveMutation.isPending}
                               className="bg-green-600 hover:bg-green-700"
+                              title={
+                                identityState === 'linked_known' && nickInfo?.existingClient
+                                  ? `Approve seller side on existing client: ${nickInfo.existingClient.name}`
+                                  : 'Approve seller'
+                              }
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Approve
+                              {identityState === 'linked_known' && nickInfo?.existingClient
+                                ? 'Approve as Seller'
+                                : 'Approve'}
                             </Button>
                             {hasPermission('clients_destructive') && (
                               <Button

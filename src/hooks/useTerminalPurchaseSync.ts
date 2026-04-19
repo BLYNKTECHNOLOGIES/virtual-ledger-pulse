@@ -379,9 +379,9 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const unmasked = rec.order_data?.counterparty_nickname_unmasked;
     const safeNick = rec.order_data?.counterparty_nickname;
     const nicksToCapture = [
-      unmasked && !unmasked.includes('*') ? unmasked : null,
-      safeNick && !safeNick.includes('*') ? safeNick : null,
-    ].filter(Boolean) as string[];
+      sanitizeNickname(unmasked),
+      sanitizeNickname(safeNick),
+    ].filter((v): v is string => Boolean(v));
 
     for (const nick of nicksToCapture) {
       if (nicknameClientMap.has(nick)) continue; // Already linked
@@ -392,7 +392,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
           source: 'auto_sync',
           last_seen_at: new Date().toISOString(),
         }, { onConflict: 'nickname' });
-      } catch { /* best effort */ }
+      } catch { /* best effort — DB trigger now also rejects sentinels */ }
     }
   }
 

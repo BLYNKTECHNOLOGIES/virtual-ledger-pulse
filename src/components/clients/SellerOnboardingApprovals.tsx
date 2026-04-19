@@ -172,19 +172,43 @@ export function SellerOnboardingApprovals() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // "Same User" detection for sellers
+  // "Same User" detection for sellers — ONLY by real, sanitized nickname.
+  // Sentinels ('Unknown', masked '*', empty) are never grouping keys.
   const sellerSameUser = new Map<string, string>();
   if (sellerNicknameMap) {
     const groups = new Map<string, string[]>();
     for (const [name, info] of Object.entries(sellerNicknameMap)) {
-      const arr = groups.get(info.nickname) || [];
+      const safeNick = sanitizeNickname(info.nickname);
+      if (!safeNick) continue;
+      const arr = groups.get(safeNick) || [];
       if (!arr.includes(name)) arr.push(name);
-      groups.set(info.nickname, arr);
+      groups.set(safeNick, arr);
     }
     for (const [nick, names] of groups) {
       if (names.length > 1) {
         for (const n of names) sellerSameUser.set(n, nick);
       }
+    }
+  }
+
+  // Secondary "Same User" grouping by VERIFIED KYC NAME — only triggers when
+  // there's no real nickname to group on. Two pending sellers sharing the
+  // same verified KYC name is a legitimate identity hit.
+  const sellerSameUserByVName = new Map<string, string>();
+  if (pendingSellers && pendingSellers.length > 1) {
+    const vnameGroups = new Map<string, string[]>();
+    for (const s of pendingSellers) {
+      // Only consider sellers without a usable nickname for this fallback
+      const nickInfo = sellerNicknameMap?.[s.name];
+      if (sanitizeNickname(nickInfo?.nickname)) continue;
+      const vname = sanitizeVerifiedName((s as any).name); // seller.name IS their verified KYC name in this view
+      if (!vname) continue;
+      const arr = vnameGroups.get(vname) || [];
+      if (!arr.includes(s.name)) arr.push(s.name);
+      vnameGroups.set(vname, arr);
+    }
+    for (const [vname, names] of vnameGroups) {
+      if (names.length > 1) for (const n of names) sellerSameUserByVName.set(n, vname);
     }
   }
 

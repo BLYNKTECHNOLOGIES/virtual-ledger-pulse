@@ -8,8 +8,11 @@ import { syncCompletedSellOrders } from './useTerminalSalesSync';
 import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
-const STATUS_OVERLAP_MS = 3 * 60 * 60 * 1000; // 3 hours — re-fetch recent orders for status updates
+const STATUS_OVERLAP_MS = 24 * 60 * 60 * 1000; // 24 hours — re-fetch recent orders for status updates (was 3h, widened to catch out-of-order Binance updates)
+const GAP_FILL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — deep gap-fill scan
+const GAP_FILL_INTERVAL_MS = 24 * 60 * 60 * 1000; // run gap-fill at most once per 24h
 const DATA_RETENTION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+const GAP_FILL_KEY = 'binance_order_gap_fill_last_at';
 
 // ---- DB Read: Get all cached orders for last 30 days ----
 export function useCachedOrderHistory() {

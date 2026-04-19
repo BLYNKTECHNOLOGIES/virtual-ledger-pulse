@@ -347,10 +347,18 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         clientName,
         contactPhone
       );
+      if (!clientData?.id) {
+        throw new Error('Failed to create seller client. Check console for details — the insert may have been blocked by a database constraint or duplicate.');
+      }
       return clientData;
     },
     onSuccess: (client: any) => {
+      if (!client?.id) {
+        toast({ title: "Error", description: "Client creation returned no ID.", variant: "destructive" });
+        return;
+      }
       setLinkedClientId(client.id);
+      setLinkedClientName(syncRecord?.counterparty_name || '');
       toast({ title: "Client Created", description: `${syncRecord.counterparty_name} added as seller client` });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
     },

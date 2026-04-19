@@ -33,6 +33,7 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 // Default active widgets for new users (built-in IDs)
 const DEFAULT_ACTIVE_WIDGETS = [

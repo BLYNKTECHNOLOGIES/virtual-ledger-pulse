@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { BankBalanceFilterWidget } from "@/components/widgets/BankBalanceFilterWidget";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface PurchaseMethod {
   id: string;

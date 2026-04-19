@@ -20,7 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { usePermissions } from '@/hooks/usePermissions';
-import { sanitizeNickname, sanitizeVerifiedName } from '@/lib/clientIdentityResolver';
+import { sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName } from '@/lib/clientIdentityResolver';
 import { 
   CheckCircle, 
   XCircle, 
@@ -837,15 +837,26 @@ export function ClientOnboardingApprovals() {
             }, { onConflict: 'nickname' });
           }
           if (targetClientId) {
-            const approval = approvals?.find(a => a.id === variables.id);
-            const vname = (verifiedName || approval?.client_name || '').trim();
+            // Only attach the *verified* KYC name — never fall back to the
+            // display name (approval.client_name), which is just operator
+            // input and is NOT a KYC-verified identity.
+            const vname = sanitizeVerifiedName(verifiedName);
             if (vname) {
-              await supabase.from('client_verified_names').upsert({
-                client_id: targetClientId,
-                verified_name: vname,
-                source: 'approval',
-                last_seen_at: new Date().toISOString(),
-              }, { onConflict: 'client_id,verified_name' });
+              const ok = await canAttachVerifiedName({
+                clientId: targetClientId,
+                verifiedName: vname,
+                supportingNickname: nickname && !nickname.includes('*') ? nickname : null,
+              });
+              if (ok) {
+                await supabase.from('client_verified_names').upsert({
+                  client_id: targetClientId,
+                  verified_name: vname,
+                  source: 'approval',
+                  last_seen_at: new Date().toISOString(),
+                }, { onConflict: 'client_id,verified_name' });
+              } else {
+                console.warn(`[ClientOnboarding] Skipped verified-name attachment "${vname}" → client ${targetClientId}: no correlation evidence.`);
+              }
             }
           }
         } catch (e) {

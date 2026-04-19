@@ -299,3 +299,66 @@ export async function captureVerifiedName(
     );
   } catch { /* best effort */ }
 }
+
+/**
+ * Correlation check: returns true if it is SAFE to attach `verifiedName` to
+ * `clientId`. Used by all "merge into existing client" approval flows to
+ * prevent cross-contamination of the KYC verified-name table.
+ *
+ * Safe when ANY of:
+ *   (a) verifiedName matches the client's stored name (case-insensitive)
+ *   (b) the same (client_id, verified_name) is already attached
+ *   (c) `supportingNickname` (the nickname being linked in the same flow)
+ *       is already in client_binance_nicknames for this client, AND there
+ *       is at least one binance_order_history row tying that nickname to
+ *       this verified_name.
+ *
+ * The DB trigger `trg_validate_verified_name_attachment` enforces the same
+ * rule server-side; this helper lets the UI skip the upsert silently
+ * instead of showing a confusing error.
+ */
+export async function canAttachVerifiedName(params: {
+  clientId: string;
+  verifiedName: string;
+  supportingNickname?: string | null;
+}): Promise<boolean> {
+  const verified = sanitizeVerifiedName(params.verifiedName);
+  if (!verified) return false;
+
+  // (a) client name match
+  const { data: c } = await supabase
+    .from('clients')
+    .select('name')
+    .eq('id', params.clientId)
+    .maybeSingle();
+  if (c?.name && c.name.trim().toLowerCase() === verified.toLowerCase()) return true;
+
+  // (b) already attached
+  const { data: existing } = await supabase
+    .from('client_verified_names')
+    .select('id')
+    .eq('client_id', params.clientId)
+    .ilike('verified_name', verified)
+    .maybeSingle();
+  if (existing) return true;
+
+  // (c) order-backed via supporting nickname (or any nickname linked to this client)
+  const { data: nicks } = await supabase
+    .from('client_binance_nicknames')
+    .select('nickname')
+    .eq('client_id', params.clientId)
+    .eq('is_active', true);
+  const nicknameList = (nicks || []).map(n => n.nickname);
+  if (params.supportingNickname && !nicknameList.includes(params.supportingNickname)) {
+    nicknameList.push(params.supportingNickname);
+  }
+  if (nicknameList.length === 0) return false;
+
+  const { data: orders } = await supabase
+    .from('binance_order_history')
+    .select('order_number')
+    .in('counter_part_nick_name', nicknameList)
+    .ilike('verified_name', verified)
+    .limit(1);
+  return (orders?.length || 0) > 0;
+}

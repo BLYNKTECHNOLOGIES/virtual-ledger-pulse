@@ -9,7 +9,20 @@ import { supabase } from "@/integrations/supabase/client";
 export function sanitizeNickname(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const v = value.trim();
-  if (!v || v === 'Unknown' || v.includes('*')) return null;
+  if (!v || v.includes('*')) return null;
+  if (v.toLowerCase() === 'unknown') return null;
+  return v;
+}
+
+/**
+ * Returns a clean verified KYC name, or null. Same sentinel rules as
+ * sanitizeNickname — never accept 'Unknown' or masked strings as identity.
+ */
+export function sanitizeVerifiedName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (!v || v.includes('*')) return null;
+  if (v.toLowerCase() === 'unknown') return null;
   return v;
 }
 

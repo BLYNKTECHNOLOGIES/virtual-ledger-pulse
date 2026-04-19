@@ -10,16 +10,9 @@ interface ClientBeneficiaryDetailsProps {
   clientName?: string | null;
 }
 
-function maskAccount(acc: string): string {
-  const v = (acc || "").trim();
-  if (v.length <= 4) return v;
-  return `••••${v.slice(-4)}`;
-}
-
-function maskOrder(ord: string | null | undefined): string {
+function formatOrder(ord: string | null | undefined): string {
   const v = (ord || "").trim();
-  if (!v) return "—";
-  return `…${v.slice(-4)}`;
+  return v || "—";
 }
 
 export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBeneficiaryDetailsProps) {

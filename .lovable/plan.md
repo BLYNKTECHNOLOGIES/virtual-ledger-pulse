@@ -1,83 +1,87 @@
 
 
-# Plan — Stop Treating `Unknown` / Masked Nicknames As Identity
+## Root Cause
 
-## Root cause (confirmed by live data)
+The badge "🪪 Same KYC name — SHARAD KUMAR JAISWAL" is appearing on MIKHII THEODORE DIAS's pending row because the database table `client_verified_names` has been **polluted with cross-contaminated entries** for one client.
 
-The system is storing literal sentinel strings as if they were real Binance nicknames. Live counts:
+### What I found in the DB
 
-| Sentinel stored as nickname | Distinct clients sharing it |
-|---|---|
-| `Unknown` | **9 unrelated people** |
-| `Use***` (masked) | **10** |
-| `P2P***` (masked) | **3** |
+Client `1ee750ac…` (real name "SHARAD KUMAR JAISWAL", buyer APPROVED) has **6 different KYC verified names** attached to it:
 
-Plus 1 row in `client_binance_nicknames` is literally `nickname = 'Unknown'`. The "⚠ Same User — different name" badge then groups all of them as one person — a serious data-integrity false-positive.
-
-There are two leaks:
-1. The DB trigger reads `p2p_order_records.counterparty_nickname` and only filters `NOT LIKE '%*%'` — it does **not** reject the literal `'Unknown'`.
-2. `SellerOnboardingApprovals.tsx` builds its "Same User" map keyed purely on the nickname string, so any shared sentinel collapses N people into one group.
-3. The trigger writes `v_nickname` directly into `client_onboarding_approvals.binance_nickname` even when it is `'Unknown'`, polluting the queue.
-
-## Fix — strict sentinel rejection + safer fallbacks
-
-### 1. Centralize the "is this a real nickname?" check
-Add a single helper used everywhere:
-```ts
-// already exists: src/lib/clientIdentityResolver.ts → sanitizeNickname
-// rule: reject null, '', 'Unknown' (case-insensitive), anything containing '*'
 ```
-Audit every read site (`SellerOnboardingApprovals`, `ClientOnboardingApprovals`, sync hooks) to route through `sanitizeNickname` before grouping or linking. Treat anything it rejects as **"no nickname"**, not as an identity key.
+SHARAD KUMAR JAISWAL   (own — correct)
+MIKHII THEODORE DIAS   ← causing this bug
+RAHUL BAWEJA
+MOHAMMAD JISHAN
+Rahul Singh
+SHAIF AHMED JAGIRDAR
+```
 
-### 2. DB trigger — never store sentinels as nickname
-In `create_client_onboarding_approval`:
-- Filter `p2p_order_records` with `counterparty_nickname NOT LIKE '%*%' AND counterparty_nickname <> 'Unknown' AND TRIM(counterparty_nickname) <> ''`.
-- If only sentinel candidates exist, leave `v_nickname = NULL` so the row stores nothing in `binance_nickname`.
+All 6 rows have `source = 'approval'`. So when MIKHII's pending row is evaluated, the lookup `verifiedNameToClient.get("MIKHII THEODORE DIAS")` returns SHARAD's client record → tag fires.
 
-### 3. DB trigger — fall back to **verified name + phone**, never to a sentinel
-When nickname is missing, identity resolution must rely on the next-strongest signals:
-1. Verified name → single match
-2. Phone → single match
-3. Exact case-insensitive name + phone (compound)
+This is the SAME class of cross-contamination we have seen earlier with nickname links — but on the verified-name side.
 
-If none of these resolve, the row becomes a true **New Client** — never grouped with other unknowns.
+### Why it happened (code paths that polluted the table)
 
-### 4. UI — "Same User" must NEVER group by sentinel
-In `SellerOnboardingApprovals.tsx` (and the same code path in `ClientOnboardingApprovals.tsx`):
-- Skip nicknames rejected by `sanitizeNickname` when building the `nicknameGroups` map.
-- For sellers with no real nickname, run a secondary grouping by **verified KYC name** (using `client_verified_names` look-alike). If two pending rows share the same verified name, *that* is a legitimate "same user" hit and gets the purple badge.
-- If neither nickname nor verified name is available, render a new neutral badge: **"⚠ No identity signal — review manually"** (amber). Never auto-group.
+The "merge into existing client" approval flows blindly upsert the **incoming Binance verified name** onto the **chosen target client**, with no sanity check that the name actually belongs to that person:
 
-### 5. One-time DB cleanup
-Idempotent migration:
-- `UPDATE client_binance_nicknames SET is_active = false WHERE nickname IS NULL OR nickname = '' OR nickname ILIKE 'unknown' OR nickname LIKE '%*%';`
-- `UPDATE client_onboarding_approvals SET binance_nickname = NULL WHERE binance_nickname IS NULL OR binance_nickname = '' OR binance_nickname ILIKE 'unknown' OR binance_nickname LIKE '%*%';`
-- Add a `CHECK` constraint (via validation trigger, per project rules) on `client_binance_nicknames` rejecting future inserts of sentinel values.
-- Re-run the resolved-client-id backfill from migration `20260419150241…` so the 216 pending rows get re-evaluated against verified-name/phone (174 will resolve, 42 will become true New Clients).
+1. `TerminalSalesApprovalDialog.tsx` lines 727-741
+2. `TerminalPurchaseApprovalDialog.tsx` lines 531-545
+3. `ClientOnboardingApprovals.tsx` lines 839-849 — even worse: falls back to `approval.client_name` when verified_name is missing.
 
-## After the fix — what each row in your screenshot will look like
+So whenever an operator approved an order/onboarding and clicked "Merge into existing client = SHARAD KUMAR JAISWAL" while the Binance counterparty was actually MIKHII / RAHUL / etc., the wrong KYC name got attached to SHARAD. Six wrong merges over time = 6 rogue verified names.
 
-| Row | Current badge (wrong) | New badge (correct) |
-|---|---|---|
-| ROHIT GHOSH | ⚠ Same User (false group with 8 others) | If verified-name matches existing client → 🔗 / ✓ badge; else **New Client** |
-| SYED REEHAN PASHA | ⚠ Same User (false) | **New Client** (or KYC match if any) |
-| Jannatul Ferdous | ⚠ Same User (false) | **New Client** |
-| NIMESH PARDESHI | New Client | unchanged |
+The same risk exists for `client_binance_nicknames` (single nickname uniquely owned globally — but cross-attachment via merge still possible).
 
-## Files touched
+---
 
-- New migration:
-  - Replace `create_client_onboarding_approval` (sentinel filter + verified-name/phone fallback).
-  - Add validation trigger on `client_binance_nicknames` rejecting sentinel inserts.
-  - Cleanup UPDATE for existing pollution + re-run backfill.
-- `src/lib/clientIdentityResolver.ts` — confirm `sanitizeNickname` already rejects `'Unknown'` (it does — line 12). Export a matching `sanitizeVerifiedName`.
-- `src/components/clients/SellerOnboardingApprovals.tsx` — wrap nickname reads with `sanitizeNickname`; add verified-name secondary grouping; new amber "no identity signal" badge.
-- `src/components/clients/ClientOnboardingApprovals.tsx` — same three changes.
-- `src/hooks/useTerminalSalesSync.ts` & `src/hooks/useTerminalPurchaseSync.ts` — ensure no sentinel ever reaches `client_binance_nicknames`.
+## Fix Plan
 
-## Out of scope
+### 1. Data cleanup migration (one-time)
 
-- No change to the resolved_client_id logic from the previous plan.
-- No change to KYC document handling, risk taxonomy, or order sync workflows.
-- No backfill of historical APPROVED/REJECTED rows — only PENDING ones get re-evaluated.
+Delete cross-contaminated `client_verified_names` rows: for each client, keep only verified names that match the client's actual `clients.name` (case-insensitive) **OR** appear in at least one of that client's Binance orders' `verified_name` field. Anything else is a misattribution from a past wrong merge — delete.
+
+Apply the same audit to `client_binance_nicknames`: a nickname linked to client X is suspect if no order with that counterparty nickname has client X as the matched/approved party.
+
+For SHARAD's record specifically, this will remove the 5 foreign verified names and keep only "SHARAD KUMAR JAISWAL".
+
+### 2. Guard against future cross-contamination
+
+**A. Approval-time correlation check** (in all 3 approval paths above): before upserting a verified name onto a target client, require ONE of:
+- `target client's name` matches `verified_name` (case-insensitive), OR
+- the same `verified_name` already exists on `client_verified_names` for that client, OR
+- the unmasked nickname being linked already belongs to that client in `client_binance_nicknames`.
+
+If none match → still create the order linkage, but **do NOT auto-upsert the verified name**. Log a warning. The operator can attach it manually later if intended.
+
+**B. DB-level safety trigger** `trg_validate_verified_name_attachment` on `client_verified_names` BEFORE INSERT/UPDATE: blocks attachment when the verified name has zero similarity to either the client's stored name or any prior verified name on that client AND no supporting nickname link exists. Emits a clear error so the UI can surface it.
+
+**C. Same nickname-side trigger** (already partially mitigated by `unique(nickname)` but not by ownership): block re-pointing an existing nickname to a different client unless the operator explicitly invokes a "transfer nickname" admin action.
+
+### 3. UI surface — Approvals queue
+
+Once cleanup runs, the "MIKHII THEODORE DIAS" row will correctly drop to "New Client" tag. No UI code change needed in the approvals component — the bug was purely data-side.
+
+---
+
+## Files to change
+
+- **New migration**: `supabase/migrations/<ts>_verified_name_cleanup_and_guards.sql`
+  - DELETE cross-contaminated rows in `client_verified_names`
+  - DELETE cross-contaminated rows in `client_binance_nicknames`
+  - CREATE FUNCTION + BEFORE-INSERT/UPDATE trigger on `client_verified_names`
+  - CREATE FUNCTION + BEFORE-UPDATE trigger on `client_binance_nicknames` (block client_id reassignment without admin override flag)
+- `src/components/sales/TerminalSalesApprovalDialog.tsx` — add correlation check before verified-name upsert
+- `src/components/purchase/TerminalPurchaseApprovalDialog.tsx` — same
+- `src/components/clients/ClientOnboardingApprovals.tsx` — same, plus remove the `|| approval.client_name` fallback that conflates display name with KYC name
+
+---
+
+## What you'll see after the fix
+
+- The MIKHII THEODORE DIAS pending buyer row → tag becomes **"New Client"** (or accurate match if MIKHII actually exists elsewhere).
+- SHARAD KUMAR JAISWAL's record stays clean with only his own KYC name.
+- Any future wrong "merge into existing client" click cannot pollute the KYC table again — the DB trigger will reject it and the UI will get a clear toast.
+
+Reply **approved** to execute cleanup + guards.
 

@@ -48,7 +48,6 @@ export default function VideoKYC() {
         </div>
         
         <VideoKYCTab />
-      </div>
     </div>
     </PermissionGate>
   );

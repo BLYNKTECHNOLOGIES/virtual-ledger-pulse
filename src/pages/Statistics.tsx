@@ -48,7 +48,6 @@ export default function Statistics() {
         </div>
         
         <StatisticsTab />
-      </div>
     </div>
     </PermissionGate>
   );

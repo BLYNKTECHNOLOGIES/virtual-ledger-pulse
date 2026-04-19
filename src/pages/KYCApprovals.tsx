@@ -48,7 +48,6 @@ export default function KYCApprovals() {
         </div>
         
         <KYCApprovalsTab />
-      </div>
     </div>
     </PermissionGate>
   );

@@ -106,7 +106,6 @@ export default function Accounting() {
           <ReportsTab />
         </TabsContent>
       </Tabs>
-      </div>
     </div>
     </PermissionGate>
   );

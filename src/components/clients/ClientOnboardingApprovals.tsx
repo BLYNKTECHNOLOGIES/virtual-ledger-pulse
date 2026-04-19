@@ -1224,8 +1224,14 @@ export function ClientOnboardingApprovals() {
                   const nameKey = approval.client_name.trim().toLowerCase();
                   const idInfo = identityMap?.[approval.id];
                   const sameUserNick = sameUserNicknames.get(nameKey);
+                  const sameUserVName = !sameUserNick ? sameUserVNames.get(nameKey) : undefined;
                   const state = idInfo?.state || 'new_client';
                   const matched = idInfo?.matchedClient;
+                  const safeNick = sanitizeNickname(idInfo?.nickname);
+                  const safeVName = sanitizeVerifiedName(idInfo?.verifiedName);
+                  // True "no identity signal" — new client with neither real nickname nor KYC name.
+                  const noIdentitySignal =
+                    !sameUserNick && !sameUserVName && state === 'new_client' && !safeNick && !safeVName;
                   return (
                   <TableRow key={approval.id}>
                     <TableCell className="font-medium">

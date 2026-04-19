@@ -24,7 +24,27 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
   const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeBg = order.trade_type === 'BUY' ? 'bg-trade-buy/10' : 'bg-trade-sell/10';
-  const opStatus = mapToOperationalStatus(order.order_status, order.trade_type);
+
+  // Finalized states from live detail outrank stale cached active states.
+  // Binance numeric: 5=COMPLETED, 6/7=CANCELLED.
+  const liveStatusRaw = liveDetail?.orderStatus;
+  const numToCanonical: Record<number, string> = {
+    1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
+    5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
+  };
+  const liveStatusCanonical = (() => {
+    if (liveStatusRaw === undefined || liveStatusRaw === null) return null;
+    if (typeof liveStatusRaw === 'number') return numToCanonical[liveStatusRaw] || null;
+    const s = String(liveStatusRaw).trim();
+    if (/^\d+$/.test(s)) return numToCanonical[Number(s)] || null;
+    return s.toUpperCase();
+  })();
+  const liveIsFinalized = liveStatusCanonical
+    ? ['COMPLETED', 'CANCELLED', 'EXPIRED'].some(t => liveStatusCanonical.includes(t))
+    : false;
+  const effectiveRawStatus = liveIsFinalized ? (liveStatusCanonical as string) : order.order_status;
+
+  const opStatus = mapToOperationalStatus(effectiveRawStatus, order.trade_type);
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
@@ -151,7 +171,7 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
         {canActions && (
           <OrderActions
             orderNumber={order.binance_order_number}
-            orderStatus={order.order_status}
+            orderStatus={effectiveRawStatus}
             tradeType={order.trade_type}
             additionalKycVerify={order.additional_kyc_verify}
           />

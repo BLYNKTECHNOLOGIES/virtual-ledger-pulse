@@ -209,8 +209,8 @@ export function ClientOnboardingApprovals() {
       const needsLegacyLookup: string[] = [];
       const identitySeed: Record<string, { nickname: string | null; verifiedName: string | null }> = {};
       for (const a of pendingApprovalsRaw) {
-        const persistedNick = a.binance_nickname?.trim() || null;
-        const persistedVName = a.verified_name?.trim() || null;
+        const persistedNick = sanitizeNickname(a.binance_nickname);
+        const persistedVName = sanitizeVerifiedName(a.verified_name);
         identitySeed[a.id] = { nickname: persistedNick, verifiedName: persistedVName };
         if ((!persistedNick || !persistedVName) && a.sales_order_id) {
           needsLegacyLookup.push(a.sales_order_id);

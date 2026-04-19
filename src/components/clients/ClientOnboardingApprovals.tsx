@@ -914,14 +914,38 @@ export function ClientOnboardingApprovals() {
     setPhoneEditEnabled(!phone);
     setStateEditEnabled(!state);
     
-    // Pre-check for existing client with same name
-    const existing = await checkExistingClient(approval.client_name);
+    // Hard-lock to resolved_client_id when the DB trigger has already
+    // identified the counterparty as an existing client (nickname / verified-
+    // name / case-insensitive name / phone). This eliminates duplicate
+    // "Known Client" approvals.
+    let existing: ExistingClientMatch | null = null;
+    if (approval.resolved_client_id) {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, name, phone, email, state, client_id, kyc_status, monthly_limit, is_buyer, is_seller, date_of_onboarding, pan_card_number, buying_purpose, current_month_used, risk_appetite, first_order_value, client_type, default_risk_level, assigned_operator')
+        .eq('id', approval.resolved_client_id)
+        .eq('is_deleted', false)
+        .maybeSingle();
+      if (data) {
+        existing = data as ExistingClientMatch;
+        const { data: recentOrders } = await supabase
+          .from('sales_orders')
+          .select('order_number, order_date, total_amount, status, payment_status, quantity, price_per_unit, sale_type, client_phone, client_state')
+          .eq('client_id', data.id)
+          .order('order_date', { ascending: false })
+          .limit(5);
+        setExistingClientTransactions(recentOrders || []);
+      }
+    }
+    if (!existing) {
+      existing = await checkExistingClient(approval.client_name);
+    }
     setExistingClientMatch(existing);
     if (existing) {
       setApprovalMode('merge');
       // Auto-fill monthly limit from existing client if not already provided in the approval
       if (existing.monthly_limit && !approval.proposed_monthly_limit) {
-        setFormData(prev => ({ ...prev, proposed_monthly_limit: existing.monthly_limit!.toString() }));
+        setFormData(prev => ({ ...prev, proposed_monthly_limit: existing!.monthly_limit!.toString() }));
       }
     } else {
       setApprovalMode('normal');

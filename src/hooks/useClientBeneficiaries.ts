@@ -2,6 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { sanitizeNickname } from "@/lib/clientIdentityResolver";
 
+export interface ClientBeneficiaryAddedBank {
+  bank_account_id: string;
+  bank_name: string | null;
+  account_name: string | null;
+  account_number_last4: string | null;
+  added_at: string;
+}
+
 export interface ClientBeneficiary {
   id: string;
   account_holder_name: string | null;
@@ -13,6 +21,7 @@ export interface ClientBeneficiary {
   source_order_number: string | null;
   last_seen_at: string;
   occurrence_count: number;
+  added_to_banks?: ClientBeneficiaryAddedBank[];
 }
 
 function normalizeName(value: string | null | undefined): string | null {

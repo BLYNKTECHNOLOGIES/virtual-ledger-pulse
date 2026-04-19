@@ -14484,6 +14484,19 @@ export type Database = {
         }
         Returns: string
       }
+      create_seller_client_with_evidence: {
+        Args: {
+          p_client_id: string
+          p_name: string
+          p_nickname?: string
+          p_phone?: string
+          p_verified_name?: string
+        }
+        Returns: {
+          client_id: string
+          id: string
+        }[]
+      }
       create_terminal_biometric_session: {
         Args: { p_user_id: string }
         Returns: string

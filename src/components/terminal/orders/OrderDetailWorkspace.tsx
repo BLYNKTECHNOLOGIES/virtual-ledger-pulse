@@ -297,21 +297,21 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
         </div>
       )}
 
-      {/* Approved client risk level */}
-      {riskStyle && (
-        <div className={`rounded-md border px-3 py-2.5 flex items-center justify-between ${riskStyle.className}`}>
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-3.5 w-3.5" />
-            <div className="flex flex-col leading-tight">
-              <span className="text-[11px] font-medium">Client Risk Level</span>
+      {/* Approved client risk level — SELL orders only (counterparty is the buyer/client) */}
+      {riskStyle && order.trade_type === 'SELL' && (
+        <div className={`rounded-md border px-3 py-2.5 flex items-center justify-between gap-2 ${riskStyle.className}`}>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+            <div className="flex flex-col leading-tight min-w-0">
+              <span className="text-[11px] font-medium truncate">Client Risk Level</span>
               {linkedClient?.name && (
-                <span className="text-[10px] opacity-80 truncate max-w-[160px]">
+                <span className="text-[10px] opacity-80 truncate">
                   {linkedClient.name}
                 </span>
               )}
             </div>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wide">
+          <span className="text-[10px] font-semibold uppercase tracking-wide shrink-0 whitespace-nowrap">
             {riskStyle.label}
           </span>
         </div>

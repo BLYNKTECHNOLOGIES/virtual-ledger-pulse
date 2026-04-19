@@ -44,6 +44,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 import {
   CustomerGrowthWidget, RecentOrdersWidget, DailyActivityWidget, QuickStatsWidget,
   ExpenseBreakdownWidget, EarningsRateWidget, ProfitMarginWidget, PerformanceOverviewWidget,
@@ -58,7 +59,8 @@ function WalletBalanceWidgetContent() {
     queryKey: ['dashboard_wallet_balance_widget'],
     queryFn: async () => {
       const data = await fetchActiveWalletsWithLedgerUsdtBalance('id, wallet_name, current_balance');
-      return data || [];
+      // Exclude audit/contra-entry adjustment wallets from totals
+      return (data || []).filter((w: any) => !isAdjustmentWallet(w.wallet_name));
     },
     refetchInterval: 30000,
     staleTime: 10000,

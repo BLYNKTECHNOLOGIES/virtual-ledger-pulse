@@ -7,6 +7,7 @@ import { useClientBeneficiaries } from "@/hooks/useClientBeneficiaries";
 
 interface ClientBeneficiaryDetailsProps {
   clientId: string | undefined;
+  clientName?: string | null;
 }
 
 function maskAccount(acc: string): string {
@@ -21,8 +22,8 @@ function maskOrder(ord: string | null | undefined): string {
   return `…${v.slice(-4)}`;
 }
 
-export function ClientBeneficiaryDetails({ clientId }: ClientBeneficiaryDetailsProps) {
-  const { data: beneficiaries, isLoading } = useClientBeneficiaries(clientId);
+export function ClientBeneficiaryDetails({ clientId, clientName }: ClientBeneficiaryDetailsProps) {
+  const { data: beneficiaries, isLoading } = useClientBeneficiaries(clientId, clientName);
 
   return (
     <Card>

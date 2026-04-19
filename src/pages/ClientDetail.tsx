@@ -116,7 +116,7 @@ export default function ClientDetail() {
       {/* Row 4.5: Beneficiary Bank Details (sellers/composite only) */}
       {(isSeller || showAsSellerOnly || isComposite) && (
         <div className="grid grid-cols-1 gap-6">
-          <ClientBeneficiaryDetails clientId={clientId} />
+          <ClientBeneficiaryDetails clientId={clientId} clientName={client?.name} />
         </div>
       )}
 

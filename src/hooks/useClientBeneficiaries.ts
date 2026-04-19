@@ -140,7 +140,8 @@ export function useClientBeneficiaries(clientId: string | undefined, clientName?
       if (syncErr) throw syncErr;
 
       for (const row of syncRows || []) {
-        const sellerPaymentDetails = row.order_data?.seller_payment_details;
+        const orderData = (row.order_data || {}) as Record<string, any>;
+        const sellerPaymentDetails = (orderData.seller_payment_details || null) as Record<string, any> | null;
         const accountNumber = String(sellerPaymentDetails?.accountNo || "").trim();
         if (!accountNumber || accountNumber.includes("@")) continue;
 

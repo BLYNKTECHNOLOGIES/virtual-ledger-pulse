@@ -346,6 +346,15 @@ export function ClientOnboardingApprovals() {
       }
       for (const c of clientsByName || []) {
         if ((c as any).is_deleted) continue;
+        // Self-match guard: never let a pending approval collide with its own
+        // resolved client stub (those are echoes of this very queue).
+        if (selfClientIds.has(c.id)) continue;
+        // PENDING-only stubs (never approved on either side) are not real
+        // "different person" evidence — they're almost always backlog rows
+        // from the same person awaiting approval. Skip them.
+        const buyerPending = !c.buyer_approval_status || c.buyer_approval_status === 'PENDING' || c.buyer_approval_status === 'NOT_APPLICABLE';
+        const sellerPending = !c.seller_approval_status || c.seller_approval_status === 'PENDING' || c.seller_approval_status === 'NOT_APPLICABLE';
+        if (buyerPending && sellerPending) continue;
         displayNameToClient.set(c.name.trim().toLowerCase(), clientById.get(c.id)!);
       }
 

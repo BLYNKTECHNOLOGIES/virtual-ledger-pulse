@@ -226,39 +226,55 @@ export function SellerOnboardingApprovals() {
     staleTime: 60_000,
     queryFn: async () => {
       const result: Record<string, { verifiedNameClient?: { id: string; name: string }; displayNameClient?: { id: string; name: string } }> = {};
-      const pendingIds = pendingSellers?.map(s => s.id) || [];
+      // Self-match guard: pendingIds above were APPROVAL row ids (not client ids),
+      // so they never excluded the actual self-stub. Use resolved_client_id instead.
+      const selfClientIds = new Set(
+        (pendingSellers || [])
+          .map((s: any) => s.resolved_client_id)
+          .filter((id: any): id is string => typeof id === 'string' && !!id)
+      );
 
       // Verified name match: any other client whose client_verified_names contains this seller's name
       const { data: vnRows } = await supabase
         .from('client_verified_names')
         .select('verified_name, client_id')
         .in('verified_name', sellerNames);
-      const vnIds = Array.from(new Set((vnRows || []).map(r => r.client_id).filter(id => !pendingIds.includes(id))));
+      const vnIds = Array.from(new Set((vnRows || []).map(r => r.client_id).filter(id => !selfClientIds.has(id))));
       let vnClientMap = new Map<string, { id: string; name: string }>();
       if (vnIds.length > 0) {
         const { data: vnClients } = await supabase
           .from('clients')
-          .select('id, name')
+          .select('id, name, buyer_approval_status, seller_approval_status')
           .in('id', vnIds)
           .eq('is_deleted', false);
-        for (const c of vnClients || []) vnClientMap.set(c.id, { id: c.id, name: c.name });
+        for (const c of vnClients || []) {
+          // Skip PENDING-only stubs (never approved on either side) — they are
+          // backlog echoes, not real "known" clients.
+          const buyerPending = !c.buyer_approval_status || c.buyer_approval_status === 'PENDING' || c.buyer_approval_status === 'NOT_APPLICABLE';
+          const sellerPending = !c.seller_approval_status || c.seller_approval_status === 'PENDING' || c.seller_approval_status === 'NOT_APPLICABLE';
+          if (buyerPending && sellerPending) continue;
+          vnClientMap.set(c.id, { id: c.id, name: c.name });
+        }
       }
       for (const row of vnRows || []) {
-        if (pendingIds.includes(row.client_id)) continue;
+        if (selfClientIds.has(row.client_id)) continue;
         const client = vnClientMap.get(row.client_id);
         if (client && !result[row.verified_name]?.verifiedNameClient) {
           result[row.verified_name] = { ...(result[row.verified_name] || {}), verifiedNameClient: client };
         }
       }
 
-      // Display-name collision: another non-pending client with same name (case-insensitive)
+      // Display-name collision: another non-pending, non-self client with same name (case-insensitive)
       const { data: dnClients } = await supabase
         .from('clients')
-        .select('id, name')
+        .select('id, name, buyer_approval_status, seller_approval_status')
         .in('name', sellerNames)
         .eq('is_deleted', false);
       for (const c of dnClients || []) {
-        if (pendingIds.includes(c.id)) continue;
+        if (selfClientIds.has(c.id)) continue;
+        const buyerPending = !c.buyer_approval_status || c.buyer_approval_status === 'PENDING' || c.buyer_approval_status === 'NOT_APPLICABLE';
+        const sellerPending = !c.seller_approval_status || c.seller_approval_status === 'PENDING' || c.seller_approval_status === 'NOT_APPLICABLE';
+        if (buyerPending && sellerPending) continue;
         if (!result[c.name]?.displayNameClient) {
           result[c.name] = { ...(result[c.name] || {}), displayNameClient: { id: c.id, name: c.name } };
         }

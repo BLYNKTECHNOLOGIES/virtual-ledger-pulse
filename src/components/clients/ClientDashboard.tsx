@@ -305,6 +305,12 @@ export function ClientDashboard() {
       
       if (!isSeller) return false;
 
+      // CRITICAL: Sellers with seller_approval_status = PENDING have NOT been through
+      // Seller Approval yet. They must NOT appear in the Client Directory — only in
+      // the Seller Approvals queue. Only APPROVED (or null/NOT_APPLICABLE legacy) sellers
+      // are shown in the directory.
+      if (client.seller_approval_status === 'PENDING') return false;
+
       const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             client.client_id.toLowerCase().includes(searchTerm.toLowerCase());
       if (!matchesSearch) return false;

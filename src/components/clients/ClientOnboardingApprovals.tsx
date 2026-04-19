@@ -1148,20 +1148,40 @@ export function ClientOnboardingApprovals() {
   const pendingApprovals = Array.from(pendingByClient.values());
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
-  // Build nickname-based "Same User" detection across different client names (uses identityMap)
+  // Build nickname-based "Same User" detection — sanitized so 'Unknown' / masked
+  // values can NEVER be grouping keys (these were creating false N-way merges).
   const nicknameGroups = new Map<string, string[]>();
   for (const [nameKey, entry] of pendingByClient) {
     const idInfo = identityMap?.[entry.primary.id];
-    if (idInfo?.nickname) {
-      const existing = nicknameGroups.get(idInfo.nickname) || [];
-      if (!existing.includes(nameKey)) existing.push(nameKey);
-      nicknameGroups.set(idInfo.nickname, existing);
-    }
+    const safeNick = sanitizeNickname(idInfo?.nickname);
+    if (!safeNick) continue;
+    const existing = nicknameGroups.get(safeNick) || [];
+    if (!existing.includes(nameKey)) existing.push(nameKey);
+    nicknameGroups.set(safeNick, existing);
   }
   const sameUserNicknames = new Map<string, string>();
   for (const [nick, nameKeys] of nicknameGroups) {
     if (nameKeys.length > 1) {
       for (const nk of nameKeys) sameUserNicknames.set(nk, nick);
+    }
+  }
+
+  // Secondary grouping by verified KYC name — only for rows with no real nickname.
+  // Two pending approvals sharing the same verified KYC name → legitimate "same user".
+  const vnameGroups = new Map<string, string[]>();
+  for (const [nameKey, entry] of pendingByClient) {
+    const idInfo = identityMap?.[entry.primary.id];
+    if (sanitizeNickname(idInfo?.nickname)) continue; // already handled by nickname grouping
+    const vname = sanitizeVerifiedName(idInfo?.verifiedName);
+    if (!vname) continue;
+    const existing = vnameGroups.get(vname) || [];
+    if (!existing.includes(nameKey)) existing.push(nameKey);
+    vnameGroups.set(vname, existing);
+  }
+  const sameUserVNames = new Map<string, string>();
+  for (const [vn, nameKeys] of vnameGroups) {
+    if (nameKeys.length > 1) {
+      for (const nk of nameKeys) sameUserVNames.set(nk, vn);
     }
   }
 

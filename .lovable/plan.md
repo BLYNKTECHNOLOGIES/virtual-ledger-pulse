@@ -2,89 +2,79 @@
 
 ## Goal
 
-Use Binance **nickname + verified name** as the primary identity signal (instead of just the human name) so that:
+Show on each **Seller / Composite client's detail page** the list of **bank beneficiary records** (from BAMS) that belong to them — automatically resolved via the **Binance nickname link** captured on the order that created the beneficiary. Buyers get a blank/hidden block. No manual mapping UI.
 
-1. In **Buyer/Seller Approvals**, the operator immediately sees whether the pending applicant is *truly* the same person as an existing client, or just a name collision.
-2. In **Terminal Sales / Purchase approvals**, auto-matching to a client never silently merges two different people who happen to share a name.
-3. Every approval row visibly carries the **Binance nickname + verified name** so reviewers can act on identity, not just on the display name.
+## How identity resolution works (no schema changes needed)
 
-## Current gaps (root cause)
+`beneficiary_records` already stores `source_order_number`. From there we can walk to the order and then to the client:
 
-- `client_onboarding_approvals` has no `binance_nickname` / `verified_name` columns. Today the badge "Known Client" is computed at render via a 3-hop join (`sales_order_id → terminal_sales_sync → p2p_order_records → client_binance_nicknames`). Fragile and not visible per-row.
-- `TerminalSalesApprovalDialog` auto-links a client by **name string equality** (line 132). If two clients share a name, it forces manual choice — but if a nickname-linked client exists, that one should *win* and the other warning surfaced.
-- "Known Client" badge today means only "this nickname is in `client_binance_nicknames`". It does not say "approved buyer" vs "approved seller" vs "deleted/rejected" — leading to operator confusion.
+```text
+beneficiary_records.source_order_number
+        │
+        ▼
+binance_order_history.order_number
+        │  (counter_part_nick_name)
+        ▼
+client_binance_nicknames.nickname  →  client_id  →  clients
+```
 
-## Solution
+If the nickname for that order isn't linked to a client yet, the beneficiary simply doesn't appear anywhere — it stays unassigned in BAMS until the nickname gets enriched (via approval or terminal sync). At that point it auto-appears on the client page on next render. **No backfill cron, no manual base system.**
 
-### A. Persist identity on every approval row
+We only resolve via **unmasked nicknames** (already enforced by `sanitizeNickname` — masked `*` values are ignored). Display-name fallback is **not** used here, because beneficiary→client must be a strong link (bank details are sensitive).
 
-Add two columns to `client_onboarding_approvals` (and the seller equivalent):
+## What gets built
 
-- `binance_nickname text` — unmasked nickname from `p2p_order_records`
-- `verified_name text` — KYC verified name from Binance order detail
+### 1. New hook: `useClientBeneficiaries(clientId)`
+File: `src/hooks/useClientBeneficiaries.ts`
 
-Backfill from existing `terminal_sales_sync.order_data` and `p2p_order_records`. Update the trigger that creates approval rows so new approvals always populate both.
+- Step A: fetch all unmasked nicknames for this client from `client_binance_nicknames` (where `is_active=true`).
+- Step B: fetch `binance_order_history` rows where `counter_part_nick_name IN (...nicknames)` and `trade_type='BUY'` (BUY = we bought, seller = this client) — select `order_number`.
+- Step C: fetch `beneficiary_records` where `source_order_number IN (...order numbers)`.
+- Deduplicate by `account_number` (a client may have multiple accounts; same account across many orders = one row, keep latest `last_seen_at`).
+- Returns `{ beneficiaries, isLoading }`.
 
-### B. New 4-state identity match (replaces the single "Known Client" badge)
+If the client has zero linked nicknames → return `[]` immediately.
 
-Computed per pending approval using nickname + verified name first, name only as last resort:
+### 2. New panel component: `ClientBeneficiaryDetails`
+File: `src/components/clients/ClientBeneficiaryDetails.tsx`
 
-| State | Meaning | Badge |
-|---|---|---|
-| `linked_known` | Nickname is already in `client_binance_nicknames` → exact same person | Blue: "Known Client: {name} · @{nick}" |
-| `verified_name_match` | Verified name matches an existing client's `client_verified_names` but nickname not yet linked | Teal: "Same KYC name — link nickname?" |
-| `name_collision` | A client with the same display name exists, but nickname/verified name do NOT match → **different person, same name** | Amber: "⚠ Different person — same name as {existing}" |
-| `new_client` | No match on any signal | Grey: "New Client" |
+Card layout matching existing client-detail panels (`KYCBankInfo` style). For each beneficiary row, display:
 
-This directly answers the user's "two different people, same name" requirement — they will be **visually segregated**.
+- Account holder name
+- Bank name + Account number (masked — show last 4)
+- IFSC, Account type, Opening branch (when present)
+- Small footer: "Captured from order `…1234`" + last seen date
+- Empty state: "No beneficiary bank details captured yet. They will appear automatically once a completed sell order from this client is synced."
 
-### C. Make the badge actionable
+Loading skeleton while fetching.
 
-- Hovering `linked_known` shows: client_id, buyer/seller approval status, risk appetite, last order date.
-- `name_collision` row gets a one-click "Confirm new person" or "This is actually {existing} — link nickname" button. The latter writes to `client_binance_nicknames` so the next order auto-matches correctly.
+### 3. Wire into Client Detail page
+File: `src/pages/ClientDetail.tsx`
 
-### D. Fix terminal approval auto-match precedence
+Add a new row that renders only for sellers and composites:
 
-In `TerminalSalesApprovalDialog` (and the purchase twin), change auto-link priority to:
+```tsx
+{(isSeller || showAsSellerOnly || isComposite) && (
+  <div className="grid grid-cols-1 gap-6">
+    <ClientBeneficiaryDetails clientId={clientId} />
+  </div>
+)}
+```
 
-1. **Nickname link** (`client_binance_nicknames`) — highest trust
-2. **Verified name link** (`client_verified_names`) — KYC trust
-3. **Single exact name match** — only if no nickname/verified-name candidate exists
-4. **Multiple/ambiguous** → force manual selection with a warning banner showing each candidate's nickname so operator picks the right person
+Place it right after the TDS Records row (Row 4) so bank/financial info groups together. **Buyers** (no sell orders) will not see this card at all — matches the "blank space for buyers" requirement.
 
-If steps 1–2 return a client whose name *differs* from the displayed name, show a "Linked by nickname — name on Binance differs" notice so operator confirms intentionally.
+## Edge cases handled
 
-### E. Always show nickname on the approval table
+- **Masked nickname on the order** → that order is filtered at Step B (we query by linked nicknames, which are already unmasked-only).
+- **Beneficiary captured before nickname link existed** → as soon as the nickname gets linked (next approval/sync), the next page load resolves it. No migration needed.
+- **Same account across multiple orders** → deduped by `account_number`, count shown if useful.
+- **Client has multiple Binance nicknames** → all are queried together, all their orders' beneficiaries surface on one page.
+- **Beneficiary belongs to a different person sharing a name** → cannot happen, because we resolve via nickname (unique per Binance account), not by name string.
 
-Add a dedicated **"Binance ID / Nickname"** column to:
+## Out of scope / not built
 
-- Buyer Onboarding Approvals (already partially shown — make it primary, not derived)
-- Seller Onboarding Approvals
-- Terminal Sales Sync table (already shows nickname; add verified_name underneath)
-- Terminal Purchase Sync table (mirror)
-
-Each row shows: `@nickname` (mono) and below it `verified_name` if present. This is the user's "each order also carries the nickname while approval" requirement.
-
-## Files involved
-
-| File | Change |
-|---|---|
-| Migration: `client_onboarding_approvals`, `seller_onboarding_approvals` | Add `binance_nickname`, `verified_name` cols + backfill |
-| Migration: trigger that inserts approval rows | Populate the two new fields |
-| `src/components/clients/ClientOnboardingApprovals.tsx` | New 4-state badge logic, nickname column, "link nickname" action |
-| `src/components/clients/SellerOnboardingApprovals.tsx` | Same as above |
-| `src/components/sales/TerminalSalesApprovalDialog.tsx` | Reorder auto-match: nickname → verified name → name. Warn on cross-name link. |
-| `src/components/purchase/TerminalPurchaseApprovalDialog.tsx` | Mirror the sales-side change |
-| `src/lib/clientIdentityResolver.ts` | Add `resolveApprovalIdentityState()` for the 4-state classification (reuses existing hierarchy) |
-| `src/components/sales/TerminalSalesSyncTab.tsx` + purchase twin | Show verified_name under nickname in the table |
-
-## Out of scope / not changing
-
-- Binance API contract — we only consume `counterparty_nickname` and `buyerRealName` / `sellerRealName` already fetched.
-- No changes to KYC document flow or risk appetite logic.
-- No deletion or merging of existing client records — the operator always confirms.
-
-## Open question (one)
-
-For the **`name_collision` → "This is actually {existing}"** action: should it require a Super Admin / specific permission to link a nickname to a different-named client, or is the regular client-approval permission enough? (Linking writes a nickname row that affects all future auto-matching.)
+- No UI to manually attach/detach a beneficiary from a client (auto-only as requested).
+- No edit of beneficiary fields from the client page (BAMS remains the single edit surface).
+- No "orphaned beneficiaries" view — already visible in BAMS Beneficiary tab.
+- No DB schema change, no new column on `beneficiary_records`.
 

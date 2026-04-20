@@ -354,7 +354,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         }
       );
       if (!clientData?.id) {
-        throw new Error('Failed to create seller client. Check console for details — the insert may have been blocked by a database constraint or duplicate.');
+        throw new Error('Seller client creation returned no record. Please retry or check the database logs.');
       }
       return clientData;
     },

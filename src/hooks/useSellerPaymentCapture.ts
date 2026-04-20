@@ -186,7 +186,7 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
   // Find BUY orders in active states that don't have seller_payment_details yet
   const { data: activeOrders, error } = await supabase
     .from('binance_order_history')
-    .select('order_number, order_status, seller_payment_details')
+    .select('order_number, order_status, seller_payment_details, counter_part_nick_name, verified_name')
     .eq('trade_type', 'BUY')
     .in('order_status', ACTIVE_STATUSES)
     .is('seller_payment_details', null)

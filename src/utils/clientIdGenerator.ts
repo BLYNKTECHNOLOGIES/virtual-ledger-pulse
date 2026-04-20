@@ -184,14 +184,17 @@ export const createSellerClient = async (
         const existing = await findClientByName(supplierName);
         if (existing) return { id: existing.id, client_id: existing.client_id };
       }
-      console.error('Error creating seller client:', error);
-      return null;
+      console.error('Error creating seller client (RPC):', error);
+      const msg = (error as any).message || 'Unknown database error';
+      const code = (error as any).code ? ` [${(error as any).code}]` : '';
+      const details = (error as any).details ? ` — ${(error as any).details}` : '';
+      throw new Error(`DB${code}: ${msg}${details}`);
     }
     const row = Array.isArray(data) ? (data as any[])[0] : data;
     return row ? { id: (row as any).id, client_id: (row as any).client_id } : null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in createSellerClient:', error);
-    return null;
+    throw error;
   }
 };
 

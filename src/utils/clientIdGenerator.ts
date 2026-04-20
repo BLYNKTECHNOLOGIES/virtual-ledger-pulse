@@ -170,14 +170,23 @@ export const createSellerClient = async (
     }
 
     const clientId = await generateUniqueClientId();
+    // Sanitize masked/sentinel values — Binance returns "Unknown", "", or
+    // "Use***" for completed orders. The DB sentinel-guard trigger rejects
+    // these. Fall back to verified_name (KYC-backed, never masked) as the
+    // identity anchor when the nickname is unusable.
+    const isMaskedValue = (v?: string | null) =>
+      !v || !v.trim() || v.includes('*') || v.trim().toLowerCase() === 'unknown';
+    const cleanNickname = isMaskedValue(evidence?.binanceNickname) ? null : evidence!.binanceNickname!.trim();
+    const cleanVerifiedName = isMaskedValue(evidence?.verifiedName) ? null : evidence!.verifiedName!.trim();
+
     // Use atomic RPC that creates client + supporting evidence in a single
     // transaction, satisfying the deferred trg_prevent_ghost_pending_client check.
     const { data, error } = await supabase.rpc('create_seller_client_with_evidence' as any, {
       p_name: supplierName.trim(),
       p_client_id: clientId,
       p_phone: contactNumber || null,
-      p_nickname: evidence?.binanceNickname || null,
-      p_verified_name: evidence?.verifiedName || null,
+      p_nickname: cleanNickname,
+      p_verified_name: cleanVerifiedName,
     });
     if (error) {
       if ((error as any).code === '23505') {

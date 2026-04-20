@@ -221,9 +221,24 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
         _raw_detail: detail,
       };
 
+      // Snapshot live nickname/verified_name back into binance_order_history
+      // BEFORE Binance masks them after order completion. This is the only
+      // window where counter_part_nick_name is reliably available.
+      const liveNickname = detail.counterPartNickName || detail.counterpartyNickname || detail.buyerNickname || detail.sellerNickname || null;
+      const liveVerifiedName = detail.verifiedName || detail.counterPartyVerifiedName || detail.payeeRealName || null;
+      const isMasked = (v: string | null) => !v || v.includes('*') || v.toLowerCase() === 'unknown';
+
+      const orderUpdate: any = { seller_payment_details: paymentDetails };
+      if (!isMasked(liveNickname) && (!(order as any).counter_part_nick_name || isMasked((order as any).counter_part_nick_name))) {
+        orderUpdate.counter_part_nick_name = liveNickname;
+      }
+      if (!isMasked(liveVerifiedName) && (!(order as any).verified_name || isMasked((order as any).verified_name))) {
+        orderUpdate.verified_name = liveVerifiedName;
+      }
+
       const { error: updateErr } = await supabase
         .from('binance_order_history')
-        .update({ seller_payment_details: paymentDetails })
+        .update(orderUpdate)
         .eq('order_number', order.order_number);
 
       if (!updateErr) {

@@ -12,6 +12,7 @@ import InvoiceCreatorPage from './pages/InvoiceCreatorPage';
 import PaymentScreenshotGenerator from './pages/PaymentScreenshotGenerator';
 import UtilityHub from './pages/UtilityHub';
 import Tasks from './pages/Tasks';
+import ErpEntryManager from './pages/ErpEntryManager';
 import Unsubscribe from './pages/Unsubscribe';
 import RaciPage from './pages/RaciPage';
 import { LoginPage } from './components/website/pages/LoginPage';
@@ -388,6 +389,20 @@ const router = createBrowserRouter([
    },
 
 
+    {
+      path: "/erp-entry",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <Layout>
+                <ErpEntryManager />
+              </Layout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
     {
       path: "/risk-management",
       element: (

@@ -53,9 +53,10 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     try {
       const { error } = await supabase.functions.invoke("send-hr-email", {
         body: {
-          to: onboardingData.email,
+          recipientEmail: onboardingData.email,
           subject: `Document Submission Request - ${onboardingData.first_name} ${onboardingData.last_name || ""}`,
-          html: `
+          templateName: "onboarding_document_request",
+          htmlBody: `
             <h2>Document Submission Request</h2>
             <p>Dear ${onboardingData.first_name},</p>
             <p>Welcome! As part of your onboarding process, please submit the following documents at the earliest:</p>

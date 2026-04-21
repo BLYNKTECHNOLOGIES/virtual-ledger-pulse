@@ -26,17 +26,17 @@ function SalarySummaryCard({ employeeId, totalSalary }: { employeeId?: string; t
     queryKey: ["salary-template-info", employeeId],
     queryFn: async () => {
       if (!employeeId) return null;
-      const { data } = await (supabase as any)
-        .from("hr_employee_salary_structures")
-        .select("id, template_id")
-        .eq("employee_id", employeeId)
-        .limit(1)
+      const { data: emp } = await (supabase as any)
+        .from("hr_employees")
+        .select("salary_template_id, salary_structure_template_id")
+        .eq("id", employeeId)
         .maybeSingle();
-      if (!data?.template_id) return null;
+      const tmplId = emp?.salary_template_id || emp?.salary_structure_template_id;
+      if (!tmplId) return null;
       const { data: tmpl } = await (supabase as any)
         .from("hr_salary_templates")
         .select("name")
-        .eq("id", data.template_id)
+        .eq("id", tmplId)
         .maybeSingle();
       return tmpl;
     },

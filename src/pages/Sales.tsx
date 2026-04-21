@@ -202,6 +202,21 @@ export default function Sales() {
     const orderIds = salesOrders.map(o => o.id);
     const orderNumbers = salesOrders.map(o => o.order_number).filter(Boolean);
     const CHUNK = 200;
+
+    // Fallback wallet lookup — in case the embed didn't populate (stale cache, RLS edge cases, etc.)
+    const walletIds = Array.from(new Set(
+      salesOrders.map((o: any) => o.wallet_id).filter(Boolean)
+    ));
+    const walletNameById: Record<string, string> = {};
+    if (walletIds.length > 0) {
+      const { data: walletRows } = await supabase
+        .from('wallets')
+        .select('id, wallet_name')
+        .in('id', walletIds);
+      (walletRows || []).forEach((w: any) => {
+        walletNameById[w.id] = (w.wallet_name || '').trim();
+      });
+    }
     
     let allSplits: any[] = [];
     for (let i = 0; i < orderIds.length; i += CHUNK) {
@@ -294,7 +309,7 @@ export default function Sales() {
         order.client_name,
         order.client_phone || '',
         order.client_state || '',
-        (order as any).wallet?.wallet_name?.trim() || order.platform || '',
+        ((order as any).wallet?.wallet_name?.trim()) || walletNameById[(order as any).wallet_id] || order.platform || '',
         order.total_amount,
         order.quantity || 1,
         order.price_per_unit || order.total_amount,

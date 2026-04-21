@@ -422,6 +422,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         contactNumber || undefined,
         clientState || undefined,
       );
+      if (!clientData?.id) {
+        throw new Error('Failed to create buyer client. Please try selecting an existing client or verify the buyer name.');
+      }
       return clientData;
     },
     onSuccess: (client: any) => {

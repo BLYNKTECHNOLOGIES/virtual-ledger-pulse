@@ -237,7 +237,7 @@ export const createBuyerClient = async (
         .eq('is_deleted', false)
         .eq('phone', contactNumber.trim())
         .limit(1)
-        .single();
+        .maybeSingle();
       if (phoneMatch) {
         return { id: phoneMatch.id, client_id: phoneMatch.client_id };
       }

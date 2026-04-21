@@ -1082,7 +1082,11 @@ export default function EmployeeProfilePage() {
         {activeTab === "Payroll" && (
           <div className="space-y-4">
             {/* Salary Summary Card */}
-            <SalarySummaryCard employeeId={emp?.id} totalSalary={emp?.total_salary} />
+            <SalarySummaryCard
+              totalSalary={emp?.total_salary}
+              salaryTemplateId={emp?.salary_template_id}
+              salaryStructureTemplateId={emp?.salary_structure_template_id}
+            />
 
             <h3 className="text-base font-semibold text-foreground">Payslips</h3>
             {(payslips || []).length === 0 ? (

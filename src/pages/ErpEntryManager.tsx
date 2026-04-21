@@ -169,7 +169,7 @@ export default function ErpEntryManager() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
+    <div className="p-4 md:p-6 space-y-4 w-full">
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

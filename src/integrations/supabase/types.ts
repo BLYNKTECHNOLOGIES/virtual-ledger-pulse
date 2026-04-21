@@ -2710,6 +2710,9 @@ export type Database = {
       erp_product_conversions: {
         Row: {
           actual_execution_rate: number | null
+          actual_fee_amount: number | null
+          actual_fee_asset: string | null
+          actual_quantity_filled: number | null
           actual_usdt_received: number | null
           approved_at: string | null
           approved_by: string | null
@@ -2720,6 +2723,7 @@ export type Database = {
           created_by: string | null
           created_by_name: string | null
           execution_rate_usdt: number | null
+          expected_usdt_value: number | null
           fee_amount: number | null
           fee_asset: string | null
           fee_percentage: number | null
@@ -2752,6 +2756,9 @@ export type Database = {
         }
         Insert: {
           actual_execution_rate?: number | null
+          actual_fee_amount?: number | null
+          actual_fee_asset?: string | null
+          actual_quantity_filled?: number | null
           actual_usdt_received?: number | null
           approved_at?: string | null
           approved_by?: string | null
@@ -2762,6 +2769,7 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string | null
           execution_rate_usdt?: number | null
+          expected_usdt_value?: number | null
           fee_amount?: number | null
           fee_asset?: string | null
           fee_percentage?: number | null
@@ -2794,6 +2802,9 @@ export type Database = {
         }
         Update: {
           actual_execution_rate?: number | null
+          actual_fee_amount?: number | null
+          actual_fee_asset?: string | null
+          actual_quantity_filled?: number | null
           actual_usdt_received?: number | null
           approved_at?: string | null
           approved_by?: string | null
@@ -2804,6 +2815,7 @@ export type Database = {
           created_by?: string | null
           created_by_name?: string | null
           execution_rate_usdt?: number | null
+          expected_usdt_value?: number | null
           fee_amount?: number | null
           fee_asset?: string | null
           fee_percentage?: number | null
@@ -13797,6 +13809,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "wallet_asset_positions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_drift_audit: {
+        Row: {
+          asset_code: string
+          binance_balance: number
+          created_at: string
+          delta: number | null
+          id: string
+          ledger_balance: number
+          notes: string | null
+          severity: string
+          wallet_id: string | null
+        }
+        Insert: {
+          asset_code: string
+          binance_balance: number
+          created_at?: string
+          delta?: number | null
+          id?: string
+          ledger_balance: number
+          notes?: string | null
+          severity?: string
+          wallet_id?: string | null
+        }
+        Update: {
+          asset_code?: string
+          binance_balance?: number
+          created_at?: string
+          delta?: number | null
+          id?: string
+          ledger_balance?: number
+          notes?: string | null
+          severity?: string
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_drift_audit_wallet_id_fkey"
             columns: ["wallet_id"]
             isOneToOne: false
             referencedRelation: "wallets"

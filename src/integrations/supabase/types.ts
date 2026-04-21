@@ -491,6 +491,51 @@ export type Database = {
         }
         Relationships: []
       }
+      adjustment_posting_audit: {
+        Row: {
+          amount: number
+          asset_code: string | null
+          description: string | null
+          id: string
+          notes: string | null
+          posted_at: string
+          posted_by: string | null
+          reference_type: string
+          transaction_type: string
+          wallet_id: string
+          wallet_name: string | null
+          wallet_transaction_id: string | null
+        }
+        Insert: {
+          amount: number
+          asset_code?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          posted_at?: string
+          posted_by?: string | null
+          reference_type: string
+          transaction_type: string
+          wallet_id: string
+          wallet_name?: string | null
+          wallet_transaction_id?: string | null
+        }
+        Update: {
+          amount?: number
+          asset_code?: string | null
+          description?: string | null
+          id?: string
+          notes?: string | null
+          posted_at?: string
+          posted_by?: string | null
+          reference_type?: string
+          transaction_type?: string
+          wallet_id?: string
+          wallet_name?: string | null
+          wallet_transaction_id?: string | null
+        }
+        Relationships: []
+      }
       asset_movement_history: {
         Row: {
           address: string | null

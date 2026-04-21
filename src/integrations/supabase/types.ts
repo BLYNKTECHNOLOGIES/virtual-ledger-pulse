@@ -14959,6 +14959,7 @@ export type Database = {
         Args: { client_name_param: string }
         Returns: undefined
       }
+      next_small_sales_order_number: { Args: never; Returns: string }
       preview_off_market_purchase_order_number: { Args: never; Returns: string }
       preview_off_market_sales_order_number: { Args: never; Returns: string }
       process_payment_gateway_settlement: {

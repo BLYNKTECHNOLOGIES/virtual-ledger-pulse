@@ -295,8 +295,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             },
           });
 
-          // Link ERP user to onboarding record
-          await updateRecord({ erp_user_id: erpUserId });
+          // Log ERP user creation on the audit trail
           await logAudit(recordId, 5, "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
           toast.success("ERP account created & credentials emailed");
         } catch (erpErr: any) {

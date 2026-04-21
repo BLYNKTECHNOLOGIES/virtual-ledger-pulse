@@ -152,16 +152,14 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
           email: r.email,
           phone: r.phone || null,
           gender: r.gender || null,
-          date_of_birth: r.date_of_birth || null,
+          dob: r.date_of_birth || null,
           badge_id: r.essl_badge_id,
           total_salary: r.ctc || 0,
-          date_of_joining: r.date_of_joining,
-          employee_type: r.employee_type || "full_time",
           is_active: true,
           pan_number: docs.pan?.value || null,
-          aadhaar_number: docs.aadhaar?.value || null,
           uan_number: docs.uan?.value || null,
           esi_number: docs.esic?.value || null,
+          additional_info: docs.aadhaar?.value ? { aadhaar_number: docs.aadhaar.value } : null,
         })
         .select("id")
         .single();

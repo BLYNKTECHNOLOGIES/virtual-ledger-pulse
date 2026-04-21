@@ -116,6 +116,7 @@ export default function Purchase() {
               code
             )
           ),
+          wallet:wallets!wallet_id(wallet_name),
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .order('created_at', { ascending: false });
@@ -262,9 +263,11 @@ export default function Purchase() {
       }
 
       // Determine platform label from source
+      // For manual entries, use the actual wallet/platform where USDT was received/deducted
+      const walletPlatform = (order as any).wallet?.wallet_name?.trim();
       const platformLabel = order.source === 'terminal' ? 'Binance P2P' 
         : order.source === 'terminal_small_buys' ? 'Binance P2P (Small Buys)'
-        : order.source === 'manual' ? 'Manual' : (order.source || '');
+        : order.source === 'manual' ? (walletPlatform || 'Manual') : (order.source || '');
 
       // Use splits first, fall back to bank_transactions
       const splits = splitsByOrder[order.id];

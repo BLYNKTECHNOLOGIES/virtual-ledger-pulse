@@ -55,6 +55,8 @@ const availablePermissions = [
   { id: "stock_conversion_create", name: "Stock Conversion Create", description: "Create stock/product conversions" },
   { id: "utility_view", name: "Utility View", description: "View utility tools and features" },
   { id: "utility_manage", name: "Utility Manage", description: "Manage utility tools and settings" },
+  { id: "erp_entry_view", name: "ERP Entry View", description: "View the ERP Entry unified pending feed" },
+  { id: "erp_entry_manage", name: "ERP Entry Manage", description: "Approve, reject, and trigger syncs from ERP Entry" },
 ];
 
 export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {

@@ -45,7 +45,8 @@ export function usePermissions() {
           'clients_destructive', 'stock_destructive',
            'shift_reconciliation_create', 'shift_reconciliation_approve',
            'utility_view', 'utility_manage',
-           'tasks_view', 'tasks_manage'
+           'tasks_view', 'tasks_manage',
+           'erp_entry_view', 'erp_entry_manage'
          ];
         setPermissions(adminPermissions);
         return;
@@ -84,7 +85,8 @@ export function usePermissions() {
              'clients_destructive', 'stock_destructive',
              'shift_reconciliation_create', 'shift_reconciliation_approve',
              'utility_view', 'utility_manage',
-             'tasks_view', 'tasks_manage'
+             'tasks_view', 'tasks_manage',
+             'erp_entry_view', 'erp_entry_manage'
            ];
           setPermissions(adminPermissions);
         } else {

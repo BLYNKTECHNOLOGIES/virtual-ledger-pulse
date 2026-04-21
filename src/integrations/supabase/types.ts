@@ -2831,6 +2831,7 @@ export type Database = {
           actual_usdt_received: number | null
           approved_at: string | null
           approved_by: string | null
+          approved_by_name: string | null
           asset_code: string
           binance_transfer_id: string | null
           cost_out_usdt: number | null
@@ -2862,6 +2863,7 @@ export type Database = {
           reference_no: string | null
           rejected_at: string | null
           rejected_by: string | null
+          rejected_by_name: string | null
           rejection_reason: string | null
           side: string
           source: string | null
@@ -2877,6 +2879,7 @@ export type Database = {
           actual_usdt_received?: number | null
           approved_at?: string | null
           approved_by?: string | null
+          approved_by_name?: string | null
           asset_code: string
           binance_transfer_id?: string | null
           cost_out_usdt?: number | null
@@ -2908,6 +2911,7 @@ export type Database = {
           reference_no?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
+          rejected_by_name?: string | null
           rejection_reason?: string | null
           side: string
           source?: string | null
@@ -2923,6 +2927,7 @@ export type Database = {
           actual_usdt_received?: number | null
           approved_at?: string | null
           approved_by?: string | null
+          approved_by_name?: string | null
           asset_code?: string
           binance_transfer_id?: string | null
           cost_out_usdt?: number | null
@@ -2954,6 +2959,7 @@ export type Database = {
           reference_no?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
+          rejected_by_name?: string | null
           rejection_reason?: string | null
           side?: string
           source?: string | null

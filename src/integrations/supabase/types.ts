@@ -2703,6 +2703,7 @@ export type Database = {
         Row: {
           acknowledged_at: string | null
           acknowledged_by: string | null
+          asset_code: string | null
           calculated_balance: number | null
           created_at: string | null
           drift: number
@@ -2710,13 +2711,17 @@ export type Database = {
           entity_name: string | null
           entity_type: string
           id: string
+          metadata: Json | null
+          resolved_at: string | null
           severity: string
           snapshot_id: string | null
+          source: string
           tracked_balance: number | null
         }
         Insert: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          asset_code?: string | null
           calculated_balance?: number | null
           created_at?: string | null
           drift: number
@@ -2724,13 +2729,17 @@ export type Database = {
           entity_name?: string | null
           entity_type: string
           id?: string
+          metadata?: Json | null
+          resolved_at?: string | null
           severity?: string
           snapshot_id?: string | null
+          source?: string
           tracked_balance?: number | null
         }
         Update: {
           acknowledged_at?: string | null
           acknowledged_by?: string | null
+          asset_code?: string | null
           calculated_balance?: number | null
           created_at?: string | null
           drift?: number
@@ -2738,8 +2747,11 @@ export type Database = {
           entity_name?: string | null
           entity_type?: string
           id?: string
+          metadata?: Json | null
+          resolved_at?: string | null
           severity?: string
           snapshot_id?: string | null
+          source?: string
           tracked_balance?: number | null
         }
         Relationships: [
@@ -14941,6 +14953,15 @@ export type Database = {
       get_wallet_calculated_balances: {
         Args: never
         Returns: {
+          calculated_balance: number
+          wallet_id: string
+          wallet_name: string
+        }[]
+      }
+      get_wallet_calculated_balances_per_asset: {
+        Args: never
+        Returns: {
+          asset_code: string
           calculated_balance: number
           wallet_id: string
           wallet_name: string

@@ -215,7 +215,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         await supabase.from("hr_employee_bank_details").insert({
           employee_id: emp.id,
           account_number: docs.bank_details.value,
-          is_primary: true,
         });
       }
 

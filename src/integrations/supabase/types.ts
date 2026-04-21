@@ -2628,6 +2628,64 @@ export type Database = {
           },
         ]
       }
+      erp_balance_baseline: {
+        Row: {
+          asset_code: string | null
+          bank_account_id: string | null
+          baseline_at: string
+          baseline_balance: number
+          id: string
+          notes: string | null
+          scope: string
+          set_by: string | null
+          wallet_id: string | null
+        }
+        Insert: {
+          asset_code?: string | null
+          bank_account_id?: string | null
+          baseline_at?: string
+          baseline_balance: number
+          id?: string
+          notes?: string | null
+          scope: string
+          set_by?: string | null
+          wallet_id?: string | null
+        }
+        Update: {
+          asset_code?: string | null
+          bank_account_id?: string | null
+          baseline_at?: string
+          baseline_balance?: number
+          id?: string
+          notes?: string | null
+          scope?: string
+          set_by?: string | null
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "erp_balance_baseline_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: true
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_balance_baseline_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: true
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "erp_balance_baseline_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       erp_balance_snapshot_lines: {
         Row: {
           asset_code: string | null
@@ -14180,6 +14238,35 @@ export type Database = {
         }
         Relationships: []
       }
+      erp_balance_drift_report: {
+        Row: {
+          asset_code: string | null
+          cached_balance: number | null
+          drift: number | null
+          entity_id: string | null
+          entity_name: string | null
+          last_txn_at: string | null
+          ledger_balance: number | null
+          scope: string | null
+        }
+        Relationships: []
+      }
+      erp_post_baseline_drift: {
+        Row: {
+          asset_code: string | null
+          baseline_at: string | null
+          baseline_balance: number | null
+          cached_balance: number | null
+          drift: number | null
+          entity_id: string | null
+          entity_name: string | null
+          last_txn_at: string | null
+          ledger_balance: number | null
+          scope: string | null
+          status: string | null
+        }
+        Relationships: []
+      }
       hr_monthly_hours_summary: {
         Row: {
           absent_days: number | null
@@ -15015,6 +15102,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      heal_all_balance_caches: {
+        Args: never
+        Returns: {
+          asset_code: string
+          drift: number
+          entity_id: string
+          new_balance: number
+          old_balance: number
+          scope: string
+        }[]
+      }
       initiate_shift_handover:
         | {
             Args: {
@@ -15238,6 +15336,13 @@ export type Database = {
           p_role_id?: string
         }
         Returns: string
+      }
+      set_balance_baseline: {
+        Args: { _notes?: string }
+        Returns: {
+          count: number
+          scope: string
+        }[]
       }
       set_terminal_user_status: {
         Args: { p_status: string; p_user_id: string }

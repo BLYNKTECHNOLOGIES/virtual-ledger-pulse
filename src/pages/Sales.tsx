@@ -309,7 +309,7 @@ export default function Sales() {
         order.client_name,
         order.client_phone || '',
         order.client_state || '',
-        (order as any).wallet?.wallet_name?.trim() || order.platform || '',
+        ((order as any).wallet?.wallet_name?.trim()) || walletNameById[(order as any).wallet_id] || order.platform || '',
         order.total_amount,
         order.quantity || 1,
         order.price_per_unit || order.total_amount,

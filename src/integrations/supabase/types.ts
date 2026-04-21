@@ -14452,6 +14452,20 @@ export type Database = {
         }
         Returns: Json
       }
+      create_buyer_client_with_evidence: {
+        Args: {
+          p_client_id: string
+          p_name: string
+          p_order_amount?: number
+          p_order_date?: string
+          p_phone?: string
+          p_sales_order_id?: string
+        }
+        Returns: {
+          client_id: string
+          id: string
+        }[]
+      }
       create_inactive_assignee_notification: {
         Args: {
           p_message: string

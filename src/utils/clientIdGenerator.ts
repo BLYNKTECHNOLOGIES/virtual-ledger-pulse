@@ -243,36 +243,31 @@ export const createBuyerClient = async (
       }
     }
     const clientId = await generateUniqueClientId();
-    const { data, error } = await supabase
-      .from('clients')
-      .insert({
-        name: buyerName.trim(),
-        client_id: clientId,
-        client_type: 'BUYER',
-        kyc_status: 'PENDING',
-        date_of_onboarding: new Date().toISOString().split('T')[0],
-        phone: contactNumber || null,
-        state: null,  // ALWAYS null — state must be entered manually during Buyer Approval
-        risk_appetite: 'STANDARD',
-        is_buyer: true,
-        is_seller: false,
-        buyer_approval_status: 'PENDING',
-        seller_approval_status: 'NOT_APPLICABLE',
-      })
-      .select('id, client_id')
-      .single();
+    // Use atomic RPC that creates client + onboarding-approval evidence row in a
+    // single transaction, satisfying the deferred trg_prevent_ghost_pending_client check.
+    const { data, error } = await supabase.rpc('create_buyer_client_with_evidence' as any, {
+      p_name: buyerName.trim(),
+      p_client_id: clientId,
+      p_phone: contactNumber || null,
+      p_order_amount: 0,
+      p_order_date: new Date().toISOString().split('T')[0],
+      p_sales_order_id: null,
+    });
     if (error) {
-      // Handle race condition: unique constraint violation means another request created it
-      if (error.code === '23505') {
+      if ((error as any).code === '23505') {
         const existing = await findClientByName(buyerName);
         if (existing) return { id: existing.id, client_id: existing.client_id };
       }
-      console.error('Error creating buyer client:', error);
-      return null;
+      console.error('Error creating buyer client (RPC):', error);
+      const msg = (error as any).message || 'Unknown database error';
+      const code = (error as any).code ? ` [${(error as any).code}]` : '';
+      const details = (error as any).details ? ` — ${(error as any).details}` : '';
+      throw new Error(`DB${code}: ${msg}${details}`);
     }
-    return data;
-  } catch (error) {
+    const row = Array.isArray(data) ? (data as any[])[0] : data;
+    return row ? { id: (row as any).id, client_id: (row as any).client_id } : null;
+  } catch (error: any) {
     console.error('Error in createBuyerClient:', error);
-    return null;
+    throw error;
   }
 };

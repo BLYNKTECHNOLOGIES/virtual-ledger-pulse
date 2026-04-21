@@ -9,7 +9,7 @@ import { EntryFilters, SourceFilter } from "@/components/erp-entry/EntryFilters"
 import { EntryRow } from "@/components/erp-entry/EntryRow";
 import { SyncAllButton } from "@/components/erp-entry/SyncAllButton";
 import { SyncSmallMenu } from "@/components/erp-entry/SyncSmallMenu";
-import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // Reused dialogs — same components used by their original tabs
 import { ActionSelectionDialog } from "@/components/dashboard/erp-actions/ActionSelectionDialog";
@@ -39,7 +39,8 @@ function dayLabel(bucket: number) {
 
 export default function ErpEntryManager() {
   const navigate = useNavigate();
-  const { hasAccess, isLoading: accessLoading } = useErpReconciliationAccess();
+  const { hasAnyPermission, isLoading: accessLoading } = usePermissions();
+  const hasAccess = hasAnyPermission(["erp_entry_view", "erp_entry_manage"]);
   const { data: rows = [], isLoading } = useErpEntryFeed();
   const { toast } = useToast();
   const rejectQueue = useRejectQueueItem();
@@ -158,7 +159,7 @@ export default function ErpEntryManager() {
             <h2 className="text-lg font-semibold">Access Restricted</h2>
             <p className="text-sm text-muted-foreground">
               You don't have permission to view ERP Entry Manager. Contact your administrator to request the
-              <code className="mx-1 rounded bg-muted px-1">erp_reconciliation</code> function.
+              <code className="mx-1 rounded bg-muted px-1">erp_entry_view</code> permission.
             </p>
             <Button variant="outline" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
           </CardContent>

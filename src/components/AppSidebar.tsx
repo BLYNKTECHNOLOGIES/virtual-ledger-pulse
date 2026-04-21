@@ -31,7 +31,7 @@ const standaloneItems: SidebarGroupItem[] = [
     icon: Inbox,
     color: "text-sky-600",
     bgColor: "bg-sky-100",
-    permissions: ["dashboard_view"]
+    permissions: ["erp_entry_view", "erp_entry_manage"]
   },
   {
     id: "stock",

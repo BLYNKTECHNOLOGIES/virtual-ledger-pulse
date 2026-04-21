@@ -165,6 +165,13 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
       { id: 'tasks_manage', name: 'Manage', description: 'Manage tasks', tier: 'manage' },
     ],
   },
+  erp_entry: {
+    label: 'ERP Entry',
+    permissions: [
+      { id: 'erp_entry_view', name: 'View', description: 'View ERP Entry feed', tier: 'view' },
+      { id: 'erp_entry_manage', name: 'Manage', description: 'Approve, reject, and trigger syncs from ERP Entry', tier: 'manage' },
+    ],
+  },
   destructive: {
     label: 'Destructive Actions',
     permissions: [

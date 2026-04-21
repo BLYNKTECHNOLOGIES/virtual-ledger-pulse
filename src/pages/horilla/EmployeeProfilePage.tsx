@@ -21,32 +21,32 @@ const TABS = [
 ];
 
 // ─── Salary Summary Card ───
-function SalarySummaryCard({ employeeId, totalSalary }: { employeeId?: string; totalSalary?: number }) {
+function SalarySummaryCard({
+  totalSalary,
+  salaryTemplateId,
+  salaryStructureTemplateId,
+}: {
+  totalSalary?: number;
+  salaryTemplateId?: string | null;
+  salaryStructureTemplateId?: string | null;
+}) {
+  const resolvedTemplateId = salaryStructureTemplateId || salaryTemplateId;
+
   const { data: templateInfo } = useQuery({
-    queryKey: ["salary-template-info", employeeId],
+    queryKey: ["salary-template-info", resolvedTemplateId],
     queryFn: async () => {
-      if (!employeeId) return null;
-
-      const { data: emp, error: empError } = await (supabase as any)
-        .from("hr_employees")
-        .select("salary_template_id, salary_structure_template_id")
-        .eq("id", employeeId)
-        .maybeSingle();
-      if (empError) throw empError;
-
-      const tmplId = emp?.salary_structure_template_id || emp?.salary_template_id;
-      if (!tmplId) return null;
+      if (!resolvedTemplateId) return null;
 
       const { data: tmpl, error: tmplError } = await (supabase as any)
         .from("hr_salary_structure_templates")
         .select("name")
-        .eq("id", tmplId)
+        .eq("id", resolvedTemplateId)
         .maybeSingle();
       if (tmplError) throw tmplError;
 
       return tmpl;
     },
-    enabled: !!employeeId,
+    enabled: !!resolvedTemplateId,
   });
 
   const ctc = totalSalary || 0;
@@ -1082,7 +1082,11 @@ export default function EmployeeProfilePage() {
         {activeTab === "Payroll" && (
           <div className="space-y-4">
             {/* Salary Summary Card */}
-            <SalarySummaryCard employeeId={emp?.id} totalSalary={emp?.total_salary} />
+            <SalarySummaryCard
+              totalSalary={emp?.total_salary}
+              salaryTemplateId={emp?.salary_template_id}
+              salaryStructureTemplateId={emp?.salary_structure_template_id}
+            />
 
             <h3 className="text-base font-semibold text-foreground">Payslips</h3>
             {(payslips || []).length === 0 ? (

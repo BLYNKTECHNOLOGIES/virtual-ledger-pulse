@@ -75,12 +75,10 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           .single();
         if (!productRow) throw new Error(`Product not found for asset: ${assetCode}`);
 
-        const { count } = await supabase
-          .from('small_sales_sync')
-          .select('id', { count: 'exact', head: true })
-          .eq('sync_status', 'approved');
-        const seqNum = (count || 0) + 1;
-        const orderNumber = `SM${String(seqNum).padStart(5, '0')}`;
+        const { data: nextOrderNum, error: orderNumErr } = await supabase
+          .rpc('next_small_sales_order_number');
+        if (orderNumErr || !nextOrderNum) throw orderNumErr || new Error('Failed to generate order number');
+        const orderNumber = nextOrderNum as string;
 
         const selectedMethod = paymentMethods?.find(m => m.id === paymentMethodId);
         if (!selectedMethod) throw new Error('Selected payment method was not found');

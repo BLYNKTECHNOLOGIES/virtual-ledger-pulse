@@ -1,0 +1,297 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Inbox } from "lucide-react";
+import { useErpEntryFeed, ErpEntryRow, ErpEntrySource } from "@/hooks/useErpEntryFeed";
+import { EntryFilters, SourceFilter } from "@/components/erp-entry/EntryFilters";
+import { EntryRow } from "@/components/erp-entry/EntryRow";
+import { SyncAllButton } from "@/components/erp-entry/SyncAllButton";
+import { SyncSmallMenu } from "@/components/erp-entry/SyncSmallMenu";
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+
+// Reused dialogs — same components used by their original tabs
+import { ActionSelectionDialog } from "@/components/dashboard/erp-actions/ActionSelectionDialog";
+import { TerminalPurchaseApprovalDialog } from "@/components/purchase/TerminalPurchaseApprovalDialog";
+import { TerminalSalesApprovalDialog } from "@/components/sales/TerminalSalesApprovalDialog";
+import { SmallBuysApprovalDialog } from "@/components/purchase/SmallBuysApprovalDialog";
+import { SmallSalesApprovalDialog } from "@/components/sales/SmallSalesApprovalDialog";
+import { ConversionApprovalDialog } from "@/components/stock/conversion/ConversionApprovalDialog";
+
+import { useRejectQueueItem } from "@/hooks/useErpActionQueue";
+import { useRejectConversion } from "@/hooks/useProductConversions";
+import { useToast } from "@/hooks/use-toast";
+
+function dayBucket(ts: number) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+function dayLabel(bucket: number) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = (today.getTime() - bucket) / (24 * 60 * 60 * 1000);
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  return new Date(bucket).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export default function ErpEntryManager() {
+  const navigate = useNavigate();
+  const { hasAccess, isLoading: accessLoading } = useErpReconciliationAccess();
+  const { data: rows = [], isLoading } = useErpEntryFeed();
+  const { toast } = useToast();
+  const rejectQueue = useRejectQueueItem();
+  const rejectConversion = useRejectConversion();
+
+  const [filter, setFilter] = useState<SourceFilter>("all");
+  const [search, setSearch] = useState("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc"); // oldest pending at top per requirement
+  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [activeRow, setActiveRow] = useState<ErpEntryRow | null>(null);
+
+  // Counts per source for chip badges
+  const counts = useMemo(() => {
+    const c: Record<SourceFilter, number> = {
+      all: rows.length,
+      deposit: 0,
+      withdrawal: 0,
+      terminal_buy: 0,
+      terminal_sale: 0,
+      small_buys: 0,
+      small_sales: 0,
+      conversion: 0,
+    };
+    for (const r of rows) c[r.source]++;
+    return c;
+  }, [rows]);
+
+  // Filter + search + sort
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let out = rows.filter((r) => filter === "all" || r.source === filter);
+    if (q) {
+      out = out.filter((r) =>
+        [r.label, r.sublabel, r.asset, String(r.amount), r.raw?.binance_order_number, r.raw?.tx_id, r.raw?.reference_no, r.raw?.counterparty_name]
+          .filter(Boolean)
+          .some((v: any) => String(v).toLowerCase().includes(q))
+      );
+    }
+    out.sort((a, b) => (sortDir === "asc" ? a.occurred_at - b.occurred_at : b.occurred_at - a.occurred_at));
+    return out;
+  }, [rows, filter, search, sortDir]);
+
+  // Group by day for sticky separators
+  const grouped = useMemo(() => {
+    const map = new Map<number, ErpEntryRow[]>();
+    for (const r of visible) {
+      const k = dayBucket(r.occurred_at);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(r);
+    }
+    return Array.from(map.entries()); // already in visible order
+  }, [visible]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (activeRow) return; // don't interfere when a dialog is open
+      if (!visible.length) return;
+      const idx = Math.max(0, visible.findIndex((r) => r.id === focusedId));
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = visible[Math.min(visible.length - 1, idx + 1)];
+        setFocusedId(next.id);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prev = visible[Math.max(0, idx - 1)];
+        setFocusedId(prev.id);
+      } else if (e.key === "Enter" && focusedId) {
+        const row = visible.find((r) => r.id === focusedId);
+        if (row) setActiveRow(row);
+      } else if ((e.key === "r" || e.key === "R") && focusedId) {
+        const row = visible.find((r) => r.id === focusedId);
+        if (row) handleReject(row);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible, focusedId, activeRow]);
+
+  function handleReject(row: ErpEntryRow) {
+    if (row.source === "deposit" || row.source === "withdrawal") {
+      const reason = window.prompt("Reject this Binance movement?\nOptional reason:");
+      if (reason === null) return;
+      rejectQueue.mutate(
+        { id: row.raw.id, reason: reason || undefined },
+        {
+          onSuccess: () => toast({ title: "Rejected", description: "Movement removed from queue." }),
+        }
+      );
+      return;
+    }
+    if (row.source === "conversion") {
+      const reason = window.prompt("Reject this conversion?\nOptional reason:");
+      if (reason === null) return;
+      rejectConversion.mutate({ conversionId: row.raw.id, reason: reason || undefined });
+      return;
+    }
+    // Terminal Buy/Sale and Small batches: open the source dialog where reject lives
+    setActiveRow(row);
+  }
+
+  if (accessLoading) {
+    return (
+      <div className="p-6 space-y-3">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-8 text-center space-y-2">
+            <h2 className="text-lg font-semibold">Access Restricted</h2>
+            <p className="text-sm text-muted-foreground">
+              You don't have permission to view ERP Entry Manager. Contact your administrator to request the
+              <code className="mx-1 rounded bg-muted px-1">erp_reconciliation</code> function.
+            </p>
+            <Button variant="outline" onClick={() => navigate("/dashboard")}>Back to Dashboard</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 md:p-6 space-y-4 max-w-6xl mx-auto">
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10">
+                <Inbox className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-base">ERP Entry Manager</CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Unified chronological feed of every pending ERP entry
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <SyncSmallMenu />
+              <SyncAllButton />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <EntryFilters
+            filter={filter}
+            onFilterChange={setFilter}
+            search={search}
+            onSearchChange={setSearch}
+            sortDir={sortDir}
+            onToggleSort={() => setSortDir((s) => (s === "asc" ? "desc" : "asc"))}
+            counts={counts}
+          />
+
+          <div className="mt-4 text-xs text-muted-foreground">
+            {isLoading ? "Loading…" : `${visible.length} entr${visible.length === 1 ? "y" : "ies"} shown`}
+            {" · "}auto-refresh every 30s · ↑/↓ navigate · Enter open · R reject
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            No pending entries. All caught up.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {grouped.map(([bucket, items]) => (
+            <div key={bucket} className="space-y-2">
+              <div className="sticky top-0 z-10 -mx-1 bg-background/95 backdrop-blur px-1 py-1 text-xs font-medium text-muted-foreground">
+                {dayLabel(bucket)} · {items.length}
+              </div>
+              <div className="space-y-2">
+                {items.map((row) => (
+                  <EntryRow
+                    key={row.id}
+                    row={row}
+                    isFocused={row.id === focusedId}
+                    onFocus={() => setFocusedId(row.id)}
+                    onOpen={() => setActiveRow(row)}
+                    onReject={() => handleReject(row)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Source-specific dialogs — exact same components used by the original tabs */}
+      {activeRow?.source === "deposit" || activeRow?.source === "withdrawal" ? (
+        <ActionSelectionDialog
+          item={activeRow.raw}
+          open={true}
+          onOpenChange={(o) => { if (!o) setActiveRow(null); }}
+        />
+      ) : null}
+
+      {activeRow?.source === "terminal_buy" && (
+        <TerminalPurchaseApprovalDialog
+          open={true}
+          onOpenChange={(o) => { if (!o) setActiveRow(null); }}
+          syncRecord={activeRow.raw}
+          onSuccess={() => setActiveRow(null)}
+        />
+      )}
+
+      {activeRow?.source === "terminal_sale" && (
+        <TerminalSalesApprovalDialog
+          open={true}
+          onOpenChange={(o) => { if (!o) setActiveRow(null); }}
+          syncRecord={activeRow.raw}
+          onSuccess={() => setActiveRow(null)}
+        />
+      )}
+
+      {activeRow?.source === "small_buys" && (
+        <SmallBuysApprovalDialog
+          open={true}
+          onOpenChange={(o) => { if (!o) setActiveRow(null); }}
+          record={activeRow.raw}
+        />
+      )}
+
+      {activeRow?.source === "small_sales" && (
+        <SmallSalesApprovalDialog
+          open={true}
+          onOpenChange={(o) => { if (!o) setActiveRow(null); }}
+          record={activeRow.raw}
+        />
+      )}
+
+      {activeRow?.source === "conversion" && (
+        <ConversionApprovalDialog
+          record={activeRow.raw}
+          onClose={() => setActiveRow(null)}
+        />
+      )}
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
+import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
 export function ProductCardListingTab() {
   const [searchQuery, setSearchQuery] = useState("");

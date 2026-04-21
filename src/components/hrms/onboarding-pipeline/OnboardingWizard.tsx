@@ -63,9 +63,17 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
   const updateRecord = async (updates: any) => {
     if (!recordId) return;
+
+    const normalizedUpdates = {
+      ...updates,
+      reporting_manager_id: updates.reporting_manager_id || null,
+      erp_role_id: updates.create_erp_account ? (updates.erp_role_id || null) : null,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error } = await supabase
       .from("hr_employee_onboarding")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update(normalizedUpdates)
       .eq("id", recordId);
     if (error) throw error;
   };
@@ -194,7 +202,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       await supabase.from("hr_employee_work_info").insert({
         employee_id: emp.id,
         department_id: r.department_id || null,
-        position_id: r.position_id || null,
+        job_position_id: r.position_id || null,
         shift_id: r.shift_id || null,
         joining_date: r.date_of_joining,
         employee_type: r.employee_type || "full_time",
@@ -207,7 +215,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         await supabase.from("hr_employee_bank_details").insert({
           employee_id: emp.id,
           account_number: docs.bank_details.value,
-          is_primary: true,
         });
       }
 
@@ -288,8 +295,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             },
           });
 
-          // Link ERP user to onboarding record
-          await updateRecord({ erp_user_id: erpUserId });
+          // Log ERP user creation on the audit trail
           await logAudit(recordId, 5, "erp_account_created", { erp_user_id: erpUserId, username: erpUsername });
           toast.success("ERP account created & credentials emailed");
         } catch (erpErr: any) {

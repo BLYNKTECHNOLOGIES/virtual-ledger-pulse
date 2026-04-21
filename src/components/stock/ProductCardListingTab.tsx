@@ -14,6 +14,7 @@ import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
+import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
 export function ProductCardListingTab() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,20 +60,30 @@ export function ProductCardListingTab() {
     },
   });
 
-  // Combine products with stock data
+  // Combine products with stock data — exclude the Balance Adjustment Wallet
+  // everywhere except the Wallets tab in Stock Management.
   const combinedProducts = allProducts?.map(product => {
     const stockInfo = productsWithStock?.find(p => p.product_code === product.code);
-    const rawStock = stockInfo?.total_stock || 0;
-    const clampedStock = Math.abs(rawStock) < 1e-10 ? 0 : Math.max(0, rawStock);
+
+    const filteredWalletStocks = (stockInfo?.wallet_stocks || [])
+      .filter(w => !isAdjustmentWallet(w.wallet_name))
+      .map(w => ({
+        ...w,
+        balance: Math.abs(w.balance) < 1e-10 ? 0 : w.balance,
+      }));
+
+    // Recompute totals from filtered wallets so adjustment wallet
+    // doesn't inflate stock / holdings value shown on the card.
+    const recomputedStock = filteredWalletStocks.reduce((s, w) => s + (w.balance || 0), 0);
+    const recomputedValue = filteredWalletStocks.reduce((s, w) => s + (w.value || 0), 0);
+    const clampedStock = Math.abs(recomputedStock) < 1e-10 ? 0 : Math.max(0, recomputedStock);
+
     return {
       ...product,
       total_stock: clampedStock,
       average_cost: stockInfo?.average_cost || 0,
-      total_value: clampedStock === 0 ? 0 : (stockInfo?.total_value || 0),
-      wallet_stocks: (stockInfo?.wallet_stocks || []).map(w => ({
-        ...w,
-        balance: Math.abs(w.balance) < 1e-10 ? 0 : w.balance,
-      }))
+      total_value: clampedStock === 0 ? 0 : recomputedValue,
+      wallet_stocks: filteredWalletStocks,
     };
   }) || [];
 

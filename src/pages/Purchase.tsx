@@ -262,12 +262,9 @@ export default function Purchase() {
         effectivePriceUsdt = usdtEquivQty > 0 ? totalAmountInr / usdtEquivQty : pricePerUnit;
       }
 
-      // Determine platform label from source
-      // For manual entries, use the actual wallet/platform where USDT was received/deducted
+      // Always use the actual wallet name as the platform — no synthetic labels.
       const walletPlatform = (order as any).wallet?.wallet_name?.trim();
-      const platformLabel = order.source === 'terminal' ? 'Binance P2P' 
-        : order.source === 'terminal_small_buys' ? 'Binance P2P (Small Buys)'
-        : order.source === 'manual' ? (walletPlatform || 'Manual') : (order.source || '');
+      const platformLabel = walletPlatform || '';
 
       // Use splits first, fall back to bank_transactions
       const splits = splitsByOrder[order.id];

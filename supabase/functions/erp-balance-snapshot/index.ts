@@ -74,7 +74,19 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Per-asset wallet calculated balances (Layer 2)
+    const { data: walletAssetCalcRows } = await supabase.rpc(
+      "get_wallet_calculated_balances_per_asset"
+    );
+    const walletAssetCalcMap = new Map<string, number>();
+    if (walletAssetCalcRows) {
+      for (const r of walletAssetCalcRows as any[]) {
+        walletAssetCalcMap.set(`${r.wallet_id}::${r.asset_code}`, Number(r.calculated_balance));
+      }
+    }
+
     for (const wa of walletAssets || []) {
+      const calcKey = `${wa.wallet_id}::${wa.asset_code}`;
       lines.push({
         snapshot_id: snapshotId,
         entity_type: "WALLET_ASSET",
@@ -82,7 +94,9 @@ Deno.serve(async (req) => {
         entity_name: walletNameMap.get(wa.wallet_id) || null,
         asset_code: wa.asset_code,
         tracked_balance: Number(wa.balance || 0),
-        calculated_balance: null, // Per-asset calculated not available from summary RPC
+        calculated_balance: walletAssetCalcMap.has(calcKey)
+          ? walletAssetCalcMap.get(calcKey)!
+          : null,
         metadata: {
           total_received: wa.total_received,
           total_sent: wa.total_sent,
@@ -269,6 +283,77 @@ Deno.serve(async (req) => {
       .from("erp_balance_snapshots")
       .update({ summary })
       .eq("id", snapshotId);
+
+    // ═══════════════════════════════════════════════════
+    // 9b. DRIFT ALERTS — Layer 2: emit + auto-resolve
+    // ═══════════════════════════════════════════════════
+    // Adjustment-bucket exclusion: never alert on the audit contra-wallet
+    const ADJUSTMENT_WALLET_ID = "1ef0342f-b0ee-41c5-b3c1-8f589696ad0b";
+
+    const thresholdFor = (assetCode: string | null): number => {
+      const a = (assetCode || "").toUpperCase();
+      if (a === "USDT" || a === "USDC" || a === "FDUSD") return 1;
+      if (a === "INR") return 10;
+      if (a === "BTC") return 0.0001;
+      return 0.001;
+    };
+
+    const driftLines = lines.filter((l) => {
+      if (l.calculated_balance === null) return false;
+      if (l.entity_id === ADJUSTMENT_WALLET_ID) return false;
+      const threshold =
+        l.entity_type === "BANK_ACCOUNT"
+          ? 10
+          : thresholdFor(l.asset_code);
+      return Math.abs(l.tracked_balance - (l.calculated_balance ?? 0)) > threshold;
+    });
+
+    // Build alert keys for the current snapshot
+    const currentAlertKeys = new Set(
+      driftLines.map((l) => `${l.entity_type}::${l.entity_id}::${l.asset_code ?? ""}`)
+    );
+
+    // Insert/refresh alerts (upsert by composite key — open rows only)
+    if (driftLines.length > 0) {
+      const alertRows = driftLines.map((l) => {
+        const drift = Number(l.tracked_balance) - Number(l.calculated_balance ?? 0);
+        const absDrift = Math.abs(drift);
+        const sev =
+          absDrift > 1000 ? "CRITICAL" : absDrift > 100 ? "HIGH" : absDrift > 10 ? "MEDIUM" : "LOW";
+        return {
+          snapshot_id: snapshotId,
+          entity_type: l.entity_type,
+          entity_id: l.entity_id,
+          entity_name: l.entity_name,
+          asset_code: l.asset_code,
+          tracked_balance: l.tracked_balance,
+          calculated_balance: l.calculated_balance,
+          drift,
+          severity: sev,
+          source: "INTERNAL_SNAPSHOT",
+          metadata: l.metadata,
+        };
+      });
+      await supabase.from("erp_drift_alerts").insert(alertRows);
+    }
+
+    // Auto-resolve previously-open INTERNAL_SNAPSHOT alerts that are no longer drifting
+    const { data: openAlerts } = await supabase
+      .from("erp_drift_alerts")
+      .select("id, entity_type, entity_id, asset_code")
+      .is("resolved_at", null)
+      .eq("source", "INTERNAL_SNAPSHOT");
+    const toResolve = (openAlerts || [])
+      .filter(
+        (a: any) => !currentAlertKeys.has(`${a.entity_type}::${a.entity_id}::${a.asset_code ?? ""}`)
+      )
+      .map((a: any) => a.id);
+    if (toResolve.length > 0) {
+      await supabase
+        .from("erp_drift_alerts")
+        .update({ resolved_at: new Date().toISOString() })
+        .in("id", toResolve);
+    }
 
     // 10. Cleanup old snapshots (30 days) + expired records
     await supabase.rpc("cleanup_old_snapshots");

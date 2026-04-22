@@ -318,13 +318,23 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
       // ── Handle split payment updates for completed orders ──
       if (isMultiplePayments && isCompleted) {
-        // 1. Delete old bank transactions & pending settlements for this order's splits
-        await supabase
+        // 1. Reverse old bank transactions for this order's splits (immutable ledger — no deletes)
+        const { data: oldTxs } = await supabase
           .from('bank_transactions')
-          .delete()
+          .select('id')
           .eq('reference_number', order.order_number)
-          .eq('transaction_type', 'INCOME');
-        
+          .eq('transaction_type', 'INCOME')
+          .eq('is_reversed', false)
+          .is('reverses_transaction_id', null);
+
+        for (const t of oldTxs ?? []) {
+          const { error: revErr } = await supabase.rpc('reverse_bank_transaction', {
+            p_original_id: t.id,
+            p_reason: `Sales order ${order.order_number} edited: split payment restructure`,
+          });
+          if (revErr) throw revErr;
+        }
+
         await supabase
           .from('pending_settlements')
           .delete()
@@ -390,13 +400,23 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
 
       // If switching from split to single, clean up splits
       if (!isMultiplePayments && order?.is_split_payment) {
-        // Delete old split financial entries
-        await supabase
+        // Reverse old split bank transactions (immutable ledger — no deletes)
+        const { data: oldTxs } = await supabase
           .from('bank_transactions')
-          .delete()
+          .select('id')
           .eq('reference_number', order.order_number)
-          .eq('transaction_type', 'INCOME');
-        
+          .eq('transaction_type', 'INCOME')
+          .eq('is_reversed', false)
+          .is('reverses_transaction_id', null);
+
+        for (const t of oldTxs ?? []) {
+          const { error: revErr } = await supabase.rpc('reverse_bank_transaction', {
+            p_original_id: t.id,
+            p_reason: `Sales order ${order.order_number} edited: split→single conversion`,
+          });
+          if (revErr) throw revErr;
+        }
+
         await supabase
           .from('pending_settlements')
           .delete()

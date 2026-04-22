@@ -365,13 +365,17 @@ export default function Sales() {
     const csvData: any[][] = [];
 
     exportOrders.forEach(order => {
-      // Use splits first, fall back to bank_transactions
+      // Priority: explicit splits > gateway settlement bank > bank_transactions match
       const splits = splitsByOrder[order.id];
+      const settlements = settlementByOrder[order.id];
       const bankTxns = bankTxnsByOrderNo[order.order_number || ''];
       const hasSplitData = splits && splits.length > 0;
-      const paymentSources = hasSplitData 
+      const hasSettlementData = !hasSplitData && settlements && settlements.length > 0;
+      const paymentSources = hasSplitData
         ? splits.map(s => ({ bank_name: s.bank_name, account_label: s.nickname || s.account_name, amount: s.amount }))
-        : (bankTxns || []).map(t => ({ bank_name: t.bank_name, account_label: t.account_name, amount: t.amount }));
+        : hasSettlementData
+          ? settlements.map(s => ({ bank_name: s.bank_name, account_label: s.account_name, amount: s.amount }))
+          : (bankTxns || []).map(t => ({ bank_name: t.bank_name, account_label: t.account_name, amount: t.amount }));
       const hasSplits = (order.is_split_payment && paymentSources.length > 1) || paymentSources.length > 1;
 
       const buildRow = (bankName: string, accountLabel: string, splitAmount: string, isSplit: string) => [

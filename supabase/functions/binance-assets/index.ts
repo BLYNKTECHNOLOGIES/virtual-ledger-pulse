@@ -775,24 +775,25 @@ serve(async (req) => {
       // ===== DIAGNOSTIC: Probe all USDT locations =====
       case "diagnoseUsdtLocations": {
         const out: any = {};
-        const tryCall = async (label: string, path: string, params: Record<string, string> = {}) => {
+        const tryGet = async (label: string, path: string, params: Record<string, string> = {}) => {
           try {
-            const data = await proxyCall(path, params);
+            const data = await proxyGet(path, params);
             out[label] = data;
           } catch (e) {
             out[label] = { error: (e as Error).message };
           }
         };
-        await tryCall("funding", "/sapi/v1/asset/get-funding-asset", { asset: "USDT" });
-        await tryCall("spot", "/api/v3/account");
-        await tryCall("simple_earn_flexible", "/sapi/v1/simple-earn/flexible/position", { asset: "USDT" });
-        await tryCall("simple_earn_locked", "/sapi/v1/simple-earn/locked/position", { asset: "USDT" });
-        await tryCall("margin_account", "/sapi/v1/margin/account");
-        await tryCall("isolated_margin", "/sapi/v1/margin/isolated/account");
-        await tryCall("staking_positions", "/sapi/v1/staking/position", { product: "STAKING", asset: "USDT" });
-        await tryCall("sub_accounts", "/sapi/v1/sub-account/list");
-        await tryCall("user_asset", "/sapi/v3/asset/getUserAsset", { asset: "USDT" });
-        await tryCall("c2c_history_sell", "/sapi/v1/c2c/orderMatch/listUserOrderHistory", { tradeType: "SELL", page: "1", rows: "10" });
+        await tryGet("funding", "/sapi/v1/asset/get-funding-asset", { asset: "USDT" });
+        await tryGet("user_asset_all", "/sapi/v3/asset/getUserAsset");
+        await tryGet("spot", "/api/v3/account");
+        await tryGet("simple_earn_flexible", "/sapi/v1/simple-earn/flexible/position", { asset: "USDT" });
+        await tryGet("simple_earn_locked", "/sapi/v1/simple-earn/locked/position", { asset: "USDT" });
+        await tryGet("simple_earn_account", "/sapi/v1/simple-earn/account");
+        await tryGet("margin_account", "/sapi/v1/margin/account");
+        await tryGet("staking_positions", "/sapi/v1/staking/position", { product: "STAKING", asset: "USDT" });
+        await tryGet("sub_accounts", "/sapi/v1/sub-account/list");
+        await tryGet("dust_log", "/sapi/v1/asset/dribblet");
+        await tryGet("convert_history", "/sapi/v1/convert/tradeFlow", { startTime: String(Date.now() - 7*24*3600*1000), endTime: String(Date.now()) });
         result = out;
         break;
       }

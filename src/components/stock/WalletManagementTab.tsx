@@ -828,7 +828,19 @@ export function WalletManagementTab() {
       {/* Recent Transactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle>Recent Transactions</CardTitle>
+            <div className="flex items-center gap-2">
+              <PrefLabel htmlFor="hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
+                Hide reversal noise
+              </PrefLabel>
+              <Switch
+                id="hide-rev-noise"
+                checked={hideReversalNoise}
+                onCheckedChange={(v) => setWalletPref("hideReversals", !!v)}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {transactionsLoading ? (

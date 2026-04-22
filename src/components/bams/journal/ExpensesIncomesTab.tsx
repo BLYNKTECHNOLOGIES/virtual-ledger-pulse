@@ -35,6 +35,14 @@ export function ExpensesIncomesTab() {
    const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
    const [editDialogOpen, setEditDialogOpen] = useState(false);
    const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
+   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+   const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
+   const [reverseReason, setReverseReason] = useState("");
+   const [bankPrefs, setBankPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+     "bankLedger",
+     { hideReversals: false }
+   );
+   const hideReversalNoise = bankPrefs.hideReversals;
  
   // Fetch bank accounts from Supabase (excluding dormant)
   const { data: bankAccounts } = useQuery({

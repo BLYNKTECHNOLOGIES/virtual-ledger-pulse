@@ -809,13 +809,25 @@ export function StockTransactionsTab() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Stock Transactions</CardTitle>
-            <Button 
-              onClick={() => setShowAdjustmentDialog(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <ArrowLeftRight className="h-4 w-4 mr-2" />
-              Manual Adjustment
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="stk-hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
+                  Hide reversal noise
+                </Label>
+                <Switch
+                  id="stk-hide-rev-noise"
+                  checked={hideReversalNoise}
+                  onCheckedChange={(v) => setStockPref("hideReversals", !!v)}
+                />
+              </div>
+              <Button
+                onClick={() => setShowAdjustmentDialog(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <ArrowLeftRight className="h-4 w-4 mr-2" />
+                Manual Adjustment
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

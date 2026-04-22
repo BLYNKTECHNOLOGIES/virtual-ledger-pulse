@@ -15191,6 +15191,7 @@ export type Database = {
         Returns: {
           account_name: string
           amount: number
+          balance_before: number
           bank_account_id: string
           bank_name: string
           category: string
@@ -15198,8 +15199,11 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          is_reversed: boolean
           reference_number: string
           related_account_name: string
+          reverses_transaction_id: string
+          sequence_no: number
           total_count: number
           transaction_date: string
           transaction_type: string

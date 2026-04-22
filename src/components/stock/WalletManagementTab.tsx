@@ -32,6 +32,10 @@ import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { PermissionGate } from "@/components/PermissionGate";
 import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
+import { ReversalBadge } from "./ReversalBadge";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+import { getCurrentUserId as getCurUserIdForPrefs } from "@/lib/system-action-logger";
+import { Label as PrefLabel } from "@/components/ui/label";
 
 interface WalletType {
   id: string;
@@ -74,6 +78,15 @@ export function WalletManagementTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
+
+  // Per-user "Hide reversal noise" preference (defaults OFF for full audit view)
+  const _userIdForPrefs = getCurUserIdForPrefs();
+  const [walletPrefs, setWalletPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+    _userIdForPrefs,
+    "wallet_management_tab",
+    { hideReversals: false }
+  );
+  const hideReversalNoise = walletPrefs.hideReversals;
 
   const { data: binanceBalances } = useBinanceBalances();
   const { data: activeWalletLink } = useQuery({

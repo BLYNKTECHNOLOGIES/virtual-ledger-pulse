@@ -10,6 +10,7 @@ import { EntryRow } from "@/components/erp-entry/EntryRow";
 import { SyncAllButton } from "@/components/erp-entry/SyncAllButton";
 import { SyncSmallMenu } from "@/components/erp-entry/SyncSmallMenu";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useSyncAll } from "@/hooks/useErpEntrySyncAll";
 
 // Reused dialogs — same components used by their original tabs
 import { ActionSelectionDialog } from "@/components/dashboard/erp-actions/ActionSelectionDialog";

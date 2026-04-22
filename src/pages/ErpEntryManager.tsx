@@ -237,7 +237,17 @@ export default function ErpEntryManager() {
                     row={row}
                     isFocused={row.id === focusedId}
                     onFocus={() => setFocusedId(row.id)}
-                    onOpen={() => setActiveRow(row)}
+                    onOpen={() => {
+                      if (row.source === "conversion") {
+                        approveConversion.mutate(row.raw.id, {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
+                          },
+                        });
+                        return;
+                      }
+                      setActiveRow(row);
+                    }}
                     onReject={() => handleReject(row)}
                   />
                 ))}

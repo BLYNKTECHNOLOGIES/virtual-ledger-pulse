@@ -757,20 +757,30 @@ export function DirectoryTab() {
                 </Badge>
               )}
             </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="dir-hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
+                  Hide reversal noise
+                </Label>
+                <Switch
+                  id="dir-hide-rev-noise"
+                  checked={hideReversalNoise}
+                  onCheckedChange={(v) => setBankPref("hideReversals", !!v)}
+                />
+              </div>
+              <Button
+                variant="outline"
                 size="sm"
-                onClick={downloadCSV} 
+                onClick={downloadCSV}
                 className="flex items-center gap-1.5 text-xs"
                 disabled={!filteredTransactions || filteredTransactions.length === 0}
               >
                 <Download className="h-3.5 w-3.5" />
                 CSV
               </Button>
-              <Button 
+              <Button
                 size="sm"
-                onClick={generatePDF} 
+                onClick={generatePDF}
                 className="flex items-center gap-1.5 text-xs"
                 disabled={!filteredTransactions || filteredTransactions.length === 0}
               >
@@ -805,6 +815,13 @@ export function DirectoryTab() {
                               {transaction.display_type.replace('_', ' ')}
                             </Badge>
                             <Badge variant="outline" className="text-[10px] md:text-xs px-1.5 py-0">{transaction.source}</Badge>
+                            {transaction.source === 'BANK' && (
+                              <ReversalBadge
+                                isReversed={(transaction as any).is_reversed}
+                                reversesTransactionId={(transaction as any).reverses_transaction_id}
+                                description={transaction.display_description}
+                              />
+                            )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">

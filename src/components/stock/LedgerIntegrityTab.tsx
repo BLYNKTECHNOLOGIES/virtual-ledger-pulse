@@ -49,10 +49,40 @@ interface TamperRow {
 const shortHash = (h?: string | null) => (h ? `${h.slice(0, 8)}…${h.slice(-6)}` : "—");
 const shortId = (id?: string | null) => (id ? `${id.slice(0, 8)}…` : "—");
 
+interface AssetBalRow {
+  wallet_id: string;
+  wallet_name: string;
+  asset_code: string;
+  intact: boolean;
+  rows_checked: number;
+  break_transaction_id: string | null;
+  break_reason: string | null;
+}
+
 export function LedgerIntegrityTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [verification, setVerification] = useState<ChainRow[] | null>(null);
+  const [assetVerification, setAssetVerification] = useState<AssetBalRow[] | null>(null);
+
+  const verifyAssetBalancesMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("verify_all_wallet_asset_running_balances");
+      if (error) throw error;
+      return (data || []) as AssetBalRow[];
+    },
+    onSuccess: (rows) => {
+      setAssetVerification(rows);
+      const broken = rows.filter((r) => !r.intact).length;
+      toast({
+        title: broken === 0 ? "All asset closing balances intact" : "Closing-balance drift detected",
+        description: `${rows.length} (wallet × asset) pair(s) checked, ${broken} broken.`,
+        variant: broken === 0 ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: "Asset balance verification failed", description: e?.message || String(e), variant: "destructive" }),
+  });
 
   const verifyMutation = useMutation({
     mutationFn: async () => {

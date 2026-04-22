@@ -792,7 +792,12 @@ export function StockTransactionsTab() {
       }
       return true;
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter((entry: any) =>
+      hideReversalNoise
+        ? !(entry.type === 'wallet' && (entry.is_reversed || entry.reverses_transaction_id))
+        : true
+    );
 
   // Collect unique wallet names and product codes for filter dropdowns
   const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
@@ -910,7 +915,16 @@ export function StockTransactionsTab() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        {getTransactionBadge(entry.transaction_type, entry.reference_type)}
+                        <div className="flex items-center">
+                          {getTransactionBadge(entry.transaction_type, entry.reference_type)}
+                          {entry.type === 'wallet' && (
+                            <ReversalBadge
+                              isReversed={(entry as any).is_reversed}
+                              reversesTransactionId={(entry as any).reverses_transaction_id}
+                              description={(entry as any).description}
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         {(() => {

@@ -262,23 +262,27 @@ export default function ProfitLoss() {
         });
       }
 
-      // Fetch operating expenses (excluding core trading operations like Purchase/Sales)
-      const { data: expenseData } = await supabase
-        .from('bank_transactions')
-        .select('id, amount, category, description, transaction_date')
-        .eq('transaction_type', 'EXPENSE')
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
-        .gte('transaction_date', startStr)
-        .lte('transaction_date', endStr);
+      // Fetch operating expenses (excluding core trading operations like Purchase/Sales) — paginated
+      const expenseData = await fetchAllPaginated<any>(
+        () => supabase
+          .from('bank_transactions')
+          .select('id, amount, category, description, transaction_date')
+          .eq('transaction_type', 'EXPENSE')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr)
+      );
 
-      // Fetch operating income (excluding core trading operations and settlements which are part of sales cycle)
-      const { data: incomeData } = await supabase
-        .from('bank_transactions')
-        .select('id, amount, category, description, transaction_date')
-        .eq('transaction_type', 'INCOME')
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Payment Gateway Settlement","Settlement")')
-        .gte('transaction_date', startStr)
-        .lte('transaction_date', endStr);
+      // Fetch operating income (excluding core trading operations and settlements which are part of sales cycle) — paginated
+      const incomeData = await fetchAllPaginated<any>(
+        () => supabase
+          .from('bank_transactions')
+          .select('id, amount, category, description, transaction_date')
+          .eq('transaction_type', 'INCOME')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Payment Gateway Settlement","Settlement")')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr)
+      );
 
        // Fetch USDT fees from authoritative sources:
        // 1. wallet_fee_deductions (sales/purchase order fees) - fee_usdt_amount
@@ -291,22 +295,26 @@ export default function ProfitLoss() {
            .lte('created_at', endStr + 'T23:59:59')
        );
 
-       const { data: conversionFeesData } = await supabase
-         .from('erp_product_conversions')
-         .select('fee_amount')
-         .eq('status', 'APPROVED')
-         .gte('approved_at', startStr)
-         .lte('approved_at', endStr + 'T23:59:59');
+       const conversionFeesData = await fetchAllPaginated<any>(
+         () => supabase
+           .from('erp_product_conversions')
+           .select('fee_amount')
+           .eq('status', 'APPROVED')
+           .gte('approved_at', startStr)
+           .lte('approved_at', endStr + 'T23:59:59')
+       );
 
-       // Also fetch transfer fees from wallet_transactions (not in fee_deductions)
-       const { data: transferFeesData } = await supabase
-         .from('wallet_transactions')
-         .select('amount')
-         .eq('transaction_type', 'DEBIT')
-         .eq('reference_type', 'TRANSFER_FEE')
-         .eq('asset_code', 'USDT')
-         .gte('created_at', startStr)
-         .lte('created_at', endStr + 'T23:59:59');
+       // Also fetch transfer fees from wallet_transactions (not in fee_deductions) — paginated
+       const transferFeesData = await fetchAllPaginated<any>(
+         () => supabase
+           .from('wallet_transactions')
+           .select('amount')
+           .eq('transaction_type', 'DEBIT')
+           .eq('reference_type', 'TRANSFER_FEE')
+           .eq('asset_code', 'USDT')
+           .gte('created_at', startStr)
+           .lte('created_at', endStr + 'T23:59:59')
+       );
 
 
 

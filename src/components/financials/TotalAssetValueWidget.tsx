@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { isAdjustmentBank, isAdjustmentWallet } from "@/lib/adjustment-accounts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -143,14 +144,16 @@ export function useTotalAssetValue() {
       assetStocks.sort((a, b) => b.total_value - a.total_value);
       const stockVal = assetStocks.reduce((s, a) => s + a.total_value, 0);
 
-      // 4. TDS Liability
-      const { data: unpaidTds } = await supabase
-        .from("tds_records")
-        .select("id, tds_amount, pan_number, deduction_date")
-        .or("payment_status.is.null,payment_status.neq.PAID")
-        .order("deduction_date", { ascending: false });
+      // 4. TDS Liability (paginated — could exceed 1000 unpaid records over time)
+      const unpaidTds = await fetchAllPaginated<{ id: string; tds_amount: number; pan_number: string; deduction_date: string }>(
+        () => supabase
+          .from("tds_records")
+          .select("id, tds_amount, pan_number, deduction_date")
+          .or("payment_status.is.null,payment_status.neq.PAID")
+          .order("deduction_date", { ascending: false })
+      );
 
-      const tdsDetails: TdsDetail[] = (unpaidTds || []).map(r => ({
+      const tdsDetails: TdsDetail[] = unpaidTds.map(r => ({
         id: r.id, tds_amount: Number(r.tds_amount || 0),
         pan_number: r.pan_number, deduction_date: r.deduction_date,
       }));

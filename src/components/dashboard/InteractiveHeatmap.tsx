@@ -72,62 +72,53 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
     queryKey: ['chart_data', selectedPeriod, selectedMetric],
     queryFn: async () => {
       if (selectedMetric === 'clients') {
-        // Get all clients data
-        const { data: allClientsData } = await supabase
-          .from('clients')
-          .select('id, created_at, date_of_onboarding')
-          .order('date_of_onboarding', { ascending: true });
-
-        // Get clients for current period
-        const { data: currentPeriodClients } = await supabase
-          .from('clients')
-          .select('id, created_at, date_of_onboarding')
-          .gte('created_at', startOfDay(startDate).toISOString())
-          .lte('created_at', endOfDay(endDate).toISOString())
-          .order('date_of_onboarding', { ascending: true });
-
-        // Calculate total clients count
-        const totalClients = allClientsData?.length || 0;
-        const currentPeriodClientCount = currentPeriodClients?.length || 0;
+        // Use head:true count queries — they bypass the 1000-row data cap entirely
+        const [{ count: totalClients }, { count: currentPeriodClientCount }] = await Promise.all([
+          supabase.from('clients').select('id', { count: 'exact', head: true }),
+          supabase
+            .from('clients')
+            .select('id', { count: 'exact', head: true })
+            .gte('created_at', startOfDay(startDate).toISOString())
+            .lte('created_at', endOfDay(endDate).toISOString()),
+        ]);
 
         return {
-          totalValue: totalClients,
-          currentPeriodValue: currentPeriodClientCount,
+          totalValue: totalClients || 0,
+          currentPeriodValue: currentPeriodClientCount || 0,
           type: 'clients'
         };
       } else if (selectedMetric === 'orders') {
-        // Get all sales orders
-        const { data: allOrdersData } = await supabase
-          .from('sales_orders')
-          .select('id, created_at, order_date')
-          .order('order_date', { ascending: true });
-
-        // Get orders for current period
-        const { data: currentPeriodOrders } = await supabase
-          .from('sales_orders')
-          .select('id, created_at, order_date')
-          .gte('created_at', startOfDay(startDate).toISOString())
-          .lte('created_at', endOfDay(endDate).toISOString())
-          .order('order_date', { ascending: true });
+        const [{ count: totalOrders }, { count: currentPeriodOrders }] = await Promise.all([
+          supabase.from('sales_orders').select('id', { count: 'exact', head: true }),
+          supabase
+            .from('sales_orders')
+            .select('id', { count: 'exact', head: true })
+            .gte('created_at', startOfDay(startDate).toISOString())
+            .lte('created_at', endOfDay(endDate).toISOString()),
+        ]);
 
         return {
-          totalValue: allOrdersData?.length || 0,
-          currentPeriodValue: currentPeriodOrders?.length || 0,
+          totalValue: totalOrders || 0,
+          currentPeriodValue: currentPeriodOrders || 0,
           type: 'orders'
         };
       } else {
-        // Default to sales data
-        const { data: allSalesData } = await supabase
-          .from('sales_orders')
-          .select('total_amount, created_at, order_date')
-          .order('order_date', { ascending: true });
+        // Sales totals: paginate to sum total_amount accurately across all rows
+        const allSalesData = await fetchAllPaginated<{ total_amount: number; created_at: string; order_date: string }>(
+          () => supabase
+            .from('sales_orders')
+            .select('total_amount, created_at, order_date')
+            .order('order_date', { ascending: true })
+        );
 
-        const { data: currentPeriodSales } = await supabase
-          .from('sales_orders')
-          .select('total_amount, created_at, order_date')
-          .gte('created_at', startOfDay(startDate).toISOString())
-          .lte('created_at', endOfDay(endDate).toISOString())
-          .order('order_date', { ascending: true });
+        const currentPeriodSales = await fetchAllPaginated<{ total_amount: number; created_at: string; order_date: string }>(
+          () => supabase
+            .from('sales_orders')
+            .select('total_amount, created_at, order_date')
+            .gte('created_at', startOfDay(startDate).toISOString())
+            .lte('created_at', endOfDay(endDate).toISOString())
+            .order('order_date', { ascending: true })
+        );
 
         const totalSales = allSalesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
         const currentPeriodSalesTotal = currentPeriodSales?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;

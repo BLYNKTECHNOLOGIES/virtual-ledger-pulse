@@ -15683,13 +15683,13 @@ export type Database = {
       verify_wallet_chain: {
         Args: { p_wallet_id?: string }
         Returns: {
-          actual_hash: string
-          expected_hash: string
-          first_break_id: string
-          first_break_seq: number
-          is_intact: boolean
-          total_rows: number
-          wallet_id: string
+          out_actual_hash: string
+          out_expected_hash: string
+          out_first_break_id: string
+          out_first_break_seq: number
+          out_is_intact: boolean
+          out_total_rows: number
+          out_wallet_id: string
         }[]
       }
       wallet_tx_canonical_payload: {

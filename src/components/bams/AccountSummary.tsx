@@ -66,7 +66,11 @@ interface TransactionWithBalance {
   category: string;
   reference_number: string;
   related_account_name: string;
-  closing_balance: number;
+  closing_balance: number;        // stamped bank_transactions.balance_after — immutable
+  balance_before: number | null;  // stamped bank_transactions.balance_before — immutable
+  sequence_no: number | null;     // canonical chain position
+  is_reversed: boolean;
+  reverses_transaction_id: string | null;
   total_count: number;
 }
 
@@ -109,30 +113,54 @@ export function AccountSummary() {
       
       if (error) throw error;
       
-      // Get transaction summaries for each account
+      // Get transaction summaries for each account.
+      // IMMUTABLE-LEDGER RULES (must match the bank_transactions hardening):
+      //   1. Exclude reversed originals (is_reversed = true).
+      //   2. Exclude reversal counter-rows (reverses_transaction_id IS NOT NULL).
+      //      Together these net out to "live" entries only and prevent double-counting
+      //      after the new reverse_bank_transaction RPC posts counter-entries.
+      //   3. The "computed_balance" is sourced from the latest stamped balance_after
+      //      (the immutable head of the per-account chain), not from the cached
+      //      bank_accounts.balance, so the displayed balance can never drift from the
+      //      ledger.
       const accountsWithTransactions = await Promise.all(
         data.map(async (account) => {
-          const { data: transactions, error: txError } = await supabase
-            .from('bank_transactions')
-            .select('transaction_type, amount, category')
-            .eq('bank_account_id', account.id);
-          
+          const [{ data: transactions, error: txError }, { data: headRow, error: headError }] = await Promise.all([
+            supabase
+              .from('bank_transactions')
+              .select('transaction_type, amount, category')
+              .eq('bank_account_id', account.id)
+              .eq('is_reversed', false)
+              .is('reverses_transaction_id', null),
+            supabase
+              .from('bank_transactions')
+              .select('balance_after')
+              .eq('bank_account_id', account.id)
+              .order('sequence_no', { ascending: false, nullsFirst: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+
           if (txError) throw txError;
+          if (headError) throw headError;
 
           const EXCLUDED_INCOME_CATEGORIES = ['Settlement', 'Payment Gateway Settlement'];
           const isExcludedIncome = (t: any) => {
             if (t.transaction_type !== 'INCOME' && t.transaction_type !== 'CREDIT') return false;
             return EXCLUDED_INCOME_CATEGORIES.some(ex => t.category?.includes(ex));
           };
-          
-          const total_income = transactions
+
+          const total_income = (transactions || [])
             .filter(t => (t.transaction_type === 'INCOME' || t.transaction_type === 'CREDIT') && !isExcludedIncome(t))
-            .reduce((sum, t) => sum + t.amount, 0);
-          
-          const total_expense = transactions
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+
+          const total_expense = (transactions || [])
             .filter(t => t.transaction_type === 'EXPENSE' || t.transaction_type === 'DEBIT')
-            .reduce((sum, t) => sum + t.amount, 0);
-          
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+
+          // Prefer stamped ledger head; fall back to cached balance only when account has no rows yet.
+          const ledgerHeadBalance = headRow?.balance_after != null ? Number(headRow.balance_after) : account.balance;
+
           return {
             account_name: account.account_name,
             bank_name: account.bank_name,
@@ -142,8 +170,8 @@ export function AccountSummary() {
             branch: account.branch,
             status: account.status,
             stored_balance: account.balance,
-            computed_balance: account.balance, // Use direct balance from bank_accounts table
-            total_transactions: transactions.length,
+            computed_balance: ledgerHeadBalance, // ← stamped ledger head, immutable per row
+            total_transactions: (transactions || []).length,
             total_income,
             total_expense,
             account_created: account.created_at,

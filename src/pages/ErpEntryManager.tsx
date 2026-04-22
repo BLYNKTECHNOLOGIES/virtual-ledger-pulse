@@ -52,6 +52,16 @@ export default function ErpEntryManager() {
   const rejectConversion = useRejectConversion();
   const approveConversion = useApproveConversion();
   const queryClient = useQueryClient();
+  const syncAll = useSyncAll();
+
+  // Auto-sync the four "live" sources (deposits/withdrawals, terminal buys/sales,
+  // conversions) every time the ERP Entry Manager mounts. Small buys/sales are
+  // explicitly excluded — they only sync via the dedicated "Sync Small …" menu.
+  useEffect(() => {
+    if (!hasAccess) return;
+    syncAll.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAccess]);
 
   const [view, setView] = useState<"pending" | "rejected">("pending");
   const [filter, setFilter] = useState<SourceFilter>("all");

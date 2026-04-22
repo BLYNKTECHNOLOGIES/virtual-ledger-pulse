@@ -59,11 +59,32 @@ interface AssetBalRow {
   break_reason: string | null;
 }
 
+interface BankChainRow {
+  out_bank_account_id: string;
+  out_total_rows: number;
+  out_first_break_id: string | null;
+  out_first_break_seq: number | null;
+  out_expected_hash: string | null;
+  out_actual_hash: string | null;
+  out_is_intact: boolean;
+}
+
+interface BankBalRow {
+  bank_account_id: string;
+  account_name: string;
+  intact: boolean;
+  rows_checked: number;
+  break_transaction_id: string | null;
+  break_reason: string | null;
+}
+
 export function LedgerIntegrityTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [verification, setVerification] = useState<ChainRow[] | null>(null);
   const [assetVerification, setAssetVerification] = useState<AssetBalRow[] | null>(null);
+  const [bankChain, setBankChain] = useState<BankChainRow[] | null>(null);
+  const [bankBalances, setBankBalances] = useState<BankBalRow[] | null>(null);
 
   const verifyAssetBalancesMutation = useMutation({
     mutationFn: async () => {
@@ -82,6 +103,46 @@ export function LedgerIntegrityTab() {
     },
     onError: (e: any) =>
       toast({ title: "Asset balance verification failed", description: e?.message || String(e), variant: "destructive" }),
+  });
+
+  const verifyBankChainMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("verify_bank_chain", {
+        p_bank_account_id: undefined as any,
+      });
+      if (error) throw error;
+      return (data || []) as BankChainRow[];
+    },
+    onSuccess: (rows) => {
+      setBankChain(rows);
+      const broken = rows.filter((r) => !r.out_is_intact).length;
+      toast({
+        title: broken === 0 ? "Bank chain intact" : "Bank chain integrity failure",
+        description: `${rows.length} bank account chain(s) verified, ${broken} broken.`,
+        variant: broken === 0 ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: "Bank chain verification failed", description: e?.message || String(e), variant: "destructive" }),
+  });
+
+  const verifyBankBalancesMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("verify_all_bank_running_balances");
+      if (error) throw error;
+      return (data || []) as BankBalRow[];
+    },
+    onSuccess: (rows) => {
+      setBankBalances(rows);
+      const broken = rows.filter((r) => !r.intact).length;
+      toast({
+        title: broken === 0 ? "All bank running balances intact" : "Bank balance drift detected",
+        description: `${rows.length} bank account(s) checked, ${broken} broken.`,
+        variant: broken === 0 ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: "Bank balance verification failed", description: e?.message || String(e), variant: "destructive" }),
   });
 
   const verifyMutation = useMutation({
@@ -404,17 +465,127 @@ export function LedgerIntegrityTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600" />
-            Bank Ledger Parity (v2)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                Bank Ledger Verification
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                bank_transactions is now append-only with hash chain and per-account stamped
+                balances. Use these checks to verify integrity of the bank ledger.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => verifyBankBalancesMutation.mutate()}
+                disabled={verifyBankBalancesMutation.isPending}
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {verifyBankBalancesMutation.isPending ? "Checking…" : "Verify Bank Running Balances"}
+              </Button>
+              <Button
+                onClick={() => verifyBankChainMutation.mutate()}
+                disabled={verifyBankChainMutation.isPending}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${verifyBankChainMutation.isPending ? "animate-spin" : ""}`} />
+                {verifyBankChainMutation.isPending ? "Verifying…" : "Verify Bank Hash Chain"}
+              </Button>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Note: bank_transactions is <strong>not yet immutable</strong>. The hash-chain,
-            append-only enforcement, and tamper log currently apply only to wallet ledger
-            rows. Extending the same guarantees to bank rows is tracked for v2.
-          </p>
+        <CardContent className="space-y-6">
+          {!bankChain && !bankBalances && (
+            <p className="text-sm text-muted-foreground">
+              Click a button above to walk the bank ledger and confirm tamper-free state.
+            </p>
+          )}
+          {bankChain && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bank Account</TableHead>
+                  <TableHead className="text-right">Rows</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Break Detail</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bankChain.map((r) => (
+                  <TableRow key={r.out_bank_account_id}>
+                    <TableCell className="font-mono text-xs">{shortId(r.out_bank_account_id)}</TableCell>
+                    <TableCell className="text-right">{r.out_total_rows}</TableCell>
+                    <TableCell>
+                      {r.out_is_intact ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Intact
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          <ShieldAlert className="h-3 w-3 mr-1" />
+                          BROKEN
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {r.out_is_intact ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <div className="space-y-1 font-mono">
+                          <div>seq <strong>{r.out_first_break_seq}</strong> · {shortId(r.out_first_break_id)}</div>
+                          <div className="text-muted-foreground">
+                            expected {shortHash(r.out_expected_hash)} got {shortHash(r.out_actual_hash)}
+                          </div>
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {bankBalances && (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Account</TableHead>
+                  <TableHead className="text-right">Rows</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Break Detail</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bankBalances.map((r, i) => (
+                  <TableRow key={`${r.bank_account_id}-${i}`}>
+                    <TableCell className="text-xs">{r.account_name}</TableCell>
+                    <TableCell className="text-right">{r.rows_checked}</TableCell>
+                    <TableCell>
+                      {r.intact ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Intact
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          <ShieldAlert className="h-3 w-3 mr-1" />
+                          DRIFT
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {r.intact ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <div>tx {shortId(r.break_transaction_id)} · {r.break_reason}</div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

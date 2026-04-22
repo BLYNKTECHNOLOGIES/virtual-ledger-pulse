@@ -223,6 +223,11 @@ export function ExpensesIncomesTab() {
                         <Badge variant={getBadgeVariant(transaction.transaction_type)}>
                           {transaction.transaction_type}
                         </Badge>
+                        <ReversalBadge
+                          isReversed={transaction.is_reversed}
+                          reversesTransactionId={transaction.reverses_transaction_id}
+                          description={transaction.description}
+                        />
                         {transaction.display_client && (
                           <Badge variant="outline" className="text-xs">
                             Client: {transaction.display_client}

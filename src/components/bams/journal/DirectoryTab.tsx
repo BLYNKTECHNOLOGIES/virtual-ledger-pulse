@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
-import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings, Undo2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -36,27 +37,26 @@ export function DirectoryTab() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+  const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+  const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
+  const [reverseReason, setReverseReason] = useState("");
 
-  // Delete mutation with balance reversal
-  const deleteTransactionMutation = useMutation({
-    mutationFn: async (transaction: any) => {
-      // Only allow deleting direct bank transactions (EXPENSE/INCOME from BANK source)
+  // Reverse mutation — posts an immutable counter-entry via RPC
+  const reverseTransactionMutation = useMutation({
+    mutationFn: async ({ transaction, reason }: { transaction: any; reason: string }) => {
       if (transaction.source !== 'BANK') {
-        throw new Error('Only direct expense/income transactions can be deleted from the directory.');
+        throw new Error('Only direct expense/income transactions can be reversed from the directory.');
       }
 
-      const { error } = await supabase
-        .from('bank_transactions')
-        .delete()
-        .eq('id', transaction.id);
+      const { error } = await supabase.rpc('reverse_bank_transaction', {
+        p_original_id: transaction.id,
+        p_reason: reason,
+      });
 
       if (error) throw error;
 
-      // Log the action
       await logActionWithCurrentUser({
-        actionType: 'bank.transaction_deleted',
+        actionType: 'bank.transaction_reversed',
         entityType: EntityTypes.BANK_TRANSACTION,
         entityId: transaction.id,
         module: Modules.BAMS,
@@ -66,38 +66,41 @@ export function DirectoryTab() {
           bank_account: transaction.display_account,
           category: transaction.category,
           description: transaction.display_description,
+          reason,
         }
       });
     },
     onSuccess: () => {
       toast({
-        title: "Transaction Deleted",
-        description: "Transaction deleted and bank balance reversed successfully.",
+        title: "Transaction Reversed",
+        description: "A reversal entry has been posted. Original entry is preserved for audit.",
       });
       queryClient.invalidateQueries({ queryKey: ['all_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
-      setDeleteDialogOpen(false);
-      setTransactionToDelete(null);
+      setReverseDialogOpen(false);
+      setTransactionToReverse(null);
+      setReverseReason("");
     },
     onError: (error: any) => {
       toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete transaction",
+        title: "Reversal Failed",
+        description: error.message || "Failed to reverse transaction",
         variant: "destructive",
       });
     },
   });
 
-  const handleDeleteClick = (transaction: any) => {
-    setTransactionToDelete(transaction);
-    setDeleteDialogOpen(true);
+  const handleReverseClick = (transaction: any) => {
+    setTransactionToReverse(transaction);
+    setReverseReason("");
+    setReverseDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (transactionToDelete) {
-      deleteTransactionMutation.mutate(transactionToDelete);
+  const confirmReverse = () => {
+    if (transactionToReverse && reverseReason.trim()) {
+      reverseTransactionMutation.mutate({ transaction: transactionToReverse, reason: reverseReason.trim() });
     }
   };
 
@@ -810,17 +813,17 @@ export function DirectoryTab() {
                           Ref: {transaction.display_reference}
                         </p>
                       )}
-                      {/* Delete button for BANK source (expense/income) only */}
-                      {transaction.source === 'BANK' && (
+                      {/* Reverse button for BANK source (expense/income) only */}
+                      {transaction.source === 'BANK' && !transaction.is_reversed && !transaction.reverses_transaction_id && (
                         <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 mt-1"
-                            onClick={() => handleDeleteClick(transaction)}
+                            onClick={() => handleReverseClick(transaction)}
                           >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            <span className="text-xs">Delete</span>
+                            <Undo2 className="h-3.5 w-3.5 mr-1" />
+                            <span className="text-xs">Reverse</span>
                           </Button>
                         </PermissionGate>
                       )}
@@ -833,40 +836,45 @@ export function DirectoryTab() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Reverse Confirmation Dialog */}
+      <AlertDialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                Are you sure you want to delete this <strong>{transactionToDelete?.display_type?.toLowerCase()}</strong> of{' '}
-                <strong>₹{Number(transactionToDelete?.display_amount || 0).toLocaleString('en-IN')}</strong>?
+                This will post a counter-entry that offsets this <strong>{transactionToReverse?.display_type?.toLowerCase()}</strong> of{' '}
+                <strong>₹{Number(transactionToReverse?.display_amount || 0).toLocaleString('en-IN')}</strong>.
+                The original entry stays in the ledger for audit.
               </p>
               <p className="text-xs">
-                <strong>Bank Account:</strong> {transactionToDelete?.display_account}
+                <strong>Bank Account:</strong> {transactionToReverse?.display_account}
               </p>
-              {transactionToDelete?.display_description && (
+              {transactionToReverse?.display_description && (
                 <p className="text-xs">
-                  <strong>Description:</strong> {transactionToDelete?.display_description}
+                  <strong>Description:</strong> {transactionToReverse?.display_description}
                 </p>
               )}
-              <p className="text-destructive font-medium text-sm mt-2">
-                {transactionToDelete?.display_type === 'EXPENSE'
-                  ? '⚠️ The bank balance will be credited back (increased) by this amount.'
-                  : '⚠️ The bank balance will be debited (decreased) by this amount.'}
-              </p>
-              <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="dir-reverse-reason">Reason (required)</Label>
+            <Textarea
+              id="dir-reverse-reason"
+              value={reverseReason}
+              onChange={(e) => setReverseReason(e.target.value)}
+              placeholder="Why is this entry being reversed?"
+              className="mt-1"
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
+              onClick={confirmReverse}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteTransactionMutation.isPending}
+              disabled={!reverseReason.trim() || reverseTransactionMutation.isPending}
             >
-              {deleteTransactionMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+              {reverseTransactionMutation.isPending ? "Reversing..." : "Post Reversal"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

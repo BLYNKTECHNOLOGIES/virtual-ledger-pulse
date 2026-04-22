@@ -262,6 +262,14 @@ export function LedgerIntegrityTab() {
                 {anchorMutation.isPending ? "Anchoring…" : "Snapshot Anchor"}
               </Button>
               <Button
+                variant="outline"
+                onClick={() => verifyAssetBalancesMutation.mutate()}
+                disabled={verifyAssetBalancesMutation.isPending}
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {verifyAssetBalancesMutation.isPending ? "Checking…" : "Verify Per-Asset Closing Balances"}
+              </Button>
+              <Button
                 onClick={() => verifyMutation.mutate()}
                 disabled={verifyMutation.isPending}
               >

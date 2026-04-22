@@ -46,6 +46,8 @@ export default function ErpEntryManager() {
   const { toast } = useToast();
   const rejectQueue = useRejectQueueItem();
   const rejectConversion = useRejectConversion();
+  const approveConversion = useApproveConversion();
+  const queryClient = useQueryClient();
 
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");

@@ -196,11 +196,39 @@ export default function Sales() {
   });
 
   const handleExportCSV = async () => {
-    if (!salesOrders || salesOrders.length === 0) return;
+    // Fetch ALL sales orders (paginated) so the export is never truncated by the
+    // 1000-row Supabase default cap or the on-screen filter limit.
+    const PAGE = 1000;
+    let from = 0;
+    const fetchedOrders: any[] = [];
+    while (true) {
+      const { data, error } = await supabase
+        .from('sales_orders')
+        .select(`
+          *,
+          created_by_user:users!created_by(username, first_name, last_name),
+          wallet:wallets!wallet_id(wallet_name)
+        `)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) {
+        toast({ title: 'Export failed', description: error.message, variant: 'destructive' });
+        return;
+      }
+      const batch = data || [];
+      fetchedOrders.push(...batch);
+      if (batch.length < PAGE) break;
+      from += PAGE;
+    }
 
-    // Fetch all payment splits with bank details (batch in chunks)
-    const orderIds = salesOrders.map(o => o.id);
-    const orderNumbers = salesOrders.map(o => o.order_number).filter(Boolean);
+    if (fetchedOrders.length === 0) {
+      toast({ title: 'No data to export', description: 'There are no sales orders to export.', variant: 'destructive' });
+      return;
+    }
+
+    const exportOrders = fetchedOrders;
+    const orderIds = exportOrders.map(o => o.id);
+    const orderNumbers = exportOrders.map(o => o.order_number).filter(Boolean);
     const CHUNK = 200;
 
     // Fallback wallet lookup — in case the embed didn't populate (stale cache, RLS edge cases, etc.)

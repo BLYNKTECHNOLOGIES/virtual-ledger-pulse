@@ -20,8 +20,9 @@ import { SmallSalesApprovalDialog } from "@/components/sales/SmallSalesApprovalD
 import { ConversionApprovalDialog } from "@/components/stock/conversion/ConversionApprovalDialog";
 
 import { useRejectQueueItem } from "@/hooks/useErpActionQueue";
-import { useRejectConversion } from "@/hooks/useProductConversions";
+import { useRejectConversion, useApproveConversion } from "@/hooks/useProductConversions";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 function dayBucket(ts: number) {
   const d = new Date(ts);
@@ -45,6 +46,8 @@ export default function ErpEntryManager() {
   const { toast } = useToast();
   const rejectQueue = useRejectQueueItem();
   const rejectConversion = useRejectConversion();
+  const approveConversion = useApproveConversion();
+  const queryClient = useQueryClient();
 
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
@@ -234,7 +237,17 @@ export default function ErpEntryManager() {
                     row={row}
                     isFocused={row.id === focusedId}
                     onFocus={() => setFocusedId(row.id)}
-                    onOpen={() => setActiveRow(row)}
+                    onOpen={() => {
+                      if (row.source === "conversion") {
+                        approveConversion.mutate(row.raw.id, {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
+                          },
+                        });
+                        return;
+                      }
+                      setActiveRow(row);
+                    }}
                     onReject={() => handleReject(row)}
                   />
                 ))}

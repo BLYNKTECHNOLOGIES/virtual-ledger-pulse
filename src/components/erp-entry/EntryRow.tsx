@@ -43,7 +43,7 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
       tabIndex={0}
       onFocus={onFocus}
       onClick={onFocus}
-      className={`flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent/40 cursor-default ${
+      className={`flex flex-wrap items-center gap-2 sm:gap-3 rounded-lg border bg-card p-2.5 sm:p-3 transition-colors hover:bg-accent/40 cursor-default ${
         isFocused ? "ring-2 ring-primary border-primary" : "border-border"
       }`}
     >
@@ -62,6 +62,11 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
           )}
         </div>
         <div className="mt-0.5 truncate text-xs text-muted-foreground">{row.sublabel || "—"}</div>
+        <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground sm:hidden">
+          <span>{time.toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</span>
+          <span>·</span>
+          <span>{time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>
+        </div>
       </div>
 
       <div className="hidden text-right md:block">
@@ -72,7 +77,7 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="text-muted-foreground hover:text-foreground" aria-label="Why is this here?">
+            <button className="text-muted-foreground hover:text-foreground shrink-0" aria-label="Why is this here?">
               <Info className="h-3.5 w-3.5" />
             </button>
           </TooltipTrigger>
@@ -82,12 +87,12 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
         </Tooltip>
       </TooltipProvider>
 
-      <div className="flex items-center gap-1.5">
-        <Button size="sm" className="h-7 px-3 text-xs" onClick={onOpen}>
+      <div className="flex items-center gap-1.5 ml-auto sm:ml-0 w-full sm:w-auto justify-end">
+        <Button size="sm" className="h-7 px-3 text-xs flex-1 sm:flex-none" onClick={onOpen}>
           {row.source === "conversion" ? "Approve" : row.source === "deposit" || row.source === "withdrawal" ? "Entry" : "Review"}
         </Button>
         {onReject && (
-          <Button size="sm" variant="outline" className="h-7 px-3 text-xs" onClick={onReject}>
+          <Button size="sm" variant="outline" className="h-7 px-3 text-xs flex-1 sm:flex-none" onClick={onReject}>
             Reject
           </Button>
         )}

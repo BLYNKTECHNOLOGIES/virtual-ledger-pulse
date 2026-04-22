@@ -226,6 +226,21 @@ export function LedgerIntegrityTab() {
     },
   });
 
+  const { data: bankTamperLog, isLoading: bankTamperLoading } = useQuery({
+    queryKey: ["bank_ledger_tamper_log"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bank_ledger_tamper_log")
+        .select(
+          "id, attempted_at, attempted_by, attempted_role, operation, target_tx_id, blocked, reason"
+        )
+        .order("attempted_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []) as TamperRow[];
+    },
+  });
+
   const { data: chainStats } = useQuery({
     queryKey: ["ledger_chain_stats"],
     queryFn: async () => {
@@ -677,6 +692,71 @@ export function LedgerIntegrityTab() {
               </TableHeader>
               <TableBody>
                 {tamperLog.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="text-xs">
+                      {format(new Date(t.attempted_at), "yyyy-MM-dd HH:mm:ss")}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{t.operation}</Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {shortId(t.target_tx_id)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {t.attempted_role || "—"}
+                    </TableCell>
+                    <TableCell>
+                      {t.blocked ? (
+                        <Badge variant="destructive">Blocked</Badge>
+                      ) : (
+                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                          Allowed
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate">
+                      {t.reason || "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            Bank Ledger Tamper Log
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Every blocked DELETE/UPDATE attempt against bank_transactions is recorded here.
+            A clean log means no client or RPC has tried to bypass the append-only contract.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {bankTamperLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : !bankTamperLog || bankTamperLog.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No mutation attempts recorded — the bank ledger has been clean since activation.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Attempted At</TableHead>
+                  <TableHead>Operation</TableHead>
+                  <TableHead>Target Tx</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bankTamperLog.map((t) => (
                   <TableRow key={t.id}>
                     <TableCell className="text-xs">
                       {format(new Date(t.attempted_at), "yyyy-MM-dd HH:mm:ss")}

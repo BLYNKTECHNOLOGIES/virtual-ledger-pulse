@@ -15238,6 +15238,7 @@ export type Database = {
             }
             Returns: Json
           }
+      is_ledger_auditor: { Args: { _uid?: string }; Returns: boolean }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       list_terminal_roles: {
         Args: never

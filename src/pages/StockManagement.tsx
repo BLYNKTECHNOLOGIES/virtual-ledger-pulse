@@ -2,13 +2,14 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, TrendingUp, FileText, BarChart, Building, Grid, Shield, ArrowLeftRight } from "lucide-react";
+import { Package, TrendingUp, FileText, BarChart, Building, Grid, Shield, ArrowLeftRight, ShieldCheck } from "lucide-react";
 import { ProductCardListingTab } from "@/components/stock/ProductCardListingTab";
 import { StockTransactionsTab } from "@/components/stock/StockTransactionsTab";
 import { InventoryValuationTab } from "@/components/stock/InventoryValuationTab";
 import { StockReportsTab } from "@/components/stock/StockReportsTab";
 import { WalletManagementTab } from "@/components/stock/WalletManagementTab";
 import { InterProductConversionTab } from "@/components/stock/InterProductConversionTab";
+import { LedgerIntegrityTab } from "@/components/stock/LedgerIntegrityTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,7 @@ export default function StockManagement() {
       <div className="p-4 md:p-6">
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide gap-1 md:grid" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}>
           <TabsTrigger value="quickview" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
             <Grid className="h-4 w-4" />
             <span className="hidden sm:inline">Quick View</span>
@@ -106,6 +107,11 @@ export default function StockManagement() {
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>
+          <TabsTrigger value="integrity" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden sm:inline">Ledger Integrity</span>
+            <span className="sm:hidden">Chain</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="quickview">
@@ -130,6 +136,10 @@ export default function StockManagement() {
 
         <TabsContent value="reports">
           <StockReportsTab />
+        </TabsContent>
+
+        <TabsContent value="integrity">
+          <LedgerIntegrityTab />
         </TabsContent>
       </Tabs>
       </div>

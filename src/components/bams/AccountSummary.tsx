@@ -669,6 +669,7 @@ export function AccountSummary() {
                           <th className="text-left p-3 font-semibold">Account</th>
                           <th className="text-left p-3 font-semibold">Type</th>
                           <th className="text-right p-3 font-semibold">Amount</th>
+                          <th className="text-right p-3 font-semibold">Balance Before</th>
                           <th className="text-right p-3 font-semibold">Closing Balance</th>
                           <th className="text-left p-3 font-semibold">Description</th>
                           <th className="text-left p-3 font-semibold">Reference</th>
@@ -677,13 +678,19 @@ export function AccountSummary() {
                       <tbody>
                         {transactionsData?.length === 0 ? (
                           <tr>
-                            <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                            <td colSpan={8} className="p-8 text-center text-muted-foreground">
                               No transactions found for the selected filter.
                             </td>
                           </tr>
                         ) : (
-                          transactionsData?.map((transaction) => (
-                            <tr key={transaction.id} className="border-b hover:bg-muted/30 transition-colors">
+                          transactionsData?.map((transaction) => {
+                            const isReversalNoise = transaction.is_reversed || transaction.reverses_transaction_id;
+                            return (
+                            <tr
+                              key={transaction.id}
+                              className={`border-b hover:bg-muted/30 transition-colors ${isReversalNoise ? 'opacity-60' : ''}`}
+                              title={isReversalNoise ? 'Reversal-related row (excluded from totals)' : undefined}
+                            >
                               <td className="p-3">
                                 <div className="font-medium">{format(new Date(transaction.transaction_date), 'dd MMM yyyy')}</div>
                                 <div className="text-xs text-muted-foreground">{format(new Date(transaction.created_at), 'HH:mm:ss')}</div>
@@ -702,6 +709,8 @@ export function AccountSummary() {
                                   }
                                 >
                                   {transaction.transaction_type}
+                                  {transaction.is_reversed ? ' • REVERSED' : ''}
+                                  {transaction.reverses_transaction_id ? ' • REVERSAL' : ''}
                                 </Badge>
                               </td>
                               <td className="p-3 text-right font-mono font-semibold">
@@ -713,6 +722,9 @@ export function AccountSummary() {
                                   {['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(transaction.transaction_type) ? '+' : '-'}
                                   {formatCurrency(transaction.amount)}
                                 </span>
+                              </td>
+                              <td className="p-3 text-right font-mono text-muted-foreground">
+                                {transaction.balance_before != null ? formatCurrency(transaction.balance_before) : '-'}
                               </td>
                               <td className="p-3 text-right font-mono font-semibold text-foreground">
                                 {formatCurrency(transaction.closing_balance)}
@@ -726,7 +738,8 @@ export function AccountSummary() {
                                 {transaction.reference_number || '-'}
                               </td>
                             </tr>
-                          ))
+                            );
+                          })
                         )}
                       </tbody>
                     </table>

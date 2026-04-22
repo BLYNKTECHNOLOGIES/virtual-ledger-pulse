@@ -48,6 +48,7 @@ export function StockTransactionsTab() {
   });
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [reversalReason, setReversalReason] = useState("");
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -540,28 +541,26 @@ export function StockTransactionsTab() {
     },
   });
 
-  // Delete wallet transaction mutation (with reversal)
+  // Reverse wallet transaction (immutable ledger — posts an opposite-sign row)
   const deleteTransactionMutation = useMutation({
-    mutationFn: async (transactionId: string) => {
+    mutationFn: async ({ transactionId, reason }: { transactionId: string; reason: string }) => {
       const rawUserId = getCurrentUserId();
       const isValidUuid = rawUserId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawUserId);
-      const deletedBy = isValidUuid ? rawUserId : null;
+      const reversedBy = isValidUuid ? rawUserId : null;
 
-      const { data, error } = await supabase.rpc('delete_wallet_transaction_with_reversal', {
-        p_transaction_id: transactionId,
-        p_deleted_by: deletedBy
+      const { data, error } = await supabase.rpc('reverse_wallet_transaction', {
+        p_tx_id: transactionId,
+        p_reason: reason,
+        p_reversed_by: reversedBy,
       });
 
       if (error) throw error;
-      const result = data as { success: boolean; error?: string; reversed_amount?: number } | null;
-      if (!result?.success) throw new Error(result?.error || 'Failed to delete transaction');
-      
-      return result;
+      return data as string; // new reversal row id
     },
-    onSuccess: (result) => {
-      toast({ 
-        title: "Transaction Deleted", 
-        description: `Transaction deleted and wallet balance reversed by ${Math.abs(result?.reversed_amount || 0).toLocaleString('en-IN')} USDT` 
+    onSuccess: () => {
+      toast({
+        title: "Transaction Reversed",
+        description: "An opposite-sign reversal entry was posted. The original record is preserved.",
       });
       queryClient.invalidateQueries({ queryKey: ['wallet_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_stock_transactions'] });
@@ -571,30 +570,37 @@ export function StockTransactionsTab() {
       refetch();
       setShowDeleteConfirm(false);
       setTransactionToDelete(null);
+      setReversalReason("");
     },
     onError: (error: any) => {
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to delete transaction", 
-        variant: "destructive" 
+      toast({
+        title: "Reversal failed",
+        description: error?.message || "Failed to post reversal",
+        variant: "destructive",
       });
     }
   });
 
-  // Check if transaction is deletable (only manual adjustments/transfers from wallet entries)
+  // Reversible only for manual entries (purchase/sales/etc. must be reversed via their own modules)
   const isDeletableEntry = (entry: any) => {
     if (entry.type !== 'wallet') return false;
+    if (entry.reference_type === 'REVERSAL') return false; // never reverse a reversal
+    if (entry.is_reversed) return false; // already reversed
     return ['MANUAL_ADJUSTMENT', 'MANUAL_TRANSFER', 'TRANSFER_FEE'].includes(entry.reference_type);
   };
 
   const handleDeleteTransaction = (entry: any) => {
     setTransactionToDelete(entry);
+    setReversalReason("");
     setShowDeleteConfirm(true);
   };
 
   const confirmDeleteTransaction = () => {
-    if (transactionToDelete) {
-      deleteTransactionMutation.mutate(transactionToDelete.id);
+    if (transactionToDelete && reversalReason.trim().length >= 3) {
+      deleteTransactionMutation.mutate({
+        transactionId: transactionToDelete.id,
+        reason: reversalReason.trim(),
+      });
     }
   };
 
@@ -1147,31 +1153,47 @@ export function StockTransactionsTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Transaction Confirmation Dialog */}
+      {/* Reverse Transaction Confirmation Dialog (Immutable Ledger) */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Transaction & Reverse Balance</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this transaction? This will:
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>Delete the transaction record</li>
-                <li>Reverse the wallet balance by <strong>{transactionToDelete?.amount?.toLocaleString('en-IN') || transactionToDelete?.quantity?.toLocaleString('en-IN')} USDT</strong></li>
-                {transactionToDelete?.reference_type === 'MANUAL_TRANSFER' && (
-                  <li>Delete all related transfer transactions (including fee if any)</li>
-                )}
-              </ul>
-              <p className="mt-3 text-destructive font-medium">This action cannot be undone.</p>
+            <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  The original entry will be preserved forever. A new opposite-sign
+                  reversal row of{' '}
+                  <strong>
+                    {(transactionToDelete?.amount ?? transactionToDelete?.quantity ?? 0)
+                      .toLocaleString('en-IN')}{' '}
+                    {transactionToDelete?.asset_code || 'USDT'}
+                  </strong>{' '}
+                  will be posted and linked back to it.
+                </p>
+                <p className="text-muted-foreground">
+                  Provide a clear reason — it is recorded in the immutable audit chain.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="reversal-reason">Reason (required, min 3 chars)</Label>
+            <Textarea
+              id="reversal-reason"
+              value={reversalReason}
+              onChange={(e) => setReversalReason(e.target.value)}
+              placeholder="e.g. Operator entered wrong amount; correcting via reversal."
+              rows={3}
+              disabled={deleteTransactionMutation.isPending}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteTransactionMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={confirmDeleteTransaction}
-              disabled={deleteTransactionMutation.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteTransactionMutation.isPending || reversalReason.trim().length < 3}
             >
-              {deleteTransactionMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+              {deleteTransactionMutation.isPending ? "Posting reversal…" : "Post Reversal"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

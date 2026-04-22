@@ -1,11 +1,14 @@
- import { useState } from "react";
- import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+  import { useState } from "react";
+  import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { TransactionForm } from "./components/TransactionForm";
 import { TransactionSummary } from "./components/TransactionSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
  import { Button } from "@/components/ui/button";
+ import { Switch } from "@/components/ui/switch";
+ import { Label } from "@/components/ui/label";
+ import { Textarea } from "@/components/ui/textarea";
  import { 
    AlertDialog,
    AlertDialogAction,
@@ -17,11 +20,13 @@ import { Badge } from "@/components/ui/badge";
    AlertDialogTitle,
  } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
- import { TrendingUp, TrendingDown, ArrowRightLeft, Pencil, Trash2 } from "lucide-react";
+ import { TrendingUp, TrendingDown, ArrowRightLeft, Pencil, Undo2 } from "lucide-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
  import { useToast } from "@/hooks/use-toast";
  import { EditExpenseDialog } from "./components/EditExpenseDialog";
+ import { ReversalBadge } from "@/components/stock/ReversalBadge";
+ import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
 
 export function ExpensesIncomesTab() {
    const { toast } = useToast();
@@ -30,6 +35,14 @@ export function ExpensesIncomesTab() {
    const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
    const [editDialogOpen, setEditDialogOpen] = useState(false);
    const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
+   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+   const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
+   const [reverseReason, setReverseReason] = useState("");
+   const [bankPrefs, setBankPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+     "bankLedger",
+     { hideReversals: false }
+   );
+   const hideReversalNoise = bankPrefs.hideReversals;
  
   // Fetch bank accounts from Supabase (excluding dormant)
   const { data: bankAccounts } = useQuery({

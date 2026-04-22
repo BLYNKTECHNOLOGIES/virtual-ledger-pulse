@@ -937,9 +937,50 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_ledger_tamper_log: {
+        Row: {
+          attempted_at: string
+          attempted_by: string | null
+          attempted_role: string | null
+          blocked: boolean
+          id: string
+          new_payload: Json | null
+          old_payload: Json | null
+          operation: string
+          reason: string | null
+          target_tx_id: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          attempted_by?: string | null
+          attempted_role?: string | null
+          blocked?: boolean
+          id?: string
+          new_payload?: Json | null
+          old_payload?: Json | null
+          operation: string
+          reason?: string | null
+          target_tx_id?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          attempted_by?: string | null
+          attempted_role?: string | null
+          blocked?: boolean
+          id?: string
+          new_payload?: Json | null
+          old_payload?: Json | null
+          operation?: string
+          reason?: string | null
+          target_tx_id?: string | null
+        }
+        Relationships: []
+      }
       bank_transactions: {
         Row: {
           amount: number
+          balance_after: number | null
+          balance_before: number | null
           bank_account_id: string
           bill_url: string | null
           category: string | null
@@ -948,15 +989,23 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          is_reversed: boolean
+          prev_hash: string | null
           reference_number: string | null
           related_account_name: string | null
           related_transaction_id: string | null
+          reversal_reason: string | null
+          reverses_transaction_id: string | null
+          row_hash: string | null
+          sequence_no: number | null
           transaction_date: string
           transaction_type: string
           updated_at: string
         }
         Insert: {
           amount: number
+          balance_after?: number | null
+          balance_before?: number | null
           bank_account_id: string
           bill_url?: string | null
           category?: string | null
@@ -965,15 +1014,23 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          is_reversed?: boolean
+          prev_hash?: string | null
           reference_number?: string | null
           related_account_name?: string | null
           related_transaction_id?: string | null
+          reversal_reason?: string | null
+          reverses_transaction_id?: string | null
+          row_hash?: string | null
+          sequence_no?: number | null
           transaction_date: string
           transaction_type: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          balance_after?: number | null
+          balance_before?: number | null
           bank_account_id?: string
           bill_url?: string | null
           category?: string | null
@@ -982,9 +1039,15 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          is_reversed?: boolean
+          prev_hash?: string | null
           reference_number?: string | null
           related_account_name?: string | null
           related_transaction_id?: string | null
+          reversal_reason?: string | null
+          reverses_transaction_id?: string | null
+          row_hash?: string | null
+          sequence_no?: number | null
           transaction_date?: string
           transaction_type?: string
           updated_at?: string
@@ -1021,6 +1084,13 @@ export type Database = {
           {
             foreignKeyName: "bank_transactions_related_transaction_id_fkey"
             columns: ["related_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_reverses_transaction_id_fkey"
+            columns: ["reverses_transaction_id"]
             isOneToOne: false
             referencedRelation: "bank_transactions"
             referencedColumns: ["id"]
@@ -14464,6 +14534,29 @@ export type Database = {
         Args: { account_id_param: string }
         Returns: boolean
       }
+      bank_tx_canonical_payload: {
+        Args: {
+          p_amount: number
+          p_balance_after: number
+          p_balance_before: number
+          p_bank_account_id: string
+          p_category: string
+          p_created_at: string
+          p_created_by: string
+          p_description: string
+          p_id: string
+          p_reference_number: string
+          p_reverses_transaction_id: string
+          p_sequence_no: number
+          p_transaction_date: string
+          p_transaction_type: string
+        }
+        Returns: string
+      }
+      bank_tx_compute_hash: {
+        Args: { p_payload: string; p_prev_hash: string }
+        Returns: string
+      }
       batch_reapply_salary_templates: {
         Args: never
         Returns: {
@@ -15426,6 +15519,14 @@ export type Database = {
         }
         Returns: Json
       }
+      reverse_bank_transaction: {
+        Args: {
+          p_original_id: string
+          p_reason: string
+          p_reversed_by?: string
+        }
+        Returns: string
+      }
       reverse_payment_gateway_settlement: {
         Args: { p_reversed_by?: string; p_settlement_id: string }
         Returns: Json
@@ -15672,6 +15773,18 @@ export type Database = {
           username: string
         }[]
       }
+      verify_all_bank_running_balances: {
+        Args: never
+        Returns: {
+          account_name: string
+          bank_account_id: string
+          break_reason: string
+          break_sequence_no: number
+          break_transaction_id: string
+          intact: boolean
+          rows_checked: number
+        }[]
+      }
       verify_all_wallet_asset_running_balances: {
         Args: never
         Returns: {
@@ -15687,6 +15800,30 @@ export type Database = {
       verify_and_consume_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }
         Returns: boolean
+      }
+      verify_bank_chain: {
+        Args: { p_bank_account_id?: string }
+        Returns: {
+          out_actual_hash: string
+          out_bank_account_id: string
+          out_expected_hash: string
+          out_first_break_id: string
+          out_first_break_seq: number
+          out_is_intact: boolean
+          out_total_rows: number
+        }[]
+      }
+      verify_bank_running_balance: {
+        Args: { p_bank_account_id: string }
+        Returns: {
+          break_reason: string
+          break_sequence_no: number
+          break_transaction_id: string
+          expected_balance: number
+          intact: boolean
+          rows_checked: number
+          stored_balance: number
+        }[]
       }
       verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
       verify_wallet_asset_running_balance: {

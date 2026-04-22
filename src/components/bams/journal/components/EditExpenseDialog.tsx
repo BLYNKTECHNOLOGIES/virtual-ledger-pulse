@@ -93,48 +93,55 @@
      return getSubCategories(formData.category);
    }, [formData.category]);
  
-   const updateTransactionMutation = useMutation({
-     mutationFn: async () => {
-       const amount = parseFloat(formData.amount);
-       
-       // Get full category label for storage
-       const categoryLabel = formData.category && formData.subCategory
-         ? getFullCategoryLabel(formData.category, formData.subCategory)
-         : null;
- 
-       const { error } = await supabase
-         .from('bank_transactions')
-         .update({
-           bank_account_id: formData.bankAccountId,
-           transaction_type: formData.transactionType,
-           amount: amount,
-           category: categoryLabel,
-           description: formData.description || null,
-           transaction_date: formData.date ? format(formData.date, 'yyyy-MM-dd') : null,
-           reference_number: formData.referenceNumber || null,
-         })
-         .eq('id', transaction.id);
- 
-       if (error) throw error;
-     },
-     onSuccess: () => {
-       toast({
-         title: "Success",
-         description: "Transaction updated successfully.",
-       });
-       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
-       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
-       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
-       onOpenChange(false);
-     },
-     onError: (error: any) => {
-       toast({
-         title: "Error",
-         description: error.message || "Failed to update transaction",
-         variant: "destructive",
-       });
-     },
-   });
+  const updateTransactionMutation = useMutation({
+    mutationFn: async () => {
+      const amount = parseFloat(formData.amount);
+
+      // Get full category label for storage
+      const categoryLabel = formData.category && formData.subCategory
+        ? getFullCategoryLabel(formData.category, formData.subCategory)
+        : null;
+
+      // Bank ledger is append-only: reverse the original then insert the new version.
+      const { error: revErr } = await supabase.rpc('reverse_bank_transaction', {
+        p_original_id: transaction.id,
+        p_reason: 'Edited via expense dialog',
+      });
+      if (revErr) throw revErr;
+
+      const { error: insErr } = await supabase
+        .from('bank_transactions')
+        .insert({
+          bank_account_id: formData.bankAccountId,
+          transaction_type: formData.transactionType,
+          amount: amount,
+          category: categoryLabel,
+          description: formData.description || null,
+          transaction_date: formData.date ? format(formData.date, 'yyyy-MM-dd') : null,
+          reference_number: formData.referenceNumber || null,
+          related_account_name: transaction.related_account_name ?? null,
+        });
+
+      if (insErr) throw insErr;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Transaction updated (original reversed, new entry posted).",
+      });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update transaction",
+        variant: "destructive",
+      });
+    },
+  });
  
    const handleSubmit = () => {
      if (!formData.bankAccountId || !formData.transactionType || !formData.amount || !formData.date) {
@@ -179,9 +186,12 @@
    return (
      <Dialog open={open} onOpenChange={onOpenChange}>
        <DialogContent className="max-w-2xl">
-         <DialogHeader>
-           <DialogTitle>Edit Transaction</DialogTitle>
-         </DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Edit Transaction</DialogTitle>
+          <p className="text-xs text-muted-foreground">
+            Bank ledger is immutable — saving posts a reversal of the original and a new entry.
+          </p>
+        </DialogHeader>
          
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
            <div>

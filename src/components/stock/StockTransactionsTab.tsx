@@ -20,6 +20,9 @@ import { ClickableUser } from "@/components/ui/clickable-user";
 import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { fetchActiveWalletsWithLedgerAssetBalance, fetchWalletLedgerAssetBalance } from "@/lib/wallet-ledger-balance";
 import { PermissionGate } from "@/components/PermissionGate";
+import { ReversalBadge } from "./ReversalBadge";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,9 +52,18 @@ export function StockTransactionsTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Per-user "Hide reversal noise" preference (default OFF for full audit view)
+  const _userIdForPrefs = getCurrentUserId();
+  const [stockPrefs, setStockPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+    _userIdForPrefs,
+    "stock_transactions_tab",
+    { hideReversals: false }
+  );
+  const hideReversalNoise = stockPrefs.hideReversals;
 
   const { data: transactions, isLoading, refetch } = useQuery({
     queryKey: ['stock_transactions', searchTerm, filterType],

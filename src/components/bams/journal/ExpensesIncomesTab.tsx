@@ -24,21 +24,22 @@ import { format } from "date-fns";
 import { PermissionGate } from "@/components/PermissionGate";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
  import { useToast } from "@/hooks/use-toast";
- import { EditExpenseDialog } from "./components/EditExpenseDialog";
- import { ReversalBadge } from "@/components/stock/ReversalBadge";
- import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+  import { EditExpenseDialog } from "./components/EditExpenseDialog";
+  import { ReversalBadge } from "@/components/stock/ReversalBadge";
+  import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+  import { useAuth } from "@/hooks/useAuth";
 
 export function ExpensesIncomesTab() {
    const { toast } = useToast();
    const queryClient = useQueryClient();
-   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+   const { user } = useAuth();
    const [editDialogOpen, setEditDialogOpen] = useState(false);
    const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
    const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
    const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
    const [reverseReason, setReverseReason] = useState("");
    const [bankPrefs, setBankPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+     user?.id,
      "bankLedger",
      { hideReversals: false }
    );

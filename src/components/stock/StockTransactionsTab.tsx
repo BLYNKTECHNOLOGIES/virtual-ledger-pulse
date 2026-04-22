@@ -301,14 +301,26 @@ export function StockTransactionsTab() {
       (usersData || []).forEach((u: any) => u?.id && userById.set(u.id, u));
 
       const enriched = tx.map((t: any) => {
+        // IMMUTABLE-LEDGER PRINCIPLE:
+        // Prefer values stamped on the wallet_transactions row itself
+        // (effective_usdt_rate, effective_usdt_qty, market_rate_usdt) over anything
+        // re-derived from sales_orders / purchase_orders, which can be edited.
+        // This guarantees the displayed "Total" against any past row is the value
+        // that was true at fulfilment time and never shifts retroactively.
+        const stampedRate = t.effective_usdt_rate != null ? Number(t.effective_usdt_rate) : null;
+        const stampedQty  = t.effective_usdt_qty  != null ? Number(t.effective_usdt_qty)  : null;
+        const stampedTotal = stampedRate != null && stampedQty != null ? stampedRate * stampedQty : null;
+
         if (t.reference_type === 'SALES_ORDER' && t.reference_id) {
           const so = soById.get(t.reference_id);
-          const unitPrice = so?.price_per_unit || 0;
           const qty = parseFloat(String(t.amount)) || 0;
+          // Fallback only when ledger row pre-dates the stamping system
+          const fallbackUnit = so?.price_per_unit || 0;
           return {
             ...t,
-            _unit_price: unitPrice,
-            _total_amount: qty * unitPrice,
+            _unit_price: stampedRate ?? fallbackUnit,
+            _total_amount: stampedTotal ?? qty * fallbackUnit,
+            _value_is_stamped: stampedTotal != null,
             _supplier_customer_name: so?.client_name || null,
             _reference_number: so?.order_number || null,
             _created_by_user: so?.created_by ? userById.get(so.created_by) : null,
@@ -319,12 +331,13 @@ export function StockTransactionsTab() {
           const po = poById.get(t.reference_id);
           const total = avgPurchasePriceByPo.get(t.reference_id) || 0;
           const qtyTotal = qtyByPo.get(t.reference_id) || 0;
-          const unitPrice = qtyTotal > 0 ? total / qtyTotal : 0;
+          const fallbackUnit = qtyTotal > 0 ? total / qtyTotal : 0;
           const qty = parseFloat(String(t.amount)) || 0;
           return {
             ...t,
-            _unit_price: unitPrice,
-            _total_amount: qty * unitPrice,
+            _unit_price: stampedRate ?? fallbackUnit,
+            _total_amount: stampedTotal ?? qty * fallbackUnit,
+            _value_is_stamped: stampedTotal != null,
             _supplier_customer_name: po?.supplier_name || null,
             _reference_number: po?.order_number || null,
             _created_by_user: po?.created_by ? userById.get(po.created_by) : null,
@@ -334,24 +347,26 @@ export function StockTransactionsTab() {
         if (t.reference_type === 'ERP_CONVERSION' && t.reference_id) {
           const conv = convById.get(t.reference_id);
           const qty = parseFloat(String(t.amount)) || 0;
-          const unitPrice = conv?.price_usd || 0;
+          const fallbackUnit = conv?.price_usd || 0;
           return {
             ...t,
-            _unit_price: unitPrice,
-            _total_amount: qty * unitPrice,
+            _unit_price: stampedRate ?? fallbackUnit,
+            _total_amount: stampedTotal ?? qty * fallbackUnit,
+            _value_is_stamped: stampedTotal != null,
             _supplier_customer_name: `${conv?.side || ''} ${conv?.asset_code || t.asset_code || ''}`.trim(),
             _reference_number: conv?.reference_no || null,
             _created_by_user: conv?.created_by ? userById.get(conv.created_by) : null,
           };
         }
 
-        // Manual transfer / manual adjustment / wallet transfer
+        // Manual transfer / adjustment / wallet transfer: no source order, prefer stamped rate.
         const qty = parseFloat(String(t.amount)) || 0;
-        const assetAvgPrice = avgBuyPriceByCode.get(t.asset_code) || 0;
+        const fallbackUnit = avgBuyPriceByCode.get(t.asset_code) || 0;
         return {
           ...t,
-          _unit_price: assetAvgPrice,
-          _total_amount: qty * assetAvgPrice,
+          _unit_price: stampedRate ?? fallbackUnit,
+          _total_amount: stampedTotal ?? qty * fallbackUnit,
+          _value_is_stamped: stampedTotal != null,
           _supplier_customer_name: null,
           _reference_number: null,
           _created_by_user: t.created_by ? userById.get(t.created_by) : null,

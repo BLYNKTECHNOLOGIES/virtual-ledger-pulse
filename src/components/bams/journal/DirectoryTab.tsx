@@ -813,17 +813,17 @@ export function DirectoryTab() {
                           Ref: {transaction.display_reference}
                         </p>
                       )}
-                      {/* Delete button for BANK source (expense/income) only */}
-                      {transaction.source === 'BANK' && (
+                      {/* Reverse button for BANK source (expense/income) only */}
+                      {transaction.source === 'BANK' && !transaction.is_reversed && !transaction.reverses_transaction_id && (
                         <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
                           <Button
                             variant="ghost"
                             size="sm"
                             className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10 mt-1"
-                            onClick={() => handleDeleteClick(transaction)}
+                            onClick={() => handleReverseClick(transaction)}
                           >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" />
-                            <span className="text-xs">Delete</span>
+                            <Undo2 className="h-3.5 w-3.5 mr-1" />
+                            <span className="text-xs">Reverse</span>
                           </Button>
                         </PermissionGate>
                       )}

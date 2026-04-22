@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { isAdjustmentBank, isAdjustmentWallet } from "@/lib/adjustment-accounts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,11 +79,13 @@ export function useTotalAssetValue() {
         }));
       const totalUsdtUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
 
-      // 3b. Non-USDT asset balances
-      const { data: assetBalances } = await supabase
-        .from("wallet_asset_balances")
-        .select("asset_code, balance")
-        .neq("asset_code", "USDT");
+      // 3b. Non-USDT asset balances (paginated)
+      const assetBalances = await fetchAllPaginated<{ asset_code: string; balance: number }>(
+        () => supabase
+          .from("wallet_asset_balances")
+          .select("asset_code, balance")
+          .neq("asset_code", "USDT")
+      );
 
       const nonUsdtMap = new Map<string, number>();
       (assetBalances || []).forEach(ab => {
@@ -90,11 +93,13 @@ export function useTotalAssetValue() {
         nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
       });
 
-      // 3c. Get avg costs per product from completed POs
-      const { data: purchaseOrders } = await supabase
-        .from("purchase_orders")
-        .select(`*, purchase_order_items(quantity, total_price, products(code))`)
-        .eq("status", "COMPLETED");
+      // 3c. Get avg costs per product from completed POs (paginated to avoid 1000-row truncation)
+      const purchaseOrders = await fetchAllPaginated<any>(
+        () => supabase
+          .from("purchase_orders")
+          .select(`*, purchase_order_items(quantity, total_price, products(code))`)
+          .eq("status", "COMPLETED")
+      );
 
       const costCalc = new Map<string, { qty: number; cost: number }>();
       (purchaseOrders || []).forEach(po => {
@@ -139,14 +144,16 @@ export function useTotalAssetValue() {
       assetStocks.sort((a, b) => b.total_value - a.total_value);
       const stockVal = assetStocks.reduce((s, a) => s + a.total_value, 0);
 
-      // 4. TDS Liability
-      const { data: unpaidTds } = await supabase
-        .from("tds_records")
-        .select("id, tds_amount, pan_number, deduction_date")
-        .or("payment_status.is.null,payment_status.neq.PAID")
-        .order("deduction_date", { ascending: false });
+      // 4. TDS Liability (paginated — could exceed 1000 unpaid records over time)
+      const unpaidTds = await fetchAllPaginated<{ id: string; tds_amount: number; pan_number: string; deduction_date: string }>(
+        () => supabase
+          .from("tds_records")
+          .select("id, tds_amount, pan_number, deduction_date")
+          .or("payment_status.is.null,payment_status.neq.PAID")
+          .order("deduction_date", { ascending: false })
+      );
 
-      const tdsDetails: TdsDetail[] = (unpaidTds || []).map(r => ({
+      const tdsDetails: TdsDetail[] = unpaidTds.map(r => ({
         id: r.id, tds_amount: Number(r.tds_amount || 0),
         pan_number: r.pan_number, deduction_date: r.deduction_date,
       }));

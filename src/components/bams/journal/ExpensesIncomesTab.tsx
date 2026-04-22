@@ -24,21 +24,22 @@ import { format } from "date-fns";
 import { PermissionGate } from "@/components/PermissionGate";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
  import { useToast } from "@/hooks/use-toast";
- import { EditExpenseDialog } from "./components/EditExpenseDialog";
- import { ReversalBadge } from "@/components/stock/ReversalBadge";
- import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+  import { EditExpenseDialog } from "./components/EditExpenseDialog";
+  import { ReversalBadge } from "@/components/stock/ReversalBadge";
+  import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+  import { useAuth } from "@/hooks/useAuth";
 
 export function ExpensesIncomesTab() {
    const { toast } = useToast();
    const queryClient = useQueryClient();
-   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+   const { user } = useAuth();
    const [editDialogOpen, setEditDialogOpen] = useState(false);
    const [transactionToEdit, setTransactionToEdit] = useState<any>(null);
    const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
    const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
    const [reverseReason, setReverseReason] = useState("");
    const [bankPrefs, setBankPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+     user?.id,
      "bankLedger",
      { hideReversals: false }
    );
@@ -99,39 +100,40 @@ export function ExpensesIncomesTab() {
     staleTime: 10000,
   });
 
-   // Delete mutation
-   const deleteTransactionMutation = useMutation({
-     mutationFn: async (transactionId: string) => {
-       const { error } = await supabase
-         .from('bank_transactions')
-         .delete()
-         .eq('id', transactionId);
-       
+   // Reverse mutation (immutable ledger — never delete)
+   const reverseTransactionMutation = useMutation({
+     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+       const { error } = await supabase.rpc('reverse_bank_transaction', {
+         p_original_id: id,
+         p_reason: reason,
+       });
        if (error) throw error;
      },
      onSuccess: () => {
        toast({
-         title: "Success",
-         description: "Transaction deleted successfully. Bank balance updated.",
+         title: "Reversed",
+         description: "A reversal entry has been posted. Bank balance updated.",
        });
        queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
        queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
        queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
-       setDeleteDialogOpen(false);
-       setTransactionToDelete(null);
+       setReverseDialogOpen(false);
+       setTransactionToReverse(null);
+       setReverseReason("");
      },
      onError: (error: any) => {
        toast({
          title: "Error",
-         description: error.message || "Failed to delete transaction",
+         description: error.message || "Failed to reverse transaction",
          variant: "destructive",
        });
      },
    });
  
-   const handleDeleteClick = (transaction: any) => {
-     setTransactionToDelete(transaction);
-     setDeleteDialogOpen(true);
+   const handleReverseClick = (transaction: any) => {
+     setTransactionToReverse(transaction);
+     setReverseReason("");
+     setReverseDialogOpen(true);
    };
  
    const handleEditClick = (transaction: any) => {
@@ -139,9 +141,9 @@ export function ExpensesIncomesTab() {
      setEditDialogOpen(true);
    };
  
-   const confirmDelete = () => {
-     if (transactionToDelete) {
-       deleteTransactionMutation.mutate(transactionToDelete.id);
+   const confirmReverse = () => {
+     if (transactionToReverse && reverseReason.trim()) {
+       reverseTransactionMutation.mutate({ id: transactionToReverse.id, reason: reverseReason.trim() });
      }
    };
  
@@ -268,9 +270,11 @@ export function ExpensesIncomesTab() {
                            variant="ghost"
                            size="icon"
                            className="h-8 w-8 text-destructive hover:text-destructive"
-                           onClick={() => handleDeleteClick(transaction)}
+                           onClick={() => handleReverseClick(transaction)}
+                           disabled={transaction.is_reversed || !!transaction.reverses_transaction_id}
+                           title={transaction.is_reversed ? "Already reversed" : transaction.reverses_transaction_id ? "Reversal entries cannot be reversed" : "Reverse this entry"}
                          >
-                           <Trash2 className="h-4 w-4" />
+                           <Undo2 className="h-4 w-4" />
                          </Button>
                        </PermissionGate>
                      </PermissionGate>
@@ -296,23 +300,34 @@ export function ExpensesIncomesTab() {
         </CardContent>
       </Card>
  
-       {/* Delete Confirmation Dialog */}
-       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+       {/* Reverse Confirmation Dialog */}
+       <AlertDialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
          <AlertDialogContent>
            <AlertDialogHeader>
-             <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+             <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
              <AlertDialogDescription>
-               Are you sure you want to delete this {transactionToDelete?.transaction_type?.toLowerCase()} entry of ₹{transactionToDelete?.amount?.toLocaleString('en-IN')}? 
-               This will reverse the bank balance adjustment. This action cannot be undone.
+               This will post a counter-entry that offsets this {transactionToReverse?.transaction_type?.toLowerCase()} of ₹{transactionToReverse?.amount?.toLocaleString('en-IN')}.
+               The original entry stays in the ledger for audit. Provide a reason — it will be stored permanently.
              </AlertDialogDescription>
            </AlertDialogHeader>
+           <div className="py-2">
+             <Label htmlFor="reverse-reason">Reason (required)</Label>
+             <Textarea
+               id="reverse-reason"
+               value={reverseReason}
+               onChange={(e) => setReverseReason(e.target.value)}
+               placeholder="Why is this entry being reversed?"
+               className="mt-1"
+             />
+           </div>
            <AlertDialogFooter>
              <AlertDialogCancel>Cancel</AlertDialogCancel>
-             <AlertDialogAction 
-               onClick={confirmDelete}
+             <AlertDialogAction
+               onClick={confirmReverse}
+               disabled={!reverseReason.trim() || reverseTransactionMutation.isPending}
                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
              >
-               {deleteTransactionMutation.isPending ? "Deleting..." : "Delete"}
+               {reverseTransactionMutation.isPending ? "Reversing..." : "Reverse"}
              </AlertDialogAction>
            </AlertDialogFooter>
          </AlertDialogContent>

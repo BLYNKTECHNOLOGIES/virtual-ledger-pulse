@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Download, FileText, TrendingUp, Package } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAverageCost } from "@/hooks/useAverageCost";
@@ -36,18 +37,18 @@ export function StockReportsTab() {
   const { data: stockTransactions, isLoading: reportsLoading } = useQuery({
     queryKey: ['stock_transactions_for_reports', dateFrom, dateTo],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_transactions')
-        .select(`
-          *,
-          products(name, code, unit_of_measurement)
-        `)
-        .gte('transaction_date', format(dateFrom, 'yyyy-MM-dd'))
-        .lte('transaction_date', format(dateTo, 'yyyy-MM-dd'))
-        .order('transaction_date', { ascending: false });
-
-      if (error) throw error;
-      return data;
+      // Paginated to ensure CSV export and reports include the full window, not just the latest 1000 rows.
+      return await fetchAllPaginated<any>(
+        () => supabase
+          .from('stock_transactions')
+          .select(`
+            *,
+            products(name, code, unit_of_measurement)
+          `)
+          .gte('transaction_date', format(dateFrom, 'yyyy-MM-dd'))
+          .lte('transaction_date', format(dateTo, 'yyyy-MM-dd'))
+          .order('transaction_date', { ascending: false })
+      );
     },
   });
   
@@ -68,62 +69,61 @@ export function StockReportsTab() {
   const { data: walletTransactions } = useQuery({
     queryKey: ['wallet_transactions_for_reports', dateFrom, dateTo],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallet_transactions')
-        .select(`
-          *,
-          wallets(wallet_name, wallet_type)
-        `)
-        .gte('created_at', format(dateFrom, 'yyyy-MM-dd'))
-        .lte('created_at', format(dateTo, 'yyyy-MM-dd'))
-        .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT'])
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      return await fetchAllPaginated<any>(
+        () => supabase
+          .from('wallet_transactions')
+          .select(`
+            *,
+            wallets(wallet_name, wallet_type)
+          `)
+          .gte('created_at', format(dateFrom, 'yyyy-MM-dd'))
+          .lte('created_at', format(dateTo, 'yyyy-MM-dd'))
+          .in('reference_type', ['MANUAL_TRANSFER', 'MANUAL_ADJUSTMENT'])
+          .order('created_at', { ascending: false })
+      );
     },
   });
 
   const { data: inventoryReport } = useQuery({
     queryKey: ['inventory_report'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-      if (error) throw error;
-      return data;
+      return await fetchAllPaginated<any>(
+        () => supabase
+          .from('products')
+          .select('*')
+          .order('name')
+      );
     },
   });
 
   const { data: lowStockProducts } = useQuery({
     queryKey: ['low_stock_products'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .lte('current_stock_quantity', 10)
-        .order('current_stock_quantity');
-      if (error) throw error;
-      return data;
+      return await fetchAllPaginated<any>(
+        () => supabase
+          .from('products')
+          .select('*')
+          .lte('current_stock_quantity', 10)
+          .order('current_stock_quantity')
+      );
     },
   });
 
   const { data: purchaseReport } = useQuery({
     queryKey: ['purchase_report', dateFrom, dateTo],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_order_items')
-        .select(`
-          *,
-          purchase_orders!inner(order_date, supplier_name),
-          products(name, code, unit_of_measurement)
-        `)
-        .gte('purchase_orders.order_date', format(dateFrom, 'yyyy-MM-dd'))
-        .lte('purchase_orders.order_date', format(dateTo, 'yyyy-MM-dd'))
-        .order('purchase_orders.order_date', { ascending: false });
-
-      if (error) throw error;
-      return data;
+      return await fetchAllPaginated<any>(
+        () => supabase
+          .from('purchase_order_items')
+          .select(`
+            *,
+            purchase_orders!inner(order_date, supplier_name),
+            products(name, code, unit_of_measurement)
+          `)
+          .gte('purchase_orders.order_date', format(dateFrom, 'yyyy-MM-dd'))
+          .lte('purchase_orders.order_date', format(dateTo, 'yyyy-MM-dd'))
+          .order('purchase_orders.order_date', { ascending: false })
+      );
     },
   });
 

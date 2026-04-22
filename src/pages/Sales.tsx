@@ -233,7 +233,7 @@ export default function Sales() {
 
     // Fallback wallet lookup — in case the embed didn't populate (stale cache, RLS edge cases, etc.)
     const walletIds = Array.from(new Set(
-      salesOrders.map((o: any) => o.wallet_id).filter(Boolean)
+      exportOrders.map((o: any) => o.wallet_id).filter(Boolean)
     ));
     const walletNameById: Record<string, string> = {};
     if (walletIds.length > 0) {

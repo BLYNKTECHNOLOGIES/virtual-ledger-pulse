@@ -52,11 +52,14 @@ export default function ErpEntryManager() {
   const approveConversion = useApproveConversion();
   const queryClient = useQueryClient();
 
+  const [view, setView] = useState<"pending" | "rejected">("pending");
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc"); // oldest pending at top per requirement
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [activeRow, setActiveRow] = useState<ErpEntryRow | null>(null);
+
+  const { data: rejectedRows = [], isLoading: rejectedLoading } = useErpEntryRejectedFeed(view === "rejected");
 
   // Counts per source for chip badges
   const counts = useMemo(() => {

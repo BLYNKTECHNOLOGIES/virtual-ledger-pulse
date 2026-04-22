@@ -147,8 +147,11 @@ export function ExpensesIncomesTab() {
      }
    };
  
-  // Get recent transactions (last 10)
-  const recentTransactions = transactions?.slice(0, 10) || [];
+  // Apply "Hide reversal noise" filter, then take recent 10
+  const visibleTransactions = (transactions || []).filter((t: any) =>
+    hideReversalNoise ? !t.is_reversed && !t.reverses_transaction_id : true
+  );
+  const recentTransactions = visibleTransactions.slice(0, 10);
 
   const getTransactionIcon = (type: string) => {
     switch (type) {

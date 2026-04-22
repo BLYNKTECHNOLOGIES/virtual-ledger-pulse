@@ -23,6 +23,9 @@ import { useRejectQueueItem } from "@/hooks/useErpActionQueue";
 import { useRejectConversion, useApproveConversion } from "@/hooks/useProductConversions";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useErpEntryRejectedFeed } from "@/hooks/useErpEntryRejectedFeed";
+import { RejectedEntryRow } from "@/components/erp-entry/RejectedEntryRow";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function dayBucket(ts: number) {
   const d = new Date(ts);
@@ -49,16 +52,23 @@ export default function ErpEntryManager() {
   const approveConversion = useApproveConversion();
   const queryClient = useQueryClient();
 
+  const [view, setView] = useState<"pending" | "rejected">("pending");
   const [filter, setFilter] = useState<SourceFilter>("all");
   const [search, setSearch] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc"); // oldest pending at top per requirement
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [activeRow, setActiveRow] = useState<ErpEntryRow | null>(null);
 
+  const { data: rejectedRows = [], isLoading: rejectedLoading } = useErpEntryRejectedFeed(view === "rejected");
+
+  // Active source list depends on current view
+  const sourceRows = view === "rejected" ? (rejectedRows as ErpEntryRow[]) : rows;
+  const listLoading = view === "rejected" ? rejectedLoading : isLoading;
+
   // Counts per source for chip badges
   const counts = useMemo(() => {
     const c: Record<SourceFilter, number> = {
-      all: rows.length,
+      all: sourceRows.length,
       deposit: 0,
       withdrawal: 0,
       terminal_buy: 0,
@@ -67,24 +77,24 @@ export default function ErpEntryManager() {
       small_sales: 0,
       conversion: 0,
     };
-    for (const r of rows) c[r.source]++;
+    for (const r of sourceRows) c[r.source]++;
     return c;
-  }, [rows]);
+  }, [sourceRows]);
 
   // Filter + search + sort
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let out = rows.filter((r) => filter === "all" || r.source === filter);
+    let out = sourceRows.filter((r) => filter === "all" || r.source === filter);
     if (q) {
       out = out.filter((r) =>
-        [r.label, r.sublabel, r.asset, String(r.amount), r.raw?.binance_order_number, r.raw?.tx_id, r.raw?.reference_no, r.raw?.counterparty_name]
+        [r.label, r.sublabel, r.asset, String(r.amount), r.raw?.binance_order_number, r.raw?.tx_id, r.raw?.reference_no, r.raw?.counterparty_name, (r as any).rejection_reason]
           .filter(Boolean)
           .some((v: any) => String(v).toLowerCase().includes(q))
       );
     }
     out.sort((a, b) => (sortDir === "asc" ? a.occurred_at - b.occurred_at : b.occurred_at - a.occurred_at));
     return out;
-  }, [rows, filter, search, sortDir]);
+  }, [sourceRows, filter, search, sortDir]);
 
   // Group by day for sticky separators
   const grouped = useMemo(() => {
@@ -183,15 +193,39 @@ export default function ErpEntryManager() {
               <div>
                 <CardTitle className="text-base">ERP Entry Manager</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Unified chronological feed of every pending ERP entry
+                  {view === "rejected"
+                    ? "All entries that have been rejected, across every source"
+                    : "Unified chronological feed of every pending ERP entry"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <SyncSmallMenu />
-              <SyncAllButton />
+              {view === "pending" && (
+                <>
+                  <SyncSmallMenu />
+                  <SyncAllButton />
+                </>
+              )}
             </div>
           </div>
+
+          <Tabs
+            value={view}
+            onValueChange={(v) => {
+              const next = v as "pending" | "rejected";
+              setView(next);
+              setFocusedId(null);
+              setFilter("all");
+              // Pending = oldest first (act on stale); Rejected = newest first (recent rejections)
+              setSortDir(next === "pending" ? "asc" : "desc");
+            }}
+            className="mt-3"
+          >
+            <TabsList className="h-8">
+              <TabsTrigger value="pending" className="text-xs h-6 px-3">Pending</TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs h-6 px-3">Rejected</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent className="pt-0">
           <EntryFilters
@@ -205,13 +239,15 @@ export default function ErpEntryManager() {
           />
 
           <div className="mt-4 text-xs text-muted-foreground">
-            {isLoading ? "Loading…" : `${visible.length} entr${visible.length === 1 ? "y" : "ies"} shown`}
-            {" · "}auto-refresh every 30s · ↑/↓ navigate · Enter open · R reject
+            {listLoading ? "Loading…" : `${visible.length} entr${visible.length === 1 ? "y" : "ies"} shown`}
+            {view === "pending"
+              ? " · auto-refresh every 30s · ↑/↓ navigate · Enter open · R reject"
+              : " · auto-refresh every 60s · read-only history"}
           </div>
         </CardContent>
       </Card>
 
-      {isLoading ? (
+      {listLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-16 w-full" />
@@ -220,7 +256,7 @@ export default function ErpEntryManager() {
       ) : visible.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No pending entries. All caught up.
+            {view === "rejected" ? "No rejected entries to show." : "No pending entries. All caught up."}
           </CardContent>
         </Card>
       ) : (
@@ -231,32 +267,35 @@ export default function ErpEntryManager() {
                 {dayLabel(bucket)} · {items.length}
               </div>
               <div className="space-y-2">
-                {items.map((row) => (
-                  <EntryRow
-                    key={row.id}
-                    row={row}
-                    isFocused={row.id === focusedId}
-                    onFocus={() => setFocusedId(row.id)}
-                    onOpen={() => {
-                      if (row.source === "conversion") {
-                        approveConversion.mutate(row.raw.id, {
-                          onSuccess: () => {
-                            queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
-                          },
-                        });
-                        return;
-                      }
-                      setActiveRow(row);
-                    }}
-                    onReject={() => handleReject(row)}
-                  />
-                ))}
+                {items.map((row) =>
+                  view === "rejected" ? (
+                    <RejectedEntryRow key={row.id} row={row as any} />
+                  ) : (
+                    <EntryRow
+                      key={row.id}
+                      row={row}
+                      isFocused={row.id === focusedId}
+                      onFocus={() => setFocusedId(row.id)}
+                      onOpen={() => {
+                        if (row.source === "conversion") {
+                          approveConversion.mutate(row.raw.id, {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
+                            },
+                          });
+                          return;
+                        }
+                        setActiveRow(row);
+                      }}
+                      onReject={() => handleReject(row)}
+                    />
+                  )
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
-
       {/* Source-specific dialogs — exact same components used by the original tabs */}
       {activeRow?.source === "deposit" || activeRow?.source === "withdrawal" ? (
         <ActionSelectionDialog

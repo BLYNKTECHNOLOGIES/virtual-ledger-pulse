@@ -322,7 +322,7 @@ export default function Sales() {
 
     const csvData: any[][] = [];
 
-    salesOrders.forEach(order => {
+    exportOrders.forEach(order => {
       // Use splits first, fall back to bank_transactions
       const splits = splitsByOrder[order.id];
       const bankTxns = bankTxnsByOrderNo[order.order_number || ''];

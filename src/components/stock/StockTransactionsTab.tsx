@@ -20,6 +20,9 @@ import { ClickableUser } from "@/components/ui/clickable-user";
 import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { fetchActiveWalletsWithLedgerAssetBalance, fetchWalletLedgerAssetBalance } from "@/lib/wallet-ledger-balance";
 import { PermissionGate } from "@/components/PermissionGate";
+import { ReversalBadge } from "./ReversalBadge";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,9 +52,18 @@ export function StockTransactionsTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Per-user "Hide reversal noise" preference (default OFF for full audit view)
+  const _userIdForPrefs = getCurrentUserId();
+  const [stockPrefs, setStockPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+    _userIdForPrefs,
+    "stock_transactions_tab",
+    { hideReversals: false }
+  );
+  const hideReversalNoise = stockPrefs.hideReversals;
 
   const { data: transactions, isLoading, refetch } = useQuery({
     queryKey: ['stock_transactions', searchTerm, filterType],
@@ -780,7 +792,12 @@ export function StockTransactionsTab() {
       }
       return true;
     })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter((entry: any) =>
+      hideReversalNoise
+        ? !(entry.type === 'wallet' && (entry.is_reversed || entry.reverses_transaction_id))
+        : true
+    );
 
   // Collect unique wallet names and product codes for filter dropdowns
   const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
@@ -797,13 +814,25 @@ export function StockTransactionsTab() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Stock Transactions</CardTitle>
-            <Button 
-              onClick={() => setShowAdjustmentDialog(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <ArrowLeftRight className="h-4 w-4 mr-2" />
-              Manual Adjustment
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="stk-hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
+                  Hide reversal noise
+                </Label>
+                <Switch
+                  id="stk-hide-rev-noise"
+                  checked={hideReversalNoise}
+                  onCheckedChange={(v) => setStockPref("hideReversals", !!v)}
+                />
+              </div>
+              <Button
+                onClick={() => setShowAdjustmentDialog(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <ArrowLeftRight className="h-4 w-4 mr-2" />
+                Manual Adjustment
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -886,7 +915,16 @@ export function StockTransactionsTab() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        {getTransactionBadge(entry.transaction_type, entry.reference_type)}
+                        <div className="flex items-center">
+                          {getTransactionBadge(entry.transaction_type, entry.reference_type)}
+                          {entry.type === 'wallet' && (
+                            <ReversalBadge
+                              isReversed={(entry as any).is_reversed}
+                              reversesTransactionId={(entry as any).reverses_transaction_id}
+                              description={(entry as any).description}
+                            />
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         {(() => {

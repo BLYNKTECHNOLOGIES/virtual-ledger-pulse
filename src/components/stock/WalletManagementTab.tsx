@@ -32,6 +32,10 @@ import { getCurrentUserId } from "@/lib/system-action-logger";
 import { ClickableUser } from "@/components/ui/clickable-user";
 import { PermissionGate } from "@/components/PermissionGate";
 import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
+import { ReversalBadge } from "./ReversalBadge";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+import { getCurrentUserId as getCurUserIdForPrefs } from "@/lib/system-action-logger";
+import { Label as PrefLabel } from "@/components/ui/label";
 
 interface WalletType {
   id: string;
@@ -74,6 +78,15 @@ export function WalletManagementTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
+
+  // Per-user "Hide reversal noise" preference (defaults OFF for full audit view)
+  const _userIdForPrefs = getCurUserIdForPrefs();
+  const [walletPrefs, setWalletPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+    _userIdForPrefs,
+    "wallet_management_tab",
+    { hideReversals: false }
+  );
+  const hideReversalNoise = walletPrefs.hideReversals;
 
   const { data: binanceBalances } = useBinanceBalances();
   const { data: activeWalletLink } = useQuery({
@@ -815,7 +828,19 @@ export function WalletManagementTab() {
       {/* Recent Transactions */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
+          <div className="flex items-center justify-between gap-4">
+            <CardTitle>Recent Transactions</CardTitle>
+            <div className="flex items-center gap-2">
+              <PrefLabel htmlFor="hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
+                Hide reversal noise
+              </PrefLabel>
+              <Switch
+                id="hide-rev-noise"
+                checked={hideReversalNoise}
+                onCheckedChange={(v) => setWalletPref("hideReversals", !!v)}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {transactionsLoading ? (
@@ -836,7 +861,14 @@ export function WalletManagementTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions?.slice(0, 50).map((transaction) => (
+                {(transactions || [])
+                  .filter((t: any) =>
+                    hideReversalNoise
+                      ? !t.is_reversed && !t.reverses_transaction_id
+                      : true
+                  )
+                  .slice(0, 50)
+                  .map((transaction: any) => (
                   <TableRow key={transaction.id}>
                     <TableCell>
                       <div className="flex flex-col">
@@ -848,14 +880,21 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>{transaction.wallets?.wallet_name}</TableCell>
                     <TableCell>
-                      <Badge variant={transaction.transaction_type === 'CREDIT' ? "default" : "destructive"}>
-                        {transaction.transaction_type === 'CREDIT' ? (
-                          <TrendingUp className="h-3 w-3 mr-1" />
-                        ) : (
-                          <TrendingDown className="h-3 w-3 mr-1" />
-                        )}
-                        {transaction.transaction_type}
-                      </Badge>
+                      <div className="flex items-center">
+                        <Badge variant={transaction.transaction_type === 'CREDIT' ? "default" : "destructive"}>
+                          {transaction.transaction_type === 'CREDIT' ? (
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                          ) : (
+                            <TrendingDown className="h-3 w-3 mr-1" />
+                          )}
+                          {transaction.transaction_type}
+                        </Badge>
+                        <ReversalBadge
+                          isReversed={transaction.is_reversed}
+                          reversesTransactionId={transaction.reverses_transaction_id}
+                          description={transaction.description}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell>{(transaction.amount ?? 0).toLocaleString('en-IN')}</TableCell>
                     <TableCell>
@@ -876,7 +915,7 @@ export function WalletManagementTab() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {isDeletable(transaction.reference_type) && (
+                      {isDeletable(transaction.reference_type, transaction) && (
                         <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
                           <Button
                             variant="ghost"

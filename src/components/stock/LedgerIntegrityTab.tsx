@@ -49,10 +49,40 @@ interface TamperRow {
 const shortHash = (h?: string | null) => (h ? `${h.slice(0, 8)}…${h.slice(-6)}` : "—");
 const shortId = (id?: string | null) => (id ? `${id.slice(0, 8)}…` : "—");
 
+interface AssetBalRow {
+  wallet_id: string;
+  wallet_name: string;
+  asset_code: string;
+  intact: boolean;
+  rows_checked: number;
+  break_transaction_id: string | null;
+  break_reason: string | null;
+}
+
 export function LedgerIntegrityTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [verification, setVerification] = useState<ChainRow[] | null>(null);
+  const [assetVerification, setAssetVerification] = useState<AssetBalRow[] | null>(null);
+
+  const verifyAssetBalancesMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("verify_all_wallet_asset_running_balances");
+      if (error) throw error;
+      return (data || []) as AssetBalRow[];
+    },
+    onSuccess: (rows) => {
+      setAssetVerification(rows);
+      const broken = rows.filter((r) => !r.intact).length;
+      toast({
+        title: broken === 0 ? "All asset closing balances intact" : "Closing-balance drift detected",
+        description: `${rows.length} (wallet × asset) pair(s) checked, ${broken} broken.`,
+        variant: broken === 0 ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: "Asset balance verification failed", description: e?.message || String(e), variant: "destructive" }),
+  });
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
@@ -232,6 +262,14 @@ export function LedgerIntegrityTab() {
                 {anchorMutation.isPending ? "Anchoring…" : "Snapshot Anchor"}
               </Button>
               <Button
+                variant="outline"
+                onClick={() => verifyAssetBalancesMutation.mutate()}
+                disabled={verifyAssetBalancesMutation.isPending}
+              >
+                <ShieldCheck className="h-4 w-4 mr-2" />
+                {verifyAssetBalancesMutation.isPending ? "Checking…" : "Verify Per-Asset Closing Balances"}
+              </Button>
+              <Button
                 onClick={() => verifyMutation.mutate()}
                 disabled={verifyMutation.isPending}
               >
@@ -303,6 +341,80 @@ export function LedgerIntegrityTab() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {assetVerification && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Per-Asset Closing Balance Verification
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Walks each (wallet × asset) pair in sequence and asserts every row's
+              balance_after = balance_before + signed_amount, and matches the previous
+              row's closing balance.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Wallet</TableHead>
+                  <TableHead>Asset</TableHead>
+                  <TableHead className="text-right">Rows</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Break Detail</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assetVerification.map((r, i) => (
+                  <TableRow key={`${r.wallet_id}-${r.asset_code}-${i}`}>
+                    <TableCell className="text-xs">{r.wallet_name}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.asset_code}</TableCell>
+                    <TableCell className="text-right">{r.rows_checked}</TableCell>
+                    <TableCell>
+                      {r.intact ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Intact
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          <ShieldAlert className="h-3 w-3 mr-1" />
+                          DRIFT
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {r.intact ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <div>tx {shortId(r.break_transaction_id)} · {r.break_reason}</div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            Bank Ledger Parity (v2)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Note: bank_transactions is <strong>not yet immutable</strong>. The hash-chain,
+            append-only enforcement, and tamper log currently apply only to wallet ledger
+            rows. Extending the same guarantees to bank rows is tracked for v2.
+          </p>
         </CardContent>
       </Card>
 

@@ -15672,11 +15672,35 @@ export type Database = {
           username: string
         }[]
       }
+      verify_all_wallet_asset_running_balances: {
+        Args: never
+        Returns: {
+          asset_code: string
+          break_reason: string
+          break_transaction_id: string
+          intact: boolean
+          rows_checked: number
+          wallet_id: string
+          wallet_name: string
+        }[]
+      }
       verify_and_consume_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }
         Returns: boolean
       }
       verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
+      verify_wallet_asset_running_balance: {
+        Args: { p_asset_code?: string; p_wallet_id: string }
+        Returns: {
+          break_reason: string
+          break_sequence_no: number
+          break_transaction_id: string
+          expected_balance: number
+          intact: boolean
+          rows_checked: number
+          stored_balance: number
+        }[]
+      }
       verify_wallet_chain: {
         Args: { p_wallet_id?: string }
         Returns: {

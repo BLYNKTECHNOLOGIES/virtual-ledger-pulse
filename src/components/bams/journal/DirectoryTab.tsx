@@ -836,40 +836,45 @@ export function DirectoryTab() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Reverse Confirmation Dialog */}
+      <AlertDialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>
-                Are you sure you want to delete this <strong>{transactionToDelete?.display_type?.toLowerCase()}</strong> of{' '}
-                <strong>₹{Number(transactionToDelete?.display_amount || 0).toLocaleString('en-IN')}</strong>?
+                This will post a counter-entry that offsets this <strong>{transactionToReverse?.display_type?.toLowerCase()}</strong> of{' '}
+                <strong>₹{Number(transactionToReverse?.display_amount || 0).toLocaleString('en-IN')}</strong>.
+                The original entry stays in the ledger for audit.
               </p>
               <p className="text-xs">
-                <strong>Bank Account:</strong> {transactionToDelete?.display_account}
+                <strong>Bank Account:</strong> {transactionToReverse?.display_account}
               </p>
-              {transactionToDelete?.display_description && (
+              {transactionToReverse?.display_description && (
                 <p className="text-xs">
-                  <strong>Description:</strong> {transactionToDelete?.display_description}
+                  <strong>Description:</strong> {transactionToReverse?.display_description}
                 </p>
               )}
-              <p className="text-destructive font-medium text-sm mt-2">
-                {transactionToDelete?.display_type === 'EXPENSE'
-                  ? '⚠️ The bank balance will be credited back (increased) by this amount.'
-                  : '⚠️ The bank balance will be debited (decreased) by this amount.'}
-              </p>
-              <p className="text-xs text-muted-foreground">This action cannot be undone.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="py-2">
+            <Label htmlFor="dir-reverse-reason">Reason (required)</Label>
+            <Textarea
+              id="dir-reverse-reason"
+              value={reverseReason}
+              onChange={(e) => setReverseReason(e.target.value)}
+              placeholder="Why is this entry being reversed?"
+              className="mt-1"
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
+              onClick={confirmReverse}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={deleteTransactionMutation.isPending}
+              disabled={!reverseReason.trim() || reverseTransactionMutation.isPending}
             >
-              {deleteTransactionMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+              {reverseTransactionMutation.isPending ? "Reversing..." : "Post Reversal"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

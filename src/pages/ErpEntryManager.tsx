@@ -193,15 +193,39 @@ export default function ErpEntryManager() {
               <div>
                 <CardTitle className="text-base">ERP Entry Manager</CardTitle>
                 <p className="text-xs text-muted-foreground">
-                  Unified chronological feed of every pending ERP entry
+                  {view === "rejected"
+                    ? "All entries that have been rejected, across every source"
+                    : "Unified chronological feed of every pending ERP entry"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <SyncSmallMenu />
-              <SyncAllButton />
+              {view === "pending" && (
+                <>
+                  <SyncSmallMenu />
+                  <SyncAllButton />
+                </>
+              )}
             </div>
           </div>
+
+          <Tabs
+            value={view}
+            onValueChange={(v) => {
+              const next = v as "pending" | "rejected";
+              setView(next);
+              setFocusedId(null);
+              setFilter("all");
+              // Pending = oldest first (act on stale); Rejected = newest first (recent rejections)
+              setSortDir(next === "pending" ? "asc" : "desc");
+            }}
+            className="mt-3"
+          >
+            <TabsList className="h-8">
+              <TabsTrigger value="pending" className="text-xs h-6 px-3">Pending</TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs h-6 px-3">Rejected</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent className="pt-0">
           <EntryFilters
@@ -215,11 +239,63 @@ export default function ErpEntryManager() {
           />
 
           <div className="mt-4 text-xs text-muted-foreground">
-            {isLoading ? "Loading…" : `${visible.length} entr${visible.length === 1 ? "y" : "ies"} shown`}
-            {" · "}auto-refresh every 30s · ↑/↓ navigate · Enter open · R reject
+            {listLoading ? "Loading…" : `${visible.length} entr${visible.length === 1 ? "y" : "ies"} shown`}
+            {view === "pending"
+              ? " · auto-refresh every 30s · ↑/↓ navigate · Enter open · R reject"
+              : " · auto-refresh every 60s · read-only history"}
           </div>
         </CardContent>
       </Card>
+
+      {listLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">
+            {view === "rejected" ? "No rejected entries to show." : "No pending entries. All caught up."}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {grouped.map(([bucket, items]) => (
+            <div key={bucket} className="space-y-2">
+              <div className="sticky top-0 z-10 -mx-1 bg-background/95 backdrop-blur px-1 py-1 text-xs font-medium text-muted-foreground">
+                {dayLabel(bucket)} · {items.length}
+              </div>
+              <div className="space-y-2">
+                {items.map((row) =>
+                  view === "rejected" ? (
+                    <RejectedEntryRow key={row.id} row={row as any} />
+                  ) : (
+                    <EntryRow
+                      key={row.id}
+                      row={row}
+                      isFocused={row.id === focusedId}
+                      onFocus={() => setFocusedId(row.id)}
+                      onOpen={() => {
+                        if (row.source === "conversion") {
+                          approveConversion.mutate(row.raw.id, {
+                            onSuccess: () => {
+                              queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
+                            },
+                          });
+                          return;
+                        }
+                        setActiveRow(row);
+                      }}
+                      onReject={() => handleReject(row)}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2">

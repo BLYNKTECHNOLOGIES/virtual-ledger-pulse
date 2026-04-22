@@ -670,34 +670,54 @@ export function StockTransactionsTab() {
     }
   };
 
-  // Build closing balance maps from wallet transactions for order-linked entries
+  // Build closing balance maps from wallet transactions for order-linked entries.
+  // IMMUTABLE-LEDGER PRINCIPLE: prefer per-leg lookup keyed on (reference_id, asset_code)
+  // so multi-leg orders (e.g. split payments, fee deductions) resolve to the matching wallet
+  // leg instead of an arbitrary first match. We keep the reference_number map as a last-resort
+  // fallback for legacy rows that lack a reference_id.
+  const closingBalanceByLeg = new Map<string, { balance_after: number; wallet_name: string; asset_code: string }>();
   const closingBalanceByOrderRef = new Map<string, { balance_after: number; wallet_name: string; asset_code: string }>();
   (walletTransactions || [])
     .filter((w: any) => ['SALES_ORDER', 'PURCHASE_ORDER'].includes(w.reference_type))
+    // Exclude reversal-related rows so the displayed closing balance reflects live ledger state.
+    .filter((w: any) => !w.is_reversed && !w.reverses_transaction_id)
     .forEach((w: any) => {
-      // Map by reference_id (order ID) or order_number
-      const refNumber = (w as any)._reference_number;
-      if (refNumber) {
-        closingBalanceByOrderRef.set(refNumber, {
-          balance_after: w.balance_after ?? 0,
-          wallet_name: w.wallets?.wallet_name || '',
-          asset_code: w.asset_code || 'USDT',
-        });
-      }
+      const info = {
+        balance_after: w.balance_after ?? 0,
+        wallet_name: w.wallets?.wallet_name || '',
+        asset_code: w.asset_code || 'USDT',
+      };
+      // Primary key: (reference_id, asset_code) — uniquely identifies a leg.
       if (w.reference_id) {
-        closingBalanceByOrderRef.set(w.reference_id, {
-          balance_after: w.balance_after ?? 0,
-          wallet_name: w.wallets?.wallet_name || '',
-          asset_code: w.asset_code || 'USDT',
-        });
+        closingBalanceByLeg.set(`${w.reference_id}::${w.asset_code || 'USDT'}`, info);
+      }
+      // Legacy/fallback maps
+      const refNumber = (w as any)._reference_number;
+      if (refNumber && !closingBalanceByOrderRef.has(refNumber)) {
+        closingBalanceByOrderRef.set(refNumber, info);
+      }
+      if (w.reference_id && !closingBalanceByOrderRef.has(w.reference_id)) {
+        closingBalanceByOrderRef.set(w.reference_id, info);
       }
     });
+
+  const lookupClosing = (refId: string | null | undefined, refNumber: string | null | undefined, assetCode: string | null | undefined) => {
+    if (refId && assetCode) {
+      const v = closingBalanceByLeg.get(`${refId}::${assetCode}`);
+      if (v) return v;
+    }
+    if (refId) {
+      const v = closingBalanceByLeg.get(`${refId}::USDT`);
+      if (v) return v;
+    }
+    return (refNumber && closingBalanceByOrderRef.get(refNumber)) || (refId && closingBalanceByOrderRef.get(refId)) || null;
+  };
 
   // Combine all transactions
   const allEntries = [
     // Regular stock transactions
     ...(transactions || []).map(t => {
-      const closingInfo = closingBalanceByOrderRef.get(t.reference_number) || closingBalanceByOrderRef.get((t as any).id);
+      const closingInfo = lookupClosing((t as any).id, t.reference_number, 'USDT');
       return {
         ...t,
         type: 'transaction',
@@ -718,7 +738,7 @@ export function StockTransactionsTab() {
       const qty = parseFloat(String(p.quantity)) || 0;
       const totalAmount = qty * unitPrice;
       const poId = (p as any).purchase_order_id || (p as any).purchase_orders?.id;
-      const closingInfo = closingBalanceByOrderRef.get(p.purchase_orders?.order_number) || closingBalanceByOrderRef.get(poId);
+      const closingInfo = lookupClosing(poId, p.purchase_orders?.order_number, (p.products as any)?.code || 'USDT');
       return {
         ...p,
         type: 'purchase',

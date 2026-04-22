@@ -20,8 +20,9 @@ import { SmallSalesApprovalDialog } from "@/components/sales/SmallSalesApprovalD
 import { ConversionApprovalDialog } from "@/components/stock/conversion/ConversionApprovalDialog";
 
 import { useRejectQueueItem } from "@/hooks/useErpActionQueue";
-import { useRejectConversion } from "@/hooks/useProductConversions";
+import { useRejectConversion, useApproveConversion } from "@/hooks/useProductConversions";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 function dayBucket(ts: number) {
   const d = new Date(ts);

@@ -267,6 +267,48 @@ export default function Sales() {
       if (data) allBankTxns = allBankTxns.concat(data);
     }
 
+    // Fetch settlement bank info for gateway-settled sales (Terminal P2P, POS, etc.)
+    // Source 1: payment_gateway_settlement_items -> payment_gateway_settlements.bank_account_id
+    let allSettlementItems: any[] = [];
+    for (let i = 0; i < orderIds.length; i += CHUNK) {
+      const chunk = orderIds.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('payment_gateway_settlement_items')
+        .select('sales_order_id, amount, reversed_at, settlement:settlement_id(bank_account_id, bank_accounts:bank_account_id(account_name, bank_name))')
+        .in('sales_order_id', chunk);
+      if (data) allSettlementItems = allSettlementItems.concat(data);
+    }
+
+    // Source 2: pending_settlements (settled or pending) — has bank_account_id directly
+    let allPending: any[] = [];
+    for (let i = 0; i < orderIds.length; i += CHUNK) {
+      const chunk = orderIds.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('pending_settlements')
+        .select('sales_order_id, settlement_amount, status, bank_account_id, bank_accounts:bank_account_id(account_name, bank_name)')
+        .in('sales_order_id', chunk);
+      if (data) allPending = allPending.concat(data);
+    }
+
+    const settlementByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string }>> = {};
+    (allSettlementItems || []).forEach((it: any) => {
+      if (it.reversed_at) return;
+      const oid = it.sales_order_id;
+      const bn = it.settlement?.bank_accounts?.bank_name || '';
+      const an = it.settlement?.bank_accounts?.account_name || '';
+      if (!bn && !an) return;
+      if (!settlementByOrder[oid]) settlementByOrder[oid] = [];
+      settlementByOrder[oid].push({ amount: Number(it.amount) || 0, bank_name: bn, account_name: an });
+    });
+    (allPending || []).forEach((p: any) => {
+      const oid = p.sales_order_id;
+      const bn = p.bank_accounts?.bank_name || '';
+      const an = p.bank_accounts?.account_name || '';
+      if (!bn && !an) return;
+      if (settlementByOrder[oid]) return; // prefer settled items over pending
+      settlementByOrder[oid] = [{ amount: Number(p.settlement_amount) || 0, bank_name: bn, account_name: an }];
+    });
+
     // Group splits by order id
     const splitsByOrder: Record<string, Array<{ amount: number; bank_name: string; account_name: string; nickname: string; is_gateway: boolean }>> = {};
     (allSplits || []).forEach((s: any) => {
@@ -323,13 +365,17 @@ export default function Sales() {
     const csvData: any[][] = [];
 
     exportOrders.forEach(order => {
-      // Use splits first, fall back to bank_transactions
+      // Priority: explicit splits > gateway settlement bank > bank_transactions match
       const splits = splitsByOrder[order.id];
+      const settlements = settlementByOrder[order.id];
       const bankTxns = bankTxnsByOrderNo[order.order_number || ''];
       const hasSplitData = splits && splits.length > 0;
-      const paymentSources = hasSplitData 
+      const hasSettlementData = !hasSplitData && settlements && settlements.length > 0;
+      const paymentSources = hasSplitData
         ? splits.map(s => ({ bank_name: s.bank_name, account_label: s.nickname || s.account_name, amount: s.amount }))
-        : (bankTxns || []).map(t => ({ bank_name: t.bank_name, account_label: t.account_name, amount: t.amount }));
+        : hasSettlementData
+          ? settlements.map(s => ({ bank_name: s.bank_name, account_label: s.account_name, amount: s.amount }))
+          : (bankTxns || []).map(t => ({ bank_name: t.bank_name, account_label: t.account_name, amount: t.amount }));
       const hasSplits = (order.is_split_payment && paymentSources.length > 1) || paymentSources.length > 1;
 
       const buildRow = (bankName: string, accountLabel: string, splitAmount: string, isSplit: string) => [

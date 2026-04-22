@@ -59,11 +59,32 @@ interface AssetBalRow {
   break_reason: string | null;
 }
 
+interface BankChainRow {
+  out_bank_account_id: string;
+  out_total_rows: number;
+  out_first_break_id: string | null;
+  out_first_break_seq: number | null;
+  out_expected_hash: string | null;
+  out_actual_hash: string | null;
+  out_is_intact: boolean;
+}
+
+interface BankBalRow {
+  bank_account_id: string;
+  account_name: string;
+  intact: boolean;
+  rows_checked: number;
+  break_transaction_id: string | null;
+  break_reason: string | null;
+}
+
 export function LedgerIntegrityTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [verification, setVerification] = useState<ChainRow[] | null>(null);
   const [assetVerification, setAssetVerification] = useState<AssetBalRow[] | null>(null);
+  const [bankChain, setBankChain] = useState<BankChainRow[] | null>(null);
+  const [bankBalances, setBankBalances] = useState<BankBalRow[] | null>(null);
 
   const verifyAssetBalancesMutation = useMutation({
     mutationFn: async () => {

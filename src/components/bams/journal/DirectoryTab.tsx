@@ -37,27 +37,26 @@ export function DirectoryTab() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [showFilters, setShowFilters] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
+  const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
+  const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
+  const [reverseReason, setReverseReason] = useState("");
 
-  // Delete mutation with balance reversal
-  const deleteTransactionMutation = useMutation({
-    mutationFn: async (transaction: any) => {
-      // Only allow deleting direct bank transactions (EXPENSE/INCOME from BANK source)
+  // Reverse mutation — posts an immutable counter-entry via RPC
+  const reverseTransactionMutation = useMutation({
+    mutationFn: async ({ transaction, reason }: { transaction: any; reason: string }) => {
       if (transaction.source !== 'BANK') {
-        throw new Error('Only direct expense/income transactions can be deleted from the directory.');
+        throw new Error('Only direct expense/income transactions can be reversed from the directory.');
       }
 
-      const { error } = await supabase
-        .from('bank_transactions')
-        .delete()
-        .eq('id', transaction.id);
+      const { error } = await supabase.rpc('reverse_bank_transaction', {
+        p_original_id: transaction.id,
+        p_reason: reason,
+      });
 
       if (error) throw error;
 
-      // Log the action
       await logActionWithCurrentUser({
-        actionType: 'bank.transaction_deleted',
+        actionType: 'bank.transaction_reversed',
         entityType: EntityTypes.BANK_TRANSACTION,
         entityId: transaction.id,
         module: Modules.BAMS,
@@ -67,38 +66,41 @@ export function DirectoryTab() {
           bank_account: transaction.display_account,
           category: transaction.category,
           description: transaction.display_description,
+          reason,
         }
       });
     },
     onSuccess: () => {
       toast({
-        title: "Transaction Deleted",
-        description: "Transaction deleted and bank balance reversed successfully.",
+        title: "Transaction Reversed",
+        description: "A reversal entry has been posted. Original entry is preserved for audit.",
       });
       queryClient.invalidateQueries({ queryKey: ['all_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
-      setDeleteDialogOpen(false);
-      setTransactionToDelete(null);
+      setReverseDialogOpen(false);
+      setTransactionToReverse(null);
+      setReverseReason("");
     },
     onError: (error: any) => {
       toast({
-        title: "Delete Failed",
-        description: error.message || "Failed to delete transaction",
+        title: "Reversal Failed",
+        description: error.message || "Failed to reverse transaction",
         variant: "destructive",
       });
     },
   });
 
-  const handleDeleteClick = (transaction: any) => {
-    setTransactionToDelete(transaction);
-    setDeleteDialogOpen(true);
+  const handleReverseClick = (transaction: any) => {
+    setTransactionToReverse(transaction);
+    setReverseReason("");
+    setReverseDialogOpen(true);
   };
 
-  const confirmDelete = () => {
-    if (transactionToDelete) {
-      deleteTransactionMutation.mutate(transactionToDelete);
+  const confirmReverse = () => {
+    if (transactionToReverse && reverseReason.trim()) {
+      reverseTransactionMutation.mutate({ transaction: transactionToReverse, reason: reverseReason.trim() });
     }
   };
 

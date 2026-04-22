@@ -61,10 +61,14 @@ export default function ErpEntryManager() {
 
   const { data: rejectedRows = [], isLoading: rejectedLoading } = useErpEntryRejectedFeed(view === "rejected");
 
+  // Active source list depends on current view
+  const sourceRows = view === "rejected" ? (rejectedRows as ErpEntryRow[]) : rows;
+  const listLoading = view === "rejected" ? rejectedLoading : isLoading;
+
   // Counts per source for chip badges
   const counts = useMemo(() => {
     const c: Record<SourceFilter, number> = {
-      all: rows.length,
+      all: sourceRows.length,
       deposit: 0,
       withdrawal: 0,
       terminal_buy: 0,
@@ -73,24 +77,24 @@ export default function ErpEntryManager() {
       small_sales: 0,
       conversion: 0,
     };
-    for (const r of rows) c[r.source]++;
+    for (const r of sourceRows) c[r.source]++;
     return c;
-  }, [rows]);
+  }, [sourceRows]);
 
   // Filter + search + sort
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let out = rows.filter((r) => filter === "all" || r.source === filter);
+    let out = sourceRows.filter((r) => filter === "all" || r.source === filter);
     if (q) {
       out = out.filter((r) =>
-        [r.label, r.sublabel, r.asset, String(r.amount), r.raw?.binance_order_number, r.raw?.tx_id, r.raw?.reference_no, r.raw?.counterparty_name]
+        [r.label, r.sublabel, r.asset, String(r.amount), r.raw?.binance_order_number, r.raw?.tx_id, r.raw?.reference_no, r.raw?.counterparty_name, (r as any).rejection_reason]
           .filter(Boolean)
           .some((v: any) => String(v).toLowerCase().includes(q))
       );
     }
     out.sort((a, b) => (sortDir === "asc" ? a.occurred_at - b.occurred_at : b.occurred_at - a.occurred_at));
     return out;
-  }, [rows, filter, search, sortDir]);
+  }, [sourceRows, filter, search, sortDir]);
 
   // Group by day for sticky separators
   const grouped = useMemo(() => {

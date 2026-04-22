@@ -196,11 +196,23 @@ export function ExpensesIncomesTab() {
       {/* Recent Bank Transactions Only */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ArrowRightLeft className="h-5 w-5 text-blue-600" />
-            Recent Expenses & Incomes
-            <Badge variant="secondary">{recentTransactions.length} recent entries</Badge>
-          </CardTitle>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <CardTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="h-5 w-5 text-blue-600" />
+              Recent Expenses & Incomes
+              <Badge variant="secondary">{recentTransactions.length} recent entries</Badge>
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="bank-hide-rev-noise" className="text-xs text-muted-foreground cursor-pointer">
+                Hide reversal noise
+              </Label>
+              <Switch
+                id="bank-hide-rev-noise"
+                checked={hideReversalNoise}
+                onCheckedChange={(v) => setBankPref("hideReversals", !!v)}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {recentTransactions.length === 0 ? (

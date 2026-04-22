@@ -772,28 +772,46 @@ serve(async (req) => {
         break;
       }
 
-      // ===== DIAGNOSTIC: Probe all USDT locations =====
+      // ===== DIAGNOSTIC: Probe all USDT locations (filtered) =====
       case "diagnoseUsdtLocations": {
         const out: any = {};
         const tryGet = async (label: string, path: string, params: Record<string, string> = {}) => {
-          try {
-            const data = await proxyGet(path, params);
-            out[label] = data;
-          } catch (e) {
-            out[label] = { error: (e as Error).message };
-          }
+          try { out[label] = await proxyGet(path, params); }
+          catch (e) { out[label] = { error: (e as Error).message }; }
         };
-        await tryGet("funding", "/sapi/v1/asset/get-funding-asset", { asset: "USDT" });
-        await tryGet("user_asset_all", "/sapi/v3/asset/getUserAsset");
-        await tryGet("spot", "/api/v3/account");
+        const tryPost = async (label: string, path: string, params: Record<string, string> = {}) => {
+          try { out[label] = await proxyCall(path, params); }
+          catch (e) { out[label] = { error: (e as Error).message }; }
+        };
+        await tryPost("funding", "/sapi/v1/asset/get-funding-asset", { asset: "USDT" });
+        await tryPost("user_asset_all", "/sapi/v3/asset/getUserAsset", { asset: "USDT" });
+        await tryGet("spot_full", "/api/v3/account");
         await tryGet("simple_earn_flexible", "/sapi/v1/simple-earn/flexible/position", { asset: "USDT" });
         await tryGet("simple_earn_locked", "/sapi/v1/simple-earn/locked/position", { asset: "USDT" });
         await tryGet("simple_earn_account", "/sapi/v1/simple-earn/account");
         await tryGet("margin_account", "/sapi/v1/margin/account");
         await tryGet("staking_positions", "/sapi/v1/staking/position", { product: "STAKING", asset: "USDT" });
-        await tryGet("sub_accounts", "/sapi/v1/sub-account/list");
-        await tryGet("dust_log", "/sapi/v1/asset/dribblet");
         await tryGet("convert_history", "/sapi/v1/convert/tradeFlow", { startTime: String(Date.now() - 7*24*3600*1000), endTime: String(Date.now()) });
+
+        // Filter spot_full to just non-zero balances + USDT
+        if (out.spot_full?.balances) {
+          out.spot_nonzero = out.spot_full.balances.filter((b: any) =>
+            parseFloat(b.free) > 0 || parseFloat(b.locked) > 0 || b.asset === "USDT"
+          );
+          delete out.spot_full;
+        }
+        // Filter margin_account to just non-zero
+        if (out.margin_account?.userAssets) {
+          out.margin_nonzero = out.margin_account.userAssets.filter((a: any) =>
+            parseFloat(a.netAsset) !== 0 || parseFloat(a.borrowed) !== 0 || a.asset === "USDT"
+          );
+          out.margin_totals = {
+            totalAssetOfBtc: out.margin_account.totalAssetOfBtc,
+            totalNetAssetOfBtc: out.margin_account.totalNetAssetOfBtc,
+            totalCollateralValueInUSDT: out.margin_account.totalCollateralValueInUSDT,
+          };
+          delete out.margin_account;
+        }
         result = out;
         break;
       }

@@ -344,6 +344,80 @@ export function LedgerIntegrityTab() {
         </CardContent>
       </Card>
 
+      {assetVerification && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Per-Asset Closing Balance Verification
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Walks each (wallet × asset) pair in sequence and asserts every row's
+              balance_after = balance_before + signed_amount, and matches the previous
+              row's closing balance.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Wallet</TableHead>
+                  <TableHead>Asset</TableHead>
+                  <TableHead className="text-right">Rows</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Break Detail</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assetVerification.map((r, i) => (
+                  <TableRow key={`${r.wallet_id}-${r.asset_code}-${i}`}>
+                    <TableCell className="text-xs">{r.wallet_name}</TableCell>
+                    <TableCell className="font-mono text-xs">{r.asset_code}</TableCell>
+                    <TableCell className="text-right">{r.rows_checked}</TableCell>
+                    <TableCell>
+                      {r.intact ? (
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                          <ShieldCheck className="h-3 w-3 mr-1" />
+                          Intact
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          <ShieldAlert className="h-3 w-3 mr-1" />
+                          DRIFT
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs font-mono">
+                      {r.intact ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : (
+                        <div>tx {shortId(r.break_transaction_id)} · {r.break_reason}</div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            Bank Ledger Parity (v2)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Note: bank_transactions is <strong>not yet immutable</strong>. The hash-chain,
+            append-only enforcement, and tamper log currently apply only to wallet ledger
+            rows. Extending the same guarantees to bank rows is tracked for v2.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

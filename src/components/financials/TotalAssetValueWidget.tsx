@@ -78,11 +78,13 @@ export function useTotalAssetValue() {
         }));
       const totalUsdtUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
 
-      // 3b. Non-USDT asset balances
-      const { data: assetBalances } = await supabase
-        .from("wallet_asset_balances")
-        .select("asset_code, balance")
-        .neq("asset_code", "USDT");
+      // 3b. Non-USDT asset balances (paginated)
+      const assetBalances = await fetchAllPaginated<{ asset_code: string; balance: number }>(
+        () => supabase
+          .from("wallet_asset_balances")
+          .select("asset_code, balance")
+          .neq("asset_code", "USDT")
+      );
 
       const nonUsdtMap = new Map<string, number>();
       (assetBalances || []).forEach(ab => {
@@ -90,11 +92,13 @@ export function useTotalAssetValue() {
         nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
       });
 
-      // 3c. Get avg costs per product from completed POs
-      const { data: purchaseOrders } = await supabase
-        .from("purchase_orders")
-        .select(`*, purchase_order_items(quantity, total_price, products(code))`)
-        .eq("status", "COMPLETED");
+      // 3c. Get avg costs per product from completed POs (paginated to avoid 1000-row truncation)
+      const purchaseOrders = await fetchAllPaginated<any>(
+        () => supabase
+          .from("purchase_orders")
+          .select(`*, purchase_order_items(quantity, total_price, products(code))`)
+          .eq("status", "COMPLETED")
+      );
 
       const costCalc = new Map<string, { qty: number; cost: number }>();
       (purchaseOrders || []).forEach(po => {

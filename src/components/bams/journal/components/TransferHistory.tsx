@@ -2,7 +2,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRightLeft, Check, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { ArrowRightLeft, Check, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import {
   AlertDialog,
@@ -18,6 +20,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
+import { ReversalBadge } from "@/components/stock/ReversalBadge";
 
 interface TransferHistoryProps {
   transfers: any[];
@@ -26,17 +29,15 @@ interface TransferHistoryProps {
 export function TransferHistory({ transfers }: TransferHistoryProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [reverseTarget, setReverseTarget] = useState<any>(null);
+  const [reason, setReason] = useState("");
 
-  const deleteMutation = useMutation({
-    mutationFn: async (transfer: any) => {
+  const reverseMutation = useMutation({
+    mutationFn: async ({ transfer, reason }: { transfer: any; reason: string }) => {
       const transferOutId = transfer.id;
-
-      // Find the paired TRANSFER_IN via related_transaction_id
       let transferInId = transfer.related_transaction_id;
 
       if (!transferInId) {
-        // Check reverse linkage
         const { data: linkedIn } = await supabase
           .from('bank_transactions')
           .select('id')
@@ -46,47 +47,36 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
         transferInId = linkedIn?.id || null;
       }
 
-      // Clear related_transaction_id references to avoid FK conflicts
+      // Reverse the TRANSFER_IN leg first (destination), then TRANSFER_OUT (source).
+      // The new RPC posts counter-entries (TRANSFER_OUT/TRANSFER_IN) — the immutable
+      // ledger trigger automatically restamps balance_before/after on each new row.
       if (transferInId) {
-        await supabase
-          .from('bank_transactions')
-          .update({ related_transaction_id: null })
-          .eq('id', transferInId);
-      }
-      await supabase
-        .from('bank_transactions')
-        .update({ related_transaction_id: null })
-        .eq('id', transferOutId);
-
-      // Delete TRANSFER_IN first (trigger reverses destination balance)
-      if (transferInId) {
-        const { error: errIn } = await supabase
-          .from('bank_transactions')
-          .delete()
-          .eq('id', transferInId);
+        const { error: errIn } = await supabase.rpc('reverse_bank_transaction', {
+          p_original_id: transferInId,
+          p_reason: `Transfer reversal — ${reason}`,
+        });
         if (errIn) throw errIn;
       }
 
-      // Delete TRANSFER_OUT (trigger reverses source balance)
-      const { error: errOut } = await supabase
-        .from('bank_transactions')
-        .delete()
-        .eq('id', transferOutId);
+      const { error: errOut } = await supabase.rpc('reverse_bank_transaction', {
+        p_original_id: transferOutId,
+        p_reason: `Transfer reversal — ${reason}`,
+      });
       if (errOut) throw errOut;
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Contra entry deleted and bank balances reversed." });
+      toast({ title: "Transfer reversed", description: "Counter-entries posted; running balances updated." });
       queryClient.invalidateQueries({ queryKey: ['bank_transfers'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['account_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['active_non_dormant_bank_accounts'] });
-      setDeleteTarget(null);
+      setReverseTarget(null);
+      setReason("");
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete contra entry", variant: "destructive" });
-      setDeleteTarget(null);
+      toast({ title: "Error", description: error.message || "Failed to reverse transfer", variant: "destructive" });
     },
   });
 
@@ -100,7 +90,7 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
         </CardHeader>
         <CardContent>
           {filteredTransfers.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No transfers recorded yet
             </div>
           ) : (
@@ -108,21 +98,26 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
               {filteredTransfers.map((transfer) => (
                 <div
                   key={transfer.id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-blue-100 rounded-full">
                       <ArrowRightLeft className="h-4 w-4 text-blue-600" />
                     </div>
                     <div>
-                      <div className="font-medium">
+                      <div className="font-medium flex items-center gap-2">
                         {transfer.bank_accounts?.account_name} → {transfer.related_account_name}
+                        <ReversalBadge
+                          isReversed={transfer.is_reversed}
+                          reversesTransactionId={transfer.reverses_transaction_id}
+                          description={transfer.description}
+                        />
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-muted-foreground">
                         {format(new Date(transfer.transaction_date), "MMM dd, yyyy")}
                       </div>
                       {transfer.description && (
-                        <div className="text-sm text-gray-500">{transfer.description}</div>
+                        <div className="text-sm text-muted-foreground">{transfer.description}</div>
                       )}
                     </div>
                   </div>
@@ -135,15 +130,18 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
                       </div>
                     </div>
                     <PermissionGate permissions={["bams_destructive"]} showFallback={false}>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setDeleteTarget(transfer)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {!transfer.is_reversed && !transfer.reverses_transaction_id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setReverseTarget(transfer)}
+                          disabled={reverseMutation.isPending}
+                          title="Reverse transfer (posts counter-entries)"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </PermissionGate>
                   </div>
                 </div>
@@ -153,28 +151,37 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
         </CardContent>
       </Card>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <AlertDialog open={!!reverseTarget} onOpenChange={(open) => { if (!open) { setReverseTarget(null); setReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Contra Entry</AlertDialogTitle>
+            <AlertDialogTitle>Reverse Contra Entry</AlertDialogTitle>
             <AlertDialogDescription>
-              This will delete the transfer of <strong>₹{deleteTarget ? parseFloat(deleteTarget.amount.toString()).toLocaleString('en-IN') : ''}</strong> from{' '}
-              <strong>{deleteTarget?.bank_accounts?.account_name}</strong> to{' '}
-              <strong>{deleteTarget?.related_account_name}</strong> and reverse the bank balances.
-              This action cannot be undone.
+              This will post counter-entries to reverse the transfer of <strong>₹{reverseTarget ? parseFloat(reverseTarget.amount.toString()).toLocaleString('en-IN') : ''}</strong> from{' '}
+              <strong>{reverseTarget?.bank_accounts?.account_name}</strong> to{' '}
+              <strong>{reverseTarget?.related_account_name}</strong>. The original entries are kept (marked Reversed); two new linked rows will offset the balances. The audit trail is preserved.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="reverse-reason">Reason for reversal <span className="text-destructive">*</span></Label>
+            <Textarea
+              id="reverse-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. transfer entered to wrong account, duplicate booking"
+              rows={3}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={reverseMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
-                if (deleteTarget) deleteMutation.mutate(deleteTarget);
+                if (reverseTarget && reason.trim()) reverseMutation.mutate({ transfer: reverseTarget, reason: reason.trim() });
               }}
-              disabled={deleteMutation.isPending}
+              disabled={reverseMutation.isPending || !reason.trim()}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete & Reverse"}
+              {reverseMutation.isPending ? "Reversing..." : "Post Reversal"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

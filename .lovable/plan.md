@@ -1,80 +1,125 @@
 
 
-## Goal
+## Audit Result: Significant Gaps Found
 
-Convert the stock/wallet ledger (`wallet_transactions` and related tables) into an append-only, tamper-evident, blockchain-style log. Once a row is written, it can never be edited or deleted — a "reversal" or "correction" is itself a new transaction that points at the original. Any attempt to mutate history (via app, RPC, SQL editor, or compromised role) is either blocked or detectable.
+The hash-chain plumbing itself (sequence_no, prev_hash, row_hash, INSERT trigger, mutation-block trigger, reversal RPC, anchors, verifier) is **correctly implemented and currently intact** (0 tamper-log entries, all hashes verified). However, several **real-world code paths will start failing or silently corrupt the chain** the moment they run. These must be closed before they trigger in production.
 
-## The 5 Pillars
+---
 
-1. **Append-only enforcement** — DB triggers reject `UPDATE` and `DELETE` on `wallet_transactions` for everyone (including service role on most paths). Inserts only.
-2. **Hash chain (Merkle-style linkage)** — every row carries `row_hash` = SHA256(canonical-payload + previous_row_hash). Tampering one row breaks every subsequent hash.
-3. **Reversal-as-new-row** — replace the existing `delete_wallet_transaction_with_reversal` with `reverse_wallet_transaction`, which inserts an opposite-sign row tagged `REVERSAL_OF: <original_id>`. Original stays forever.
-4. **Periodic anchoring + verification** — a daily job computes the chain head hash, stores it in a separate `ledger_anchors` table (also append-only), and exposes a "Verify Chain" admin tool that walks the chain and flags any break.
-5. **Migration of historic rows** — backfill `row_hash`/`prev_hash` for all existing transactions in chronological order so the chain starts clean from day one.
+## Gap 1 — Legacy DB functions still try to DELETE/UPDATE `wallet_transactions`
 
-## Schema Changes
+These SECURITY DEFINER functions still execute raw `DELETE FROM wallet_transactions` and will now hit the block-trigger and **error out**, breaking the parent workflow:
 
-**`wallet_transactions` — add columns**
-- `prev_hash text` — hash of the immediately preceding row (per-wallet chain)
-- `row_hash text NOT NULL` — SHA256 of this row's canonical payload + `prev_hash`
-- `sequence_no bigint` — per-wallet monotonic counter
-- `reverses_transaction_id uuid` — points at the original row when this entry is a reversal
-- `is_reversed boolean default false` — marked true on the original when a reversal posts (informational only; no data is changed apart from this flag, which itself is hashed-excluded)
-
-**New table `ledger_anchors`** (append-only)
-- `id`, `anchored_at`, `wallet_id` (nullable = global), `head_sequence_no`, `head_row_hash`, `tx_count`, `anchored_by`
-
-**New table `ledger_tamper_log`** (append-only)
-- Records any attempted UPDATE/DELETE on `wallet_transactions`: who, when, which row, old vs attempted new payload. Even a blocked attempt leaves a footprint.
-
-## Triggers & Functions
-
-1. `trg_wallet_tx_block_mutation` — `BEFORE UPDATE OR DELETE ON wallet_transactions`: writes to `ledger_tamper_log` and raises exception. Only exception: a single allowed UPDATE path that sets `is_reversed=true` via a SECURITY DEFINER function called from `reverse_wallet_transaction` (and that update is itself logged).
-2. `trg_wallet_tx_hash_chain` — `BEFORE INSERT`: locks the wallet's chain head, assigns `sequence_no = head+1`, sets `prev_hash = head.row_hash`, computes `row_hash`. Uses `pg_advisory_xact_lock(hashtext(wallet_id::text))` to serialize concurrent inserts per wallet.
-3. `reverse_wallet_transaction(p_tx_id uuid, p_reason text, p_reversed_by uuid)` — SECURITY DEFINER. Loads original, inserts opposite-sign row with `reverses_transaction_id = p_tx_id` and `reference_type = 'REVERSAL'`, marks original `is_reversed = true`. Idempotent via partial unique index `(reverses_transaction_id) WHERE reverses_transaction_id IS NOT NULL`.
-4. `verify_wallet_chain(p_wallet_id uuid DEFAULT NULL)` — walks rows in `sequence_no` order, recomputes hashes, returns first break (if any) with row id, expected vs actual hash.
-5. `snapshot_ledger_anchor()` — daily cron (pg_cron) that records current chain head per wallet into `ledger_anchors`.
-
-## App-Layer Changes
-
-- **Replace** every call site of `delete_wallet_transaction_with_reversal` (StockTransactionsTab, WalletManagementTab) with `reverse_wallet_transaction` — UI now says "Reverse" instead of "Delete", asks for a reason via `AlertDialog`, and shows both rows side-by-side after.
-- **Stock Management → new tab "Ledger Integrity"** (Super Admin / Auditor only): button "Run Chain Verification", shows last anchor, last verification result, count of tamper-log entries.
-- **Transactions list**: visually link reversal pairs (badge "Reversed by →" on original, "Reverses ←" on the new row). Originals are never hidden.
-
-## Problems Anticipated & Mitigations
-
-| Risk | Mitigation |
+| Function | What it does |
 |---|---|
-| Triggers that recompute balances currently use `AFTER INSERT OR DELETE OR UPDATE` — once DELETE/UPDATE are blocked, only INSERT path matters. Need to confirm `update_wallet_balance` works correctly when only INSERT fires (it already does for normal inserts). | Audit and simplify `update_wallet_balance` to insert-only branch. Reversals naturally produce correct `wallet_asset_balances` via the new opposite-sign INSERT. |
-| Existing migrations or one-off cleanups sometimes `DELETE FROM wallet_transactions`. | Provide a `SET LOCAL app.allow_ledger_mutation = 'on'` escape hatch the trigger checks; only set inside explicitly named maintenance migrations, and every such use writes to `ledger_tamper_log` with reason. No application code path can set it. |
-| Hash-chain serialization could slow high-throughput wallets. | Per-wallet advisory lock (not table-wide). Hash compute is in-memory SHA256 — sub-millisecond. |
-| Concurrent inserts racing on `sequence_no`. | Advisory lock per wallet inside BEFORE INSERT trigger guarantees ordering. |
-| Backfilling hashes on existing rows. | One-time migration: order by `(wallet_id, created_at, id)`, walk and populate `sequence_no`, `prev_hash`, `row_hash`. Then add `NOT NULL` constraints. |
-| Reversals of reversals (operator clicks twice). | Partial unique index on `reverses_transaction_id` blocks double-reversal; the existing system-wide double-reversal-prevention pattern (memory) already follows this. |
-| Reference tables (`purchase_orders`, `sales_orders`, `wallet_asset_balances`) are still mutable. | Out of scope for v1 — the **ledger** is the truth. Higher tables can change, but every monetary effect is in the immutable ledger. v2 can extend the same pattern to `wallet_asset_balances` history. |
-| Service role / SQL editor can still bypass triggers via `ALTER TABLE DISABLE TRIGGER`. | Cannot fully prevent at DB level if attacker has superuser. But: (a) the hash chain makes any silent edit instantly detectable, (b) `ledger_anchors` daily snapshot is an external witness, (c) supabase audit log records DDL. Document this honestly. |
-| RLS is currently wide-open (`ALL true`). | Tighten: `INSERT` allowed for authenticated; `UPDATE`/`DELETE` denied for everyone (defense in depth on top of triggers). |
-| UI deletion buttons across other modules (purchase order delete, sales order delete) might cascade-delete ledger rows via FK. | Audit FKs on `wallet_transactions.reference_id` — they should be `ON DELETE NO ACTION`, not `CASCADE`. Force callers to reverse instead. |
+| `delete_wallet_transaction_with_reversal` | Old "delete + reversal" RPC — superseded but still exists |
+| `cleanup_wallet_transactions_on_sales_order_delete` | Trigger fired when a sales order is deleted |
+| `delete_sales_order_with_reversal` | Sales-order delete RPC |
+| `delete_purchase_order_with_reversal` | Purchase-order delete RPC |
+| `handle_sales_order_wallet_change` | Re-routes a sale to a different wallet by deleting + re-inserting |
+| `handle_sales_order_quantity_change` | Adjusts quantity by deleting + re-inserting |
+| `reconcile_purchase_order_edit` / `reconcile_sales_order_edit` | Edit reconciliation (likely deletes old rows) |
+| `approve_product_conversion` | May rewrite ledger rows on re-approval |
 
-## Rollout Plan
+**Fix**: rewrite each to call `reverse_wallet_transaction(...)` for the original rows and then INSERT the new corrected rows. Drop or stub `delete_wallet_transaction_with_reversal` (call sites already migrated to the new RPC). Replace `cleanup_wallet_transactions_on_sales_order_delete` with a reversal-loop variant.
 
-**Phase 1 — Schema & backfill (1 migration)**
-Add columns + tables, backfill hashes, add NOT NULLs, create `ledger_anchors`, `ledger_tamper_log`.
+---
 
-**Phase 2 — Triggers & RPCs (1 migration)**
-Hash-chain trigger, mutation-block trigger, `reverse_wallet_transaction`, `verify_wallet_chain`, `snapshot_ledger_anchor` + pg_cron daily.
+## Gap 2 — Foreign-key cascade can silently bypass triggers
 
-**Phase 3 — App swap**
-Replace deletion call sites with reversal flow. Update UI labels, add reason dialog, add reversal badges.
+`wallet_transactions.wallet_id → wallets(id) ON DELETE CASCADE`.
+Deleting a wallet row will cascade-delete its ledger rows. The block trigger does fire on cascaded deletes per row, so it would actually error today — but that means **deleting a wallet now hard-fails**. We need to:
+- Change the FK to `ON DELETE NO ACTION` (or `RESTRICT`).
+- In the wallets module, replace any "delete wallet" affordance with "archive/deactivate".
 
-**Phase 4 — Ledger Integrity admin tab**
-Verification button, anchor history, tamper-log viewer.
+---
 
-**Phase 5 — Tighten RLS + audit FKs**
-Lock down UPDATE/DELETE policies. Convert any `ON DELETE CASCADE` referencing the ledger to `NO ACTION`.
+## Gap 3 — Manual Balance Adjustment for **wallets** is missing
 
-## Out of Scope (call out explicitly)
+The plan covered `wallet_transactions` but `ManualBalanceAdjustmentDialog.tsx` only adjusts **bank** balances (writes to `bank_transactions`). There is no equivalent dialog for wallets, so the only way users currently adjust wallet ledger drift is by inserting raw rows or reversing existing ones — both unsafe. Add a `ManualWalletAdjustmentDialog` that posts a paired contra entry against the existing **Balance Adjustment Wallet** bucket (already excluded from aggregations per the `adjustment-bucket-exclusion` memory). Both legs go through the normal INSERT path → both get hashed.
 
-- Making `wallet_asset_balances`, `purchase_orders`, `sales_orders` themselves immutable — they remain mutable working tables; the ledger is the authoritative immutable record.
-- External blockchain anchoring (e.g. publishing chain head to Bitcoin/Ethereum). Can be a Phase 6 if desired — would only need to extend `snapshot_ledger_anchor` to push the head hash to an external chain.
+---
+
+## Gap 4 — `bank_transactions` is NOT immutable
+
+The same audit-trail concerns the user raised apply equally to bank ledger rows. Today `bank_transactions` rows can be UPDATEd / DELETEd freely (and several DB functions do exactly that). A future v2 should extend the same hash-chain pattern to `bank_transactions`. Out of scope for this fix-pass, but flag it explicitly so it isn't forgotten.
+
+---
+
+## Gap 5 — Reversal logic edge cases
+
+a. **`balance_before` / `balance_after` hard-coded to 0** in the reversal INSERT (migration line 208). This makes reversal rows non-self-describing — auditors can't read the running balance from the row itself. Fix: read the wallet's current `wallet_asset_balances.balance` for the same `asset_code` inside `reverse_wallet_transaction` and set `balance_before = current`, `balance_after = current + reversal_amount`.
+
+b. **`update_wallet_balance` trigger still listens on `AFTER INSERT OR DELETE OR UPDATE`.** With DELETE/UPDATE blocked, the DELETE/UPDATE branches are now dead code. Simplify to `AFTER INSERT` only and remove the dead branches so future readers don't get confused into thinking delete-driven balance reversal still works.
+
+c. **Reversal of a reversal is correctly blocked** (`v_orig.reverses_transaction_id IS NOT NULL` check + partial unique index). Verified ✓.
+
+d. **Idempotency** is correct (returns existing reversal id) ✓.
+
+---
+
+## Gap 6 — RLS is still wide open
+
+Current policies:
+```
+authenticated_all_wallet_transactions  ALL  using=true  with_check=true
+service_all_wallet_transactions        ALL  using=true  with_check=true
+```
+
+Phase 5 of the original plan (tighten RLS) was not executed. Replace with:
+- `INSERT` allowed for authenticated.
+- `SELECT` allowed for authenticated.
+- `UPDATE` / `DELETE` denied to everyone (defense in depth on top of the trigger).
+
+Restrict `ledger_anchors` and `ledger_tamper_log` SELECT to admin/auditor roles (currently any authenticated user can read them).
+
+---
+
+## Gap 7 — `verify_wallet_chain` rebuild flaw
+
+The chain re-walk assigns `v_prev_hash := r.row_hash` **after** comparing — but if a row's stored `row_hash` is wrong (tampered), the next iteration trusts the bad hash, so subsequent "expected_hash" values are computed against tampered input. This causes only the *first* break to be reported — which is what we want — but the function should also short-circuit and stop walking once a break is found, otherwise it continues silently producing meaningless expected hashes. Minor: make the loop `EXIT WHEN v_break_id IS NOT NULL` and use the recomputed (correct) hash as `v_prev_hash` until the break, then stop.
+
+---
+
+## Gap 8 — No backfill of `is_reversed` for historical reversal pairs
+
+Pre-existing ledger entries that were "reversed" in the old system (using opposite-sign rows or via the legacy `delete_wallet_transaction_with_reversal`) do not have `reverses_transaction_id` set, so the new UI badges won't show "Reversed by →" on historical originals. Optional: add a one-shot backfill that links pairs by `description LIKE '%reversal%'` + matching `reference_id` + opposite amount. Mark as "best-effort historical link, post-2026-04-22 are authoritative".
+
+---
+
+## Gap 9 — App-side call sites that still bypass the new RPC
+
+`SalesEntryWrapper.tsx` (and similar entry/approval flows) directly `.from('wallet_transactions').insert(...)` — that's fine and goes through the hash chain. But any flow that previously **edited** a sales/purchase order will now invoke one of the broken DB functions in Gap 1. Until Gap 1 is fixed, every edit/delete on a completed order will throw `wallet_transactions is append-only` to the user.
+
+---
+
+## Gap 10 — `LedgerIntegrityTab` is publicly mounted
+
+The tab was added to `StockManagement` without a role gate. The plan said "Super Admin / Auditor only". Wrap the route/tab with a permission check (`role_level <= 10`).
+
+---
+
+## Implementation Plan (next default-mode pass)
+
+**Migration A — Fix legacy mutation paths**
+1. Rewrite `cleanup_wallet_transactions_on_sales_order_delete`, `delete_sales_order_with_reversal`, `delete_purchase_order_with_reversal`, `handle_sales_order_wallet_change`, `handle_sales_order_quantity_change`, `reconcile_purchase_order_edit`, `reconcile_sales_order_edit` to use `reverse_wallet_transaction` instead of raw DELETE.
+2. Drop `delete_wallet_transaction_with_reversal` (no callers left).
+3. Change `wallet_transactions.wallet_id` FK to `ON DELETE NO ACTION`.
+4. Simplify `update_wallet_balance` trigger to AFTER INSERT only.
+
+**Migration B — Reversal data quality + RLS hardening**
+5. Update `reverse_wallet_transaction` to populate real `balance_before` / `balance_after` from `wallet_asset_balances`.
+6. Tighten `wallet_transactions` RLS: SELECT/INSERT for authenticated, UPDATE/DELETE denied.
+7. Restrict `ledger_anchors` + `ledger_tamper_log` SELECT to roles with `role_level <= 10` (Auditor and above) via `has_role` / existing role helper.
+8. Patch `verify_wallet_chain` to EXIT on first break.
+9. Best-effort backfill of `reverses_transaction_id` for historical pairs.
+
+**App changes**
+10. Build `ManualWalletAdjustmentDialog.tsx` (mirror of bank dialog) posting paired entries through normal INSERT — both legs hash-chained, contra leg lands in "Balance Adjustment Wallet".
+11. Wrap `LedgerIntegrityTab` mount in `StockManagement.tsx` with role-level guard.
+12. UI badges in transaction lists: show "Reversed →" / "Reverses ←" using the existing `reverses_transaction_id` / `is_reversed` columns (cosmetic but meets plan Phase 3).
+
+**Out of scope (call out, defer to v2)**
+- Extending hash-chain to `bank_transactions` (Gap 4).
+- External-chain anchoring (e.g. publishing `head_row_hash` to a public blockchain).
 

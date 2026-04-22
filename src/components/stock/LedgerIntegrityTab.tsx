@@ -105,6 +105,46 @@ export function LedgerIntegrityTab() {
       toast({ title: "Asset balance verification failed", description: e?.message || String(e), variant: "destructive" }),
   });
 
+  const verifyBankChainMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("verify_bank_chain", {
+        p_bank_account_id: undefined as any,
+      });
+      if (error) throw error;
+      return (data || []) as BankChainRow[];
+    },
+    onSuccess: (rows) => {
+      setBankChain(rows);
+      const broken = rows.filter((r) => !r.out_is_intact).length;
+      toast({
+        title: broken === 0 ? "Bank chain intact" : "Bank chain integrity failure",
+        description: `${rows.length} bank account chain(s) verified, ${broken} broken.`,
+        variant: broken === 0 ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: "Bank chain verification failed", description: e?.message || String(e), variant: "destructive" }),
+  });
+
+  const verifyBankBalancesMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("verify_all_bank_running_balances");
+      if (error) throw error;
+      return (data || []) as BankBalRow[];
+    },
+    onSuccess: (rows) => {
+      setBankBalances(rows);
+      const broken = rows.filter((r) => !r.intact).length;
+      toast({
+        title: broken === 0 ? "All bank running balances intact" : "Bank balance drift detected",
+        description: `${rows.length} bank account(s) checked, ${broken} broken.`,
+        variant: broken === 0 ? "default" : "destructive",
+      });
+    },
+    onError: (e: any) =>
+      toast({ title: "Bank balance verification failed", description: e?.message || String(e), variant: "destructive" }),
+  });
+
   const verifyMutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.rpc("verify_wallet_chain", {

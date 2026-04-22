@@ -15433,6 +15433,10 @@ export type Database = {
         Args: { p_reversed_by?: string; p_settlement_id: string }
         Returns: Json
       }
+      reverse_wallet_transaction: {
+        Args: { p_reason: string; p_reversed_by?: string; p_tx_id: string }
+        Returns: string
+      }
       revoke_terminal_biometric_session: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -15459,6 +15463,7 @@ export type Database = {
         Args: { p_status: string; p_user_id: string }
         Returns: Json
       }
+      snapshot_ledger_anchor: { Args: never; Returns: number }
       store_webauthn_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }
         Returns: string
@@ -15675,6 +15680,18 @@ export type Database = {
         Returns: boolean
       }
       verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
+      verify_wallet_chain: {
+        Args: { p_wallet_id?: string }
+        Returns: {
+          actual_hash: string
+          expected_hash: string
+          first_break_id: string
+          first_break_seq: number
+          is_intact: boolean
+          total_rows: number
+          wallet_id: string
+        }[]
+      }
       wallet_tx_canonical_payload: {
         Args: {
           p_amount: number

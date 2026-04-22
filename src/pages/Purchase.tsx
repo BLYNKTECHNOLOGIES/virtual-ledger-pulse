@@ -103,26 +103,37 @@ export default function Purchase() {
     },
   });
 
-  // Fetch all purchase orders for export
+  // Fetch all purchase orders for export (paginated to bypass Supabase 1000-row default cap)
   const { data: allPurchaseOrders } = useQuery({
     queryKey: ['purchase_orders_export'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          purchase_order_items (
-            products (
-              code
-            )
-          ),
-          wallet:wallets!wallet_id(wallet_name),
-          created_by_user:users!created_by(username, first_name, last_name)
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+      const PAGE = 1000;
+      let from = 0;
+      const all: any[] = [];
+      // Loop until a page returns fewer rows than requested
+      // (handles unbounded growth without hardcoding a ceiling)
+      while (true) {
+        const { data, error } = await supabase
+          .from('purchase_orders')
+          .select(`
+            *,
+            purchase_order_items (
+              products (
+                code
+              )
+            ),
+            wallet:wallets!wallet_id(wallet_name),
+            created_by_user:users!created_by(username, first_name, last_name)
+          `)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        const batch = data || [];
+        all.push(...batch);
+        if (batch.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
     },
   });
 

@@ -296,53 +296,6 @@ export default function ErpEntryManager() {
           ))}
         </div>
       )}
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      ) : visible.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            No pending entries. All caught up.
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {grouped.map(([bucket, items]) => (
-            <div key={bucket} className="space-y-2">
-              <div className="sticky top-0 z-10 -mx-1 bg-background/95 backdrop-blur px-1 py-1 text-xs font-medium text-muted-foreground">
-                {dayLabel(bucket)} · {items.length}
-              </div>
-              <div className="space-y-2">
-                {items.map((row) => (
-                  <EntryRow
-                    key={row.id}
-                    row={row}
-                    isFocused={row.id === focusedId}
-                    onFocus={() => setFocusedId(row.id)}
-                    onOpen={() => {
-                      if (row.source === "conversion") {
-                        approveConversion.mutate(row.raw.id, {
-                          onSuccess: () => {
-                            queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
-                          },
-                        });
-                        return;
-                      }
-                      setActiveRow(row);
-                    }}
-                    onReject={() => handleReject(row)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Source-specific dialogs — exact same components used by the original tabs */}
       {activeRow?.source === "deposit" || activeRow?.source === "withdrawal" ? (
         <ActionSelectionDialog

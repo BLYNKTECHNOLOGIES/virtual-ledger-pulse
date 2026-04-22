@@ -100,39 +100,40 @@ export function ExpensesIncomesTab() {
     staleTime: 10000,
   });
 
-   // Delete mutation
-   const deleteTransactionMutation = useMutation({
-     mutationFn: async (transactionId: string) => {
-       const { error } = await supabase
-         .from('bank_transactions')
-         .delete()
-         .eq('id', transactionId);
-       
+   // Reverse mutation (immutable ledger — never delete)
+   const reverseTransactionMutation = useMutation({
+     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+       const { error } = await supabase.rpc('reverse_bank_transaction', {
+         p_original_id: id,
+         p_reason: reason,
+       });
        if (error) throw error;
      },
      onSuccess: () => {
        toast({
-         title: "Success",
-         description: "Transaction deleted successfully. Bank balance updated.",
+         title: "Reversed",
+         description: "A reversal entry has been posted. Bank balance updated.",
        });
        queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
        queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
        queryClient.invalidateQueries({ queryKey: ['bank_accounts_with_balance'] });
-       setDeleteDialogOpen(false);
-       setTransactionToDelete(null);
+       setReverseDialogOpen(false);
+       setTransactionToReverse(null);
+       setReverseReason("");
      },
      onError: (error: any) => {
        toast({
          title: "Error",
-         description: error.message || "Failed to delete transaction",
+         description: error.message || "Failed to reverse transaction",
          variant: "destructive",
        });
      },
    });
  
-   const handleDeleteClick = (transaction: any) => {
-     setTransactionToDelete(transaction);
-     setDeleteDialogOpen(true);
+   const handleReverseClick = (transaction: any) => {
+     setTransactionToReverse(transaction);
+     setReverseReason("");
+     setReverseDialogOpen(true);
    };
  
    const handleEditClick = (transaction: any) => {
@@ -140,9 +141,9 @@ export function ExpensesIncomesTab() {
      setEditDialogOpen(true);
    };
  
-   const confirmDelete = () => {
-     if (transactionToDelete) {
-       deleteTransactionMutation.mutate(transactionToDelete.id);
+   const confirmReverse = () => {
+     if (transactionToReverse && reverseReason.trim()) {
+       reverseTransactionMutation.mutate({ id: transactionToReverse.id, reason: reverseReason.trim() });
      }
    };
  

@@ -8378,6 +8378,75 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_anchors: {
+        Row: {
+          anchored_at: string
+          anchored_by: string | null
+          head_row_hash: string
+          head_sequence_no: number
+          id: string
+          tx_count: number
+          wallet_id: string | null
+        }
+        Insert: {
+          anchored_at?: string
+          anchored_by?: string | null
+          head_row_hash: string
+          head_sequence_no: number
+          id?: string
+          tx_count: number
+          wallet_id?: string | null
+        }
+        Update: {
+          anchored_at?: string
+          anchored_by?: string | null
+          head_row_hash?: string
+          head_sequence_no?: number
+          id?: string
+          tx_count?: number
+          wallet_id?: string | null
+        }
+        Relationships: []
+      }
+      ledger_tamper_log: {
+        Row: {
+          attempted_at: string
+          attempted_by: string | null
+          attempted_role: string | null
+          blocked: boolean
+          id: string
+          new_payload: Json | null
+          old_payload: Json | null
+          operation: string
+          reason: string | null
+          target_tx_id: string | null
+        }
+        Insert: {
+          attempted_at?: string
+          attempted_by?: string | null
+          attempted_role?: string | null
+          blocked?: boolean
+          id?: string
+          new_payload?: Json | null
+          old_payload?: Json | null
+          operation: string
+          reason?: string | null
+          target_tx_id?: string | null
+        }
+        Update: {
+          attempted_at?: string
+          attempted_by?: string | null
+          attempted_role?: string | null
+          blocked?: boolean
+          id?: string
+          new_payload?: Json | null
+          old_payload?: Json | null
+          operation?: string
+          reason?: string | null
+          target_tx_id?: string | null
+        }
+        Relationships: []
+      }
       legal_actions: {
         Row: {
           action_type: string
@@ -14058,11 +14127,16 @@ export type Database = {
           effective_usdt_qty: number | null
           effective_usdt_rate: number | null
           id: string
+          is_reversed: boolean
           market_rate_usdt: number | null
+          prev_hash: string | null
           price_snapshot_id: string | null
           reference_id: string | null
           reference_type: string | null
           related_transaction_id: string | null
+          reverses_transaction_id: string | null
+          row_hash: string | null
+          sequence_no: number | null
           transaction_type: string
           wallet_id: string
         }
@@ -14077,11 +14151,16 @@ export type Database = {
           effective_usdt_qty?: number | null
           effective_usdt_rate?: number | null
           id?: string
+          is_reversed?: boolean
           market_rate_usdt?: number | null
+          prev_hash?: string | null
           price_snapshot_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
           related_transaction_id?: string | null
+          reverses_transaction_id?: string | null
+          row_hash?: string | null
+          sequence_no?: number | null
           transaction_type: string
           wallet_id: string
         }
@@ -14096,11 +14175,16 @@ export type Database = {
           effective_usdt_qty?: number | null
           effective_usdt_rate?: number | null
           id?: string
+          is_reversed?: boolean
           market_rate_usdt?: number | null
+          prev_hash?: string | null
           price_snapshot_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
           related_transaction_id?: string | null
+          reverses_transaction_id?: string | null
+          row_hash?: string | null
+          sequence_no?: number | null
           transaction_type?: string
           wallet_id?: string
         }
@@ -14122,6 +14206,13 @@ export type Database = {
           {
             foreignKeyName: "wallet_transactions_related_transaction_id_fkey"
             columns: ["related_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_reverses_fk"
+            columns: ["reverses_transaction_id"]
             isOneToOne: false
             referencedRelation: "wallet_transactions"
             referencedColumns: ["id"]
@@ -15342,6 +15433,10 @@ export type Database = {
         Args: { p_reversed_by?: string; p_settlement_id: string }
         Returns: Json
       }
+      reverse_wallet_transaction: {
+        Args: { p_reason: string; p_reversed_by?: string; p_tx_id: string }
+        Returns: string
+      }
       revoke_terminal_biometric_session: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -15368,6 +15463,7 @@ export type Database = {
         Args: { p_status: string; p_user_id: string }
         Returns: Json
       }
+      snapshot_ledger_anchor: { Args: never; Returns: number }
       store_webauthn_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }
         Returns: string
@@ -15584,6 +15680,46 @@ export type Database = {
         Returns: boolean
       }
       verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
+      verify_wallet_chain: {
+        Args: { p_wallet_id?: string }
+        Returns: {
+          out_actual_hash: string
+          out_expected_hash: string
+          out_first_break_id: string
+          out_first_break_seq: number
+          out_is_intact: boolean
+          out_total_rows: number
+          out_wallet_id: string
+        }[]
+      }
+      wallet_tx_canonical_payload: {
+        Args: {
+          p_amount: number
+          p_asset_code: string
+          p_balance_after: number
+          p_balance_before: number
+          p_created_at: string
+          p_created_by: string
+          p_description: string
+          p_effective_usdt_qty: number
+          p_effective_usdt_rate: number
+          p_id: string
+          p_market_rate_usdt: number
+          p_price_snapshot_id: string
+          p_reference_id: string
+          p_reference_type: string
+          p_related_transaction_id: string
+          p_reverses_transaction_id: string
+          p_sequence_no: number
+          p_transaction_type: string
+          p_wallet_id: string
+        }
+        Returns: string
+      }
+      wallet_tx_compute_hash: {
+        Args: { p_payload: string; p_prev_hash: string }
+        Returns: string
+      }
     }
     Enums: {
       app_permission:

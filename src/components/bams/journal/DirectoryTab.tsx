@@ -13,6 +13,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { TrendingUp, TrendingDown, ArrowRightLeft, Download, Filter, CalendarIcon, X, FileText, Settings, Undo2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { ReversalBadge } from "@/components/stock/ReversalBadge";
+import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -31,6 +35,7 @@ import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/l
 export function DirectoryTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   // Filter states
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
   const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
@@ -40,6 +45,12 @@ export function DirectoryTab() {
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
   const [reverseReason, setReverseReason] = useState("");
+  const [bankPrefs, setBankPref] = useTerminalUserPrefs<{ hideReversals: boolean }>(
+    user?.id,
+    "bankLedger",
+    { hideReversals: false }
+  );
+  const hideReversalNoise = bankPrefs.hideReversals;
 
   // Reverse mutation — posts an immutable counter-entry via RPC
   const reverseTransactionMutation = useMutation({
@@ -139,6 +150,9 @@ export function DirectoryTab() {
             related_account_name,
             created_at,
             created_by,
+            is_reversed,
+            reverses_transaction_id,
+            reversal_reason,
             bank_accounts!bank_account_id(account_name, bank_name, id, account_number),
             created_by_user:users!created_by(username, first_name, last_name)
           `)
@@ -338,6 +352,12 @@ export function DirectoryTab() {
       return false;
     }
 
+    return true;
+  }).filter((transaction: any) => {
+    // Hide reversal noise toggle (BANK source only — derived rows from sales/purchase don't carry these flags)
+    if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
+      return false;
+    }
     return true;
   }) || [];
 

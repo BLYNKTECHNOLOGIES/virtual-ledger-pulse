@@ -23,6 +23,9 @@ import { useRejectQueueItem } from "@/hooks/useErpActionQueue";
 import { useRejectConversion, useApproveConversion } from "@/hooks/useProductConversions";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useErpEntryRejectedFeed } from "@/hooks/useErpEntryRejectedFeed";
+import { RejectedEntryRow } from "@/components/erp-entry/RejectedEntryRow";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function dayBucket(ts: number) {
   const d = new Date(ts);

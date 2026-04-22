@@ -14,11 +14,21 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+
+// Roles allowed to view the immutable Ledger Integrity diagnostics tab.
+// Aligned with the role-hierarchy memory: Super Admin / Admin / COO / Auditor.
+const LEDGER_INTEGRITY_ROLES = ["super admin", "admin", "coo", "auditor"];
 
 export default function StockManagement() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'quickview');
+  const { hasRole } = useAuth();
+  const canViewLedgerIntegrity = LEDGER_INTEGRITY_ROLES.some((r) => hasRole(r));
+  const initialTab = searchParams.get('tab') || 'quickview';
+  const [activeTab, setActiveTab] = useState(
+    initialTab === 'integrity' && !canViewLedgerIntegrity ? 'quickview' : initialTab
+  );
 
   useEffect(() => {
     const tab = searchParams.get('tab');
@@ -107,11 +117,13 @@ export default function StockManagement() {
             <FileText className="h-4 w-4" />
             Reports
           </TabsTrigger>
-          <TabsTrigger value="integrity" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
-            <ShieldCheck className="h-4 w-4" />
-            <span className="hidden sm:inline">Ledger Integrity</span>
-            <span className="sm:hidden">Chain</span>
-          </TabsTrigger>
+          {canViewLedgerIntegrity && (
+            <TabsTrigger value="integrity" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-3 md:px-4 flex-shrink-0 md:flex-shrink">
+              <ShieldCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Ledger Integrity</span>
+              <span className="sm:hidden">Chain</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="quickview">
@@ -138,9 +150,11 @@ export default function StockManagement() {
           <StockReportsTab />
         </TabsContent>
 
-        <TabsContent value="integrity">
-          <LedgerIntegrityTab />
-        </TabsContent>
+        {canViewLedgerIntegrity && (
+          <TabsContent value="integrity">
+            <LedgerIntegrityTab />
+          </TabsContent>
+        )}
       </Tabs>
       </div>
     </div>

@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent } from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings } from "lucide-react";
+import { ManualWalletAdjustmentDialog } from "./ManualWalletAdjustmentDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { WalletLinkingSection } from "./WalletLinkingSection";
@@ -78,6 +79,7 @@ export function WalletManagementTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
 
   // Per-user "Hide reversal noise" preference (defaults OFF for full audit view)
   const _userIdForPrefs = getCurUserIdForPrefs();
@@ -669,12 +671,24 @@ export function WalletManagementTab() {
             <TrendingUp className="h-4 w-4 mr-1" />
             Add Transaction
           </Button>
+          <PermissionGate permissions={["stock_manage"]} showFallback={false}>
+            <Button onClick={() => setShowAdjustmentDialog(true)} variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-1" />
+              Manual Adjustment
+            </Button>
+          </PermissionGate>
           <Button onClick={() => setShowAddWalletDialog(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" />
             Add Wallet
           </Button>
         </div>
       </div>
+
+      <ManualWalletAdjustmentDialog
+        open={showAdjustmentDialog}
+        onOpenChange={setShowAdjustmentDialog}
+      />
+
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

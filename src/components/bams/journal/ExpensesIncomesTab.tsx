@@ -300,23 +300,34 @@ export function ExpensesIncomesTab() {
         </CardContent>
       </Card>
  
-       {/* Delete Confirmation Dialog */}
-       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+       {/* Reverse Confirmation Dialog */}
+       <AlertDialog open={reverseDialogOpen} onOpenChange={setReverseDialogOpen}>
          <AlertDialogContent>
            <AlertDialogHeader>
-             <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+             <AlertDialogTitle>Reverse Transaction</AlertDialogTitle>
              <AlertDialogDescription>
-               Are you sure you want to delete this {transactionToDelete?.transaction_type?.toLowerCase()} entry of ₹{transactionToDelete?.amount?.toLocaleString('en-IN')}? 
-               This will reverse the bank balance adjustment. This action cannot be undone.
+               This will post a counter-entry that offsets this {transactionToReverse?.transaction_type?.toLowerCase()} of ₹{transactionToReverse?.amount?.toLocaleString('en-IN')}.
+               The original entry stays in the ledger for audit. Provide a reason — it will be stored permanently.
              </AlertDialogDescription>
            </AlertDialogHeader>
+           <div className="py-2">
+             <Label htmlFor="reverse-reason">Reason (required)</Label>
+             <Textarea
+               id="reverse-reason"
+               value={reverseReason}
+               onChange={(e) => setReverseReason(e.target.value)}
+               placeholder="Why is this entry being reversed?"
+               className="mt-1"
+             />
+           </div>
            <AlertDialogFooter>
              <AlertDialogCancel>Cancel</AlertDialogCancel>
-             <AlertDialogAction 
-               onClick={confirmDelete}
+             <AlertDialogAction
+               onClick={confirmReverse}
+               disabled={!reverseReason.trim() || reverseTransactionMutation.isPending}
                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
              >
-               {deleteTransactionMutation.isPending ? "Deleting..." : "Delete"}
+               {reverseTransactionMutation.isPending ? "Reversing..." : "Reverse"}
              </AlertDialogAction>
            </AlertDialogFooter>
          </AlertDialogContent>

@@ -56,7 +56,10 @@ export default function TerminalDashboard() {
     const errors: string[] = [];
 
     try {
-      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
+      // NOTE: Small Buys / Small Sales are intentionally EXCLUDED from Universal Sync.
+      // They must only be generated via the dedicated "Sync Small …" buttons so operators
+      // do not get unexpected SM- batches every time they hit Universal Sync.
+      const [orderResult, purchaseResult, salesResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
         new Promise<string>((resolve, reject) => {
           syncMutation.mutate(
             { fullSync: false },
@@ -68,8 +71,6 @@ export default function TerminalDashboard() {
         }),
         syncCompletedBuyOrders().then(r => `Purchases: ${r.synced} synced, ${r.duplicates} skipped`),
         syncCompletedSellOrders().then(r => `Sales: ${r.synced} synced, ${r.duplicates} skipped`),
-        syncSmallSales().then(r => `Small Sales: ${r.synced} synced`).catch(() => 'Small Sales: skipped (not configured)'),
-        syncSmallBuys().then(r => `Small Buys: ${r.synced} synced`).catch(() => 'Small Buys: skipped (not configured)'),
         supabase.functions.invoke('binance-assets', {
           body: { action: 'syncAssetMovements', force: false },
         }).then(() => 'Asset movements synced'),
@@ -77,7 +78,7 @@ export default function TerminalDashboard() {
         syncSpotTradesToConversions().then(r => `Spot Conversions: ${r.inserted} created`).catch(() => 'Spot Conversions: skipped'),
       ]);
 
-      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult]) {
+      for (const r of [orderResult, purchaseResult, salesResult, assetResult, spotTradeResult, spotConvResult]) {
         if (r.status === 'fulfilled') results.push(r.value);
         else errors.push(String(r.reason));
       }

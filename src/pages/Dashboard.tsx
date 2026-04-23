@@ -24,8 +24,7 @@ import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
-import { syncSmallSales } from '@/hooks/useSmallSalesSync';
-import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
+// Small Buys/Sales sync intentionally NOT imported here — use dedicated buttons only.
 import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from '@/hooks/useSpotTradeSyncStandalone';
 import { useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { toast as sonnerToast } from 'sonner';

@@ -20,8 +20,7 @@ import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders
 import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncMetadata } from '@/hooks/useBinanceOrderSync';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
-import { syncSmallSales } from '@/hooks/useSmallSalesSync';
-import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
+// Small Buys/Sales sync intentionally NOT imported here — use dedicated buttons only.
 import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from '@/hooks/useSpotTradeSyncStandalone';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';

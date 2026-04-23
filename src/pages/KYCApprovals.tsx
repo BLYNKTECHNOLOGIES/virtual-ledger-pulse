@@ -1,5 +1,5 @@
 
-import { UserCheck, Shield } from "lucide-react";
+import { UserCheck, Shield, FileText } from "lucide-react";
 import { KYCApprovalsTab } from "@/components/hrms/KYCApprovalsTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export default function KYCApprovals() {
     >
     <div className="p-4 md:p-6">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-green-50 rounded-xl shadow-sm">
               <UserCheck className="h-8 w-8 text-green-600" />
@@ -45,6 +45,12 @@ export default function KYCApprovals() {
               <p className="text-gray-600 mt-1">Know Your Customer verification and approval system</p>
             </div>
           </div>
+          <Button asChild variant="outline" className="gap-2">
+            <a href="/documents/Blynk_KYC_SOP.pdf" target="_blank" rel="noopener noreferrer">
+              <FileText className="h-4 w-4" />
+              View KYC SOP
+            </a>
+          </Button>
         </div>
         
         <KYCApprovalsTab />

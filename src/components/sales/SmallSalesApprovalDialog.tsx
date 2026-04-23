@@ -1,24 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { parseApprovalError } from '@/utils/approvalErrorParser';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Package, Clock, Coins } from 'lucide-react';
+import { CheckCircle, XCircle, Package, Clock, Coins, Plus, Minus, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { requireCurrentUserId } from '@/lib/system-action-logger';
-import { fetchAndLockMarketRate, linkSnapshotToReference, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
+import { fetchAndLockMarketRate, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   record: any;
+}
+
+interface PaymentSplit {
+  payment_method_id: string;
+  amount: string;
 }
 
 export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) {
@@ -29,8 +36,27 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
   const [showReject, setShowReject] = useState(false);
   const [coinUsdtRate, setCoinUsdtRate] = useState<number | null>(null);
 
+  // Split payment state — mirrors TerminalSalesApprovalDialog pattern.
+  const [isMultiplePayments, setIsMultiplePayments] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([
+    { payment_method_id: '', amount: '' },
+  ]);
+
   const assetCode = record?.asset_code || 'USDT';
   const isNonUsdt = assetCode !== 'USDT';
+  const totalAmount = Number(record?.total_amount || 0);
+
+  // Reset local state whenever a new record is opened so we never carry over a
+  // stale split configuration into a different batch.
+  useEffect(() => {
+    if (open) {
+      setPaymentMethodId('');
+      setRejectionReason('');
+      setShowReject(false);
+      setIsMultiplePayments(false);
+      setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+    }
+  }, [open, record?.id]);
 
   // Fetch live CoinUSDT rate for non-USDT assets
   useEffect(() => {
@@ -40,6 +66,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         .catch(() => setCoinUsdtRate(null));
     }
   }, [open, assetCode, isNonUsdt]);
+
   const { data: paymentMethods } = useQuery({
     queryKey: ['sales_payment_methods_bams'],
     queryFn: async () => {
@@ -54,13 +81,74 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
     enabled: open,
   });
 
+  // Auto-fill the first split's amount with the full order total whenever the
+  // operator first toggles split mode on.
+  useEffect(() => {
+    if (isMultiplePayments && paymentSplits.length === 1 && totalAmount > 0) {
+      const currentAmount = parseFloat(paymentSplits[0].amount) || 0;
+      if (currentAmount === 0) {
+        setPaymentSplits([{ ...paymentSplits[0], amount: totalAmount.toFixed(2) }]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMultiplePayments, totalAmount]);
+
+  const splitAllocation = useMemo(() => {
+    const totalAllocated = paymentSplits.reduce(
+      (sum, s) => sum + (parseFloat(s.amount) || 0),
+      0,
+    );
+    const remaining = totalAmount - totalAllocated;
+    const isValid =
+      Math.abs(remaining) <= 0.01 &&
+      paymentSplits.every(
+        s => s.payment_method_id && parseFloat(s.amount) > 0,
+      );
+    return { totalAllocated, remaining, isValid };
+  }, [paymentSplits, totalAmount]);
+
+  const addPaymentSplit = () =>
+    setPaymentSplits(prev => [...prev, { payment_method_id: '', amount: '' }]);
+
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) {
+      setPaymentSplits(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePaymentSplit = (
+    index: number,
+    field: keyof PaymentSplit,
+    value: string,
+  ) => {
+    setPaymentSplits(prev =>
+      prev.map((split, i) => (i === index ? { ...split, [field]: value } : split)),
+    );
+  };
+
   const approveMutation = useMutation({
     mutationFn: async () => {
-      if (!record || !paymentMethodId) throw new Error('Select a payment method');
+      if (!record) throw new Error('Missing batch record');
+
+      // ── Validation ────────────────────────────────────────────────
+      if (isMultiplePayments) {
+        if (!splitAllocation.isValid) {
+          throw new Error(
+            `Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(
+              2,
+            )} (must be ₹0.00)`,
+          );
+        }
+        const methodIds = paymentSplits.map(s => s.payment_method_id);
+        if (new Set(methodIds).size !== methodIds.length) {
+          throw new Error('Duplicate payment methods in split payment');
+        }
+      } else if (!paymentMethodId) {
+        throw new Error('Select a payment method');
+      }
 
       let createdSalesOrderId: string | null = null;
 
-      // Fetch live CoinUSDT rate for non-USDT assets
       try {
         const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
         const marketRate = locked.price;
@@ -80,24 +168,51 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         if (orderNumErr || !nextOrderNum) throw orderNumErr || new Error('Failed to generate order number');
         const orderNumber = nextOrderNum as string;
 
-        const selectedMethod = paymentMethods?.find(m => m.id === paymentMethodId);
-        if (!selectedMethod) throw new Error('Selected payment method was not found');
+        // Resolve "single method" details only when not splitting
+        const selectedMethod = isMultiplePayments
+          ? null
+          : paymentMethods?.find(m => m.id === paymentMethodId);
+        if (!isMultiplePayments && !selectedMethod) {
+          throw new Error('Selected payment method was not found');
+        }
+        const isGateway = isMultiplePayments
+          ? false
+          : Boolean(selectedMethod?.payment_gateway);
 
-        const isGateway = selectedMethod.payment_gateway === true;
+        // Effective-USDT valuation
         const ssEffRate = marketRate && marketRate > 0 ? marketRate : 1;
         const ssQty = Number(record.total_quantity || 0);
         const ssTotalAmt = Number(record.total_amount || 0);
         const ssEffUsdtQty = ssQty * ssEffRate;
         const ssEffUsdtRate = ssEffUsdtQty > 0 ? ssTotalAmt / ssEffUsdtQty : null;
 
-        const resolvedBankAccountId = selectedMethod.bank_account_id;
-        if (!resolvedBankAccountId) {
-          throw new Error(`No bank account is linked to ${selectedMethod.nickname || selectedMethod.type || 'the selected payment method'}`);
+        // For non-split, resolve the bank account up front (must exist)
+        let singleResolvedBankId: string | null = null;
+        if (!isMultiplePayments) {
+          singleResolvedBankId = selectedMethod!.bank_account_id;
+          if (!singleResolvedBankId) {
+            throw new Error(
+              `No bank account is linked to ${selectedMethod!.nickname || selectedMethod!.type || 'the selected payment method'}`,
+            );
+          }
+        } else {
+          // For split, every chosen method must resolve to a bank account
+          for (const s of paymentSplits) {
+            const pm = paymentMethods?.find(m => m.id === s.payment_method_id);
+            if (!pm?.bank_account_id) {
+              throw new Error(
+                `No bank account is linked to ${pm?.nickname || pm?.type || 'one of the selected payment methods'}`,
+              );
+            }
+          }
         }
 
         const orderDateSource = record.time_window_end || record.time_window_start || approvalTimestamp;
         const orderDate = new Date(orderDateSource).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
+        // ── Insert sales_orders header ──────────────────────────────
+        // For split, settlement_status starts DIRECT and is upgraded to PENDING
+        // later if any gateway leg exists (mirrors TerminalSalesApprovalDialog).
         const { data: salesOrder, error: soErr } = await supabase
           .from('sales_orders')
           .insert({
@@ -110,18 +225,21 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
             quantity: record.total_quantity,
             price_per_unit: record.avg_price,
             product_id: productRow.id,
-            sales_payment_method_id: paymentMethodId,
+            sales_payment_method_id: isMultiplePayments ? null : paymentMethodId,
+            is_split_payment: isMultiplePayments,
             fee_percentage: 0,
             fee_amount: record.total_fee,
             net_amount: Number(record.total_amount),
             payment_status: 'COMPLETED',
-            settlement_status: isGateway ? 'PENDING' : 'DIRECT',
+            settlement_status: isMultiplePayments
+              ? 'DIRECT'
+              : (isGateway ? 'PENDING' : 'DIRECT'),
             status: 'COMPLETED',
             platform: 'Binance',
             wallet_id: record.wallet_id,
             source: 'terminal_small_sales',
             sale_type: 'small_sale',
-            description: `Clubbed ${record.order_count} small ${record.asset_code} orders`,
+            description: `Clubbed ${record.order_count} small ${record.asset_code} orders${isMultiplePayments ? ' (split payment)' : ''}`,
             created_by: userId,
             market_rate_usdt: marketRate,
             effective_usdt_qty: ssEffUsdtQty,
@@ -133,52 +251,136 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         if (soErr || !salesOrder) throw soErr || new Error('Failed to create sales order');
         createdSalesOrderId = salesOrder.id;
 
-        const { error: splitErr } = await supabase.from('sales_order_payment_splits').insert({
-          sales_order_id: salesOrder.id,
-          bank_account_id: resolvedBankAccountId,
-          amount: Number(record.total_amount),
-          payment_method_id: paymentMethodId,
-          is_gateway: isGateway,
-          created_by: userId,
-        });
-        if (splitErr) throw splitErr;
+        // ── Bank/settlement legs + payment_splits rows ───────────────
+        if (isMultiplePayments) {
+          let hasAnyGateway = false;
 
-        if (isGateway) {
-          const expectedSettlementDate = selectedMethod.settlement_days
-            ? new Date(new Date(orderDate).getTime() + (selectedMethod.settlement_days * 86400000)).toISOString().split('T')[0]
-            : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0];
+          for (const split of paymentSplits) {
+            const splitAmount = parseFloat(split.amount);
+            if (splitAmount <= 0 || !split.payment_method_id) continue;
 
-          const { error: settlementErr } = await supabase.from('pending_settlements').insert({
-            sales_order_id: salesOrder.id,
-            order_number: orderNumber,
-            client_name: 'Small Sales',
-            total_amount: Number(record.total_amount),
-            settlement_amount: Number(record.total_amount),
-            order_date: orderDate,
-            payment_method_id: paymentMethodId,
-            bank_account_id: resolvedBankAccountId,
-            settlement_cycle: selectedMethod.settlement_cycle || 'T+1 Day',
-            settlement_days: selectedMethod.settlement_days || null,
-            expected_settlement_date: expectedSettlementDate,
-            status: 'PENDING',
-            created_by: userId,
-          });
-          if (settlementErr) throw settlementErr;
+            const pm = paymentMethods!.find(m => m.id === split.payment_method_id);
+            const resolvedBankAccountId = pm!.bank_account_id;
+            const splitIsGateway = Boolean(pm?.payment_gateway);
+
+            if (splitIsGateway) {
+              hasAnyGateway = true;
+              const expectedDate = pm?.settlement_days
+                ? new Date(new Date(orderDate).getTime() + pm.settlement_days * 86400000)
+                    .toISOString()
+                    .split('T')[0]
+                : new Date(new Date(orderDate).getTime() + 86400000)
+                    .toISOString()
+                    .split('T')[0];
+
+              const { error: settlementErr } = await supabase
+                .from('pending_settlements')
+                .insert({
+                  sales_order_id: salesOrder.id,
+                  order_number: orderNumber,
+                  client_name: 'Small Sales',
+                  total_amount: splitAmount,
+                  settlement_amount: splitAmount,
+                  order_date: orderDate,
+                  payment_method_id: split.payment_method_id,
+                  bank_account_id: resolvedBankAccountId,
+                  settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
+                  settlement_days: pm?.settlement_days || null,
+                  expected_settlement_date: expectedDate,
+                  status: 'PENDING',
+                  created_by: userId,
+                });
+              if (settlementErr) throw settlementErr;
+            } else {
+              const { error: bankTxErr } = await supabase
+                .from('bank_transactions')
+                .insert({
+                  bank_account_id: resolvedBankAccountId,
+                  transaction_type: 'INCOME',
+                  amount: splitAmount,
+                  transaction_date: orderDate,
+                  description: `Sales Order - ${orderNumber} - Small Sales (Split)`,
+                  reference_number: orderNumber,
+                  category: 'Sales',
+                  related_account_name: 'Small Sales',
+                  created_by: userId,
+                });
+              if (bankTxErr) throw bankTxErr;
+            }
+
+            const { error: splitInsertErr } = await supabase
+              .from('sales_order_payment_splits')
+              .insert({
+                sales_order_id: salesOrder.id,
+                bank_account_id: resolvedBankAccountId,
+                amount: splitAmount,
+                payment_method_id: split.payment_method_id,
+                is_gateway: splitIsGateway,
+                created_by: userId,
+              });
+            if (splitInsertErr) throw splitInsertErr;
+          }
+
+          if (hasAnyGateway) {
+            await supabase
+              .from('sales_orders')
+              .update({ settlement_status: 'PENDING' })
+              .eq('id', salesOrder.id);
+          }
         } else {
-          const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
-            bank_account_id: resolvedBankAccountId,
-            transaction_type: 'INCOME',
+          // Single-method path (existing behaviour preserved)
+          const { error: splitErr } = await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: salesOrder.id,
+            bank_account_id: singleResolvedBankId,
             amount: Number(record.total_amount),
-            transaction_date: orderDate,
-            description: `Sales Order - ${orderNumber} - Small Sales`,
-            reference_number: orderNumber,
-            category: 'Sales',
-            related_account_name: 'Small Sales',
+            payment_method_id: paymentMethodId,
+            is_gateway: isGateway,
             created_by: userId,
           });
-          if (bankTxErr) throw bankTxErr;
+          if (splitErr) throw splitErr;
+
+          if (isGateway) {
+            const expectedSettlementDate = selectedMethod!.settlement_days
+              ? new Date(new Date(orderDate).getTime() + selectedMethod!.settlement_days * 86400000)
+                  .toISOString()
+                  .split('T')[0]
+              : new Date(new Date(orderDate).getTime() + 86400000)
+                  .toISOString()
+                  .split('T')[0];
+
+            const { error: settlementErr } = await supabase.from('pending_settlements').insert({
+              sales_order_id: salesOrder.id,
+              order_number: orderNumber,
+              client_name: 'Small Sales',
+              total_amount: Number(record.total_amount),
+              settlement_amount: Number(record.total_amount),
+              order_date: orderDate,
+              payment_method_id: paymentMethodId,
+              bank_account_id: singleResolvedBankId,
+              settlement_cycle: selectedMethod!.settlement_cycle || 'T+1 Day',
+              settlement_days: selectedMethod!.settlement_days || null,
+              expected_settlement_date: expectedSettlementDate,
+              status: 'PENDING',
+              created_by: userId,
+            });
+            if (settlementErr) throw settlementErr;
+          } else {
+            const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
+              bank_account_id: singleResolvedBankId,
+              transaction_type: 'INCOME',
+              amount: Number(record.total_amount),
+              transaction_date: orderDate,
+              description: `Sales Order - ${orderNumber} - Small Sales`,
+              reference_number: orderNumber,
+              category: 'Sales',
+              related_account_name: 'Small Sales',
+              created_by: userId,
+            });
+            if (bankTxErr) throw bankTxErr;
+          }
         }
 
+        // ── Wallet deduction (asset + fee) — same regardless of split ──
         if (record.wallet_id) {
           const totalWalletDebit = Number(record.total_quantity || 0) + Number(record.total_fee || 0);
           const { error: walletErr } = await supabase.rpc('process_sales_order_wallet_deduction', {
@@ -217,6 +419,9 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
         return salesOrder;
       } catch (error) {
+        // On any failure, fully reverse what we created so the operator can retry.
+        // delete_sales_order_with_reversal already handles split bank legs,
+        // pending_settlements, wallet ledger, and cascades sales_order_payment_splits.
         if (createdSalesOrderId) {
           await supabase.rpc('delete_sales_order_with_reversal', { p_order_id: createdSalesOrderId });
         }
@@ -230,6 +435,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       queryClient.invalidateQueries({ queryKey: ['pending_settlements'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
       queryClient.invalidateQueries({ queryKey: ['crypto_wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       onOpenChange(false);
     },
     onError: (err: any) => {
@@ -254,6 +460,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
     onSuccess: () => {
       toast({ title: 'Rejected' });
       queryClient.invalidateQueries({ queryKey: ['small_sales_sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       onOpenChange(false);
     },
   });
@@ -262,7 +469,7 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-5 w-5 text-primary" />
@@ -342,21 +549,153 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
 
           <Separator />
 
+          {/* Payment Method + Split Toggle */}
           <div>
-            <Label>Payment Method *</Label>
-            <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select payment method" />
-              </SelectTrigger>
-              <SelectContent>
-                {paymentMethods?.map(m => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.nickname || m.type} {m.payment_gateway ? '(Gateway)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center justify-between mb-1">
+              <Label>Payment Method *</Label>
+              <div className="flex items-center gap-1.5">
+                <Checkbox
+                  id="split-small-sales-payment"
+                  checked={isMultiplePayments}
+                  onCheckedChange={(checked) => {
+                    setIsMultiplePayments(!!checked);
+                    if (checked) {
+                      setPaymentSplits([
+                        { payment_method_id: '', amount: totalAmount > 0 ? totalAmount.toFixed(2) : '' },
+                      ]);
+                      setPaymentMethodId('');
+                    } else {
+                      setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                    }
+                  }}
+                />
+                <Label htmlFor="split-small-sales-payment" className="text-[10px] text-muted-foreground cursor-pointer whitespace-nowrap">
+                  Split Payment
+                </Label>
+              </div>
+            </div>
+
+            {!isMultiplePayments ? (
+              <Select value={paymentMethodId} onValueChange={setPaymentMethodId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  {paymentMethods?.map(m => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.nickname || m.type} {m.payment_gateway ? '(Gateway)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="text-xs text-muted-foreground bg-muted/50 rounded px-3 h-9 flex items-center">
+                Configure payment distribution below
+              </div>
+            )}
           </div>
+
+          {/* Split Payment Distribution */}
+          {isMultiplePayments && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-medium text-sm">Payment Distribution</Label>
+                    {splitAllocation.isValid ? (
+                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 text-sm bg-background/80 rounded-lg p-3 border">
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-[10px] mb-1">Total Amount</div>
+                    <div className="font-semibold text-xs">
+                      ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div className="text-center border-x">
+                    <div className="text-muted-foreground text-[10px] mb-1">Allocated</div>
+                    <div className="font-medium text-xs">
+                      ₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-muted-foreground text-[10px] mb-1">Remaining</div>
+                    <div className={`font-semibold text-xs ${splitAllocation.isValid ? 'text-green-600' : 'text-destructive'}`}>
+                      ₹{splitAllocation.remaining.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="grid grid-cols-12 gap-3 text-xs text-muted-foreground px-1">
+                    <div className="col-span-4">Amount (₹)</div>
+                    <div className="col-span-7">Payment Method</div>
+                    <div className="col-span-1"></div>
+                  </div>
+                  {paymentSplits.map((split, index) => (
+                    <div key={index} className="grid grid-cols-12 gap-3 items-center">
+                      <div className="col-span-4">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={split.amount}
+                          onChange={e => updatePaymentSplit(index, 'amount', e.target.value)}
+                          placeholder="0.00"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div className="col-span-7">
+                        <Select
+                          value={split.payment_method_id}
+                          onValueChange={value => updatePaymentSplit(index, 'payment_method_id', value)}
+                        >
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="Select payment method" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover z-50 border border-border shadow-lg">
+                            {paymentMethods?.map((method: any) => (
+                              <SelectItem key={method.id} value={method.id}>
+                                {method.nickname || method.type} {method.payment_gateway ? '(Gateway)' : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removePaymentSplit(index)}
+                          disabled={paymentSplits.length === 1}
+                          className="h-8 w-8"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addPaymentSplit}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Payment Method
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {showReject && (
             <div>
@@ -381,7 +720,10 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
               </Button>
               <Button
                 size="sm"
-                disabled={!paymentMethodId || approveMutation.isPending}
+                disabled={
+                  approveMutation.isPending ||
+                  (isMultiplePayments ? !splitAllocation.isValid : !paymentMethodId)
+                }
                 onClick={() => approveMutation.mutate()}
               >
                 <CheckCircle className="h-4 w-4 mr-1" />

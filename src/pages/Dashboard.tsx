@@ -24,8 +24,7 @@ import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
-import { syncSmallSales } from '@/hooks/useSmallSalesSync';
-import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
+// Small Buys/Sales sync intentionally NOT imported here — use dedicated buttons only.
 import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from '@/hooks/useSpotTradeSyncStandalone';
 import { useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { toast as sonnerToast } from 'sonner';
@@ -411,7 +410,10 @@ export default function Dashboard() {
     const results: string[] = [];
     const errors: string[] = [];
     try {
-      const [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
+      // NOTE: Small Buys / Small Sales are intentionally EXCLUDED from Universal Sync.
+      // They must only be generated via the dedicated "Sync Small …" buttons so operators
+      // do not get unexpected SM- batches every time they hit Universal Sync.
+      const [orderResult, purchaseResult, salesResult, assetResult, spotTradeResult, spotConvResult] = await Promise.allSettled([
         new Promise<string>((resolve, reject) => {
           syncMutation.mutate({ fullSync: false }, {
             onSuccess: () => resolve('Orders synced'),
@@ -420,13 +422,11 @@ export default function Dashboard() {
         }),
         syncCompletedBuyOrders().then(r => `Purchases: ${r.synced} synced, ${r.duplicates} skipped`),
         syncCompletedSellOrders().then(r => `Sales: ${r.synced} synced, ${r.duplicates} skipped`),
-        syncSmallSales().then(r => `Small Sales: ${r.synced} synced`).catch(() => 'Small Sales: skipped'),
-        syncSmallBuys().then(r => `Small Buys: ${r.synced} synced`).catch(() => 'Small Buys: skipped'),
         supabase.functions.invoke('binance-assets', { body: { action: 'syncAssetMovements', force: false } }).then(() => 'Asset movements synced'),
         syncSpotTradesFromBinance().then(r => `Spot Trades: ${r.synced} synced`),
         syncSpotTradesToConversions().then(r => `Spot Conversions: ${r.inserted} created`).catch(() => 'Spot Conversions: skipped'),
       ]);
-      for (const r of [orderResult, purchaseResult, salesResult, smallSalesResult, smallBuysResult, assetResult, spotTradeResult, spotConvResult]) {
+      for (const r of [orderResult, purchaseResult, salesResult, assetResult, spotTradeResult, spotConvResult]) {
         if (r.status === 'fulfilled') results.push(r.value);
         else errors.push(String(r.reason));
       }

@@ -16,6 +16,7 @@ export const AdActionTypes = {
   // Orders
   ORDER_MARKED_PAID: 'order.marked_paid',
   ORDER_RELEASED: 'order.released',
+  ORDER_QUICK_RECEIVED: 'order.quick_received',
   ORDER_CANCELLED: 'order.cancelled',
   ORDER_VERIFIED: 'order.verified',
   // Automations
@@ -59,6 +60,7 @@ export const ACTION_CATEGORIES: Record<ActionCategory, string[]> = {
   ],
   orders: [
     AdActionTypes.ORDER_MARKED_PAID, AdActionTypes.ORDER_RELEASED,
+    AdActionTypes.ORDER_QUICK_RECEIVED,
     AdActionTypes.ORDER_CANCELLED, AdActionTypes.ORDER_VERIFIED,
   ],
   automations: [
@@ -160,6 +162,7 @@ export function getAdActionLabel(actionType: string): string {
     // Orders
     case AdActionTypes.ORDER_MARKED_PAID: return 'Order Marked Paid';
     case AdActionTypes.ORDER_RELEASED: return 'Order Released';
+    case AdActionTypes.ORDER_QUICK_RECEIVED: return 'Quick Receive (Auto-Release)';
     case AdActionTypes.ORDER_CANCELLED: return 'Order Cancelled';
     case AdActionTypes.ORDER_VERIFIED: return 'Order Verified';
     // Automations

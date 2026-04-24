@@ -209,6 +209,7 @@ export function TerminalSalesSyncTab() {
         description: `${synced} synced, ${duplicates} duplicates skipped, ${enriched} names fetched`,
       });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
     },
     onError: (err: any) => {
       toast({ title: "Sync Error", description: err.message, variant: "destructive" });
@@ -233,6 +234,7 @@ export function TerminalSalesSyncTab() {
     onSuccess: () => {
       toast({ title: "Sell Order Rejected" });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       setRejectRecord(null);
       setRejectionReason("");
     },

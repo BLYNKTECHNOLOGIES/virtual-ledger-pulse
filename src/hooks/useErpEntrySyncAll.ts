@@ -58,7 +58,7 @@ export function useSyncAll() {
 export function useSyncSmallBuys() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => syncSmallBuys(),
+    mutationFn: () => syncSmallBuys({ operatorInitiated: true, source: 'erp_entry_small_menu' }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["erp-entry-feed"] });
       qc.invalidateQueries({ queryKey: ["small-buys-sync"] });
@@ -78,7 +78,7 @@ export function useSyncSmallBuys() {
 export function useSyncSmallSales() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => syncSmallSales(),
+    mutationFn: () => syncSmallSales({ operatorInitiated: true, source: 'erp_entry_small_menu' }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["erp-entry-feed"] });
       qc.invalidateQueries({ queryKey: ["small-sales-sync"] });

@@ -208,6 +208,7 @@ export function useLogPayerAction() {
 }
 
 export function usePayerOrders() {
+  const queryClient = useQueryClient();
   const { userId } = useTerminalAuth();
   const { data: activeOrdersData, isLoading: ordersLoading, refetch: refetchOrders, isFetching } = useBinanceActiveOrders();
   const { data: myAssignments = [], isLoading: assignmentsLoading } = usePayerAssignments(userId);
@@ -216,6 +217,22 @@ export function usePayerOrders() {
   const { data: orderLocks = [], isLoading: locksLoading } = usePayerOrderLocks();
   const { data: exclusions = new Set<string>() } = useAutoReplyExclusions();
   const lockOrder = useLockOrderToPayer();
+
+  // Realtime: instantly invalidate locks/log when any payer takes action anywhere
+  useEffect(() => {
+    const channel = supabase
+      .channel('payer-tab-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'terminal_payer_order_locks' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['payer-order-locks'] });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'terminal_payer_order_log' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['payer-order-log'] });
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   // Set of orders already marked paid
   const paidOrderNumbers = useMemo(() => {

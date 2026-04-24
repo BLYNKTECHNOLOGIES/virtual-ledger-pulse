@@ -793,6 +793,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       toast({ title: "Sales Order Approved", description: "Terminal sell order has been approved and sales order created" });
       queryClient.invalidateQueries({ queryKey: ['sales_orders'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['sales_payment_methods'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });

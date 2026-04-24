@@ -154,7 +154,7 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
 
   const handleConfirmPaid = async () => {
     await markPaid.mutateAsync({ orderNumber });
-    triggerAutoScreenshot(orderNumber);
+    await triggerAutoScreenshot(orderNumber);
   };
 
   return (

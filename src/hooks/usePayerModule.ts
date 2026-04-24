@@ -338,9 +338,13 @@ export function usePayerOrders() {
     }
   }, [newLocks]);
 
-  // Pending: orders that still need payer action
+  // Pending: orders that still need payer action.
+  // NOTE: Status 3 (BUYER_PAYED → "Releasing" for BUY) is intentionally KEPT in pending
+  // because the payer may still want to trigger Quick Receive (self-release via security
+  // deposit) when the seller is slow to release coins. Only truly finalized states
+  // (4/5 COMPLETED, 7 CANCELLED) and explicitly acknowledged orders are excluded.
   const pendingOrders = useMemo(() => {
-    const excludeFromPending = new Set(['3', '4', '5', '7']);
+    const excludeFromPending = new Set(['4', '5', '7']);
     const result = allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
       .filter((o: any) => !excludeFromPending.has(String(o.orderStatus)));
@@ -348,10 +352,11 @@ export function usePayerOrders() {
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 
-  // Completed: orders marked paid by this payer or already PAID on Binance
+  // Completed: orders marked paid by this payer (acknowledged) or finalized on Binance
   const completedOrders = useMemo(() => {
     return allMatchedOrders.filter((o: any) =>
-      paidOrderNumbers.has(o.orderNumber) || String(o.orderStatus) === '3'
+      paidOrderNumbers.has(o.orderNumber) ||
+      ['4', '5'].includes(String(o.orderStatus))
     );
   }, [allMatchedOrders, paidOrderNumbers]);
 

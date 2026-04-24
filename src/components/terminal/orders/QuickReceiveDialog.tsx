@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Loader2, Fingerprint, Key, Mail, Smartphone, Shield } from 'lucide-react';
-import { useReleaseCoin } from '@/hooks/useBinanceActions';
+import { useReleaseCoin, useMarkOrderAsPaid } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'MOBILE';

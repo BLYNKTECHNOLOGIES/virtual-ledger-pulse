@@ -44,6 +44,8 @@ export interface QuickReceiveDialogProps {
   onSuccess?: () => void;
   /** Visual size variant */
   variant?: 'block' | 'inline';
+  /** When true, will call notifyOrderPaid before releaseCoin (status-1 → status-2 → release) */
+  requireMarkPaidFirst?: boolean;
 }
 
 /**

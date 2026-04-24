@@ -368,30 +368,9 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           if (splitErr) throw splitErr;
 
           if (isGateway) {
-            const expectedSettlementDate = selectedMethod!.settlement_days
-              ? new Date(new Date(orderDate).getTime() + selectedMethod!.settlement_days * 86400000)
-                  .toISOString()
-                  .split('T')[0]
-              : new Date(new Date(orderDate).getTime() + 86400000)
-                  .toISOString()
-                  .split('T')[0];
-
-            const { error: settlementErr } = await supabase.from('pending_settlements').insert({
-              sales_order_id: salesOrder.id,
-              order_number: orderNumber,
-              client_name: 'Small Sales',
-              total_amount: Number(record.total_amount),
-              settlement_amount: Number(record.total_amount),
-              order_date: orderDate,
-              payment_method_id: paymentMethodId,
-              bank_account_id: singleResolvedBankId,
-              settlement_cycle: selectedMethod!.settlement_cycle || 'T+1 Day',
-              settlement_days: selectedMethod!.settlement_days || null,
-              expected_settlement_date: expectedSettlementDate,
-              status: 'PENDING',
-              created_by: userId,
-            });
-            if (settlementErr) throw settlementErr;
+            // sales_orders already has create_pending_settlement_trigger, which inserts/updates
+            // the gateway settlement row for single-method approvals. Inserting here again causes
+            // a unique conflict on (sales_order_id, payment_method_id).
           } else {
             const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
               bank_account_id: singleResolvedBankId,

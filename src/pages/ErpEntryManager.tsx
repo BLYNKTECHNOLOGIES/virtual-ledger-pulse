@@ -100,6 +100,29 @@ export default function ErpEntryManager() {
 
   const { data: rejectedRows = [], isLoading: rejectedLoading } = useErpEntryRejectedFeed(view === "rejected");
 
+  const refreshErpEntryCaches = useCallback(() => {
+    ERP_ENTRY_REFRESH_KEYS.forEach((queryKey) => {
+      queryClient.invalidateQueries({ queryKey });
+    });
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (!hasAccess) return;
+
+    const channel = ERP_ENTRY_REALTIME_TABLES.reduce(
+      (ch, table) => ch.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table },
+        refreshErpEntryCaches
+      ),
+      supabase.channel("erp-entry-realtime-refresh")
+    ).subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hasAccess, refreshErpEntryCaches]);
+
   // Active source list depends on current view
   const sourceRows = view === "rejected" ? (rejectedRows as ErpEntryRow[]) : rows;
   const listLoading = view === "rejected" ? rejectedLoading : isLoading;
@@ -318,9 +341,7 @@ export default function ErpEntryManager() {
                       onOpen={() => {
                         if (row.source === "conversion") {
                           approveConversion.mutate(row.raw.id, {
-                            onSuccess: () => {
-                              queryClient.invalidateQueries({ queryKey: ["erp-entry-feed"] });
-                            },
+                            onSuccess: refreshErpEntryCaches,
                           });
                           return;
                         }
@@ -349,7 +370,7 @@ export default function ErpEntryManager() {
           open={true}
           onOpenChange={(o) => { if (!o) setActiveRow(null); }}
           syncRecord={activeRow.raw}
-          onSuccess={() => setActiveRow(null)}
+          onSuccess={() => { setActiveRow(null); refreshErpEntryCaches(); }}
         />
       )}
 
@@ -358,7 +379,7 @@ export default function ErpEntryManager() {
           open={true}
           onOpenChange={(o) => { if (!o) setActiveRow(null); }}
           syncRecord={activeRow.raw}
-          onSuccess={() => setActiveRow(null)}
+          onSuccess={() => { setActiveRow(null); refreshErpEntryCaches(); }}
         />
       )}
 

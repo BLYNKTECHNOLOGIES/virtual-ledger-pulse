@@ -95,6 +95,21 @@ export function parseApprovalError(error: any, context?: string): ApprovalErrorI
     };
   }
 
+  // ── Schema / ON CONFLICT misconfiguration (must come BEFORE duplicate check) ──
+  // Postgres 42P10: "there is no unique or exclusion constraint matching the ON CONFLICT specification"
+  // This contains "unique constraint" but is NOT a duplicate — it's a schema/index design bug.
+  if (
+    lowerMsg.includes('no unique or exclusion constraint') ||
+    lowerMsg.includes('matching the on conflict specification') ||
+    lowerMsg.includes('42p10')
+  ) {
+    return {
+      title: 'System Configuration Issue',
+      description:
+        'A database index is misconfigured for this operation. Please refresh and try again. If the problem persists, contact support — this is a schema issue, not a duplicate record.',
+    };
+  }
+
   // ── Duplicate / conflict ──
   if (lowerMsg.includes('duplicate') || lowerMsg.includes('already exists') || lowerMsg.includes('unique constraint') || lowerMsg.includes('duplicate key')) {
     return {

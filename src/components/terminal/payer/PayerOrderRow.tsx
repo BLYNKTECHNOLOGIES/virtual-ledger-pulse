@@ -81,8 +81,11 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
     queryKey: ['binance-order-detail-payer', order.orderNumber],
     queryFn: async () => {
       try {
-        const resp = await callBinanceAds('getOrderDetail', { orderNumber: order.orderNumber });
-        return resp?.data || resp;
+        // callBinanceAds returns { success, data: <binanceJson> }
+        // binanceJson shape: { code, message, data: {...orderFields incl. quickConfirmAmountUpLimit, payMethods} }
+        const resp: any = await callBinanceAds('getOrderDetail', { orderNumber: order.orderNumber });
+        const binJson = resp?.data ?? resp;
+        return binJson?.data ?? binJson;
       } catch {
         return null;
       }

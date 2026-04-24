@@ -148,8 +148,22 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       }
 
       let createdSalesOrderId: string | null = null;
+      let claimed = false;
 
       try {
+        // ── Idempotency guard: atomically claim this batch so a second click cannot create a duplicate ──
+        const { data: claimRows, error: claimErr } = await supabase
+          .from('small_sales_sync')
+          .update({ sync_status: 'processing' })
+          .eq('id', record.id)
+          .eq('sync_status', 'pending_approval')
+          .select('id');
+        if (claimErr) throw claimErr;
+        if (!claimRows || claimRows.length === 0) {
+          throw new Error('This batch is already being processed or has been approved. Please refresh.');
+        }
+        claimed = true;
+
         const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
         const marketRate = locked.price;
 

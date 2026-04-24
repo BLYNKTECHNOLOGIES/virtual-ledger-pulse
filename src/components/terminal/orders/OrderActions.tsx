@@ -24,7 +24,7 @@ import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, 
 import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
-import { triggerAutoScreenshot } from '@/lib/triggerAutoScreenshot';
+import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 
 interface Props {
   orderNumber: string;
@@ -153,8 +153,9 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
   const markPaid = useMarkOrderAsPaid();
 
   const handleConfirmPaid = async () => {
+    const preparedScreenshot = await prepareAutoScreenshot(orderNumber);
     await markPaid.mutateAsync({ orderNumber });
-    await triggerAutoScreenshot(orderNumber);
+    await deliverPreparedAutoScreenshot(preparedScreenshot);
   };
 
   return (

@@ -129,7 +129,8 @@ async function renderPng(svg: string): Promise<Uint8Array> {
 }
 
 async function callBinance(supabase: any, action: string, payload: any) {
-  const { data, error } = await supabase.functions.invoke("binance-ads", { body: { action, payload } });
+  // binance-ads parses body as { action, ...payload } — payload fields must be top-level, NOT nested.
+  const { data, error } = await supabase.functions.invoke("binance-ads", { body: { action, ...payload } });
   if (error) throw new Error(`binance-ads ${action} failed: ${error.message || error}`);
   return data;
 }

@@ -9,6 +9,8 @@ const corsHeaders = {
 };
 
 let wasmReady: Promise<void> | null = null;
+let fontBuffersReady: Promise<Uint8Array[]> | null = null;
+
 async function ensureWasm() {
   if (!wasmReady) {
     wasmReady = (async () => {
@@ -18,6 +20,32 @@ async function ensureWasm() {
     })();
   }
   return wasmReady;
+}
+
+async function ensureFonts() {
+  if (!fontBuffersReady) {
+    fontBuffersReady = (async () => {
+      const fontUrls = [
+        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-400-normal.ttf",
+        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-600-normal.ttf",
+        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-700-normal.ttf",
+      ];
+
+      const buffers = await Promise.all(
+        fontUrls.map(async (url) => {
+          const resp = await fetch(url);
+          if (!resp.ok) {
+            throw new Error(`font fetch failed ${resp.status} for ${url}`);
+          }
+          return new Uint8Array(await resp.arrayBuffer());
+        })
+      );
+
+      return buffers;
+    })();
+  }
+
+  return fontBuffersReady;
 }
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

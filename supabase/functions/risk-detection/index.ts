@@ -97,8 +97,8 @@ const handler = async (req: Request): Promise<Response> => {
             .gte("order_date", `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`)
             .lt("order_date", `${currentMonth}-01`);
 
-          const currentVolume = currentOrders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-          const pastVolume = pastOrders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
+          const currentVolume = currentOrders?.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) || 0;
+          const pastVolume = pastOrders?.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) || 0;
           const avgPastVolume = pastVolume / 3;
 
           return avgPastVolume > 0 && currentVolume > (avgPastVolume * 2);

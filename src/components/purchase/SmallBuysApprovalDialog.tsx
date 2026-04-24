@@ -314,6 +314,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
       queryClient.invalidateQueries({ queryKey: ['crypto_wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       onOpenChange(false);
     },
     onError: (err: any) => {
@@ -338,6 +339,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
     onSuccess: () => {
       toast({ title: 'Rejected' });
       queryClient.invalidateQueries({ queryKey: ['small_buys_sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       onOpenChange(false);
     },
   });

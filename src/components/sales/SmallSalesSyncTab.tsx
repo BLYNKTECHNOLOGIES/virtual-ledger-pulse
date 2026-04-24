@@ -65,7 +65,7 @@ export function SmallSalesSyncTab() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const result = await syncSmallSales();
+      const result = await syncSmallSales({ operatorInitiated: true, source: 'sales_small_sales_tab' });
       toast({
         title: 'Small Sales Sync Complete',
         description: `${result.synced} entries created, ${result.duplicates} duplicates skipped`,

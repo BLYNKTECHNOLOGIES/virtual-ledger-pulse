@@ -155,11 +155,7 @@ async function getDBOrderCount(): Promise<number> {
 }
 
 // ---- Incremental sync: only new orders + status refresh on recent ----
-export function useSyncOrderHistory() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ fullSync = false }: { fullSync?: boolean } = {}) => {
+export async function syncOrderHistoryFromBinance({ fullSync = false }: { fullSync?: boolean } = {}) {
       const startTime = Date.now();
       const cutoff = Date.now() - DATA_RETENTION_MS;
       const dbCount = await getDBOrderCount();
@@ -218,7 +214,13 @@ export function useSyncOrderHistory() {
       const totalCount = newOrders.length + gapFillCount;
       await updateSyncMetadata(totalCount, duration);
       return { count: totalCount, duration, type: 'incremental' as const };
-    },
+}
+
+export function useSyncOrderHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: syncOrderHistoryFromBinance,
     onSuccess: async ({ count, duration, type }) => {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';
       toast.success(`${label}: ${count.toLocaleString('en-IN')} orders in ${(duration / 1000).toFixed(0)}s`);
@@ -258,6 +260,7 @@ export function useSyncOrderHistory() {
       queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
       queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
     },
     onError: (err: Error) => {
       toast.error(`Sync failed: ${err.message}`);

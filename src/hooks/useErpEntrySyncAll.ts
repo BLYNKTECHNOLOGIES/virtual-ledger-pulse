@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { syncOrderHistoryFromBinance } from "@/hooks/useBinanceOrderSync";
 import { syncCompletedBuyOrders } from "@/hooks/useTerminalPurchaseSync";
 import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
 import { syncSpotTradesFromBinance, syncSpotTradesToConversions } from "@/hooks/useSpotTradeSyncStandalone";
@@ -23,8 +24,14 @@ export function useSyncAll() {
         supabase.functions.invoke("binance-assets", {
           body: { action: "checkNewMovements" },
         }),
-        syncCompletedBuyOrders(),
-        syncCompletedSellOrders(),
+        (async () => {
+          await syncOrderHistoryFromBinance({ fullSync: false });
+          const [buyResult, sellResult] = await Promise.all([
+            syncCompletedBuyOrders(),
+            syncCompletedSellOrders(),
+          ]);
+          return { buyResult, sellResult };
+        })(),
         (async () => {
           await syncSpotTradesFromBinance();
           return syncSpotTradesToConversions();
@@ -37,6 +44,8 @@ export function useSyncAll() {
       qc.invalidateQueries({ queryKey: ["erp_action_queue"] });
       qc.invalidateQueries({ queryKey: ["terminal-purchase-sync"] });
       qc.invalidateQueries({ queryKey: ["terminal-sales-sync"] });
+      qc.invalidateQueries({ queryKey: ["cached-order-history"] });
+      qc.invalidateQueries({ queryKey: ["binance-sync-metadata"] });
       qc.invalidateQueries({ queryKey: ["erp_conversions"] });
       toast({ title: "Sync complete", description: "All entry sources refreshed." });
     },

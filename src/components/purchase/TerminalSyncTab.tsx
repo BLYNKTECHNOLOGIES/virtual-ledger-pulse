@@ -184,6 +184,7 @@ export function TerminalSyncTab() {
         description: parts.join(', '),
       });
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
     },
     onError: (err: any) => {
       console.error('[TerminalSync] Sync error:', err);
@@ -209,6 +210,7 @@ export function TerminalSyncTab() {
     onSuccess: () => {
       toast({ title: "Order Rejected" });
       queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       setRejectRecord(null);
       setRejectionReason("");
     },

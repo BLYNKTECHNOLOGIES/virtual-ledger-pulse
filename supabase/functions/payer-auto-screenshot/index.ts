@@ -141,7 +141,7 @@ function buildSvg(args: {
     <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
     <rect x="0" y="0" width="${W}" height="${headerH}" fill="url(#g)"/>
     <text x="${W / 2}" y="48" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" fill="#ffffff" opacity="0.9">To ${escapeXml(args.toUpiId)}</text>
-    <text x="${W / 2}" y="92" text-anchor="middle" font-family="Inter, sans-serif" font-size="32" font-weight="700" fill="#ffffff">${escapeXml(fmtINR(args.amount).replace(/\.00$/, ".00"))}</text>
+    <text x="${W / 2}" y="92" text-anchor="middle" font-family="Inter, sans-serif" font-size="32" font-weight="700" fill="#ffffff">${escapeXml(fmtINR(args.amount))}</text>
     <rect x="${W / 2 - 60}" y="110" width="120" height="28" rx="14" ry="14" fill="rgba(255,255,255,0.22)"/>
     <text x="${W / 2}" y="129" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#ffffff">✓ Completed</text>
     <text x="${W / 2}" y="160" text-anchor="middle" font-family="Inter, sans-serif" font-size="12" fill="#ffffff" opacity="0.85">${escapeXml(dt)}</text>
@@ -447,8 +447,8 @@ Deno.serve(async (req: Request) => {
       fee,
       total,
       upiTxnId,
-      fromName: cfg.from_name,
-      fromUpiId: cfg.from_upi_id,
+      fromName: cfg.from_name || "Blynk Virtual Technologies Pvt. Ltd.",
+      fromUpiId: cfg.from_upi_id || "blynkex@aeronflyprivatelimited",
       dateTime: paidAtIso,
     });
     const pngBytes = await renderPng(svg);

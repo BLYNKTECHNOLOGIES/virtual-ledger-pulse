@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, Eye, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import html2canvas from "html2canvas";
+import { ReceiptTemplate } from "@/components/payer/ReceiptTemplate";
 
 const PaymentScreenshotGenerator = () => {
   const navigate = useNavigate();
@@ -33,20 +34,6 @@ const PaymentScreenshotGenerator = () => {
 
   const formatCurrency = (val: number) =>
     "₹" + val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  const formatDateTime = (val: string) => {
-    if (!val) return "";
-    const d = new Date(val);
-    const day = d.getDate().toString().padStart(2, "0");
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    const month = months[d.getMonth()];
-    const year = d.getFullYear();
-    let hours = d.getHours();
-    const minutes = d.getMinutes().toString().padStart(2, "0");
-    const ampm = hours >= 12 ? "pm" : "am";
-    hours = hours % 12 || 12;
-    return `${day} ${month} ${year}, ${hours.toString().padStart(2, "0")}:${minutes} ${ampm}`;
-  };
 
   const handleDownload = async () => {
     if (!screenshotRef.current) return;
@@ -139,97 +126,18 @@ const PaymentScreenshotGenerator = () => {
             <CardContent className="flex items-center justify-center min-h-[500px]">
               {showPreview && isFormValid ? (
                 <div className="w-full flex justify-center">
-                  <div
-                    ref={screenshotRef}
-                    style={{
-                      width: "420px",
-                      fontFamily: "'Segoe UI', Roboto, sans-serif",
-                      background: "#ffffff",
-                      borderRadius: "12px",
-                      overflow: "hidden",
-                      boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-                    }}
-                  >
-                    {/* Header - Green gradient section */}
-                    <div
-                      style={{
-                        background: "linear-gradient(135deg, #1a9e6f 0%, #2bb87e 50%, #1a8f65 100%)",
-                        padding: "28px 24px 24px",
-                        textAlign: "center",
-                        color: "#ffffff",
+                  <div ref={screenshotRef}>
+                    <ReceiptTemplate
+                      data={{
+                        toUpiId: form.toUpiId,
+                        amount,
+                        paymentProviderFees: fees,
+                        upiTransactionId: form.upiTransactionId,
+                        dateTime: form.dateTime,
+                        fromName,
+                        fromUpiId,
                       }}
-                    >
-                      <div style={{ fontSize: "13px", opacity: 0.9, marginBottom: "4px" }}>
-                        To {form.toUpiId}
-                      </div>
-                      <div style={{ fontSize: "32px", fontWeight: "700", letterSpacing: "-0.5px" }}>
-                        ₹{parseFloat(form.amount || "0").toFixed(2)}
-                      </div>
-                      <div
-                        style={{
-                          display: "inline-block",
-                          background: "rgba(255,255,255,0.2)",
-                          borderRadius: "20px",
-                          padding: "6px 16px",
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          marginTop: "10px",
-                          lineHeight: "1.4",
-                          textAlign: "center",
-                        }}
-                      >
-                        <span style={{ marginRight: "4px" }}>✓</span><span>Completed</span>
-                      </div>
-                      <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>
-                        {formatDateTime(form.dateTime)}
-                      </div>
-                    </div>
-
-                    {/* Details section */}
-                    <div style={{ padding: "20px 24px 24px" }}>
-                      {/* To */}
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                        <span style={{ color: "#888", fontSize: "13px" }}>To</span>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#222" }}>{form.toUpiId}</div>
-                        </div>
-                      </div>
-
-                      {/* From */}
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                        <span style={{ color: "#888", fontSize: "13px" }}>From</span>
-                        <div style={{ textAlign: "right" }}>
-                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#222" }}>{fromName}</div>
-                          <div style={{ fontSize: "11px", color: "#888" }}>{fromUpiId}</div>
-                        </div>
-                      </div>
-
-                      {/* UPI Transaction ID */}
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                        <span style={{ color: "#888", fontSize: "13px" }}>UPI Transaction ID</span>
-                        <span style={{ fontSize: "12px", fontWeight: "500", color: "#222" }}>{form.upiTransactionId}</span>
-                      </div>
-
-                      {/* Paid Amount */}
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                        <span style={{ color: "#888", fontSize: "13px" }}>Paid Amount</span>
-                        <span style={{ fontSize: "13px", fontWeight: "600", color: "#222" }}>{formatCurrency(amount)}</span>
-                      </div>
-
-                      {/* Payment Provider Fees */}
-                      {fees > 0 && (
-                        <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #f0f0f0" }}>
-                          <span style={{ color: "#888", fontSize: "13px" }}>Payment Provider Fees</span>
-                          <span style={{ fontSize: "13px", fontWeight: "500", color: "#222" }}>{formatCurrency(fees)}</span>
-                        </div>
-                      )}
-
-                      {/* Total Debited */}
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0" }}>
-                        <span style={{ color: "#888", fontSize: "13px" }}>Total Debited</span>
-                        <span style={{ fontSize: "13px", fontWeight: "700", color: "#222" }}>{formatCurrency(totalDebited)}</span>
-                      </div>
-                    </div>
+                    />
                   </div>
                 </div>
               ) : (

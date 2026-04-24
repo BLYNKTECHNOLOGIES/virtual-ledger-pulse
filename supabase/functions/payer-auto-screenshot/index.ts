@@ -428,8 +428,35 @@ Deno.serve(async (req: Request) => {
     const putResp = await fetch(preSignedUrl, { method: "PUT", body: pngBytes, headers: { "Content-Type": "image/png" } });
     if (!putResp.ok) throw new Error(`upload PUT failed ${putResp.status}`);
 
-    // 5. Send chat message
-    await callBinance(adminClient, "sendChatMessage", { orderNo: orderNumber, imageUrl });
+    // 5. Send chat image and verify it actually lands in Binance chat.
+    // Some proxy success responses are false positives, so do not trust them blindly.
+    const sendStartedAt = Date.now();
+    const sendResp = await callBinance(adminClient, "sendChatMessage", { orderNo: orderNumber, imageUrl });
+    const restSendOk = !(sendResp?.success === false);
+
+    if (restSendOk) {
+      await sleep(1800);
+    }
+
+    let delivered = restSendOk
+      ? await verifyImageDelivery(adminClient, orderNumber, imageUrl, sendStartedAt)
+      : false;
+
+    if (!delivered) {
+      console.warn("payer-auto-screenshot: REST send unverified, falling back to WebSocket", { orderNumber });
+      const credential = await getChatCredential(adminClient);
+      if (!credential) {
+        throw new Error("chat delivery could not be verified and chat credentials were unavailable");
+      }
+
+      await sendImageViaWs(credential, orderNumber, imageUrl);
+      await sleep(1800);
+      delivered = await verifyImageDelivery(adminClient, orderNumber, imageUrl, Date.now());
+    }
+
+    if (!delivered) {
+      throw new Error("chat image upload completed but delivery to Binance chat could not be verified");
+    }
 
     await logRow("sent", {
       amount_used: amountInt,

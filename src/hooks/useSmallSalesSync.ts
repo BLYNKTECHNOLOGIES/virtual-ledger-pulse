@@ -13,6 +13,11 @@ interface SmallSalesSyncResult {
   batchId: string | null;
 }
 
+interface SmallSalesSyncOptions {
+  operatorInitiated: true;
+  source: 'erp_entry_small_menu' | 'sales_small_sales_tab';
+}
+
 /**
  * Fetch the small sales config from DB.
  */
@@ -43,7 +48,11 @@ export async function getSmallSalesConfig(): Promise<SmallSalesConfig | null> {
  * - Conflict-safe map inserts
  * - Rejected batch re-sync support
  */
-export async function syncSmallSales(): Promise<SmallSalesSyncResult> {
+export async function syncSmallSales(options: SmallSalesSyncOptions): Promise<SmallSalesSyncResult> {
+  if (options?.operatorInitiated !== true) {
+    throw new Error('Small Sales sync is restricted to the dedicated operator button.');
+  }
+
   const config = await getSmallSalesConfig();
   if (!config || !config.is_enabled) {
     return { synced: 0, duplicates: 0, batchId: null };

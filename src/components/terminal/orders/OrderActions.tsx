@@ -24,6 +24,7 @@ import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, 
 import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
+import { triggerAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 
 interface Props {
   orderNumber: string;
@@ -151,6 +152,11 @@ function VerifyOrderAction({ orderNumber }: { orderNumber: string }) {
 function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
   const markPaid = useMarkOrderAsPaid();
 
+  const handleConfirmPaid = async () => {
+    await markPaid.mutateAsync({ orderNumber });
+    triggerAutoScreenshot(orderNumber);
+  };
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -172,7 +178,7 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={() => markPaid.mutate({ orderNumber })}>
+          <AlertDialogAction onClick={() => void handleConfirmPaid()}>
             Confirm Paid
           </AlertDialogAction>
         </AlertDialogFooter>

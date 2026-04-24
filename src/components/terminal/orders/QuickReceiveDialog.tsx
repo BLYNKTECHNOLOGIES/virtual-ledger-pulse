@@ -22,6 +22,7 @@ import {
 import { Zap, Loader2, Fingerprint, Key, Mail, Smartphone, Shield } from 'lucide-react';
 import { useReleaseCoin, useMarkOrderAsPaid } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
+import { triggerAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 
 type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'MOBILE';
 
@@ -95,6 +96,7 @@ export function QuickReceiveDialog({
     if (requireMarkPaidFirst) {
       try {
         await markPaid.mutateAsync({ orderNumber });
+        triggerAutoScreenshot(orderNumber);
       } catch (err) {
         firedRef.current = false;
         return; // toast surfaced by hook

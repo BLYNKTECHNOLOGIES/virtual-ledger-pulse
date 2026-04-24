@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
-import { triggerAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
+import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,11 +104,10 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const handleMarkPaid = async () => {
     setIsMarkingPaid(true);
     try {
+      const preparedScreenshot = await prepareAutoScreenshot(order.orderNumber);
       await markPaid.mutateAsync({ orderNumber: order.orderNumber });
       await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
-      // Must complete before refreshing/removing the row; otherwise the browser
-      // can drop the client-side receipt capture request.
-      await triggerAutoScreenshot(order.orderNumber);
+      await deliverPreparedAutoScreenshot(preparedScreenshot);
       // Fire-and-forget: auto-reply engine (event-driven, since the cron poll
       // can miss orders that complete within seconds of being marked Paid).
       triggerAutoReplyForOrder(order.orderNumber, 'payment_marked');

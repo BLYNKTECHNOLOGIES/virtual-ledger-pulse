@@ -25,11 +25,9 @@ export function useSyncAll() {
           body: { action: "checkNewMovements" },
         }),
         (async () => {
-          await syncOrderHistoryFromBinance({ fullSync: false });
-          const [buyResult, sellResult] = await Promise.all([
-            syncCompletedBuyOrders(),
-            syncCompletedSellOrders(),
-          ]);
+          await syncOrderHistoryFromBinance({ fullSync: false, forceGapFill: true });
+          const buyResult = await syncCompletedBuyOrders();
+          const sellResult = await syncCompletedSellOrders();
           return { buyResult, sellResult };
         })(),
         (async () => {

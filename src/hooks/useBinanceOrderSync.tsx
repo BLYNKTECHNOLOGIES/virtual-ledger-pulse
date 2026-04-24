@@ -155,7 +155,10 @@ async function getDBOrderCount(): Promise<number> {
 }
 
 // ---- Incremental sync: only new orders + status refresh on recent ----
-export async function syncOrderHistoryFromBinance({ fullSync = false }: { fullSync?: boolean } = {}) {
+export async function syncOrderHistoryFromBinance({
+  fullSync = false,
+  forceGapFill = false,
+}: { fullSync?: boolean; forceGapFill?: boolean } = {}) {
       const startTime = Date.now();
       const cutoff = Date.now() - DATA_RETENTION_MS;
       const dbCount = await getDBOrderCount();
@@ -189,7 +192,7 @@ export async function syncOrderHistoryFromBinance({ fullSync = false }: { fullSy
       try {
         const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(GAP_FILL_KEY) : null;
         const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
-        if (Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
+        if (forceGapFill || Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
           const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
           const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60);
           if (gapOrders.length > 0) {

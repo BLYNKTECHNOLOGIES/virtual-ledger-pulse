@@ -9462,6 +9462,93 @@ export type Database = {
           },
         ]
       }
+      payer_screenshot_automation_config: {
+        Row: {
+          created_at: string
+          from_name: string
+          from_upi_id: string
+          id: string
+          is_active: boolean
+          max_amount: number
+          min_amount: number
+          provider_fee_flat: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_name?: string
+          from_upi_id?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number
+          min_amount?: number
+          provider_fee_flat?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_name?: string
+          from_upi_id?: string
+          id?: string
+          is_active?: boolean
+          max_amount?: number
+          min_amount?: number
+          provider_fee_flat?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      payer_screenshot_automation_log: {
+        Row: {
+          amount_used: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          image_url: string | null
+          order_number: string
+          payer_name: string | null
+          payer_user_id: string | null
+          provider_fee: number | null
+          status: string
+          to_upi_id: string | null
+          total_debited: number | null
+          upi_txn_id: string | null
+        }
+        Insert: {
+          amount_used?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          order_number: string
+          payer_name?: string | null
+          payer_user_id?: string | null
+          provider_fee?: number | null
+          status: string
+          to_upi_id?: string | null
+          total_debited?: number | null
+          upi_txn_id?: string | null
+        }
+        Update: {
+          amount_used?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          image_url?: string | null
+          order_number?: string
+          payer_name?: string | null
+          payer_user_id?: string | null
+          provider_fee?: number | null
+          status?: string
+          to_upi_id?: string | null
+          total_debited?: number | null
+          upi_txn_id?: string | null
+        }
+        Relationships: []
+      }
       payment_gateway_settlement_items: {
         Row: {
           amount: number

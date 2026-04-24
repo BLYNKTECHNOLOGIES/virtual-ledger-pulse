@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +27,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useErpEntryRejectedFeed } from "@/hooks/useErpEntryRejectedFeed";
 import { RejectedEntryRow } from "@/components/erp-entry/RejectedEntryRow";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
 
 function dayBucket(ts: number) {
   const d = new Date(ts);
@@ -41,6 +42,33 @@ function dayLabel(bucket: number) {
   if (diff === 1) return "Yesterday";
   return new Date(bucket).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
+
+const ERP_ENTRY_REFRESH_KEYS = [
+  ["erp-entry-feed"],
+  ["erp-entry-rejected-feed"],
+  ["terminal-purchase-sync"],
+  ["terminal-sales-sync"],
+  ["small_buys_sync"],
+  ["small_sales_sync"],
+  ["purchase_orders"],
+  ["purchase_orders_summary"],
+  ["sales_orders"],
+  ["bank_transactions"],
+  ["wallet_transactions"],
+  ["wallet_asset_balances"],
+  ["erp_conversions"],
+];
+
+const ERP_ENTRY_REALTIME_TABLES = [
+  "erp_action_queue",
+  "terminal_purchase_sync",
+  "terminal_sales_sync",
+  "small_buys_sync",
+  "small_sales_sync",
+  "erp_product_conversions",
+  "purchase_orders",
+  "sales_orders",
+];
 
 export default function ErpEntryManager() {
   const navigate = useNavigate();

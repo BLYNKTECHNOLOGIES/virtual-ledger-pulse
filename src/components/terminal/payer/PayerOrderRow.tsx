@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
-import { triggerAutoScreenshot } from '@/lib/triggerAutoScreenshot';
+import { triggerAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
 import {
   AlertDialog,
   AlertDialogAction,

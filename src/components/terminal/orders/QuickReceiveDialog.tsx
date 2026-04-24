@@ -22,7 +22,7 @@ import {
 import { Zap, Loader2, Fingerprint, Key, Mail, Smartphone, Shield } from 'lucide-react';
 import { useReleaseCoin, useMarkOrderAsPaid } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
-import { triggerAutoScreenshot } from '@/lib/triggerAutoScreenshot';
+import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 
 type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'MOBILE';
 
@@ -95,8 +95,9 @@ export function QuickReceiveDialog({
     // Step 1: if order is still in pending status, notify Binance the buyer paid first
     if (requireMarkPaidFirst) {
       try {
+        const preparedScreenshot = await prepareAutoScreenshot(orderNumber);
         await markPaid.mutateAsync({ orderNumber });
-        await triggerAutoScreenshot(orderNumber);
+        await deliverPreparedAutoScreenshot(preparedScreenshot);
       } catch (err) {
         firedRef.current = false;
         return; // toast surfaced by hook

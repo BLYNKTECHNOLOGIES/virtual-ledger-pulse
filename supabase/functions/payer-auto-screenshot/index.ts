@@ -1,175 +1,32 @@
-// Auto Screenshot Sender — generates a UPI receipt PNG and posts it to the Binance order chat
-// Triggered from PayerOrderRow when a Payer clicks "Mark Paid" on an eligible UPI BUY order.
+// Auto Screenshot Sender — client-driven receipt delivery.
+// The PNG itself is rendered in the payer's browser using the SAME React
+// template as the manual Utility Hub generator (see ReceiptTemplate.tsx),
+// then uploaded to Binance via this function. This guarantees the
+// auto-screenshot is byte-identical to the manual one.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Resvg, initWasm } from "https://esm.sh/@resvg/resvg-wasm@2.6.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-let wasmReady: Promise<void> | null = null;
-let fontBuffersReady: Promise<Uint8Array[]> | null = null;
-
-async function ensureWasm() {
-  if (!wasmReady) {
-    wasmReady = (async () => {
-      const wasmResp = await fetch("https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm");
-      const wasmBuf = await wasmResp.arrayBuffer();
-      await initWasm(wasmBuf);
-    })();
-  }
-  return wasmReady;
-}
-
-async function ensureFonts() {
-  if (!fontBuffersReady) {
-    fontBuffersReady = (async () => {
-      const fontUrls = [
-        "https://cdn.jsdelivr.net/npm/typeface-inter@3.18.1/Inter%20Variable/Single%20axis/Inter-roman.ttf",
-        "https://cdn.jsdelivr.net/npm/typeface-inter@3.18.1/Inter%20Variable/Inter.ttf",
-      ];
-
-      return await Promise.all(
-        fontUrls.map(async (url) => {
-          const resp = await fetch(url);
-          if (!resp.ok) {
-            throw new Error(`font fetch failed ${resp.status} for ${url}`);
-          }
-          return new Uint8Array(await resp.arrayBuffer());
-        }),
-      );
-    })();
-  }
-
-  return fontBuffersReady;
-}
-
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-function generateUpiTxnId(): string {
-  const firstDigit = ["5", "8", "9"][Math.floor(Math.random() * 3)];
-  let rest = "";
-  for (let i = 0; i < 9; i++) rest += Math.floor(Math.random() * 10).toString();
-  return firstDigit + rest;
-}
-
-function escapeXml(s: string): string {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  let h = d.getHours();
-  const m = d.getMinutes();
-  const ampm = h >= 12 ? "pm" : "am";
-  h = h % 12 || 12;
-  return `${pad(d.getDate())} ${months[d.getMonth()]} ${d.getFullYear()}, ${pad(h)}:${pad(m)} ${ampm}`;
-}
-
-function fmtINR(n: number): string {
-  return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function buildSvg(args: {
-  toUpiId: string;
-  amount: number;
-  fee: number;
-  total: number;
-  upiTxnId: string;
-  fromName: string;
-  fromUpiId: string;
-  dateTime: string;
-}): string {
-  const W = 420;
-  const headerH = 200;
-  const rowH = 38;
-  const detailsTop = headerH + 16;
-  const rows = args.fee > 0 ? 6 : 5;
-  const H = detailsTop + rows * rowH + 24;
-  const dt = formatDateTime(args.dateTime);
-
-  let detailsSvg = "";
-  let y = detailsTop;
-  const drawRow = (label: string, valueLines: { text: string; size: number; bold?: boolean; color?: string }[], hasBorder = true) => {
-    let line = "";
-    let ly = y + 22;
-    for (const v of valueLines) {
-      line += `<text x="${W - 24}" y="${ly}" text-anchor="end" font-family="Inter" font-size="${v.size}" ${v.bold ? 'font-weight="600"' : ""} fill="${v.color || "#222"}">${escapeXml(v.text)}</text>`;
-      ly += v.size + 2;
-    }
-    detailsSvg += `
-      <text x="24" y="${y + 22}" font-family="Inter" font-size="13" fill="#888">${escapeXml(label)}</text>
-      ${line}
-      ${hasBorder ? `<line x1="24" y1="${y + rowH - 1}" x2="${W - 24}" y2="${y + rowH - 1}" stroke="#f0f0f0" stroke-width="1"/>` : ""}
-    `;
-    y += rowH;
-  };
-
-  drawRow("To", [{ text: args.toUpiId, size: 13, bold: true }]);
-  drawRow("From", [
-    { text: args.fromName, size: 13, bold: true },
-    { text: args.fromUpiId, size: 11, color: "#888" },
-  ]);
-  drawRow("UPI Transaction ID", [{ text: args.upiTxnId, size: 12 }]);
-  drawRow("Paid Amount", [{ text: fmtINR(args.amount), size: 13, bold: true }]);
-  if (args.fee > 0) drawRow("Payment Provider Fees", [{ text: fmtINR(args.fee), size: 13 }]);
-  drawRow("Total Debited", [{ text: fmtINR(args.total), size: 13, bold: true }], false);
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1a9e6f"/>
-      <stop offset="50%" stop-color="#2bb87e"/>
-      <stop offset="100%" stop-color="#1a8f65"/>
-    </linearGradient>
-    <clipPath id="card"><rect x="0" y="0" width="${W}" height="${H}" rx="12" ry="12"/></clipPath>
-  </defs>
-  <g clip-path="url(#card)">
-    <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
-    <rect x="0" y="0" width="${W}" height="${headerH}" fill="url(#g)"/>
-    <text x="${W / 2}" y="48" text-anchor="middle" font-family="Inter" font-size="13" fill="#ffffff" opacity="0.9">To ${escapeXml(args.toUpiId)}</text>
-    <text x="${W / 2}" y="92" text-anchor="middle" font-family="Inter" font-size="32" font-weight="700" fill="#ffffff">${escapeXml(fmtINR(args.amount))}</text>
-    <rect x="${W / 2 - 60}" y="110" width="120" height="28" rx="14" ry="14" fill="rgba(255,255,255,0.22)"/>
-    <text x="${W / 2}" y="129" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#ffffff">✓ Completed</text>
-    <text x="${W / 2}" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#ffffff" opacity="0.85">${escapeXml(dt)}</text>
-    ${detailsSvg}
-  </g>
-</svg>`;
-}
-
-async function renderPng(svg: string): Promise<Uint8Array> {
-  await ensureWasm();
-  const fontBuffers = await ensureFonts();
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: "width", value: 840 },
-    font: {
-      fontBuffers,
-      defaultFontFamily: "Inter",
-      sansSerifFamily: "Inter",
-      loadSystemFonts: false,
-    },
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-  return resvg.render().asPng();
 }
 
 async function callBinance(supabase: any, action: string, payload: any) {
-  // binance-ads parses body as { action, ...payload } — payload fields must be top-level, NOT nested.
   const { data, error } = await supabase.functions.invoke("binance-ads", { body: { action, ...payload } });
   if (error) throw new Error(`binance-ads ${action} failed: ${error.message || error}`);
   return data;
 }
 
-function extractUpi(payMethods: any[]): { upiId: string | null; raw: any } {
+function extractUpi(payMethods: any[]): string | null {
   for (const m of payMethods || []) {
     const id = (m.identifier || m.payType || m.tradeMethodName || "").toString();
     if (/upi/i.test(id) || /UPI/i.test(m.payType || "")) {
@@ -177,18 +34,24 @@ function extractUpi(payMethods: any[]): { upiId: string | null; raw: any } {
       const upiField = fields.find((f: any) => /upi/i.test(f.fieldName || "") || /vpa/i.test(f.fieldName || ""))
         || fields.find((f: any) => /account/i.test(f.fieldName || ""));
       const upi = upiField?.fieldValue || m.payAccount || m.payeeAccount || m.account || null;
-      return { upiId: upi, raw: m };
+      if (upi) return upi;
     }
   }
-  // fallback: any method whose first field looks like a UPI VPA (contains @)
   for (const m of payMethods || []) {
     const fields = Array.isArray(m.fields) ? m.fields : [];
     for (const f of fields) {
       const v = String(f.fieldValue || "");
-      if (v.includes("@")) return { upiId: v, raw: m };
+      if (v.includes("@")) return v;
     }
   }
-  return { upiId: null, raw: null };
+  return null;
+}
+
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
 }
 
 function sleep(ms: number) {
@@ -198,7 +61,6 @@ function sleep(ms: number) {
 function extractChatMessages(resp: any): any[] {
   const outer = resp?.data ?? resp;
   const inner = outer?.data ?? outer;
-
   if (Array.isArray(inner)) return inner;
   if (Array.isArray(inner?.list)) return inner.list;
   if (Array.isArray(inner?.messages)) return inner.messages;
@@ -206,56 +68,19 @@ function extractChatMessages(resp: any): any[] {
   return [];
 }
 
-async function getChatCredential(supabase: any): Promise<{
-  chatWssUrl: string;
-  listenKey: string;
-  token: string;
-  relayUrl?: string;
-  relayToken?: string;
-} | null> {
-  const resp = await callBinance(supabase, "getChatCredential", {});
-  if (resp?.success === false) return null;
-
-  const outer = resp?.data ?? resp;
-  const inner = outer?.data ?? outer;
-  const token = inner?.listenToken || inner?.token;
-
-  if (!inner?.chatWssUrl || !inner?.listenKey || !token) return null;
-
-  return {
-    chatWssUrl: inner.chatWssUrl,
-    listenKey: inner.listenKey,
-    token,
-    relayUrl: outer?._relay?.relayUrl,
-    relayToken: outer?._relay?.relayToken,
-  };
-}
-
 async function verifyImageDelivery(supabase: any, orderNo: string, imageUrl: string, sentAfterMs: number) {
   try {
-    const resp = await callBinance(supabase, "getChatMessages", {
-      orderNo,
-      page: 1,
-      rows: 20,
-      sort: "desc",
-    });
+    const resp = await callBinance(supabase, "getChatMessages", { orderNo, page: 1, rows: 20, sort: "desc" });
     if (resp?.success === false) return false;
-
     const messages = extractChatMessages(resp);
     return messages.some((msg: any) => {
       const createTime = Number(msg?.createTime || 0);
       const content = String(msg?.content || msg?.message || "");
       const msgImage = String(msg?.imageUrl || msg?.thumbnailUrl || "");
       const isSelf = msg?.self === true || msg?.isSelf === true;
-
       return isSelf
         && (!createTime || createTime >= sentAfterMs - 5000)
-        && (
-          content === imageUrl
-          || content.includes(imageUrl)
-          || msgImage === imageUrl
-          || msgImage.includes(imageUrl)
-        );
+        && (content === imageUrl || content.includes(imageUrl) || msgImage === imageUrl || msgImage.includes(imageUrl));
     });
   } catch (err) {
     console.warn("verifyImageDelivery failed", err);
@@ -263,13 +88,23 @@ async function verifyImageDelivery(supabase: any, orderNo: string, imageUrl: str
   }
 }
 
-async function sendImageViaWs(credential: {
-  chatWssUrl: string;
-  listenKey: string;
-  token: string;
-  relayUrl?: string;
-  relayToken?: string;
-}, orderNo: string, imageUrl: string) {
+async function getChatCredential(supabase: any) {
+  const resp = await callBinance(supabase, "getChatCredential", {});
+  if (resp?.success === false) return null;
+  const outer = resp?.data ?? resp;
+  const inner = outer?.data ?? outer;
+  const token = inner?.listenToken || inner?.token;
+  if (!inner?.chatWssUrl || !inner?.listenKey || !token) return null;
+  return {
+    chatWssUrl: inner.chatWssUrl as string,
+    listenKey: inner.listenKey as string,
+    token: token as string,
+    relayUrl: outer?._relay?.relayUrl as string | undefined,
+    relayToken: outer?._relay?.relayToken as string | undefined,
+  };
+}
+
+async function sendImageViaWs(credential: { chatWssUrl: string; listenKey: string; token: string; relayUrl?: string; relayToken?: string; }, orderNo: string, imageUrl: string) {
   const directTarget = `${credential.chatWssUrl}/${credential.listenKey}?token=${credential.token}&clientType=web`;
   const targets = [
     directTarget,
@@ -279,53 +114,28 @@ async function sendImageViaWs(credential: {
   ].filter(Boolean) as string[];
 
   let lastError = "WebSocket delivery failed";
-
   for (const wsUrl of targets) {
     try {
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          try { ws.close(); } catch {}
-          reject(new Error("WebSocket timeout (10s)"));
-        }, 10000);
-
         const ws = new WebSocket(wsUrl);
-
+        const timeout = setTimeout(() => { try { ws.close(); } catch {} reject(new Error("WebSocket timeout (10s)")); }, 10000);
         ws.onopen = () => {
           const now = Date.now();
           ws.send(JSON.stringify({
-            type: "text",
-            uuid: String(now),
-            orderNo,
-            content: imageUrl,
-            self: true,
-            clientType: "web",
-            createTime: now,
-            sendStatus: 0,
-            topicId: orderNo,
-            topicType: "ORDER",
+            type: "text", uuid: String(now), orderNo, content: imageUrl,
+            self: true, clientType: "web", createTime: now, sendStatus: 0,
+            topicId: orderNo, topicType: "ORDER",
           }));
-
-          setTimeout(() => {
-            clearTimeout(timeout);
-            try { ws.close(); } catch {}
-            resolve();
-          }, 2500);
+          setTimeout(() => { clearTimeout(timeout); try { ws.close(); } catch {} resolve(); }, 2500);
         };
-
-        ws.onerror = () => {
-          clearTimeout(timeout);
-          reject(new Error("WebSocket error"));
-        };
-
+        ws.onerror = () => { clearTimeout(timeout); reject(new Error("WebSocket error")); };
         ws.onclose = () => {};
       });
-
       return;
     } catch (err: any) {
       lastError = err?.message || String(err);
     }
   }
-
   throw new Error(lastError);
 }
 
@@ -340,13 +150,10 @@ Deno.serve(async (req: Request) => {
 
   const body = await req.json().catch(() => ({}));
   const orderNumber = String(body?.orderNumber || "").trim();
-  const paidAtIso = String(body?.paidAtIso || new Date().toISOString());
+  const phase = String(body?.phase || "prepare");
+  if (!orderNumber) return jsonResponse({ error: "orderNumber required" }, 400);
 
-  if (!orderNumber) {
-    return new Response(JSON.stringify({ error: "orderNumber required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
-
-  // Resolve payer identity
+  // Resolve payer identity for logging.
   let payerId: string | null = null;
   let payerName: string | null = null;
   try {
@@ -374,83 +181,69 @@ Deno.serve(async (req: Request) => {
   };
 
   try {
-    // 1. Load config
     const { data: cfg, error: cfgErr } = await adminClient
-      .from("payer_screenshot_automation_config")
-      .select("*")
-      .limit(1)
-      .maybeSingle();
+      .from("payer_screenshot_automation_config").select("*").limit(1).maybeSingle();
     if (cfgErr) throw cfgErr;
-    if (!cfg || !cfg.is_active) {
-      return new Response(JSON.stringify({ status: "automation_inactive" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!cfg || !cfg.is_active) return jsonResponse({ status: "automation_inactive" });
+
+    if (phase === "prepare") {
+      const detailResp = await callBinance(adminClient, "getOrderDetail", { orderNumber });
+      if (detailResp?.success === false) {
+        await logRow("failed", {}, `binance-ads error: ${detailResp.error || "unknown"}`);
+        return jsonResponse({ status: "failed", error: detailResp.error });
+      }
+      const binJson = detailResp?.data ?? detailResp;
+      if (binJson?.code && binJson.code !== "000000") {
+        await logRow("failed", {}, `binance code ${binJson.code}: ${binJson.message || ""}`);
+        return jsonResponse({ status: "failed", error: binJson.message });
+      }
+      const detail = binJson?.data ?? binJson;
+      if (!detail || typeof detail !== "object") {
+        await logRow("failed", {}, "order detail empty");
+        return jsonResponse({ status: "failed", error: "empty detail" });
+      }
+      const tradeType = String(detail.tradeType || detail.orderType || "").toUpperCase();
+      if (tradeType && tradeType !== "BUY") {
+        await logRow("skipped_non_buy", {});
+        return jsonResponse({ status: "skipped_non_buy" });
+      }
+
+      const totalPrice = Number(detail.totalPrice ?? detail.amount ?? 0);
+      const amountInt = Math.floor(totalPrice);
+      const min = Number(cfg.min_amount || 0);
+      const max = Number(cfg.max_amount || 0);
+      if (amountInt < min || amountInt > max) {
+        await logRow("skipped_out_of_range", { amount_used: amountInt });
+        return jsonResponse({ status: "skipped_out_of_range", amount: amountInt, min, max });
+      }
+
+      const payMethods = detail.payMethods || detail.payMethodList || detail.sellerPayMethod?.payMethods || [];
+      const upiId = extractUpi(payMethods);
+      if (!upiId) {
+        await logRow("skipped_non_upi", { amount_used: amountInt });
+        return jsonResponse({ status: "skipped_non_upi" });
+      }
+
+      const providerFee = Number(cfg.provider_fee_flat || 10);
+      return jsonResponse({
+        status: "ready",
+        amount: amountInt,
+        providerFee,
+        toUpiId: upiId,
+        fromName: cfg.from_name || "Blynk Virtual Technologies Pvt. Ltd.",
+        fromUpiId: cfg.from_upi_id || "blynkex@aeronflyprivatelimited",
+      });
     }
 
-    // 2. Fetch order detail from Binance
-    const detailResp = await callBinance(adminClient, "getOrderDetail", { orderNumber });
-    // binance-ads returns { success, data: <binanceJson>, error? }
-    // Binance JSON shape: { code: "000000", message, data: {...orderFields, tradeType, payMethods, totalPrice} }
-    if (detailResp && detailResp.success === false) {
-      await logRow("failed", {}, `binance-ads error: ${detailResp.error || "unknown"}`);
-      return new Response(JSON.stringify({ status: "failed", error: detailResp.error }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const binJson = detailResp?.data ?? detailResp;
-    if (binJson && binJson.code && binJson.code !== "000000") {
-      await logRow("failed", {}, `binance code ${binJson.code}: ${binJson.message || ""}`);
-      return new Response(JSON.stringify({ status: "failed", error: binJson.message }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const detail = binJson?.data ?? binJson;
-    if (!detail || typeof detail !== "object") {
-      await logRow("failed", {}, "order detail empty");
-      return new Response(JSON.stringify({ status: "failed", error: "empty detail" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    // phase === "deliver"
+    const pngBase64 = String(body?.pngBase64 || "");
+    const upiTxnId = String(body?.upiTxnId || "");
+    const amountInt = Number(body?.amount || 0);
+    const providerFee = Number(body?.providerFee || 0);
+    const upiId = String(body?.toUpiId || "");
+    if (!pngBase64) throw new Error("pngBase64 required");
 
-    const tradeType = String(detail.tradeType || detail.orderType || "").toUpperCase();
-    if (tradeType && tradeType !== "BUY") {
-      await logRow("skipped_non_buy", {});
-      return new Response(JSON.stringify({ status: "skipped_non_buy" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (!tradeType) {
-      await logRow("failed", {}, `tradeType missing in detail. keys=${Object.keys(detail).slice(0,20).join(",")}`);
-      return new Response(JSON.stringify({ status: "failed", error: "tradeType missing" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const totalPrice = Number(detail.totalPrice ?? detail.amount ?? 0);
-    const amountInt = Math.floor(totalPrice);
-
-    // Range gate
-    const min = Number(cfg.min_amount || 0);
-    const max = Number(cfg.max_amount || 0);
-    if (amountInt < min || amountInt > max) {
-      await logRow("skipped_out_of_range", { amount_used: amountInt });
-      return new Response(JSON.stringify({ status: "skipped_out_of_range", amount: amountInt, min, max }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // UPI extraction
-    const payMethods = detail.payMethods || detail.payMethodList || detail.sellerPayMethod?.payMethods || [];
-    const { upiId } = extractUpi(payMethods);
-    if (!upiId) {
-      await logRow("skipped_non_upi", { amount_used: amountInt });
-      return new Response(JSON.stringify({ status: "skipped_non_upi" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const fee = Number(cfg.provider_fee_flat || 10);
-    const total = amountInt + fee;
-    const upiTxnId = generateUpiTxnId();
-
-    // 3. Render PNG
-    const svg = buildSvg({
-      toUpiId: upiId,
-      amount: amountInt,
-      fee,
-      total,
-      upiTxnId,
-      fromName: cfg.from_name || "Blynk Virtual Technologies Pvt. Ltd.",
-      fromUpiId: cfg.from_upi_id || "blynkex@aeronflyprivatelimited",
-      dateTime: paidAtIso,
-    });
-    const pngBytes = await renderPng(svg);
-
-    // 4. Get upload URL from Binance
+    const pngBytes = base64ToBytes(pngBase64);
     const imageName = `${orderNumber}_${Date.now()}.png`;
     const uploadResp = await callBinance(adminClient, "getChatImageUploadUrl", { imageName });
     const outer = uploadResp?.data || uploadResp;
@@ -462,15 +255,10 @@ Deno.serve(async (req: Request) => {
     const putResp = await fetch(preSignedUrl, { method: "PUT", body: pngBytes, headers: { "Content-Type": "image/png" } });
     if (!putResp.ok) throw new Error(`upload PUT failed ${putResp.status}`);
 
-    // 5. Send chat image and verify it actually lands in Binance chat.
-    // Some proxy success responses are false positives, so do not trust them blindly.
     const sendStartedAt = Date.now();
     const sendResp = await callBinance(adminClient, "sendChatMessage", { orderNo: orderNumber, imageUrl });
     const restSendOk = !(sendResp?.success === false);
-
-    if (restSendOk) {
-      await sleep(1800);
-    }
+    if (restSendOk) await sleep(1800);
 
     let delivered = restSendOk
       ? await verifyImageDelivery(adminClient, orderNumber, imageUrl, sendStartedAt)
@@ -479,32 +267,27 @@ Deno.serve(async (req: Request) => {
     if (!delivered) {
       console.warn("payer-auto-screenshot: REST send unverified, falling back to WebSocket", { orderNumber });
       const credential = await getChatCredential(adminClient);
-      if (!credential) {
-        throw new Error("chat delivery could not be verified and chat credentials were unavailable");
-      }
-
+      if (!credential) throw new Error("chat delivery could not be verified and chat credentials were unavailable");
       await sendImageViaWs(credential, orderNumber, imageUrl);
       await sleep(1800);
       delivered = await verifyImageDelivery(adminClient, orderNumber, imageUrl, Date.now());
     }
 
-    if (!delivered) {
-      throw new Error("chat image upload completed but delivery to Binance chat could not be verified");
-    }
+    if (!delivered) throw new Error("chat image upload completed but delivery to Binance chat could not be verified");
 
     await logRow("sent", {
       amount_used: amountInt,
-      provider_fee: fee,
-      total_debited: total,
+      provider_fee: providerFee,
+      total_debited: amountInt + providerFee,
       to_upi_id: upiId,
       upi_txn_id: upiTxnId,
       image_url: imageUrl,
     });
 
-    return new Response(JSON.stringify({ status: "sent", imageUrl, amount: amountInt, upiTxnId }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return jsonResponse({ status: "sent", imageUrl, amount: amountInt, upiTxnId });
   } catch (e: any) {
     console.error("payer-auto-screenshot error", e);
     await logRow("failed", {}, e?.message || String(e));
-    return new Response(JSON.stringify({ status: "failed", error: e?.message || String(e) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return jsonResponse({ status: "failed", error: e?.message || String(e) }, 500);
   }
 });

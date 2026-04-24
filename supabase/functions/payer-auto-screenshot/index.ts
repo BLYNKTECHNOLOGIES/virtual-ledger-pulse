@@ -157,6 +157,144 @@ function extractUpi(payMethods: any[]): { upiId: string | null; raw: any } {
   return { upiId: null, raw: null };
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extractChatMessages(resp: any): any[] {
+  const outer = resp?.data ?? resp;
+  const inner = outer?.data ?? outer;
+
+  if (Array.isArray(inner)) return inner;
+  if (Array.isArray(inner?.list)) return inner.list;
+  if (Array.isArray(inner?.messages)) return inner.messages;
+  if (Array.isArray(outer?.list)) return outer.list;
+  return [];
+}
+
+async function getChatCredential(supabase: any): Promise<{
+  chatWssUrl: string;
+  listenKey: string;
+  token: string;
+  relayUrl?: string;
+  relayToken?: string;
+} | null> {
+  const resp = await callBinance(supabase, "getChatCredential", {});
+  if (resp?.success === false) return null;
+
+  const outer = resp?.data ?? resp;
+  const inner = outer?.data ?? outer;
+  const token = inner?.listenToken || inner?.token;
+
+  if (!inner?.chatWssUrl || !inner?.listenKey || !token) return null;
+
+  return {
+    chatWssUrl: inner.chatWssUrl,
+    listenKey: inner.listenKey,
+    token,
+    relayUrl: outer?._relay?.relayUrl,
+    relayToken: outer?._relay?.relayToken,
+  };
+}
+
+async function verifyImageDelivery(supabase: any, orderNo: string, imageUrl: string, sentAfterMs: number) {
+  try {
+    const resp = await callBinance(supabase, "getChatMessages", {
+      orderNo,
+      page: 1,
+      rows: 20,
+      sort: "desc",
+    });
+    if (resp?.success === false) return false;
+
+    const messages = extractChatMessages(resp);
+    return messages.some((msg: any) => {
+      const createTime = Number(msg?.createTime || 0);
+      const content = String(msg?.content || msg?.message || "");
+      const msgImage = String(msg?.imageUrl || msg?.thumbnailUrl || "");
+      const isSelf = msg?.self === true || msg?.isSelf === true;
+
+      return isSelf
+        && (!createTime || createTime >= sentAfterMs - 5000)
+        && (
+          content === imageUrl
+          || content.includes(imageUrl)
+          || msgImage === imageUrl
+          || msgImage.includes(imageUrl)
+        );
+    });
+  } catch (err) {
+    console.warn("verifyImageDelivery failed", err);
+    return false;
+  }
+}
+
+async function sendImageViaWs(credential: {
+  chatWssUrl: string;
+  listenKey: string;
+  token: string;
+  relayUrl?: string;
+  relayToken?: string;
+}, orderNo: string, imageUrl: string) {
+  const directTarget = `${credential.chatWssUrl}/${credential.listenKey}?token=${credential.token}&clientType=web`;
+  const targets = [
+    directTarget,
+    credential.relayUrl && credential.relayToken
+      ? `${credential.relayUrl}/?key=${encodeURIComponent(credential.relayToken)}&target=${encodeURIComponent(directTarget)}`
+      : null,
+  ].filter(Boolean) as string[];
+
+  let lastError = "WebSocket delivery failed";
+
+  for (const wsUrl of targets) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          try { ws.close(); } catch {}
+          reject(new Error("WebSocket timeout (10s)"));
+        }, 10000);
+
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          const now = Date.now();
+          ws.send(JSON.stringify({
+            type: "text",
+            uuid: String(now),
+            orderNo,
+            content: imageUrl,
+            self: true,
+            clientType: "web",
+            createTime: now,
+            sendStatus: 0,
+            topicId: orderNo,
+            topicType: "ORDER",
+          }));
+
+          setTimeout(() => {
+            clearTimeout(timeout);
+            try { ws.close(); } catch {}
+            resolve();
+          }, 2500);
+        };
+
+        ws.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error("WebSocket error"));
+        };
+
+        ws.onclose = () => {};
+      });
+
+      return;
+    } catch (err: any) {
+      lastError = err?.message || String(err);
+    }
+  }
+
+  throw new Error(lastError);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 

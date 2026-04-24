@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Loader2, Fingerprint, Key, Mail, Smartphone, Shield } from 'lucide-react';
-import { useReleaseCoin } from '@/hooks/useBinanceActions';
+import { useReleaseCoin, useMarkOrderAsPaid } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 
 type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'MOBILE';
@@ -44,6 +44,8 @@ export interface QuickReceiveDialogProps {
   onSuccess?: () => void;
   /** Visual size variant */
   variant?: 'block' | 'inline';
+  /** When true, will call notifyOrderPaid before releaseCoin (status-1 → status-2 → release) */
+  requireMarkPaidFirst?: boolean;
 }
 
 /**
@@ -67,8 +69,10 @@ export function QuickReceiveDialog({
   source,
   onSuccess,
   variant = 'block',
+  requireMarkPaidFirst = false,
 }: QuickReceiveDialogProps) {
   const releaseCoin = useReleaseCoin();
+  const markPaid = useMarkOrderAsPaid();
   const [open, setOpen] = useState(false);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
@@ -82,10 +86,20 @@ export function QuickReceiveDialog({
     codeRef.current = val;
   };
 
-  const doRelease = (overrideCode?: string) => {
+  const doRelease = async (overrideCode?: string) => {
     const finalCode = overrideCode || codeRef.current;
-    if (!finalCode.trim() || firedRef.current || releaseCoin.isPending) return;
+    if (!finalCode.trim() || firedRef.current || releaseCoin.isPending || markPaid.isPending) return;
     firedRef.current = true;
+
+    // Step 1: if order is still in pending status, notify Binance the buyer paid first
+    if (requireMarkPaidFirst) {
+      try {
+        await markPaid.mutateAsync({ orderNumber });
+      } catch (err) {
+        firedRef.current = false;
+        return; // toast surfaced by hook
+      }
+    }
 
     const params: Record<string, any> = {
       orderNumber,

@@ -297,7 +297,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
             {/* Hidden file input for upload */}
             <input
               ref={fileInputRef}
@@ -306,6 +306,26 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
               className="hidden"
               onChange={handleUploadAndMarkPaid}
             />
+
+            {/* Quick Receive — also available on pending rows when Binance allows.
+                Operator must have already sent fiat; this marks paid + auto-releases via security deposit. */}
+            {quickEligible && (
+              <QuickReceiveDialog
+                orderNumber={order.orderNumber}
+                totalPrice={order.totalPrice || 0}
+                quickConfirmAmountUpLimit={quickConfirmLimit}
+                asset={order.asset || 'USDT'}
+                fiatUnit={order.fiat || 'INR'}
+                advNo={order.advNo}
+                source="payer"
+                variant="inline"
+                requireMarkPaidFirst={!isAlreadyPaidOrPaying}
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
+                  onMarkPaidSuccess();
+                }}
+              />
+            )}
 
             {/* Copy Payment String */}
             <Button

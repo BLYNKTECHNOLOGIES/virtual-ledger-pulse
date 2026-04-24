@@ -15830,18 +15830,36 @@ export type Database = {
         }[]
       }
       verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
-      verify_wallet_asset_running_balance: {
-        Args: { p_asset_code?: string; p_wallet_id: string }
-        Returns: {
-          break_reason: string
-          break_sequence_no: number
-          break_transaction_id: string
-          expected_balance: number
-          intact: boolean
-          rows_checked: number
-          stored_balance: number
-        }[]
-      }
+      verify_wallet_asset_running_balance:
+        | {
+            Args: never
+            Returns: {
+              amount: number
+              asset_code: string
+              balance_after: number
+              balance_before: number
+              break_type: string
+              created_at: string
+              details: string
+              expected_running_total: number
+              transaction_id: string
+              transaction_type: string
+              wallet_id: string
+              wallet_name: string
+            }[]
+          }
+        | {
+            Args: { p_asset_code?: string; p_wallet_id: string }
+            Returns: {
+              break_reason: string
+              break_sequence_no: number
+              break_transaction_id: string
+              expected_balance: number
+              intact: boolean
+              rows_checked: number
+              stored_balance: number
+            }[]
+          }
       verify_wallet_chain: {
         Args: { p_wallet_id?: string }
         Returns: {

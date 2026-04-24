@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
+import { triggerAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -104,12 +105,9 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
     setIsMarkingPaid(true);
     try {
       await markPaid.mutateAsync({ orderNumber: order.orderNumber });
-      const paidAtIso = new Date().toISOString();
       await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
       // Fire-and-forget: auto screenshot sender (eligibility checked server-side)
-      supabase.functions.invoke('payer-auto-screenshot', {
-        body: { orderNumber: order.orderNumber, paidAtIso },
-      }).catch((e) => console.warn('auto-screenshot invoke failed', e));
+      triggerAutoScreenshot(order.orderNumber);
       onMarkPaidSuccess();
     } catch {
       // Error handled by the hook

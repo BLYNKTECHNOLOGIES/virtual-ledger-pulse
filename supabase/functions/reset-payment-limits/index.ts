@@ -34,10 +34,10 @@ interface Database {
 }
 
 serve(async (req) => {
-  const supabaseClient = createClient<Database>(
+  const supabaseClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
+  ) as any
 
   try {
     const now = new Date()
@@ -135,7 +135,7 @@ serve(async (req) => {
     console.error('Error in reset-payment-limits function:', error)
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: (error as Error).message 
     }), {
       headers: { 'Content-Type': 'application/json' },
       status: 500,

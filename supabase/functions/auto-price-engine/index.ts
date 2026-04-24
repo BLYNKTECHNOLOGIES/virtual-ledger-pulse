@@ -450,7 +450,7 @@ async function processAsset(
       newPrice = competitorPrice - offsetAmount;
     }
 
-    if (rule.max_price_change_per_cycle && rule.last_applied_price) {
+    if (rule.max_price_change_per_cycle && rule.last_applied_price && newPrice !== null) {
       const delta = Math.abs(newPrice - rule.last_applied_price);
       if (delta > rule.max_price_change_per_cycle) {
         const direction = newPrice > rule.last_applied_price ? 1 : -1;
@@ -459,8 +459,8 @@ async function processAsset(
       }
     }
 
-    if (maxCeiling && newPrice > maxCeiling) { newPrice = maxCeiling; wasCapped = true; }
-    if (minFloor && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
+    if (maxCeiling && newPrice !== null && newPrice > maxCeiling) { newPrice = maxCeiling; wasCapped = true; }
+    if (minFloor && newPrice !== null && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
     // Try to infer Binance's actual index price from one of our own floating ads
@@ -485,9 +485,9 @@ async function processAsset(
       newRatio = competitorRatio - offsetPct;
     }
 
-    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, marketRef=₹${baseRef.toFixed(2)}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}%, newRatio=${newRatio.toFixed(4)}%`);
+    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, marketRef=₹${baseRef.toFixed(2)}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}%, newRatio=${newRatio !== null ? newRatio.toFixed(4) : 'null'}%`);
 
-    if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio) {
+    if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio && newRatio !== null) {
       const delta = Math.abs(newRatio - rule.last_applied_ratio);
       if (delta > rule.max_ratio_change_per_cycle) {
         const direction = newRatio > rule.last_applied_ratio ? 1 : -1;
@@ -496,8 +496,8 @@ async function processAsset(
       }
     }
 
-    if (maxRatioCeiling && newRatio > maxRatioCeiling) { newRatio = maxRatioCeiling; wasCapped = true; }
-    if (minRatioFloor && newRatio < minRatioFloor) { newRatio = minRatioFloor; wasCapped = true; }
+    if (maxRatioCeiling && newRatio !== null && newRatio > maxRatioCeiling) { newRatio = maxRatioCeiling; wasCapped = true; }
+    if (minRatioFloor && newRatio !== null && newRatio < minRatioFloor) { newRatio = minRatioFloor; wasCapped = true; }
   }
 
   // AP-MISS-03: Anomaly alert if price changed >3% from last applied

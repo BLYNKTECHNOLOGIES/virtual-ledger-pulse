@@ -395,6 +395,6 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('terminal-webauthn error:', err);
-    return errorResponse(err.message || 'Internal error', 500);
+    return errorResponse((err as Error).message || 'Internal error', 500);
   }
 });

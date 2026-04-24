@@ -537,7 +537,7 @@ serve(async (req) => {
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
-            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule });
+            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now() });
           }
         }
       }

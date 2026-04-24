@@ -148,8 +148,22 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
       }
 
       let createdSalesOrderId: string | null = null;
+      let claimed = false;
 
       try {
+        // ── Idempotency guard: atomically claim this batch so a second click cannot create a duplicate ──
+        const { data: claimRows, error: claimErr } = await supabase
+          .from('small_sales_sync')
+          .update({ sync_status: 'processing' })
+          .eq('id', record.id)
+          .eq('sync_status', 'pending_approval')
+          .select('id');
+        if (claimErr) throw claimErr;
+        if (!claimRows || claimRows.length === 0) {
+          throw new Error('This batch is already being processed or has been approved. Please refresh.');
+        }
+        claimed = true;
+
         const locked = await fetchAndLockMarketRate(assetCode, { entryType: 'batch_approval' });
         const marketRate = locked.price;
 
@@ -420,10 +434,16 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         return salesOrder;
       } catch (error) {
         // On any failure, fully reverse what we created so the operator can retry.
-        // delete_sales_order_with_reversal already handles split bank legs,
-        // pending_settlements, wallet ledger, and cascades sales_order_payment_splits.
         if (createdSalesOrderId) {
           await supabase.rpc('delete_sales_order_with_reversal', { p_order_id: createdSalesOrderId });
+        }
+        // Release the idempotency claim so the operator can retry after fixing the issue.
+        if (claimed) {
+          await supabase
+            .from('small_sales_sync')
+            .update({ sync_status: 'pending_approval' })
+            .eq('id', record.id)
+            .eq('sync_status', 'processing');
         }
         throw error;
       }

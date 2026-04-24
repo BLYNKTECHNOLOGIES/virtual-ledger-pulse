@@ -88,6 +88,22 @@ async function verifyImageDelivery(supabase: any, orderNo: string, imageUrl: str
   }
 }
 
+async function waitForVerifiedImageDelivery(
+  supabase: any,
+  orderNo: string,
+  imageUrl: string,
+  sentAfterMs: number,
+  attempts = 5,
+  delayMs = 1800,
+) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const delivered = await verifyImageDelivery(supabase, orderNo, imageUrl, sentAfterMs);
+    if (delivered) return true;
+    if (attempt < attempts) await sleep(delayMs);
+  }
+  return false;
+}
+
 async function getChatCredential(supabase: any) {
   const resp = await callBinance(supabase, "getChatCredential", {});
   if (resp?.success === false) return null;
@@ -258,10 +274,9 @@ Deno.serve(async (req: Request) => {
     const sendStartedAt = Date.now();
     const sendResp = await callBinance(adminClient, "sendChatMessage", { orderNo: orderNumber, imageUrl });
     const restSendOk = !(sendResp?.success === false);
-    if (restSendOk) await sleep(1800);
 
     let delivered = restSendOk
-      ? await verifyImageDelivery(adminClient, orderNumber, imageUrl, sendStartedAt)
+      ? await waitForVerifiedImageDelivery(adminClient, orderNumber, imageUrl, sendStartedAt, 4, 1600)
       : false;
 
     if (!delivered) {
@@ -269,8 +284,7 @@ Deno.serve(async (req: Request) => {
       const credential = await getChatCredential(adminClient);
       if (!credential) throw new Error("chat delivery could not be verified and chat credentials were unavailable");
       await sendImageViaWs(credential, orderNumber, imageUrl);
-      await sleep(1800);
-      delivered = await verifyImageDelivery(adminClient, orderNumber, imageUrl, Date.now());
+      delivered = await waitForVerifiedImageDelivery(adminClient, orderNumber, imageUrl, sendStartedAt, 6, 1800);
     }
 
     if (!delivered) throw new Error("chat image upload completed but delivery to Binance chat could not be verified");

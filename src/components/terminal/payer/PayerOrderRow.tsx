@@ -7,7 +7,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
 import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -88,6 +89,10 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   });
 
   const payMethods = orderDetail?.payMethods || orderDetail?.payMethodList || orderDetail?.sellerPayMethod?.payMethods || [];
+  const quickConfirmLimit = orderDetail?.quickConfirmAmountUpLimit;
+  const queryClient = useQueryClient();
+  const quickEligible = quickConfirmLimit !== undefined
+    && isQuickReceiveEligible(order.totalPrice || 0, quickConfirmLimit);
 
   const handleMarkPaid = async () => {
     setIsMarkingPaid(true);

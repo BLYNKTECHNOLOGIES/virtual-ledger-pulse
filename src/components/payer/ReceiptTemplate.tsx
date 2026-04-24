@@ -127,22 +127,25 @@ function Row({
       style={{
         display: "flex",
         justifyContent: "space-between",
-        padding: "10px 0",
+        alignItems: "flex-start",
+        gap: "16px",
+        padding: "14px 0",
         borderBottom: last ? "none" : "1px solid #f0f0f0",
       }}
     >
-      <span style={{ color: "#888", fontSize: "13px" }}>{label}</span>
+      <span style={{ color: "#888", fontSize: "13px", lineHeight: "1.5" }}>{label}</span>
       <div style={{ textAlign: "right" }}>
         <div
           style={{
             fontSize: small ? "12px" : "13px",
             fontWeight: bold ? 600 : 500,
             color: "#222",
+            lineHeight: "1.5",
           }}
         >
           {value}
         </div>
-        {sub && <div style={{ fontSize: "11px", color: "#888" }}>{sub}</div>}
+        {sub && <div style={{ fontSize: "11px", color: "#888", marginTop: "4px", lineHeight: "1.5" }}>{sub}</div>}
       </div>
     </div>
   );

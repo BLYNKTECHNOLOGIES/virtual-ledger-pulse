@@ -26,9 +26,9 @@ async function ensureFonts() {
   if (!fontBuffersReady) {
     fontBuffersReady = (async () => {
       const fontUrls = [
-        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-400-normal.ttf",
-        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-600-normal.ttf",
-        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-700-normal.ttf",
+        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-400-normal.woff",
+        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-600-normal.woff",
+        "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-700-normal.woff",
       ];
 
       const buffers = await Promise.all(

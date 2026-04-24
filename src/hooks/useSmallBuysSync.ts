@@ -13,6 +13,11 @@ interface SmallBuysSyncResult {
   batchId: string | null;
 }
 
+interface SmallBuysSyncOptions {
+  operatorInitiated: true;
+  source: 'erp_entry_small_menu' | 'purchase_small_buys_tab';
+}
+
 /**
  * Fetch the small buys config from DB.
  */
@@ -37,7 +42,11 @@ export async function getSmallBuysConfig(): Promise<SmallBuysConfig | null> {
  * Looks back LOOKBACK_DAYS and picks up any COMPLETED BUY order in the small range
  * that hasn't already been mapped in small_buys_order_map.
  */
-export async function syncSmallBuys(): Promise<SmallBuysSyncResult> {
+export async function syncSmallBuys(options: SmallBuysSyncOptions): Promise<SmallBuysSyncResult> {
+  if (options?.operatorInitiated !== true) {
+    throw new Error('Small Buys sync is restricted to the dedicated operator button.');
+  }
+
   const config = await getSmallBuysConfig();
   if (!config || !config.is_enabled) {
     return { synced: 0, duplicates: 0, batchId: null };

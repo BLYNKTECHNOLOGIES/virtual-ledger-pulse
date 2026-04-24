@@ -437,7 +437,7 @@ serve(async (req) => {
         const detailRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
           method: "POST",
           headers: proxyHeaders,
-          body: JSON.stringify({ orderNo: forcedOrderNumber }),
+          body: JSON.stringify({ adOrderNo: forcedOrderNumber }),
         });
         const detailJson = await detailRes.json();
         const d = detailJson?.data;

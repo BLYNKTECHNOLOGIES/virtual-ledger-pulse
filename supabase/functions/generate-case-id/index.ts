@@ -106,8 +106,8 @@ Deno.serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Failed to generate case ID',
-        details: error.toString()
+        error: (error as Error).message || 'Failed to generate case ID',
+        details: String(error)
       }),
       {
         status: 500,

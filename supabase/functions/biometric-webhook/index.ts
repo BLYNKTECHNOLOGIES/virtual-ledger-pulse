@@ -225,7 +225,7 @@ Deno.serve(async (req) => {
 
             results.inserted++;
           } catch (lineErr) {
-            results.errors.push(`Line parse error: ${lineErr.message}`);
+            results.errors.push(`Line parse error: ${(lineErr as Error).message}`);
           }
         }
 
@@ -344,7 +344,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Webhook error:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

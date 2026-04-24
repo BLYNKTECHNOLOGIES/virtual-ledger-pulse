@@ -15839,9 +15839,9 @@ export type Database = {
               balance_after: number
               balance_before: number
               break_type: string
+              created_at: string
               details: string
               expected_running_total: number
-              transaction_date: string
               transaction_id: string
               transaction_type: string
               wallet_id: string

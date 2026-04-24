@@ -23,25 +23,53 @@ import {
 import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Mail, Smartphone } from 'lucide-react';
 import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
+import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
 
 interface Props {
   orderNumber: string;
   orderStatus: string;
   tradeType: string;
   additionalKycVerify?: number;
+  /** Buyer-side Quick Receive: total fiat amount of the order */
+  totalPrice?: number | string;
+  /** Buyer-side Quick Receive: per-order ceiling returned by Binance order detail */
+  quickConfirmAmountUpLimit?: number | string;
+  asset?: string;
+  fiatUnit?: string;
+  advNo?: string;
 }
 
-export function OrderActions({ orderNumber, orderStatus, tradeType, additionalKycVerify }: Props) {
+export function OrderActions({
+  orderNumber,
+  orderStatus,
+  tradeType,
+  additionalKycVerify,
+  totalPrice,
+  quickConfirmAmountUpLimit,
+  asset,
+  fiatUnit,
+  advNo,
+}: Props) {
   const opStatus = mapToOperationalStatus(orderStatus, tradeType);
 
   if (['Completed', 'Cancelled', 'Expired'].includes(opStatus)) return null;
 
   const needsVerification = tradeType === 'SELL' && additionalKycVerify === 1;
 
+  // Quick Receive eligibility — strictly BUY + Pending Release + within fiat ceiling.
+  // Per Binance SAPI v7.4: confirmPaidType="quick" on releaseCoin lets the buyer auto-release
+  // the seller's crypto using our merchant security deposit, capped at quickConfirmAmountUpLimit.
+  const quickReceiveEligible =
+    tradeType === 'BUY'
+    && opStatus === 'Pending Release'
+    && totalPrice !== undefined
+    && quickConfirmAmountUpLimit !== undefined
+    && isQuickReceiveEligible(totalPrice, quickConfirmAmountUpLimit);
+
   return (
     <div className="pt-3 border-t border-border space-y-2">
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
-      
+
       {needsVerification && opStatus === 'Pending Payment' && (
         <VerifyOrderAction orderNumber={orderNumber} />
       )}
@@ -59,6 +87,19 @@ export function OrderActions({ orderNumber, orderStatus, tradeType, additionalKy
 
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
         <ReleaseCoinAction orderNumber={orderNumber} />
+      )}
+
+      {/* Quick Receive — only on eligible BUY orders awaiting seller release */}
+      {quickReceiveEligible && (
+        <QuickReceiveDialog
+          orderNumber={orderNumber}
+          totalPrice={totalPrice!}
+          quickConfirmAmountUpLimit={quickConfirmAmountUpLimit!}
+          asset={asset}
+          fiatUnit={fiatUnit}
+          advNo={advNo}
+          source="orders"
+        />
       )}
 
       {opStatus === 'Pending Payment' && tradeType === 'BUY' && (

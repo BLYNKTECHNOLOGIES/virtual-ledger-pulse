@@ -174,6 +174,11 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail 
             orderStatus={effectiveRawStatus}
             tradeType={order.trade_type}
             additionalKycVerify={order.additional_kyc_verify}
+            totalPrice={order.total_price}
+            quickConfirmAmountUpLimit={liveDetail?.quickConfirmAmountUpLimit}
+            asset={order.asset}
+            fiatUnit={liveDetail?.fiatUnit || 'INR'}
+            advNo={(liveDetail?.advNo as string | undefined) || undefined}
           />
         )}
       </div>

@@ -434,10 +434,16 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         return salesOrder;
       } catch (error) {
         // On any failure, fully reverse what we created so the operator can retry.
-        // delete_sales_order_with_reversal already handles split bank legs,
-        // pending_settlements, wallet ledger, and cascades sales_order_payment_splits.
         if (createdSalesOrderId) {
           await supabase.rpc('delete_sales_order_with_reversal', { p_order_id: createdSalesOrderId });
+        }
+        // Release the idempotency claim so the operator can retry after fixing the issue.
+        if (claimed) {
+          await supabase
+            .from('small_sales_sync')
+            .update({ sync_status: 'pending_approval' })
+            .eq('id', record.id)
+            .eq('sync_status', 'processing');
         }
         throw error;
       }

@@ -96,7 +96,7 @@ export function QuickReceiveDialog({
     if (requireMarkPaidFirst) {
       try {
         await markPaid.mutateAsync({ orderNumber });
-        triggerAutoScreenshot(orderNumber);
+        await triggerAutoScreenshot(orderNumber);
       } catch (err) {
         firedRef.current = false;
         return; // toast surfaced by hook

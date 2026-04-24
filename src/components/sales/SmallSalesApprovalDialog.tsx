@@ -28,6 +28,14 @@ interface PaymentSplit {
   amount: string;
 }
 
+function isDuplicateConstraintError(error: any): boolean {
+  const message = [error?.code, error?.message, error?.details, error?.hint]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  return message.includes('23505') || message.includes('duplicate key') || message.includes('unique constraint');
+}
+
 export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -177,11 +185,6 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
           .single();
         if (!productRow) throw new Error(`Product not found for asset: ${assetCode}`);
 
-        const { data: nextOrderNum, error: orderNumErr } = await supabase
-          .rpc('next_small_sales_order_number');
-        if (orderNumErr || !nextOrderNum) throw orderNumErr || new Error('Failed to generate order number');
-        const orderNumber = nextOrderNum as string;
-
         // Resolve "single method" details only when not splitting
         const selectedMethod = isMultiplePayments
           ? null
@@ -225,44 +228,55 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
         const orderDate = new Date(orderDateSource).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
         // ── Insert sales_orders header ──────────────────────────────
-        // For split, settlement_status starts DIRECT and is upgraded to PENDING
-        // later if any gateway leg exists (mirrors TerminalSalesApprovalDialog).
-        const { data: salesOrder, error: soErr } = await supabase
-          .from('sales_orders')
-          .insert({
-            order_number: orderNumber,
-            client_name: 'Small Sales',
-            client_phone: null,
-            client_state: null,
-            order_date: orderDate,
-            total_amount: record.total_amount,
-            quantity: record.total_quantity,
-            price_per_unit: record.avg_price,
-            product_id: productRow.id,
-            sales_payment_method_id: isMultiplePayments ? null : paymentMethodId,
-            is_split_payment: isMultiplePayments,
-            fee_percentage: 0,
-            fee_amount: record.total_fee,
-            net_amount: Number(record.total_amount),
-            payment_status: 'COMPLETED',
-            settlement_status: isMultiplePayments
-              ? 'DIRECT'
-              : (isGateway ? 'PENDING' : 'DIRECT'),
-            status: 'COMPLETED',
-            platform: 'Binance',
-            wallet_id: record.wallet_id,
-            source: 'terminal_small_sales',
-            sale_type: 'small_sale',
-            description: `Clubbed ${record.order_count} small ${record.asset_code} orders${isMultiplePayments ? ' (split payment)' : ''}`,
-            created_by: userId,
-            market_rate_usdt: marketRate,
-            effective_usdt_qty: ssEffUsdtQty,
-            effective_usdt_rate: ssEffUsdtRate,
-          })
-          .select('id')
-          .single();
+        // Retry order-number collisions so a stale sequence can never block approval.
+        let orderNumber = '';
+        let salesOrder: { id: string } | null = null;
+        for (let attempt = 0; attempt < 5 && !salesOrder; attempt++) {
+          const { data: nextOrderNum, error: orderNumErr } = await supabase.rpc('next_small_sales_order_number');
+          if (orderNumErr || !nextOrderNum) throw orderNumErr || new Error('Failed to generate order number');
+          orderNumber = nextOrderNum as string;
 
-        if (soErr || !salesOrder) throw soErr || new Error('Failed to create sales order');
+          const { data, error: soErr } = await supabase
+            .from('sales_orders')
+            .insert({
+              order_number: orderNumber,
+              client_name: 'Small Sales',
+              client_phone: null,
+              client_state: null,
+              order_date: orderDate,
+              total_amount: record.total_amount,
+              quantity: record.total_quantity,
+              price_per_unit: record.avg_price,
+              product_id: productRow.id,
+              sales_payment_method_id: isMultiplePayments ? null : paymentMethodId,
+              is_split_payment: isMultiplePayments,
+              fee_percentage: 0,
+              fee_amount: record.total_fee,
+              net_amount: Number(record.total_amount),
+              payment_status: 'COMPLETED',
+              settlement_status: isMultiplePayments ? 'DIRECT' : (isGateway ? 'PENDING' : 'DIRECT'),
+              status: 'COMPLETED',
+              platform: 'Binance',
+              wallet_id: record.wallet_id,
+              source: 'terminal_small_sales',
+              sale_type: 'small_sale',
+              description: `Clubbed ${record.order_count} small ${record.asset_code} orders${isMultiplePayments ? ' (split payment)' : ''}`,
+              created_by: userId,
+              market_rate_usdt: marketRate,
+              effective_usdt_qty: ssEffUsdtQty,
+              effective_usdt_rate: ssEffUsdtRate,
+            })
+            .select('id')
+            .single();
+
+          if (soErr) {
+            if (isDuplicateConstraintError(soErr) && attempt < 4) continue;
+            throw soErr;
+          }
+          salesOrder = data;
+        }
+
+        if (!salesOrder) throw new Error('Failed to create sales order');
         createdSalesOrderId = salesOrder.id;
 
         // ── Bank/settlement legs + payment_splits rows ───────────────

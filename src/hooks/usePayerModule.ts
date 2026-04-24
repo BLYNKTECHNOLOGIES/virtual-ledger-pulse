@@ -98,16 +98,14 @@ function useLockOrderToPayer() {
 
   return useMutation({
     mutationFn: async ({ orderNumber, payerUserId }: { orderNumber: string; payerUserId: string }) => {
-      // Use upsert with the unique partial index on (order_number) WHERE status = 'active'
-      // If already locked, this will be a no-op due to conflict
+      // Guarded insert: PostgREST cannot target partial unique indexes via onConflict,
+      // so we attempt a plain insert and swallow 23505 (unique violation) which means
+      // the order is already locked by someone — that is the expected no-op outcome.
       const { error } = await supabase
         .from('terminal_payer_order_locks' as any)
-        .upsert(
-          { order_number: orderNumber, payer_user_id: payerUserId, status: 'active' },
-          { onConflict: 'order_number', ignoreDuplicates: true }
-        );
+        .insert({ order_number: orderNumber, payer_user_id: payerUserId, status: 'active' });
       if (error) {
-        // Unique constraint violation means already locked — that's fine
+        // 23505 = unique_violation → already locked, fine.
         if (error.code === '23505') return;
         throw error;
       }

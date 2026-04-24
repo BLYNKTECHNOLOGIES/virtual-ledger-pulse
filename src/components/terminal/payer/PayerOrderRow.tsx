@@ -268,6 +268,23 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
             <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 bg-amber-500/5 mr-1">
               Paid Externally
             </Badge>
+            {/* Quick Receive — only when Binance allows for this order */}
+            {quickEligible && (
+              <QuickReceiveDialog
+                orderNumber={order.orderNumber}
+                totalPrice={order.totalPrice || 0}
+                quickConfirmAmountUpLimit={quickConfirmLimit}
+                asset={order.asset || 'USDT'}
+                fiatUnit={order.fiat || 'INR'}
+                advNo={order.advNo}
+                source="payer"
+                variant="inline"
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
+                  onMarkPaidSuccess();
+                }}
+              />
+            )}
             <Button
               variant="outline"
               size="sm"

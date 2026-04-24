@@ -106,8 +106,9 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
     try {
       await markPaid.mutateAsync({ orderNumber: order.orderNumber });
       await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
-      // Fire-and-forget: auto screenshot sender (eligibility checked server-side)
-      triggerAutoScreenshot(order.orderNumber);
+      // Must complete before refreshing/removing the row; otherwise the browser
+      // can drop the client-side receipt capture request.
+      await triggerAutoScreenshot(order.orderNumber);
       // Fire-and-forget: auto-reply engine (event-driven, since the cron poll
       // can miss orders that complete within seconds of being marked Paid).
       triggerAutoReplyForOrder(order.orderNumber, 'payment_marked');

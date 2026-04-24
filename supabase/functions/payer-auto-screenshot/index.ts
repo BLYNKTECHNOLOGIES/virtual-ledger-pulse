@@ -9,6 +9,7 @@ const corsHeaders = {
 };
 
 let wasmReady: Promise<void> | null = null;
+let fontBuffersReady: Promise<Uint8Array[]> | null = null;
 
 async function ensureWasm() {
   if (!wasmReady) {
@@ -19,6 +20,29 @@ async function ensureWasm() {
     })();
   }
   return wasmReady;
+}
+
+async function ensureFonts() {
+  if (!fontBuffersReady) {
+    fontBuffersReady = (async () => {
+      const fontUrls = [
+        "https://cdn.jsdelivr.net/npm/typeface-inter@3.18.1/Inter%20Variable/Single%20axis/Inter-roman.ttf",
+        "https://cdn.jsdelivr.net/npm/typeface-inter@3.18.1/Inter%20Variable/Inter.ttf",
+      ];
+
+      return await Promise.all(
+        fontUrls.map(async (url) => {
+          const resp = await fetch(url);
+          if (!resp.ok) {
+            throw new Error(`font fetch failed ${resp.status} for ${url}`);
+          }
+          return new Uint8Array(await resp.arrayBuffer());
+        }),
+      );
+    })();
+  }
+
+  return fontBuffersReady;
 }
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -79,11 +103,11 @@ function buildSvg(args: {
     let line = "";
     let ly = y + 22;
     for (const v of valueLines) {
-      line += `<text x="${W - 24}" y="${ly}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="${v.size}" ${v.bold ? 'font-weight="600"' : ""} fill="${v.color || "#222"}">${escapeXml(v.text)}</text>`;
+      line += `<text x="${W - 24}" y="${ly}" text-anchor="end" font-family="Inter" font-size="${v.size}" ${v.bold ? 'font-weight="600"' : ""} fill="${v.color || "#222"}">${escapeXml(v.text)}</text>`;
       ly += v.size + 2;
     }
     detailsSvg += `
-      <text x="24" y="${y + 22}" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#888">${escapeXml(label)}</text>
+      <text x="24" y="${y + 22}" font-family="Inter" font-size="13" fill="#888">${escapeXml(label)}</text>
       ${line}
       ${hasBorder ? `<line x1="24" y1="${y + rowH - 1}" x2="${W - 24}" y2="${y + rowH - 1}" stroke="#f0f0f0" stroke-width="1"/>` : ""}
     `;
@@ -113,11 +137,11 @@ function buildSvg(args: {
   <g clip-path="url(#card)">
     <rect x="0" y="0" width="${W}" height="${H}" fill="#ffffff"/>
     <rect x="0" y="0" width="${W}" height="${headerH}" fill="url(#g)"/>
-    <text x="${W / 2}" y="48" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="13" fill="#ffffff" opacity="0.9">To ${escapeXml(args.toUpiId)}</text>
-    <text x="${W / 2}" y="92" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="32" font-weight="700" fill="#ffffff">${escapeXml(fmtINR(args.amount))}</text>
+    <text x="${W / 2}" y="48" text-anchor="middle" font-family="Inter" font-size="13" fill="#ffffff" opacity="0.9">To ${escapeXml(args.toUpiId)}</text>
+    <text x="${W / 2}" y="92" text-anchor="middle" font-family="Inter" font-size="32" font-weight="700" fill="#ffffff">${escapeXml(fmtINR(args.amount))}</text>
     <rect x="${W / 2 - 60}" y="110" width="120" height="28" rx="14" ry="14" fill="rgba(255,255,255,0.22)"/>
-    <text x="${W / 2}" y="129" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" fill="#ffffff">✓ Completed</text>
-    <text x="${W / 2}" y="160" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#ffffff" opacity="0.85">${escapeXml(dt)}</text>
+    <text x="${W / 2}" y="129" text-anchor="middle" font-family="Inter" font-size="12" font-weight="600" fill="#ffffff">✓ Completed</text>
+    <text x="${W / 2}" y="160" text-anchor="middle" font-family="Inter" font-size="12" fill="#ffffff" opacity="0.85">${escapeXml(dt)}</text>
     ${detailsSvg}
   </g>
 </svg>`;
@@ -125,12 +149,14 @@ function buildSvg(args: {
 
 async function renderPng(svg: string): Promise<Uint8Array> {
   await ensureWasm();
+  const fontBuffers = await ensureFonts();
   const resvg = new Resvg(svg, {
     fitTo: { mode: "width", value: 840 },
     font: {
-      defaultFontFamily: "Arial",
-      sansSerifFamily: "Arial",
-      loadSystemFonts: true,
+      fontBuffers,
+      defaultFontFamily: "Inter",
+      sansSerifFamily: "Inter",
+      loadSystemFonts: false,
     },
   });
   return resvg.render().asPng();

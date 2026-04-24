@@ -69,8 +69,10 @@ export function QuickReceiveDialog({
   source,
   onSuccess,
   variant = 'block',
+  requireMarkPaidFirst = false,
 }: QuickReceiveDialogProps) {
   const releaseCoin = useReleaseCoin();
+  const markPaid = useMarkOrderAsPaid();
   const [open, setOpen] = useState(false);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');

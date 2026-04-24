@@ -86,10 +86,20 @@ export function QuickReceiveDialog({
     codeRef.current = val;
   };
 
-  const doRelease = (overrideCode?: string) => {
+  const doRelease = async (overrideCode?: string) => {
     const finalCode = overrideCode || codeRef.current;
-    if (!finalCode.trim() || firedRef.current || releaseCoin.isPending) return;
+    if (!finalCode.trim() || firedRef.current || releaseCoin.isPending || markPaid.isPending) return;
     firedRef.current = true;
+
+    // Step 1: if order is still in pending status, notify Binance the buyer paid first
+    if (requireMarkPaidFirst) {
+      try {
+        await markPaid.mutateAsync({ orderNumber });
+      } catch (err) {
+        firedRef.current = false;
+        return; // toast surfaced by hook
+      }
+    }
 
     const params: Record<string, any> = {
       orderNumber,

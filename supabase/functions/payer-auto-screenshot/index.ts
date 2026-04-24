@@ -214,13 +214,31 @@ Deno.serve(async (req: Request) => {
 
     // 2. Fetch order detail from Binance
     const detailResp = await callBinance(adminClient, "getOrderDetail", { orderNumber });
-    const detail = detailResp?.data?.data || detailResp?.data || detailResp;
-    if (!detail) throw new Error("order detail empty");
+    // binance-ads returns { success, data: <binanceJson>, error? }
+    // Binance JSON shape: { code: "000000", message, data: {...orderFields, tradeType, payMethods, totalPrice} }
+    if (detailResp && detailResp.success === false) {
+      await logRow("failed", {}, `binance-ads error: ${detailResp.error || "unknown"}`);
+      return new Response(JSON.stringify({ status: "failed", error: detailResp.error }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const binJson = detailResp?.data ?? detailResp;
+    if (binJson && binJson.code && binJson.code !== "000000") {
+      await logRow("failed", {}, `binance code ${binJson.code}: ${binJson.message || ""}`);
+      return new Response(JSON.stringify({ status: "failed", error: binJson.message }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const detail = binJson?.data ?? binJson;
+    if (!detail || typeof detail !== "object") {
+      await logRow("failed", {}, "order detail empty");
+      return new Response(JSON.stringify({ status: "failed", error: "empty detail" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const tradeType = String(detail.tradeType || detail.orderType || "").toUpperCase();
-    if (tradeType !== "BUY") {
+    if (tradeType && tradeType !== "BUY") {
       await logRow("skipped_non_buy", {});
       return new Response(JSON.stringify({ status: "skipped_non_buy" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    if (!tradeType) {
+      await logRow("failed", {}, `tradeType missing in detail. keys=${Object.keys(detail).slice(0,20).join(",")}`);
+      return new Response(JSON.stringify({ status: "failed", error: "tradeType missing" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const totalPrice = Number(detail.totalPrice ?? detail.amount ?? 0);

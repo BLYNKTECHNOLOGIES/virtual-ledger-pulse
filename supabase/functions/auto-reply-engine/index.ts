@@ -343,6 +343,21 @@ serve(async (req) => {
   }
 
   try {
+    // Event-driven trigger: when a payer marks a single order Paid, the cron poll
+    // may miss it (order leaves the active list within seconds). Allow callers to
+    // pass { orderNumber, triggerEvent? } to force-process a single order.
+    let forcedOrderNumber: string | null = null;
+    let forcedEvent: string | null = null;
+    if (req.method === "POST") {
+      try {
+        const body = await req.json();
+        if (body?.orderNumber) forcedOrderNumber = String(body.orderNumber);
+        if (body?.triggerEvent) forcedEvent = String(body.triggerEvent);
+      } catch {
+        // no body — full poll mode
+      }
+    }
+
     const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
     const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
@@ -416,18 +431,54 @@ serve(async (req) => {
     // ===== FETCH ACTIVE ORDERS =====
     // Paginate to ensure we don't miss orders beyond the first 50
     const allActiveOrders: BinanceOrder[] = [];
-    for (let page = 1; page <= 3; page++) {
-      const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
-        method: "POST",
-        headers: proxyHeaders,
-        body: JSON.stringify({ page, rows: 50 }),
-      });
-      const activeData = await activeRes.json();
-      const pageOrders: BinanceOrder[] = activeData?.data || [];
-      allActiveOrders.push(...pageOrders);
-      if (pageOrders.length < 50) break;
+    if (forcedOrderNumber) {
+      // Event-driven: fetch just this one order's detail and synthesize a list entry
+      try {
+        const detailRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify({ orderNo: forcedOrderNumber }),
+        });
+        const detailJson = await detailRes.json();
+        const d = detailJson?.data;
+        if (d) {
+          allActiveOrders.push({
+            orderNumber: d.orderNumber || forcedOrderNumber,
+            advNo: d.advNo,
+            tradeType: d.tradeType,
+            asset: d.asset,
+            fiatUnit: d.fiatUnit,
+            totalPrice: String(d.totalPrice ?? ""),
+            amount: String(d.amount ?? ""),
+            unitPrice: String(d.unitPrice ?? ""),
+            // Force PAID-equivalent status so payment_marked rules match even if
+            // Binance has already advanced the order to Releasing/Completed.
+            orderStatus: forcedEvent === "payment_marked" ? "PAID" : (d.orderStatus ?? ""),
+            createTime: Number(d.createTime) || Date.now(),
+            counterPartNickName: d.counterPartNickName,
+            buyerRealName: d.buyerRealName,
+            sellerRealName: d.sellerRealName,
+            payMethodName: d.payMethodName,
+          } as BinanceOrder);
+        }
+      } catch (e) {
+        console.warn("Forced order detail fetch failed:", e);
+      }
+      console.log(`Forced single-order auto-reply for ${forcedOrderNumber} (event=${forcedEvent || "auto"})`);
+    } else {
+      for (let page = 1; page <= 3; page++) {
+        const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify({ page, rows: 50 }),
+        });
+        const activeData = await activeRes.json();
+        const pageOrders: BinanceOrder[] = activeData?.data || [];
+        allActiveOrders.push(...pageOrders);
+        if (pageOrders.length < 50) break;
+      }
+      console.log(`Processing ${allActiveOrders.length} active orders for auto-reply`);
     }
-    console.log(`Processing ${allActiveOrders.length} active orders for auto-reply`);
 
     {
       const { data: exclusionRows } = await supabase

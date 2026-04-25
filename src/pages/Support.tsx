@@ -103,10 +103,16 @@ const nextWorkflowStatus = (status: TicketStatus): TicketStatus | null => {
   return index >= 0 && index < workflowStatuses.length - 1 ? workflowStatuses[index + 1] : null;
 };
 
+const isCompletedTicket = (ticket: SupportTicket) => ['resolved', 'closed'].includes(ticket.status);
+
 function userLabel(user?: UserOption | null) {
   if (!user) return 'Unassigned';
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
   return fullName || user.username || 'User';
+}
+
+function csvCell(value: string | number | null | undefined) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
 export default function Support() {

@@ -1,27 +1,30 @@
-Plan to add the bottom graphical representation:
+Plan to apply the same effective USDT coin-breakdown treatment to the Ad Performance tab:
 
-1. Add a dedicated visual analytics section below the current table/list content, so it appears when the user scrolls down.
+1. Add a selected-ad state in `TerminalAnalytics.tsx`
+   - Let the user click an ad row in the Ad Performance list.
+   - Highlight the selected ad, similar to the selected order type behavior.
+   - Default to the first visible ad when the Buy/Sell toggle changes.
 
-2. For the Order Types tab, add a polished dashboard-style graphical block showing:
-   - Small Buy, Big Buy, Small Sale, Big Sale grouped clearly.
-   - Volume, order count, USDT-effective quantity, weighted average rate, and average order.
-   - Easy comparison using horizontal bars / composed chart styling instead of only text rows.
-   - Buy and sale colors matching the existing theme.
+2. Build ad-level coin breakdown data
+   - Extend the existing Ad Performance aggregation to keep a coin-wise breakdown per ad.
+   - For each selected ad, group completed orders by asset: USDT, BTC, ETH, USDC, FDUSD, BNB, TRX, etc.
+   - Use existing `effectiveUsdtQty` and `effectiveUsdtRate` fields, not raw non-USDT coin amount/rate.
+   - Show effective quantity in USDT terms and weighted effective price in INR/USDT.
 
-3. For the Ad Performance tab, add a graphical block under the ad list that respects the current Buy Ads / Sell Ads toggle:
-   - Keep similar ads together in the same order already requested: small first, big after; then by asset priority such as USDT, BTC, ETH, USDC, FDUSD, BNB, TRX.
-   - Show a readable ranked bar chart/card layout for ad volume.
-   - Include secondary metrics: orders, effective USDT quantity, weighted rate, and avg order.
-   - Avoid sorting by volume as the primary grouping basis.
+3. Update the Ad Performance tab layout
+   - Keep the current Buy Ads / Sell Ads toggle.
+   - Left/main card: clickable ad rows ordered as requested: small first, big second, then asset priority.
+   - Right/detail card: “Coin Breakdown” for the selected ad, matching the Order Types tab behavior.
+   - Empty states for no ads or no selected-ad coin data.
 
-4. Improve presentability and scanability:
-   - Use dark-theme-compatible cards, borders, muted labels, tabular numbers, and clear legends.
-   - Keep charts compact but detailed, with tooltips using the same INR/quantity/rate formatting already used in the page.
-   - Add empty states if there is no data for the selected period/toggle.
+4. Improve the bottom graphical section for ads
+   - Add a selected-ad summary inside the graphical representation.
+   - Add a coin-wise effective USDT visual panel for the selected ad at the bottom.
+   - Keep the existing ad chart grouped by similar ad type, not volume-first sorting.
 
 Technical details:
 - File to update: `src/pages/terminal/TerminalAnalytics.tsx`.
-- Reuse the existing Recharts dependency already imported in this file.
-- Add derived chart data from the existing `analytics.orderTypes`, `analytics.orderTypeCoinBreakdown`, and `filteredAdRows` so no new database/API changes are needed.
-- Keep Binance data source untouched; this is only a visualization layer over existing analytics data.
+- No Binance API or database changes are needed.
+- Data will be derived from the already-normalized cached Binance orders and existing ERP effective valuation mappings.
+- Preserve current Buy/Sell toggle behavior and sort order.
 - Run a build after implementation to catch TypeScript/rendering issues.

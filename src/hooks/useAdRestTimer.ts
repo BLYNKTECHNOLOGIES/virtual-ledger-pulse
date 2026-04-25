@@ -21,9 +21,49 @@ interface RestTimer {
   deactivated_ad_statuses: AdStatusSnapshot[] | null;
 }
 
+const BINANCE_BREAK_STORAGE_KEY = 'terminal_binance_break_detected';
+const BINANCE_BREAK_EVENT = 'terminal-binance-break-detected';
+
+export function markAdBreakDetected(message?: string) {
+  const payload = { detectedAt: new Date().toISOString(), message: message || 'Binance break mode is active' };
+  localStorage.setItem(BINANCE_BREAK_STORAGE_KEY, JSON.stringify(payload));
+  window.dispatchEvent(new CustomEvent(BINANCE_BREAK_EVENT, { detail: payload }));
+}
+
+export function clearAdBreakDetected() {
+  localStorage.removeItem(BINANCE_BREAK_STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent(BINANCE_BREAK_EVENT));
+}
+
 export function useAdRestTimer() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [detectedBreak, setDetectedBreak] = useState<{ detectedAt: string; message: string } | null>(() => {
+    try {
+      const stored = localStorage.getItem(BINANCE_BREAK_STORAGE_KEY);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    const syncDetectedBreak = () => {
+      try {
+        const stored = localStorage.getItem(BINANCE_BREAK_STORAGE_KEY);
+        setDetectedBreak(stored ? JSON.parse(stored) : null);
+      } catch {
+        setDetectedBreak(null);
+      }
+    };
+
+    window.addEventListener('storage', syncDetectedBreak);
+    window.addEventListener(BINANCE_BREAK_EVENT, syncDetectedBreak);
+    return () => {
+      window.removeEventListener('storage', syncDetectedBreak);
+      window.removeEventListener(BINANCE_BREAK_EVENT, syncDetectedBreak);
+    };
+  }, []);
 
   // Fetch active rest timer
   const { data: activeTimer, isLoading } = useQuery({
@@ -121,6 +161,7 @@ export function useAdRestTimer() {
       }
     },
     onSuccess: () => {
+      clearAdBreakDetected();
       queryClient.invalidateQueries({ queryKey: ['ad-rest-timer'] });
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Rest Ended', description: 'Ads re-activated successfully.' });
@@ -137,10 +178,13 @@ export function useAdRestTimer() {
   return {
     activeTimer,
     isResting: timerState.isResting && !!activeTimer,
+    isBinanceBreakDetected: !!detectedBreak,
+    detectedBreak,
     remainingMs: timerState.remainingMs,
     endTime: timerState.endTime,
     isLoading,
     startRest,
     endRest,
+    clearDetectedBreak: clearAdBreakDetected,
   };
 }

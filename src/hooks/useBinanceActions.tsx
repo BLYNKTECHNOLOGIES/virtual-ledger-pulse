@@ -410,10 +410,12 @@ export interface BinanceChatMessage {
 export interface ArchivedBinanceChatMessage {
   id: string;
   order_number: string;
+  dedupe_key: string;
   binance_message_id: string | null;
   binance_uuid: string | null;
   message_type: string;
   chat_message_type: string | null;
+  content_type: string | null;
   sender_is_self: boolean | null;
   sender_nickname: string | null;
   message_status: string | null;
@@ -450,7 +452,7 @@ export function useArchivedBinanceChatMessages(orderNo: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('binance_order_chat_messages' as any)
-        .select('id, order_number, binance_message_id, binance_uuid, message_type, chat_message_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant')
+        .select('id, order_number, dedupe_key, binance_message_id, binance_uuid, message_type, chat_message_type, content_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant')
         .eq('order_number', orderNo!)
         .order('binance_create_time', { ascending: true });
       if (error) throw error;

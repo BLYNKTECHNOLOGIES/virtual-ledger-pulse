@@ -19,7 +19,7 @@ import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_
 export default function AdManager() {
   const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
-  const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 20 });
+  const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 50, fetchAll: true });
   const [activeTab, setActiveTab] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);
@@ -160,14 +160,6 @@ export default function AdManager() {
                 />
               )}
 
-              {/* Pagination */}
-              {total > (filters.rows || 20) && (
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <Button variant="outline" size="sm" disabled={(filters.page || 1) <= 1} onClick={() => setFilters({ ...filters, page: (filters.page || 1) - 1 })}>Previous</Button>
-                  <span className="text-sm text-muted-foreground">Page {filters.page || 1} of {Math.ceil(total / (filters.rows || 20))}</span>
-                  <Button variant="outline" size="sm" disabled={(filters.page || 1) >= Math.ceil(total / (filters.rows || 20))} onClick={() => setFilters({ ...filters, page: (filters.page || 1) + 1 })}>Next</Button>
-                </div>
-              )}
             </CardContent>
           </Card>
         </TabsContent>

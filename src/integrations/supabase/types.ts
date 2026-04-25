@@ -9767,7 +9767,7 @@ export type Database = {
           auto_pay_log_id: string | null
           checked_at: string
           complain_freeze_time: string | null
-          confirm_pay_end_time: string
+          confirm_pay_end_time: string | null
           id: string
           live_order_status: string | null
           message: string | null
@@ -9781,7 +9781,7 @@ export type Database = {
           auto_pay_log_id?: string | null
           checked_at?: string
           complain_freeze_time?: string | null
-          confirm_pay_end_time: string
+          confirm_pay_end_time?: string | null
           id?: string
           live_order_status?: string | null
           message?: string | null
@@ -9795,7 +9795,7 @@ export type Database = {
           auto_pay_log_id?: string | null
           checked_at?: string
           complain_freeze_time?: string | null
-          confirm_pay_end_time?: string
+          confirm_pay_end_time?: string | null
           id?: string
           live_order_status?: string | null
           message?: string | null

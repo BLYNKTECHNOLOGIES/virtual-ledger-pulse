@@ -75,6 +75,21 @@ function binanceMsToIso(value: unknown): string | null {
   return new Date(ms).toISOString();
 }
 
+function applyOptionalListOrderFilters(body: Record<string, any>, payload: Record<string, any>) {
+  const optionalStringFilters = ["advNo", "asset", "tradeType", "startDate", "endDate", "payType"];
+  for (const key of optionalStringFilters) {
+    if (payload[key] !== undefined && payload[key] !== null && String(payload[key]).trim() !== "") {
+      body[key] = payload[key];
+    }
+  }
+
+  if (Array.isArray(payload.orderStatusList) && payload.orderStatusList.length > 0) {
+    body.orderStatusList = payload.orderStatusList
+      .map((status: unknown) => Number(status))
+      .filter((status: number) => Number.isFinite(status));
+  }
+}
+
 function extractMarkPaidData(result: any) {
   const data = result?.data?.data || result?.data || result;
   return data && typeof data === "object" ? data : {};

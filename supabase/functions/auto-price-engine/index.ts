@@ -887,7 +887,30 @@ async function fetchUsdtInr(supabase: any): Promise<number> {
   return 91;
 }
 
-async function inferBinanceIndex(adNo: string, supabase: any): Promise<number | null> {
+async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSource: string, supabase: any) {
+  try {
+    const { data: recent } = await supabase
+      .from("binance_ad_state_snapshots")
+      .select("id")
+      .eq("adv_no", adNo)
+      .eq("snapshot_source", snapshotSource)
+      .gte("captured_at", new Date(Date.now() - 4 * 60000).toISOString())
+      .limit(1);
+    if (recent && recent.length > 0) return;
+
+    const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    await fetch(binanceAdsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      body: JSON.stringify({ action: "getAdDetail", adsNo: adNo, ruleId, snapshotSource }),
+    });
+  } catch (e) {
+    console.warn(`[ad-state-snapshot] ${snapshotSource} failed for ${adNo}:`, e);
+  }
+}
+
+async function inferBinanceIndex(adNo: string, supabase: any, ruleId?: string): Promise<number | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -897,7 +920,7 @@ async function inferBinanceIndex(adNo: string, supabase: any): Promise<number | 
       "Content-Type": "application/json",
       "Authorization": `Bearer ${anonKey}`,
     },
-    body: JSON.stringify({ action: "getAdDetail", adsNo: adNo }),
+    body: JSON.stringify({ action: "getAdDetail", adsNo: adNo, ruleId: ruleId || null, snapshotSource: "auto_price_pre_update" }),
   });
   const result = await resp.json();
 

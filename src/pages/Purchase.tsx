@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, ShoppingBag, Filter, Search, Link2, Package } from "lucide-react";
 import { format } from "date-fns";
 import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
@@ -19,6 +20,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
 
 
 export default function Purchase() {
@@ -33,6 +35,7 @@ export default function Purchase() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
+  const [filterAssetType, setFilterAssetType] = useState<string>("");
 
   const handleRefreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -135,6 +138,27 @@ export default function Purchase() {
       }
       return all;
     },
+  });
+
+  const { data: assetOptions = DEFAULT_ASSET_CODES } = useQuery({
+    queryKey: ['purchase_asset_filter_options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('product_category, product_name, purchase_order_items(products(code))')
+        .limit(5000);
+      if (error) throw error;
+      const codes = new Set(DEFAULT_ASSET_CODES);
+      (data || []).forEach((order: any) => {
+        const itemCode = order.purchase_order_items?.[0]?.products?.code;
+        [itemCode, order.product_category, order.product_name].forEach((value) => {
+          const code = String(value || '').trim().toUpperCase();
+          if (code) codes.add(code);
+        });
+      });
+      return Array.from(codes).sort();
+    },
+    staleTime: 300000,
   });
 
   const handleExportCSV = async () => {
@@ -367,6 +391,7 @@ export default function Purchase() {
   const clearFilters = () => {
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
+    setFilterAssetType("");
     setSearchTerm("");
     setShowFilterDialog(false);
   };
@@ -469,6 +494,20 @@ export default function Purchase() {
                       />
                     </div>
                   </div>
+                   <div>
+                     <Label>Asset Type</Label>
+                     <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
+                       <SelectTrigger>
+                         <SelectValue placeholder="All asset types" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="all">All asset types</SelectItem>
+                         {assetOptions.map((asset) => (
+                           <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
                   <div className="flex justify-between pt-2">
                     <Button variant="outline" onClick={clearFilters}>Clear</Button>
                     <Button onClick={() => setShowFilterDialog(false)}>Apply</Button>
@@ -508,6 +547,7 @@ export default function Purchase() {
                 searchTerm={searchTerm}
                 dateFrom={filterDateFrom}
                 dateTo={filterDateTo}
+                assetType={filterAssetType}
               />
             </TabsContent>
 

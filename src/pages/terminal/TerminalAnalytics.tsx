@@ -489,6 +489,7 @@ export default function TerminalAnalytics() {
   const { userId } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'analytics', { filter: '' as string });
   const [selectedOrderKind, setSelectedOrderKind] = useState<OrderKind>('smallBuy');
+  const [adTradeFilter, setAdTradeFilter] = useState<AdTradeFilter>('BUY');
 
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);
@@ -570,7 +571,7 @@ export default function TerminalAnalytics() {
         asset: rows[0]?.asset || ad?.asset,
         ...getAdDetails(ad, rows),
       });
-    }).sort((a, b) => b.volume - a.volume);
+    }).sort(sortAdRowsByType);
 
     const rates = valuedCompleted.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
     const weightedBuyRate = weightedRate(valuedBuyVolume, valuedBuy.reduce((s, o) => s + o.effectiveUsdtQty, 0));

@@ -44,6 +44,13 @@ type EffectiveValuation = {
   effectiveUsdtRate: number;
 };
 
+type SmallOrderMapRow = {
+  binance_order_number: string;
+  order_data?: any;
+  small_buys_sync_id?: string;
+  small_sales_sync_id?: string;
+};
+
 type Bucket = {
   key: string;
   label: string;
@@ -155,6 +162,28 @@ function getRawOrderRate(o: any) {
 
 function hasEffectiveUsdtValuation(o: any) {
   return getEffectiveUsdtQuantity(o) > 0 && getEffectiveUsdtRate(o) > 0;
+}
+
+function getOrderDataNumber(orderData: any, camelKey: string, snakeKey: string) {
+  return Number(orderData?.[camelKey] ?? orderData?.[snakeKey] ?? 0);
+}
+
+function getSmallOrderValuation(orderData: any, syncRow: any, erpOrder: any): EffectiveValuation | null {
+  const orderAmount = getOrderDataNumber(orderData, 'amount', 'amount');
+  const orderTotal = getOrderDataNumber(orderData, 'totalPrice', 'total_price');
+  const marketRate = Number(erpOrder?.market_rate_usdt || 0);
+  const batchEffectiveQty = Number(erpOrder?.effective_usdt_qty || 0);
+  const batchRawQty = Number(syncRow?.total_quantity || erpOrder?.quantity || 0);
+  const effectiveUsdtQty = marketRate > 0 && orderAmount > 0
+    ? orderAmount * marketRate
+    : batchEffectiveQty > 0 && batchRawQty > 0 && orderAmount > 0
+      ? (orderAmount / batchRawQty) * batchEffectiveQty
+      : 0;
+  const effectiveUsdtRate = effectiveUsdtQty > 0 && orderTotal > 0
+    ? orderTotal / effectiveUsdtQty
+    : Number(erpOrder?.effective_usdt_rate || 0);
+
+  return effectiveUsdtQty > 0 && effectiveUsdtRate > 0 ? { effectiveUsdtQty, effectiveUsdtRate } : null;
 }
 
 function normalizeOrder(o: any): NormalizedOrder {
@@ -276,19 +305,63 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
       const uniqueOrderNumbers = Array.from(new Set(orderNumbers.filter(Boolean)));
       if (!uniqueOrderNumbers.length) return new Map<string, EffectiveValuation>();
 
-      const [purchaseSyncRes, salesSyncRes] = await Promise.all([
+      const [purchaseSyncRes, salesSyncRes, smallBuyMapRes, smallSaleMapRes] = await Promise.all([
         supabase
           .from('terminal_purchase_sync')
-          .select('binance_order_number, purchase_orders!terminal_purchase_sync_purchase_order_id_fkey(effective_usdt_qty, effective_usdt_rate)')
+          .select('binance_order_number, purchase_orders!terminal_purchase_sync_purchase_order_id_fkey(effective_usdt_qty, effective_usdt_rate, market_rate_usdt)')
           .in('binance_order_number', uniqueOrderNumbers),
         supabase
           .from('terminal_sales_sync')
-          .select('binance_order_number, sales_orders!terminal_sales_sync_sales_order_id_fkey(effective_usdt_qty, effective_usdt_rate)')
+          .select('binance_order_number, sales_orders!terminal_sales_sync_sales_order_id_fkey(effective_usdt_qty, effective_usdt_rate, market_rate_usdt)')
+          .in('binance_order_number', uniqueOrderNumbers),
+        supabase
+          .from('small_buys_order_map' as any)
+          .select('binance_order_number, order_data, small_buys_sync_id')
+          .in('binance_order_number', uniqueOrderNumbers),
+        supabase
+          .from('small_sales_order_map' as any)
+          .select('binance_order_number, order_data, small_sales_sync_id')
           .in('binance_order_number', uniqueOrderNumbers),
       ]);
 
       if (purchaseSyncRes.error) throw purchaseSyncRes.error;
       if (salesSyncRes.error) throw salesSyncRes.error;
+      if (smallBuyMapRes.error) throw smallBuyMapRes.error;
+      if (smallSaleMapRes.error) throw smallSaleMapRes.error;
+
+      const smallBuyMapRows = (smallBuyMapRes.data || []) as unknown as SmallOrderMapRow[];
+      const smallSaleMapRows = (smallSaleMapRes.data || []) as unknown as SmallOrderMapRow[];
+      const smallBuySyncIds = Array.from(new Set(smallBuyMapRows.map((row) => row.small_buys_sync_id).filter(Boolean))) as string[];
+      const smallSaleSyncIds = Array.from(new Set(smallSaleMapRows.map((row) => row.small_sales_sync_id).filter(Boolean))) as string[];
+
+      const [smallBuySyncRes, smallSaleSyncRes] = await Promise.all([
+        smallBuySyncIds.length
+          ? supabase.from('small_buys_sync' as any).select('id, total_quantity, purchase_order_id').in('id', smallBuySyncIds)
+          : Promise.resolve({ data: [], error: null }),
+        smallSaleSyncIds.length
+          ? supabase.from('small_sales_sync' as any).select('id, total_quantity, sales_order_id').in('id', smallSaleSyncIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (smallBuySyncRes.error) throw smallBuySyncRes.error;
+      if (smallSaleSyncRes.error) throw smallSaleSyncRes.error;
+
+      const smallBuySyncRows = (smallBuySyncRes.data || []) as any[];
+      const smallSaleSyncRows = (smallSaleSyncRes.data || []) as any[];
+      const purchaseOrderIds = Array.from(new Set(smallBuySyncRows.map((row) => row.purchase_order_id).filter(Boolean))) as string[];
+      const salesOrderIds = Array.from(new Set(smallSaleSyncRows.map((row) => row.sales_order_id).filter(Boolean))) as string[];
+
+      const [smallBuyOrderRes, smallSaleOrderRes] = await Promise.all([
+        purchaseOrderIds.length
+          ? supabase.from('purchase_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', purchaseOrderIds)
+          : Promise.resolve({ data: [], error: null }),
+        salesOrderIds.length
+          ? supabase.from('sales_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', salesOrderIds)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+
+      if (smallBuyOrderRes.error) throw smallBuyOrderRes.error;
+      if (smallSaleOrderRes.error) throw smallSaleOrderRes.error;
 
       const map = new Map<string, EffectiveValuation>();
       const addValuation = (orderNumber: string, row: any) => {
@@ -302,6 +375,23 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
 
       (purchaseSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.purchase_orders));
       (salesSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.sales_orders));
+
+      const smallBuySyncById = new Map(smallBuySyncRows.map((row) => [row.id, row]));
+      const smallSaleSyncById = new Map(smallSaleSyncRows.map((row) => [row.id, row]));
+      const purchaseOrderById = new Map(((smallBuyOrderRes.data || []) as any[]).map((row) => [row.id, row]));
+      const salesOrderById = new Map(((smallSaleOrderRes.data || []) as any[]).map((row) => [row.id, row]));
+
+      smallBuyMapRows.forEach((row) => {
+        const syncRow = smallBuySyncById.get(row.small_buys_sync_id || '');
+        const valuation = getSmallOrderValuation(row.order_data, syncRow, purchaseOrderById.get(syncRow?.purchase_order_id));
+        if (valuation) map.set(row.binance_order_number, valuation);
+      });
+
+      smallSaleMapRows.forEach((row) => {
+        const syncRow = smallSaleSyncById.get(row.small_sales_sync_id || '');
+        const valuation = getSmallOrderValuation(row.order_data, syncRow, salesOrderById.get(syncRow?.sales_order_id));
+        if (valuation) map.set(row.binance_order_number, valuation);
+      });
 
       return map;
     },

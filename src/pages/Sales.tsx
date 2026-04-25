@@ -496,6 +496,7 @@ export default function Sales() {
 
   const clearFilters = () => {
     setFilterPaymentStatus("");
+    setFilterAssetType("");
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
     setSearchTerm("");
@@ -839,6 +840,20 @@ export default function Sales() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Asset Type</Label>
+                    <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All asset types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All asset types</SelectItem>
+                        {assetOptions.map((asset) => (
+                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -925,7 +940,7 @@ export default function Sales() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="completed">
-                  Completed ({orderCounts?.completed ?? completedOrders.length})
+                  Completed ({completedOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="terminal-sync">
                   Terminal Sync

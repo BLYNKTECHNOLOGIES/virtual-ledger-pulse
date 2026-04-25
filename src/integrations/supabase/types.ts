@@ -8952,32 +8952,92 @@ export type Database = {
           },
         ]
       }
+      p2p_auto_pay_engine_runs: {
+        Row: {
+          attempted: number
+          auto_assigned: number
+          auto_paid: number
+          candidates: number
+          errors: number
+          finished_at: string | null
+          id: string
+          skipped: number
+          started_at: string
+          status: string
+          summary: Json
+          total_orders: number
+          warnings: number
+        }
+        Insert: {
+          attempted?: number
+          auto_assigned?: number
+          auto_paid?: number
+          candidates?: number
+          errors?: number
+          finished_at?: string | null
+          id?: string
+          skipped?: number
+          started_at?: string
+          status?: string
+          summary?: Json
+          total_orders?: number
+          warnings?: number
+        }
+        Update: {
+          attempted?: number
+          auto_assigned?: number
+          auto_paid?: number
+          candidates?: number
+          errors?: number
+          finished_at?: string | null
+          id?: string
+          skipped?: number
+          started_at?: string
+          status?: string
+          summary?: Json
+          total_orders?: number
+          warnings?: number
+        }
+        Relationships: []
+      }
       p2p_auto_pay_log: {
         Row: {
           action: string
+          decision_reason: string | null
           error_message: string | null
           executed_at: string
           id: string
+          metadata: Json
           minutes_remaining: number | null
           order_number: string
+          raw_status: string | null
+          source: string | null
           status: string
         }
         Insert: {
           action?: string
+          decision_reason?: string | null
           error_message?: string | null
           executed_at?: string
           id?: string
+          metadata?: Json
           minutes_remaining?: number | null
           order_number: string
+          raw_status?: string | null
+          source?: string | null
           status?: string
         }
         Update: {
           action?: string
+          decision_reason?: string | null
           error_message?: string | null
           executed_at?: string
           id?: string
+          metadata?: Json
           minutes_remaining?: number | null
           order_number?: string
+          raw_status?: string | null
+          source?: string | null
           status?: string
         }
         Relationships: []

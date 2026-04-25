@@ -62,9 +62,10 @@ type TicketTransfer = {
 type TicketActivity = {
   id: string;
   ticket_id: string;
-  activity_type: 'note' | 'status_change' | 'escalation' | 'transfer' | 'attachment';
+  activity_type: 'created' | 'note' | 'status_change' | 'detail_change' | 'escalation' | 'transfer' | 'attachment';
   message: string;
   actor_id: string;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 };
 
@@ -113,6 +114,15 @@ function userLabel(user?: UserOption | null) {
 
 function csvCell(value: string | number | null | undefined) {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function truncateAuditValue(value: string | null | undefined) {
+  const text = String(value ?? 'Empty').trim() || 'Empty';
+  return text.length > 220 ? `${text.slice(0, 220)}...` : text;
+}
+
+function activityTypeLabel(type: TicketActivity['activity_type']) {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export default function Support() {

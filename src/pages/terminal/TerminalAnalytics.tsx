@@ -349,8 +349,8 @@ export default function TerminalAnalytics() {
 
   return (
     <TerminalPermissionGate permissions={['terminal_analytics_view']}>
-      <div className="p-4 md:p-6 space-y-5 max-w-[1400px]">
-        <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex min-h-[calc(100vh-3rem)] w-full flex-col gap-4 p-4 md:p-6">
+        <div className="flex shrink-0 items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
             <p className="text-xs text-muted-foreground">{periodLabel} · {orders.length.toLocaleString('en-IN')} orders in view · {completed.length.toLocaleString('en-IN')} completed</p>
@@ -358,7 +358,7 @@ export default function TerminalAnalytics() {
           <TimePeriodFilter value={filter} onChange={setFilter} />
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid shrink-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
           <StatCard icon={ShoppingCart} label="Completed" value={String(completed.length)} sub={`Buy ${analytics.buy.length} · Sell ${analytics.sell.length}`} />
           <StatCard icon={TrendingDown} label="Buy Volume" value={fmtINR(analytics.buyVolume)} sub={fmtRate(analytics.weightedBuyRate)} tone="buy" />
           <StatCard icon={TrendingUp} label="Sell Volume" value={fmtINR(analytics.sellVolume)} sub={fmtRate(analytics.weightedSellRate)} tone="sell" />
@@ -366,14 +366,14 @@ export default function TerminalAnalytics() {
           <StatCard icon={Shield} label="Completion" value={`${analytics.completionRate.toFixed(1)}%`} sub={`${analytics.appeals.length} appeals · ${analytics.cancelled.length} cancelled`} tone={analytics.appeals.length ? 'warning' : 'muted'} />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <Card className="xl:col-span-2 bg-card border-border">
+        <div className="grid shrink-0 grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-4">
+          <Card className="bg-card border-border flex min-h-[320px] flex-col">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><Activity className="h-3.5 w-3.5" /> {filter.mode === '1d' ? 'Hourly' : 'Daily'} Order Activity</CardTitle>
             </CardHeader>
-            <CardContent className="px-2 pb-3">
+            <CardContent className="min-h-[260px] flex-1 px-2 pb-3">
               {chartData.length ? (
-                <ResponsiveContainer width="100%" height={260}>
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 8, right: 10, left: -10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
@@ -391,7 +391,7 @@ export default function TerminalAnalytics() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border">
+          <Card className="bg-card border-border flex flex-col">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5"><Target className="h-3.5 w-3.5" /> Key Insights</CardTitle>
             </CardHeader>
@@ -404,7 +404,7 @@ export default function TerminalAnalytics() {
           </Card>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs defaultValue="overview" className="flex min-h-0 w-full flex-1 flex-col">
           <TabsList className="h-auto flex flex-wrap justify-start">
             <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
             <TabsTrigger value="types" className="text-xs">Order Types</TabsTrigger>

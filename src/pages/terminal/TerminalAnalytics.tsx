@@ -59,6 +59,8 @@ type Aggregate = {
   label: string;
   description?: string;
   details?: string[];
+  orderKind?: OrderKind;
+  orderKindLabel?: string;
   tradeType?: string;
   asset?: string;
   count: number;
@@ -193,6 +195,30 @@ function classifyOrder(o: NormalizedOrder, smallBuyConfig?: RangeConfig | null, 
   return isSmall ? 'smallSell' : 'bigSell';
 }
 
+const orderKindLabels: Record<OrderKind, string> = {
+  smallBuy: 'Small Buy',
+  bigBuy: 'Big Buy',
+  smallSell: 'Small Sale',
+  bigSell: 'Big Sale',
+};
+
+const orderKindTextClass: Record<OrderKind, string> = {
+  smallBuy: 'text-trade-buy',
+  bigBuy: 'text-primary',
+  smallSell: 'text-trade-sell',
+  bigSell: 'text-destructive',
+};
+
+function dominantOrderKind(orders: NormalizedOrder[], smallBuyConfig?: RangeConfig | null, smallSalesConfig?: RangeConfig | null) {
+  const counts = orders.reduce((acc, order) => {
+    const kind = classifyOrder(order, smallBuyConfig, smallSalesConfig);
+    acc[kind] = (acc[kind] || 0) + 1;
+    return acc;
+  }, {} as Record<OrderKind, number>);
+
+  return (Object.entries(counts) as [OrderKind, number][]).sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
 function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], extra: Partial<Aggregate> = {}): Aggregate {
   const volume = orders.reduce((s, o) => s + o.totalPrice, 0);
   const valuedOrders = orders.filter((o) => o.hasEffectiveUsdtValuation);
@@ -319,7 +345,10 @@ function DataRow({ item, showType = false }: { item: Aggregate; showType?: boole
     <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-xs">
       <div className="min-w-0">
         <p className="font-medium text-foreground truncate">{item.label}</p>
-        {showType && <p className="text-[10px] text-muted-foreground truncate">{item.description || `${item.tradeType || '—'} · ${item.asset || 'USDT'}`}</p>}
+        {showType && <p className="text-[10px] text-muted-foreground truncate">
+          {item.orderKind && <span className={orderKindTextClass[item.orderKind]}>{item.orderKindLabel || orderKindLabels[item.orderKind]}</span>}
+          {item.orderKind && ' · '}{item.description || `${item.tradeType || '—'} · ${item.asset || 'USDT'}`}
+        </p>}
         {showType && item.details?.length ? <p className="text-[10px] text-muted-foreground truncate">{item.details.join(' · ')}</p> : null}
       </div>
       <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
@@ -401,7 +430,10 @@ export default function TerminalAnalytics() {
     const adLookup = new Map(ads.map((ad: any) => [String(ad.advNo || ad.adv_no || ''), ad]));
     const adRows = Array.from(byAd.entries()).map(([advNo, rows]) => {
       const ad = adLookup.get(advNo) as any;
+      const kind = dominantOrderKind(rows, configs?.smallBuy, configs?.smallSale);
       return aggregateOrders(advNo, advNo, rows, {
+        orderKind: kind,
+        orderKindLabel: kind ? orderKindLabels[kind] : undefined,
         tradeType: rows[0]?.tradeType || ad?.tradeType,
         asset: rows[0]?.asset || ad?.asset,
         ...getAdDetails(ad, rows),

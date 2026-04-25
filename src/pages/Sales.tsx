@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useNavigateToClient } from "@/hooks/useNavigateToClient";
 import { usePermissions } from "@/hooks/usePermissions";
+import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
 
 export default function Sales() {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ export default function Sales() {
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
-  const [filterPlatform, setFilterPlatform] = useState<string>("");
+  const [filterAssetType, setFilterAssetType] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
@@ -58,14 +59,37 @@ export default function Sales() {
     return params.get('tab') || 'completed';
   });
 
+  const getSalesOrderAsset = (order: any) => String(
+    order.product?.code || order.product?.name || 'USDT'
+  ).trim().toUpperCase();
+
+  const { data: assetOptions = DEFAULT_ASSET_CODES } = useQuery({
+    queryKey: ['sales_asset_filter_options'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('code, name')
+        .limit(5000);
+      if (error) throw error;
+      const codes = new Set(DEFAULT_ASSET_CODES);
+      (data || []).forEach((product: any) => {
+        [product.code, product.name].forEach((value) => {
+          const code = String(value || '').trim().toUpperCase();
+          if (code) codes.add(code);
+        });
+      });
+      return Array.from(codes).sort();
+    },
+    staleTime: 300000,
+  });
+
   // Fetch accurate counts for tab badges (not limited by default 1000 row cap)
   const { data: orderCounts } = useQuery({
-    queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterPlatform, filterDateFrom, filterDateTo],
+    queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo, filterAssetType],
     queryFn: async () => {
       const buildBaseFilter = (q: any) => {
         if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
         if (filterPaymentStatus) q = q.eq('payment_status', filterPaymentStatus);
-        if (filterPlatform) q = filterPlatform === 'off-market' ? q.eq('is_off_market', true) : q.eq('wallet_id', filterPlatform);
         if (filterDateFrom) q = q.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
         if (filterDateTo) q = q.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
         return q;
@@ -85,14 +109,15 @@ export default function Sales() {
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
-    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterPlatform, filterDateFrom, filterDateTo],
+    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo, filterAssetType],
     queryFn: async () => {
       let query = supabase
         .from('sales_orders')
         .select(`
           *,
           created_by_user:users!created_by(username, first_name, last_name),
-          wallet:wallets!wallet_id(wallet_name)
+          wallet:wallets!wallet_id(wallet_name),
+          product:products!product_id(code, name)
         `)
         .order('created_at', { ascending: false });
 
@@ -104,10 +129,6 @@ export default function Sales() {
 
       if (filterPaymentStatus) {
         query = query.eq('payment_status', filterPaymentStatus);
-      }
-
-      if (filterPlatform) {
-        query = filterPlatform === 'off-market' ? query.eq('is_off_market', true) : query.eq('wallet_id', filterPlatform);
       }
 
       if (filterDateFrom) {
@@ -135,25 +156,16 @@ export default function Sales() {
           return 0;
         });
       }
-      return data || [];
+      const selectedAsset = filterAssetType.toUpperCase();
+      const filteredData = selectedAsset
+        ? (data || []).filter((order: any) => getSalesOrderAsset(order) === selectedAsset)
+        : (data || []);
+      return filteredData;
     },
   });
 
   // All orders displayed in completed tab now
   const completedOrders = salesOrders || [];
-
-  const { data: platformOptions = [] } = useQuery({
-    queryKey: ['sales-filter-platforms'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name')
-        .order('wallet_name');
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 300000,
-  });
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -484,7 +496,7 @@ export default function Sales() {
 
   const clearFilters = () => {
     setFilterPaymentStatus("");
-    setFilterPlatform("");
+    setFilterAssetType("");
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
     setSearchTerm("");
@@ -829,16 +841,15 @@ export default function Sales() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Platform</Label>
-                    <Select value={filterPlatform || 'all'} onValueChange={(value) => setFilterPlatform(value === 'all' ? '' : value)}>
+                    <Label>Asset Type</Label>
+                    <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="All platforms" />
+                        <SelectValue placeholder="All asset types" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All platforms</SelectItem>
-                        <SelectItem value="off-market">Off Market</SelectItem>
-                        {platformOptions.map((platform: any) => (
-                          <SelectItem key={platform.id} value={platform.id}>{platform.wallet_name}</SelectItem>
+                        <SelectItem value="all">All asset types</SelectItem>
+                        {assetOptions.map((asset) => (
+                          <SelectItem key={asset} value={asset}>{asset}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -929,7 +940,7 @@ export default function Sales() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="completed">
-                  Completed ({orderCounts?.completed ?? completedOrders.length})
+                  Completed ({completedOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="terminal-sync">
                   Terminal Sync

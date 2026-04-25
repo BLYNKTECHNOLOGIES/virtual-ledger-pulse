@@ -20,6 +20,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
 
 
 export default function Purchase() {
@@ -34,7 +35,7 @@ export default function Purchase() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
-  const [filterPlatform, setFilterPlatform] = useState("");
+  const [filterAssetType, setFilterAssetType] = useState<string>("");
 
   const handleRefreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -139,15 +140,23 @@ export default function Purchase() {
     },
   });
 
-  const { data: platformOptions = [] } = useQuery({
-    queryKey: ['purchase-filter-platforms'],
+  const { data: assetOptions = DEFAULT_ASSET_CODES } = useQuery({
+    queryKey: ['purchase_asset_filter_options'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('wallets')
-        .select('id, wallet_name')
-        .order('wallet_name');
+        .from('purchase_orders')
+        .select('product_category, product_name, purchase_order_items(products(code))')
+        .limit(5000);
       if (error) throw error;
-      return data || [];
+      const codes = new Set(DEFAULT_ASSET_CODES);
+      (data || []).forEach((order: any) => {
+        const itemCode = order.purchase_order_items?.[0]?.products?.code;
+        [itemCode, order.product_category, order.product_name].forEach((value) => {
+          const code = String(value || '').trim().toUpperCase();
+          if (code) codes.add(code);
+        });
+      });
+      return Array.from(codes).sort();
     },
     staleTime: 300000,
   });
@@ -382,7 +391,7 @@ export default function Purchase() {
   const clearFilters = () => {
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
-    setFilterPlatform("");
+    setFilterAssetType("");
     setSearchTerm("");
     setShowFilterDialog(false);
   };
@@ -484,22 +493,21 @@ export default function Purchase() {
                         onChange={(e) => setFilterDateTo(e.target.value ? new Date(e.target.value) : undefined)}
                       />
                     </div>
-                    <div className="col-span-2">
-                      <Label>Platform</Label>
-                      <Select value={filterPlatform || 'all'} onValueChange={(value) => setFilterPlatform(value === 'all' ? '' : value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="All platforms" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All platforms</SelectItem>
-                          <SelectItem value="off-market">Off Market</SelectItem>
-                          {platformOptions.map((platform: any) => (
-                            <SelectItem key={platform.id} value={platform.id}>{platform.wallet_name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
+                   <div>
+                     <Label>Asset Type</Label>
+                     <Select value={filterAssetType || "all"} onValueChange={(value) => setFilterAssetType(value === "all" ? "" : value)}>
+                       <SelectTrigger>
+                         <SelectValue placeholder="All asset types" />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="all">All asset types</SelectItem>
+                         {assetOptions.map((asset) => (
+                           <SelectItem key={asset} value={asset}>{asset}</SelectItem>
+                         ))}
+                       </SelectContent>
+                     </Select>
+                   </div>
                   <div className="flex justify-between pt-2">
                     <Button variant="outline" onClick={clearFilters}>Clear</Button>
                     <Button onClick={() => setShowFilterDialog(false)}>Apply</Button>
@@ -539,7 +547,7 @@ export default function Purchase() {
                 searchTerm={searchTerm}
                 dateFrom={filterDateFrom}
                 dateTo={filterDateTo}
-                platformFilter={filterPlatform}
+                assetType={filterAssetType}
               />
             </TabsContent>
 

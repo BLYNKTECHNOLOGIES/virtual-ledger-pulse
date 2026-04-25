@@ -35,7 +35,19 @@ interface BinanceOrder {
   sellerRealName?: string;
   payMethodName?: string;
   notifyPayEndTime?: number;
+  confirmPayEndTime?: number;
   notifyPayedExpireMinute?: number;
+  chatUnreadCount?: number;
+  tradeMethodCommissionRateVoList?: any[];
+}
+
+const ACTIONABLE_ORDER_STATUS_LIST = [1, 2];
+
+function extractOrders(data: any): BinanceOrder[] {
+  if (Array.isArray(data?.data?.data)) return data.data.data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data)) return data;
+  return [];
 }
 
 interface PendingMessage {

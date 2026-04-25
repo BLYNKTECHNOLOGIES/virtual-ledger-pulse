@@ -16,6 +16,7 @@ import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
 import { readOrderNumbers } from './ChatInbox';
+import { callBinanceAds } from '@/hooks/useBinanceActions';
 
 interface Props {
   orderId: string;
@@ -53,6 +54,18 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   }, [orderNumber]);
 
   useEffect(() => {
+    if (!orderNumber) return;
+    let cancelled = false;
+    callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' })
+      .catch((err) => {
+        if (!cancelled) console.warn('Binance chat archive sync failed:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderNumber]);
+
+  useEffect(() => {
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
   }, [soundEnabled]);
 
@@ -75,9 +88,9 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     const messages: UnifiedMessage[] = [];
     const liveIds = new Set(wsMessages.map((msg) => String(msg.id || msg.uuid || '')));
     for (const msg of archivedMessages) {
-      const archivedId = String(msg.binance_message_id || msg.binance_uuid || msg.id);
+      const archivedId = String(msg.binance_message_id || msg.binance_uuid || msg.dedupe_key || msg.id);
       if (liveIds.has(archivedId)) continue;
-      const msgType = msg.message_type || msg.chat_message_type || 'unknown';
+      const msgType = String(msg.message_type || msg.chat_message_type || msg.content_type || 'unknown').toLowerCase();
       const isImage = msgType === 'image' || isImageUrl(msg.message_text);
       const isSystemLike = msg.is_system_message || msg.is_recall || msg.is_compliance_relevant || ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType);
       messages.push({

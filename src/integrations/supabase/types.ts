@@ -9766,36 +9766,42 @@ export type Database = {
         Row: {
           auto_pay_log_id: string | null
           checked_at: string
-          confirm_pay_end_time: string
+          complain_freeze_time: string | null
+          confirm_pay_end_time: string | null
           id: string
           live_order_status: string | null
           message: string | null
           metadata: Json
           minutes_overdue: number | null
+          notify_pay_time: string | null
           order_number: string
           status: string
         }
         Insert: {
           auto_pay_log_id?: string | null
           checked_at?: string
-          confirm_pay_end_time: string
+          complain_freeze_time?: string | null
+          confirm_pay_end_time?: string | null
           id?: string
           live_order_status?: string | null
           message?: string | null
           metadata?: Json
           minutes_overdue?: number | null
+          notify_pay_time?: string | null
           order_number: string
           status: string
         }
         Update: {
           auto_pay_log_id?: string | null
           checked_at?: string
-          confirm_pay_end_time?: string
+          complain_freeze_time?: string | null
+          confirm_pay_end_time?: string | null
           id?: string
           live_order_status?: string | null
           message?: string | null
           metadata?: Json
           minutes_overdue?: number | null
+          notify_pay_time?: string | null
           order_number?: string
           status?: string
         }

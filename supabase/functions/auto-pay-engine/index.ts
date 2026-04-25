@@ -275,9 +275,9 @@ async function logDecision(supabase: any, params: {
 async function monitorReleaseDeadlines(supabase: any, proxyUrl: string, proxyHeaders: Record<string, string>) {
   const { data: overdueLogs, error } = await supabase
     .from("p2p_auto_pay_log")
-    .select("id,order_number,confirm_pay_end_time,executed_at")
+    .select("id,order_number,notify_pay_time,confirm_pay_end_time,complain_freeze_time,executed_at")
     .in("status", ["success", "unverified_success"])
-    .lt("confirm_pay_end_time", new Date().toISOString())
+    .or(`confirm_pay_end_time.lt.${new Date().toISOString()},complain_freeze_time.lt.${new Date(Date.now() + 30 * 60 * 1000).toISOString()}`)
     .gte("executed_at", new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
     .order("confirm_pay_end_time", { ascending: true })
     .limit(30);
@@ -304,8 +304,11 @@ async function monitorReleaseDeadlines(supabase: any, proxyUrl: string, proxyHea
     try {
       const detailCheck = await fetchOrderDetail(proxyUrl, proxyHeaders, log.order_number);
       const liveStatus = normalizeStatus(detailCheck.detail?.orderStatus);
-      const minutesOverdue = (Date.now() - new Date(log.confirm_pay_end_time).getTime()) / 60000;
-      let status = "overdue";
+      const confirmMs = log.confirm_pay_end_time ? new Date(log.confirm_pay_end_time).getTime() : 0;
+      const freezeMs = log.complain_freeze_time ? new Date(log.complain_freeze_time).getTime() : 0;
+      const minutesOverdue = confirmMs ? (Date.now() - confirmMs) / 60000 : null;
+      const minutesToFreeze = freezeMs ? (freezeMs - Date.now()) / 60000 : null;
+      let status = confirmMs && Date.now() > confirmMs ? "release_overdue" : "complaint_window_closing";
       let message = "Seller release deadline passed; order still not final on Binance.";
 
       if (isFinalStatus(liveStatus)) {
@@ -318,6 +321,14 @@ async function monitorReleaseDeadlines(supabase: any, proxyUrl: string, proxyHea
       } else if (!detailCheck.detail) {
         status = "detail_unavailable";
         message = "Could not fetch live Binance detail for overdue release check.";
+      } else if (freezeMs && Date.now() > freezeMs) {
+        status = "complaint_window_expired";
+        message = "Binance complaint window has expired while order is not final.";
+        overdue++;
+      } else if (freezeMs && minutesToFreeze != null && minutesToFreeze <= 30) {
+        status = "complaint_window_closing";
+        message = `Binance complaint window closes in ${minutesToFreeze.toFixed(1)} minutes.`;
+        overdue++;
       } else {
         overdue++;
       }
@@ -326,9 +337,11 @@ async function monitorReleaseDeadlines(supabase: any, proxyUrl: string, proxyHea
         order_number: log.order_number,
         auto_pay_log_id: log.id,
         confirm_pay_end_time: log.confirm_pay_end_time,
+        notify_pay_time: log.notify_pay_time,
+        complain_freeze_time: log.complain_freeze_time,
         live_order_status: liveStatus || null,
         status,
-        minutes_overdue: Number(minutesOverdue.toFixed(2)),
+        minutes_overdue: minutesOverdue == null ? null : Number(minutesOverdue.toFixed(2)),
         message,
         metadata: { requestShape: detailCheck.requestShape, raw: detailCheck.raw },
       });
@@ -353,6 +366,7 @@ serve(async (req) => {
 
   const startedAt = Date.now();
   let runId: string | null = null;
+  let monitorOnly = false;
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://vagiqbespusdxsbqpvbo.supabase.co";
@@ -363,6 +377,8 @@ serve(async (req) => {
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
 
     if (!BINANCE_PROXY_URL || !BINANCE_PROXY_TOKEN) throw new Error("Missing Binance configuration secrets");
+    const body = await req.json().catch(() => ({}));
+    monitorOnly = body?.action === "monitorReleaseDeadlines" || body?.monitorOnly === true;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     const { data: runRow } = await supabase.from("p2p_auto_pay_engine_runs").insert({ status: "running" }).select("id").single();
@@ -376,6 +392,18 @@ serve(async (req) => {
     if (BINANCE_API_KEY) proxyHeaders["x-api-key"] = BINANCE_API_KEY;
     if (BINANCE_API_SECRET) proxyHeaders["x-api-secret"] = BINANCE_API_SECRET;
 
+    if (monitorOnly) {
+      const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);
+      if (runId) {
+        await supabase.from("p2p_auto_pay_engine_runs").update({
+          status: releaseMonitor.errors > 0 ? "completed_with_errors" : "completed",
+          finished_at: new Date().toISOString(),
+          summary: { message: "Release deadline monitor complete", releaseMonitor },
+        }).eq("id", runId);
+      }
+      return new Response(JSON.stringify({ message: "Release deadline monitor complete", releaseMonitor, durationMs: Date.now() - startedAt }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { data: autoPaySettings } = await supabase
       .from("p2p_auto_pay_settings")
       .select("*")
@@ -385,7 +413,8 @@ serve(async (req) => {
     const autoPayActive = autoPaySettings?.is_active === true;
     const autoPayMinutes = Number(autoPaySettings?.minutes_before_expiry || 3);
     if (!autoPayActive) {
-      const inactive = { message: "Auto-pay inactive", processed: 0 };
+      const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);
+      const inactive = { message: "Auto-pay inactive", processed: 0, releaseMonitor };
       if (runId) await supabase.from("p2p_auto_pay_engine_runs").update({ status: "inactive", finished_at: new Date().toISOString(), summary: inactive }).eq("id", runId);
       return new Response(JSON.stringify(inactive), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

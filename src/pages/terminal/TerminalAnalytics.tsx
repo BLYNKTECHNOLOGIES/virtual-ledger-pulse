@@ -33,7 +33,14 @@ type NormalizedOrder = {
   totalPrice: number;
   amount: number;
   unitPrice: number;
+  effectiveUsdtQty: number;
+  effectiveUsdtRate: number;
   createTime: number;
+};
+
+type EffectiveValuation = {
+  effectiveUsdtQty: number;
+  effectiveUsdtRate: number;
 };
 
 type Bucket = {
@@ -86,11 +93,19 @@ function average(values: number[]) {
 }
 
 function getOrderRate(o: any) {
+  const effectiveRate = Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0);
+  if (Number.isFinite(effectiveRate) && effectiveRate > 0) return effectiveRate;
   const unit = Number(o.unitPrice || o.unit_price || 0);
   if (Number.isFinite(unit) && unit > 0) return unit;
   const amount = Number(o.amount || 0);
   const total = Number(o.totalPrice || o.total_price || 0);
   return amount > 0 ? total / amount : 0;
+}
+
+function getEffectiveQuantity(o: any) {
+  const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
+  if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
+  return Number(o.amount || 0);
 }
 
 function normalizeOrder(o: any): NormalizedOrder {
@@ -103,6 +118,8 @@ function normalizeOrder(o: any): NormalizedOrder {
     totalPrice: Number(o.totalPrice || o.total_price || 0),
     amount: Number(o.amount || 0),
     unitPrice: getOrderRate(o),
+    effectiveUsdtQty: getEffectiveQuantity(o),
+    effectiveUsdtRate: getOrderRate(o),
     createTime: Number(o.createTime || o.create_time || 0),
   };
 }
@@ -128,7 +145,7 @@ function classifyOrder(o: NormalizedOrder, smallBuyConfig?: RangeConfig | null, 
 
 function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], extra: Partial<Aggregate> = {}): Aggregate {
   const volume = orders.reduce((s, o) => s + o.totalPrice, 0);
-  const quantity = orders.reduce((s, o) => s + o.amount, 0);
+  const quantity = orders.reduce((s, o) => s + o.effectiveUsdtQty, 0);
   return {
     key,
     label,
@@ -136,7 +153,7 @@ function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], 
     volume,
     quantity,
     avgOrder: orders.length ? volume / orders.length : 0,
-    avgRate: average(orders.map((o) => o.unitPrice)),
+    avgRate: average(orders.map((o) => o.effectiveUsdtRate)),
     weightedRate: weightedRate(volume, quantity),
     lastOrderTime: orders.reduce((max, o) => Math.max(max, o.createTime || 0), 0) || undefined,
     ...extra,
@@ -171,6 +188,46 @@ function useSmallOrderConfigs() {
       };
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+function useEffectiveOrderValuations(orderNumbers: string[]) {
+  return useQuery({
+    queryKey: ['terminal-analytics-effective-valuations', orderNumbers],
+    queryFn: async () => {
+      const uniqueOrderNumbers = Array.from(new Set(orderNumbers.filter(Boolean)));
+      if (!uniqueOrderNumbers.length) return new Map<string, EffectiveValuation>();
+
+      const [purchaseSyncRes, salesSyncRes] = await Promise.all([
+        supabase
+          .from('terminal_purchase_sync')
+          .select('binance_order_number, purchase_orders!terminal_purchase_sync_purchase_order_id_fkey(effective_usdt_qty, effective_usdt_rate)')
+          .in('binance_order_number', uniqueOrderNumbers),
+        supabase
+          .from('terminal_sales_sync')
+          .select('binance_order_number, sales_orders!terminal_sales_sync_sales_order_id_fkey(effective_usdt_qty, effective_usdt_rate)')
+          .in('binance_order_number', uniqueOrderNumbers),
+      ]);
+
+      if (purchaseSyncRes.error) throw purchaseSyncRes.error;
+      if (salesSyncRes.error) throw salesSyncRes.error;
+
+      const map = new Map<string, EffectiveValuation>();
+      const addValuation = (orderNumber: string, row: any) => {
+        const effectiveUsdtQty = Number(row?.effective_usdt_qty || 0);
+        const effectiveUsdtRate = Number(row?.effective_usdt_rate || 0);
+        if (orderNumber && effectiveUsdtQty > 0 && effectiveUsdtRate > 0) {
+          map.set(orderNumber, { effectiveUsdtQty, effectiveUsdtRate });
+        }
+      };
+
+      (purchaseSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.purchase_orders));
+      (salesSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.sales_orders));
+
+      return map;
+    },
+    enabled: orderNumbers.length > 0,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -240,12 +297,20 @@ export default function TerminalAnalytics() {
     return Array.isArray(list) ? list : [];
   }, [adsRaw]);
 
+  const orderNumbers = useMemo(() => (
+    Array.isArray(cachedOrders) ? cachedOrders.map((order: any) => order.orderNumber || order.order_number || '').filter(Boolean) : []
+  ), [cachedOrders]);
+  const { data: effectiveValuations = new Map<string, EffectiveValuation>(), isLoading: valuationsLoading } = useEffectiveOrderValuations(orderNumbers);
+
   const orders = useMemo(() => {
     const { startTimestamp, endTimestamp } = getTimestampsForFilter(filter);
     return (Array.isArray(cachedOrders) ? cachedOrders : [])
-      .map(normalizeOrder)
+      .map((order: any) => {
+        const orderNumber = order.orderNumber || order.order_number || '';
+        return normalizeOrder({ ...order, ...(effectiveValuations.get(orderNumber) || {}) });
+      })
       .filter((o) => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [cachedOrders, filter]);
+  }, [cachedOrders, filter, effectiveValuations]);
 
   const completed = useMemo(() => orders.filter((o) => o.orderStatus.includes('COMPLETED')), [orders]);
 
@@ -257,7 +322,7 @@ export default function TerminalAnalytics() {
     const buyVolume = buy.reduce((s, o) => s + o.totalPrice, 0);
     const sellVolume = sell.reduce((s, o) => s + o.totalPrice, 0);
     const totalVolume = buyVolume + sellVolume;
-    const totalQty = completed.reduce((s, o) => s + o.amount, 0);
+    const totalQty = completed.reduce((s, o) => s + o.effectiveUsdtQty, 0);
 
     const kinds: Record<OrderKind, NormalizedOrder[]> = { smallBuy: [], bigBuy: [], smallSell: [], bigSell: [] };
     for (const o of completed) kinds[classifyOrder(o, configs?.smallBuy, configs?.smallSale)].push(o);
@@ -284,8 +349,8 @@ export default function TerminalAnalytics() {
     }).sort((a, b) => b.volume - a.volume);
 
     const rates = completed.map((o) => o.unitPrice).filter((v) => Number.isFinite(v) && v > 0);
-    const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.amount, 0));
-    const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.amount, 0));
+    const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
+    const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
 
     const bestAd = adRows[0];
     const highestSellAd = adRows.filter((a) => a.tradeType === 'SELL').sort((a, b) => b.weightedRate - a.weightedRate)[0];
@@ -302,8 +367,8 @@ export default function TerminalAnalytics() {
       totalQty,
       avgOrder: completed.length ? totalVolume / completed.length : 0,
       weightedAvgRate: weightedRate(totalVolume, totalQty),
-      avgBuyRate: average(buy.map((o) => o.unitPrice)),
-      avgSellRate: average(sell.map((o) => o.unitPrice)),
+      avgBuyRate: average(buy.map((o) => o.effectiveUsdtRate)),
+      avgSellRate: average(sell.map((o) => o.effectiveUsdtRate)),
       weightedBuyRate,
       weightedSellRate,
       minRate: rates.length ? Math.min(...rates) : 0,
@@ -341,7 +406,7 @@ export default function TerminalAnalytics() {
 
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);
-  const isLoading = adsLoading || ordersLoading || configLoading;
+  const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;

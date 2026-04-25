@@ -394,6 +394,13 @@ serve(async (req) => {
 
     if (monitorOnly) {
       const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);
+      if (runId) {
+        await supabase.from("p2p_auto_pay_engine_runs").update({
+          status: releaseMonitor.errors > 0 ? "completed_with_errors" : "completed",
+          finished_at: new Date().toISOString(),
+          summary: { message: "Release deadline monitor complete", releaseMonitor },
+        }).eq("id", runId);
+      }
       return new Response(JSON.stringify({ message: "Release deadline monitor complete", releaseMonitor, durationMs: Date.now() - startedAt }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

@@ -80,23 +80,6 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     enabled: !!order?.id,
   });
 
-  const { data: payoutGatewayFee } = useQuery({
-    queryKey: ['purchase_payout_gateway_fee', order?.order_number],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bank_transactions')
-        .select('id, amount, transaction_date, bank_accounts:bank_account_id(account_name, bank_name)')
-        .eq('reference_number', order.order_number)
-        .ilike('description', '%Payout gateway fee%')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) return null;
-      return data;
-    },
-    enabled: !!order?.order_number && open,
-  });
-
   // Get product code for this order
   const productCode = order?.product_category || order?.purchase_order_items?.[0]?.products?.code || 'USDT';
   const isNonUsdt = productCode !== 'USDT';
@@ -285,25 +268,6 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
                 <div>
                   <label className="text-sm font-medium text-amber-700 dark:text-amber-500">Fee Amount (USDT)</label>
                   <p className="text-sm text-amber-900 dark:text-amber-300 font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {payoutGatewayFee && Number(payoutGatewayFee.amount || 0) > 0 && (
-            <div className="p-4 bg-muted/50 rounded-lg border">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                <Receipt className="h-4 w-4" />
-                Payout Gateway Fee
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Fee Amount</label>
-                  <p className="text-sm font-medium">₹{Number(payoutGatewayFee.amount).toLocaleString('en-IN')}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Paid From</label>
-                  <p className="text-sm">{(payoutGatewayFee.bank_accounts as any)?.account_name || '—'}</p>
                 </div>
               </div>
             </div>

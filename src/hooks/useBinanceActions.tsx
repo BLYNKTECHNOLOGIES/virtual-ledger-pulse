@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
-import { isAppealStatus } from '@/lib/orderStatusMapper';
 
 // ---- Generic Binance API caller ----
 export async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
@@ -336,7 +335,10 @@ export function useBinanceOrderHistory() {
 
 function mapOrderRow(row: any) {
   const rawStatus = (row.raw_data as any)?.orderStatus;
-  const orderStatus = isAppealStatus(rawStatus) ? 'APPEAL' : row.order_status;
+  const rawStatusText = rawStatus === undefined || rawStatus === null ? '' : String(rawStatus).toUpperCase();
+  const orderStatus = rawStatusText.includes('APPEAL') || rawStatusText.includes('DISPUTE') || rawStatusText.includes('COMPLAINT')
+    ? rawStatus
+    : row.order_status;
 
   return {
     orderNumber: row.order_number,
@@ -355,7 +357,6 @@ function mapOrderRow(row: any) {
     counterPartNickName: row.counter_part_nick_name,
     verifiedName: row.verified_name,
     additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
-    rawData: row.raw_data,
   };
 }
 

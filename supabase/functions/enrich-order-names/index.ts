@@ -7,6 +7,50 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function maskIdentifier(value: unknown): string | null {
+  const raw = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  if (!raw) return null;
+  if (raw.length <= 4) return "****";
+  return `${raw.slice(0, 2)}${"*".repeat(Math.max(4, raw.length - 4))}${raw.slice(-2)}`;
+}
+
+function normalizeUserRisk(user: any) {
+  if (!user || typeof user !== "object") return null;
+  return {
+    historyStats: user.userOrderHistoryStatsVo || null,
+    inProgressStats: user.userOrderInProgressStatsVo || null,
+    kyc: user.userKycVo || null,
+    rawUserKeys: Object.keys(user).slice(0, 50),
+  };
+}
+
+function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
+  if (!detail || typeof detail !== "object") return null;
+  const normalizedTradeType = String(tradeType || detail.tradeType || "").toUpperCase();
+  const counterpartySide = normalizedTradeType === "BUY" ? "seller" : normalizedTradeType === "SELL" ? "buyer" : null;
+  const explicitUser = counterpartySide ? (detail[counterpartySide] || detail[`${counterpartySide}Vo`] || detail[`${counterpartySide}User`]) : null;
+  const fallbackUser = explicitUser || detail.counterparty || detail.counterpartyUser || detail.maker || detail.taker || null;
+
+  return {
+    source: "getUserOrderDetail",
+    capturedAt: new Date().toISOString(),
+    tradeType: normalizedTradeType || null,
+    counterpartySide,
+    topLevel: {
+      maliceInitiatorCount: detail.maliceInitiatorCount ?? null,
+      complaintCount: detail.complaintCount ?? null,
+      overComplained: detail.overComplained ?? null,
+      buyerCreditScore: detail.buyerCreditScore ?? null,
+      sellerCreditScore: detail.sellerCreditScore ?? null,
+      isRiskCount: detail.isRiskCount ?? null,
+      idNumberMasked: maskIdentifier(detail.idNumber),
+    },
+    counterparty: normalizeUserRisk(fallbackUser),
+    maker: normalizeUserRisk(detail.maker),
+    taker: normalizeUserRisk(detail.taker),
+  };
+}
+
 async function fetchWithRetry(
   url: string,
   options: RequestInit,
@@ -67,15 +111,15 @@ serve(async (req) => {
       "x-api-secret": BINANCE_API_SECRET,
     };
 
-    // Fetch orders from last 30 days that are COMPLETED but missing verified_name
+    // Fetch orders from last 30 days that are completed but missing verified name or risk snapshot
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
-      .select("order_number, trade_type")
-      .is("verified_name", null)
+      .select("order_number, trade_type, verified_name, counterparty_risk_snapshot")
       .eq("order_status", "COMPLETED")
       .gte("create_time", thirtyDaysAgo)
+      .or("verified_name.is.null,counterparty_risk_snapshot.is.null")
       .order("create_time", { ascending: false })
       .limit(20); // Process max 20 per run to stay within timeout
 
@@ -132,10 +176,17 @@ serve(async (req) => {
           verifiedName = detail.buyerRealName || detail.buyerName || null;
         }
 
-        if (verifiedName) {
+        const updatePayload: Record<string, unknown> = {
+          order_detail_raw: detail,
+          counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, order.trade_type),
+          counterparty_risk_captured_at: new Date().toISOString(),
+        };
+        if (verifiedName && !order.verified_name) updatePayload.verified_name = verifiedName;
+
+        if (verifiedName || !order.counterparty_risk_snapshot) {
           const { error: updateErr } = await supabase
             .from("binance_order_history")
-            .update({ verified_name: verifiedName })
+            .update(updatePayload)
             .eq("order_number", order.order_number);
 
           if (!updateErr) {

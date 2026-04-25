@@ -1,10 +1,59 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function maskIdentifier(value: unknown): string | null {
+  const raw = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  if (!raw) return null;
+  if (raw.length <= 4) return "****";
+  return `${raw.slice(0, 2)}${"*".repeat(Math.max(4, raw.length - 4))}${raw.slice(-2)}`;
+}
+
+function unwrapOrderDetail(result: any) {
+  return result?.data?.data || result?.data || result;
+}
+
+function normalizeUserRisk(user: any) {
+  if (!user || typeof user !== "object") return null;
+  return {
+    historyStats: user.userOrderHistoryStatsVo || null,
+    inProgressStats: user.userOrderInProgressStatsVo || null,
+    kyc: user.userKycVo || null,
+    rawUserKeys: Object.keys(user).slice(0, 50),
+  };
+}
+
+function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
+  if (!detail || typeof detail !== "object") return null;
+  const normalizedTradeType = String(tradeType || detail.tradeType || "").toUpperCase();
+  const counterpartySide = normalizedTradeType === "BUY" ? "seller" : normalizedTradeType === "SELL" ? "buyer" : null;
+  const explicitUser = counterpartySide ? (detail[counterpartySide] || detail[`${counterpartySide}Vo`] || detail[`${counterpartySide}User`]) : null;
+  const fallbackUser = explicitUser || detail.counterparty || detail.counterpartyUser || detail.maker || detail.taker || null;
+
+  return {
+    source: "getUserOrderDetail",
+    capturedAt: new Date().toISOString(),
+    tradeType: normalizedTradeType || null,
+    counterpartySide,
+    topLevel: {
+      maliceInitiatorCount: detail.maliceInitiatorCount ?? null,
+      complaintCount: detail.complaintCount ?? null,
+      overComplained: detail.overComplained ?? null,
+      buyerCreditScore: detail.buyerCreditScore ?? null,
+      sellerCreditScore: detail.sellerCreditScore ?? null,
+      isRiskCount: detail.isRiskCount ?? null,
+      idNumberMasked: maskIdentifier(detail.idNumber),
+    },
+    counterparty: normalizeUserRisk(fallbackUser),
+    maker: normalizeUserRisk(detail.maker),
+    taker: normalizeUserRisk(detail.taker),
+  };
+}
 
 // Retry wrapper for transient network errors (connection closed, timeouts)
 async function fetchWithRetry(
@@ -100,6 +149,8 @@ serve(async (req) => {
     const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
       throw new Error("Missing Binance configuration secrets");
@@ -352,6 +403,29 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getOrderDetail response:", response.status, text.substring(0, 5000));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const detail = unwrapOrderDetail(result);
+        if (payload.orderNumber && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const { data: existing } = await supabase
+              .from("binance_order_history")
+              .select("trade_type")
+              .eq("order_number", String(payload.orderNumber))
+              .maybeSingle();
+            if (existing) {
+              await supabase
+                .from("binance_order_history")
+                .update({
+                  order_detail_raw: detail,
+                  counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, existing.trade_type),
+                  counterparty_risk_captured_at: new Date().toISOString(),
+                })
+                .eq("order_number", String(payload.orderNumber));
+            }
+          } catch (persistErr) {
+            console.warn("getOrderDetail risk snapshot persist failed:", persistErr);
+          }
+        }
         break;
       }
 

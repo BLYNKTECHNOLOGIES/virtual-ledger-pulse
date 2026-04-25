@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText } from 'lucide-react';
+import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, AlertTriangle, Activity, IdCard } from 'lucide-react';
 import { InternalChatPanel } from './InternalChatPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
@@ -12,7 +12,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
 
@@ -30,6 +30,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const counterparty = counterpartyById || counterpartyByNick;
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
+  const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
   const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number);
 
@@ -169,7 +170,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
         </div>
       ) : (
-        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
+        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
       )}
     </>
   );
@@ -219,7 +220,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           )}
           {mobileTab === 'profile' && (
             <div className="h-full overflow-hidden flex flex-col bg-card">
-              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
+              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
             </div>
           )}
         </div>
@@ -246,7 +247,8 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string }) {
+function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any }) {
+  const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
   const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
   const { data: linkedClient } = useCounterpartyLinkedClient(
     counterpartyNickname,
@@ -264,6 +266,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
     stats.completedOrderNumOfLatest30day !== undefined ||
     stats.registerDays !== undefined
   );
+  const riskSnapshot = buildRiskSnapshot(order.trade_type, liveDetail, storedRiskSnapshot?.counterparty_risk_snapshot);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -402,6 +405,16 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
         </div>
       )}
 
+      <div className="pt-3 border-t border-border">
+        <Button variant="outline" size="sm" className="w-full h-8 justify-between text-[11px]" onClick={() => setShowMoreBinanceData((v) => !v)}>
+          <span className="flex items-center gap-1.5"><ShieldAlert className="h-3 w-3" /> View more Binance data</span>
+          <ChevronDown className={`h-3 w-3 transition-transform ${showMoreBinanceData ? 'rotate-180' : ''}`} />
+        </Button>
+        {showMoreBinanceData && (
+          <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
+        )}
+      </div>
+
       {/* PAN Collection - only for BUY orders */}
       {order.trade_type === 'BUY' && (
         <CounterpartyPanInput counterpartyNickname={order.counterparty_nickname} />
@@ -409,6 +422,105 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
 
       {/* Contact & State Collection */}
       <CounterpartyContactInput counterpartyNickname={order.counterparty_nickname} />
+    </div>
+  );
+}
+
+function buildRiskSnapshot(tradeType: string, liveDetail?: any, storedSnapshot?: any) {
+  if (storedSnapshot) return storedSnapshot;
+  const detail = liveDetail?.data?.data || liveDetail?.data || liveDetail;
+  if (!detail || typeof detail !== 'object') return null;
+  const normalizedTradeType = String(tradeType || detail.tradeType || '').toUpperCase();
+  const side = normalizedTradeType === 'BUY' ? 'seller' : normalizedTradeType === 'SELL' ? 'buyer' : null;
+  const user = side ? (detail[side] || detail[`${side}Vo`] || detail[`${side}User`]) : null;
+  const fallbackUser = user || detail.counterparty || detail.counterpartyUser || detail.maker || detail.taker || null;
+  const normalizeUser = (u: any) => u ? ({
+    historyStats: u.userOrderHistoryStatsVo || null,
+    inProgressStats: u.userOrderInProgressStatsVo || null,
+    kyc: u.userKycVo || null,
+  }) : null;
+  return {
+    source: 'getUserOrderDetail',
+    counterpartySide: side,
+    topLevel: {
+      maliceInitiatorCount: detail.maliceInitiatorCount ?? null,
+      complaintCount: detail.complaintCount ?? null,
+      overComplained: detail.overComplained ?? null,
+      buyerCreditScore: detail.buyerCreditScore ?? null,
+      sellerCreditScore: detail.sellerCreditScore ?? null,
+      isRiskCount: detail.isRiskCount ?? null,
+      idNumberMasked: detail.idNumber ? 'Available (masked in stored snapshot)' : null,
+    },
+    counterparty: normalizeUser(fallbackUser),
+    maker: normalizeUser(detail.maker),
+    taker: normalizeUser(detail.taker),
+  };
+}
+
+function BinanceRiskDetails({ snapshot, capturedAt, hasLiveDetail }: { snapshot: any; capturedAt?: string | null; hasLiveDetail: boolean }) {
+  const top = snapshot?.topLevel || {};
+  const counterparty = snapshot?.counterparty || {};
+  const history = counterparty.historyStats || snapshot?.maker?.historyStats || snapshot?.taker?.historyStats || {};
+  const progress = counterparty.inProgressStats || snapshot?.maker?.inProgressStats || snapshot?.taker?.inProgressStats || {};
+  const kyc = counterparty.kyc || snapshot?.maker?.kyc || snapshot?.taker?.kyc || {};
+  const provided = (v: any) => v !== null && v !== undefined && v !== '' ? String(v) : 'Not provided by Binance';
+  const pct = (v: any) => v !== null && v !== undefined && v !== '' ? `${(Number(v) * 100).toFixed(2)}%` : 'Not provided by Binance';
+  const minutes = (v: any) => v !== null && v !== undefined && Number(v) > 0 ? `${(Number(v) / 60).toFixed(1)} min` : provided(v);
+  const warningCount = Number(top.maliceInitiatorCount || 0) + Number(progress.inAppealCountAfterBuyerPaid || 0) + (top.overComplained ? 1 : 0);
+
+  if (!snapshot) {
+    return <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">No extended Binance detail is available for this order yet.</div>;
+  }
+
+  return (
+    <div className="mt-2 space-y-3 rounded-md border border-border bg-muted/20 p-3">
+      {warningCount > 0 && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-[11px] text-destructive flex gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>Binance returned elevated risk signals for this counterparty/order.</span>
+        </div>
+      )}
+      <RiskSection icon={<ShieldAlert className="h-3 w-3" />} title="Risk warnings">
+        <StatRow label="Malice initiator count" value={provided(top.maliceInitiatorCount)} />
+        <StatRow label="Complaint count" value={provided(top.complaintCount)} />
+        <StatRow label="Over complained" value={provided(top.overComplained)} />
+        <StatRow label="Appeals after paid" value={provided(progress.inAppealCountAfterBuyerPaid)} />
+        <StatRow label="Buyer credit score" value={provided(top.buyerCreditScore)} />
+        <StatRow label="Seller credit score" value={provided(top.sellerCreditScore)} />
+      </RiskSection>
+      <RiskSection icon={<BarChart3 className="h-3 w-3" />} title="Historical stats">
+        <StatRow label="Account age" value={provided(history.accountAge ?? history.registerDays)} />
+        <StatRow label="Historical appeals" value={provided(history.appealedOrderCountHistorical)} />
+        <StatRow label="30d appeals" value={provided(history.appealedOrderCountLast30Days)} />
+        <StatRow label="Historical appeal rate" value={pct(history.appealedRateHistorical)} />
+        <StatRow label="30d finish rate" value={pct(history.finishRateLatest30Day)} />
+        <StatRow label="Avg pay / release" value={`${minutes(history.avgPayTime)} / ${minutes(history.avgReleaseTime)}`} />
+      </RiskSection>
+      <RiskSection icon={<Activity className="h-3 w-3" />} title="Current activity">
+        <StatRow label="In appeal" value={provided(progress.inAppealCount)} />
+        <StatRow label="Buyer paid count" value={provided(progress.buyerPayedCount)} />
+        <StatRow label="Trading count" value={provided(progress.tradingCount)} />
+        <StatRow label="In process count" value={provided(progress.inProcessCount)} />
+      </RiskSection>
+      <RiskSection icon={<IdCard className="h-3 w-3" />} title="KYC snapshot">
+        <StatRow label="KYC level / type" value={`${provided(kyc.kycLevel)} / ${provided(kyc.kycType)}`} />
+        <StatRow label="KYC status" value={provided(kyc.kycStatus)} />
+        <StatRow label="Identity / face" value={`${provided(kyc.identityStatus)} / ${provided(kyc.faceStatus)}`} />
+        <StatRow label="Company" value={provided(kyc.companyName)} />
+        <StatRow label="ID number" value={provided(top.idNumberMasked)} />
+      </RiskSection>
+      <div className="pt-2 border-t border-border/50 text-[10px] text-muted-foreground">
+        Source: {hasLiveDetail ? 'Live Binance detail' : 'Stored Binance snapshot'}{capturedAt ? ` • Captured ${new Date(capturedAt).toLocaleString('en-IN')}` : ''}
+      </div>
+    </div>
+  );
+}
+
+function RiskSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-primary uppercase tracking-wider">{icon}{title}</div>
+      <div className="space-y-1.5">{children}</div>
     </div>
   );
 }

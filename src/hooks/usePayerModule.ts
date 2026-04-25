@@ -34,6 +34,14 @@ interface PayerOrderLock {
   locked_at: string;
 }
 
+const PAYER_EXCLUDED_STATUSES = ['COMPLETED', 'CANCELLED', 'EXPIRED', 'APPEAL', 'DISPUTE'];
+
+function isPayerEligibleBuyOrder(order: any): boolean {
+  if (order?.tradeType !== 'BUY' || !order?.orderNumber) return false;
+  const status = normaliseBinanceStatus(order?.orderStatus);
+  return !PAYER_EXCLUDED_STATUSES.some((s) => status.includes(s));
+}
+
 export function usePayerAssignments(payerUserId?: string | null) {
   return useQuery({
     queryKey: ['payer-assignments', payerUserId],
@@ -288,15 +296,13 @@ export function usePayerOrders() {
     const orderMap = new Map<string, any>();
 
     for (const o of activeList) {
-      if (o?.tradeType !== 'BUY' || !o?.orderNumber) continue;
+      if (!isPayerEligibleBuyOrder(o)) continue;
       orderMap.set(String(o.orderNumber), { ...o, orderNumber: String(o.orderNumber) });
     }
 
     for (const o of historyOrders as any[]) {
       const orderNumber = o?.orderNumber ? String(o.orderNumber) : '';
-      const status = normaliseBinanceStatus(o?.orderStatus);
-      const isActiveBuy = o?.tradeType === 'BUY' && !['COMPLETED', 'CANCELLED', 'EXPIRED'].some((s) => status.includes(s));
-      if (!orderNumber || !isActiveBuy || orderMap.has(orderNumber)) continue;
+      if (!orderNumber || !isPayerEligibleBuyOrder(o) || orderMap.has(orderNumber)) continue;
       orderMap.set(orderNumber, {
         ...o,
         orderNumber,
@@ -381,12 +387,12 @@ export function usePayerOrders() {
   // Pending: orders that still need payer action.
   // NOTE: Status 3 (BUYER_PAYED → "Releasing" for BUY) is intentionally KEPT in pending
   // because the payer may still want to trigger Quick Receive (self-release via security
-  // deposit) when the seller is slow to release coins. Only truly finalized states
-  // (4/5 COMPLETED, 7 CANCELLED) and explicitly acknowledged orders are excluded.
+  // deposit) when the seller is slow to release coins. Finalized, cancelled/expired,
+  // and appeal/dispute orders are excluded from payer assignment entirely.
   const pendingOrders = useMemo(() => {
     const result = allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
-      .filter((o: any) => !['COMPLETED', 'CANCELLED', 'EXPIRED'].some((s) => normaliseBinanceStatus(o.orderStatus).includes(s)));
+      .filter((o: any) => isPayerEligibleBuyOrder(o));
 
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);

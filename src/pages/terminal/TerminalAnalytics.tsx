@@ -561,7 +561,7 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
   );
 }
 
-function AdPerformanceGraph({ rows, tradeFilter, selectedAd, coinRows }: { rows: Aggregate[]; tradeFilter: AdTradeFilter; selectedAd?: Aggregate; coinRows: Aggregate[] }) {
+function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate[]; tradeFilter: AdTradeFilter; selectedAd?: Aggregate }) {
   const chartRows = rows.map((item) => ({ ...item, displayLabel: `${item.orderKind ? orderKindLabels[item.orderKind] : item.tradeType} · ${item.asset || 'USDT'} · ${item.label}` }));
   const totalVolume = rows.reduce((sum, item) => sum + item.volume, 0);
   const totalQty = rows.reduce((sum, item) => sum + item.quantity, 0);
@@ -626,29 +626,6 @@ function AdPerformanceGraph({ rows, tradeFilter, selectedAd, coinRows }: { rows:
                 </div>
               </div>
             ))}
-          </div>
-        ) : null}
-        {selectedAd ? (
-          <div className="rounded-md border border-border bg-secondary/20 p-3">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-xs font-medium text-foreground">Selected ad coin-wise effective USDT view</p>
-              {selectedAd.orderKind && <Badge variant="secondary" className={orderKindTextClass[selectedAd.orderKind]}>{selectedAd.orderKindLabel}</Badge>}
-            </div>
-            <div className="space-y-3">
-              {coinRows.length ? coinRows.map((coin) => {
-                const pct = selectedAd.volume ? Math.min(100, (coin.volume / selectedAd.volume) * 100) : 0;
-                return (
-                  <div key={`${coin.key}-ad-coin-visual`} className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="font-medium text-foreground">{coin.label}</span>
-                      <span className="text-muted-foreground tabular-nums">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{coin.count} orders</span><span>{fmtRate(coin.weightedRate || coin.avgRate)}</span></div>
-                  </div>
-                );
-              }) : <EmptyPanel text="No coin graph data for selected ad" />}
-            </div>
           </div>
         ) : null}
       </CardContent>
@@ -748,26 +725,6 @@ export default function TerminalAnalytics() {
       });
     }).sort(sortAdRowsByType);
 
-    const adCoinBreakdown = Object.fromEntries(
-      Array.from(byAd.entries()).map(([advNo, rows]) => {
-        const adAggregate = adRows.find((item) => item.key === advNo);
-        const byCoin = new Map<string, NormalizedOrder[]>();
-        for (const order of rows) {
-          const coin = String(order.asset || 'USDT').toUpperCase();
-          byCoin.set(coin, [...(byCoin.get(coin) || []), order]);
-        }
-        return [advNo, Array.from(byCoin.entries())
-          .map(([coin, coinOrders]) => aggregateOrders(coin, `${advNo}-${coin}`, coinOrders, { asset: coin, orderKind: adAggregate?.orderKind, orderKindLabel: adAggregate?.orderKindLabel, tradeType: adAggregate?.tradeType }))
-          .sort((a, b) => {
-            const aAsset = String(a.asset || 'USDT').toUpperCase();
-            const bAsset = String(b.asset || 'USDT').toUpperCase();
-            const aIndex = assetSortOrder.includes(aAsset) ? assetSortOrder.indexOf(aAsset) : assetSortOrder.length;
-            const bIndex = assetSortOrder.includes(bAsset) ? assetSortOrder.indexOf(bAsset) : assetSortOrder.length;
-            return aIndex !== bIndex ? aIndex - bIndex : aAsset.localeCompare(bAsset);
-          })];
-      })
-    ) as Record<string, Aggregate[]>;
-
     const rates = valuedCompleted.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
     const weightedBuyRate = weightedRate(valuedBuyVolume, valuedBuy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
     const weightedSellRate = weightedRate(valuedSellVolume, valuedSell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
@@ -797,7 +754,6 @@ export default function TerminalAnalytics() {
       orderTypes,
       orderTypeCoinBreakdown,
       adRows,
-      adCoinBreakdown,
       bestAd,
       highestSellAd,
       imbalance,
@@ -831,7 +787,6 @@ export default function TerminalAnalytics() {
   const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
   const filteredAdRows = useMemo(() => analytics.adRows.filter((item) => item.tradeType === adTradeFilter), [analytics.adRows, adTradeFilter]);
   const selectedAd = useMemo(() => filteredAdRows.find((item) => item.key === selectedAdKey) || filteredAdRows[0], [filteredAdRows, selectedAdKey]);
-  const selectedAdCoinRows = selectedAd ? analytics.adCoinBreakdown[selectedAd.key] || [] : [];
 
   useEffect(() => {
     if (filteredAdRows.length && !filteredAdRows.some((item) => item.key === selectedAdKey)) {
@@ -919,7 +874,7 @@ export default function TerminalAnalytics() {
 
           <TabsContent value="types" className="min-h-0 flex-1 overflow-auto">
             <div className="space-y-4 pb-2">
-              <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)] gap-4">
+              <div className="grid min-h-full grid-cols-1 gap-4">
                 <Card className="bg-card border-border min-h-full">
                   <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader>
                   <CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} selected={selectedOrderKind === item.key} onClick={() => setSelectedOrderKind(item.key as OrderKind)} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent>
@@ -949,15 +904,8 @@ export default function TerminalAnalytics() {
                   </CardHeader>
                   <CardContent>{filteredAdRows.length ? filteredAdRows.map((item) => <DataRow key={item.key} item={item} showType selected={selectedAd?.key === item.key} onClick={() => setSelectedAdKey(item.key)} />) : <EmptyPanel text={`No ${adTradeFilter.toLowerCase()} ad-linked completed orders in selected period`} />}</CardContent>
                 </Card>
-                <Card className="bg-card border-border min-h-full">
-                  <CardHeader className="flex flex-row items-center justify-between gap-3">
-                    <CardTitle className="text-sm">Coin Breakdown</CardTitle>
-                    {selectedAd?.orderKind && <Badge variant="secondary" className={orderKindTextClass[selectedAd.orderKind]}>{selectedAd.orderKindLabel}</Badge>}
-                  </CardHeader>
-                  <CardContent>{selectedAdCoinRows.length ? selectedAdCoinRows.map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected ad" />}</CardContent>
-                </Card>
               </div>
-              <AdPerformanceGraph rows={filteredAdRows} tradeFilter={adTradeFilter} selectedAd={selectedAd} coinRows={selectedAdCoinRows} />
+              <AdPerformanceGraph rows={filteredAdRows} tradeFilter={adTradeFilter} selectedAd={selectedAd} />
             </div>
           </TabsContent>
 

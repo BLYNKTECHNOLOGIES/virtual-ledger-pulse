@@ -149,6 +149,8 @@ serve(async (req) => {
     const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
       throw new Error("Missing Binance configuration secrets");
@@ -401,6 +403,29 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getOrderDetail response:", response.status, text.substring(0, 5000));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const detail = unwrapOrderDetail(result);
+        if (payload.orderNumber && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const { data: existing } = await supabase
+              .from("binance_order_history")
+              .select("trade_type")
+              .eq("order_number", String(payload.orderNumber))
+              .maybeSingle();
+            if (existing) {
+              await supabase
+                .from("binance_order_history")
+                .update({
+                  order_detail_raw: detail,
+                  counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, existing.trade_type),
+                  counterparty_risk_captured_at: new Date().toISOString(),
+                })
+                .eq("order_number", String(payload.orderNumber));
+            }
+          } catch (persistErr) {
+            console.warn("getOrderDetail risk snapshot persist failed:", persistErr);
+          }
+        }
         break;
       }
 

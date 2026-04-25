@@ -76,7 +76,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     queryFn: async () => {
       const { data, error } = await supabase.from('products').select('*');
       if (error) throw error;
-      return filterNonAdjustmentBanks(data || []);
+      return data;
     },
     enabled: open,
   });
@@ -90,7 +90,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         .select('*')
         .eq('status', 'ACTIVE');
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     },
     enabled: open,
   });

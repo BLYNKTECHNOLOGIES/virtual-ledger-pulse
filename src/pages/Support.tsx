@@ -242,7 +242,7 @@ export default function Support() {
         escalated: false,
         assigned_to: payload.assignedTo,
         created_by: userId,
-      }).select('id').single();
+      }).select('id').single() as { data: { id: string } | null; error: any };
       if (error) throw error;
       if (createdTicket?.id) {
         const assignedLabel = payload.assignedTo ? userLabel(usersById.get(payload.assignedTo)) : 'Unassigned';

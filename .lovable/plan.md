@@ -1,156 +1,159 @@
+# Gap 4 Audit: markOrderAsPaid timestamps
+
 ## Verdict
 
-The implementation is partially working: Binance chat messages are being fetched, persisted, and displayed, including `system` messages. The database currently contains 10 archived messages for one order, with 2 compliance-relevant system messages. However, I found several correctness and data-integrity gaps that should be fixed before treating this as a compliance-grade audit archive.
+Claude's finding is useful in principle, but it is already mostly implemented in this project.
 
-## Confirmed Working
+The system currently captures the three Binance `markOrderAsPaid` response timestamps:
 
-- `retrieveChatMessagesWithPagination` is reachable through the existing `binance-ads` proxy path.
-- Chat messages are being persisted into `binance_order_chat_messages`.
-- Binance authoritative metadata is being captured: `id`, `uuid`, `status`, `self`, `fromNickName`, `createTime`, raw payload.
-- System messages are now visible in the UI path instead of being silently ignored.
-- The UI merges archived Binance messages with current live/polled messages.
+- `notifyPayTime`
+- `confirmPayEndTime`
+- `complainFreezeTime`
 
-## Issues Found
+They are stored in `p2p_auto_pay_log` as:
 
-### 1. Incorrect Binance response parsing in WebSocket/polling hook
-`useBinanceChatWebSocket.ts` extracts REST chat messages using:
+- `notify_pay_time`
+- `confirm_pay_end_time`
+- `complain_freeze_time`
 
-```ts
-result?.data?.data || result?.data || result?.list || []
-```
+This is implemented in both flows:
 
-But `callBinanceAds()` returns the Binance response body directly, and the actual shape can be nested as:
+- Automated mark-paid flow: `supabase/functions/auto-pay-engine/index.ts`
+- Manual mark-paid proxy flow: `supabase/functions/binance-ads/index.ts`
 
-```text
-result.data.list
-result.data.data.list
-result.list
-```
+There is also an existing `p2p_release_deadline_monitor_log` table and `monitorReleaseDeadlines()` logic that checks orders after `confirm_pay_end_time`, fetches live Binance order detail, and logs whether the seller release is overdue, resolved, already in appeal, unavailable, or errored.
 
-The edge function has a safer `extractChatMessages()` helper, but the frontend hook does not. This can make some fetched messages invisible in live chat even though they are persisted.
+So the core concern, “these timestamps are thrown away,” is no longer true in the current implementation.
 
-### 2. Duplicate prevention is not fully safe for UUID-only messages
-The migration created two unique indexes:
+## What is still useful / missing
 
-- `(order_number, binance_message_id)`
-- `(order_number, binance_uuid)`
+The remaining value is not basic capture. The remaining gaps are hardening and operational completeness:
 
-But `persistChatMessages()` only checks existing rows by `binance_message_id`. Because `normalizeChatMessage()` force-fills `binance_message_id` from UUID/fallback when Binance `id` is missing, UUID-only messages can still collide or duplicate in edge cases. The code should use a deterministic `dedupe_key` instead of mixing real Binance IDs with generated fallbacks.
+1. Manual and automated mark-paid both store the fields, but the monitor appears tied to `auto-pay-engine` execution. If auto-pay is disabled or not running frequently, seller-overdue detection may not happen reliably.
+2. `complainFreezeTime` is stored, but there is no visible deadline monitoring for appeal/complaint cutoff. Since automated appeal filing is intentionally exempted, this should only become an operator warning, not an auto-appeal action.
+3. `notifyPayTime` is stored, but UI currently focuses mostly on release deadline. It should be visible as Binance authoritative payment-marked time so operators can distinguish ERP execution time from Binance processing time.
+4. `p2p_release_deadline_monitor_log` RLS is currently broad authenticated read in the migration. This should be restricted to terminal permissions, consistent with the recent Binance chat audit hardening.
+5. The release monitor logs are visible in Auto-Pay settings, but overdue seller alerts should also appear where operators actually work: Terminal Orders / active order workspace.
 
-### 3. `captured_at` is overwritten on every update
-For an audit/evidence archive, first capture time should be immutable. Current update logic sends the whole row again, including:
+## Implementation Plan
 
-```ts
-captured_at: new Date().toISOString()
-```
+### 1. Confirm Binance API scope before expanding behavior
 
-So repeated syncs can rewrite the first-captured timestamp. `updated_at` may change, but `captured_at` should not.
+Validate against the already-used Binance endpoints only:
 
-### 4. RLS read policy is too broad
-The new table has:
+- `POST /sapi/v1/c2c/orderMatch/markOrderAsPaid`
+- `POST /sapi/v1/c2c/orderMatch/getUserOrderDetail`
 
-```sql
-USING (true)
-```
+Allowed behavior:
 
-for every authenticated user. Because chat can contain payment proof, UPI details, Binance warnings, and dispute evidence, this should follow terminal order visibility / role permissions rather than global authenticated access.
+- Persist timestamps returned by Binance.
+- Compare `confirmPayEndTime` and `complainFreezeTime` against current time.
+- Re-check live Binance order status before showing overdue/escalation state.
 
-### 5. Message type normalization is incomplete
-The implementation captures raw message types, but type detection only checks a few field names:
+Not allowed in this phase:
 
-```ts
-type || chatMessageType || messageType
-```
+- Auto-file appeal.
+- Simulate missing timestamps.
+- Infer deadlines if Binance does not return them.
+- Create manual shadow deadline fields.
 
-For official Binance schema compatibility, normalization should also preserve and derive from `contentType` / numeric type fields if present, while always storing raw payload unchanged. We should not infer unsupported data, but we should map Binance-supported types consistently.
+If Binance returns null/missing timestamps, UI should show “Not returned by Binance,” not estimated values.
 
-### 6. UI treats all compliance-relevant messages as centered system messages
-This is acceptable for `system` and `recall`, but `card`, `video`, `translate`, `error`, and `mark` may need clearer labels and, where Binance provides content/URL metadata, an operator-visible fallback. The UI should avoid hiding details just because a message is non-text.
+### 2. Harden database access for release monitoring logs
 
-### 7. No explicit sync trigger after opening current chat
-`getChatMessages` persists whatever is fetched during chat polling, but the dedicated `syncOrderChatMessages` action is not clearly wired to a button/lifecycle event for full history. For compliance, opening an order should perform a bounded archive sync once, not rely only on the visible page polling path.
+Add a migration to replace broad authenticated read on `p2p_release_deadline_monitor_log` with terminal permission checks.
 
-## Correction Plan
+Recommended permissions:
 
-### Step 1: Add one shared frontend chat extraction helper
-Create a safe extraction helper for Binance chat responses and use it in:
+- `terminal_orders_view`
+- `terminal_orders_manage`
+- `terminal_audit_logs_view`
+- `terminal_automation_manage` if this permission exists
 
-- `useBinanceChatWebSocket.ts`
-- any chat history parsing path that reads `getChatMessages`
+Keep service-role insert/update ability for the edge function.
 
-It will support:
+### 3. Add complaint-freeze warning monitoring without auto-appeal
 
-```text
-result.data.data.list
-result.data.list
-result.list
-result.messages
-array responses
-```
+Extend the release monitoring logic to classify complaint cutoff risk:
 
-### Step 2: Harden database identity model
-Add a follow-up migration to improve idempotency without losing existing data:
+- `release_overdue`: `now > confirm_pay_end_time` and Binance order still not final.
+- `complaint_window_closing`: `complain_freeze_time` exists, order still not final/appeal, and current time is within a configured warning window before freeze.
+- `complaint_window_expired`: `now > complain_freeze_time` and order still not final/appeal.
 
-- Add `dedupe_key text`.
-- Backfill `dedupe_key` from real Binance ID, UUID, or a deterministic payload hash fallback.
-- Add unique index on `(order_number, dedupe_key)`.
-- Keep existing `binance_message_id` and `binance_uuid` columns as true Binance fields only; do not overload `binance_message_id` with generated fallback values for new records.
+This is only an operator warning/audit signal. No automated appeal filing will be implemented.
 
-### Step 3: Fix persistence update semantics
-Update `persistChatMessages()` so:
+### 4. Decouple monitoring from auto-pay availability
 
-- Existing rows are matched by `dedupe_key` first, then real message ID/UUID fallback.
-- `captured_at` is only set on insert.
-- Updates change `updated_at`, status, content fields, and raw payload, but preserve original `captured_at`.
-- Upsert/update errors are not silently swallowed for the dedicated `syncOrderChatMessages` action.
+Create a dedicated edge function action or separate function for deadline monitoring, for example:
 
-### Step 4: Improve Binance message normalization
-Keep raw payload unchanged and normalize only supported Binance fields:
+- `release-deadline-monitor`
 
-- `id`
-- `uuid`
-- `type`
-- `chatMessageType`
-- `contentType`
-- `status`
-- `createTime`
-- `self`
-- `fromNickName`
-- content/image/thumbnail fields where actually present
+It should:
 
-Map known message types: `text`, `image`, `system`, `recall`, `mark`, `card`, `video`, `translate`, `error`, plus unknown fallback.
+- Read recent successful mark-paid logs from `p2p_auto_pay_log`.
+- Use only rows with Binance-provided `confirm_pay_end_time` and/or `complain_freeze_time`.
+- Fetch live Binance order detail before marking an order overdue.
+- Insert idempotent/low-noise monitor records.
+- Avoid re-checking the same unresolved order more often than the current cooldown, e.g. 5 minutes.
 
-### Step 5: Tighten RLS read access
-Replace broad authenticated read with a policy aligned to terminal/order visibility. If an existing permission helper exists, use it. Otherwise, minimally restrict reads to roles already authorized for terminal operations/admin audit, without introducing client-side-only checks.
+This prevents monitoring from depending on whether the auto-pay engine happens to be active.
 
-### Step 6: Improve UI rendering for non-text Binance messages
-Update `ChatBubble` / `ChatPanel` so:
+### 5. Add scheduled execution if missing
 
-- `system` shows parsed Binance system text.
-- `recall` is highlighted as a suspicious/audit marker.
-- `card`, `video`, `translate`, `mark`, and `error` show explicit type labels and any Binance-provided content rather than blank generic placeholders.
-- Unknown message types display “Unsupported Binance chat message type captured” and preserve visibility, not invisibility.
+Set up a safe Supabase cron invocation for the monitor if no active schedule exists.
 
-### Step 7: Wire bounded full sync on order chat open
-When a current order chat opens, call `syncOrderChatMessages` once with bounded pages/rows, then rely on normal polling. This ensures older system/recall messages are archived even if they are not in the first visible page.
+Recommended cadence:
 
-### Step 8: Verification
+- Every 2 to 5 minutes for active deadline monitoring.
+
+The cron must call the edge function using the project function URL and anon key, following the existing Supabase scheduled function pattern. The function itself should validate and use service-role internally.
+
+### 6. Surface deadlines in operator UI
+
+Update terminal UI to show Binance authoritative timing:
+
+In Auto-Pay Log:
+
+- Show `notify_pay_time` as “Binance marked paid at.”
+- Show `confirm_pay_end_time` as “Seller release deadline.”
+- Show `complain_freeze_time` as “Complaint cutoff.”
+
+In Release Deadline Monitoring:
+
+- Highlight `release_overdue` in amber/destructive styling.
+- Highlight `complaint_window_closing` and `complaint_window_expired` distinctly.
+- Show the last live Binance status checked.
+
+In active order/operator workspace:
+
+- Add a compact “Seller overdue” / “Complaint window closing” badge when a matching unresolved monitor log exists.
+- Do not block operator workflow; this should be an alert, not an automated action.
+
+### 7. Preserve exempted items
+
+Do not implement these in this phase:
+
+- Automated fraud scoring from these timestamps.
+- Appeal evidence export.
+- Compliance-only audit page.
+- Auto-filing complaints/appeals.
+
+### 8. Verification plan
+
 After implementation:
 
-- Run TypeScript/build checks.
-- Deploy `binance-ads`.
-- Invoke `syncOrderChatMessages` against a real order and verify insert/update counts.
-- Query `binance_order_chat_messages` to confirm:
-  - no duplicate rows per message,
-  - `captured_at` remains stable across repeat sync,
-  - system messages and recalls are visible,
-  - raw payload is preserved.
-- Check recent edge logs for persistence errors.
+- Run a code audit for all `markOrderAsPaid` paths to ensure timestamps are captured consistently.
+- Verify `extractMarkPaidData()` handles nested Binance/proxy response shapes.
+- Confirm `p2p_auto_pay_log` rows have timestamp columns populated when Binance returns them.
+- Confirm monitor does not create duplicate/noisy alerts on repeated runs.
+- Confirm RLS blocks unrelated authenticated users while allowing terminal-authorized users.
+- Confirm UI shows “Not returned by Binance” for missing timestamps rather than inferred values.
 
-## Scope explicitly kept for later
+## Expected benefit
 
-As requested, these remain exempt for later and will not be implemented now:
+This turns the already-captured Binance timestamps into an operational SLA layer:
 
-- Automated fraud scoring from chat signals.
-- Appeal evidence export.
-- Compliance-only chat audit page.
+- Operators can see when Binance officially accepted payment marking.
+- The terminal can detect seller release delays automatically.
+- Complaint cutoff risk becomes visible before the window closes.
+- The system remains Binance-source-of-truth compliant and avoids fake/inferred automation.

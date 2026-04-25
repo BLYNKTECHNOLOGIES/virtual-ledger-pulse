@@ -1332,8 +1332,11 @@ export type Database = {
           asset: string | null
           commission: string | null
           counter_part_nick_name: string | null
+          counterparty_risk_captured_at: string | null
+          counterparty_risk_snapshot: Json | null
           create_time: number
           fiat_unit: string | null
+          order_detail_raw: Json | null
           order_number: string
           order_status: string | null
           pay_method_name: string | null
@@ -1351,8 +1354,11 @@ export type Database = {
           asset?: string | null
           commission?: string | null
           counter_part_nick_name?: string | null
+          counterparty_risk_captured_at?: string | null
+          counterparty_risk_snapshot?: Json | null
           create_time: number
           fiat_unit?: string | null
+          order_detail_raw?: Json | null
           order_number: string
           order_status?: string | null
           pay_method_name?: string | null
@@ -1370,8 +1376,11 @@ export type Database = {
           asset?: string | null
           commission?: string | null
           counter_part_nick_name?: string | null
+          counterparty_risk_captured_at?: string | null
+          counterparty_risk_snapshot?: Json | null
           create_time?: number
           fiat_unit?: string | null
+          order_detail_raw?: Json | null
           order_number?: string
           order_status?: string | null
           pay_method_name?: string | null

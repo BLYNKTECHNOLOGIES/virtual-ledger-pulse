@@ -817,6 +817,8 @@ serve(async (req) => {
         if (payload.sort) {
           chatParams.set('sort', payload.sort);
         }
+        if (payload.id) chatParams.set('id', String(payload.id));
+        if (payload.chatMessageType) chatParams.set('chatMessageType', String(payload.chatMessageType));
         const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
         console.log("getChatMessages URL (GET):", chatUrl);
         const response = await fetchWithRetry(chatUrl, {
@@ -826,6 +828,54 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getChatMessages response:", response.status, text.substring(0, 800));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const messages = extractChatMessages(result);
+        if (payload.orderNo && messages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const archive = await persistChatMessages(supabase, String(payload.orderNo), messages);
+            result._archive = archive;
+          } catch (persistErr) {
+            console.warn("getChatMessages archive persist failed:", persistErr);
+          }
+        }
+        break;
+      }
+
+      case "syncOrderChatMessages": {
+        const orderNo = String(payload.orderNo || "");
+        if (!orderNo) throw new Error("orderNo is required");
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const maxPages = Math.min(Number(payload.maxPages || 5), 20);
+        const rows = Math.min(Number(payload.rows || 50), 100);
+        let page = 1;
+        const allMessages: any[] = [];
+
+        while (page <= maxPages) {
+          const chatParams = new URLSearchParams({ orderNo, page: String(page), rows: String(rows), sort: String(payload.sort || "asc") });
+          if (payload.id) chatParams.set("id", String(payload.id));
+          if (payload.chatMessageType) chatParams.set("chatMessageType", String(payload.chatMessageType));
+          const chatUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
+          const response = await fetchWithRetry(chatUrl, { method: "GET", headers: proxyHeaders });
+          const text = await response.text();
+          let pageResult: any;
+          try { pageResult = JSON.parse(text); } catch { pageResult = { raw: text, status: response.status }; }
+          const pageMessages = extractChatMessages(pageResult);
+          allMessages.push(...pageMessages);
+          if (pageMessages.length < rows) break;
+          page++;
+        }
+
+        const seen = new Set<string>();
+        const deduped = allMessages.filter((msg) => {
+          const key = String(msg?.id || msg?.uuid || `${msg?.createTime}-${msg?.type}-${msg?.content || msg?.message || ""}`);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+        const archive = await persistChatMessages(supabase, orderNo, deduped);
+        result = { code: "000000", message: "success", data: archive };
         break;
       }
 

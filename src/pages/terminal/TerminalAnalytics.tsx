@@ -191,6 +191,46 @@ function useSmallOrderConfigs() {
   });
 }
 
+function useEffectiveOrderValuations(orderNumbers: string[]) {
+  return useQuery({
+    queryKey: ['terminal-analytics-effective-valuations', orderNumbers],
+    queryFn: async () => {
+      const uniqueOrderNumbers = Array.from(new Set(orderNumbers.filter(Boolean)));
+      if (!uniqueOrderNumbers.length) return new Map<string, EffectiveValuation>();
+
+      const [purchaseSyncRes, salesSyncRes] = await Promise.all([
+        supabase
+          .from('terminal_purchase_sync')
+          .select('binance_order_number, purchase_orders!terminal_purchase_sync_purchase_order_id_fkey(effective_usdt_qty, effective_usdt_rate)')
+          .in('binance_order_number', uniqueOrderNumbers),
+        supabase
+          .from('terminal_sales_sync')
+          .select('binance_order_number, sales_orders!terminal_sales_sync_sales_order_id_fkey(effective_usdt_qty, effective_usdt_rate)')
+          .in('binance_order_number', uniqueOrderNumbers),
+      ]);
+
+      if (purchaseSyncRes.error) throw purchaseSyncRes.error;
+      if (salesSyncRes.error) throw salesSyncRes.error;
+
+      const map = new Map<string, EffectiveValuation>();
+      const addValuation = (orderNumber: string, row: any) => {
+        const effectiveUsdtQty = Number(row?.effective_usdt_qty || 0);
+        const effectiveUsdtRate = Number(row?.effective_usdt_rate || 0);
+        if (orderNumber && effectiveUsdtQty > 0 && effectiveUsdtRate > 0) {
+          map.set(orderNumber, { effectiveUsdtQty, effectiveUsdtRate });
+        }
+      };
+
+      (purchaseSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.purchase_orders));
+      (salesSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.sales_orders));
+
+      return map;
+    },
+    enabled: orderNumbers.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
 function StatCard({ icon: Icon, label, value, sub, tone = 'primary' }: {
   icon: React.ElementType;
   label: string;

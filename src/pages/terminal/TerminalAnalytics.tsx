@@ -376,8 +376,8 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
         }
       };
 
-      (purchaseSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.purchase_orders));
-      (salesSyncRes.data || []).forEach((row: any) => addValuation(row.binance_order_number, row.sales_orders));
+      purchaseSyncRows.forEach((row: any) => addValuation(row.binance_order_number, row.purchase_orders));
+      salesSyncRows.forEach((row: any) => addValuation(row.binance_order_number, row.sales_orders));
 
       const smallBuySyncById = new Map(smallBuySyncRows.map((row) => [row.id, row]));
       const smallSaleSyncById = new Map(smallSaleSyncRows.map((row) => [row.id, row]));

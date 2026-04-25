@@ -20,15 +20,19 @@ interface BinanceOrder {
   createTime: number;
   counterPartNickName?: string;
   notifyPayEndTime?: number;
+  confirmPayEndTime?: number;
   notifyPayedExpireMinute?: number;
   payEndTime?: number;
   paymentEndTime?: number;
+  chatUnreadCount?: number;
+  tradeMethodCommissionRateVoList?: any[];
   source?: string;
   raw?: any;
 }
 
 const DEFAULT_PAYMENT_WINDOW_MINUTES = 15;
 const CACHED_LOOKBACK_MS = 30 * 60 * 1000;
+const ACTIONABLE_ORDER_STATUS_LIST = [1, 2];
 const FINAL_STATUS_KEYWORDS = ["COMPLETED", "CANCEL", "EXPIRED", "APPEAL", "DISPUTE"];
 const ALREADY_PAID_KEYWORDS = ["BUYER_PAYED", "BUYER_PAID", "PAID", "PAYING", "RELEASING"];
 const PAYABLE_KEYWORDS = ["TRADING", "PENDING", "PENDING_PAYMENT"];
@@ -107,9 +111,14 @@ function toCandidate(order: any, source: string): BinanceOrder | null {
     createTime: Number(order?.createTime ?? order?.create_time ?? order?.binance_create_time ?? raw?.createTime ?? 0),
     counterPartNickName: order?.counterPartNickName ?? order?.counter_part_nick_name ?? raw?.counterPartNickName,
     notifyPayEndTime: Number(order?.notifyPayEndTime ?? raw?.notifyPayEndTime ?? 0) || undefined,
+    confirmPayEndTime: Number(order?.confirmPayEndTime ?? raw?.confirmPayEndTime ?? 0) || undefined,
     notifyPayedExpireMinute: Number(order?.notifyPayedExpireMinute ?? raw?.notifyPayedExpireMinute ?? 0) || undefined,
     payEndTime: Number(order?.payEndTime ?? raw?.payEndTime ?? 0) || undefined,
     paymentEndTime: Number(order?.paymentEndTime ?? raw?.paymentEndTime ?? 0) || undefined,
+    chatUnreadCount: Number(order?.chatUnreadCount ?? raw?.chatUnreadCount ?? 0) || undefined,
+    tradeMethodCommissionRateVoList: Array.isArray(order?.tradeMethodCommissionRateVoList ?? raw?.tradeMethodCommissionRateVoList)
+      ? (order?.tradeMethodCommissionRateVoList ?? raw?.tradeMethodCommissionRateVoList)
+      : undefined,
     source,
     raw,
   };
@@ -182,21 +191,39 @@ function resolveExpiry(order: BinanceOrder, detail?: any): { expiryTimeMs: numbe
   return { expiryTimeMs: null, method: "unavailable", fallbackUsed: false };
 }
 
-async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<string, string>): Promise<BinanceOrder[]> {
+function listOrderFieldMetadata(order: BinanceOrder) {
+  return {
+    chatUnreadCount: order.chatUnreadCount ?? null,
+    notifyPayEndTime: binanceMsToIso(order.notifyPayEndTime),
+    confirmPayEndTime: binanceMsToIso(order.confirmPayEndTime),
+    commissionRateMethods: Array.isArray(order.tradeMethodCommissionRateVoList) ? order.tradeMethodCommissionRateVoList.length : 0,
+  };
+}
+
+async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<string, string>): Promise<{ orders: BinanceOrder[]; diagnostics: Record<string, any> }> {
   const allOrders: BinanceOrder[] = [];
   const seen = new Set<string>();
   const maxPages = 8;
   const rows = 50;
+  const diagnostics: Record<string, any> = { filteredFetchUsed: true, requestedStatusFilters: ACTIONABLE_ORDER_STATUS_LIST, pages: [], fallbackReason: null };
 
   for (let page = 1; page <= maxPages; page++) {
     try {
       const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
         method: "POST",
         headers: proxyHeaders,
-        body: JSON.stringify({ page, rows, tradeType: "BUY" }),
+        body: JSON.stringify({ page, rows, tradeType: "BUY", orderStatusList: ACTIONABLE_ORDER_STATUS_LIST }),
       });
       const data = await res.json();
+      if (!res.ok || (data?.code && data.code !== "000000")) {
+        diagnostics.filteredFetchUsed = false;
+        diagnostics.fallbackReason = `filtered_listOrders_rejected:${data?.code || res.status}`;
+        allOrders.length = 0;
+        seen.clear();
+        break;
+      }
       const orders = extractOrders(data);
+      diagnostics.pages.push({ page, count: orders.length, filtered: true });
       if (orders.length === 0) break;
 
       for (const raw of orders) {
@@ -209,12 +236,43 @@ async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<strin
       if (orders.length < rows) break;
       await new Promise((r) => setTimeout(r, 100));
     } catch (err) {
-      console.error(`Error fetching active order page ${page}:`, err);
+      console.warn(`Filtered active order page ${page} failed, falling back:`, err);
+      diagnostics.filteredFetchUsed = false;
+      diagnostics.fallbackReason = String(err);
+      allOrders.length = 0;
+      seen.clear();
       break;
     }
   }
 
-  return allOrders;
+  if (!diagnostics.filteredFetchUsed) {
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify({ page, rows, tradeType: "BUY" }),
+        });
+        const data = await res.json();
+        const orders = extractOrders(data);
+        diagnostics.pages.push({ page, count: orders.length, filtered: false });
+        if (orders.length === 0) break;
+        for (const raw of orders) {
+          const candidate = toCandidate(raw, "live_listOrders");
+          if (!candidate || seen.has(candidate.orderNumber)) continue;
+          seen.add(candidate.orderNumber);
+          allOrders.push(candidate);
+        }
+        if (orders.length < rows) break;
+        await new Promise((r) => setTimeout(r, 100));
+      } catch (err) {
+        console.error(`Fallback active order page ${page} failed:`, err);
+        break;
+      }
+    }
+  }
+
+  return { orders: allOrders, diagnostics };
 }
 
 async function fetchCachedRecentBuyOrders(supabase: any): Promise<BinanceOrder[]> {
@@ -264,9 +322,9 @@ async function logDecision(supabase: any, params: {
     decision_reason: reason,
     raw_status: rawStatus == null ? null : String(rawStatus),
     source: order.source || "unknown",
-    metadata: metadata || {},
+    metadata: { ...(metadata || {}), listOrdersFields: listOrderFieldMetadata(order) },
     notify_pay_time: binanceMsToIso(markPaidData?.notifyPayTime),
-    confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime),
+    confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime ?? order.confirmPayEndTime),
     complain_freeze_time: binanceMsToIso(markPaidData?.complainFreezeTime),
     mark_paid_order_status: markPaidData?.orderStatus == null ? null : String(markPaidData.orderStatus),
   });
@@ -421,10 +479,11 @@ serve(async (req) => {
 
     console.log(`Auto-pay ON: trigger at ${autoPayMinutes} min before expiry`);
 
-    const [liveOrders, cachedOrders] = await Promise.all([
+    const [liveFetch, cachedOrders] = await Promise.all([
       fetchAllActiveOrders(BINANCE_PROXY_URL, proxyHeaders),
       fetchCachedRecentBuyOrders(supabase),
     ]);
+    const liveOrders = liveFetch.orders;
 
     const orderMap = new Map<string, BinanceOrder>();
     for (const order of [...cachedOrders, ...liveOrders]) {
@@ -649,6 +708,7 @@ serve(async (req) => {
       warnings,
       errors,
       autoPayMinutes,
+      listOrdersDiagnostics: liveFetch.diagnostics,
       durationMs: Date.now() - startedAt,
     };
     const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);

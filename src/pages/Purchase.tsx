@@ -484,6 +484,21 @@ export default function Purchase() {
                         onChange={(e) => setFilterDateTo(e.target.value ? new Date(e.target.value) : undefined)}
                       />
                     </div>
+                    <div className="col-span-2">
+                      <Label>Platform</Label>
+                      <Select value={filterPlatform || 'all'} onValueChange={(value) => setFilterPlatform(value === 'all' ? '' : value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All platforms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All platforms</SelectItem>
+                          <SelectItem value="off-market">Off Market</SelectItem>
+                          {platformOptions.map((platform: any) => (
+                            <SelectItem key={platform.id} value={platform.id}>{platform.wallet_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex justify-between pt-2">
                     <Button variant="outline" onClick={clearFilters}>Clear</Button>
@@ -524,6 +539,7 @@ export default function Purchase() {
                 searchTerm={searchTerm}
                 dateFrom={filterDateFrom}
                 dateTo={filterDateTo}
+                platformFilter={filterPlatform}
               />
             </TabsContent>
 

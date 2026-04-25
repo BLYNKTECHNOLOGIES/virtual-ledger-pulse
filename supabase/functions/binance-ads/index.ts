@@ -34,12 +34,20 @@ function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
   const counterpartySide = normalizedTradeType === "BUY" ? "seller" : normalizedTradeType === "SELL" ? "buyer" : null;
   const explicitUser = counterpartySide ? (detail[counterpartySide] || detail[`${counterpartySide}Vo`] || detail[`${counterpartySide}User`]) : null;
   const fallbackUser = explicitUser || detail.counterparty || detail.counterpartyUser || detail.maker || detail.taker || null;
+  const missingSections = [
+    !fallbackUser ? "counterpartyRisk" : null,
+    !(fallbackUser?.userKycVo || detail.maker?.userKycVo || detail.taker?.userKycVo) ? "kyc" : null,
+    !(fallbackUser?.userOrderHistoryStatsVo || detail.maker?.userOrderHistoryStatsVo || detail.taker?.userOrderHistoryStatsVo) ? "historicalStats" : null,
+  ].filter(Boolean);
 
   return {
     source: "getUserOrderDetail",
+    sourceEndpoint: "/sapi/v1/c2c/orderMatch/getUserOrderDetail",
     capturedAt: new Date().toISOString(),
     tradeType: normalizedTradeType || null,
     counterpartySide,
+    availableFields: Object.keys(detail),
+    missingSections,
     topLevel: {
       maliceInitiatorCount: detail.maliceInitiatorCount ?? null,
       complaintCount: detail.complaintCount ?? null,

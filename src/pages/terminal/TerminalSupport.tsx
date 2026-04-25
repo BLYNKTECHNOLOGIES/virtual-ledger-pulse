@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { format } from 'date-fns';
 import { Headphones, Plus, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useToast } from '@/hooks/use-toast';
@@ -88,7 +89,9 @@ function userLabel(user?: UserOption | null) {
 }
 
 export default function TerminalSupport() {
-  const { userId } = useTerminalAuth();
+  const { user } = useAuth();
+  const terminalAuth = useTerminalAuth();
+  const userId = terminalAuth.userId || user?.id || null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -176,8 +179,7 @@ export default function TerminalSupport() {
   const escalatedCount = tickets.filter((ticket) => ticket.status === 'escalated' || ticket.escalated).length;
   const resolvedCount = tickets.filter((ticket) => ['resolved', 'closed'].includes(ticket.status)).length;
 
-  return (
-    <TerminalPermissionGate permissions={['terminal_orders_escalate']}>
+  const content = (
       <div className="space-y-4 p-4 md:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-3">
@@ -252,6 +254,12 @@ export default function TerminalSupport() {
           ))}
         </div>
       </div>
+  );
+
+  return terminalAuth.userId ? (
+    <TerminalPermissionGate permissions={['terminal_orders_escalate']}>
+      {content}
     </TerminalPermissionGate>
+  ) : content;
   );
 }

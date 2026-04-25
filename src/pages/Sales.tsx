@@ -44,6 +44,7 @@ export default function Sales() {
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
+  const [filterPlatform, setFilterPlatform] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [selectedOrderForDetails, setSelectedOrderForDetails] = useState<any>(null);
@@ -59,11 +60,12 @@ export default function Sales() {
 
   // Fetch accurate counts for tab badges (not limited by default 1000 row cap)
   const { data: orderCounts } = useQuery({
-    queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
+    queryKey: ['sales_order_counts', searchTerm, filterPaymentStatus, filterPlatform, filterDateFrom, filterDateTo],
     queryFn: async () => {
       const buildBaseFilter = (q: any) => {
         if (searchTerm) q = q.or(`order_number.ilike.%${searchTerm}%,client_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
         if (filterPaymentStatus) q = q.eq('payment_status', filterPaymentStatus);
+        if (filterPlatform) q = filterPlatform === 'off-market' ? q.eq('is_off_market', true) : q.eq('wallet_id', filterPlatform);
         if (filterDateFrom) q = q.gte('order_date', format(filterDateFrom, 'yyyy-MM-dd'));
         if (filterDateTo) q = q.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
         return q;
@@ -83,7 +85,7 @@ export default function Sales() {
 
   // Fetch sales orders from database
   const { data: salesOrders, isLoading } = useQuery({
-    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo],
+    queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterPlatform, filterDateFrom, filterDateTo],
     queryFn: async () => {
       let query = supabase
         .from('sales_orders')
@@ -102,6 +104,10 @@ export default function Sales() {
 
       if (filterPaymentStatus) {
         query = query.eq('payment_status', filterPaymentStatus);
+      }
+
+      if (filterPlatform) {
+        query = filterPlatform === 'off-market' ? query.eq('is_off_market', true) : query.eq('wallet_id', filterPlatform);
       }
 
       if (filterDateFrom) {

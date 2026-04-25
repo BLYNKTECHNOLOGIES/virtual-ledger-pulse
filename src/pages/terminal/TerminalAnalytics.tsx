@@ -316,32 +316,24 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
       const uniqueOrderNumbers = Array.from(new Set(orderNumbers.filter(Boolean)));
       if (!uniqueOrderNumbers.length) return new Map<string, EffectiveValuation>();
 
-      const [purchaseSyncRes, salesSyncRes, smallBuyMapRes, smallSaleMapRes] = await Promise.all([
-        supabase
+      const [purchaseSyncRows, salesSyncRows, smallBuyMapRows, smallSaleMapRows] = await Promise.all([
+        fetchRowsInChunks<any>(uniqueOrderNumbers, (chunk) => supabase
           .from('terminal_purchase_sync')
           .select('binance_order_number, purchase_orders!terminal_purchase_sync_purchase_order_id_fkey(effective_usdt_qty, effective_usdt_rate, market_rate_usdt)')
-          .in('binance_order_number', uniqueOrderNumbers),
-        supabase
+          .in('binance_order_number', chunk)),
+        fetchRowsInChunks<any>(uniqueOrderNumbers, (chunk) => supabase
           .from('terminal_sales_sync')
           .select('binance_order_number, sales_orders!terminal_sales_sync_sales_order_id_fkey(effective_usdt_qty, effective_usdt_rate, market_rate_usdt)')
-          .in('binance_order_number', uniqueOrderNumbers),
-        supabase
+          .in('binance_order_number', chunk)),
+        fetchRowsInChunks<SmallOrderMapRow>(uniqueOrderNumbers, (chunk) => supabase
           .from('small_buys_order_map' as any)
           .select('binance_order_number, order_data, small_buys_sync_id')
-          .in('binance_order_number', uniqueOrderNumbers),
-        supabase
+          .in('binance_order_number', chunk) as any),
+        fetchRowsInChunks<SmallOrderMapRow>(uniqueOrderNumbers, (chunk) => supabase
           .from('small_sales_order_map' as any)
           .select('binance_order_number, order_data, small_sales_sync_id')
-          .in('binance_order_number', uniqueOrderNumbers),
+          .in('binance_order_number', chunk) as any),
       ]);
-
-      if (purchaseSyncRes.error) throw purchaseSyncRes.error;
-      if (salesSyncRes.error) throw salesSyncRes.error;
-      if (smallBuyMapRes.error) throw smallBuyMapRes.error;
-      if (smallSaleMapRes.error) throw smallSaleMapRes.error;
-
-      const smallBuyMapRows = (smallBuyMapRes.data || []) as unknown as SmallOrderMapRow[];
-      const smallSaleMapRows = (smallSaleMapRes.data || []) as unknown as SmallOrderMapRow[];
       const smallBuySyncIds = Array.from(new Set(smallBuyMapRows.map((row) => row.small_buys_sync_id).filter(Boolean))) as string[];
       const smallSaleSyncIds = Array.from(new Set(smallSaleMapRows.map((row) => row.small_sales_sync_id).filter(Boolean))) as string[];
 

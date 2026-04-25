@@ -52,6 +52,15 @@ const standaloneItems: SidebarGroupItem[] = [
     permissions: ["sales_view", "sales_manage"]
   },
   {
+    id: "customer-support",
+    title: "Customer Support",
+    url: "/support",
+    icon: Headphones,
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    permissions: ["sales_view", "sales_manage", "clients_view", "clients_manage", "support_view", "support_manage"]
+  },
+  {
     id: "purchase",
     title: "Purchase",
     url: "/purchase",
@@ -149,15 +158,6 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-violet-600",
     bgColor: "bg-violet-100",
     permissions: ["tasks_view", "tasks_manage"]
-  },
-  {
-    id: "customer-support",
-    title: "Customer Support",
-    url: "/support",
-    icon: Headphones,
-    color: "text-primary",
-    bgColor: "bg-primary/10",
-    permissions: ["support_view", "support_manage"]
   }
 ];
 

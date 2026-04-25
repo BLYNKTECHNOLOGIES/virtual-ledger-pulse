@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2, MessageSquare, Paperclip, Upload } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2, MessageSquare, Paperclip, Upload, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ticketSchema = z.object({
   orderNumber: z.string().trim().min(3).max(80),

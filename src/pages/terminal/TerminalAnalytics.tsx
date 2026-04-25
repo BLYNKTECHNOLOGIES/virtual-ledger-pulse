@@ -370,12 +370,18 @@ export default function TerminalAnalytics() {
   const analytics = useMemo(() => {
     const buy = completed.filter((o) => o.tradeType === 'BUY');
     const sell = completed.filter((o) => o.tradeType === 'SELL');
+    const valuedCompleted = completed.filter((o) => o.hasEffectiveUsdtValuation);
+    const valuedBuy = buy.filter((o) => o.hasEffectiveUsdtValuation);
+    const valuedSell = sell.filter((o) => o.hasEffectiveUsdtValuation);
     const cancelled = orders.filter((o) => o.orderStatus.includes('CANCELLED'));
     const appeals = orders.filter((o) => o.orderStatus.includes('APPEAL') || o.orderStatus.includes('COMPLAINT'));
     const buyVolume = buy.reduce((s, o) => s + o.totalPrice, 0);
     const sellVolume = sell.reduce((s, o) => s + o.totalPrice, 0);
     const totalVolume = buyVolume + sellVolume;
-    const totalQty = completed.reduce((s, o) => s + o.effectiveUsdtQty, 0);
+    const valuedBuyVolume = valuedBuy.reduce((s, o) => s + o.totalPrice, 0);
+    const valuedSellVolume = valuedSell.reduce((s, o) => s + o.totalPrice, 0);
+    const valuedTotalVolume = valuedBuyVolume + valuedSellVolume;
+    const totalQty = valuedCompleted.reduce((s, o) => s + o.effectiveUsdtQty, 0);
 
     const kinds: Record<OrderKind, NormalizedOrder[]> = { smallBuy: [], bigBuy: [], smallSell: [], bigSell: [] };
     for (const o of completed) kinds[classifyOrder(o, configs?.smallBuy, configs?.smallSale)].push(o);
@@ -402,9 +408,9 @@ export default function TerminalAnalytics() {
       });
     }).sort((a, b) => b.volume - a.volume);
 
-    const rates = completed.map((o) => o.unitPrice).filter((v) => Number.isFinite(v) && v > 0);
-    const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
-    const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
+    const rates = valuedCompleted.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
+    const weightedBuyRate = weightedRate(valuedBuyVolume, valuedBuy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
+    const weightedSellRate = weightedRate(valuedSellVolume, valuedSell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
 
     const bestAd = adRows[0];
     const highestSellAd = adRows.filter((a) => a.tradeType === 'SELL').sort((a, b) => b.weightedRate - a.weightedRate)[0];
@@ -420,9 +426,9 @@ export default function TerminalAnalytics() {
       totalVolume,
       totalQty,
       avgOrder: completed.length ? totalVolume / completed.length : 0,
-      weightedAvgRate: weightedRate(totalVolume, totalQty),
-      avgBuyRate: average(buy.map((o) => o.effectiveUsdtRate)),
-      avgSellRate: average(sell.map((o) => o.effectiveUsdtRate)),
+      weightedAvgRate: weightedRate(valuedTotalVolume, totalQty),
+      avgBuyRate: average(valuedBuy.map((o) => o.effectiveUsdtRate)),
+      avgSellRate: average(valuedSell.map((o) => o.effectiveUsdtRate)),
       weightedBuyRate,
       weightedSellRate,
       minRate: rates.length ? Math.min(...rates) : 0,

@@ -86,7 +86,7 @@ function userLabel(user?: UserOption | null) {
   return fullName || user.username || 'User';
 }
 
-export default function TerminalSupport() {
+export default function Support() {
   const { user } = useAuth();
   const userId = user?.id || null;
   const { toast } = useToast();

@@ -332,6 +332,27 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
         </div>
       )}
 
+      {hasRelationshipStats && (
+        <div className={`rounded-md border px-3 py-2.5 space-y-2 ${relationshipRisk.elevated ? 'border-destructive/30 bg-destructive/10' : 'border-primary/20 bg-primary/5'}`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <ShieldAlert className={`h-3.5 w-3.5 shrink-0 ${relationshipRisk.elevated ? 'text-destructive' : 'text-primary'}`} />
+              <span className="text-[11px] font-medium text-foreground truncate">Binance Relationship Risk</span>
+            </div>
+            <Badge variant={relationshipRisk.elevated ? 'destructive' : 'secondary'} className="h-5 text-[9px] shrink-0">
+              {relationshipRisk.elevated ? 'Review' : 'Normal'}
+            </Badge>
+          </div>
+          <StatRow label="Binance account" value={relationshipRisk.accountLabel} />
+          <StatRow label="30d relationship" value={relationshipRisk.relationshipLabel} />
+          <StatRow label="Trades with us (30d)" value={relationshipRisk.trades === null || Number.isNaN(relationshipRisk.trades) ? 'Not returned by Binance' : String(relationshipRisk.trades)} />
+          <StatRow label="Account age" value={relationshipRisk.days === null || Number.isNaN(relationshipRisk.days) ? 'Not returned by Binance' : `${relationshipRisk.days} days`} />
+          <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
+            Source: {hasApiStats ? 'Live Binance stats' : 'Last Binance snapshot'}{!hasApiStats && counterparty?.binance_counterparty_stats_captured_at ? ` • Captured ${new Date(counterparty.binance_counterparty_stats_captured_at).toLocaleString('en-IN')}` : ''}
+          </div>
+        </div>
+      )}
+
       {/* Approved client risk level — SELL orders only (counterparty is the buyer/client) */}
       {riskStyle && order.trade_type === 'SELL' && (
         <div className={`rounded-md border px-3 py-2.5 flex items-center justify-between gap-2 ${riskStyle.className}`}>

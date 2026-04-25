@@ -290,13 +290,15 @@ async function monitorReleaseDeadlines(supabase: any, proxyUrl: string, proxyHea
   let errors = 0;
 
   for (const log of overdueLogs) {
-    const { data: recent } = await supabase
+    const { data: latest } = await supabase
       .from("p2p_release_deadline_monitor_log")
-      .select("id")
+      .select("id,status,checked_at")
       .eq("auto_pay_log_id", log.id)
-      .gte("checked_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .order("checked_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
-    if (recent) continue;
+    if (["resolved", "already_appeal"].includes(latest?.status)) continue;
+    if (latest?.checked_at && new Date(latest.checked_at).getTime() >= Date.now() - 5 * 60 * 1000) continue;
 
     checked++;
     try {

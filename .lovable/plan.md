@@ -1,141 +1,185 @@
-Assessment
+Assessment of implementation so far
 
-Claude's Finding has two parts, and they should not be treated equally:
+I reviewed the code paths that were changed for:
 
-1. `markOrderAsPaid` timestamps
-   - This is useful, but it has already been implemented in this project after the previous approved work.
-   - Current code now extracts `notifyPayTime`, `confirmPayEndTime`, `complainFreezeTime`, persists them into `p2p_auto_pay_log`, creates `p2p_release_deadline_monitor_log`, and surfaces release-deadline checks in the Auto-Pay UI.
-   - So this should not be rebuilt. The right next step is only a verification/refinement pass.
+1. `getUserDetail` / `refreshMerchantState`
+2. `binance_merchant_state_snapshots`
+3. auto-price circuit-breaker merchant-state correlation
+4. `markOrderAsPaid` timestamp capture
+5. release-deadline monitoring UI and database table
 
-2. `user/baseDetail.businessStatus`
-   - This is genuinely useful and still underutilized.
-   - I verified the deployed `getUserDetail` call is using the documented `/sapi/v1/c2c/user/baseDetail` endpoint and it returns usable merchant data, including:
-     - `businessStatus: 1`
-     - nickname, KYC status, country, registerDays, etc.
-   - However, the app currently only exposes `useBinanceUserDetail()` as a query hook. It does not store, trend, alert, or correlate `businessStatus` with the auto-price circuit breaker.
-   - This is a real self-monitoring gap: if Binance puts the merchant into `2 = Closed` or `3 = Take break`, the pricing/rest/ads automation can misdiagnose the problem as our internal failure instead of a Binance-side account state.
+Overall verdict: the implementation is directionally useful and mostly present, but I found several correctness gaps that should be fixed before treating it as reliable production monitoring.
 
-Why it is useful for BlynkEx
+What appears correct
 
-- It gives the ERP a Binance-source-of-truth getter for merchant state, instead of relying only on local rest timers or setter calls like merchantOnline/merchantOffline.
-- It improves incident diagnosis:
+- The old undocumented `userDetail` route is no longer used in the inspected implementation. `getUserDetail` and `refreshMerchantState` now call:
+  - `/api/sapi/v1/c2c/user/baseDetail`
+- Merchant snapshots are persisted into `binance_merchant_state_snapshots` when `businessStatus` is numeric.
+- The UI card exists and is wired into `AdManager.tsx`.
+- `markOrderAsPaid` timestamps are extracted into columns:
+  - `notify_pay_time`
+  - `confirm_pay_end_time`
+  - `complain_freeze_time`
+- Both auto-pay and manual mark-paid flows attempt to persist those timestamps.
+- `auto-pay-engine` runs `monitorReleaseDeadlines()` and stores checks in `p2p_release_deadline_monitor_log`.
+- The edge logs confirm Binance order-detail payloads contain `confirmPayEndTime`, `notifyPayTime`, `additionalKycVerify`, etc., so this class of monitoring is API-supported.
+
+Issues found
+
+1. Merchant-state card may show stale snapshot as if it is current live state
+
+`MerchantStateCard` combines live API data with the latest stored snapshot:
 
 ```text
-Auto-price circuit opens
-        |
-        v
-Fetch Binance baseDetail.businessStatus
-        |
-        +-- 1 Open       -> likely our proxy/API/pricing/rate issue
-        +-- 2 Closed     -> Binance/account/compliance closure; stop retrying as normal
-        +-- 3 Take break -> merchant is on Binance break; suppress noisy failures and show rest/break state
+businessStatus = apiData.businessStatus ?? latestSnapshot.business_status
 ```
 
-- It protects data integrity because the state originates from Binance API, not manual operator input.
-- It can be used by operators to immediately see whether ads are not updating because of our automation circuit or because Binance itself has placed the merchant in a restricted/break state.
+This is useful for continuity, but operationally risky. If the live `baseDetail` request fails, the card can still show an old `Open` snapshot unless the operator notices the small API-unavailable badge. For a compliance/account-state monitor, stale data must be visually distinct.
 
-Implementation Plan
+Fix: show live state and cached snapshot separately, or mark cached-only status as stale/cached with destructive/amber styling when live API fails.
 
-1. Add first-class merchant state storage
+2. Manual refresh success toast can be misleading
 
-Create a migration for a new `binance_merchant_state_snapshots` table, with RLS enabled for authenticated reads:
+`useRefreshMerchantState()` shows `Binance merchant state refreshed` if the edge function returns success. But `binance-ads` can return a successful wrapper around a Binance-level non-`000000` result unless the generic response wrapper rejects it.
 
-- `id uuid primary key`
-- `business_status integer not null`
-- `business_status_label text not null` (`open`, `closed`, `take_break`, `unknown`)
-- `kyc_passed boolean`
-- `user_kyc_status text`
-- `kyc_type integer`
-- `nickname text`
-- `country_code text`
-- `register_days integer`
-- `bind_mobile_status text`
-- `over_complained integer`
-- `source text default 'baseDetail'`
-- `raw_data jsonb not null`
-- `checked_at timestamptz default now()`
+Fix: enforce Binance-level validation for `refreshMerchantState`: if `result.code !== '000000'`, return `{ success: false, error: ... }` or make `callBinanceAds` inspect nested Binance codes for this action.
 
-Add indexes on:
-- `checked_at desc`
-- `business_status`
+3. `persistMerchantStateSnapshot` ignores insert errors
 
-This keeps the data auditable and avoids relying only on live query state.
+The function inserts the snapshot but does not check the returned `{ error }`. This can silently lose snapshots if RLS/schema/column issues occur.
 
-2. Persist `baseDetail` responses from the existing `getUserDetail` action
+Fix: capture insert result and throw/log `error` clearly. Same rule should apply to critical timestamp persistence where possible.
 
-Update `supabase/functions/binance-ads/index.ts` inside `getUserDetail`:
+4. Circuit-breaker diagnostic label is too generic
 
-- Keep the documented endpoint: `/api/sapi/v1/c2c/user/baseDetail`
-- Preserve current strict validation for empty responses.
-- When Binance returns `code === '000000'` and valid data, insert a merchant-state snapshot.
-- Normalize status labels:
-  - `1 -> open`
-  - `2 -> closed`
-  - `3 -> take_break`
-  - anything else -> `unknown`
-- Return the raw Binance result plus diagnostics, without inventing fallback values.
+The plan called for distinctions like:
 
-3. Add a dedicated merchant-state monitor action
+```text
+merchant_status_open
+merchant_status_closed
+merchant_status_take_break
+merchant_status_unavailable
+```
 
-Add a new action in `binance-ads`, for example `refreshMerchantState`, that:
+Current implementation stores the triggering reason, such as `circuit_opened_after_failures`, when a status exists. That records when it checked, but not the diagnostic conclusion.
 
-- Calls the same documented `baseDetail` endpoint.
-- Persists the snapshot.
-- Returns the normalized merchant state.
+Fix: store both fields:
 
-This makes it reusable from:
-- UI refresh button
-- auto-price engine diagnostic check
-- future scheduled monitor, if needed
+- `merchant_state_diagnostic_reason`: why it checked
+- `merchant_state_diagnostic`: actual diagnosis, e.g. `merchant_status_open`, `merchant_status_closed`, `merchant_status_take_break`, `merchant_status_unavailable`
 
-4. Correlate merchant state with the auto-price circuit breaker
+If adding a new DB column is not preferred, at minimum change `merchant_state_diagnostic` to the diagnostic conclusion and include reason in logs/metadata.
 
-Update `supabase/functions/auto-price-engine/index.ts` so that when the circuit opens or is already open:
+5. Circuit-breaker uses possibly stale `engineState` after changing OPEN to HALF_OPEN
 
-- It checks `baseDetail.businessStatus` through a shared helper or direct proxy call.
-- It stores a snapshot.
-- It updates circuit metadata/log output to distinguish:
-  - `merchant_status_open` -> internal/proxy/pricing failure likely
-  - `merchant_status_closed` -> Binance-side closure/compliance/account issue
-  - `merchant_status_take_break` -> Binance-side break state
-  - `merchant_status_unavailable` -> cannot determine
+At the start of `auto-price-engine`, it fetches `engineState`. If cooldown elapsed, it updates the DB row to `HALF_OPEN`, but the local variable remains the old OPEN state. Then:
 
-Do not auto-toggle merchantOnline/merchantOffline based on this value. This is monitoring and diagnosis only, because Binance is the source of truth.
+```text
+const isHalfOpen = engineState?.circuit_status === 'HALF_OPEN'
+```
 
-5. Surface the status in Terminal UI
+This means the half-open test flow may not activate correctly immediately after transition. Later circuit update logic may also use stale state.
 
-Add a compact Merchant State card in the Terminal automation/ad manager area, using the existing `useBinanceUserDetail()` or a new `useRefreshMerchantState()` hook:
+Fix: after updating to `HALF_OPEN`, update the local state object or re-fetch `ad_pricing_engine_state` before processing.
 
-- Show current Binance business status:
-  - Open: normal/success badge
-  - Closed: destructive badge with operator warning
-  - Take break: amber/rest badge
-  - Unknown/unavailable: destructive/diagnostic messaging
-- Show last checked time and endpoint diagnostics.
-- Show KYC status and nickname as supporting details.
-- Add manual “Refresh Binance State” action that calls the API, not local-only data.
+6. Release-deadline monitoring can repeatedly create duplicate logs forever
 
-6. Refine, not rebuild, release-deadline monitoring
+`monitorReleaseDeadlines()` suppresses duplicate checks only within the last 5 minutes for the same auto-pay log. It does not stop checking once a prior log is `resolved`, `already_appeal`, or final. This can create noise every cycle for old orders within the 48-hour window.
 
-Because `markOrderAsPaid` timestamps are already implemented, only perform a verification pass:
+Fix: before checking, look up latest monitor status for that `auto_pay_log_id`. Skip if latest status is terminal:
 
-- Confirm `p2p_auto_pay_log` rows are populated for both auto and manual mark-paid flows.
-- Confirm `p2p_release_deadline_monitor_log` is receiving checks after `confirm_pay_end_time` passes.
-- If needed, tighten the monitoring query to avoid duplicate noisy checks for already-final orders.
-- If a true cron schedule is not configured yet, add a compliant scheduled invocation for `auto-pay-engine` so deadline monitoring runs even when no operator opens the UI.
+- `resolved`
+- `already_appeal`
+- optionally `detail_unavailable` only after a retry policy, not immediately terminal
 
-7. Verification
+7. Release-deadline monitor uses only auto-pay logs newer than 48 hours
 
-After implementation:
+This is okay for noise control, but it means manual or older unresolved issues disappear from active checking after 48 hours even if still not final. For P2P operations, 48 hours may be acceptable, but it should be explicit.
 
-- Call `binance-ads` with `getUserDetail` / `refreshMerchantState` and verify `businessStatus` is returned and stored.
-- Query the snapshot table to confirm persisted values.
-- Force/read an auto-price circuit-open scenario via existing state/logs and confirm merchant state diagnostics are recorded.
-- Verify UI shows Binance state clearly and does not infer/guess values when the API fails.
+Fix: keep 48-hour cap if desired, but also surface a UI note: “Monitoring checks marked-paid orders from the last 48 hours.” If operationally required, extend to 7 days but skip terminal statuses.
 
-Expected Outcome
+8. Awaiting-release count may include already-final orders
 
-- The ERP becomes aware of Binance's actual merchant/account state.
-- Auto-price circuit-breaker incidents become diagnosable as either internal automation failure or Binance-side business-state restriction.
-- Existing release-deadline automation remains intact and is only audited/refined rather than duplicated.
-- All data continues to originate from documented Binance API responses, matching your Binance integration rule.
+UI `awaitingReleaseCount` is based only on successful mark-paid logs whose `confirm_pay_end_time` is in the future. It does not know whether the order was already released/completed after mark-paid.
+
+Fix: calculate awaiting/overdue from the latest release monitor status or from refreshed order detail where available; otherwise label it as “marked paid, deadline pending” rather than guaranteed awaiting release.
+
+9. RLS only allows SELECT on new tables
+
+This is probably fine because inserts use service role in edge functions. But if any client mutation is later attempted, it will fail. No immediate fix needed unless client-side writes are introduced.
+
+10. Scheduled execution is not proven from code alone
+
+The UI text says auto-pay runs every 60 seconds, and `auto-pay-engine` runs deadline monitoring whenever invoked. But I cannot confirm from files alone that Supabase cron is configured. If cron is not configured, deadline monitoring only works when the engine is called by some existing scheduler or operator action.
+
+Fix: verify existing Supabase scheduled jobs. If missing, configure a compliant scheduled invocation for `auto-pay-engine` using `pg_cron`/`pg_net` outside migrations because it contains project-specific URL/key data.
+
+Implementation plan to correct and verify
+
+1. Tighten merchant-state response validation
+
+- Update `binance-ads` so `getUserDetail` and `refreshMerchantState` fail explicitly when:
+  - HTTP status is not OK
+  - Binance `code !== '000000'`
+  - response data is missing/empty
+  - `businessStatus` is absent or non-numeric for refresh monitoring
+- Check and log/throw errors from `persistMerchantStateSnapshot` insert.
+- Keep using only `/api/sapi/v1/c2c/user/baseDetail`.
+
+2. Make merchant-state UI safe against stale data
+
+- In `MerchantStateCard`, distinguish:
+  - live API status
+  - latest cached DB snapshot
+  - API unavailable / stale cached display
+- If live API fails, do not present cached `Open` as normal. Show “Cached: Open” plus “Live API unavailable” in amber/destructive styling.
+- Show snapshot age clearly.
+
+3. Correct circuit-breaker diagnostic semantics
+
+- Fix local state handling after OPEN to HALF_OPEN transition.
+- Store diagnostic conclusion based on Binance business status:
+  - `1 -> merchant_status_open`
+  - `2 -> merchant_status_closed`
+  - `3 -> merchant_status_take_break`
+  - unknown/failure -> `merchant_status_unavailable`
+- Preserve the trigger reason either in a new column or in structured metadata/logs.
+
+4. Reduce release-deadline monitor noise
+
+- Before inserting a new monitor log, check latest status for the same `auto_pay_log_id`.
+- Skip terminal statuses (`resolved`, `already_appeal`) so already-closed orders do not keep generating checks.
+- Keep retrying true transient failures with a controlled interval.
+- Include a clear 48-hour monitoring window note, or extend the window if operations require longer tracking.
+
+5. Improve release-deadline UI wording
+
+- Rename “awaiting release” count to a safer label if it is based only on mark-paid logs, e.g. “deadline pending”.
+- Show terminal statuses distinctly:
+  - resolved: green
+  - overdue: amber/destructive
+  - already appeal/dispute: amber
+  - detail unavailable/error: destructive diagnostic
+
+6. Verify database and runtime state
+
+After implementation, run read-only checks against Supabase:
+
+- Confirm columns exist on `p2p_auto_pay_log`.
+- Confirm recent rows have `confirm_pay_end_time` populated after mark-paid success.
+- Confirm `binance_merchant_state_snapshots` has recent rows with `business_status = 1/2/3` or logs an explicit API error.
+- Confirm `ad_pricing_engine_state` merchant diagnostic fields are populated after circuit checks.
+- Confirm `p2p_release_deadline_monitor_log` is not duplicating terminal resolved/appeal rows every cycle.
+
+7. Verify scheduler
+
+- Check whether `auto-pay-engine` is invoked on the promised interval.
+- If no schedule exists, add a Supabase cron invocation outside migrations using project-specific function URL/key.
+
+Expected outcome
+
+- Merchant state becomes reliable, not just visually present.
+- Operators can tell whether the displayed Binance state is live or cached.
+- Auto-price circuit incidents will correctly identify Binance-side account state vs internal automation/proxy failures.
+- Release-deadline monitoring will keep useful alerts without creating repeated noise for already-final orders.
+- The implementation remains compliant with the Binance API-source-of-truth rule and does not invent/manual-fill Binance state.

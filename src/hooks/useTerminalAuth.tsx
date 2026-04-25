@@ -15,6 +15,8 @@ export type TerminalPermission =
   | 'terminal_orders_resolve_escalation'
   | 'terminal_orders_chat'
   | 'terminal_orders_export'
+  | 'terminal_support_view'
+  | 'terminal_support_manage'
   // Ads
   | 'terminal_ads_view'
   | 'terminal_ads_manage'
@@ -198,7 +200,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     'terminal_dashboard_view', 'terminal_dashboard_export',
     'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',
     'terminal_orders_sync_approve', 'terminal_orders_escalate', 'terminal_orders_resolve_escalation',
-    'terminal_orders_chat', 'terminal_orders_export',
+    'terminal_orders_chat', 'terminal_orders_export', 'terminal_support_view', 'terminal_support_manage',
     'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
     'terminal_payer_view', 'terminal_payer_manage',
     'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',

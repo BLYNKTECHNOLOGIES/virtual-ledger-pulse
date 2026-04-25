@@ -386,8 +386,18 @@ serve(async (req) => {
           .upsert(
             liveActiveOrders.map((order) => ({
               order_number: order.order_number,
+              adv_no: order.adv_no,
+              trade_type: order.trade_type || "BUY",
+              asset: order.asset || "USDT",
+              fiat_unit: order.fiat_unit || "INR",
+              amount: order.amount || "0",
+              total_price: order.total_price || "0",
+              unit_price: order.unit_price || (Number(order.amount || 0) > 0 && Number(order.total_price || 0) > 0
+                ? String(Number(order.total_price) / Number(order.amount))
+                : "0"),
+              commission: order.commission || "0",
+              counter_part_nick_name: order.counter_part_nick_name,
               order_status: order.order_status,
-              trade_type: "BUY",
               create_time: order.create_time,
               raw_data: order.raw_data || null,
               synced_at: new Date().toISOString(),

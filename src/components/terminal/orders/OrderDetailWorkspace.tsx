@@ -363,6 +363,12 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
 
           {/* Timing stats */}
           <div className="space-y-2 pt-2">
+            {binanceAccountAge && (
+              <StatRow
+                label="Account Age"
+                value={binanceAccountAge}
+              />
+            )}
             {stats.avgReleaseTimeOfLatest30day !== undefined && (
               <StatRow
                 label="Avg Release (30d)"
@@ -390,16 +396,6 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
               />
             )}
           </div>
-
-          {/* Relationship with us */}
-          {stats.numberOfTradesWithCounterpartyCompleted30day !== undefined && (
-            <div className="pt-2 border-t border-border/50">
-              <StatRow
-                label="Trades with us (30d)"
-                value={String(stats.numberOfTradesWithCounterpartyCompleted30day)}
-              />
-            </div>
-          )}
         </div>
       )}
 

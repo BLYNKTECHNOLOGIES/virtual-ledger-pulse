@@ -247,7 +247,8 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string }) {
+function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any }) {
+  const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
   const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
   const { data: linkedClient } = useCounterpartyLinkedClient(
     counterpartyNickname,
@@ -265,6 +266,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
     stats.completedOrderNumOfLatest30day !== undefined ||
     stats.registerDays !== undefined
   );
+  const riskSnapshot = buildRiskSnapshot(order.trade_type, liveDetail, storedRiskSnapshot?.counterparty_risk_snapshot);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -402,6 +404,16 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
           <StatRow label="Last Seen" value={new Date(counterparty.last_seen_at).toLocaleDateString('en-IN')} />
         </div>
       )}
+
+      <div className="pt-3 border-t border-border">
+        <Button variant="outline" size="sm" className="w-full h-8 justify-between text-[11px]" onClick={() => setShowMoreBinanceData((v) => !v)}>
+          <span className="flex items-center gap-1.5"><ShieldAlert className="h-3 w-3" /> View more Binance data</span>
+          <ChevronDown className={`h-3 w-3 transition-transform ${showMoreBinanceData ? 'rotate-180' : ''}`} />
+        </Button>
+        {showMoreBinanceData && (
+          <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
+        )}
+      </div>
 
       {/* PAN Collection - only for BUY orders */}
       {order.trade_type === 'BUY' && (

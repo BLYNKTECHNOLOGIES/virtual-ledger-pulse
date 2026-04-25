@@ -177,6 +177,85 @@ async function persistCommissionRateSnapshots(supabase: any, detail: any, source
   if (insertErr) throw insertErr;
 }
 
+function extractChatMessages(result: any): any[] {
+  const outer = result?.data ?? result;
+  const inner = outer?.data ?? outer;
+  if (Array.isArray(inner)) return inner;
+  if (Array.isArray(inner?.list)) return inner.list;
+  if (Array.isArray(inner?.messages)) return inner.messages;
+  if (Array.isArray(outer?.list)) return outer.list;
+  return [];
+}
+
+function normalizeChatMessage(orderNo: string, msg: any) {
+  const rawType = String(msg?.type || msg?.chatMessageType || msg?.messageType || "unknown").toLowerCase();
+  const messageType = rawType || "unknown";
+  const content = msg?.content ?? msg?.message ?? msg?.text ?? null;
+  const createTime = Number(msg?.createTime || msg?.time || 0);
+  const isSystem = messageType === "system" || msg?.self === undefined && /system|notice|risk|warning|kyc|appeal|complaint/i.test(String(content || ""));
+  const isRecall = messageType === "recall" || /recall|retract|withdraw/i.test(messageType);
+  const isComplianceRelevant = isSystem || isRecall || ["card", "video", "error", "mark"].includes(messageType);
+  const binanceMessageId = msg?.id == null ? null : String(msg.id);
+  const binanceUuid = msg?.uuid == null ? null : String(msg.uuid);
+
+  return {
+    order_number: orderNo,
+    binance_message_id: binanceMessageId || binanceUuid || `${orderNo}-${createTime}-${messageType}-${String(content || "").slice(0, 80)}`,
+    binance_uuid: binanceUuid,
+    message_type: messageType,
+    chat_message_type: msg?.chatMessageType == null ? null : String(msg.chatMessageType),
+    sender_is_self: typeof msg?.self === "boolean" ? msg.self : typeof msg?.isSelf === "boolean" ? msg.isSelf : null,
+    sender_nickname: msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
+    message_status: msg?.status == null ? msg?.sendStatus == null ? null : String(msg.sendStatus) : String(msg.status),
+    binance_create_time: Number.isFinite(createTime) && createTime > 0 ? createTime : null,
+    binance_created_at: Number.isFinite(createTime) && createTime > 0 ? new Date(createTime).toISOString() : null,
+    message_text: typeof content === "string" ? content : content == null ? null : JSON.stringify(content),
+    image_url: msg?.imageUrl || null,
+    thumbnail_url: msg?.thumbnailUrl || null,
+    raw_payload: msg,
+    is_system_message: isSystem,
+    is_recall: isRecall,
+    is_compliance_relevant: isComplianceRelevant,
+    captured_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function persistChatMessages(supabase: any, orderNo: string, messages: any[]) {
+  let inserted = 0;
+  let updated = 0;
+  let systemMessages = 0;
+  let recalls = 0;
+  let errors = 0;
+
+  for (const msg of messages) {
+    const row = normalizeChatMessage(orderNo, msg);
+    if (row.is_system_message) systemMessages++;
+    if (row.is_recall) recalls++;
+    if (row.message_type === "error") errors++;
+
+    const { data: existing, error: readErr } = await supabase
+      .from("binance_order_chat_messages")
+      .select("id")
+      .eq("order_number", orderNo)
+      .eq("binance_message_id", row.binance_message_id)
+      .maybeSingle();
+    if (readErr) throw readErr;
+
+    if (existing?.id) {
+      const { error } = await supabase.from("binance_order_chat_messages").update(row).eq("id", existing.id);
+      if (error) throw error;
+      updated++;
+    } else {
+      const { error } = await supabase.from("binance_order_chat_messages").insert(row);
+      if (error) throw error;
+      inserted++;
+    }
+  }
+
+  return { fetched: messages.length, inserted, updated, systemMessages, recalls, errors };
+}
+
 // Retry wrapper for transient network errors (connection closed, timeouts)
 async function fetchWithRetry(
   url: string,

@@ -520,7 +520,7 @@ async function processAsset(
     // Try to infer Binance's actual index price from one of our own floating ads
     let binanceIndex: number | null = null;
     for (const adNo of adNumbers) {
-      binanceIndex = await inferBinanceIndex(adNo, supabase);
+      binanceIndex = await inferBinanceIndex(adNo, supabase, rule.id);
       if (binanceIndex && binanceIndex > 0) break;
     }
 
@@ -652,6 +652,7 @@ async function processAsset(
           was_rate_limited: wasRateLimited,
           status: "applied",
         });
+        await captureAdDetailSnapshot(adNo, rule.id, "auto_price_post_update", supabase);
       } else {
         await supabase.from("ad_pricing_logs").insert({
           rule_id: rule.id,

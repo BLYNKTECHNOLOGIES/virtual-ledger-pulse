@@ -80,6 +80,35 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     enabled: !!order?.id,
   });
 
+  const { data: payoutGatewayFees = [] } = useQuery({
+    queryKey: ['purchase_payout_gateway_fees', order?.order_number],
+    queryFn: async () => {
+      const { data: feeRows, error } = await supabase
+        .from('bank_transactions')
+        .select('id, amount, bank_account_id, description, transaction_date')
+        .eq('reference_number', order.order_number)
+        .eq('transaction_type', 'EXPENSE')
+        .eq('category', 'finance_banking_compliance')
+        .ilike('description', '%Payout gateway fee%');
+      if (error || !feeRows?.length) return [];
+
+      const bankIds = [...new Set(feeRows.map((row: any) => row.bank_account_id).filter(Boolean))];
+      const { data: banks } = bankIds.length
+        ? await supabase
+          .from('bank_accounts')
+          .select('id, account_name, bank_name, account_number')
+          .in('id', bankIds)
+        : { data: [] } as any;
+
+      const bankMap = new Map((banks || []).map((bank: any) => [bank.id, bank]));
+      return feeRows.map((row: any) => ({
+        ...row,
+        bank_accounts: bankMap.get(row.bank_account_id) || null,
+      }));
+    },
+    enabled: !!order?.order_number,
+  });
+
   // Get product code for this order
   const productCode = order?.product_category || order?.purchase_order_items?.[0]?.products?.code || 'USDT';
   const isNonUsdt = productCode !== 'USDT';
@@ -96,6 +125,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
 
   const effectiveRate = storedMarketRate || liveCoinRate;
   const isLiveRate = !storedMarketRate && !!liveCoinRate;
+  const payoutGatewayFeeTotal = payoutGatewayFees.reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
 
   if (!order) return null;
 

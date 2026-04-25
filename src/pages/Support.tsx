@@ -19,19 +19,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 const ticketSchema = z.object({
   orderNumber: z.string().trim().min(3).max(80),
   customerIssue: z.string().trim().min(5).max(2000),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']),
   assignedTo: z.string().uuid().optional().nullable(),
 });
 
 type TicketStatus = 'open' | 'in_progress' | 'pending_customer' | 'resolved' | 'closed';
-type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 type SupportTicket = {
   id: string;
   order_number: string;
   customer_issue: string;
   status: TicketStatus;
-  priority: TicketPriority;
+  priority: 'high';
   assigned_to: string | null;
   created_by: string;
   escalated: boolean;
@@ -83,16 +81,9 @@ type TicketAttachment = {
 const statusLabels: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
-  pending_customer: 'Pending customer',
+  pending_customer: 'Pending resolution',
   resolved: 'Resolved',
   closed: 'Closed',
-};
-
-const priorityLabels: Record<TicketPriority, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
 };
 
 const statusClasses: Record<TicketStatus, string> = {
@@ -101,13 +92,6 @@ const statusClasses: Record<TicketStatus, string> = {
   pending_customer: 'border-muted-foreground/30 bg-muted text-muted-foreground',
   resolved: 'border-success/30 bg-success/10 text-success',
   closed: 'border-muted-foreground/30 bg-muted text-muted-foreground',
-};
-
-const priorityClasses: Record<TicketPriority, string> = {
-  low: 'border-muted-foreground/30 text-muted-foreground',
-  medium: 'border-primary/30 text-primary',
-  high: 'border-destructive/30 text-destructive',
-  urgent: 'border-destructive bg-destructive/10 text-destructive',
 };
 
 const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'resolved', 'closed'];

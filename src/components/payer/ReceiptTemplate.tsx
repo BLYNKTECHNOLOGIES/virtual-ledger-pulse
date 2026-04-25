@@ -77,22 +77,23 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
         <div
           style={{
             display: "inline-flex",
-            position: "relative",
             alignItems: "center",
             justifyContent: "center",
+            gap: "5px",
             background: "rgba(255,255,255,0.2)",
             borderRadius: "20px",
-            padding: "6px 18px",
+            padding: "0 18px",
             minWidth: "118px",
+            height: "26px",
             fontSize: "12px",
             fontWeight: 600,
             marginTop: "10px",
-            lineHeight: "1",
+            lineHeight: "26px",
             textAlign: "center",
           }}
         >
-          <span style={{ position: "absolute", left: "16px", lineHeight: 1 }}>✓</span>
-          <span style={{ display: "block", width: "100%", lineHeight: 1 }}>Completed</span>
+          <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>✓</span>
+          <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>Completed</span>
         </div>
         <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>
           {formatDateTime(data.dateTime)}
@@ -102,7 +103,7 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
       <div style={{ padding: "20px 24px 24px" }}>
         <Row label="To" value={data.toUpiId} bold />
         <Row label="From" value={fromName} bold sub={fromUpiId} />
-        <Row label="UPI Transaction ID" value={data.upiTransactionId} small />
+        <Row label="Payout ID" value={data.upiTransactionId} small />
         <Row label="Paid Amount" value={formatCurrency(Number(data.amount || 0))} bold />
         {fees > 0 && <Row label="Payment Provider Fees" value={formatCurrency(fees)} />}
         <Row label="Total Debited" value={formatCurrency(totalDebited)} bold last />

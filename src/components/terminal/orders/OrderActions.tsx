@@ -346,8 +346,10 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
   const cancelOrder = useCancelOrder();
   const [step, setStep] = useState<0 | 1 | 2>(0); // 0=closed, 1=first confirm, 2=final confirm
+  const [reasonCode, setReasonCode] = useState<'4' | '5' | ''>('');
+  const [additionalInfo, setAdditionalInfo] = useState('');
 
-  const handleReset = () => setStep(0);
+  const handleReset = () => { setStep(0); setReasonCode(''); setAdditionalInfo(''); };
 
   return (
     <>
@@ -371,11 +373,30 @@ function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
               Are you sure you want to cancel this order? This is a sensitive action and cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label>Cancellation reason</Label>
+              <Select value={reasonCode} onValueChange={(value) => setReasonCode(value as '4' | '5')}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4">Seller payment method issue</SelectItem>
+                  <SelectItem value="5">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Additional note</Label>
+              <Input value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} placeholder="Optional context for audit" maxLength={200} />
+            </div>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={handleReset}>Keep Order</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={(e) => { e.preventDefault(); setStep(2); }}
+              disabled={!reasonCode}
+              onClick={(e) => { e.preventDefault(); if (reasonCode) setStep(2); }}
             >
               Yes, Cancel Order
             </AlertDialogAction>
@@ -396,7 +417,7 @@ function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
             <AlertDialogCancel onClick={handleReset}>No, Keep Order</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => { cancelOrder.mutate({ orderNumber }); handleReset(); }}
+              onClick={() => { cancelOrder.mutate({ orderNumber, orderCancelReasonCode: Number(reasonCode), orderCancelAdditionalInfo: additionalInfo || undefined }); handleReset(); }}
             >
               Confirm Cancel Order
             </AlertDialogAction>

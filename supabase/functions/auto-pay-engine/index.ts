@@ -67,6 +67,17 @@ function isPayableStatus(status: unknown): boolean {
   return PAYABLE_KEYWORDS.some((kw) => upper.includes(kw)) || upper === "1";
 }
 
+function binanceMsToIso(value: unknown): string | null {
+  const ms = Number(value || 0);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return new Date(ms).toISOString();
+}
+
+function extractMarkPaidData(result: any) {
+  const data = result?.data?.data || result?.data || result;
+  return data && typeof data === "object" ? data : {};
+}
+
 function extractOrders(data: any): BinanceOrder[] {
   if (Array.isArray(data?.data?.data)) return data.data.data;
   if (Array.isArray(data?.data)) return data.data;
@@ -241,8 +252,9 @@ async function logDecision(supabase: any, params: {
   reason: string;
   rawStatus?: unknown;
   metadata?: Record<string, any>;
+  markPaidData?: any;
 }) {
-  const { order, status, minutesRemaining, message, reason, rawStatus, metadata } = params;
+  const { order, status, minutesRemaining, message, reason, rawStatus, metadata, markPaidData } = params;
   await supabase.from("p2p_auto_pay_log").insert({
     order_number: order.orderNumber,
     action: "mark_paid",
@@ -253,7 +265,85 @@ async function logDecision(supabase: any, params: {
     raw_status: rawStatus == null ? null : String(rawStatus),
     source: order.source || "unknown",
     metadata: metadata || {},
+    notify_pay_time: binanceMsToIso(markPaidData?.notifyPayTime),
+    confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime),
+    complain_freeze_time: binanceMsToIso(markPaidData?.complainFreezeTime),
+    mark_paid_order_status: markPaidData?.orderStatus == null ? null : String(markPaidData.orderStatus),
   });
+}
+
+async function monitorReleaseDeadlines(supabase: any, proxyUrl: string, proxyHeaders: Record<string, string>) {
+  const { data: overdueLogs, error } = await supabase
+    .from("p2p_auto_pay_log")
+    .select("id,order_number,confirm_pay_end_time,executed_at")
+    .in("status", ["success", "unverified_success"])
+    .lt("confirm_pay_end_time", new Date().toISOString())
+    .gte("executed_at", new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+    .order("confirm_pay_end_time", { ascending: true })
+    .limit(30);
+
+  if (error || !overdueLogs?.length) return { checked: 0, overdue: 0, resolved: 0, errors: error ? 1 : 0 };
+
+  let checked = 0;
+  let overdue = 0;
+  let resolved = 0;
+  let errors = 0;
+
+  for (const log of overdueLogs) {
+    const { data: recent } = await supabase
+      .from("p2p_release_deadline_monitor_log")
+      .select("id")
+      .eq("auto_pay_log_id", log.id)
+      .gte("checked_at", new Date(Date.now() - 5 * 60 * 1000).toISOString())
+      .maybeSingle();
+    if (recent) continue;
+
+    checked++;
+    try {
+      const detailCheck = await fetchOrderDetail(proxyUrl, proxyHeaders, log.order_number);
+      const liveStatus = normalizeStatus(detailCheck.detail?.orderStatus);
+      const minutesOverdue = (Date.now() - new Date(log.confirm_pay_end_time).getTime()) / 60000;
+      let status = "overdue";
+      let message = "Seller release deadline passed; order still not final on Binance.";
+
+      if (isFinalStatus(liveStatus)) {
+        status = "resolved";
+        message = `Order is final on Binance: ${liveStatus}`;
+        resolved++;
+      } else if (liveStatus.includes("APPEAL") || liveStatus.includes("DISPUTE")) {
+        status = "already_appeal";
+        message = `Order is already in appeal/dispute: ${liveStatus}`;
+      } else if (!detailCheck.detail) {
+        status = "detail_unavailable";
+        message = "Could not fetch live Binance detail for overdue release check.";
+      } else {
+        overdue++;
+      }
+
+      await supabase.from("p2p_release_deadline_monitor_log").insert({
+        order_number: log.order_number,
+        auto_pay_log_id: log.id,
+        confirm_pay_end_time: log.confirm_pay_end_time,
+        live_order_status: liveStatus || null,
+        status,
+        minutes_overdue: Number(minutesOverdue.toFixed(2)),
+        message,
+        metadata: { requestShape: detailCheck.requestShape, raw: detailCheck.raw },
+      });
+    } catch (err) {
+      errors++;
+      await supabase.from("p2p_release_deadline_monitor_log").insert({
+        order_number: log.order_number,
+        auto_pay_log_id: log.id,
+        confirm_pay_end_time: log.confirm_pay_end_time,
+        status: "error",
+        minutes_overdue: Number(((Date.now() - new Date(log.confirm_pay_end_time).getTime()) / 60000).toFixed(2)),
+        message: String(err),
+      });
+    }
+  }
+
+  return { checked, overdue, resolved, errors };
 }
 
 serve(async (req) => {

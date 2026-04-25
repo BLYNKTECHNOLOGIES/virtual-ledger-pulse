@@ -871,16 +871,45 @@ serve(async (req) => {
       case "cancelOrder": {
         // POST /sapi/v1/c2c/orderMatch/cancelOrder
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/cancelOrder`;
+        const reasonCode = Number(payload.orderCancelReasonCode);
+        if (![4, 5].includes(reasonCode)) {
+          result = { code: "INVALID_CANCEL_REASON", message: "Only Seller payment method issue (4) and Other (5) cancellation reasons are allowed." };
+          break;
+        }
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
-        if (payload.orderCancelReasonCode !== undefined) body.orderCancelReasonCode = payload.orderCancelReasonCode;
+        body.orderCancelReasonCode = reasonCode;
         if (payload.orderCancelAdditionalInfo) body.orderCancelAdditionalInfo = payload.orderCancelAdditionalInfo;
         console.log("cancelOrder body:", JSON.stringify(body));
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
         console.log("cancelOrder response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (payload.orderNumber && (result?.code === "000000" || result?.success === true) && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const cancelUpdate = {
+              cancel_reason_code: reasonCode,
+              cancel_reason_label: decodeCancelReason(reasonCode),
+              cancel_reason_additional: payload.orderCancelAdditionalInfo ? String(payload.orderCancelAdditionalInfo) : null,
+              cancel_reason_source: "operator_cancel",
+              cancel_reason_captured_at: new Date().toISOString(),
+            };
+            await supabase.from("binance_order_history").update(cancelUpdate).eq("order_number", String(payload.orderNumber));
+            const { data: orderRecord } = await supabase
+              .from("p2p_order_records")
+              .update(cancelUpdate)
+              .eq("binance_order_number", String(payload.orderNumber))
+              .select("counterparty_nickname, trade_type")
+              .maybeSingle();
+            if (reasonCode === 4 && orderRecord?.trade_type === "BUY") {
+              await supabase.rpc("flag_counterparty_for_payment_method_cancellations", { _nickname: orderRecord.counterparty_nickname });
+            }
+          } catch (persistErr) {
+            console.warn("cancelOrder reason persist failed:", persistErr);
+          }
+        }
         break;
       }
 

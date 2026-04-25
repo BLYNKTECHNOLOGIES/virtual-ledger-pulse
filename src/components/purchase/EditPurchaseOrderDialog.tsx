@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -75,7 +76,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     queryFn: async () => {
       const { data, error } = await supabase.from('products').select('*');
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     },
     enabled: open,
   });

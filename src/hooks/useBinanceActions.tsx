@@ -153,7 +153,15 @@ export function useConfirmOrderVerified() {
 
 // ==================== ACTIVE ORDERS ====================
 
-export function useBinanceActiveOrders(filters?: { tradeType?: string; asset?: string }) {
+export function useBinanceActiveOrders(filters?: {
+  tradeType?: string;
+  asset?: string;
+  advNo?: string;
+  payType?: string;
+  startDate?: string;
+  endDate?: string;
+  orderStatusList?: Array<number | string>;
+}) {
   return useQuery({
     queryKey: ['binance-active-orders', filters],
     queryFn: () => callBinanceAds('listActiveOrders', { ...filters, rows: 50 }),

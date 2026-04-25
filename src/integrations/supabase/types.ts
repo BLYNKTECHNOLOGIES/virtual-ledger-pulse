@@ -2119,6 +2119,54 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_support_tickets: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string
+          customer_issue: string
+          escalated: boolean
+          escalation_reason: string | null
+          id: string
+          order_number: string
+          priority: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by: string
+          customer_issue: string
+          escalated?: boolean
+          escalation_reason?: string | null
+          id?: string
+          order_number: string
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string
+          customer_issue?: string
+          escalated?: boolean
+          escalation_reason?: string | null
+          id?: string
+          order_number?: string
+          priority?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_gross_profit_history: {
         Row: {
           avg_sales_rate: number
@@ -14654,6 +14702,10 @@ export type Database = {
       calculate_user_risk_score: {
         Args: { user_uuid: string }
         Returns: number
+      }
+      can_manage_customer_support_tickets: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
       check_snapshot_drift: {
         Args: { p_critical_threshold?: number; p_warning_threshold?: number }

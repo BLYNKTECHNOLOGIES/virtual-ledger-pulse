@@ -251,25 +251,9 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function deriveRelationshipRisk(registerDays: any, tradesWithUs30d: any) {
+function formatBinanceAccountAge(registerDays: any) {
   const days = registerDays === null || registerDays === undefined || registerDays === '' ? null : Number(registerDays);
-  const trades = tradesWithUs30d === null || tradesWithUs30d === undefined || tradesWithUs30d === '' ? null : Number(tradesWithUs30d);
-  const accountLabel = days === null || Number.isNaN(days)
-    ? 'Account age not returned'
-    : days < 7
-      ? 'Fresh Binance account'
-      : days < 30
-        ? 'New Binance account'
-        : 'Established Binance account';
-  const relationshipLabel = trades === null || Number.isNaN(trades)
-    ? 'Relationship count not returned'
-    : trades === 0
-      ? 'First-time counterparty'
-      : trades < 10
-        ? 'Known counterparty'
-        : 'Trusted recent counterparty';
-  const elevated = (days !== null && !Number.isNaN(days) && days < 30) || (trades !== null && !Number.isNaN(trades) && trades === 0);
-  return { days, trades, accountLabel, relationshipLabel, elevated };
+  return days === null || Number.isNaN(days) ? null : `${days} days`;
 }
 
 function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot, commissionSnapshots }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any; commissionSnapshots?: any[] }) {
@@ -292,12 +276,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
     stats.registerDays !== undefined
   );
   const storedStats = counterparty?.binance_counterparty_stats_raw || null;
-  const relationshipStats = hasApiStats ? stats : storedStats;
-  const relationshipRisk = deriveRelationshipRisk(
-    relationshipStats?.registerDays ?? counterparty?.binance_register_days,
-    relationshipStats?.numberOfTradesWithCounterpartyCompleted30day ?? counterparty?.binance_trades_with_us_30d
-  );
-  const hasRelationshipStats = relationshipStats || counterparty?.binance_counterparty_stats_captured_at;
+  const binanceAccountAge = formatBinanceAccountAge((hasApiStats ? stats : storedStats)?.registerDays ?? counterparty?.binance_register_days);
   const riskSnapshot = buildRiskSnapshot(order.trade_type, liveDetail, storedRiskSnapshot?.counterparty_risk_snapshot);
 
   return (
@@ -329,27 +308,6 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
             <span className="text-[11px] font-medium text-foreground">Orders Completed With Us</span>
           </div>
           <span className="text-sm font-bold text-primary tabular-nums">{completedWithUs}</span>
-        </div>
-      )}
-
-      {hasRelationshipStats && (
-        <div className={`rounded-md border px-3 py-2.5 space-y-2 ${relationshipRisk.elevated ? 'border-destructive/30 bg-destructive/10' : 'border-primary/20 bg-primary/5'}`}>
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <ShieldAlert className={`h-3.5 w-3.5 shrink-0 ${relationshipRisk.elevated ? 'text-destructive' : 'text-primary'}`} />
-              <span className="text-[11px] font-medium text-foreground truncate">Binance Relationship Risk</span>
-            </div>
-            <Badge variant={relationshipRisk.elevated ? 'destructive' : 'secondary'} className="h-5 text-[9px] shrink-0">
-              {relationshipRisk.elevated ? 'Review' : 'Normal'}
-            </Badge>
-          </div>
-          <StatRow label="Binance account" value={relationshipRisk.accountLabel} />
-          <StatRow label="30d relationship" value={relationshipRisk.relationshipLabel} />
-          <StatRow label="Trades with us (30d)" value={relationshipRisk.trades === null || Number.isNaN(relationshipRisk.trades) ? 'Not returned by Binance' : String(relationshipRisk.trades)} />
-          <StatRow label="Account age" value={relationshipRisk.days === null || Number.isNaN(relationshipRisk.days) ? 'Not returned by Binance' : `${relationshipRisk.days} days`} />
-          <div className="pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
-            Source: {hasApiStats ? 'Live Binance stats' : 'Last Binance snapshot'}{!hasApiStats && counterparty?.binance_counterparty_stats_captured_at ? ` • Captured ${new Date(counterparty.binance_counterparty_stats_captured_at).toLocaleString('en-IN')}` : ''}
-          </div>
         </div>
       )}
 
@@ -405,6 +363,12 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
 
           {/* Timing stats */}
           <div className="space-y-2 pt-2">
+            {binanceAccountAge && (
+              <StatRow
+                label="Account Age"
+                value={binanceAccountAge}
+              />
+            )}
             {stats.avgReleaseTimeOfLatest30day !== undefined && (
               <StatRow
                 label="Avg Release (30d)"
@@ -432,16 +396,6 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
               />
             )}
           </div>
-
-          {/* Relationship with us */}
-          {stats.numberOfTradesWithCounterpartyCompleted30day !== undefined && (
-            <div className="pt-2 border-t border-border/50">
-              <StatRow
-                label="Trades with us (30d)"
-                value={String(stats.numberOfTradesWithCounterpartyCompleted30day)}
-              />
-            </div>
-          )}
         </div>
       )}
 

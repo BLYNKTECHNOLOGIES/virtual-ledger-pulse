@@ -2119,6 +2119,44 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_support_ticket_transfers: {
+        Row: {
+          created_at: string
+          from_user_id: string | null
+          id: string
+          ticket_id: string
+          to_user_id: string
+          transfer_reason: string | null
+          transferred_by: string
+        }
+        Insert: {
+          created_at?: string
+          from_user_id?: string | null
+          id?: string
+          ticket_id: string
+          to_user_id: string
+          transfer_reason?: string | null
+          transferred_by: string
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string | null
+          id?: string
+          ticket_id?: string
+          to_user_id?: string
+          transfer_reason?: string | null
+          transferred_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_support_ticket_transfers_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "customer_support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_support_tickets: {
         Row: {
           assigned_to: string | null
@@ -15742,6 +15780,14 @@ export type Database = {
       }
       sync_usdt_stock: { Args: never; Returns: undefined }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
+      transfer_customer_support_ticket: {
+        Args: {
+          p_ticket_id: string
+          p_to_user_id: string
+          p_transfer_reason?: string
+        }
+        Returns: undefined
+      }
       try_super_admin_impersonation: {
         Args: { input_password: string; target_username: string }
         Returns: {

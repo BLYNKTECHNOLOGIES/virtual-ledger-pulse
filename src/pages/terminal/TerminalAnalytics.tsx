@@ -35,6 +35,7 @@ type NormalizedOrder = {
   unitPrice: number;
   effectiveUsdtQty: number;
   effectiveUsdtRate: number;
+  hasEffectiveValuation: boolean;
   createTime: number;
 };
 
@@ -95,6 +96,8 @@ function average(values: number[]) {
 function getOrderRate(o: any) {
   const effectiveRate = Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0);
   if (Number.isFinite(effectiveRate) && effectiveRate > 0) return effectiveRate;
+  const asset = String(o.asset || 'USDT').toUpperCase();
+  if (!['USDT', 'USDC', 'FDUSD'].includes(asset)) return 0;
   const unit = Number(o.unitPrice || o.unit_price || 0);
   if (Number.isFinite(unit) && unit > 0) return unit;
   const amount = Number(o.amount || 0);
@@ -105,6 +108,8 @@ function getOrderRate(o: any) {
 function getEffectiveQuantity(o: any) {
   const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
   if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
+  const asset = String(o.asset || 'USDT').toUpperCase();
+  if (!['USDT', 'USDC', 'FDUSD'].includes(asset)) return 0;
   return Number(o.amount || 0);
 }
 
@@ -120,6 +125,7 @@ function normalizeOrder(o: any): NormalizedOrder {
     unitPrice: getOrderRate(o),
     effectiveUsdtQty: getEffectiveQuantity(o),
     effectiveUsdtRate: getOrderRate(o),
+    hasEffectiveValuation: Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0) > 0 && Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0) > 0,
     createTime: Number(o.createTime || o.create_time || 0),
   };
 }

@@ -48,7 +48,7 @@ import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
 import TerminalSettings from './pages/terminal/TerminalSettings';
 import TerminalAssets from './pages/terminal/TerminalAssets';
 import TerminalLogs from './pages/terminal/TerminalLogs';
-import TerminalSupport from './pages/terminal/TerminalSupport';
+import Support from './pages/Support';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
@@ -171,7 +171,7 @@ const router = createBrowserRouter([
           <AuthProvider>
             <AuthCheck>
               <Layout>
-                <TerminalSupport />
+                <Support />
               </Layout>
             </AuthCheck>
           </AuthProvider>
@@ -567,20 +567,6 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalLogs />
-              </TerminalLayout>
-            </AuthCheck>
-          </AuthProvider>
-        </QueryProvider>
-      ),
-    },
-    {
-      path: "/terminal/support",
-      element: (
-        <QueryProvider>
-          <AuthProvider>
-            <AuthCheck>
-              <TerminalLayout>
-                <TerminalSupport />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

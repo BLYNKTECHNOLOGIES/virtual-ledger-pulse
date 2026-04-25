@@ -1468,6 +1468,7 @@ export type Database = {
           binance_uuid: string | null
           captured_at: string
           chat_message_type: string | null
+          content_type: string | null
           dedupe_key: string
           id: string
           image_url: string | null
@@ -1491,6 +1492,7 @@ export type Database = {
           binance_uuid?: string | null
           captured_at?: string
           chat_message_type?: string | null
+          content_type?: string | null
           dedupe_key: string
           id?: string
           image_url?: string | null
@@ -1514,6 +1516,7 @@ export type Database = {
           binance_uuid?: string | null
           captured_at?: string
           chat_message_type?: string | null
+          content_type?: string | null
           dedupe_key?: string
           id?: string
           image_url?: string | null

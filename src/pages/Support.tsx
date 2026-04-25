@@ -23,7 +23,7 @@ const ticketSchema = z.object({
   assignedTo: z.string().uuid().optional().nullable(),
 });
 
-type TicketStatus = 'open' | 'in_progress' | 'pending_customer' | 'escalated' | 'resolved' | 'closed';
+type TicketStatus = 'open' | 'in_progress' | 'pending_customer' | 'resolved' | 'closed';
 type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 type SupportTicket = {
@@ -63,7 +63,6 @@ const statusLabels: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
   pending_customer: 'Pending customer',
-  escalated: 'Escalated',
   resolved: 'Resolved',
   closed: 'Closed',
 };
@@ -79,7 +78,6 @@ const statusClasses: Record<TicketStatus, string> = {
   open: 'border-primary/30 bg-primary/10 text-primary',
   in_progress: 'border-accent/30 bg-accent/10 text-accent-foreground',
   pending_customer: 'border-muted-foreground/30 bg-muted text-muted-foreground',
-  escalated: 'border-destructive/30 bg-destructive/10 text-destructive',
   resolved: 'border-success/30 bg-success/10 text-success',
   closed: 'border-muted-foreground/30 bg-muted text-muted-foreground',
 };
@@ -91,7 +89,7 @@ const priorityClasses: Record<TicketPriority, string> = {
   urgent: 'border-destructive bg-destructive/10 text-destructive',
 };
 
-const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'escalated', 'resolved', 'closed'];
+const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'resolved', 'closed'];
 
 const nextWorkflowStatus = (status: TicketStatus): TicketStatus | null => {
   const index = workflowStatuses.indexOf(status);

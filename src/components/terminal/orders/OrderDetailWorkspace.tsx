@@ -458,7 +458,57 @@ function buildRiskSnapshot(tradeType: string, liveDetail?: any, storedSnapshot?:
     counterparty: normalizeUser(fallbackUser),
     maker: normalizeUser(detail.maker),
     taker: normalizeUser(detail.taker),
+    availableFields: Object.keys(detail),
+    missingSections: [
+      !fallbackUser ? 'counterpartyRisk' : null,
+      !(fallbackUser?.userKycVo || detail.maker?.userKycVo || detail.taker?.userKycVo) ? 'kyc' : null,
+      !(fallbackUser?.userOrderHistoryStatsVo || detail.maker?.userOrderHistoryStatsVo || detail.taker?.userOrderHistoryStatsVo) ? 'historicalStats' : null,
+    ].filter(Boolean),
   };
+}
+
+function OrderLevelBinanceDetails({ liveDetail, storedDetail, order }: { liveDetail?: any; storedDetail?: any; order: P2POrderRecord }) {
+  const detail = liveDetail?.data?.data || liveDetail?.data || liveDetail || storedDetail;
+  const hasValue = (v: any) => v !== null && v !== undefined && v !== '';
+  const provided = (v: any) => hasValue(v) ? String(v) : 'Not provided by Binance';
+  const formatTs = (v: any) => {
+    const ms = Number(v || 0);
+    return Number.isFinite(ms) && ms > 0 ? new Date(ms).toLocaleString('en-IN') : null;
+  };
+  const secondsToMinutes = (v: any) => hasValue(v) && Number.isFinite(Number(v)) ? `${(Number(v) / 60).toFixed(1)} min` : null;
+  const statusLabel = (v: any) => {
+    const map: Record<string, string> = { '1': 'Pending', '2': 'Trading', '3': 'Buyer paid', '4': 'Buyer paid', '5': 'Completed', '6': 'Cancelled', '7': 'Cancelled', '8': 'Appeal' };
+    return hasValue(v) ? (map[String(v)] || String(v)) : null;
+  };
+
+  if (!detail || typeof detail !== 'object') {
+    return <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">No order-level Binance detail is available for this order yet.</div>;
+  }
+
+  const paymentMethod = detail.payType || detail.payMethodName || detail.payMethods?.[0]?.tradeMethodName || detail.payMethods?.[0]?.identifier || order.pay_method_name;
+  const additionalKyc = hasValue(detail.additionalKycVerify)
+    ? ({ 0: 'Not required', 1: 'Required, not verified', 2: 'Required and verified' } as Record<string, string>)[String(detail.additionalKycVerify)] || String(detail.additionalKycVerify)
+    : null;
+
+  return (
+    <div className="mt-2 space-y-3 rounded-md border border-border bg-muted/20 p-3">
+      <RiskSection icon={<FileText className="h-3 w-3" />} title="Order-level Binance data">
+        <StatRow label="Order status" value={provided(statusLabel(detail.orderStatus ?? detail.tradeStatus ?? detail.status))} />
+        <StatRow label="Payment method" value={provided(paymentMethod)} />
+        <StatRow label="Notify pay time" value={provided(formatTs(detail.notifyPayTime))} />
+        <StatRow label="Confirm pay deadline" value={provided(formatTs(detail.confirmPayEndTime))} />
+        <StatRow label="Complaint deadline" value={provided(formatTs(detail.complaintDeadline))} />
+        <StatRow label="Complaint allowed" value={hasValue(detail.isComplaintAllowed) ? String(Boolean(detail.isComplaintAllowed)) : 'Not provided by Binance'} />
+        <StatRow label="Avg release period" value={provided(secondsToMinutes(detail.avgReleasePeriod))} />
+        <StatRow label="Avg pay period" value={provided(secondsToMinutes(detail.avgPayPeriod))} />
+        <StatRow label="Online status" value={provided(detail.onlineStatus)} />
+        <StatRow label="Additional KYC" value={provided(additionalKyc)} />
+      </RiskSection>
+      <div className="pt-2 border-t border-border/50 text-[10px] text-muted-foreground">
+        Source: {liveDetail ? 'Live Binance order detail' : 'Stored Binance order detail'}
+      </div>
+    </div>
+  );
 }
 
 function BinanceRiskDetails({ snapshot, capturedAt, hasLiveDetail }: { snapshot: any; capturedAt?: string | null; hasLiveDetail: boolean }) {
@@ -467,13 +517,23 @@ function BinanceRiskDetails({ snapshot, capturedAt, hasLiveDetail }: { snapshot:
   const history = counterparty.historyStats || snapshot?.maker?.historyStats || snapshot?.taker?.historyStats || {};
   const progress = counterparty.inProgressStats || snapshot?.maker?.inProgressStats || snapshot?.taker?.inProgressStats || {};
   const kyc = counterparty.kyc || snapshot?.maker?.kyc || snapshot?.taker?.kyc || {};
+  const hasValue = (v: any) => v !== null && v !== undefined && v !== '';
+  const hasAny = (obj: any, keys: string[]) => keys.some((key) => hasValue(obj?.[key]));
   const provided = (v: any) => v !== null && v !== undefined && v !== '' ? String(v) : 'Not provided by Binance';
   const pct = (v: any) => v !== null && v !== undefined && v !== '' ? `${(Number(v) * 100).toFixed(2)}%` : 'Not provided by Binance';
   const minutes = (v: any) => v !== null && v !== undefined && Number(v) > 0 ? `${(Number(v) / 60).toFixed(1)} min` : provided(v);
   const warningCount = Number(top.maliceInitiatorCount || 0) + Number(progress.inAppealCountAfterBuyerPaid || 0) + (top.overComplained ? 1 : 0);
+  const hasTopRisk = hasAny(top, ['maliceInitiatorCount', 'complaintCount', 'overComplained', 'buyerCreditScore', 'sellerCreditScore']);
+  const hasHistory = hasAny(history, ['accountAge', 'registerDays', 'appealedOrderCountHistorical', 'appealedOrderCountLast30Days', 'appealedRateHistorical', 'finishRateLatest30Day', 'avgPayTime', 'avgReleaseTime']);
+  const hasProgress = hasAny(progress, ['inAppealCountAfterBuyerPaid', 'inAppealCount', 'buyerPayedCount', 'tradingCount', 'inProcessCount']);
+  const hasKyc = hasAny(kyc, ['kycLevel', 'kycType', 'kycStatus', 'identityStatus', 'faceStatus', 'companyName']) || hasValue(top.idNumberMasked);
 
   if (!snapshot) {
     return <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">No extended Binance detail is available for this order yet.</div>;
+  }
+
+  if (!hasTopRisk && !hasHistory && !hasProgress && !hasKyc) {
+    return <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">Binance did not return counterparty risk/KYC detail for this order through the current API response.</div>;
   }
 
   return (

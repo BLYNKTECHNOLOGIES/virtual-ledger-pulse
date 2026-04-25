@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { callBinanceAds, BinanceChatMessage } from './useBinanceActions';
 import { toast } from 'sonner';
+import { extractBinanceChatMessages, getBinanceChatGroupId } from '@/lib/binance-chat';
 
 interface RelayInfo {
   relayUrl: string;
@@ -135,8 +136,8 @@ export function useBinanceChatWebSocket(
           rows: 50,
           sort: 'asc',
         });
-        const list = result?.data?.data || result?.data || result?.list || [];
-        const restGroupId = result?.data?.groupId || result?.groupId;
+        const list = extractBinanceChatMessages(result);
+        const restGroupId = getBinanceChatGroupId(result);
         if (restGroupId && orderNo) {
           groupIdMapRef.current.set(orderNo, restGroupId);
         }

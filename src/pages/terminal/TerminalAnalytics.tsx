@@ -24,6 +24,7 @@ const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 const VALUATION_QUERY_CHUNK_SIZE = 150;
 
 type OrderKind = 'smallBuy' | 'bigBuy' | 'smallSell' | 'bigSell';
+type AdTradeFilter = 'BUY' | 'SELL';
 
 type NormalizedOrder = {
   orderNumber: string;
@@ -248,6 +249,24 @@ const orderKindTextClass: Record<OrderKind, string> = {
   smallSell: 'text-trade-sell',
   bigSell: 'text-destructive',
 };
+
+const assetSortOrder = ['USDT', 'BTC', 'ETH', 'USDC', 'FDUSD', 'BNB', 'TRX'];
+
+function sortAdRowsByType(a: Aggregate, b: Aggregate) {
+  const kindOrder: Record<OrderKind, number> = { smallBuy: 0, bigBuy: 1, smallSell: 0, bigSell: 1 };
+  const aKind = a.orderKind ? kindOrder[a.orderKind] : 99;
+  const bKind = b.orderKind ? kindOrder[b.orderKind] : 99;
+  if (aKind !== bKind) return aKind - bKind;
+
+  const aAsset = String(a.asset || 'USDT').toUpperCase();
+  const bAsset = String(b.asset || 'USDT').toUpperCase();
+  const aAssetIndex = assetSortOrder.includes(aAsset) ? assetSortOrder.indexOf(aAsset) : assetSortOrder.length;
+  const bAssetIndex = assetSortOrder.includes(bAsset) ? assetSortOrder.indexOf(bAsset) : assetSortOrder.length;
+  if (aAssetIndex !== bAssetIndex) return aAssetIndex - bAssetIndex;
+  if (aAsset !== bAsset) return aAsset.localeCompare(bAsset);
+
+  return a.label.localeCompare(b.label, 'en-IN', { numeric: true });
+}
 
 function dominantOrderKind(orders: NormalizedOrder[], smallBuyConfig?: RangeConfig | null, smallSalesConfig?: RangeConfig | null) {
   const counts = orders.reduce((acc, order) => {

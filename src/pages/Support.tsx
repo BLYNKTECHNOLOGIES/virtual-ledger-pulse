@@ -429,6 +429,8 @@ export default function Support() {
             <Card><CardContent className="py-12 text-center text-muted-foreground"><Headphones className="mx-auto mb-2 h-8 w-8 opacity-40" /><p className="text-sm">No support tickets found</p></CardContent></Card>
           ) : filteredTickets.map((ticket) => {
             const ticketTransfers = transfersByTicketId.get(ticket.id) || [];
+            const ticketActivities = activitiesByTicketId.get(ticket.id) || [];
+            const ticketAttachments = attachmentsByTicketId.get(ticket.id) || [];
             return (
             <Card key={ticket.id} className="overflow-hidden">
               <CardContent className="p-4">
@@ -461,6 +463,24 @@ export default function Support() {
                         ))}
                       </div>
                     )}
+                    <div className="grid gap-3 rounded-md border border-border bg-muted/10 p-3 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground"><MessageSquare className="h-3.5 w-3.5" /> Activity notes</div>
+                        <Textarea value={ticketNotes[ticket.id] || ''} onChange={(e) => setTicketNotes((current) => ({ ...current, [ticket.id]: e.target.value }))} placeholder="Write update, customer response, evidence, or internal note" className="min-h-16 text-xs" />
+                        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!ticketNotes[ticket.id]?.trim() || addNote.isPending} onClick={() => addNote.mutate({ ticketId: ticket.id, message: ticketNotes[ticket.id].trim() })}>Add note</Button>
+                        <div className="max-h-28 space-y-1 overflow-y-auto pr-1">
+                          {ticketActivities.map((activity) => <div key={activity.id} className="rounded border border-border bg-background p-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">{userLabel(usersById.get(activity.actor_id))}</span> • {format(new Date(activity.created_at), 'dd MMM yyyy, HH:mm:ss')}<div className="mt-1 whitespace-pre-wrap text-foreground">{activity.message}</div></div>)}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground"><Paperclip className="h-3.5 w-3.5" /> Files & images</div>
+                        <Input value={attachmentNotes[ticket.id] || ''} onChange={(e) => setAttachmentNotes((current) => ({ ...current, [ticket.id]: e.target.value }))} placeholder="Optional file note" className="h-8 text-xs" />
+                        <Label className="flex h-8 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-xs hover:bg-accent hover:text-accent-foreground"><Upload className="h-3.5 w-3.5" /> Upload file or image<Input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadAttachment.mutate({ ticketId: ticket.id, file, note: attachmentNotes[ticket.id] || '' }); e.currentTarget.value = ''; }} /></Label>
+                        <div className="max-h-28 space-y-1 overflow-y-auto pr-1">
+                          {ticketAttachments.map((attachment) => <div key={attachment.id} className="rounded border border-border bg-background p-2 text-xs text-muted-foreground"><div className="flex items-center justify-between gap-2"><span className="truncate font-medium text-foreground">{attachment.file_name}</span><span>{format(new Date(attachment.created_at), 'dd MMM, HH:mm')}</span></div><div>Uploaded by {userLabel(usersById.get(attachment.uploaded_by))}{attachment.note ? ` • ${attachment.note}` : ''}</div></div>)}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4 lg:w-[650px]">
                     {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}

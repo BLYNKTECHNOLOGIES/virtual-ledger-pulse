@@ -194,6 +194,40 @@ export function useBinanceOrderRiskSnapshot(orderNumber: string | null) {
   });
 }
 
+export function useOrderCommissionSnapshots(orderNumber: string | null) {
+  return useQuery({
+    queryKey: ['binance-order-commission-snapshots', orderNumber],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('binance_commission_rate_snapshots' as any)
+        .select('*')
+        .eq('order_number', orderNumber!)
+        .order('captured_at', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!orderNumber,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useAdCommissionSnapshots(advNo: string | null) {
+  return useQuery({
+    queryKey: ['binance-ad-commission-snapshots', advNo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('binance_commission_rate_snapshots' as any)
+        .select('*')
+        .eq('adv_no', advNo!)
+        .order('captured_at', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!advNo,
+    staleTime: 60 * 1000,
+  });
+}
+
 /** Fetch single-order status from order history (reliable fallback) */
 export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   return useQuery({

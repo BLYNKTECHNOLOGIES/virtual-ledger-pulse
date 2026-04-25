@@ -15,6 +15,11 @@ export interface P2PCounterparty {
   is_flagged: boolean;
   flag_reason: string | null;
   notes: string | null;
+  binance_register_days?: number | null;
+  binance_trades_with_us_30d?: number | null;
+  binance_counterparty_stats_raw?: any | null;
+  binance_counterparty_stats_captured_at?: string | null;
+  binance_counterparty_stats_order_number?: string | null;
 }
 
 // ---- Order Record ----

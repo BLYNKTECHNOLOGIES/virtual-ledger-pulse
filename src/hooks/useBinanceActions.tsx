@@ -356,10 +356,17 @@ function mapOrderRow(row: any) {
 
 // ==================== COUNTERPARTY STATS ====================
 
-export function useCounterpartyBinanceStats(orderNumber: string | null) {
+export function useCounterpartyBinanceStats(
+  orderNumber: string | null,
+  context?: { counterpartyNickname?: string | null; verifiedName?: string | null }
+) {
   return useQuery({
-    queryKey: ['binance-counterparty-stats', orderNumber],
-    queryFn: () => callBinanceAds('queryCounterPartyStats', { orderNumber }),
+    queryKey: ['binance-counterparty-stats', orderNumber, context?.counterpartyNickname, context?.verifiedName],
+    queryFn: () => callBinanceAds('queryCounterPartyStats', {
+      orderNumber,
+      counterpartyNickname: context?.counterpartyNickname || undefined,
+      verifiedName: context?.verifiedName || undefined,
+    }),
     enabled: !!orderNumber,
     staleTime: 60 * 1000,
   });

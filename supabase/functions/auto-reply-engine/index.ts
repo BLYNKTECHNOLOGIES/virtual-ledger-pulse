@@ -698,6 +698,7 @@ serve(async (req) => {
       errors,
       ordersChecked: allActiveOrders.length,
       rulesActive: rules?.length || 0,
+      listOrdersDiagnostics,
     };
     console.log("Auto-reply engine result:", JSON.stringify(result));
 

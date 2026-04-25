@@ -340,10 +340,9 @@ export default function Support() {
         <Card>
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><Plus className="h-4 w-4" /> New ticket</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid gap-3 lg:grid-cols-[180px_1fr_150px_220px_auto] lg:items-start">
+            <div className="grid gap-3 lg:grid-cols-[180px_1fr_220px_auto] lg:items-start">
               <div className="space-y-1.5"><Label className="text-xs">Order Number</Label><Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order no." className="h-9 text-xs" aria-invalid={!!formErrors.orderNumber} />{formErrors.orderNumber && <p className="text-xs text-destructive">{formErrors.orderNumber}</p>}</div>
               <div className="space-y-1.5"><Label className="text-xs">Customer Issue</Label><Textarea value={customerIssue} onChange={(e) => setCustomerIssue(e.target.value)} placeholder="Describe issue raised by customer" className="min-h-20 text-xs" aria-invalid={!!formErrors.customerIssue} />{formErrors.customerIssue && <p className="text-xs text-destructive">{formErrors.customerIssue}</p>}</div>
-              <div className="space-y-1.5"><Label className="text-xs">Priority</Label><Select value={priority} onValueChange={(value) => setPriority(value as TicketPriority)}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1.5"><Label className="text-xs">Assign</Label><Select value={assignedTo} onValueChange={setAssignedTo}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select></div>
               <Button onClick={() => createTicket.mutate()} disabled={createTicket.isPending} className="h-9">Create</Button>
             </div>
@@ -420,7 +419,6 @@ export default function Support() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-sm font-semibold text-foreground">{ticket.order_number}</span>
                       <Badge variant="outline" className={statusClasses[ticket.status]}>{statusLabels[ticket.status]}</Badge>
-                      <Badge variant="outline" className={priorityClasses[ticket.priority]}>{priorityLabels[ticket.priority]}</Badge>
                       {ticket.escalated && <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Escalated</Badge>}
                     </div>
                     <p className="whitespace-pre-wrap text-sm text-foreground">{ticket.customer_issue}</p>
@@ -474,7 +472,6 @@ export default function Support() {
                       <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
                       {ticket.escalated ? 'Escalated: On' : 'Escalated: Off'}
                     </Button>
-                    <Select value={ticket.priority} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { priority: value as TicketPriority } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     {ticket.assigned_to ? <Button variant="outline" className="h-8 text-xs" onClick={() => openTransferDialog(ticket)}><Repeat2 className="mr-1.5 h-3.5 w-3.5" /> Transfer</Button> : <Select value="unassigned" onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>}
                   </div>
                 </div>

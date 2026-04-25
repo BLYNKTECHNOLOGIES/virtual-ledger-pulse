@@ -220,12 +220,26 @@ export default function Support() {
         <Card>
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><Plus className="h-4 w-4" /> New ticket</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid gap-3 lg:grid-cols-[180px_1fr_150px_220px_auto] lg:items-end">
-              <div className="space-y-1.5"><Label className="text-xs">Order Number</Label><Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order no." className="h-9 text-xs" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Customer Issue</Label><Textarea value={customerIssue} onChange={(e) => setCustomerIssue(e.target.value)} placeholder="Describe issue raised by customer" className="min-h-9 text-xs" /></div>
+            <div className="grid gap-3 lg:grid-cols-[180px_1fr_150px_220px_auto] lg:items-start">
+              <div className="space-y-1.5"><Label className="text-xs">Order Number</Label><Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order no." className="h-9 text-xs" aria-invalid={!!formErrors.orderNumber} />{formErrors.orderNumber && <p className="text-xs text-destructive">{formErrors.orderNumber}</p>}</div>
+              <div className="space-y-1.5"><Label className="text-xs">Customer Issue</Label><Textarea value={customerIssue} onChange={(e) => setCustomerIssue(e.target.value)} placeholder="Describe issue raised by customer" className="min-h-20 text-xs" aria-invalid={!!formErrors.customerIssue} />{formErrors.customerIssue && <p className="text-xs text-destructive">{formErrors.customerIssue}</p>}</div>
               <div className="space-y-1.5"><Label className="text-xs">Priority</Label><Select value={priority} onValueChange={(value) => setPriority(value as TicketPriority)}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1.5"><Label className="text-xs">Assign</Label><Select value={assignedTo} onValueChange={setAssignedTo}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select></div>
               <Button onClick={() => createTicket.mutate()} disabled={createTicket.isPending} className="h-9">Create</Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><ClipboardList className="h-4 w-4" /> Ticket status workflow</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-2">
+              {workflowStatuses.map((status, index) => (
+                <div key={status} className="flex items-center gap-2">
+                  <Badge variant="outline" className={statusClasses[status]}>{index + 1}. {statusLabels[status]}</Badge>
+                  {index < workflowStatuses.length - 1 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -261,7 +275,8 @@ export default function Support() {
                       {ticket.resolved_at && <span>Resolved: {format(new Date(ticket.resolved_at), 'dd MMM yyyy, HH:mm')}</span>}
                     </div>
                   </div>
-                  <div className="grid gap-2 sm:grid-cols-3 lg:w-[520px]">
+                  <div className="grid gap-2 sm:grid-cols-4 lg:w-[650px]">
+                    {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus, escalated: nextWorkflowStatus(ticket.status) === 'escalated' ? true : ticket.escalated } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}
                     <Select value={ticket.status} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { status: value as TicketStatus, escalated: value === 'escalated' ? true : ticket.escalated } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     <Select value={ticket.priority} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { priority: value as TicketPriority } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     <Select value={ticket.assigned_to || 'unassigned'} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value === 'unassigned' ? null : value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>

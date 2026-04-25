@@ -136,16 +136,28 @@ export default function Support() {
   const createTicket = useMutation({
     mutationFn: async () => {
       if (!userId) throw new Error('User not authenticated');
-      const payload = ticketSchema.parse({
+      const parsed = ticketSchema.safeParse({
         orderNumber,
         customerIssue,
         priority,
         assignedTo: assignedTo === 'unassigned' ? null : assignedTo,
       });
+      if (!parsed.success) {
+        const fieldErrors = parsed.error.flatten().fieldErrors;
+        setFormErrors({
+          orderNumber: fieldErrors.orderNumber?.[0],
+          customerIssue: fieldErrors.customerIssue?.[0],
+        });
+        throw new Error('Please correct the highlighted ticket fields.');
+      }
+      setFormErrors({});
+      const payload = parsed.data;
       const { error } = await supabase.from('customer_support_tickets' as any).insert({
         order_number: payload.orderNumber,
         customer_issue: payload.customerIssue,
         priority: payload.priority,
+        status: 'open',
+        escalated: false,
         assigned_to: payload.assignedTo,
         created_by: userId,
       });
@@ -156,6 +168,7 @@ export default function Support() {
       setCustomerIssue('');
       setPriority('medium');
       setAssignedTo('unassigned');
+      setFormErrors({});
       queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] });
       toast({ title: 'Ticket created', description: 'Customer support ticket is now tracked.' });
     },

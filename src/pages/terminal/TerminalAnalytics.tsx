@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -340,9 +340,14 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'primary' }: {
   );
 }
 
-function DataRow({ item, showType = false }: { item: Aggregate; showType?: boolean }) {
+function DataRow({ item, showType = false, selected = false, onClick }: { item: Aggregate; showType?: boolean; selected?: boolean; onClick?: () => void }) {
+  const Wrapper = onClick ? 'button' : 'div';
   return (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-xs">
+    <Wrapper
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`grid w-full grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-left text-xs transition-colors ${onClick ? 'rounded-md px-2 hover:bg-secondary/60' : ''} ${selected ? 'bg-primary/5 ring-1 ring-primary/20' : ''}`}
+    >
       <div className="min-w-0">
         <p className="font-medium text-foreground truncate">{item.label}</p>
         {showType && <p className="text-[10px] text-muted-foreground truncate">
@@ -356,7 +361,7 @@ function DataRow({ item, showType = false }: { item: Aggregate; showType?: boole
       <div><p className="text-muted-foreground text-[10px]">Quantity</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
       <div><p className="text-muted-foreground text-[10px]">Avg rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
       <div><p className="text-muted-foreground text-[10px]">Avg order</p><p className="font-semibold tabular-nums">{fmtINR(item.avgOrder)}</p></div>
-    </div>
+    </Wrapper>
   );
 }
 
@@ -370,6 +375,7 @@ export default function TerminalAnalytics() {
   const { data: configs, isLoading: configLoading } = useSmallOrderConfigs();
   const { userId } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'analytics', { filter: '' as string });
+  const [selectedOrderKind, setSelectedOrderKind] = useState<OrderKind>('smallBuy');
 
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);
@@ -422,6 +428,19 @@ export default function TerminalAnalytics() {
       aggregateOrders('Big Sale', 'bigSell', kinds.bigSell, { tradeType: 'SELL' }),
     ];
 
+    const orderTypeCoinBreakdown = Object.fromEntries(
+      (Object.keys(kinds) as OrderKind[]).map((kind) => {
+        const byCoin = new Map<string, NormalizedOrder[]>();
+        for (const order of kinds[kind]) {
+          const coin = String(order.asset || 'USDT').toUpperCase();
+          byCoin.set(coin, [...(byCoin.get(coin) || []), order]);
+        }
+        return [kind, Array.from(byCoin.entries())
+          .map(([coin, rows]) => aggregateOrders(coin, `${kind}-${coin}`, rows, { asset: coin, orderKind: kind }))
+          .sort((a, b) => b.volume - a.volume)];
+      })
+    ) as Record<OrderKind, Aggregate[]>;
+
     const byAd = new Map<string, NormalizedOrder[]>();
     for (const o of completed) {
       const key = o.advNo || 'Not returned by Binance';
@@ -467,6 +486,7 @@ export default function TerminalAnalytics() {
       maxRate: rates.length ? Math.max(...rates) : 0,
       completionRate: orders.length ? completed.length / orders.length * 100 : 0,
       orderTypes,
+      orderTypeCoinBreakdown,
       adRows,
       bestAd,
       highestSellAd,
@@ -578,7 +598,19 @@ export default function TerminalAnalytics() {
           </TabsContent>
 
           <TabsContent value="types" className="min-h-0 flex-1 overflow-auto">
-            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader><CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent></Card>
+            <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)] gap-4">
+              <Card className="bg-card border-border min-h-full">
+                <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader>
+                <CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} selected={selectedOrderKind === item.key} onClick={() => setSelectedOrderKind(item.key as OrderKind)} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent>
+              </Card>
+              <Card className="bg-card border-border min-h-full">
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle className="text-sm">Coin Breakdown</CardTitle>
+                  <Badge variant="secondary" className={orderKindTextClass[selectedOrderKind]}>{orderKindLabels[selectedOrderKind]}</Badge>
+                </CardHeader>
+                <CardContent>{analytics.orderTypeCoinBreakdown[selectedOrderKind]?.length ? analytics.orderTypeCoinBreakdown[selectedOrderKind].map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected type" />}</CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="ads" className="min-h-0 flex-1 overflow-auto">

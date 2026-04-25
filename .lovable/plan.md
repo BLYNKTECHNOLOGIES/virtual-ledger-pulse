@@ -1,93 +1,111 @@
-## Finding assessment
+## Gap 8 assessment
 
-Claude's Gap 7 is partially valid and useful, but not fully accurate for this project.
+Claude’s finding is partially valid, not fully accurate.
 
 What is already implemented:
-- `binance-ads` `listActiveOrders` already forwards some filters: `advNo`, `asset`, `tradeType`, `startDate`, `endDate`.
-- Terminal UI already uses `chatUnreadCount` from active orders for unread badges/counts.
-- Terminal UI already uses `notifyPayEndTime` for payment countdowns.
-- `tradeMethodCommissionRateVoList` is already snapshotted from active order list responses.
-- Gap 4 already added release-deadline monitoring from `markOrderAsPaid` response timestamps.
+- `queryCounterPartyStats` exists in `binance-ads` and calls Binance/proxy endpoint `/sapi/v1/c2c/orderMatch/queryCounterPartyOrderStatistic`.
+- The terminal already fetches these stats via `useCounterpartyBinanceStats(orderNumber)`.
+- The order workspace already displays:
+  - `registerDays` as “Joined X days ago”
+  - `numberOfTradesWithCounterpartyCompleted30day` as “Trades with us (30d)”
+- So it is not true that these fields are completely unused.
 
-What is still useful:
-- `auto-pay-engine` still fetches active BUY orders with only `{ page, rows, tradeType: "BUY" }`, then filters locally. If Binance/proxy supports `orderStatusList`, it should request only actionable states to reduce API load and stale/noise exposure.
-- `auto-reply-engine` fetches active orders with only `{ page, rows }`. It should use bounded/status-filtered requests so rules are evaluated only against actionable orders.
-- `binance-ads` currently does not forward `orderStatusList` or `payType` in `listActiveOrders`, so frontend/automation cannot use those filters through the central API wrapper.
-- `confirmPayEndTime` from `listOrders` can be captured as an additional source for release-deadline monitoring, but it must be treated as Binance-sourced only and not inferred.
-- `notifyPayEndTime` from `listOrders` is already used in the UI, but auto-pay/reply should preserve it consistently in logs/metadata for auditability.
+What is still a real gap:
+- These fields are only consumed live in the UI for the currently opened order.
+- They are not snapshotted into `p2p_counterparties`, `binance_order_history`, or a dedicated risk snapshot table.
+- They are not used by automation/risk logic to assign trust tiers, raise warnings, or explain why an operator should be cautious.
+- Existing “Orders Completed With Us” also uses local `binance_order_history` by `verified_name`, which is useful but weaker than Binance’s direct relationship field because verified names are not globally unique in this project.
 
-What should not be overbuilt:
-- No manual shadow fields for Binance order state.
-- No guessed deadlines if Binance returns null.
-- No per-ad or pay-method analytics UI until we first confirm the proxy accepts `advNo` and `payType` for `listOrders` and returns stable data.
+## Usefulness for this ERP
+
+This is useful if handled as Binance-sourced risk intelligence, not as a new manual truth source.
+
+High-value uses:
+- Detect first-time or low-history counterparties using Binance’s direct relationship count.
+- Highlight brand-new Binance accounts using `registerDays`.
+- Create operator-visible trust labels in the terminal without requiring separate manual checks.
+- Improve auditability: later we can answer “what did Binance say about this counterparty at the time of the trade?”
+
+What should not be done:
+- Do not infer relationship count when Binance does not return it.
+- Do not replace KYC/client identity rules with nickname-only logic.
+- Do not auto-block orders only because account age is low; this should start as warnings/trust tiering unless you later approve strict automation.
+- Do not spend extra API quota in background loops unless the endpoint is confirmed stable and rate-safe.
 
 ## Implementation plan
 
-### 1. Validate Binance/proxy support before changing behavior
-- Add a safe diagnostic path in the existing `binance-ads` `listActiveOrders` action to forward only documented/supported list filters.
-- Validate these fields against the current proxy behavior:
-  - `orderStatusList`
-  - `advNo`
-  - `payType`
-  - `startDate`
-  - `endDate`
-- If `orderStatusList` or `payType` is rejected by the proxy, do not simulate them; keep client-side filtering and return a clear diagnostic message.
+### 1. Validate Binance/proxy response shape
+- Confirm the endpoint returns the expected fields through the current proxy:
+  - `registerDays`
+  - `numberOfTradesWithCounterpartyCompleted30day`
+  - existing surrounding stats such as completion rate and 30d completed count
+- Keep the response raw shape intact.
+- If the proxy does not return either field consistently, mark the missing item as “Not returned by Binance” and do not simulate it.
 
-### 2. Harden `binance-ads` `listActiveOrders` request builder
-- Extend the request body whitelist to include:
-  - `orderStatusList`
-  - `payType`
-  - existing `advNo`, `asset`, `tradeType`, `startDate`, `endDate`, `page`, `rows`
-- Validate types before forwarding:
-  - `orderStatusList` must be an array of Binance status numbers/strings.
-  - dates must be passed through only when present, not generated.
-  - empty/null filters should be omitted.
-- Keep raw Binance response shape intact so fields are not dropped.
+### 2. Add a Binance-sourced counterparty stats snapshot
+- Add nullable Binance snapshot columns to `p2p_counterparties`, or use a compact dedicated table if existing table bloat is a concern.
+- Recommended minimal fields:
+  - `binance_register_days`
+  - `binance_trades_with_us_30d`
+  - `binance_counterparty_stats_raw`
+  - `binance_counterparty_stats_captured_at`
+  - `binance_counterparty_stats_order_number`
+- These fields are snapshots only, not manually editable source-of-truth data.
 
-### 3. Use status-bounded order fetches in automation engines
-- Update `auto-pay-engine` live order fetch to request only BUY orders in payment-actionable states, if proxy validation succeeds.
-- Update `auto-reply-engine` active-order fetch to request active/actionable states instead of unbounded active pages, if proxy validation succeeds.
-- Preserve fallback behavior: if filtered requests fail, log the proxy limitation and fall back to current unfiltered calls plus existing local safety filters.
+### 3. Persist stats when the terminal already fetches them
+- Update `queryCounterPartyStats` in `supabase/functions/binance-ads/index.ts` so that after a successful Binance response it optionally persists the snapshot.
+- The frontend should pass enough context to map the stats safely:
+  - `orderNumber`
+  - `counterpartyNickname` when available
+  - `verifiedName` only as supporting context, not as the unique key
+- Persist only if a valid counterparty nickname/order mapping exists.
+- Do not create fake counterparties from incomplete Binance data.
 
-### 4. Capture useful response fields without inventing values
-- Extend normalized order objects in automation to preserve:
-  - `chatUnreadCount`
-  - `tradeMethodCommissionRateVoList`
-  - `confirmPayEndTime`
-  - `notifyPayEndTime`
-- Store these in existing log metadata where appropriate rather than creating unnecessary manual source-of-truth columns.
-- For release-deadline monitoring, use `confirmPayEndTime` from `listOrders` as an additional Binance source only when present.
-- UI should display “Not returned by Binance” when these fields are missing, not estimate them.
+### 4. Derive non-manual trust/risk labels
+- Add a small deterministic helper for display labels, for example:
+  - `First-time / low relationship`: trades with us 30d = 0
+  - `Known counterparty`: trades with us 30d between 1 and 9
+  - `Trusted recent counterparty`: trades with us 30d >= 10
+  - `New Binance account`: registerDays < 30
+  - `Fresh account warning`: registerDays < 7
+- Treat null as “Not returned by Binance,” not as zero.
 
-### 5. Improve terminal visibility using existing UI patterns
-- Keep current unread-count badges, but make sure they are sourced from the active-order response and remain stable after merge with history records.
-- In the order detail/workspace, surface Binance-provided deadlines consistently:
-  - payment deadline: `notifyPayEndTime`
-  - release deadline: `confirmPayEndTime`
-- Do not add new manual analytics pages at this stage.
+### 5. Improve terminal visibility
+- Keep the existing live stats display.
+- Add a compact “Binance Relationship Risk” block in the order workspace using:
+  - live `queryCounterPartyStats` when available
+  - stored snapshot as fallback
+- Clearly label the source:
+  - “Live Binance stats”
+  - “Last Binance snapshot”
+  - “Not returned by Binance”
+- Keep the local completed-order count, but label it separately as “Local ERP history” because it is based on internal synced orders and verified-name matching.
 
-### 6. Add audit/observability for filtered fetches
-- Add non-sensitive metadata to automation run summaries:
-  - whether filtered `listOrders` was used
-  - requested status filters
-  - fallback reason if proxy rejected filters
-  - count of orders fetched per page
-- This helps verify efficiency improvement without exposing secrets or raw credentials.
+### 6. Optional flagging, but only as a warning at this stage
+- Do not auto-flag counterparties immediately based only on low `registerDays` or low relationship count.
+- Add warning metadata/UI indicators first.
+- If later you want automation, define explicit thresholds such as:
+  - account age < 7 days and trades with us 30d = 0
+  - plus separate negative signal such as cancel reason code 4 repeats, appeal signals, or over-complained status
+- This avoids overreacting to legitimate new counterparties.
+
+### 7. Add observability
+- Add non-sensitive diagnostics to the returned result or edge logs:
+  - endpoint called
+  - whether snapshot persisted
+  - fields present/missing
+  - target order number
+- Do not log sensitive identity documents, full raw personal identifiers, or secrets.
 
 ## Technical notes
 
-Target files:
+Likely target files:
 - `supabase/functions/binance-ads/index.ts`
-- `supabase/functions/auto-pay-engine/index.ts`
-- `supabase/functions/auto-reply-engine/index.ts`
-- `src/hooks/useBinanceActions.tsx` if hook typing needs filter support
-- `src/pages/terminal/TerminalOrders.tsx` only if deadline/unread merge needs display hardening
+- `src/hooks/useBinanceActions.tsx`
+- `src/components/terminal/orders/OrderDetailWorkspace.tsx`
+- a new migration for counterparty stat snapshot fields/table
 
-No database migration is planned initially because the existing logs/metadata and commission snapshot logic can hold the additional response fields. A migration should only be added later if validated Binance data proves valuable for long-term reporting.
-
-Expected business value:
-- Lower Binance/proxy load for automation runs.
-- Less noisy automation candidate pools.
-- Better audit visibility for payment/release deadlines.
-- More reliable terminal unread indicators without extra chat fetches.
-- Foundation for later per-ad/pay-method analytics, but only after API support is proven.
+Expected outcome:
+- The fields Claude mentioned remain visible live, but also become durable, auditable Binance-sourced risk signals.
+- Operators get clearer first-time/new-account warnings in the terminal.
+- The ERP avoids unsafe inference and respects Binance API/proxy limitations.

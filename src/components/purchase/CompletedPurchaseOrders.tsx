@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 
-export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
+export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetType }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date; assetType?: string }) {
   // Fetch completed purchase orders
   const { data: completedOrders, isLoading } = useQuery({
     queryKey: ['purchase_orders', 'COMPLETED'],
@@ -179,6 +179,10 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
 
   const filteredOrders = (completedOrders || []).filter((order: any) => {
     const term = (searchTerm || '').toLowerCase();
+    const selectedAsset = (assetType || '').toUpperCase();
+    const orderAsset = String(
+      order.purchase_order_items?.[0]?.products?.code || order.product_category || order.product_name || 'USDT'
+    ).trim().toUpperCase();
     const matchesSearch = !searchTerm || (
       order.order_number?.toLowerCase().includes(term) ||
       order.supplier_name?.toLowerCase().includes(term) ||
@@ -188,7 +192,8 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
     const od = order.order_date ? new Date(order.order_date) : null;
     const inFrom = !dateFrom || (od && od >= new Date(dateFrom));
     const inTo = !dateTo || (od && od <= new Date(dateTo));
-    return matchesSearch && inFrom && inTo;
+    const matchesAsset = !selectedAsset || orderAsset === selectedAsset;
+    return matchesSearch && inFrom && inTo && matchesAsset;
   }).sort((a: any, b: any) => {
     if (!searchTerm) return 0;
     const term = searchTerm.toLowerCase();

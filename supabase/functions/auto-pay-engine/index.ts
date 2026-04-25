@@ -366,6 +366,7 @@ serve(async (req) => {
 
   const startedAt = Date.now();
   let runId: string | null = null;
+  let monitorOnly = false;
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://vagiqbespusdxsbqpvbo.supabase.co";
@@ -376,6 +377,8 @@ serve(async (req) => {
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
 
     if (!BINANCE_PROXY_URL || !BINANCE_PROXY_TOKEN) throw new Error("Missing Binance configuration secrets");
+    const body = await req.json().catch(() => ({}));
+    monitorOnly = body?.action === "monitorReleaseDeadlines" || body?.monitorOnly === true;
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     const { data: runRow } = await supabase.from("p2p_auto_pay_engine_runs").insert({ status: "running" }).select("id").single();
@@ -389,6 +392,11 @@ serve(async (req) => {
     if (BINANCE_API_KEY) proxyHeaders["x-api-key"] = BINANCE_API_KEY;
     if (BINANCE_API_SECRET) proxyHeaders["x-api-secret"] = BINANCE_API_SECRET;
 
+    if (monitorOnly) {
+      const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);
+      return new Response(JSON.stringify({ message: "Release deadline monitor complete", releaseMonitor, durationMs: Date.now() - startedAt }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { data: autoPaySettings } = await supabase
       .from("p2p_auto_pay_settings")
       .select("*")
@@ -398,7 +406,8 @@ serve(async (req) => {
     const autoPayActive = autoPaySettings?.is_active === true;
     const autoPayMinutes = Number(autoPaySettings?.minutes_before_expiry || 3);
     if (!autoPayActive) {
-      const inactive = { message: "Auto-pay inactive", processed: 0 };
+      const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);
+      const inactive = { message: "Auto-pay inactive", processed: 0, releaseMonitor };
       if (runId) await supabase.from("p2p_auto_pay_engine_runs").update({ status: "inactive", finished_at: new Date().toISOString(), summary: inactive }).eq("id", runId);
       return new Response(JSON.stringify(inactive), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }

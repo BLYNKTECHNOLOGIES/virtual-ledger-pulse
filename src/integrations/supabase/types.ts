@@ -1468,6 +1468,7 @@ export type Database = {
           binance_uuid: string | null
           captured_at: string
           chat_message_type: string | null
+          dedupe_key: string
           id: string
           image_url: string | null
           is_compliance_relevant: boolean
@@ -1490,6 +1491,7 @@ export type Database = {
           binance_uuid?: string | null
           captured_at?: string
           chat_message_type?: string | null
+          dedupe_key: string
           id?: string
           image_url?: string | null
           is_compliance_relevant?: boolean
@@ -1512,6 +1514,7 @@ export type Database = {
           binance_uuid?: string | null
           captured_at?: string
           chat_message_type?: string | null
+          dedupe_key?: string
           id?: string
           image_url?: string | null
           is_compliance_relevant?: boolean
@@ -15894,13 +15897,15 @@ export type Database = {
       }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       has_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
-      has_terminal_permission: {
-        Args: {
-          p_permission: Database["public"]["Enums"]["terminal_permission"]
-          p_user_id: string
-        }
-        Returns: boolean
-      }
+      has_terminal_permission:
+        | { Args: { _permission: string; _user_id: string }; Returns: boolean }
+        | {
+            Args: {
+              p_permission: Database["public"]["Enums"]["terminal_permission"]
+              p_user_id: string
+            }
+            Returns: boolean
+          }
       heal_all_balance_caches: {
         Args: never
         Returns: {

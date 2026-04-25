@@ -34,6 +34,7 @@ serve(async (req) => {
       const openedAt = new Date(engineState.opened_at || 0);
       const cooldownMs = (engineState.cooldown_minutes || 10) * 60000;
       if (Date.now() - openedAt.getTime() < cooldownMs) {
+        await refreshMerchantStateDiagnostic(supabase, "circuit_open_cooldown");
         console.log("[circuit-breaker] Circuit OPEN, cooldown active. Skipping cycle.");
         return new Response(JSON.stringify({ success: true, message: "Circuit breaker OPEN, skipping" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -209,6 +210,7 @@ async function updateCircuitBreaker(supabase: any, currentState: any, successes:
         consecutive_failures: currentState.consecutive_failures + errors,
         last_failure_at: now, updated_at: now,
       }).eq("id", "singleton");
+      await refreshMerchantStateDiagnostic(supabase, "half_open_test_failed");
       console.log("[circuit-breaker] HALF_OPEN → OPEN (test failed)");
     }
     return;
@@ -223,6 +225,7 @@ async function updateCircuitBreaker(supabase: any, currentState: any, successes:
         circuit_status: "OPEN", consecutive_failures: newFailures,
         opened_at: now, last_failure_at: now, updated_at: now,
       }).eq("id", "singleton");
+      await refreshMerchantStateDiagnostic(supabase, "circuit_opened_after_failures");
       console.log(`[circuit-breaker] CLOSED → OPEN (${newFailures} failures >= ${threshold})`);
     } else {
       await supabase.from("ad_pricing_engine_state").update({

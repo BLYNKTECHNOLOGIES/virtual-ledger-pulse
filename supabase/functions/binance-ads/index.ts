@@ -173,6 +173,49 @@ async function persistMerchantStateSnapshot(supabase: any, data: any, source = "
   if (error) throw error;
 }
 
+function normalizeAdStatePayload(ad: any) {
+  const detail = ad?.adDetailResp && typeof ad.adDetailResp === "object" ? { ...ad.adDetailResp, ...ad } : ad;
+  if (!detail || typeof detail !== "object") return null;
+  const advNo = detail.advNo || detail.adsNo || detail.advNoStr;
+  if (!advNo) return null;
+  return {
+    adv_no: String(advNo),
+    asset: detail.asset || null,
+    trade_type: detail.tradeType || null,
+    price_type: toNumeric(detail.priceType),
+    adv_status: toNumeric(detail.advStatus),
+    price: toNumeric(detail.price),
+    price_floating_ratio: toNumeric(detail.priceFloatingRatio),
+    init_amount: toNumeric(detail.initAmount),
+    surplus_amount: toNumeric(detail.surplusAmount),
+    min_single_trans_amount: toNumeric(detail.minSingleTransAmount),
+    max_single_trans_amount: toNumeric(detail.maxSingleTransAmount),
+    adv_visible_ret: detail.advVisibleRet || null,
+    raw_payload: detail,
+  };
+}
+
+async function persistAdStateSnapshot(supabase: any, ad: any, source = "ad_detail", ruleId?: string | null) {
+  const normalized = normalizeAdStatePayload(ad);
+  if (!normalized) return { persisted: false, reason: "missing_adv_no" };
+  const { error } = await supabase.from("binance_ad_state_snapshots").insert({
+    ...normalized,
+    rule_id: ruleId || null,
+    snapshot_source: source,
+  });
+  if (error) throw error;
+  return {
+    persisted: true,
+    advNo: normalized.adv_no,
+    source,
+    fieldsPresent: {
+      surplusAmount: normalized.surplus_amount !== null,
+      initAmount: normalized.init_amount !== null,
+      price: normalized.price !== null,
+    },
+  };
+}
+
 function unwrapCounterpartyStats(result: any) {
   return result?.data?.data || result?.data || result;
 }
@@ -542,6 +585,18 @@ serve(async (req) => {
             );
             await Promise.all(detailPromises);
           }
+          if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+            try {
+              const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+              const snapshotResults = await Promise.allSettled(
+                result.data.map((ad: any) => persistAdStateSnapshot(supabase, ad, payload.snapshotSource || "ad_list", payload.ruleId || null))
+              );
+              const persistedCount = snapshotResults.filter((r) => r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value?.persisted).length;
+              console.log(`[ad-state-snapshot] listAds persisted ${persistedCount}/${result.data.length}`);
+            } catch (persistErr) {
+              console.warn("listAds ad state snapshot persist failed:", persistErr);
+            }
+          }
         }
         break;
       }
@@ -557,8 +612,10 @@ serve(async (req) => {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
             await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo));
+            const snapshotResult = await persistAdStateSnapshot(supabase, detail, payload.snapshotSource || "ad_detail", payload.ruleId || null);
+            console.log("[ad-state-snapshot] getAdDetail", JSON.stringify(snapshotResult));
           } catch (persistErr) {
-            console.warn("getAdDetail commission snapshot persist failed:", persistErr);
+            console.warn("getAdDetail snapshot persist failed:", persistErr);
           }
         }
         break;

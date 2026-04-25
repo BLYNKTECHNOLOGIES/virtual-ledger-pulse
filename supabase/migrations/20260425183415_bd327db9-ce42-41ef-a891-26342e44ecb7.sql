@@ -1,0 +1,1 @@
+ALTER VIEW public.v_binance_ad_surplus_movement SET (security_invoker = true);

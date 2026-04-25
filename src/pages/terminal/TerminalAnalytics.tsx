@@ -633,6 +633,7 @@ export default function TerminalAnalytics() {
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);
   const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
+  const filteredAdRows = useMemo(() => analytics.adRows.filter((item) => item.tradeType === adTradeFilter), [analytics.adRows, adTradeFilter]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -728,7 +729,16 @@ export default function TerminalAnalytics() {
           </TabsContent>
 
           <TabsContent value="ads" className="min-h-0 flex-1 overflow-auto">
-            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle></CardHeader><CardContent>{analytics.adRows.length ? analytics.adRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text="No ad-linked completed orders in selected period" />}</CardContent></Card>
+            <Card className="bg-card border-border min-h-full">
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle>
+                <div className="rounded-md bg-secondary p-1 flex items-center gap-1">
+                  <Button size="sm" variant={adTradeFilter === 'BUY' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('BUY')}>Buy Ads</Button>
+                  <Button size="sm" variant={adTradeFilter === 'SELL' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('SELL')}>Sell Ads</Button>
+                </div>
+              </CardHeader>
+              <CardContent>{filteredAdRows.length ? filteredAdRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text={`No ${adTradeFilter.toLowerCase()} ad-linked completed orders in selected period`} />}</CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="rates" className="min-h-0 flex-1">

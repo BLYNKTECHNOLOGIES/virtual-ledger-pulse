@@ -50,6 +50,13 @@ export interface BinanceAd {
     identifier: string;
     tradeMethodName?: string;
   }>;
+  commissionRate?: string | number;
+  takerCommissionRate?: string | number;
+  tradeMethodCommissionRateVoList?: Array<{
+    commissionRate?: string | number;
+    tradeMethodIdentifier?: string;
+    tradeMethodName?: string;
+  }>;
   autoReplyMsg?: string;
   remarks?: string;
   createTime?: string;
@@ -149,6 +156,23 @@ export function useBinanceAdDetail(adsNo: string | null) {
     queryKey: ['binance-ad-detail', adsNo],
     queryFn: () => callBinanceAds('getAdDetail', { adsNo }),
     enabled: !!adsNo,
+  });
+}
+
+export function useAdCommissionSnapshots(advNo: string | null) {
+  return useQuery({
+    queryKey: ['binance-ad-commission-snapshots', advNo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('binance_commission_rate_snapshots' as any)
+        .select('*')
+        .eq('adv_no', advNo!)
+        .order('captured_at', { ascending: false });
+      if (error) throw error;
+      return data as any[];
+    },
+    enabled: !!advNo,
+    staleTime: 60 * 1000,
   });
 }
 

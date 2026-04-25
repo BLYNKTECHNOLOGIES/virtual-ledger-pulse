@@ -23,7 +23,7 @@ const ticketSchema = z.object({
   assignedTo: z.string().uuid().optional().nullable(),
 });
 
-type TicketStatus = 'open' | 'in_progress' | 'pending_customer' | 'escalated' | 'resolved' | 'closed';
+type TicketStatus = 'open' | 'in_progress' | 'pending_customer' | 'resolved' | 'closed';
 type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 type SupportTicket = {
@@ -63,7 +63,6 @@ const statusLabels: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
   pending_customer: 'Pending customer',
-  escalated: 'Escalated',
   resolved: 'Resolved',
   closed: 'Closed',
 };
@@ -79,7 +78,6 @@ const statusClasses: Record<TicketStatus, string> = {
   open: 'border-primary/30 bg-primary/10 text-primary',
   in_progress: 'border-accent/30 bg-accent/10 text-accent-foreground',
   pending_customer: 'border-muted-foreground/30 bg-muted text-muted-foreground',
-  escalated: 'border-destructive/30 bg-destructive/10 text-destructive',
   resolved: 'border-success/30 bg-success/10 text-success',
   closed: 'border-muted-foreground/30 bg-muted text-muted-foreground',
 };
@@ -91,7 +89,7 @@ const priorityClasses: Record<TicketPriority, string> = {
   urgent: 'border-destructive bg-destructive/10 text-destructive',
 };
 
-const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'escalated', 'resolved', 'closed'];
+const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'resolved', 'closed'];
 
 const nextWorkflowStatus = (status: TicketStatus): TicketStatus | null => {
   const index = workflowStatuses.indexOf(status);
@@ -252,7 +250,7 @@ export default function Support() {
   }, [tickets, search, statusFilter]);
 
   const openCount = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status)).length;
-  const escalatedCount = tickets.filter((ticket) => ticket.status === 'escalated' || ticket.escalated).length;
+  const escalatedCount = tickets.filter((ticket) => ticket.escalated).length;
   const resolvedCount = tickets.filter((ticket) => ['resolved', 'closed'].includes(ticket.status)).length;
 
   const content = (
@@ -379,8 +377,8 @@ export default function Support() {
                     )}
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4 lg:w-[650px]">
-                    {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus, escalated: nextWorkflowStatus(ticket.status) === 'escalated' ? true : ticket.escalated } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}
-                    <Select value={ticket.status} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { status: value as TicketStatus, escalated: value === 'escalated' ? true : ticket.escalated } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+                    {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}
+                    <Button variant={ticket.escalated ? 'destructive' : 'outline'} className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { escalated: !ticket.escalated } })}>{ticket.escalated ? 'Remove escalation' : 'Escalate'}</Button>
                     <Select value={ticket.priority} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { priority: value as TicketPriority } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     {ticket.assigned_to ? <Button variant="outline" className="h-8 text-xs" onClick={() => openTransferDialog(ticket)}><Repeat2 className="mr-1.5 h-3.5 w-3.5" /> Transfer</Button> : <Select value="unassigned" onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>}
                   </div>

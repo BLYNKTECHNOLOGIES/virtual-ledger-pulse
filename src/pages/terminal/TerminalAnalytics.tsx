@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -561,7 +561,7 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
   );
 }
 
-function AdPerformanceGraph({ rows, tradeFilter }: { rows: Aggregate[]; tradeFilter: AdTradeFilter }) {
+function AdPerformanceGraph({ rows, tradeFilter, selectedAd, coinRows }: { rows: Aggregate[]; tradeFilter: AdTradeFilter; selectedAd?: Aggregate; coinRows: Aggregate[] }) {
   const chartRows = rows.map((item) => ({ ...item, displayLabel: `${item.orderKind ? orderKindLabels[item.orderKind] : item.tradeType} · ${item.asset || 'USDT'} · ${item.label}` }));
   const totalVolume = rows.reduce((sum, item) => sum + item.volume, 0);
   const totalQty = rows.reduce((sum, item) => sum + item.quantity, 0);
@@ -580,6 +580,14 @@ function AdPerformanceGraph({ rows, tradeFilter }: { rows: Aggregate[]; tradeFil
           <GraphMetric label="Effective quantity" value={fmt(totalQty, 4)} />
           <GraphMetric label="Weighted rate" value={fmtRate(weighted)} tone="primary" />
         </div>
+        {selectedAd ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-md border border-border bg-secondary/20 p-3">
+            <GraphMetric label="Selected ad" value={selectedAd.label} />
+            <GraphMetric label="Selected volume" value={fmtINR(selectedAd.volume)} tone={tradeFilter === 'BUY' ? 'buy' : 'sell'} />
+            <GraphMetric label="Selected eff. qty" value={fmt(selectedAd.quantity, 4)} />
+            <GraphMetric label="Selected rate" value={fmtRate(selectedAd.weightedRate || selectedAd.avgRate)} tone="primary" />
+          </div>
+        ) : null}
         <div className="rounded-md border border-border bg-secondary/20 p-3">
           {chartRows.length ? (
             <div className="w-full overflow-x-auto">
@@ -618,6 +626,29 @@ function AdPerformanceGraph({ rows, tradeFilter }: { rows: Aggregate[]; tradeFil
                 </div>
               </div>
             ))}
+          </div>
+        ) : null}
+        {selectedAd ? (
+          <div className="rounded-md border border-border bg-secondary/20 p-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-foreground">Selected ad coin-wise effective USDT view</p>
+              {selectedAd.orderKind && <Badge variant="secondary" className={orderKindTextClass[selectedAd.orderKind]}>{selectedAd.orderKindLabel}</Badge>}
+            </div>
+            <div className="space-y-3">
+              {coinRows.length ? coinRows.map((coin) => {
+                const pct = selectedAd.volume ? Math.min(100, (coin.volume / selectedAd.volume) * 100) : 0;
+                return (
+                  <div key={`${coin.key}-ad-coin-visual`} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-medium text-foreground">{coin.label}</span>
+                      <span className="text-muted-foreground tabular-nums">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{coin.count} orders</span><span>{fmtRate(coin.weightedRate || coin.avgRate)}</span></div>
+                  </div>
+                );
+              }) : <EmptyPanel text="No coin graph data for selected ad" />}
+            </div>
           </div>
         ) : null}
       </CardContent>

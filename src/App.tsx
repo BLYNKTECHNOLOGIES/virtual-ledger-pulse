@@ -164,6 +164,20 @@ const router = createBrowserRouter([
       </QueryProvider>
     ),
   },
+    {
+      path: "/support",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <Layout>
+                <TerminalSupport />
+              </Layout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
   {
     path: "/purchase",
     element: (

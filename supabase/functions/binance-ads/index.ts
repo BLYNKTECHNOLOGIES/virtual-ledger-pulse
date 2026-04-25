@@ -88,6 +88,36 @@ function getBusinessStatusLabel(status: unknown): string {
   return "unknown";
 }
 
+const AD_UPDATE_FIELDS = new Set([
+  "advNo", "price", "priceFloatingRatio", "priceType", "advStatus", "initAmount", "surplusAmount",
+  "minSingleTransAmount", "maxSingleTransAmount", "tradeMethods", "payTimeLimit", "buyerKycLimit",
+  "buyerRegDaysLimit", "buyerBtcPositionLimit", "takerAdditionalKycRequired", "autoReplyMsg", "remarks",
+  "asset", "fiatUnit", "tradeType", "classify", "onlineNow", "onlineDelayTime", "updateMode"
+]);
+
+const PRICE_ONLY_FIELDS = new Set(["advNo", "price", "priceFloatingRatio", "priceType", "updateMode"]);
+
+function sanitizeAdUpdatePayload(input: Record<string, any> = {}) {
+  const accepted: Record<string, any> = {};
+  const skipped: string[] = [];
+  for (const [key, value] of Object.entries(input)) {
+    if (value === undefined) continue;
+    if (!AD_UPDATE_FIELDS.has(key)) {
+      skipped.push(key);
+      continue;
+    }
+    accepted[key] = value;
+  }
+  if (!accepted.advNo) throw new Error("advNo is required for ad update");
+  const isPriceOnly = Object.keys(accepted).every((key) => PRICE_ONLY_FIELDS.has(key));
+  if (isPriceOnly && accepted.priceType === undefined) delete accepted.priceType;
+  if (accepted.updateMode && !["selective", "full", "quickedit"].includes(String(accepted.updateMode))) {
+    skipped.push("updateMode");
+    delete accepted.updateMode;
+  }
+  return { accepted, skipped, isPriceOnly };
+}
+
 async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail") {
   const businessStatus = Number(data?.businessStatus);
   if (!Number.isFinite(businessStatus)) return;

@@ -77,21 +77,22 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
         <div
           style={{
             display: "inline-flex",
+            position: "relative",
             alignItems: "center",
             justifyContent: "center",
             background: "rgba(255,255,255,0.2)",
             borderRadius: "20px",
-            padding: "6px 16px",
+            padding: "6px 18px",
+            minWidth: "118px",
             fontSize: "12px",
             fontWeight: 600,
             marginTop: "10px",
-            lineHeight: "1.4",
+            lineHeight: "1",
             textAlign: "center",
-            gap: "4px",
           }}
         >
-          <span style={{ lineHeight: 1 }}>✓</span>
-          <span>Completed</span>
+          <span style={{ position: "absolute", left: "16px", lineHeight: 1 }}>✓</span>
+          <span style={{ display: "block", width: "100%", lineHeight: 1 }}>Completed</span>
         </div>
         <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>
           {formatDateTime(data.dateTime)}

@@ -375,6 +375,7 @@ export default function TerminalAnalytics() {
   const { data: configs, isLoading: configLoading } = useSmallOrderConfigs();
   const { userId } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'analytics', { filter: '' as string });
+  const [selectedOrderKind, setSelectedOrderKind] = useState<OrderKind>('smallBuy');
 
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);

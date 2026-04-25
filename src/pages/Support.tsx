@@ -405,8 +405,19 @@ export default function Support() {
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-3">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="active" className="h-7 text-xs">Active</TabsTrigger>
+                  <TabsTrigger value="completed" className="h-7 text-xs">Completed</TabsTrigger>
+                </TabsList>
+              </Tabs>
               <div className="relative min-w-[220px] flex-1"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order or issue" className="h-8 pl-8 text-xs" /></div>
               <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All status</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+              <Label className="flex h-8 items-center gap-2 rounded-md border border-border px-3 text-xs text-foreground">
+                <Checkbox checked={myAssignmentsOnly} onCheckedChange={(checked) => setMyAssignmentsOnly(checked === true)} />
+                My assignments only
+              </Label>
+              {activeTab === 'completed' && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={exportCompletedCsv} disabled={completedTickets.length === 0}><Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV</Button>}
               <span className="text-xs text-muted-foreground">{filteredTickets.length} tickets</span>
             </div>
           </CardContent>

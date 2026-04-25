@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, Banknote, Clock, Shield, Activity, AlertTriangle, Target, Percent, Layers } from 'lucide-react';
 import { useBinanceAdsList, BinanceAd } from '@/hooks/useBinanceAds';

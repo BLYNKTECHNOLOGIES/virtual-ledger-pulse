@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText } from 'lucide-react';
+import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, AlertTriangle, Activity, IdCard } from 'lucide-react';
 import { InternalChatPanel } from './InternalChatPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';
@@ -12,7 +12,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
 
@@ -30,6 +30,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const counterparty = counterpartyById || counterpartyByNick;
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
+  const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
   const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number);
 
@@ -169,7 +170,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
         </div>
       ) : (
-        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
+        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
       )}
     </>
   );
@@ -219,7 +220,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           )}
           {mobileTab === 'profile' && (
             <div className="h-full overflow-hidden flex flex-col bg-card">
-              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} />
+              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
             </div>
           )}
         </div>

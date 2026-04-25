@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface SalesPaymentSplit {
   payment_method_id: string;
@@ -99,6 +100,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
       return (data || []).filter((method: any) => {
         if (method.id === selectedPaymentMethodId) return true;
         if (!method.is_active) return false;
+        if (isAdjustmentBank(method.bank_accounts?.account_name)) return false;
         if (method.payment_gateway) return true;
         return method.bank_accounts?.status === 'ACTIVE';
       });

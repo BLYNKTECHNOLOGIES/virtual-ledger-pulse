@@ -191,21 +191,30 @@ function resolveExpiry(order: BinanceOrder, detail?: any): { expiryTimeMs: numbe
   return { expiryTimeMs: null, method: "unavailable", fallbackUsed: false };
 }
 
-async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<string, string>): Promise<BinanceOrder[]> {
+async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<string, string>): Promise<{ orders: BinanceOrder[]; diagnostics: Record<string, any> }> {
   const allOrders: BinanceOrder[] = [];
   const seen = new Set<string>();
   const maxPages = 8;
   const rows = 50;
+  const diagnostics: Record<string, any> = { filteredFetchUsed: true, requestedStatusFilters: ACTIONABLE_ORDER_STATUS_LIST, pages: [], fallbackReason: null };
 
   for (let page = 1; page <= maxPages; page++) {
     try {
       const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
         method: "POST",
         headers: proxyHeaders,
-        body: JSON.stringify({ page, rows, tradeType: "BUY" }),
+        body: JSON.stringify({ page, rows, tradeType: "BUY", orderStatusList: ACTIONABLE_ORDER_STATUS_LIST }),
       });
       const data = await res.json();
+      if (!res.ok || (data?.code && data.code !== "000000")) {
+        diagnostics.filteredFetchUsed = false;
+        diagnostics.fallbackReason = `filtered_listOrders_rejected:${data?.code || res.status}`;
+        allOrders.length = 0;
+        seen.clear();
+        break;
+      }
       const orders = extractOrders(data);
+      diagnostics.pages.push({ page, count: orders.length, filtered: true });
       if (orders.length === 0) break;
 
       for (const raw of orders) {
@@ -218,12 +227,43 @@ async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<strin
       if (orders.length < rows) break;
       await new Promise((r) => setTimeout(r, 100));
     } catch (err) {
-      console.error(`Error fetching active order page ${page}:`, err);
+      console.warn(`Filtered active order page ${page} failed, falling back:`, err);
+      diagnostics.filteredFetchUsed = false;
+      diagnostics.fallbackReason = String(err);
+      allOrders.length = 0;
+      seen.clear();
       break;
     }
   }
 
-  return allOrders;
+  if (!diagnostics.filteredFetchUsed) {
+    for (let page = 1; page <= maxPages; page++) {
+      try {
+        const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify({ page, rows, tradeType: "BUY" }),
+        });
+        const data = await res.json();
+        const orders = extractOrders(data);
+        diagnostics.pages.push({ page, count: orders.length, filtered: false });
+        if (orders.length === 0) break;
+        for (const raw of orders) {
+          const candidate = toCandidate(raw, "live_listOrders");
+          if (!candidate || seen.has(candidate.orderNumber)) continue;
+          seen.add(candidate.orderNumber);
+          allOrders.push(candidate);
+        }
+        if (orders.length < rows) break;
+        await new Promise((r) => setTimeout(r, 100));
+      } catch (err) {
+        console.error(`Fallback active order page ${page} failed:`, err);
+        break;
+      }
+    }
+  }
+
+  return { orders: allOrders, diagnostics };
 }
 
 async function fetchCachedRecentBuyOrders(supabase: any): Promise<BinanceOrder[]> {

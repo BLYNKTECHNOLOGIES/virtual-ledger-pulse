@@ -334,6 +334,12 @@ export function useBinanceOrderHistory() {
 }
 
 function mapOrderRow(row: any) {
+  const rawStatus = (row.raw_data as any)?.orderStatus;
+  const rawStatusText = rawStatus === undefined || rawStatus === null ? '' : String(rawStatus).toUpperCase();
+  const orderStatus = rawStatusText.includes('APPEAL') || rawStatusText.includes('DISPUTE') || rawStatusText.includes('COMPLAINT')
+    ? rawStatus
+    : row.order_status;
+
   return {
     orderNumber: row.order_number,
     advNo: row.adv_no,
@@ -345,7 +351,7 @@ function mapOrderRow(row: any) {
     totalPrice: row.total_price,
     unitPrice: row.unit_price,
     commission: row.commission,
-    orderStatus: row.order_status,
+    orderStatus,
     createTime: row.create_time,
     payMethodName: row.pay_method_name,
     counterPartNickName: row.counter_part_nick_name,

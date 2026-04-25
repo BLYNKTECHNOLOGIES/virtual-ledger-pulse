@@ -230,7 +230,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                       </TableCell>
                       <TableCell className="text-xs tabular-nums">{log.minutes_overdue != null ? `${Number(log.minutes_overdue).toFixed(1)} min` : "—"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.notify_pay_time ? format(new Date(log.notify_pay_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss")}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.confirm_pay_end_time ? format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.complain_freeze_time ? format(new Date(log.complain_freeze_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(log.checked_at), "dd MMM HH:mm:ss")}</TableCell>
                     </TableRow>

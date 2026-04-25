@@ -44,7 +44,15 @@ export function normaliseBinanceStatus(raw: number | string | undefined | null):
     return NUMERIC_STATUS_MAP[n] || 'TRADING';
   }
 
-  return s.toUpperCase();
+  const upper = s.toUpperCase();
+  if (upper.includes('APPEAL') || upper.includes('DISPUTE') || upper.includes('COMPLAINT')) return 'APPEAL';
+  if (upper.includes('CANCEL')) return 'CANCELLED';
+  if (upper.includes('COMPLETE') || upper.includes('RELEASED')) return 'COMPLETED';
+  return upper;
+}
+
+export function isAppealStatus(raw: number | string | undefined | null): boolean {
+  return normaliseBinanceStatus(raw) === 'APPEAL';
 }
 
 // ── Core mapper ─────────────────────────────────────────────────

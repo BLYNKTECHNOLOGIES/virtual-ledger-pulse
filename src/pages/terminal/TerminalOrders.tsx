@@ -21,7 +21,7 @@ import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignm
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';
-import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { isAppealStatus, mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
@@ -349,13 +349,14 @@ function TerminalOrdersContent() {
           totalPrice: o.totalPrice,
           unitPrice: o.unitPrice,
           commission: o.commission,
-          orderStatus: o.orderStatus,
+          orderStatus: isAppealStatus((o as any).rawData?.orderStatus) ? 'APPEAL' : o.orderStatus,
           createTime: o.createTime,
           payMethodName: o.payMethodName,
           counterPartNickName: o.counterPartNickName,
           buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
           sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
           additionalKycVerify: o.additionalKycVerify ?? 0,
+          rawData: (o as any).rawData,
         });
       }
     }

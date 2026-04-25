@@ -428,6 +428,19 @@ export default function TerminalAnalytics() {
       aggregateOrders('Big Sale', 'bigSell', kinds.bigSell, { tradeType: 'SELL' }),
     ];
 
+    const orderTypeCoinBreakdown = Object.fromEntries(
+      (Object.keys(kinds) as OrderKind[]).map((kind) => {
+        const byCoin = new Map<string, NormalizedOrder[]>();
+        for (const order of kinds[kind]) {
+          const coin = String(order.asset || 'USDT').toUpperCase();
+          byCoin.set(coin, [...(byCoin.get(coin) || []), order]);
+        }
+        return [kind, Array.from(byCoin.entries())
+          .map(([coin, rows]) => aggregateOrders(coin, `${kind}-${coin}`, rows, { asset: coin, orderKind: kind }))
+          .sort((a, b) => b.volume - a.volume)];
+      })
+    ) as Record<OrderKind, Aggregate[]>;
+
     const byAd = new Map<string, NormalizedOrder[]>();
     for (const o of completed) {
       const key = o.advNo || 'Not returned by Binance';
@@ -473,6 +486,7 @@ export default function TerminalAnalytics() {
       maxRate: rates.length ? Math.max(...rates) : 0,
       completionRate: orders.length ? completed.length / orders.length * 100 : 0,
       orderTypes,
+      orderTypeCoinBreakdown,
       adRows,
       bestAd,
       highestSellAd,

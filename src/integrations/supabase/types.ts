@@ -1540,6 +1540,11 @@ export type Database = {
           adv_no: string | null
           amount: string | null
           asset: string | null
+          cancel_reason_additional: string | null
+          cancel_reason_captured_at: string | null
+          cancel_reason_code: number | null
+          cancel_reason_label: string | null
+          cancel_reason_source: string | null
           commission: string | null
           counter_part_nick_name: string | null
           counterparty_risk_captured_at: string | null
@@ -1562,6 +1567,11 @@ export type Database = {
           adv_no?: string | null
           amount?: string | null
           asset?: string | null
+          cancel_reason_additional?: string | null
+          cancel_reason_captured_at?: string | null
+          cancel_reason_code?: number | null
+          cancel_reason_label?: string | null
+          cancel_reason_source?: string | null
           commission?: string | null
           counter_part_nick_name?: string | null
           counterparty_risk_captured_at?: string | null
@@ -1584,6 +1594,11 @@ export type Database = {
           adv_no?: string | null
           amount?: string | null
           asset?: string | null
+          cancel_reason_additional?: string | null
+          cancel_reason_captured_at?: string | null
+          cancel_reason_code?: number | null
+          cancel_reason_label?: string | null
+          cancel_reason_source?: string | null
           commission?: string | null
           counter_part_nick_name?: string | null
           counterparty_risk_captured_at?: string | null
@@ -9612,6 +9627,11 @@ export type Database = {
           binance_adv_no: string | null
           binance_create_time: number | null
           binance_order_number: string
+          cancel_reason_additional: string | null
+          cancel_reason_captured_at: string | null
+          cancel_reason_code: number | null
+          cancel_reason_label: string | null
+          cancel_reason_source: string | null
           cancelled_at: string | null
           commission: number
           completed_at: string | null
@@ -9638,6 +9658,11 @@ export type Database = {
           binance_adv_no?: string | null
           binance_create_time?: number | null
           binance_order_number: string
+          cancel_reason_additional?: string | null
+          cancel_reason_captured_at?: string | null
+          cancel_reason_code?: number | null
+          cancel_reason_label?: string | null
+          cancel_reason_source?: string | null
           cancelled_at?: string | null
           commission?: number
           completed_at?: string | null
@@ -9664,6 +9689,11 @@ export type Database = {
           binance_adv_no?: string | null
           binance_create_time?: number | null
           binance_order_number?: string
+          cancel_reason_additional?: string | null
+          cancel_reason_captured_at?: string | null
+          cancel_reason_code?: number | null
+          cancel_reason_label?: string | null
+          cancel_reason_source?: string | null
           cancelled_at?: string | null
           commission?: number
           completed_at?: string | null
@@ -15644,6 +15674,10 @@ export type Database = {
           record_type: string
         }[]
       }
+      decode_binance_cancel_reason: {
+        Args: { _code: number; _fallback?: string }
+        Returns: string
+      }
       delete_all_user_webauthn_credentials: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -15692,6 +15726,10 @@ export type Database = {
       extract_client_bank_number: {
         Args: { account_entry: Json }
         Returns: string
+      }
+      flag_counterparty_for_payment_method_cancellations: {
+        Args: { _nickname: string }
+        Returns: undefined
       }
       fn_calculate_monthly_penalties: {
         Args: { p_month: number; p_year: number }

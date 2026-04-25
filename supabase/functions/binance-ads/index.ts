@@ -738,14 +738,26 @@ serve(async (req) => {
               .eq("order_number", String(payload.orderNumber))
               .maybeSingle();
             if (existing) {
+              const cancelReason = extractCancelReason(detail);
+              const cancelUpdate = cancelReason ? {
+                cancel_reason_code: cancelReason.code,
+                cancel_reason_label: cancelReason.label,
+                cancel_reason_additional: cancelReason.additional,
+                cancel_reason_source: "binance_order_detail",
+                cancel_reason_captured_at: new Date().toISOString(),
+              } : {};
               await supabase
                 .from("binance_order_history")
                 .update({
                   order_detail_raw: detail,
                   counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, existing.trade_type),
                   counterparty_risk_captured_at: new Date().toISOString(),
+                  ...cancelUpdate,
                 })
                 .eq("order_number", String(payload.orderNumber));
+              if (cancelReason) {
+                await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));
+              }
               await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber));
             }
           } catch (persistErr) {

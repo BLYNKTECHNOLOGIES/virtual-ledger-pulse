@@ -24,7 +24,7 @@ serve(async (req) => {
 
   try {
     // ===== AP-ARCH-01: CIRCUIT BREAKER CHECK =====
-    const { data: engineState } = await supabase
+    let { data: engineState } = await supabase
       .from("ad_pricing_engine_state")
       .select("*")
       .eq("id", "singleton")
@@ -44,6 +44,7 @@ serve(async (req) => {
       await supabase.from("ad_pricing_engine_state").update({
         circuit_status: "HALF_OPEN", updated_at: new Date().toISOString(),
       }).eq("id", "singleton");
+      engineState = { ...engineState, circuit_status: "HALF_OPEN", updated_at: new Date().toISOString() };
       console.log("[circuit-breaker] Cooldown elapsed, transitioning to HALF_OPEN");
     }
 
@@ -249,6 +250,14 @@ function getBusinessStatusLabel(status: unknown): string {
   return "unknown";
 }
 
+function getMerchantStatusDiagnostic(status: unknown): string {
+  const value = Number(status);
+  if (value === 1) return "merchant_status_open";
+  if (value === 2) return "merchant_status_closed";
+  if (value === 3) return "merchant_status_take_break";
+  return "merchant_status_unavailable";
+}
+
 async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
   try {
     const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
@@ -262,14 +271,15 @@ async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
     const data = payload?.data?.data?.data || payload?.data?.data || payload?.data;
     const businessStatus = Number(data?.businessStatus ?? payload?.data?.normalized?.businessStatus);
     const label = getBusinessStatusLabel(businessStatus);
+    const diagnostic = getMerchantStatusDiagnostic(businessStatus);
     await supabase.from("ad_pricing_engine_state").update({
       merchant_business_status: Number.isFinite(businessStatus) ? businessStatus : null,
       merchant_business_status_label: label,
       merchant_state_checked_at: new Date().toISOString(),
-      merchant_state_diagnostic: Number.isFinite(businessStatus) ? reason : "merchant_status_unavailable",
+      merchant_state_diagnostic: diagnostic,
       updated_at: new Date().toISOString(),
     }).eq("id", "singleton");
-    console.log(`[merchant-state] ${reason}: ${label}`);
+    console.log(`[merchant-state] ${reason}: ${diagnostic} (${label})`);
   } catch (err) {
     console.warn("[merchant-state] diagnostic refresh failed:", err);
     await supabase.from("ad_pricing_engine_state").update({

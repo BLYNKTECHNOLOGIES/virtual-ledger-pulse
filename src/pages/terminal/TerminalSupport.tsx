@@ -5,8 +5,6 @@ import { format } from 'date-fns';
 import { Headphones, Plus, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useTerminalAuth } from '@/hooks/useTerminalAuth';
-import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,8 +88,7 @@ function userLabel(user?: UserOption | null) {
 
 export default function TerminalSupport() {
   const { user } = useAuth();
-  const terminalAuth = useTerminalAuth();
-  const userId = terminalAuth.userId || user?.id || null;
+  const userId = user?.id || null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -256,9 +253,5 @@ export default function TerminalSupport() {
       </div>
   );
 
-  return terminalAuth.userId ? (
-    <TerminalPermissionGate permissions={['terminal_orders_escalate']}>
-      {content}
-    </TerminalPermissionGate>
-  ) : content;
+  return content;
 }

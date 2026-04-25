@@ -470,10 +470,11 @@ serve(async (req) => {
 
     console.log(`Auto-pay ON: trigger at ${autoPayMinutes} min before expiry`);
 
-    const [liveOrders, cachedOrders] = await Promise.all([
+    const [liveFetch, cachedOrders] = await Promise.all([
       fetchAllActiveOrders(BINANCE_PROXY_URL, proxyHeaders),
       fetchCachedRecentBuyOrders(supabase),
     ]);
+    const liveOrders = liveFetch.orders;
 
     const orderMap = new Map<string, BinanceOrder>();
     for (const order of [...cachedOrders, ...liveOrders]) {
@@ -698,6 +699,7 @@ serve(async (req) => {
       warnings,
       errors,
       autoPayMinutes,
+      listOrdersDiagnostics: liveFetch.diagnostics,
       durationMs: Date.now() - startedAt,
     };
     const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);

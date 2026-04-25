@@ -28,6 +28,7 @@ import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
+import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
 
 
 /** Convert numeric orderStatus to string */
@@ -103,6 +104,7 @@ function TerminalOrdersContent() {
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
+  const [, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
@@ -389,12 +391,12 @@ function TerminalOrdersContent() {
   const unreadMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const o of rawOrders) {
-      if (o.chatUnreadCount > 0) {
+      if (o.chatUnreadCount > 0 && !isOrderChatRead(o.orderNumber)) {
         map.set(o.orderNumber, o.chatUnreadCount);
       }
     }
     return map;
-  }, [rawOrders]);
+  }, [rawOrders, setChatReadVersion]);
 
   const totalUnread = useMemo(() =>
     Array.from(unreadMap.values()).reduce((s, v) => s + v, 0), [unreadMap]);
@@ -821,8 +823,11 @@ function TerminalOrdersContent() {
   // Helper: open chat for an order row directly — opens the full workspace
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
     e.stopPropagation();
+    markOrderChatRead(order.binance_order_number);
     setSelectedOrder(order);
   };
+
+  useEffect(() => subscribeToChatReadState(() => setChatReadVersion(v => v + 1)), []);
 
   // ---- View routing ----
   if (activeChatConv) {

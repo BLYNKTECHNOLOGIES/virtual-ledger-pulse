@@ -287,6 +287,15 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getAdDetail response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const detail = result?.data?.data || result?.data || result;
+        if (payload.adsNo && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo));
+          } catch (persistErr) {
+            console.warn("getAdDetail commission snapshot persist failed:", persistErr);
+          }
+        }
         break;
       }
 
@@ -446,6 +455,18 @@ serve(async (req) => {
         const text = await response.text();
         console.log("listActiveOrders response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const orders = Array.isArray(result?.data?.data) ? result.data.data : Array.isArray(result?.data) ? result.data : [];
+            for (const order of orders) {
+              const orderNo = String(order?.orderNumber || order?.orderNo || "");
+              if (orderNo) await persistCommissionRateSnapshots(supabase, order, "active_order_list", orderNo);
+            }
+          } catch (persistErr) {
+            console.warn("listActiveOrders commission snapshot persist failed:", persistErr);
+          }
+        }
         break;
       }
 
@@ -478,6 +499,7 @@ serve(async (req) => {
                   counterparty_risk_captured_at: new Date().toISOString(),
                 })
                 .eq("order_number", String(payload.orderNumber));
+              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber));
             }
           } catch (persistErr) {
             console.warn("getOrderDetail risk snapshot persist failed:", persistErr);

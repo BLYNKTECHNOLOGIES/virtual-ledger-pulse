@@ -29,7 +29,7 @@ function formatCountdown(ms: number): string {
 }
 
 export function RestTimerBanner({ onlineAds, activeAds }: Props) {
-  const { isResting, remainingMs, activeTimer, startRest, endRest } = useAdRestTimer();
+  const { isResting, isBinanceBreakDetected, detectedBreak, remainingMs, activeTimer, startRest, endRest, clearDetectedBreak } = useAdRestTimer();
   const [countdown, setCountdown] = useState(remainingMs);
   const [confirmStart, setConfirmStart] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -99,6 +99,26 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
           </AlertDialogContent>
         </AlertDialog>
       </>
+    );
+  }
+
+  if (isBinanceBreakDetected) {
+    return (
+      <div className="flex items-center justify-between gap-3 bg-destructive/10 border border-destructive/30 rounded-lg px-4 py-3">
+        <div className="flex items-center gap-3">
+          <Coffee className="h-5 w-5 text-destructive" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Binance Break Active</p>
+            <p className="text-xs text-muted-foreground">
+              Binance is blocking ad changes because the merchant account is taking a break.
+              {detectedBreak?.detectedAt ? ` Detected ${format(new Date(detectedBreak.detectedAt), 'dd MMM HH:mm')}.` : ''}
+            </p>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" onClick={clearDetectedBreak}>
+          Dismiss
+        </Button>
+      </div>
     );
   }
 

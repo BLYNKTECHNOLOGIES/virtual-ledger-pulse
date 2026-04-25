@@ -215,6 +215,33 @@ export default function Support() {
     onError: (error: any) => toast({ title: 'Ticket update failed', description: error.message, variant: 'destructive' }),
   });
 
+  const transferMutation = useMutation({
+    mutationFn: async () => {
+      if (!transferTicket || !transferTo) throw new Error('Select a transfer assignee.');
+      const { error } = await supabase.rpc('transfer_customer_support_ticket' as any, {
+        p_ticket_id: transferTicket.id,
+        p_to_user_id: transferTo,
+        p_transfer_reason: transferReason.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setTransferTicket(null);
+      setTransferTo('');
+      setTransferReason('');
+      queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_transfers'] });
+      toast({ title: 'Ticket transferred', description: 'Assignment history has been recorded.' });
+    },
+    onError: (error: any) => toast({ title: 'Ticket transfer failed', description: error.message, variant: 'destructive' }),
+  });
+
+  const openTransferDialog = (ticket: SupportTicket) => {
+    setTransferTicket(ticket);
+    setTransferTo('');
+    setTransferReason('');
+  };
+
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tickets.filter((ticket) => {

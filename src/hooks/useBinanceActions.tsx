@@ -391,18 +391,39 @@ export function useCounterpartyCompletedOrderCount(
 
 export interface BinanceChatMessage {
   id: number;
-  type: string; // "text" | "image" | "system"
+  uuid?: string;
+  type: string;
   content?: string;
   message?: string; // legacy fallback
   imageUrl?: string;
   thumbnailUrl?: string;
   createTime: number;
+  status?: string | number;
   self?: boolean;
   fromNickName?: string;
   senderUserId?: number;
   receiverUserId?: number;
   // Keep for backward compat
   chatMessageType?: string;
+}
+
+export interface ArchivedBinanceChatMessage {
+  id: string;
+  order_number: string;
+  binance_message_id: string | null;
+  binance_uuid: string | null;
+  message_type: string;
+  chat_message_type: string | null;
+  sender_is_self: boolean | null;
+  sender_nickname: string | null;
+  message_status: string | null;
+  binance_create_time: number | null;
+  message_text: string | null;
+  image_url: string | null;
+  thumbnail_url: string | null;
+  is_system_message: boolean;
+  is_recall: boolean;
+  is_compliance_relevant: boolean;
 }
 
 export function useBinanceChatMessages(orderNo: string | null) {
@@ -420,6 +441,24 @@ export function useBinanceChatMessages(orderNo: string | null) {
     enabled: !!orderNo,
     staleTime: 5 * 1000,
     refetchInterval: 10 * 1000, // Poll chat every 10s
+  });
+}
+
+export function useArchivedBinanceChatMessages(orderNo: string | null) {
+  return useQuery({
+    queryKey: ['archived-binance-chat-messages', orderNo],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('binance_order_chat_messages' as any)
+        .select('id, order_number, binance_message_id, binance_uuid, message_type, chat_message_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant')
+        .eq('order_number', orderNo!)
+        .order('binance_create_time', { ascending: true });
+      if (error) throw error;
+      return data as unknown as ArchivedBinanceChatMessage[];
+    },
+    enabled: !!orderNo,
+    staleTime: 10 * 1000,
+    refetchInterval: 15 * 1000,
   });
 }
 

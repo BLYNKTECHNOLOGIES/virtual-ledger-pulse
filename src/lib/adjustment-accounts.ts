@@ -21,3 +21,6 @@ export const isAdjustmentBank = (name?: string | null): boolean =>
 
 export const isAdjustmentWallet = (name?: string | null): boolean =>
   !!name && WALLET_SET.has(name.trim().toLowerCase());
+
+export const filterNonAdjustmentBanks = <T extends { account_name?: string | null }>(accounts?: T[] | null): T[] =>
+  (accounts || []).filter((account) => !isAdjustmentBank(account.account_name));

@@ -116,7 +116,6 @@ export default function Support() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [orderNumber, setOrderNumber] = useState('');
   const [customerIssue, setCustomerIssue] = useState('');
-  const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState('unassigned');
   const [formErrors, setFormErrors] = useState<Partial<Record<'orderNumber' | 'customerIssue', string>>>({});
   const [transferTicket, setTransferTicket] = useState<SupportTicket | null>(null);
@@ -203,7 +202,6 @@ export default function Support() {
       const parsed = ticketSchema.safeParse({
         orderNumber,
         customerIssue,
-        priority,
         assignedTo: assignedTo === 'unassigned' ? null : assignedTo,
       });
       if (!parsed.success) {
@@ -219,7 +217,7 @@ export default function Support() {
       const { error } = await supabase.from('customer_support_tickets' as any).insert({
         order_number: payload.orderNumber,
         customer_issue: payload.customerIssue,
-        priority: payload.priority,
+        priority: 'high',
         status: 'open',
         escalated: false,
         assigned_to: payload.assignedTo,
@@ -230,7 +228,6 @@ export default function Support() {
     onSuccess: () => {
       setOrderNumber('');
       setCustomerIssue('');
-      setPriority('medium');
       setAssignedTo('unassigned');
       setFormErrors({});
       queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] });

@@ -1,163 +1,113 @@
-## Gap 9 assessment
+Plan to improve the Terminal Analytics tab
 
-Claude’s finding is mostly valid and useful, with one clarification.
+Goal: make Analytics useful without making the main screen data-heavy. The default view will show only the most important KPIs and charts, while detailed breakdowns will be available inside clickable tabs/cards.
 
-What is already implemented:
-- Binance ad APIs already return `surplusAmount` through `listWithPagination` and `getDetailByNo`.
-- The Ad Manager UI already displays current remaining quantity from `surplusAmount`.
-- The auto-price engine already calls `getAdDetail` while inferring Binance floating index, and the `binance-ads` function already enriches ad list results with details for visibility/commission fields.
-- `ad_pricing_effectiveness_snapshots` exists, but it is daily and order/log based: price updates, average applied price, competitor price, spread, orders received/completed, and volume.
+1. Redesign the analytics layout
+- Keep the existing date/shift/range filter at the top.
+- Replace the current dense page with:
+  - compact KPI summary cards
+  - one primary chart
+  - clickable drill-down tabs below
+- Use the existing dark terminal UI style and avoid oversized tables on the first view.
 
-What is still a real gap:
-- There is no durable time-series book for the actual Binance ad state: `surplusAmount`, `initAmount`, price, ratio, ad status, visibility, min/max limits, etc.
-- Current effectiveness analytics can tell “what price did we set?” and “what orders happened that day,” but not “how did the ad inventory react after each pricing cycle?”
-- This means the auto-price engine cannot distinguish these cases cleanly:
-  - Price too competitive: surplus draining too fast.
-  - Price too uncompetitive: surplus unchanged for too long.
-  - Ad unavailable/private/offline: no drain for operational reasons, not price reasons.
-
-## Usefulness for this ERP
-
-This is useful if treated as a Binance-sourced telemetry book, not as a manually edited stock book.
-
-High-value uses:
-- Close the feedback loop for auto-pricing by correlating price/ratio changes to actual ad surplus movement.
-- Detect fast ad drain before the operator only sees inventory pressure later.
-- Detect stagnant ads where pricing rules keep running but no one is taking the ad.
-- Build per-ad performance analytics using the same source of truth Binance provides.
-- Improve future automation safely: warnings first, then optional rule suggestions later.
-
-What should not be done:
-- Do not infer surplus when Binance does not return it.
-- Do not use this as wallet/inventory truth. Ledger remains `wallet_transactions` and `wallet_asset_balances`.
-- Do not auto-change pricing solely from drain/stagnation at this stage. Start with visibility and warnings.
-- Do not create extra high-frequency Binance calls just to snapshot. Capture from calls we already make wherever possible.
-
-## Implementation plan
-
-### 1. Validate API/proxy field support
-- Confirm that the current proxy responses for `listWithPagination` and `getDetailByNo` consistently expose:
-  - `advNo`
-  - `asset`
-  - `tradeType`
-  - `price`
-  - `priceFloatingRatio`
-  - `priceType`
-  - `advStatus`
-  - `initAmount`
-  - `surplusAmount`
-  - limit fields when returned, such as `minSingleTransAmount` and `maxSingleTransAmount`
-  - visibility fields from `advVisibleRet` when returned by detail
-- If any field is not returned, store it as null and display “Not returned by Binance.” No estimation.
-
-### 2. Add an ad state snapshot table
-Create a new table, for example `binance_ad_state_snapshots`, with append-only Binance telemetry fields:
-- `id`
-- `adv_no`
-- `rule_id` nullable, because snapshots may come from Ad Manager/manual detail fetches too
-- `snapshot_source` such as `auto_price_pre_update`, `auto_price_post_update`, `ad_list`, `ad_detail`
-- `captured_at`
-- `asset`, `trade_type`, `price_type`, `adv_status`
-- `price`, `price_floating_ratio`
-- `init_amount`, `surplus_amount`
-- `min_single_trans_amount`, `max_single_trans_amount` nullable
-- `adv_visible_ret` jsonb nullable
-- `raw_payload` jsonb for audit/debugging
-
-Add indexes for:
-- `(adv_no, captured_at desc)`
-- `(rule_id, captured_at desc)` where `rule_id is not null`
-- `(captured_at desc)` for retention/analytics
-
-RLS:
-- Authenticated users can read snapshots.
-- Writes happen through edge functions/service role only, not directly from the browser.
-
-### 3. Persist snapshots from existing Binance calls
-Update `supabase/functions/binance-ads/index.ts`:
-- Add a helper like `persistAdStateSnapshot(supabase, adPayload, source, ruleId?)`.
-- In `listAds`, persist a snapshot for each returned ad after enrichment, because this already has `surplusAmount` and detail fields where available.
-- In `getAdDetail`, persist a snapshot for the returned ad detail alongside the existing commission snapshot logic.
-- Include diagnostics in logs: source, ad number, whether `surplusAmount` was present, and whether persistence succeeded.
-
-### 4. Capture pricing-cycle context without extra API quota where possible
-Update `supabase/functions/auto-price-engine/index.ts`:
-- When it calls `getAdDetail` via `inferBinanceIndex`, pass context:
-  - `ruleId`
-  - `snapshotSource: auto_price_pre_update`
-- After a successful `updateAd`, optionally call `getAdDetail` once for that ad with:
-  - `ruleId`
-  - `snapshotSource: auto_price_post_update`
-- To control rate/API load, post-update detail fetch should be guarded:
-  - only for updated ads
-  - only if a configurable minimum interval has passed since last snapshot for that ad, e.g. 4–5 minutes
-  - never run when the circuit breaker is open or the cycle was skipped
-
-This creates a sequence like:
-
+Proposed layout:
 ```text
-pricing cycle starts
-  -> current Binance ad detail captured (pre-update)
-  -> price/ratio update attempted
-  -> if update succeeded, post-update detail captured when rate-safe
-later cycles
-  -> compare surplus deltas over time
+Analytics header + time filter
+
+Top summary cards:
+Completed Orders | Buy Volume | Sell Volume | Avg Rate | Completion / Appeal snapshot
+
+Primary chart:
+Daily / hourly order activity
+
+Drill-down tabs:
+Overview | Order Types | Ad Performance | Rates | Status / Risk
 ```
 
-### 5. Add drain/stagnation analytics helpers
-Add database views or RPCs for derived analytics, not manual columns:
-- `surplus_delta` = previous snapshot surplus - current snapshot surplus
-- `drain_rate_per_hour` from surplus delta over elapsed time
-- `hours_since_surplus_changed`
-- latest price/ratio at the time of the change
-- status classification:
-  - `Draining fast`
-  - `Healthy movement`
-  - `Stagnant`
-  - `No Binance surplus returned`
-  - `Offline/private/take-break context`
+2. Add order classification: small buy, big buy, small sale, big sale
+- Use the existing `small_buys_config` and `small_sales_config` thresholds.
+- Classify completed Binance orders by:
+  - BUY + within small buy range = Small Buy
+  - BUY + outside range = Big Buy
+  - SELL + within small sales range = Small Sale
+  - SELL + outside range = Big Sale
+- Show this in a dedicated “Order Types” tab with:
+  - count
+  - INR volume
+  - crypto quantity
+  - average order size
+  - average rate
+- This will be based on existing Binance order history data, not manual entries.
 
-Important: null `surplusAmount` means “not returned by Binance,” not zero.
+3. Add buy/sell volume by ad
+- Use `advNo` / `adv_no` from `binance_order_history`.
+- Build an “Ad Performance” tab showing per-ad:
+  - Ad ID
+  - trade type: BUY / SELL
+  - asset
+  - completed order count
+  - total INR volume
+  - total crypto quantity
+  - average rate
+  - last order time
+- Keep the default view compact by showing top ads first, with the full list inside the tab.
+- If available from `useBinanceAdsList`, enrich each ad with current status/price; otherwise show only Binance order-derived metrics.
 
-### 6. Correlate effectiveness snapshots with ad state
-Extend daily effectiveness generation or add a separate daily rollup table/view:
-- opening surplus for the day
-- closing surplus for the day
-- total surplus consumed
-- average drain rate
-- longest stagnation window
-- number of price updates during the same window
-- average applied price/ratio already available from pricing logs
+4. Add rate analytics
+- Add a “Rates” tab showing:
+  - average buy rate
+  - average sell rate
+  - weighted average buy rate
+  - weighted average sell rate
+  - min/max rate for the selected period
+  - rate by order type
+  - rate by ad
+- Use `unitPrice` when available; otherwise calculate `totalPrice / amount` as fallback from Binance order data.
 
-This closes the current gap: price decisions can be evaluated against actual ad consumption, not just order counts.
+5. Add daily order chart by time
+- For 1-day / shift filters: show hourly buckets in IST.
+- For 7D / 30D / 1Y filters: show daily buckets.
+- Chart metrics:
+  - buy order count
+  - sell order count
+  - buy volume
+  - sell volume
+- Keep the chart readable with toggle controls or tabs: “Orders” vs “Volume”.
 
-### 7. UI visibility in the Auto Pricing area
-Add a compact “Ad State / Drain” section for each pricing rule/ad:
-- Current Binance surplus
-- Last captured time
-- 1h / 6h / 24h drain where enough snapshots exist
-- Stagnation duration
-- Source label: `Live Binance snapshot`, `Last Binance snapshot`, or `Not returned by Binance`
-- Warning badges only at this stage:
-  - Fast drain warning
-  - Stagnant ad warning
-  - Missing Binance field warning
+6. Add insight cards, not just raw data
+- Add short insight cards like:
+  - “Best performing ad by volume”
+  - “Highest average sell rate”
+  - “Peak trading hour”
+  - “Buy/Sell volume imbalance”
+  - “Appeal/cancel drag”
+- These should be computed from real synced Binance data only.
 
-Do not automatically change pricing rules from these warnings unless separately approved later.
+7. Technical implementation
+- Update `src/pages/terminal/TerminalAnalytics.tsx` as the main page.
+- Add helper components if the page becomes too large, likely under `src/components/terminal/analytics/`:
+  - `AnalyticsKpiStrip`
+  - `OrderTypeBreakdown`
+  - `AdVolumeBreakdown`
+  - `RateAnalyticsPanel`
+  - `OrderActivityChart`
+- Add a small analytics helper layer for calculations:
+  - normalize Binance cached orders
+  - classify order type using small buy/sale config
+  - aggregate by ad
+  - aggregate by hour/day in IST
+  - calculate weighted average rates
+- Extend the cached order query only if required to include all fields already present in `binance_order_history` such as `adv_no`, `unit_price`, `asset`, `fiat_unit`, and timestamps. No new database table is required for this request.
 
-### 8. Retention and performance
-- Keep high-resolution snapshots for a limited period, e.g. 30 days.
-- Keep daily rollups longer, e.g. 180–365 days.
-- Add a cleanup function or extend existing maintenance cleanup to delete old raw snapshots.
-- Avoid snapshotting every manual UI refresh if it creates too much noise; use dedupe rules such as “one snapshot per ad/source every N minutes unless surplus or price changed.”
+8. Verification
+- Run TypeScript checks.
+- Verify the analytics tab loads with existing cached data.
+- Check edge cases:
+  - no orders in selected period
+  - missing ad number
+  - zero amount / invalid unit price
+  - disabled or missing small buy/small sales config
+  - 1-day chart hourly grouping vs range chart daily grouping
 
-## Expected outcome
-
-- The Claude gap is useful: it identifies a real missing telemetry layer.
-- Current `surplusAmount` usage is live-only and operational; it is not a historical book.
-- Implementing this gives the auto-price engine a proper feedback loop:
-  - price set
-  - Binance ad surplus observed
-  - drain/stagnation measured
-  - operator sees whether pricing is too aggressive or too weak
-- The implementation stays compliant with your Binance API rule because all values originate from Binance responses and nulls are not simulated.
+Important limitation
+- This will use data already available from Binance order history and ads list. I will not invent ad metrics that Binance does not provide. If an ad has no orders in the selected period, it can appear in ad status summaries, but it cannot have fake volume/rate metrics.

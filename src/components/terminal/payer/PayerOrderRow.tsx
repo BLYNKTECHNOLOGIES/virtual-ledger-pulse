@@ -104,14 +104,28 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const handleMarkPaid = async () => {
     setIsMarkingPaid(true);
     try {
-      const preparedScreenshot = await prepareAutoScreenshot(order.orderNumber);
       await markPaid.mutateAsync({ orderNumber: order.orderNumber });
-      await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
-      await deliverPreparedAutoScreenshot(preparedScreenshot);
+      queryClient.setQueryData<any[]>(['payer-order-log'], (current = []) => {
+        if (current.some((log) => log.order_number === order.orderNumber && log.action === 'marked_paid')) return current;
+        return [{
+          id: `local-${order.orderNumber}`,
+          order_number: order.orderNumber,
+          payer_id: 'local',
+          action: 'marked_paid',
+          created_at: new Date().toISOString(),
+        }, ...current];
+      });
+      logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
+      onMarkPaidSuccess();
+
+      // Screenshot delivery must never block or undo the paid acknowledgement.
+      void prepareAutoScreenshot(order.orderNumber)
+        .then(deliverPreparedAutoScreenshot)
+        .catch((error) => console.warn('background auto-screenshot failed', { orderNumber: order.orderNumber, error }));
+
       // Fire-and-forget: auto-reply engine (event-driven, since the cron poll
       // can miss orders that complete within seconds of being marked Paid).
       triggerAutoReplyForOrder(order.orderNumber, 'payment_marked');
-      onMarkPaidSuccess();
     } catch {
       // Error handled by the hook
     } finally {
@@ -158,27 +172,44 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
 
     setIsUploading(true);
     try {
-      const imageName = `${order.orderNumber}_${Date.now()}.jpg`;
-      const result = await getUploadUrl.mutateAsync(imageName);
-      const outer = result?.data || result;
-      const inner = outer?.data || outer;
-      const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
-      const imageUrl = inner?.imageUrl || inner?.imageUr1;
-
-      if (!preSignedUrl) throw new Error('Failed to get upload URL');
-      if (!imageUrl) throw new Error('Failed to get image URL');
-
-      const uploadResp = await fetch(preSignedUrl, { method: 'PUT', body: file });
-      if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`);
-
-      await callBinanceAds('sendChatMessage', { orderNo: order.orderNumber, imageUrl });
       await markPaid.mutateAsync({ orderNumber: order.orderNumber });
-      await logAction.mutateAsync({ orderNumber: order.orderNumber, action: 'marked_paid' });
-
-      toast.success('Screenshot uploaded & marked as paid');
+      queryClient.setQueryData<any[]>(['payer-order-log'], (current = []) => {
+        if (current.some((log) => log.order_number === order.orderNumber && log.action === 'marked_paid')) return current;
+        return [{
+          id: `local-${order.orderNumber}`,
+          order_number: order.orderNumber,
+          payer_id: 'local',
+          action: 'marked_paid',
+          created_at: new Date().toISOString(),
+        }, ...current];
+      });
+      logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
       onMarkPaidSuccess();
+
+      void (async () => {
+        try {
+          const imageName = `${order.orderNumber}_${Date.now()}.jpg`;
+          const result = await getUploadUrl.mutateAsync(imageName);
+          const outer = result?.data || result;
+          const inner = outer?.data || outer;
+          const preSignedUrl = inner?.uploadUrl || inner?.preSignedUrl;
+          const imageUrl = inner?.imageUrl || inner?.imageUr1;
+
+          if (!preSignedUrl) throw new Error('Failed to get upload URL');
+          if (!imageUrl) throw new Error('Failed to get image URL');
+
+          const uploadResp = await fetch(preSignedUrl, { method: 'PUT', body: file });
+          if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status})`);
+
+          await callBinanceAds('sendChatMessage', { orderNo: order.orderNumber, imageUrl });
+        } catch (error) {
+          console.warn('background screenshot upload failed', { orderNumber: order.orderNumber, error });
+        }
+      })();
+
+      toast.success('Order marked paid. Screenshot will send in background.');
     } catch (err: any) {
-      toast.error(`Upload failed: ${err.message}`);
+      toast.error(`Mark paid failed: ${err.message}`);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

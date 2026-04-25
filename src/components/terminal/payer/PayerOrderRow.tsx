@@ -11,6 +11,7 @@ import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, use
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
+import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,17 +33,15 @@ interface PayerOrderRowProps {
 }
 
 function mapOrderStatusCode(code: number | string): string {
+  const normalized = normaliseBinanceStatus(code);
   const map: Record<string, string> = {
-    '1': 'Pending',
-    '2': 'Paying',
-    '3': 'Paid',
-    '4': 'Completed',
-    '5': 'Completed',
-    '6': 'Cancelled',
-    '7': 'Appeal',
-    '8': 'Expired',
+    TRADING: 'Pending',
+    BUYER_PAYED: 'Paid',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    APPEAL: 'Appeal',
   };
-  return map[String(code)] || String(code);
+  return map[normalized] || normalized;
 }
 
 function getStatusBadgeClass(status: string): string {

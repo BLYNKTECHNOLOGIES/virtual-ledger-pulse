@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
-import { useBinanceActiveOrders, useMarkOrderAsPaid, callBinanceAds } from '@/hooks/useBinanceActions';
+import { useBinanceActiveOrders, useBinanceOrderHistory, useMarkOrderAsPaid, callBinanceAds } from '@/hooks/useBinanceActions';
 import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 
 interface PayerAssignment {
   id: string;
@@ -211,6 +212,7 @@ export function usePayerOrders() {
   const queryClient = useQueryClient();
   const { userId } = useTerminalAuth();
   const { data: activeOrdersData, isLoading: ordersLoading, refetch: refetchOrders, isFetching } = useBinanceActiveOrders();
+  const { data: historyOrders = [], isLoading: historyLoading, refetch: refetchHistory, isFetching: isFetchingHistory } = useBinanceOrderHistory();
   const { data: myAssignments = [], isLoading: assignmentsLoading } = usePayerAssignments(userId);
   const { data: allAssignments = [], isLoading: allAssignmentsLoading } = usePayerAssignments(null);
   const { data: orderLog = [], isLoading: logLoading } = usePayerOrderLog();
@@ -282,10 +284,28 @@ export function usePayerOrders() {
   // Filter and deduplicate: locked orders stay with their payer, new orders get distributed
   const { myOrders: allMatchedOrders, newLocks } = useMemo(() => {
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
-    const list = Array.isArray(d) ? d : [];
+    const activeList = Array.isArray(d) ? d : [];
+    const orderMap = new Map<string, any>();
 
+    for (const o of activeList) {
+      if (o?.tradeType !== 'BUY' || !o?.orderNumber) continue;
+      orderMap.set(String(o.orderNumber), { ...o, orderNumber: String(o.orderNumber) });
+    }
 
-    const buyOrders = list.filter((o: any) => o.tradeType === 'BUY');
+    for (const o of historyOrders as any[]) {
+      const orderNumber = o?.orderNumber ? String(o.orderNumber) : '';
+      const status = normaliseBinanceStatus(o?.orderStatus);
+      const isActiveBuy = o?.tradeType === 'BUY' && !['COMPLETED', 'CANCELLED', 'EXPIRED'].some((s) => status.includes(s));
+      if (!orderNumber || !isActiveBuy || orderMap.has(orderNumber)) continue;
+      orderMap.set(orderNumber, {
+        ...o,
+        orderNumber,
+        fiat: o.fiat || o.fiatUnit || 'INR',
+        sellerNickname: o.sellerNickname || o.counterPartNickName || '',
+      });
+    }
+
+    const buyOrders = Array.from(orderMap.values());
 
     if (myAssignments.length === 0) {
       // Even with no current assignments, still show orders locked to this user
@@ -340,7 +360,7 @@ export function usePayerOrders() {
     }
 
     return { myOrders, newLocks };
-  }, [activeOrdersData, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId, lockByOrder]);
+  }, [activeOrdersData, historyOrders, myAssignments, allAssignments, getMatchingPayers, payerWorkloadMap, userId, lockByOrder]);
 
   // Persist new locks to the database (fire-and-forget, deduplicated)
   const lockedRef = useRef<Set<string>>(new Set());
@@ -364,10 +384,9 @@ export function usePayerOrders() {
   // deposit) when the seller is slow to release coins. Only truly finalized states
   // (4/5 COMPLETED, 7 CANCELLED) and explicitly acknowledged orders are excluded.
   const pendingOrders = useMemo(() => {
-    const excludeFromPending = new Set(['4', '5', '7']);
     const result = allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
-      .filter((o: any) => !excludeFromPending.has(String(o.orderStatus)));
+      .filter((o: any) => !['COMPLETED', 'CANCELLED', 'EXPIRED'].some((s) => normaliseBinanceStatus(o.orderStatus).includes(s)));
 
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
@@ -376,16 +395,16 @@ export function usePayerOrders() {
   const completedOrders = useMemo(() => {
     return allMatchedOrders.filter((o: any) =>
       paidOrderNumbers.has(o.orderNumber) ||
-      ['4', '5'].includes(String(o.orderStatus))
+      normaliseBinanceStatus(o.orderStatus).includes('COMPLETED')
     );
   }, [allMatchedOrders, paidOrderNumbers]);
 
   return {
     orders: pendingOrders,
     completedOrders,
-    isLoading: ordersLoading || assignmentsLoading || allAssignmentsLoading || logLoading || locksLoading,
-    isFetching,
-    refetch: refetchOrders,
+    isLoading: ordersLoading || historyLoading || assignmentsLoading || allAssignmentsLoading || logLoading || locksLoading,
+    isFetching: isFetching || isFetchingHistory,
+    refetch: async () => { await Promise.all([refetchOrders(), refetchHistory()]); },
     exclusions,
     paidOrderNumbers,
   };

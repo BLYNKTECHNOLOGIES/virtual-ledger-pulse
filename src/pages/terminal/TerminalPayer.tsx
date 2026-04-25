@@ -16,20 +16,10 @@ import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWo
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import { PayerMyAssignments } from '@/components/terminal/payer/PayerMyAssignments';
 import { format } from 'date-fns';
+import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 
 function mapOrderStatusCode(code: number | string): string {
-  const map: Record<string, string> = {
-    '1': 'PENDING',
-    '2': 'PAYING',
-    '3': 'PAID',
-    '4': 'COMPLETED',
-    '5': 'COMPLETED',
-    '6': 'CANCELLED',
-    '7': 'APPEAL',
-    '8': 'EXPIRED',
-  };
-  const str = String(code);
-  return map[str] || str.toUpperCase();
+  return normaliseBinanceStatus(code);
 }
 
 export default function TerminalPayer() {

@@ -111,15 +111,15 @@ serve(async (req) => {
       "x-api-secret": BINANCE_API_SECRET,
     };
 
-    // Fetch orders from last 30 days that are COMPLETED but missing verified_name
+    // Fetch orders from last 30 days that are completed but missing verified name or risk snapshot
     const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
-      .select("order_number, trade_type")
-      .is("verified_name", null)
+      .select("order_number, trade_type, verified_name, counterparty_risk_snapshot")
       .eq("order_status", "COMPLETED")
       .gte("create_time", thirtyDaysAgo)
+      .or("verified_name.is.null,counterparty_risk_snapshot.is.null")
       .order("create_time", { ascending: false })
       .limit(20); // Process max 20 per run to stay within timeout
 
@@ -176,10 +176,17 @@ serve(async (req) => {
           verifiedName = detail.buyerRealName || detail.buyerName || null;
         }
 
-        if (verifiedName) {
+        const updatePayload: Record<string, unknown> = {
+          order_detail_raw: detail,
+          counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, order.trade_type),
+          counterparty_risk_captured_at: new Date().toISOString(),
+        };
+        if (verifiedName && !order.verified_name) updatePayload.verified_name = verifiedName;
+
+        if (verifiedName || !order.counterparty_risk_snapshot) {
           const { error: updateErr } = await supabase
             .from("binance_order_history")
-            .update({ verified_name: verifiedName })
+            .update(updatePayload)
             .eq("order_number", order.order_number);
 
           if (!updateErr) {

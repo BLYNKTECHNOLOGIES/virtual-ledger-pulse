@@ -598,7 +598,19 @@ export default function TerminalAnalytics() {
           </TabsContent>
 
           <TabsContent value="types" className="min-h-0 flex-1 overflow-auto">
-            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader><CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent></Card>
+            <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)] gap-4">
+              <Card className="bg-card border-border min-h-full">
+                <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader>
+                <CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} selected={selectedOrderKind === item.key} onClick={() => setSelectedOrderKind(item.key as OrderKind)} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent>
+              </Card>
+              <Card className="bg-card border-border min-h-full">
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle className="text-sm">Coin Breakdown</CardTitle>
+                  <Badge variant="secondary" className={orderKindTextClass[selectedOrderKind]}>{orderKindLabels[selectedOrderKind]}</Badge>
+                </CardHeader>
+                <CardContent>{analytics.orderTypeCoinBreakdown[selectedOrderKind]?.length ? analytics.orderTypeCoinBreakdown[selectedOrderKind].map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected type" />}</CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="ads" className="min-h-0 flex-1 overflow-auto">

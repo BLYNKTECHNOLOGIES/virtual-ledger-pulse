@@ -377,6 +377,7 @@ export default function TerminalAnalytics() {
       return aggregateOrders(advNo, advNo, rows, {
         tradeType: rows[0]?.tradeType || ad?.tradeType,
         asset: rows[0]?.asset || ad?.asset,
+        ...getAdDetails(ad, rows),
       });
     }).sort((a, b) => b.volume - a.volume);
 

@@ -55,6 +55,63 @@ function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
   };
 }
 
+function toNumeric(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId: string) {
+  if (!detail || typeof detail !== "object" || !sourceId) return [];
+  const list = Array.isArray(detail.tradeMethodCommissionRateVoList) ? detail.tradeMethodCommissionRateVoList : [];
+  const methods = Array.isArray(detail.tradeMethods) ? detail.tradeMethods : Array.isArray(detail.payMethods) ? detail.payMethods : [];
+  const entries = list.length > 0 ? list : methods.length > 0 ? methods : [{}];
+  const hasCommissionData = list.length > 0 || detail.commissionRate !== undefined || detail.takerCommissionRate !== undefined || detail.commission !== undefined || detail.takerCommission !== undefined;
+  if (!hasCommissionData) return [];
+
+  return entries.map((entry: any, index: number) => {
+    const method = methods.find((m: any) =>
+      String(m.identifier || m.payType || m.tradeMethodName || m.payId || "") === String(entry.tradeMethodIdentifier || entry.identifier || entry.payType || entry.tradeMethodName || entry.payId || "")
+    ) || methods[index] || {};
+    const effectiveRate = toNumeric(entry.commissionRate ?? detail.commissionRate ?? detail.takerCommissionRate);
+    return {
+      source_type: sourceType,
+      source_id: sourceId,
+      order_number: sourceType === "order_detail" || sourceType === "active_order_list" ? String(detail.orderNumber || detail.orderNo || detail.adOrderNo || sourceId) : null,
+      adv_no: String(detail.advNo || detail.adsNo || (sourceType === "ad_detail" ? sourceId : "")) || null,
+      trade_type: detail.tradeType || null,
+      asset: detail.asset || "USDT",
+      fiat_unit: detail.fiatUnit || detail.fiat || "INR",
+      pay_method_identifier: entry.tradeMethodIdentifier || entry.identifier || method.identifier || method.payType || detail.payType || null,
+      pay_method_name: entry.tradeMethodName || method.tradeMethodName || method.payType || detail.payMethodName || detail.payType || null,
+      pay_id: entry.payId !== undefined ? String(entry.payId) : method.payId !== undefined ? String(method.payId) : detail.selectedPayId !== undefined ? String(detail.selectedPayId) : null,
+      maker_commission_rate: toNumeric(detail.commissionRate),
+      taker_commission_rate: toNumeric(detail.takerCommissionRate),
+      effective_commission_rate: effectiveRate,
+      actual_commission_amount: toNumeric(detail.commission ?? detail.takerCommission),
+      commission_asset: detail.commissionAsset || detail.asset || "USDT",
+      total_price: toNumeric(detail.totalPrice),
+      amount: toNumeric(detail.amount ?? detail.takerAmount),
+      raw_snapshot: { sourceType, sourceId, entry, commissionRate: detail.commissionRate ?? null, takerCommissionRate: detail.takerCommissionRate ?? null, commission: detail.commission ?? null, takerCommission: detail.takerCommission ?? null },
+      captured_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  });
+}
+
+async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string) {
+  const snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
+  if (snapshots.length === 0) return;
+  const { error: deleteErr } = await supabase
+    .from("binance_commission_rate_snapshots")
+    .delete()
+    .eq("source_type", sourceType)
+    .eq("source_id", sourceId);
+  if (deleteErr) throw deleteErr;
+  const { error: insertErr } = await supabase.from("binance_commission_rate_snapshots").insert(snapshots);
+  if (insertErr) throw insertErr;
+}
+
 // Retry wrapper for transient network errors (connection closed, timeouts)
 async function fetchWithRetry(
   url: string,

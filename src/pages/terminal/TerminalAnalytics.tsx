@@ -430,7 +430,10 @@ export default function TerminalAnalytics() {
     const adLookup = new Map(ads.map((ad: any) => [String(ad.advNo || ad.adv_no || ''), ad]));
     const adRows = Array.from(byAd.entries()).map(([advNo, rows]) => {
       const ad = adLookup.get(advNo) as any;
+      const kind = dominantOrderKind(rows, configs?.smallBuy, configs?.smallSale);
       return aggregateOrders(advNo, advNo, rows, {
+        orderKind: kind,
+        orderKindLabel: kind ? orderKindLabels[kind] : undefined,
         tradeType: rows[0]?.tradeType || ad?.tradeType,
         asset: rows[0]?.asset || ad?.asset,
         ...getAdDetails(ad, rows),

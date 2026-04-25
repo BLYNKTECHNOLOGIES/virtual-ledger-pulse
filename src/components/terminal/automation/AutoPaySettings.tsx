@@ -20,6 +20,14 @@ interface AutoPaySettingsProps {
 export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoPaySettingsProps) {
   const queryClient = useQueryClient();
 
+  const getLogIcon = (status: string) => {
+    if (status === "success") return <CheckCircle className="h-4 w-4 text-trade-buy" />;
+    if (status === "failed") return <XCircle className="h-4 w-4 text-trade-sell" />;
+    if (status === "warning" || status === "unverified_success") return <AlertTriangle className="h-4 w-4 text-amber-400" />;
+    if (status === "pending") return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+    return <Timer className="h-4 w-4 text-muted-foreground" />;
+  };
+
   const { data: settings, isLoading } = useQuery({
     queryKey: ["auto-pay-settings"],
     queryFn: async () => {
@@ -180,9 +188,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                   {logs.map((log: any) => (
                     <TableRow key={log.id}>
                       <TableCell>
-                        {log.status === "success" && <CheckCircle className="h-4 w-4 text-trade-buy" />}
-                        {log.status === "failed" && <XCircle className="h-4 w-4 text-trade-sell" />}
-                        {log.status === "pending" && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                        {getLogIcon(log.status)}
                       </TableCell>
                       <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
                       <TableCell>
@@ -196,9 +202,11 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         {log.error_message ? (
-                          <p className="text-xs text-destructive truncate">{log.error_message}</p>
+                          <p className={`text-xs truncate ${log.status === "warning" || log.status === "unverified_success" ? "text-amber-400" : "text-destructive"}`}>
+                            {log.decision_reason ? `${log.decision_reason}: ` : ""}{log.error_message}
+                          </p>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <span className="text-xs text-muted-foreground">{log.decision_reason || "—"}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">

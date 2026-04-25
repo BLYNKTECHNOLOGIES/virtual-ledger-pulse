@@ -53,6 +53,7 @@
        { value: "loan_interest", label: "Loan interest" },
        { value: "emi_payments", label: "EMI payments" },
        { value: "processing_fees", label: "Processing fees" },
+       { value: "payout_gateway_fee", label: "Payout Gateway Fee" },
         { value: "overdraft_interest", label: "Overdraft interest" },
         { value: "reversal", label: "Reversal" },
         { value: "lien", label: "Lien" },

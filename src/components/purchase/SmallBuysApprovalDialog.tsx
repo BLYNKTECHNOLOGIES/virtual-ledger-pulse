@@ -19,6 +19,8 @@ import { fetchAndLockMarketRate, linkSnapshotToReference, persistBatchValuation 
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useActiveBankAccounts } from '@/hooks/useActiveBankAccounts';
 
+const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -285,7 +287,7 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
         });
       }
 
-      // Record gateway fee as a separate expense (Finance, Banking & Compliance > Processing fees)
+      // Record gateway fee as a separate operating expense, not as purchase cost/COGS.
       // This is NOT a purchase cost — it's tracked as an operational expense only.
       // The trg_update_bank_account_balance trigger auto-deducts from the selected bank balance.
       if (gatewayFeeEnabled && parseFloat(gatewayFeeAmount) > 0 && gatewayFeeBankId) {
@@ -294,8 +296,8 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
           bank_account_id: gatewayFeeBankId,
           transaction_type: 'EXPENSE',
           amount: feeAmt,
-          category: 'finance_banking_compliance',
-          description: `Processing fee – Payout gateway fee for ${orderNumber} (${record.asset_code}, ${record.order_count} orders)`,
+          category: PAYOUT_GATEWAY_FEE_CATEGORY,
+          description: `Payout gateway fee for ${orderNumber} (${record.asset_code}, ${record.order_count} orders)`,
           reference_number: orderNumber,
           transaction_date: settlementDate,
           created_by: userId,

@@ -303,6 +303,41 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             </div>
           )}
 
+          {payoutGatewayFees.length > 0 && (
+            <div className="p-4 bg-muted/50 rounded-lg border border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-primary" />
+                Payout Gateway Fee
+              </h3>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Total Fee</label>
+                  <p className="text-sm text-foreground font-medium">₹{payoutGatewayFeeTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Entries</label>
+                  <p className="text-sm text-foreground font-medium">{payoutGatewayFees.length}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {payoutGatewayFees.map((fee: any) => (
+                  <div key={fee.id} className="flex items-center justify-between p-2.5 rounded-md border bg-background">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{fee.bank_accounts?.account_name || 'Bank account not found'}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {fee.bank_accounts ? `${fee.bank_accounts.bank_name} - ${fee.bank_accounts.account_number}` : fee.description}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-mono font-medium shrink-0">₹{Number(fee.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Payment Account Details */}
           {(paymentSplits && paymentSplits.length > 0) ? (
             <div className="p-4 bg-muted/50 rounded-lg border">

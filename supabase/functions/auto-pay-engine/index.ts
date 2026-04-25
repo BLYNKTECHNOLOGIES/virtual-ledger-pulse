@@ -191,6 +191,15 @@ function resolveExpiry(order: BinanceOrder, detail?: any): { expiryTimeMs: numbe
   return { expiryTimeMs: null, method: "unavailable", fallbackUsed: false };
 }
 
+function listOrderFieldMetadata(order: BinanceOrder) {
+  return {
+    chatUnreadCount: order.chatUnreadCount ?? null,
+    notifyPayEndTime: binanceMsToIso(order.notifyPayEndTime),
+    confirmPayEndTime: binanceMsToIso(order.confirmPayEndTime),
+    commissionRateMethods: Array.isArray(order.tradeMethodCommissionRateVoList) ? order.tradeMethodCommissionRateVoList.length : 0,
+  };
+}
+
 async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<string, string>): Promise<{ orders: BinanceOrder[]; diagnostics: Record<string, any> }> {
   const allOrders: BinanceOrder[] = [];
   const seen = new Set<string>();

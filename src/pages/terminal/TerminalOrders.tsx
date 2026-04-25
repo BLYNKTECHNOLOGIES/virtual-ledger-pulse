@@ -987,6 +987,7 @@ function TerminalOrdersContent() {
                       : getStatusStyle(opStatus);
                     const unread = unreadMap.get(order.binance_order_number) || 0;
                     const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
+                    const releaseAlert = releaseMonitorByOrder.get(order.binance_order_number);
 
                     return (
                       <TableRow
@@ -1040,6 +1041,16 @@ function TerminalOrdersContent() {
                               <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-600 bg-amber-500/10 gap-0.5 animate-pulse">
                                 <ArrowLeftRight className="h-2.5 w-2.5" />
                                 Alternate UPI Requested
+                              </Badge>
+                            )}
+                            {releaseAlert && (
+                              <Badge variant="outline" className={`text-[9px] w-fit gap-0.5 ${releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-amber-500/30 text-amber-500 bg-amber-500/5'}`}>
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                {releaseAlert.status === 'complaint_window_closing'
+                                  ? 'Complaint Window Closing'
+                                  : releaseAlert.status === 'complaint_window_expired'
+                                    ? 'Complaint Window Expired'
+                                    : 'Seller Release Overdue'}
                               </Badge>
                             )}
                           </div>

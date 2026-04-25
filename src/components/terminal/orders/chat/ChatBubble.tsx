@@ -57,13 +57,15 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
 
   if (isSystem) {
     const displayText = parseSystemMessage(message.text);
-    const Icon = message.isRecall ? RotateCcw : message.messageType === 'video' ? Video : message.messageType === 'card' ? CreditCard : message.messageType === 'translate' ? Languages : ShieldAlert;
+    const normalizedType = String(message.messageType || 'system').toLowerCase();
+    const Icon = message.isRecall ? RotateCcw : normalizedType === 'video' ? Video : normalizedType === 'card' ? CreditCard : normalizedType === 'translate' ? Languages : ShieldAlert;
+    const typeLabel = normalizedType === 'mark' ? 'Order status marker' : normalizedType === 'error' ? 'Binance chat error' : normalizedType === 'unknown' ? 'Unsupported Binance chat message type captured' : `${normalizedType} message captured from Binance`;
     return (
       <div className="flex justify-center">
         <div className="bg-muted/30 rounded px-3 py-1.5 max-w-[90%] border border-border/50 flex items-start gap-1.5">
           <Icon className="h-3 w-3 text-primary shrink-0 mt-0.5" />
           <p className="text-[10px] text-muted-foreground text-center">
-            {message.isRecall ? 'Counterparty recalled/retracted a Binance chat message' : displayText || `${message.messageType || 'system'} message captured from Binance`}
+            {message.isRecall ? 'Counterparty recalled/retracted a Binance chat message' : displayText || typeLabel}
           </p>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { Headphones, Plus, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -80,6 +80,13 @@ const priorityClasses: Record<TicketPriority, string> = {
   urgent: 'border-destructive bg-destructive/10 text-destructive',
 };
 
+const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'escalated', 'resolved', 'closed'];
+
+const nextWorkflowStatus = (status: TicketStatus): TicketStatus | null => {
+  const index = workflowStatuses.indexOf(status);
+  return index >= 0 && index < workflowStatuses.length - 1 ? workflowStatuses[index + 1] : null;
+};
+
 function userLabel(user?: UserOption | null) {
   if (!user) return 'Unassigned';
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
@@ -97,6 +104,7 @@ export default function Support() {
   const [customerIssue, setCustomerIssue] = useState('');
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState('unassigned');
+  const [formErrors, setFormErrors] = useState<Partial<Record<'orderNumber' | 'customerIssue', string>>>({});
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['customer_support_tickets'],

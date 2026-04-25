@@ -292,8 +292,9 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
 
       const map = new Map<string, EffectiveValuation>();
       const addValuation = (orderNumber: string, row: any) => {
-        const effectiveUsdtQty = Number(row?.effective_usdt_qty || 0);
-        const effectiveUsdtRate = Number(row?.effective_usdt_rate || 0);
+        const valuationRow = Array.isArray(row) ? row[0] : row;
+        const effectiveUsdtQty = Number(valuationRow?.effective_usdt_qty || 0);
+        const effectiveUsdtRate = Number(valuationRow?.effective_usdt_rate || 0);
         if (orderNumber && effectiveUsdtQty > 0 && effectiveUsdtRate > 0) {
           map.set(orderNumber, { effectiveUsdtQty, effectiveUsdtRate });
         }

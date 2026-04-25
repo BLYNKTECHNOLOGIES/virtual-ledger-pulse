@@ -557,6 +557,7 @@ serve(async (req) => {
         const markPaidResult = await markPaidRes.json().catch(() => null);
 
         if (markPaidResult?.code === "000000" || markPaidResult?.success === true) {
+          const markPaidData = extractMarkPaidData(markPaidResult);
           await new Promise((r) => setTimeout(r, 700));
           const postCheck = await fetchOrderDetail(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
           const postStatus = normalizeStatus(postCheck.detail?.orderStatus);
@@ -570,6 +571,7 @@ serve(async (req) => {
             minutesRemaining,
             message: verified ? `Verified: status ${postStatus}` : `Mark-paid returned success but post-verify status ${postStatus || "null"}`,
             metadata: { expiryMethod: expiry.method, fallbackUsed: expiry.fallbackUsed, markPaidResult, postRequestShape: postCheck.requestShape },
+            markPaidData,
           });
 
           if (!verified) warnings++;
@@ -618,6 +620,8 @@ serve(async (req) => {
       autoPayMinutes,
       durationMs: Date.now() - startedAt,
     };
+    const releaseMonitor = await monitorReleaseDeadlines(supabase, BINANCE_PROXY_URL, proxyHeaders);
+    (result as any).releaseMonitor = releaseMonitor;
     console.log("Auto-pay result:", JSON.stringify(result));
 
     if (runId) {

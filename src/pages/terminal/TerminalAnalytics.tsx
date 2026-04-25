@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, Banknote, Clock, Shield, Activity, AlertTriangle, Target, Percent, Layers } from 'lucide-react';
+import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, Banknote, Clock, Shield, Activity, AlertTriangle, Target, Percent, Layers, Database, CloudDownload, RefreshCw } from 'lucide-react';
 import { useBinanceAdsList, BinanceAd } from '@/hooks/useBinanceAds';
-import { useCachedOrderHistory } from '@/hooks/useBinanceOrderSync';
+import { useCachedOrderHistory, useSyncMetadata, useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend, Cell } from 'recharts';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import {
@@ -20,6 +20,7 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 const VALUATION_QUERY_CHUNK_SIZE = 150;
@@ -634,10 +635,9 @@ function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate
 }
 
 export default function TerminalAnalytics() {
-  const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
-  const { data: cachedOrders = [], isLoading: ordersLoading } = useCachedOrderHistory();
   const { data: configs, isLoading: configLoading } = useSmallOrderConfigs();
-  const { userId } = useTerminalAuth();
+  const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canSync = hasPermission('terminal_dashboard_export') || hasPermission('terminal_orders_sync_approve') || isTerminalAdmin;
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'analytics', { filter: '' as string });
   const [selectedOrderKind, setSelectedOrderKind] = useState<OrderKind>('smallBuy');
   const [adTradeFilter, setAdTradeFilter] = useState<AdTradeFilter>('BUY');
@@ -645,6 +645,11 @@ export default function TerminalAnalytics() {
 
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);
+  const { startTimestamp, endTimestamp } = useMemo(() => getTimestampsForFilter(filter), [filter]);
+  const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
+  const { data: cachedOrders = [], isLoading: ordersLoading, refetch: refetchOrders } = useCachedOrderHistory({ startTimestamp, endTimestamp });
+  const { data: syncMeta } = useSyncMetadata();
+  const syncMutation = useSyncOrderHistory();
 
   const ads: BinanceAd[] = useMemo(() => {
     const list = (adsRaw as any)?.data || (adsRaw as any)?.list || adsRaw;
@@ -657,14 +662,13 @@ export default function TerminalAnalytics() {
   const { data: effectiveValuations = new Map<string, EffectiveValuation>(), isLoading: valuationsLoading } = useEffectiveOrderValuations(orderNumbers);
 
   const orders = useMemo(() => {
-    const { startTimestamp, endTimestamp } = getTimestampsForFilter(filter);
     return (Array.isArray(cachedOrders) ? cachedOrders : [])
       .map((order: any) => {
         const orderNumber = order.orderNumber || order.order_number || '';
         return normalizeOrder({ ...order, ...(effectiveValuations.get(orderNumber) || {}) });
       })
       .filter((o) => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [cachedOrders, filter, effectiveValuations]);
+  }, [cachedOrders, effectiveValuations, startTimestamp, endTimestamp]);
 
   const completed = useMemo(() => orders.filter((o) => o.orderStatus.includes('COMPLETED')), [orders]);
 

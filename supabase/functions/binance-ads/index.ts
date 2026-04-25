@@ -508,11 +508,56 @@ serve(async (req) => {
 
       case "updateAd": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/update`;
-        console.log("updateAd request body:", JSON.stringify(payload.adData).substring(0, 1000));
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(payload.adData) });
+        const { accepted: adUpdateBody, skipped: skippedFields } = sanitizeAdUpdatePayload(payload.adData || {});
+        console.log("updateAd request body:", JSON.stringify(adUpdateBody).substring(0, 1000), "skipped:", skippedFields);
+        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(adUpdateBody) });
         const text = await response.text();
         console.log("updateAd response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (skippedFields.length) result = { ...result, skippedFields };
+        break;
+      }
+
+      case "applyAdRiskGuard": {
+        const authHeader = req.headers.get("Authorization") || "";
+        const token = authHeader.replace(/^Bearer\s+/i, "");
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: authData, error: authErr } = token ? await supabase.auth.getUser(token) : { data: null, error: new Error("Missing auth token") } as any;
+        if (authErr || !authData?.user?.id) throw new Error("Authentication required");
+        const { data: allowed } = await supabase.rpc("has_terminal_permission", { _user_id: authData.user.id, _permission: "terminal_ads_manage" });
+        if (!allowed) throw new Error("Permission denied: terminal_ads_manage required");
+
+        const advNos = (Array.isArray(payload.advNos) ? payload.advNos : []).map(String).filter(Boolean);
+        if (advNos.length === 0) throw new Error("At least one advNo is required");
+        const requestedPayload = payload.riskPayload || {};
+        const { accepted, skipped } = sanitizeAdUpdatePayload({ advNo: advNos[0], ...requestedPayload });
+        delete accepted.advNo;
+
+        const responses: any[] = [];
+        let ok = 0;
+        for (const advNo of advNos) {
+          const body = { advNo, ...accepted };
+          const resp = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/update`, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+          const txt = await resp.text();
+          let parsed: any;
+          try { parsed = JSON.parse(txt); } catch { parsed = { raw: txt, status: resp.status }; }
+          responses.push({ advNo, response: parsed });
+          if (parsed?.code === "000000" || parsed?.success === true) ok++;
+          await new Promise((r) => setTimeout(r, 250));
+        }
+        await supabase.from("terminal_ad_risk_guard_logs").insert({
+          actor_user_id: authData.user.id,
+          profile_name: String(payload.profileName || "Risk Guard"),
+          adv_nos: advNos,
+          requested_payload: requestedPayload,
+          accepted_payload: accepted,
+          skipped_fields: skipped,
+          binance_response: responses,
+          status: ok === advNos.length ? "success" : ok > 0 ? "partial" : "failed",
+          error_message: ok === advNos.length ? null : `${advNos.length - ok} ad update(s) failed`,
+        });
+        result = { code: ok > 0 ? "000000" : "RISK_GUARD_FAILED", data: { updated: ok, total: advNos.length, skippedFields: skipped, responses } };
         break;
       }
 

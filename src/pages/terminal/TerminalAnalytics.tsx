@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+const VALUATION_QUERY_CHUNK_SIZE = 150;
 
 type OrderKind = 'smallBuy' | 'bigBuy' | 'smallSell' | 'bigSell';
 
@@ -166,6 +167,16 @@ function hasEffectiveUsdtValuation(o: any) {
 
 function getOrderDataNumber(orderData: any, camelKey: string, snakeKey: string) {
   return Number(orderData?.[camelKey] ?? orderData?.[snakeKey] ?? 0);
+}
+
+async function fetchRowsInChunks<T>(values: string[], fetcher: (chunk: string[]) => PromiseLike<{ data: T[] | null; error: any }>) {
+  const rows: T[] = [];
+  for (let i = 0; i < values.length; i += VALUATION_QUERY_CHUNK_SIZE) {
+    const { data, error } = await fetcher(values.slice(i, i + VALUATION_QUERY_CHUNK_SIZE));
+    if (error) throw error;
+    rows.push(...(data || []));
+  }
+  return rows;
 }
 
 function getSmallOrderValuation(orderData: any, syncRow: any, erpOrder: any): EffectiveValuation | null {

@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 
+const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
+
 interface PurchaseOrderDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -88,8 +90,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
         .select('id, amount, bank_account_id, description, transaction_date')
         .eq('reference_number', order.order_number)
         .eq('transaction_type', 'EXPENSE')
-        .eq('category', 'finance_banking_compliance')
-        .ilike('description', '%Payout gateway fee%');
+        .or(`category.eq.${PAYOUT_GATEWAY_FEE_CATEGORY},description.ilike.%Payout gateway fee%`);
       if (error || !feeRows?.length) return [];
 
       const bankIds = [...new Set(feeRows.map((row: any) => row.bank_account_id).filter(Boolean))];

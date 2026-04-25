@@ -116,7 +116,7 @@ export function useCancelOrder() {
     },
     onSuccess: (_data, variables) => {
       toast.success('Order cancelled');
-      logAdAction({ actionType: AdActionTypes.ORDER_CANCELLED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { reason: variables.orderCancelAdditionalInfo } });
+      logAdAction({ actionType: AdActionTypes.ORDER_CANCELLED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { reasonCode: variables.orderCancelReasonCode, reason: variables.orderCancelAdditionalInfo } });
       queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
       queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
       queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });

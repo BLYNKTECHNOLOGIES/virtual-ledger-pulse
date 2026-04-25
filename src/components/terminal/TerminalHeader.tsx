@@ -1,10 +1,11 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { LogOut, Shield } from 'lucide-react';
+import { Coffee, LogOut, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TerminalNotificationBell } from './TerminalNotificationBell';
 import { Separator } from '@/components/ui/separator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdRestTimer } from '@/hooks/useAdRestTimer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 export function TerminalHeader() {
   const { username, email, firstName, lastName, avatarUrl, terminalRoles, isLoading } = useTerminalAuth();
   const { logout } = useAuth();
+  const { isResting, isBinanceBreakDetected } = useAdRestTimer();
 
   const displayName = firstName && lastName
     ? `${firstName} ${lastName}`
@@ -44,6 +46,12 @@ export function TerminalHeader() {
       </div>
 
       <div className="flex items-center gap-1">
+        {(isResting || isBinanceBreakDetected) && (
+          <Badge variant="outline" className="h-6 gap-1 border-destructive/40 bg-destructive/10 text-destructive">
+            <Coffee className="h-3 w-3" />
+            Break On
+          </Badge>
+        )}
         <TerminalNotificationBell />
 
         {!isLoading && email && (

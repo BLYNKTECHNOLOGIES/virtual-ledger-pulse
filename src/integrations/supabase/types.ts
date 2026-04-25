@@ -2119,6 +2119,88 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_support_ticket_activities: {
+        Row: {
+          activity_type: string
+          actor_id: string
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          ticket_id: string
+        }
+        Insert: {
+          activity_type?: string
+          actor_id: string
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          ticket_id: string
+        }
+        Update: {
+          activity_type?: string
+          actor_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_support_ticket_activities_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "customer_support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_support_ticket_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          note: string | null
+          ticket_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          note?: string | null
+          ticket_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          note?: string | null
+          ticket_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_support_ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "customer_support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_support_ticket_transfers: {
         Row: {
           created_at: string
@@ -14740,6 +14822,10 @@ export type Database = {
       calculate_user_risk_score: {
         Args: { user_uuid: string }
         Returns: number
+      }
+      can_access_customer_support_ticket: {
+        Args: { _ticket_id: string; _user_id: string }
+        Returns: boolean
       }
       can_manage_customer_support_tickets: {
         Args: { _user_id: string }

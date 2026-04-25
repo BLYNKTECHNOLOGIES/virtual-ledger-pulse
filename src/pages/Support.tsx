@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2 } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2, MessageSquare, Paperclip, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +56,27 @@ type TicketTransfer = {
   to_user_id: string;
   transferred_by: string;
   transfer_reason: string | null;
+  created_at: string;
+};
+
+type TicketActivity = {
+  id: string;
+  ticket_id: string;
+  activity_type: 'note' | 'status_change' | 'escalation' | 'transfer' | 'attachment';
+  message: string;
+  actor_id: string;
+  created_at: string;
+};
+
+type TicketAttachment = {
+  id: string;
+  ticket_id: string;
+  file_name: string;
+  file_path: string;
+  mime_type: string | null;
+  file_size: number | null;
+  uploaded_by: string;
+  note: string | null;
   created_at: string;
 };
 
@@ -117,6 +138,8 @@ export default function Support() {
   const [transferTicket, setTransferTicket] = useState<SupportTicket | null>(null);
   const [transferTo, setTransferTo] = useState('');
   const [transferReason, setTransferReason] = useState('');
+  const [ticketNotes, setTicketNotes] = useState<Record<string, string>>({});
+  const [attachmentNotes, setAttachmentNotes] = useState<Record<string, string>>({});
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['customer_support_tickets'],
@@ -155,12 +178,40 @@ export default function Support() {
     },
   });
 
+  const { data: activities = [] } = useQuery({
+    queryKey: ['customer_support_ticket_activities'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('customer_support_ticket_activities' as any).select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as TicketActivity[];
+    },
+  });
+
+  const { data: attachments = [] } = useQuery({
+    queryKey: ['customer_support_ticket_attachments'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('customer_support_ticket_attachments' as any).select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as TicketAttachment[];
+    },
+  });
+
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
   const transfersByTicketId = useMemo(() => {
     const grouped = new Map<string, TicketTransfer[]>();
     transfers.forEach((transfer) => grouped.set(transfer.ticket_id, [...(grouped.get(transfer.ticket_id) || []), transfer]));
     return grouped;
   }, [transfers]);
+  const activitiesByTicketId = useMemo(() => {
+    const grouped = new Map<string, TicketActivity[]>();
+    activities.forEach((activity) => grouped.set(activity.ticket_id, [...(grouped.get(activity.ticket_id) || []), activity]));
+    return grouped;
+  }, [activities]);
+  const attachmentsByTicketId = useMemo(() => {
+    const grouped = new Map<string, TicketAttachment[]>();
+    attachments.forEach((attachment) => grouped.set(attachment.ticket_id, [...(grouped.get(attachment.ticket_id) || []), attachment]));
+    return grouped;
+  }, [attachments]);
 
   const createTicket = useMutation({
     mutationFn: async () => {
@@ -239,6 +290,38 @@ export default function Support() {
     setTransferTo('');
     setTransferReason('');
   };
+
+  const addNote = useMutation({
+    mutationFn: async ({ ticketId, message }: { ticketId: string; message: string }) => {
+      if (!userId) throw new Error('User not authenticated');
+      const { error } = await supabase.from('customer_support_ticket_activities' as any).insert({ ticket_id: ticketId, activity_type: 'note', message, actor_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      setTicketNotes((current) => ({ ...current, [variables.ticketId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_activities'] });
+      toast({ title: 'Note added', description: 'Ticket activity has been updated.' });
+    },
+    onError: (error: any) => toast({ title: 'Note failed', description: error.message, variant: 'destructive' }),
+  });
+
+  const uploadAttachment = useMutation({
+    mutationFn: async ({ ticketId, file, note }: { ticketId: string; file: File; note: string }) => {
+      if (!userId) throw new Error('User not authenticated');
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${ticketId}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('support-ticket-attachments').upload(filePath, file, { upsert: false, contentType: file.type || undefined });
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from('customer_support_ticket_attachments' as any).insert({ ticket_id: ticketId, file_name: file.name, file_path: filePath, mime_type: file.type || null, file_size: file.size, uploaded_by: userId, note: note.trim() || null });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      setAttachmentNotes((current) => ({ ...current, [variables.ticketId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_attachments'] });
+      toast({ title: 'File uploaded', description: 'Attachment has been added to the ticket.' });
+    },
+    onError: (error: any) => toast({ title: 'Upload failed', description: error.message, variant: 'destructive' }),
+  });
 
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -346,6 +429,8 @@ export default function Support() {
             <Card><CardContent className="py-12 text-center text-muted-foreground"><Headphones className="mx-auto mb-2 h-8 w-8 opacity-40" /><p className="text-sm">No support tickets found</p></CardContent></Card>
           ) : filteredTickets.map((ticket) => {
             const ticketTransfers = transfersByTicketId.get(ticket.id) || [];
+            const ticketActivities = activitiesByTicketId.get(ticket.id) || [];
+            const ticketAttachments = attachmentsByTicketId.get(ticket.id) || [];
             return (
             <Card key={ticket.id} className="overflow-hidden">
               <CardContent className="p-4">
@@ -378,6 +463,24 @@ export default function Support() {
                         ))}
                       </div>
                     )}
+                    <div className="grid gap-3 rounded-md border border-border bg-muted/10 p-3 lg:grid-cols-2">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground"><MessageSquare className="h-3.5 w-3.5" /> Activity notes</div>
+                        <Textarea value={ticketNotes[ticket.id] || ''} onChange={(e) => setTicketNotes((current) => ({ ...current, [ticket.id]: e.target.value }))} placeholder="Write update, customer response, evidence, or internal note" className="min-h-16 text-xs" />
+                        <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!ticketNotes[ticket.id]?.trim() || addNote.isPending} onClick={() => addNote.mutate({ ticketId: ticket.id, message: ticketNotes[ticket.id].trim() })}>Add note</Button>
+                        <div className="max-h-28 space-y-1 overflow-y-auto pr-1">
+                          {ticketActivities.map((activity) => <div key={activity.id} className="rounded border border-border bg-background p-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">{userLabel(usersById.get(activity.actor_id))}</span> • {format(new Date(activity.created_at), 'dd MMM yyyy, HH:mm:ss')}<div className="mt-1 whitespace-pre-wrap text-foreground">{activity.message}</div></div>)}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-foreground"><Paperclip className="h-3.5 w-3.5" /> Files & images</div>
+                        <Input value={attachmentNotes[ticket.id] || ''} onChange={(e) => setAttachmentNotes((current) => ({ ...current, [ticket.id]: e.target.value }))} placeholder="Optional file note" className="h-8 text-xs" />
+                        <Label className="flex h-8 cursor-pointer items-center justify-center gap-2 rounded-md border border-input bg-background px-3 text-xs hover:bg-accent hover:text-accent-foreground"><Upload className="h-3.5 w-3.5" /> Upload file or image<Input type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadAttachment.mutate({ ticketId: ticket.id, file, note: attachmentNotes[ticket.id] || '' }); e.currentTarget.value = ''; }} /></Label>
+                        <div className="max-h-28 space-y-1 overflow-y-auto pr-1">
+                          {ticketAttachments.map((attachment) => <div key={attachment.id} className="rounded border border-border bg-background p-2 text-xs text-muted-foreground"><div className="flex items-center justify-between gap-2"><span className="truncate font-medium text-foreground">{attachment.file_name}</span><span>{format(new Date(attachment.created_at), 'dd MMM, HH:mm')}</span></div><div>Uploaded by {userLabel(usersById.get(attachment.uploaded_by))}{attachment.note ? ` • ${attachment.note}` : ''}</div></div>)}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4 lg:w-[650px]">
                     {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}

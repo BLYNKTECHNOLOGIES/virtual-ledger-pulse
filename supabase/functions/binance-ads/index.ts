@@ -264,12 +264,16 @@ serve(async (req) => {
               })
                 .then(r => r.json())
                 .then(detail => {
-                  const vis = detail?.data?.advVisibleRet;
+                  const detailData = detail?.data?.data || detail?.data || detail;
+                  const vis = detailData?.advVisibleRet;
                   if (vis && vis.userSetVisible === 1) {
                     ad.advStatus = 2; // Mark as Private
                     ad._isPrivate = true;
                   }
                   ad.advVisibleRet = vis || null;
+                  ad.commissionRate = detailData?.commissionRate ?? ad.commissionRate;
+                  ad.takerCommissionRate = detailData?.takerCommissionRate ?? ad.takerCommissionRate;
+                  ad.tradeMethodCommissionRateVoList = detailData?.tradeMethodCommissionRateVoList || ad.tradeMethodCommissionRateVoList;
                 })
                 .catch(err => {
                   console.warn(`Failed to get detail for ${ad.advNo}:`, err.message);

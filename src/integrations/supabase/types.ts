@@ -1337,6 +1337,74 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_ad_state_snapshots: {
+        Row: {
+          adv_no: string
+          adv_status: number | null
+          adv_visible_ret: Json | null
+          asset: string | null
+          captured_at: string
+          id: string
+          init_amount: number | null
+          max_single_trans_amount: number | null
+          min_single_trans_amount: number | null
+          price: number | null
+          price_floating_ratio: number | null
+          price_type: number | null
+          raw_payload: Json | null
+          rule_id: string | null
+          snapshot_source: string
+          surplus_amount: number | null
+          trade_type: string | null
+        }
+        Insert: {
+          adv_no: string
+          adv_status?: number | null
+          adv_visible_ret?: Json | null
+          asset?: string | null
+          captured_at?: string
+          id?: string
+          init_amount?: number | null
+          max_single_trans_amount?: number | null
+          min_single_trans_amount?: number | null
+          price?: number | null
+          price_floating_ratio?: number | null
+          price_type?: number | null
+          raw_payload?: Json | null
+          rule_id?: string | null
+          snapshot_source: string
+          surplus_amount?: number | null
+          trade_type?: string | null
+        }
+        Update: {
+          adv_no?: string
+          adv_status?: number | null
+          adv_visible_ret?: Json | null
+          asset?: string | null
+          captured_at?: string
+          id?: string
+          init_amount?: number | null
+          max_single_trans_amount?: number | null
+          min_single_trans_amount?: number | null
+          price?: number | null
+          price_floating_ratio?: number | null
+          price_type?: number | null
+          raw_payload?: Json | null
+          rule_id?: string | null
+          snapshot_source?: string
+          surplus_amount?: number | null
+          trade_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binance_ad_state_snapshots_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "ad_pricing_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       binance_commission_rate_snapshots: {
         Row: {
           actual_commission_amount: number | null
@@ -15143,6 +15211,39 @@ export type Database = {
           },
         ]
       }
+      v_binance_ad_surplus_movement: {
+        Row: {
+          adv_no: string | null
+          adv_status: number | null
+          asset: string | null
+          captured_at: string | null
+          drain_rate_per_hour: number | null
+          id: string | null
+          init_amount: number | null
+          movement_status: string | null
+          previous_captured_at: string | null
+          previous_price: number | null
+          previous_price_floating_ratio: number | null
+          previous_surplus_amount: number | null
+          price: number | null
+          price_floating_ratio: number | null
+          price_type: number | null
+          rule_id: string | null
+          snapshot_source: string | null
+          surplus_amount: number | null
+          surplus_delta: number | null
+          trade_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "binance_ad_state_snapshots_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "ad_pricing_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       admin_reset_user_password: {
@@ -15272,6 +15373,10 @@ export type Database = {
         }[]
       }
       check_terminal_order_sla: { Args: never; Returns: number }
+      cleanup_binance_ad_state_snapshots: {
+        Args: { p_retention_days?: number }
+        Returns: number
+      }
       cleanup_expired_records: { Args: never; Returns: undefined }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       cleanup_terminal_stale_data: { Args: never; Returns: undefined }
@@ -15823,6 +15928,25 @@ export type Database = {
         }[]
       }
       get_default_risk_level: { Args: never; Returns: string }
+      get_latest_binance_ad_state: {
+        Args: { p_adv_no: string }
+        Returns: {
+          adv_no: string
+          adv_status: number
+          asset: string
+          captured_at: string
+          drain_rate_per_hour: number
+          init_amount: number
+          movement_status: string
+          price: number
+          price_floating_ratio: number
+          price_type: number
+          rule_id: string
+          snapshot_source: string
+          surplus_amount: number
+          trade_type: string
+        }[]
+      }
       get_my_terminal_notifications: {
         Args: { p_user_id: string }
         Returns: {

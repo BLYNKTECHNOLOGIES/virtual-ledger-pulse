@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { FileBarChart } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 
+const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
+
 interface Props {
   category: string | null;
   onClose: () => void;
@@ -30,13 +32,18 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
           created_by_user:users!created_by(username, first_name, last_name)
         `)
         .eq('transaction_type', 'EXPENSE')
-        .eq('category', category)
         .gte('transaction_date', startStr)
         .lte('transaction_date', endStr)
         .order('transaction_date', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      if (category === 'Payout Gateway Fee') {
+        return (data || []).filter((row: any) =>
+          row.category === PAYOUT_GATEWAY_FEE_CATEGORY ||
+          String(row.description || '').toLowerCase().includes('payout gateway fee')
+        );
+      }
+      return (data || []).filter((row: any) => row.category === category);
     },
     enabled: !!category,
   });

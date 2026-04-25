@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface BankAccount {
   id: string;
@@ -64,7 +65,7 @@ export function AddPaymentGatewayDialog({
         .order('account_name');
 
       if (error) throw error;
-      setBankAccounts(data || []);
+      setBankAccounts(filterNonAdjustmentBanks(data || []));
     } catch (error) {
       console.error('Error fetching bank accounts:', error);
     }

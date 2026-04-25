@@ -472,6 +472,11 @@ serve(async (req) => {
             buyerRealName: d.buyerRealName,
             sellerRealName: d.sellerRealName,
             payMethodName: d.payMethodName,
+            notifyPayEndTime: Number(d.notifyPayEndTime) || undefined,
+            confirmPayEndTime: Number(d.confirmPayEndTime) || undefined,
+            notifyPayedExpireMinute: Number(d.notifyPayedExpireMinute) || undefined,
+            chatUnreadCount: Number(d.chatUnreadCount) || undefined,
+            tradeMethodCommissionRateVoList: Array.isArray(d.tradeMethodCommissionRateVoList) ? d.tradeMethodCommissionRateVoList : undefined,
           } as BinanceOrder);
         }
       } catch (e) {

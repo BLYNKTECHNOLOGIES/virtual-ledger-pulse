@@ -261,5 +261,4 @@ export default function TerminalSupport() {
       {content}
     </TerminalPermissionGate>
   ) : content;
-  );
 }

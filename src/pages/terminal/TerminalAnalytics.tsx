@@ -380,10 +380,11 @@ export default function TerminalAnalytics() {
       return aggregateOrders(advNo, advNo, rows, {
         tradeType: rows[0]?.tradeType || ad?.tradeType,
         asset: rows[0]?.asset || ad?.asset,
+        ...getAdDetails(ad, rows),
       });
     }).sort((a, b) => b.volume - a.volume);
 
-    const rates = completed.map((o) => o.unitPrice).filter((v) => Number.isFinite(v) && v > 0);
+    const rates = completed.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
     const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
     const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
 

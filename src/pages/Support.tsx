@@ -484,7 +484,15 @@ export default function Support() {
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4 lg:w-[650px]">
                     {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}
-                    <Button variant={ticket.escalated ? 'destructive' : 'outline'} className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { escalated: !ticket.escalated } })}>{ticket.escalated ? 'Remove escalation' : 'Escalate'}</Button>
+                    <Button
+                      variant={ticket.escalated ? 'destructive' : 'outline'}
+                      className="h-8 text-xs"
+                      aria-pressed={ticket.escalated}
+                      onClick={() => updateTicket.mutate({ id: ticket.id, patch: { escalated: !ticket.escalated } })}
+                    >
+                      <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                      {ticket.escalated ? 'Escalated: On' : 'Escalated: Off'}
+                    </Button>
                     <Select value={ticket.priority} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { priority: value as TicketPriority } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     {ticket.assigned_to ? <Button variant="outline" className="h-8 text-xs" onClick={() => openTransferDialog(ticket)}><Repeat2 className="mr-1.5 h-3.5 w-3.5" /> Transfer</Button> : <Select value="unassigned" onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>}
                   </div>

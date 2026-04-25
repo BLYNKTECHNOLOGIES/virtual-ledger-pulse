@@ -413,6 +413,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
         </Button>
         {showMoreBinanceData && (
           <div className="space-y-3">
+            <OrderLevelBinanceDetails liveDetail={liveDetail} storedDetail={storedRiskSnapshot?.order_detail_raw} order={order} />
             <CommissionSnapshotDetails snapshots={commissionSnapshots || []} order={order} />
             <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
           </div>
@@ -586,10 +587,6 @@ function CommissionSnapshotDetails({ snapshots, order }: { snapshots: any[]; ord
   const pct = (v: any) => v !== null && v !== undefined && v !== '' ? `${(Number(v) * 100).toFixed(4)}%` : 'Not provided by Binance';
   const amount = (v: any) => v !== null && v !== undefined && v !== '' ? `${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 8 })} ${latest?.commission_asset || order.asset}` : 'Not provided by Binance';
   const expected = latest?.effective_commission_rate && latest?.amount ? Number(latest.amount) * Number(latest.effective_commission_rate) : null;
-  const difference = expected !== null && latest?.actual_commission_amount !== null && latest?.actual_commission_amount !== undefined
-    ? Number(latest.actual_commission_amount) - expected
-    : null;
-  const hasMismatch = difference !== null && Math.abs(difference) > 0.000001;
 
   if (!latest) {
     return <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">No Binance commission-rate snapshot is available for this order yet.</div>;
@@ -597,10 +594,10 @@ function CommissionSnapshotDetails({ snapshots, order }: { snapshots: any[]; ord
 
   return (
     <div className="mt-2 space-y-3 rounded-md border border-border bg-muted/20 p-3">
-      {hasMismatch && (
-        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-600 dark:text-amber-400 flex gap-2">
+      {expected !== null && (
+        <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2 text-[11px] text-muted-foreground flex gap-2">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-          <span>Captured commission amount differs from the rate-based audit estimate.</span>
+          <span>Rate-based estimate is shown for audit context only; Binance returned actual commission separately.</span>
         </div>
       )}
       <RiskSection icon={<Activity className="h-3 w-3" />} title="Commission snapshot">
@@ -610,7 +607,6 @@ function CommissionSnapshotDetails({ snapshots, order }: { snapshots: any[]; ord
         <StatRow label="Effective rate" value={pct(latest.effective_commission_rate)} />
         <StatRow label="Actual commission" value={amount(latest.actual_commission_amount)} />
         <StatRow label="Rate audit estimate" value={expected === null ? 'Not provided by Binance' : amount(expected)} />
-        {difference !== null && <StatRow label="Difference" value={amount(difference)} />}
       </RiskSection>
       <div className="pt-2 border-t border-border/50 text-[10px] text-muted-foreground">
         Source: {provided(latest.source_type)}{latest.captured_at ? ` • Captured ${new Date(latest.captured_at).toLocaleString('en-IN')}` : ''}

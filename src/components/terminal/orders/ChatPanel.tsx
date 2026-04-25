@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff, History } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
+import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useCounterpartyChatHistory } from '@/hooks/useCounterpartyChatHistory';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
@@ -27,6 +28,7 @@ interface Props {
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber);
+  const { data: archivedMessages = [] } = useArchivedBinanceChatMessages(orderNumber);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
   const { userId, username } = useTerminalAuth();
@@ -71,20 +73,44 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   // Build unified messages from WebSocket data (current order)
   const currentOrderMessages: UnifiedMessage[] = useMemo(() => {
     const messages: UnifiedMessage[] = [];
+    const liveIds = new Set(wsMessages.map((msg) => String(msg.id || msg.uuid || '')));
+    for (const msg of archivedMessages) {
+      const archivedId = String(msg.binance_message_id || msg.binance_uuid || msg.id);
+      if (liveIds.has(archivedId)) continue;
+      const msgType = msg.message_type || msg.chat_message_type || 'unknown';
+      const isImage = msgType === 'image' || isImageUrl(msg.message_text);
+      const isSystemLike = msg.is_system_message || msg.is_recall || msg.is_compliance_relevant || ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType);
+      messages.push({
+        id: `archive-${msg.id}`,
+        source: 'binance',
+        senderType: isSystemLike ? 'system' : (msg.sender_is_self ? 'operator' : 'counterparty'),
+        text: isImage ? null : (msg.message_text || null),
+        imageUrl: isImage ? (msg.image_url || msg.thumbnail_url || msg.message_text || undefined) : (msg.image_url || msg.thumbnail_url || undefined),
+        timestamp: msg.binance_create_time || 0,
+        senderName: msg.sender_is_self ? getSenderName(orderNumber, msg.message_text || '') : msg.sender_nickname,
+        messageType: msgType,
+        isRecall: msg.is_recall,
+        isComplianceRelevant: msg.is_compliance_relevant,
+      });
+    }
     for (const msg of wsMessages) {
       const msgType = msg.type || msg.chatMessageType || 'text';
       const isSelf = msg.self === true;
       const content = msg.content || msg.message || '';
       const isImage = msgType === 'image' || isImageUrl(content);
+      const isSystemLike = msgType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(String(msgType).toLowerCase());
       const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
-        senderType: msgType === 'system' ? 'system' : (isSelf ? 'operator' : 'counterparty'),
+        senderType: isSystemLike ? 'system' : (isSelf ? 'operator' : 'counterparty'),
         text: isImage ? null : (content || null),
         imageUrl: isImage ? (imgUrl || content || undefined) : imgUrl,
         timestamp: msg.createTime || 0,
         senderName: isSelf ? getSenderName(orderNumber, content) : null,
+        messageType: msgType,
+        isRecall: String(msgType).toLowerCase() === 'recall',
+        isComplianceRelevant: ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(String(msgType).toLowerCase()),
       });
     }
 
@@ -108,7 +134,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     }
 
     return messages.sort((a, b) => a.timestamp - b.timestamp);
-  }, [wsMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
+  }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {
@@ -117,6 +143,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         const msgType = msg.type || 'text';
         const isSelf = msg.self === true;
         const isImage = msgType === 'image';
+        const normalizedType = String(msgType).toLowerCase();
+        const isSystemLike = normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType);
         const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
         const content = msg.content || msg.message || '';
 
@@ -125,11 +153,14 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         return {
           id: `hist-${order.orderNumber}-${msg.id}`,
           source: 'binance' as const,
-          senderType: msgType === 'system' ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
+          senderType: isSystemLike ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
           text: isImage ? null : (content || null),
           imageUrl: effectiveImgUrl,
           timestamp: msg.createTime || 0,
           senderName: isSelf ? getSenderName(order.orderNumber, content) : null,
+          messageType: normalizedType,
+          isRecall: normalizedType === 'recall',
+          isComplianceRelevant: isSystemLike,
         };
       });
       return { order, messages: messages.sort((a, b) => a.timestamp - b.timestamp) };

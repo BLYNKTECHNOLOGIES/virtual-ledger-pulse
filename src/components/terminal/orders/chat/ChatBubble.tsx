@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
-import { ImageOff, Clock, RefreshCw, AlertCircle } from 'lucide-react';
+import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface UnifiedMessage {
@@ -13,6 +13,9 @@ export interface UnifiedMessage {
   timestamp: number;
   isQuickReply?: boolean;
   senderName?: string | null;
+  messageType?: string;
+  isRecall?: boolean;
+  isComplianceRelevant?: boolean;
   _deliveryStatus?: 'queued' | 'failed';
   _tempId?: number;
   _onRetry?: (tempId: number) => void;
@@ -54,10 +57,14 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
 
   if (isSystem) {
     const displayText = parseSystemMessage(message.text);
+    const Icon = message.isRecall ? RotateCcw : message.messageType === 'video' ? Video : message.messageType === 'card' ? CreditCard : message.messageType === 'translate' ? Languages : ShieldAlert;
     return (
       <div className="flex justify-center">
-        <div className="bg-muted/30 rounded px-3 py-1.5 max-w-[90%] border border-border/50">
-          <p className="text-[10px] text-muted-foreground text-center">{displayText}</p>
+        <div className="bg-muted/30 rounded px-3 py-1.5 max-w-[90%] border border-border/50 flex items-start gap-1.5">
+          <Icon className="h-3 w-3 text-primary shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground text-center">
+            {message.isRecall ? 'Counterparty recalled/retracted a Binance chat message' : displayText || `${message.messageType || 'system'} message captured from Binance`}
+          </p>
         </div>
       </div>
     );

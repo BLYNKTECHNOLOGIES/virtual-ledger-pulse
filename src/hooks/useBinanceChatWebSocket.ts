@@ -156,10 +156,11 @@ export function useBinanceChatWebSocket(
       }
 
       if (allMessages.length > 0) {
-        const seen = new Set<number>();
+        const seen = new Set<string>();
         const deduped = allMessages.filter((msg) => {
-          if (seen.has(msg.id)) return false;
-          seen.add(msg.id);
+          const key = String(msg.id || msg.uuid || `${msg.createTime}-${msg.type}-${msg.content || msg.message || ''}`);
+          if (seen.has(key)) return false;
+          seen.add(key);
           return true;
         });
         deduped.sort((a, b) => (a.createTime || 0) - (b.createTime || 0));

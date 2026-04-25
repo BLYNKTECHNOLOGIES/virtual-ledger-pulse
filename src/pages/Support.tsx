@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2 } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2, MessageSquare, Paperclip, Upload } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -56,6 +56,27 @@ type TicketTransfer = {
   to_user_id: string;
   transferred_by: string;
   transfer_reason: string | null;
+  created_at: string;
+};
+
+type TicketActivity = {
+  id: string;
+  ticket_id: string;
+  activity_type: 'note' | 'status_change' | 'escalation' | 'transfer' | 'attachment';
+  message: string;
+  actor_id: string;
+  created_at: string;
+};
+
+type TicketAttachment = {
+  id: string;
+  ticket_id: string;
+  file_name: string;
+  file_path: string;
+  mime_type: string | null;
+  file_size: number | null;
+  uploaded_by: string;
+  note: string | null;
   created_at: string;
 };
 

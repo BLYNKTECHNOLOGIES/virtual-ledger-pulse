@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 
-export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date }) {
+export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, platformFilter }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date; platformFilter?: string }) {
   // Fetch completed purchase orders
   const { data: completedOrders, isLoading } = useQuery({
     queryKey: ['purchase_orders', 'COMPLETED'],
@@ -188,7 +188,12 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo }: { sear
     const od = order.order_date ? new Date(order.order_date) : null;
     const inFrom = !dateFrom || (od && od >= new Date(dateFrom));
     const inTo = !dateTo || (od && od <= new Date(dateTo));
-    return matchesSearch && inFrom && inTo;
+    const matchesPlatform = !platformFilter || (
+      platformFilter === 'off-market'
+        ? order.is_off_market
+        : order.wallet_id === platformFilter || order.wallet?.id === platformFilter
+    );
+    return matchesSearch && inFrom && inTo && matchesPlatform;
   }).sort((a: any, b: any) => {
     if (!searchTerm) return 0;
     const term = searchTerm.toLowerCase();

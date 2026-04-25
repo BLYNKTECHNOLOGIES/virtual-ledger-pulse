@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, ShoppingBag, Filter, Search, Link2, Package } from "lucide-react";
 import { format } from "date-fns";
 import { TerminalSyncTab } from "@/components/purchase/TerminalSyncTab";
@@ -33,6 +34,7 @@ export default function Purchase() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
+  const [filterPlatform, setFilterPlatform] = useState("");
 
   const handleRefreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
@@ -135,6 +137,19 @@ export default function Purchase() {
       }
       return all;
     },
+  });
+
+  const { data: platformOptions = [] } = useQuery({
+    queryKey: ['purchase-filter-platforms'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name')
+        .order('wallet_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300000,
   });
 
   const handleExportCSV = async () => {
@@ -367,6 +382,7 @@ export default function Purchase() {
   const clearFilters = () => {
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
+    setFilterPlatform("");
     setSearchTerm("");
     setShowFilterDialog(false);
   };
@@ -468,6 +484,21 @@ export default function Purchase() {
                         onChange={(e) => setFilterDateTo(e.target.value ? new Date(e.target.value) : undefined)}
                       />
                     </div>
+                    <div className="col-span-2">
+                      <Label>Platform</Label>
+                      <Select value={filterPlatform || 'all'} onValueChange={(value) => setFilterPlatform(value === 'all' ? '' : value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="All platforms" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All platforms</SelectItem>
+                          <SelectItem value="off-market">Off Market</SelectItem>
+                          {platformOptions.map((platform: any) => (
+                            <SelectItem key={platform.id} value={platform.id}>{platform.wallet_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex justify-between pt-2">
                     <Button variant="outline" onClick={clearFilters}>Clear</Button>
@@ -508,6 +539,7 @@ export default function Purchase() {
                 searchTerm={searchTerm}
                 dateFrom={filterDateFrom}
                 dateTo={filterDateTo}
+                platformFilter={filterPlatform}
               />
             </TabsContent>
 

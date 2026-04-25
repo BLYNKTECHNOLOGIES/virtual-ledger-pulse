@@ -20,15 +20,19 @@ interface BinanceOrder {
   createTime: number;
   counterPartNickName?: string;
   notifyPayEndTime?: number;
+  confirmPayEndTime?: number;
   notifyPayedExpireMinute?: number;
   payEndTime?: number;
   paymentEndTime?: number;
+  chatUnreadCount?: number;
+  tradeMethodCommissionRateVoList?: any[];
   source?: string;
   raw?: any;
 }
 
 const DEFAULT_PAYMENT_WINDOW_MINUTES = 15;
 const CACHED_LOOKBACK_MS = 30 * 60 * 1000;
+const ACTIONABLE_ORDER_STATUS_LIST = [1, 2];
 const FINAL_STATUS_KEYWORDS = ["COMPLETED", "CANCEL", "EXPIRED", "APPEAL", "DISPUTE"];
 const ALREADY_PAID_KEYWORDS = ["BUYER_PAYED", "BUYER_PAID", "PAID", "PAYING", "RELEASING"];
 const PAYABLE_KEYWORDS = ["TRADING", "PENDING", "PENDING_PAYMENT"];
@@ -107,9 +111,14 @@ function toCandidate(order: any, source: string): BinanceOrder | null {
     createTime: Number(order?.createTime ?? order?.create_time ?? order?.binance_create_time ?? raw?.createTime ?? 0),
     counterPartNickName: order?.counterPartNickName ?? order?.counter_part_nick_name ?? raw?.counterPartNickName,
     notifyPayEndTime: Number(order?.notifyPayEndTime ?? raw?.notifyPayEndTime ?? 0) || undefined,
+    confirmPayEndTime: Number(order?.confirmPayEndTime ?? raw?.confirmPayEndTime ?? 0) || undefined,
     notifyPayedExpireMinute: Number(order?.notifyPayedExpireMinute ?? raw?.notifyPayedExpireMinute ?? 0) || undefined,
     payEndTime: Number(order?.payEndTime ?? raw?.payEndTime ?? 0) || undefined,
     paymentEndTime: Number(order?.paymentEndTime ?? raw?.paymentEndTime ?? 0) || undefined,
+    chatUnreadCount: Number(order?.chatUnreadCount ?? raw?.chatUnreadCount ?? 0) || undefined,
+    tradeMethodCommissionRateVoList: Array.isArray(order?.tradeMethodCommissionRateVoList ?? raw?.tradeMethodCommissionRateVoList)
+      ? (order?.tradeMethodCommissionRateVoList ?? raw?.tradeMethodCommissionRateVoList)
+      : undefined,
     source,
     raw,
   };

@@ -343,10 +343,11 @@ serve(async (req) => {
 
       case "getOrderDetail": {
         // POST /sapi/v1/c2c/orderMatch/getUserOrderDetail
-        // API uses "orderNo" parameter (not "adOrderNo")
+        // Proxy supports adOrderNo in current production; include orderNo as a safe alias.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
         const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
           adOrderNo: payload.orderNumber,
+          orderNo: payload.orderNumber,
         }) });
         const text = await response.text();
         console.log("getOrderDetail response:", response.status, text.substring(0, 5000));

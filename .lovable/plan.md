@@ -1,136 +1,84 @@
-## Auto Screenshot Sender — Automation Tab
+Root cause found:
 
-### Goal
-When a Payer clicks **Mark Paid** on an order in the Payer tab, if the order is UPI and within the configured amount range, automatically generate the same receipt screenshot used in the Utility generator and send it as a chat image to the Binance order — with the date/time being the moment of mark-paid.
+The auto-pay engine is running every minute and the setting is active at 3 minutes. The scheduler itself is not the primary failure.
 
----
+For the three cancelled orders shown in the screenshot, there are no rows in `p2p_auto_pay_log`, which means auto-pay never attempted them. The important finding is that those orders had `create_time` around 12:53:33–12:54:19 UTC, but the automation did not see them as payable candidates before cancellation.
 
-### 1. Database (migration)
+The likely cause is a combination of these flaws:
 
-**Table `payer_screenshot_automation_config`** (singleton, one row)
-- `id` uuid pk
-- `is_active` boolean default false
-- `min_amount` numeric not null default 0
-- `max_amount` numeric not null default 0
-- `from_name` text default 'Blynk Virtual Technologies Pvt. Ltd.'
-- `from_upi_id` text default 'blynkex@aeronflyprivatelimited'
-- `provider_fee_flat` numeric default 10
-- `updated_by` uuid, `updated_at` timestamptz
-- RLS: read for terminal users; update for admins / `terminal_pricing_manage`
+1. The auto-pay engine only acts on orders returned by Binance `listOrders` at the cron tick.
+   - If an order is not returned by that endpoint at the exact minute it enters the 3-minute window, it is skipped silently.
+   - There is no secondary safety pass against locally cached active orders.
 
-**Table `payer_screenshot_automation_log`** (audit + idempotency)
-- `id` uuid pk
-- `order_number` text not null **unique** (idempotency — prevents double-send)
-- `payer_user_id` uuid
-- `payer_name` text
-- `amount_used` integer (the floored tens amount actually rendered)
-- `provider_fee` numeric
-- `total_debited` numeric
-- `to_upi_id` text
-- `upi_txn_id` text (the generated 10-digit id)
-- `status` text — `sent` | `skipped_out_of_range` | `skipped_non_upi` | `failed`
-- `error_message` text nullable
-- `image_url` text nullable
-- `created_at` timestamptz default now()
-- RLS: read for terminal users, insert via edge function (service role)
+2. The engine skips silently when it cannot determine expiry time.
+   - In the affected DB rows, `raw_data` had no `notifyPayEndTime`, `notifyPayedExpireMinute`, `payEndTime`, or `paymentEndTime`.
+   - Current logic says “refuse to guess” and just continues, without logging this as a failed/risky skipped order.
+   - This makes escaped orders invisible in the Auto-Pay Log.
 
----
+3. Binance detail parameter handling is inconsistent across functions.
+   - `auto-pay-engine` calls `getUserOrderDetail` with `{ orderNo }`.
+   - `binance-ads` comments say orderNo is required, but code sends `{ adOrderNo }`.
+   - This inconsistency can cause detail fetches to return no `data`, which explains repeated `Warning: post-verify status null` logs and can prevent expiry lookup.
 
-### 2. Edge Function — `payer-auto-screenshot`
+4. Current status mapping differs between modules.
+   - Some code maps numeric `1` as `TRADING`; `src/lib/orderStatusMapper.ts` maps numeric `1` as `PENDING` and `2` as `TRADING`.
+   - Auto-pay currently treats only `1`/`TRADING` as payable. If Binance/proxy returns a different payable numeric code/string, the order can be excluded.
 
-Receives `{ orderNumber, paidAtIso }` from the client right after `markPaid` succeeds. Server-side it:
+5. Observability is too weak for a money-risk automation.
+   - When a candidate is skipped due to missing expiry, being outside the window, missing from live fetch, or unverified post-payment status, there is no strong audit/alert row.
+   - The UI currently shows “success” even when post-verification is null, which is misleading.
 
-1. Loads automation config; if `is_active=false` → log `skipped`, exit.
-2. Calls `binance-ads → getOrderDetail` for the order:
-   - Validates `tradeType === 'BUY'`.
-   - Extracts `totalPrice`, `payMethods` → finds UPI entry (type contains "UPI"); if none → log `skipped_non_upi`, exit.
-   - Pulls `payeeAccount` / UPI id field from the UPI payment method.
-3. Computes:
-   - `amount = Math.floor(Number(totalPrice))` (decimal stripped, exactly per spec — ₹99.99 → 99).
-   - Range gate: `min ≤ amount ≤ max`; else log `skipped_out_of_range`, exit.
-   - `upiTxnId` = random 10-digit string with first char ∈ {5,8,9}.
-   - `providerFee = config.provider_fee_flat` (default ₹10).
-   - `totalDebited = amount + providerFee`.
-   - `dateTime = paidAtIso` (moment Payer clicked Mark Paid).
-4. Renders the **same receipt** server-side using a self-contained HTML/SVG template (mirrors `PaymentScreenshotGenerator` markup: green gradient header, ₹ amount, Completed pill, To/From/UPI Txn/Paid/Fees/Total rows). Conversion to PNG via either:
-   - **Option A (preferred):** Build an SVG matching the design and use `resvg-wasm` (Deno-compatible) → PNG.
-   - **Option B:** Use a lightweight HTML→PNG approach via `htmlcsstoimage`-style rendering using `@deno/canvas` / `skia-canvas` if available.
-   The plan will commit to Option A (SVG → resvg-wasm) — fully deterministic, no external API, runs inside the edge function.
-5. Calls `binance-ads → getChatImageUploadUrl` to get a `preSignedUrl` + final `imageUrl`, PUTs the PNG.
-6. Calls `binance-ads → sendChatMessage` with `{ orderNo, imageUrl }`.
-7. Inserts a row into `payer_screenshot_automation_log` (unique on `order_number` guarantees no double-send if Payer somehow re-marks).
-8. Returns `{ status, image_url }`.
+Plan to fix so orders do not escape auto-pay:
 
-All steps wrapped in try/catch — failures logged with `status='failed'` and `error_message`, never blocking the user.
+1. Build a fail-safe candidate collector in `auto-pay-engine`
+   - Fetch active BUY orders from Binance `listOrders` with pagination as today.
+   - Also include recently cached local active BUY orders from `binance_order_history` and/or `p2p_order_records` from the last 30 minutes.
+   - Deduplicate by order number.
+   - For cached orders, re-check Binance detail before acting so Binance remains the source of truth.
 
----
+2. Make expiry resolution robust and auditable
+   - Try expiry fields from `listOrders` first.
+   - Then fetch `getUserOrderDetail` using both supported parameter shapes if needed: `{ orderNo }` and fallback `{ adOrderNo }`, depending on proxy behavior.
+   - Extract expiry/payment window from multiple known fields.
+   - If exact expiry is still unavailable, do not silently ignore the order. Insert a `failed` or `risk_skipped` auto-pay log with reason `expiry_unavailable` and order details.
+   - Add a conservative emergency mode: if the order is older than a safe threshold near the known P2P payment window and still payable, attempt mark-paid rather than letting it expire. This will be based only on Binance-provided create time/status, not dummy data.
 
-### 3. Trigger wiring — `PayerOrderRow.tsx`
+3. Correct and centralize Binance status mapping
+   - Align backend and frontend status mappings into one consistent rule set.
+   - Treat payable states explicitly: `TRADING`, `PENDING_PAYMENT`, and confirmed Binance numeric payable codes.
+   - Treat already-paid/release states explicitly: `BUYER_PAYED`, `BUYER_PAID`, `PAYING`.
+   - Treat final states explicitly: `COMPLETED`, `CANCELLED`, `CANCELLED_BY_SYSTEM`, `EXPIRED`, `APPEAL`.
+   - Update `auto-pay-engine`, `capture-beneficiaries`, `useBinanceOrderSync`, and `orderStatusMapper` so they do not disagree.
 
-Inside `handleMarkPaid` (and `handleUploadAndMarkPaid` — but only fire automation in the **plain Mark Paid** path, since the upload path already sends a user-supplied screenshot; spec says automation runs only for plain Mark Paid → confirming this with default behavior: fire on **both** if user wants? Spec says "only when Mark Paid is clicked from Payer module by the payer" → both flows are Payer-initiated. **Decision: fire only on plain `handleMarkPaid` (no upload)**, because in the upload path the operator has chosen to send their own image. This avoids duplicate chat images.
+4. Fix Binance detail request consistency
+   - Update `supabase/functions/binance-ads/index.ts` `getOrderDetail` to use the correct documented/proxy-compatible parameter.
+   - Add fallback handling where needed so the proxy response is parsed consistently.
+   - Update `auto-pay-engine` detail verification to log the raw response code/message when detail is missing.
 
-After `markPaid.mutateAsync` resolves successfully:
-```ts
-const paidAtIso = new Date().toISOString();
-supabase.functions.invoke('payer-auto-screenshot', {
-  body: { orderNumber: order.orderNumber, paidAtIso }
-}).catch(() => {/* swallow — log table records failure */});
-```
-Fire-and-forget (no await) so the UI stays snappy. The edge function logs everything.
+5. Change auto-pay logging from “attempt-only” to “decision audit”
+   - Log every candidate decision: paid, already paid, skipped outside window, skipped missing expiry, failed API call, final-state ignored.
+   - Do not mark status as `success` when Binance returns mark-paid success but post-verification is null. Use `warning`/`unverified_success` or `failed_verification` so the UI clearly shows risk.
+   - Include metadata such as source (`live`, `cached_history`, `p2p_records`), raw status, resolved expiry, and decision reason.
 
----
+6. Add UI safety indicators in Auto-Pay screen
+   - Show unverified/warning logs with amber warning icon instead of green success.
+   - Add a small “last engine run / candidates / risky skips” summary so failures are visible immediately.
+   - Show full order number or copy button for risky rows to trace quickly.
 
-### 4. UI — new tab in `TerminalAutomation.tsx`
+7. Add a database safety migration
+   - Add missing columns to `p2p_auto_pay_log` if needed: `decision_reason`, `raw_status`, `source`, `metadata jsonb`.
+   - Add useful indexes for `executed_at`, `status`, and `order_number`.
+   - Optionally add a lightweight `p2p_auto_pay_engine_runs` table to track each cron execution, candidates seen, attempted, skipped, and errors.
 
-Add a **"Auto Screenshot"** tab (icon: `Image` from lucide) with a new component `AutoScreenshotConfig.tsx`:
+8. Validate with live-safe testing
+   - Run the deployed edge function manually after changes and confirm it records candidate decisions.
+   - Check recent affected orders against `binance_order_history`, `p2p_order_records`, and `p2p_auto_pay_log`.
+   - Confirm no silent skip path remains in code.
+   - Deploy the updated edge function and migration.
 
-- Header switch: **Active** (binds to `is_active`).
-- Inputs: **Min Amount (₹)**, **Max Amount (₹)**, **Provider Fee (₹)** (default 10), **From Name** (default Blynk…), **From UPI ID** (default blynkex@aeronflyprivatelimited).
-- Helper text explaining: *"Triggers only when a Payer marks a UPI BUY order as Paid from the Payer tab and the order amount falls within the range. Decimal places are dropped (e.g., ₹99.99 → ₹99)."*
-- **Recent Activity** table below — last 50 rows from `payer_screenshot_automation_log` showing time, order #, amount, payer, status badge, link to image. Polled every 10s + realtime subscription on the log table for instant updates.
-- Permission gating: edit requires `terminal_pricing_manage` / admin; view requires `terminal_pricing_view`.
+Expected result:
 
----
-
-### 5. Hooks
-- `useAutoScreenshotConfig()` — fetch + update singleton config (react-query, invalidate on save).
-- `useAutoScreenshotLog(limit=50)` — list recent logs with realtime subscription via supabase channel on `payer_screenshot_automation_log`.
-
----
-
-### 6. Realtime / sync
-- Enable `supabase_realtime` for `payer_screenshot_automation_log` (REPLICA IDENTITY FULL + add to publication) so the activity table updates instantly without polling lag.
-
----
-
-### 7. Validation & guarantees
-- **One-shot:** unique constraint on `order_number` in log table prevents duplicate sends if mark-paid fires twice.
-- **Tradetype gate:** server enforces `BUY` only.
-- **UPI gate:** server enforces UPI presence in payment methods; non-UPI orders are skipped with logged reason.
-- **Range gate:** floored amount must be within [min, max] inclusive.
-- **No client trust:** client only sends `orderNumber` + `paidAtIso`; all eligibility, amounts, UPI lookup happen server-side via Binance API (compliant with Binance API hierarchy rule).
-- **Audit:** every attempt — sent, skipped, failed — recorded with payer identity.
-- **No PII leak:** screenshot uses only fields already present in the order.
-
----
-
-### 8. Out-of-scope clarifications
-- Does NOT fire on Quick Receive (that's a release flow, not a payment).
-- Does NOT fire on auto-pay (only manual Payer Mark Paid).
-- Does NOT fire on the Upload-Screenshot-and-Mark-Paid path (operator already sent an image).
-- Does NOT touch wallet/ledger — purely a Binance chat image side-effect.
-
----
-
-### Files to create/modify
-**Create**
-- `supabase/migrations/<ts>_auto_screenshot_automation.sql`
-- `supabase/functions/payer-auto-screenshot/index.ts`
-- `src/components/terminal/automation/AutoScreenshotConfig.tsx`
-- `src/hooks/useAutoScreenshotAutomation.ts`
-
-**Modify**
-- `src/pages/terminal/TerminalAutomation.tsx` — add tab.
-- `src/components/terminal/payer/PayerOrderRow.tsx` — invoke edge function after `handleMarkPaid` success.
-
-After implementation I'll run the TS build and verify the edge function deploys cleanly. Approve and I'll execute.
+- If an order is payable and near expiry, auto-pay will either mark it paid or create a visible high-risk failure log with the exact reason.
+- Orders will no longer silently disappear because Binance did not return them in one `listOrders` poll.
+- The Auto-Pay Log will stop showing misleading green success rows for unverified payments.
+- Any future escaped order will be traceable from the engine run audit instead of being invisible.

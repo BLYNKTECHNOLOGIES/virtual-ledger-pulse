@@ -9,68 +9,172 @@ const corsHeaders = {
 
 interface BinanceOrder {
   orderNumber: string;
-  advNo: string;
+  advNo?: string;
   tradeType: string;
-  asset: string;
-  fiatUnit: string;
-  totalPrice: string;
-  amount: string;
-  unitPrice: string;
+  asset?: string;
+  fiatUnit?: string;
+  totalPrice?: string;
+  amount?: string;
+  unitPrice?: string;
   orderStatus: string | number;
   createTime: number;
-  counterPartNickName: string;
+  counterPartNickName?: string;
   notifyPayEndTime?: number;
   notifyPayedExpireMinute?: number;
-  paymentWindow?: number; // actual payment window in minutes from order detail
+  payEndTime?: number;
+  paymentEndTime?: number;
+  source?: string;
+  raw?: any;
 }
 
-/**
- * Fetch the actual payment window for an order from Binance order detail.
- * Returns the payment window in minutes, or null if unavailable.
- */
-async function fetchOrderPaymentWindow(
+const DEFAULT_PAYMENT_WINDOW_MINUTES = 15;
+const CACHED_LOOKBACK_MS = 30 * 60 * 1000;
+const FINAL_STATUS_KEYWORDS = ["COMPLETED", "CANCEL", "EXPIRED", "APPEAL", "DISPUTE"];
+const ALREADY_PAID_KEYWORDS = ["BUYER_PAYED", "BUYER_PAID", "PAID", "PAYING", "RELEASING"];
+const PAYABLE_KEYWORDS = ["TRADING", "PENDING", "PENDING_PAYMENT"];
+const NUMERIC_STATUS_MAP: Record<number, string> = {
+  1: "TRADING",
+  2: "BUYER_PAYED",
+  3: "BUYER_PAYED",
+  4: "BUYER_PAYED",
+  5: "COMPLETED",
+  6: "CANCELLED",
+  7: "CANCELLED",
+  8: "APPEAL",
+};
+
+function normalizeStatus(raw: unknown): string {
+  if (raw === null || raw === undefined || raw === "") return "";
+  const value = String(raw).trim();
+  if (/^\d+$/.test(value)) return NUMERIC_STATUS_MAP[Number(value)] || value;
+  return value.toUpperCase();
+}
+
+function isFinalStatus(status: string): boolean {
+  const upper = normalizeStatus(status);
+  return FINAL_STATUS_KEYWORDS.some((kw) => upper.includes(kw));
+}
+
+function isAlreadyPaidStatus(status: string): boolean {
+  const upper = normalizeStatus(status);
+  return ALREADY_PAID_KEYWORDS.some((kw) => upper.includes(kw));
+}
+
+function isPayableStatus(status: unknown): boolean {
+  const upper = normalizeStatus(status);
+  if (!upper) return false;
+  if (isFinalStatus(upper) || isAlreadyPaidStatus(upper)) return false;
+  return PAYABLE_KEYWORDS.some((kw) => upper.includes(kw)) || upper === "1";
+}
+
+function extractOrders(data: any): BinanceOrder[] {
+  if (Array.isArray(data?.data?.data)) return data.data.data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data)) return data;
+  return [];
+}
+
+function getOrderNumber(order: any): string {
+  return String(order?.orderNumber ?? order?.order_number ?? order?.binance_order_number ?? "").trim();
+}
+
+function toCandidate(order: any, source: string): BinanceOrder | null {
+  const orderNumber = getOrderNumber(order);
+  if (!orderNumber) return null;
+
+  const raw = order?.raw_data ?? order?.raw ?? order;
+  return {
+    orderNumber,
+    advNo: order?.advNo ?? order?.adv_no ?? order?.binance_adv_no ?? raw?.advNo,
+    tradeType: String(order?.tradeType ?? order?.trade_type ?? raw?.tradeType ?? "BUY"),
+    asset: order?.asset ?? raw?.asset ?? "USDT",
+    fiatUnit: order?.fiatUnit ?? order?.fiat_unit ?? raw?.fiatUnit ?? raw?.fiat ?? "INR",
+    totalPrice: String(order?.totalPrice ?? order?.total_price ?? raw?.totalPrice ?? "0"),
+    amount: String(order?.amount ?? raw?.amount ?? "0"),
+    unitPrice: String(order?.unitPrice ?? order?.unit_price ?? raw?.unitPrice ?? raw?.price ?? "0"),
+    orderStatus: order?.orderStatus ?? order?.order_status ?? raw?.orderStatus ?? "",
+    createTime: Number(order?.createTime ?? order?.create_time ?? order?.binance_create_time ?? raw?.createTime ?? 0),
+    counterPartNickName: order?.counterPartNickName ?? order?.counter_part_nick_name ?? raw?.counterPartNickName,
+    notifyPayEndTime: Number(order?.notifyPayEndTime ?? raw?.notifyPayEndTime ?? 0) || undefined,
+    notifyPayedExpireMinute: Number(order?.notifyPayedExpireMinute ?? raw?.notifyPayedExpireMinute ?? 0) || undefined,
+    payEndTime: Number(order?.payEndTime ?? raw?.payEndTime ?? 0) || undefined,
+    paymentEndTime: Number(order?.paymentEndTime ?? raw?.paymentEndTime ?? 0) || undefined,
+    source,
+    raw,
+  };
+}
+
+async function fetchOrderDetail(
   proxyUrl: string,
   proxyHeaders: Record<string, string>,
   orderNumber: string,
-): Promise<{ paymentWindowMinutes: number | null; notifyPayEndTime: number | null }> {
-  try {
-    const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
-      method: "POST",
-      headers: proxyHeaders,
-      body: JSON.stringify({ orderNo: orderNumber }),
-    });
-    const data = await res.json();
-    const detail = data?.data;
-    if (!detail) return { paymentWindowMinutes: null, notifyPayEndTime: null };
+): Promise<{ detail: any | null; raw: any | null; requestShape: string | null }> {
+  const payloads = [
+    { shape: "orderNo", body: { orderNo: orderNumber } },
+    { shape: "adOrderNo", body: { adOrderNo: orderNumber } },
+    { shape: "orderNumber", body: { orderNumber } },
+  ];
 
-    // Try multiple field names Binance uses for payment window
-    const endTime = detail.notifyPayEndTime || detail.payEndTime || detail.paymentEndTime || null;
-    const expireMinute = detail.notifyPayedExpireMinute || detail.payExpireMinute || detail.payTimeLimit || null;
-
-    if (endTime && typeof endTime === 'number') {
-      return { paymentWindowMinutes: null, notifyPayEndTime: endTime };
+  for (const payload of payloads) {
+    try {
+      const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
+        method: "POST",
+        headers: proxyHeaders,
+        body: JSON.stringify(payload.body),
+      });
+      const raw = await res.json().catch(() => null);
+      const detail = raw?.data?.data ?? raw?.data ?? null;
+      if (detail?.orderNumber || detail?.orderNo || detail?.adOrderNo) {
+        return { detail, raw, requestShape: payload.shape };
+      }
+    } catch (err) {
+      console.warn(`Detail fetch failed for ${orderNumber} using ${payload.shape}:`, err);
     }
-    if (expireMinute && typeof expireMinute === 'number') {
-      return { paymentWindowMinutes: expireMinute, notifyPayEndTime: null };
-    }
-
-    return { paymentWindowMinutes: null, notifyPayEndTime: null };
-  } catch {
-    return { paymentWindowMinutes: null, notifyPayEndTime: null };
   }
+
+  return { detail: null, raw: null, requestShape: null };
 }
 
-/**
- * Fetch ALL active orders from Binance, paginating through all pages.
- * This is critical — with only page 1 (50 rows), orders can be silently missed.
- */
-async function fetchAllActiveOrders(
-  proxyUrl: string,
-  proxyHeaders: Record<string, string>,
-): Promise<BinanceOrder[]> {
+function resolveExpiry(order: BinanceOrder, detail?: any): { expiryTimeMs: number | null; method: string; fallbackUsed: boolean } {
+  const source = detail || order.raw || order;
+  const endTime = Number(
+    order.notifyPayEndTime ||
+      order.payEndTime ||
+      order.paymentEndTime ||
+      source?.notifyPayEndTime ||
+      source?.payEndTime ||
+      source?.paymentEndTime ||
+      0,
+  );
+  if (endTime > 0) return { expiryTimeMs: endTime, method: "explicit_end_time", fallbackUsed: false };
+
+  const expireMinute = Number(
+    order.notifyPayedExpireMinute ||
+      source?.notifyPayedExpireMinute ||
+      source?.payExpireMinute ||
+      source?.payTimeLimit ||
+      0,
+  );
+  const createTime = Number(detail?.createTime || order.createTime || 0);
+  if (expireMinute > 0 && createTime > 0) {
+    return { expiryTimeMs: createTime + expireMinute * 60 * 1000, method: "detail_window", fallbackUsed: false };
+  }
+
+  if (createTime > 0) {
+    return {
+      expiryTimeMs: createTime + DEFAULT_PAYMENT_WINDOW_MINUTES * 60 * 1000,
+      method: "fallback_15_min_window",
+      fallbackUsed: true,
+    };
+  }
+
+  return { expiryTimeMs: null, method: "unavailable", fallbackUsed: false };
+}
+
+async function fetchAllActiveOrders(proxyUrl: string, proxyHeaders: Record<string, string>): Promise<BinanceOrder[]> {
   const allOrders: BinanceOrder[] = [];
   const seen = new Set<string>();
-  const maxPages = 5; // Safety limit — 5 pages × 50 = 250 orders max
+  const maxPages = 8;
   const rows = 50;
 
   for (let page = 1; page <= maxPages; page++) {
@@ -78,28 +182,23 @@ async function fetchAllActiveOrders(
       const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`, {
         method: "POST",
         headers: proxyHeaders,
-        body: JSON.stringify({ page, rows }),
+        body: JSON.stringify({ page, rows, tradeType: "BUY" }),
       });
       const data = await res.json();
-      const orders: BinanceOrder[] = data?.data || [];
+      const orders = extractOrders(data);
+      if (orders.length === 0) break;
 
-      if (!Array.isArray(orders) || orders.length === 0) break;
-
-      for (const o of orders) {
-        if (!o.orderNumber || seen.has(o.orderNumber)) continue;
-        seen.add(o.orderNumber);
-        allOrders.push(o);
+      for (const raw of orders) {
+        const candidate = toCandidate(raw, "live_listOrders");
+        if (!candidate || seen.has(candidate.orderNumber)) continue;
+        seen.add(candidate.orderNumber);
+        allOrders.push(candidate);
       }
 
-      // If we got fewer than requested, no more pages
       if (orders.length < rows) break;
-
-      // Small delay between pages to avoid rate-limiting
-      if (page < maxPages) {
-        await new Promise((r) => setTimeout(r, 100));
-      }
+      await new Promise((r) => setTimeout(r, 100));
     } catch (err) {
-      console.error(`Error fetching page ${page}:`, err);
+      console.error(`Error fetching active order page ${page}:`, err);
       break;
     }
   }
@@ -107,63 +206,84 @@ async function fetchAllActiveOrders(
   return allOrders;
 }
 
-/**
- * Verify order status after marking paid by fetching order detail.
- */
-async function verifyOrderStatus(
-  proxyUrl: string,
-  proxyHeaders: Record<string, string>,
-  orderNumber: string,
-): Promise<{ verified: boolean; currentStatus: string | number | null }> {
-  try {
-    const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
-      method: "POST",
-      headers: proxyHeaders,
-      body: JSON.stringify({ orderNo: orderNumber }),
-    });
-    const data = await res.json();
-    const detail = data?.data;
-    if (!detail) return { verified: false, currentStatus: null };
+async function fetchCachedRecentBuyOrders(supabase: any): Promise<BinanceOrder[]> {
+  const cutoffMs = Date.now() - CACHED_LOOKBACK_MS;
+  const [history, records] = await Promise.all([
+    supabase
+      .from("binance_order_history")
+      .select("order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,raw_data")
+      .eq("trade_type", "BUY")
+      .gte("create_time", cutoffMs)
+      .order("create_time", { ascending: false })
+      .limit(100),
+    supabase
+      .from("p2p_order_records")
+      .select("binance_order_number,binance_adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counterparty_nickname,binance_create_time")
+      .eq("trade_type", "BUY")
+      .gte("binance_create_time", cutoffMs)
+      .order("binance_create_time", { ascending: false })
+      .limit(100),
+  ]);
 
-    const status = String(detail.orderStatus ?? "");
-    // Status 2 = BUYER_PAYED, 3 = PAID — both mean payment was registered
-    const paidStatuses = new Set(["2", "3", "BUYER_PAYED", "PAID", "PAYING"]);
-    return {
-      verified: paidStatuses.has(status) || status.toUpperCase().includes("PAID"),
-      currentStatus: detail.orderStatus,
-    };
-  } catch {
-    return { verified: false, currentStatus: null };
-  }
+  const rows = [
+    ...((history.data || []).map((row: any) => toCandidate(row, "cached_history"))),
+    ...((records.data || []).map((row: any) => toCandidate(row, "cached_p2p_records"))),
+  ].filter(Boolean) as BinanceOrder[];
+
+  return rows;
+}
+
+async function logDecision(supabase: any, params: {
+  order: BinanceOrder;
+  status: string;
+  minutesRemaining?: number | null;
+  message?: string | null;
+  reason: string;
+  rawStatus?: unknown;
+  metadata?: Record<string, any>;
+}) {
+  const { order, status, minutesRemaining, message, reason, rawStatus, metadata } = params;
+  await supabase.from("p2p_auto_pay_log").insert({
+    order_number: order.orderNumber,
+    action: "mark_paid",
+    status,
+    minutes_remaining: minutesRemaining == null ? null : Number(minutesRemaining.toFixed(2)),
+    error_message: message || null,
+    decision_reason: reason,
+    raw_status: rawStatus == null ? null : String(rawStatus),
+    source: order.source || "unknown",
+    metadata: metadata || {},
+  });
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const startedAt = Date.now();
+  let runId: string | null = null;
 
   try {
-    const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://vagiqbespusdxsbqpvbo.supabase.co";
     const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
     const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
 
-    if (!BINANCE_PROXY_URL || !BINANCE_PROXY_TOKEN) {
-      throw new Error("Missing Binance configuration secrets");
-    }
+    if (!BINANCE_PROXY_URL || !BINANCE_PROXY_TOKEN) throw new Error("Missing Binance configuration secrets");
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const { data: runRow } = await supabase.from("p2p_auto_pay_engine_runs").insert({ status: "running" }).select("id").single();
+    runId = runRow?.id || null;
 
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",
       "x-proxy-token": BINANCE_PROXY_TOKEN,
+      clientType: "web",
     };
     if (BINANCE_API_KEY) proxyHeaders["x-api-key"] = BINANCE_API_KEY;
     if (BINANCE_API_SECRET) proxyHeaders["x-api-secret"] = BINANCE_API_SECRET;
 
-    // 1. Fetch auto-pay settings
     const { data: autoPaySettings } = await supabase
       .from("p2p_auto_pay_settings")
       .select("*")
@@ -171,253 +291,279 @@ serve(async (req) => {
       .maybeSingle();
 
     const autoPayActive = autoPaySettings?.is_active === true;
-    const autoPayMinutes = autoPaySettings?.minutes_before_expiry || 3;
-
+    const autoPayMinutes = Number(autoPaySettings?.minutes_before_expiry || 3);
     if (!autoPayActive) {
-      console.log("Auto-pay is OFF. Skipping.");
-      return new Response(JSON.stringify({ message: "Auto-pay inactive", processed: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const inactive = { message: "Auto-pay inactive", processed: 0 };
+      if (runId) await supabase.from("p2p_auto_pay_engine_runs").update({ status: "inactive", finished_at: new Date().toISOString(), summary: inactive }).eq("id", runId);
+      return new Response(JSON.stringify(inactive), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log(`Auto-pay ON: trigger at ${autoPayMinutes} min before expiry`);
 
-    // 2. Fetch ALL active orders (paginated)
-    const allActiveOrders = await fetchAllActiveOrders(BINANCE_PROXY_URL, proxyHeaders);
-    console.log(`Fetched ${allActiveOrders.length} total active orders (all pages)`);
+    const [liveOrders, cachedOrders] = await Promise.all([
+      fetchAllActiveOrders(BINANCE_PROXY_URL, proxyHeaders),
+      fetchCachedRecentBuyOrders(supabase),
+    ]);
 
-    // 2b. Auto-assign orders to operators by scope (size range / ad ID)
+    const orderMap = new Map<string, BinanceOrder>();
+    for (const order of [...cachedOrders, ...liveOrders]) {
+      const existing = orderMap.get(order.orderNumber);
+      if (!existing || order.source === "live_listOrders") orderMap.set(order.orderNumber, order);
+    }
+    const allOrders = Array.from(orderMap.values());
+    console.log(`Fetched ${liveOrders.length} live + ${cachedOrders.length} cached recent BUY orders; merged ${allOrders.length}`);
+
     let autoAssigned = 0;
-    for (const order of allActiveOrders) {
+    for (const order of liveOrders) {
       try {
-        const { data: result } = await supabase.rpc('auto_assign_order_by_scope', {
+        const { data: result } = await supabase.rpc("auto_assign_order_by_scope", {
           p_order_number: order.orderNumber,
           p_trade_type: order.tradeType,
-          p_total_price: parseFloat(order.totalPrice || '0'),
-          p_asset: order.asset || 'USDT',
+          p_total_price: parseFloat(order.totalPrice || "0"),
+          p_asset: order.asset || "USDT",
           p_adv_no: order.advNo || null,
         });
-        if (result?.status === 'assigned') {
-          autoAssigned++;
-          console.log(`📋 Auto-assigned ${order.orderNumber} to ${result.operator_id} via ${result.match_type}`);
-        }
+        if (result?.status === "assigned") autoAssigned++;
       } catch (err) {
-        // Non-critical — log and continue
         console.warn(`Auto-assign failed for ${order.orderNumber}:`, err);
       }
     }
-    if (autoAssigned > 0) {
-      console.log(`Auto-assigned ${autoAssigned} orders to operators by scope`);
-    }
 
-    // 3. Filter to BUY orders in TRADING status (status 1)
-    const PAYABLE_STATUSES = new Set(["1", "TRADING"]);
-    const NON_PAYABLE_KEYWORDS = ["PAID", "PAYING", "COMPLETED", "CANCEL", "APPEAL", "EXPIRED"];
+    const candidates = allOrders.filter((order) => order.tradeType === "BUY" && !isFinalStatus(normalizeStatus(order.orderStatus)));
+    console.log(`Auto-pay candidates before live verification: ${candidates.length}`);
 
-    const buyOrdersPendingPayment = allActiveOrders.filter((o) => {
-      if (o.tradeType !== "BUY") return false;
-      const statusRaw = String(o.orderStatus ?? "");
-      const statusUpper = statusRaw.toUpperCase();
+    const { data: recentSuccessLogs } = await supabase
+      .from("p2p_auto_pay_log")
+      .select("order_number")
+      .in("status", ["success", "unverified_success"])
+      .gte("executed_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    const alreadyHandledSet = new Set((recentSuccessLogs || []).map((l: any) => l.order_number));
 
-      if (/^\d+$/.test(statusRaw)) {
-        return PAYABLE_STATUSES.has(statusRaw);
-      }
-      return !NON_PAYABLE_KEYWORDS.some((kw) => statusUpper.includes(kw));
-    });
-
-    console.log(`Auto-pay candidates: ${buyOrdersPendingPayment.length} BUY orders in TRADING status`);
-
-    if (buyOrdersPendingPayment.length === 0) {
-      return new Response(JSON.stringify({
-        message: "No candidates",
-        totalOrders: allActiveOrders.length,
-        candidates: 0,
-        autoPaid: 0,
-        errors: 0,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 4. Fetch recent logs to avoid redundant attempts
-    // - Skip orders already successfully paid
-    // - Skip orders that failed within the last 5 minutes (increased from 3 to reduce spam)
-    const recentCutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-
-    const [{ data: recentSuccessLogs }, { data: recentFailedLogs }] = await Promise.all([
-      supabase
-        .from("p2p_auto_pay_log")
-        .select("order_number")
-        .eq("status", "success"),
-      supabase
-        .from("p2p_auto_pay_log")
-        .select("order_number")
-        .eq("status", "failed")
-        .gte("executed_at", recentCutoff),
-    ]);
-
-    const alreadyPaidSet = new Set((recentSuccessLogs || []).map((l: any) => l.order_number));
-    const recentlyFailedSet = new Set((recentFailedLogs || []).map((l: any) => l.order_number));
-
+    let attempted = 0;
     let autoPaidCount = 0;
     let errors = 0;
     let skipped = 0;
+    let warnings = 0;
 
-    // 5. Process each candidate
-    for (const order of buyOrdersPendingPayment) {
+    for (const order of candidates) {
+      if (alreadyHandledSet.has(order.orderNumber)) {
+        skipped++;
+        continue;
+      }
+
       try {
-        // Skip if already paid successfully
-        if (alreadyPaidSet.has(order.orderNumber)) {
+        const detailCheck = await fetchOrderDetail(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
+        const detail = detailCheck.detail;
+        const liveStatus = normalizeStatus(detail?.orderStatus ?? order.orderStatus);
+
+        if (!detail && order.source !== "live_listOrders") {
+          warnings++;
           skipped++;
+          await logDecision(supabase, {
+            order,
+            status: "warning",
+            reason: "detail_unavailable_cached_order",
+            rawStatus: order.orderStatus,
+            message: "Cached order could not be verified from Binance detail; not safe to mark paid",
+            metadata: { source: order.source, requestShape: detailCheck.requestShape, raw: detailCheck.raw },
+          });
           continue;
         }
 
-        // Skip if recently failed (5-min cooldown)
-        if (recentlyFailedSet.has(order.orderNumber)) {
+        if (isFinalStatus(liveStatus)) {
           skipped++;
-          continue;
-        }
-
-        // Calculate time remaining — MUST use actual payment window, not a hardcoded default
-        let expiryTimeMs: number | null = null;
-        if (order.notifyPayEndTime) {
-          expiryTimeMs = order.notifyPayEndTime;
-        } else if (order.notifyPayedExpireMinute && order.createTime) {
-          expiryTimeMs = order.createTime + order.notifyPayedExpireMinute * 60 * 1000;
-        }
-
-        // If expiry not available from list API, fetch from order detail
-        if (!expiryTimeMs) {
-          console.log(`⏳ Order ${order.orderNumber}: no expiry in list response, fetching detail...`);
-          const windowInfo = await fetchOrderPaymentWindow(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
-          if (windowInfo.notifyPayEndTime) {
-            expiryTimeMs = windowInfo.notifyPayEndTime;
-          } else if (windowInfo.paymentWindowMinutes && order.createTime) {
-            expiryTimeMs = order.createTime + windowInfo.paymentWindowMinutes * 60 * 1000;
-          }
-          // Brief delay after detail fetch to avoid rate-limiting
-          await new Promise((r) => setTimeout(r, 200));
-        }
-
-        // If still no expiry info, SKIP the order rather than using a wrong default
-        if (!expiryTimeMs) {
-          console.warn(`⚠️ Order ${order.orderNumber}: cannot determine payment window, SKIPPING (refusing to guess)`);
-          continue;
-        }
-
-        const timeRemainingMs = expiryTimeMs - Date.now();
-        const minutesRemaining = timeRemainingMs / 60000;
-
-        // Only pay if within the window and order hasn't expired
-        if (minutesRemaining > autoPayMinutes || minutesRemaining <= 0) {
-          continue;
-        }
-
-        console.log(`🤖 Auto-paying order ${order.orderNumber} (${minutesRemaining.toFixed(1)} min remaining)`);
-
-        // Pre-verify: check current order status before attempting payment
-        // This reduces 83023 errors from orders already paid by operators
-        const preCheck = await verifyOrderStatus(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
-        if (preCheck.verified) {
-          console.log(`⏭️ Order ${order.orderNumber} already paid (status: ${preCheck.currentStatus}), skipping`);
-          // Log as success since it's already paid
-          await supabase.from("p2p_auto_pay_log").insert({
-            order_number: order.orderNumber,
-            action: "mark_paid",
-            status: "success",
-            minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
-            error_message: `Already paid (status: ${preCheck.currentStatus}) — skipped markPaid call`,
+          await logDecision(supabase, {
+            order,
+            status: "skipped",
+            reason: "final_state",
+            rawStatus: liveStatus,
+            message: `Order already final: ${liveStatus}`,
+            metadata: { requestShape: detailCheck.requestShape },
           });
-          alreadyPaidSet.add(order.orderNumber);
-          autoPaidCount++;
           continue;
         }
 
-        // Mark as paid
-        const markPaidRes = await fetch(
-          `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`,
-          {
-            method: "POST",
-            headers: proxyHeaders,
-            body: JSON.stringify({ orderNumber: order.orderNumber }),
-          }
-        );
-        const markPaidResult = await markPaidRes.json();
-
-        if (markPaidResult?.code === "000000") {
-          // Post-payment verification
-          await new Promise((r) => setTimeout(r, 500)); // Brief delay for status to propagate
-          const postCheck = await verifyOrderStatus(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
-
-          await supabase.from("p2p_auto_pay_log").insert({
-            order_number: order.orderNumber,
-            action: "mark_paid",
+        if (isAlreadyPaidStatus(liveStatus)) {
+          autoPaidCount++;
+          await logDecision(supabase, {
+            order,
             status: "success",
-            minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
-            error_message: postCheck.verified
-              ? `Verified: status ${postCheck.currentStatus}`
-              : `Warning: post-verify status ${postCheck.currentStatus}`,
+            reason: "already_paid",
+            rawStatus: liveStatus,
+            message: `Already paid/releasing: ${liveStatus}`,
+            metadata: { requestShape: detailCheck.requestShape },
+          });
+          alreadyHandledSet.add(order.orderNumber);
+          continue;
+        }
+
+        if (!isPayableStatus(liveStatus)) {
+          warnings++;
+          skipped++;
+          await logDecision(supabase, {
+            order,
+            status: "warning",
+            reason: "non_payable_unknown_status",
+            rawStatus: liveStatus,
+            message: `Unknown non-final status not marked paid: ${liveStatus}`,
+            metadata: { requestShape: detailCheck.requestShape, detailAvailable: !!detail },
+          });
+          continue;
+        }
+
+        const expiry = resolveExpiry(order, detail);
+        if (!expiry.expiryTimeMs) {
+          warnings++;
+          skipped++;
+          await logDecision(supabase, {
+            order,
+            status: "warning",
+            reason: "expiry_unavailable",
+            rawStatus: liveStatus,
+            message: "Could not determine payment deadline; no create time available",
+            metadata: { requestShape: detailCheck.requestShape },
+          });
+          continue;
+        }
+
+        const minutesRemaining = (expiry.expiryTimeMs - Date.now()) / 60000;
+        if (minutesRemaining > autoPayMinutes) {
+          skipped++;
+          await logDecision(supabase, {
+            order,
+            status: "skipped",
+            reason: "outside_trigger_window",
+            rawStatus: liveStatus,
+            minutesRemaining,
+            message: `Not inside ${autoPayMinutes} minute trigger window`,
+            metadata: { expiryMethod: expiry.method, fallbackUsed: expiry.fallbackUsed },
+          });
+          continue;
+        }
+
+        if (minutesRemaining <= -1) {
+          warnings++;
+          skipped++;
+          await logDecision(supabase, {
+            order,
+            status: "warning",
+            reason: "expired_before_attempt",
+            rawStatus: liveStatus,
+            minutesRemaining,
+            message: "Payment deadline already passed before auto-pay attempt",
+            metadata: { expiryMethod: expiry.method, fallbackUsed: expiry.fallbackUsed },
+          });
+          continue;
+        }
+
+        console.log(`🤖 Auto-paying order ${order.orderNumber} (${minutesRemaining.toFixed(1)} min remaining, ${expiry.method})`);
+        attempted++;
+
+        const markPaidRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify({ orderNumber: order.orderNumber }),
+        });
+        const markPaidResult = await markPaidRes.json().catch(() => null);
+
+        if (markPaidResult?.code === "000000" || markPaidResult?.success === true) {
+          await new Promise((r) => setTimeout(r, 700));
+          const postCheck = await fetchOrderDetail(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber);
+          const postStatus = normalizeStatus(postCheck.detail?.orderStatus);
+          const verified = isAlreadyPaidStatus(postStatus) || postStatus === "BUYER_PAYED";
+
+          await logDecision(supabase, {
+            order,
+            status: verified ? "success" : "unverified_success",
+            reason: verified ? "marked_paid_verified" : "marked_paid_unverified",
+            rawStatus: postStatus || null,
+            minutesRemaining,
+            message: verified ? `Verified: status ${postStatus}` : `Mark-paid returned success but post-verify status ${postStatus || "null"}`,
+            metadata: { expiryMethod: expiry.method, fallbackUsed: expiry.fallbackUsed, markPaidResult, postRequestShape: postCheck.requestShape },
           });
 
-          if (!postCheck.verified) {
-            console.warn(`⚠️ Order ${order.orderNumber} markPaid returned success but post-verify shows status ${postCheck.currentStatus}`);
-          } else {
-            console.log(`✅ Order ${order.orderNumber} paid and verified (status: ${postCheck.currentStatus})`);
-          }
-
-          alreadyPaidSet.add(order.orderNumber);
+          if (!verified) warnings++;
           autoPaidCount++;
+          alreadyHandledSet.add(order.orderNumber);
         } else {
-          // Check if error is "already paid" type (83023)
           const errorCode = markPaidResult?.code;
-          const isAlreadyPaidError = errorCode === 83023 || errorCode === "83023";
-
-          if (isAlreadyPaidError) {
-            // Don't log as failure — it's already paid, just record it
-            await supabase.from("p2p_auto_pay_log").insert({
-              order_number: order.orderNumber,
-              action: "mark_paid",
-              status: "skipped",
-              minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
-              error_message: `Already in non-payable state (${errorCode})`,
-            });
-            alreadyPaidSet.add(order.orderNumber);
-          } else {
-            // Genuine failure
-            await supabase.from("p2p_auto_pay_log").insert({
-              order_number: order.orderNumber,
-              action: "mark_paid",
-              status: "failed",
-              minutes_remaining: parseFloat(minutesRemaining.toFixed(2)),
-              error_message: JSON.stringify(markPaidResult),
-            });
-            errors++;
-            console.error(`❌ Auto-pay FAILED for ${order.orderNumber}: ${JSON.stringify(markPaidResult)}`);
-          }
+          const alreadyPaidError = errorCode === 83023 || errorCode === "83023";
+          await logDecision(supabase, {
+            order,
+            status: alreadyPaidError ? "skipped" : "failed",
+            reason: alreadyPaidError ? "already_non_payable_api" : "mark_paid_api_failed",
+            rawStatus: liveStatus,
+            minutesRemaining,
+            message: JSON.stringify(markPaidResult),
+            metadata: { expiryMethod: expiry.method, fallbackUsed: expiry.fallbackUsed, markPaidResult },
+          });
+          if (alreadyPaidError) skipped++;
+          else errors++;
         }
       } catch (apErr) {
         console.error(`Auto-pay error for ${order.orderNumber}:`, apErr);
         errors++;
+        await logDecision(supabase, {
+          order,
+          status: "failed",
+          reason: "exception",
+          rawStatus: order.orderStatus,
+          message: String(apErr),
+        });
       }
     }
 
     const result = {
       message: "Auto-pay complete",
-      totalOrders: allActiveOrders.length,
-      candidates: buyOrdersPendingPayment.length,
+      totalOrders: allOrders.length,
+      liveOrders: liveOrders.length,
+      cachedOrders: cachedOrders.length,
+      candidates: candidates.length,
+      attempted,
       autoPaid: autoPaidCount,
       autoAssigned,
       skipped,
+      warnings,
       errors,
       autoPayMinutes,
+      durationMs: Date.now() - startedAt,
     };
     console.log("Auto-pay result:", JSON.stringify(result));
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (runId) {
+      await supabase.from("p2p_auto_pay_engine_runs").update({
+        finished_at: new Date().toISOString(),
+        total_orders: allOrders.length,
+        candidates: candidates.length,
+        attempted,
+        auto_paid: autoPaidCount,
+        skipped,
+        warnings,
+        errors,
+        auto_assigned: autoAssigned,
+        status: errors > 0 ? "completed_with_errors" : warnings > 0 ? "completed_with_warnings" : "completed",
+        summary: result,
+      }).eq("id", runId);
+    }
+
+    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err) {
     console.error("Auto-pay engine error:", err);
+    try {
+      const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "https://vagiqbespusdxsbqpvbo.supabase.co";
+      const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      if (runId && SUPABASE_SERVICE_KEY) {
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        await supabase.from("p2p_auto_pay_engine_runs").update({
+          finished_at: new Date().toISOString(),
+          status: "failed",
+          errors: 1,
+          summary: { error: String(err), durationMs: Date.now() - startedAt },
+        }).eq("id", runId);
+      }
+    } catch (_) {
+      // best-effort failure audit only
+    }
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

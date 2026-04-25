@@ -20,8 +20,8 @@ export type OperationalStatus =
 
 // ── Raw Binance numeric → canonical string ──────────────────────
 const NUMERIC_STATUS_MAP: Record<number, string> = {
-  1: 'PENDING',
-  2: 'TRADING',
+  1: 'TRADING',
+  2: 'BUYER_PAYED',
   3: 'BUYER_PAYED',
   4: 'BUYER_PAYED',
   5: 'COMPLETED',

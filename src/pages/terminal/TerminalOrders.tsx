@@ -104,7 +104,7 @@ function TerminalOrdersContent() {
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
-  const [, setChatReadVersion] = useState(0);
+  const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
 
@@ -396,7 +396,7 @@ function TerminalOrdersContent() {
       }
     }
     return map;
-  }, [rawOrders, setChatReadVersion]);
+  }, [rawOrders, chatReadVersion]);
 
   const totalUnread = useMemo(() =>
     Array.from(unreadMap.values()).reduce((s, v) => s + v, 0), [unreadMap]);
@@ -824,6 +824,9 @@ function TerminalOrdersContent() {
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
     e.stopPropagation();
     markOrderChatRead(order.binance_order_number);
+    callBinanceAds('markOrderMessagesRead', { orderNo: order.binance_order_number }).catch((err) => {
+      console.warn('Failed to mark Binance chat read:', err);
+    });
     setSelectedOrder(order);
   };
 

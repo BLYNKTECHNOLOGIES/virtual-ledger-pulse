@@ -83,7 +83,7 @@ function getBusinessStatusLabel(status: unknown): string {
 async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail") {
   const businessStatus = Number(data?.businessStatus);
   if (!Number.isFinite(businessStatus)) return;
-  await supabase.from("binance_merchant_state_snapshots").insert({
+  const { error } = await supabase.from("binance_merchant_state_snapshots").insert({
     business_status: businessStatus,
     business_status_label: getBusinessStatusLabel(businessStatus),
     kyc_passed: typeof data.kycPassed === "boolean" ? data.kycPassed : null,
@@ -97,6 +97,7 @@ async function persistMerchantStateSnapshot(supabase: any, data: any, source = "
     source,
     raw_data: data,
   });
+  if (error) throw error;
 }
 
 async function fetchBaseDetail(proxyUrl: string, headers: Record<string, string>) {
@@ -110,6 +111,9 @@ async function fetchBaseDetail(proxyUrl: string, headers: Record<string, string>
   const userData = result?.data?.data || result?.data;
   if (response.ok && result?.code === "000000" && (!userData || typeof userData !== "object" || Object.keys(userData).length === 0)) {
     result = { code: "EMPTY_BASE_DETAIL", message: "Binance baseDetail returned no usable user data.", _diagnostics: { endpoint, method: "POST", httpStatus: response.status } };
+  }
+  if (response.ok && result?.code === "000000" && userData && !Number.isFinite(Number(userData.businessStatus))) {
+    result = { code: "MISSING_BUSINESS_STATUS", message: "Binance baseDetail returned user data without a usable businessStatus.", data: userData, _diagnostics: { endpoint, method: "POST", httpStatus: response.status } };
   }
   return { result, userData };
 }

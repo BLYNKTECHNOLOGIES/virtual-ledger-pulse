@@ -75,6 +75,13 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
     return new Date(log.confirm_pay_end_time).getTime() > Date.now();
   }).length;
 
+  const getReleaseStatusClass = (status: string) => {
+    if (status === "resolved") return "border-trade-buy/30 text-trade-buy bg-trade-buy/5";
+    if (status === "overdue" || status === "already_appeal") return "border-amber-500/30 text-amber-500 bg-amber-500/5";
+    if (status === "error" || status === "detail_unavailable") return "border-destructive/30 text-destructive bg-destructive/5";
+    return "";
+  };
+
   const updateSettings = useMutation({
     mutationFn: async (updates: { is_active?: boolean; minutes_before_expiry?: number }) => {
       if (!settings?.id) {
@@ -181,10 +188,11 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
               Release Deadline Monitoring
             </CardTitle>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">{awaitingReleaseCount} awaiting release</Badge>
+              <Badge variant="outline" className="text-xs">{awaitingReleaseCount} deadline pending</Badge>
               {overdueReleaseCount > 0 && <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-500 bg-amber-500/5">{overdueReleaseCount} overdue</Badge>}
             </div>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">Monitoring checks marked-paid orders from the last 48 hours and skips orders already resolved or in appeal.</p>
         </CardHeader>
         <CardContent className="p-0">
           {releaseLogsLoading ? (
@@ -212,7 +220,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                     <TableRow key={log.id}>
                       <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={`text-xs ${log.status === "overdue" ? "border-amber-500/30 text-amber-500 bg-amber-500/5" : log.status === "resolved" ? "border-trade-buy/30 text-trade-buy bg-trade-buy/5" : ""}`}>
+                        <Badge variant="outline" className={`text-xs ${getReleaseStatusClass(log.status)}`}>
                           {log.status}
                         </Badge>
                         {log.live_order_status && <div className="text-[10px] text-muted-foreground mt-1">Binance: {log.live_order_status}</div>}

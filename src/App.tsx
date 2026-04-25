@@ -48,6 +48,7 @@ import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
 import TerminalSettings from './pages/terminal/TerminalSettings';
 import TerminalAssets from './pages/terminal/TerminalAssets';
 import TerminalLogs from './pages/terminal/TerminalLogs';
+import TerminalSupport from './pages/terminal/TerminalSupport';
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
@@ -552,6 +553,20 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalLogs />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/support",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalSupport />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

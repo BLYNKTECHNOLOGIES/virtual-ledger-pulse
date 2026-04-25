@@ -177,6 +177,23 @@ export function useBinanceOrderDetail(orderNumber: string | null) {
   });
 }
 
+export function useBinanceOrderRiskSnapshot(orderNumber: string | null) {
+  return useQuery({
+    queryKey: ['binance-order-risk-snapshot', orderNumber],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('binance_order_history')
+        .select('order_detail_raw, counterparty_risk_snapshot, counterparty_risk_captured_at')
+        .eq('order_number', orderNumber!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as any;
+    },
+    enabled: !!orderNumber,
+    staleTime: 60 * 1000,
+  });
+}
+
 /** Fetch single-order status from order history (reliable fallback) */
 export function useBinanceOrderLiveStatus(orderNumber: string | null) {
   return useQuery({

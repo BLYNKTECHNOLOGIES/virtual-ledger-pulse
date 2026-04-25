@@ -222,6 +222,10 @@ export type Database = {
           id: string
           last_failure_at: string | null
           last_success_at: string | null
+          merchant_business_status: number | null
+          merchant_business_status_label: string | null
+          merchant_state_checked_at: string | null
+          merchant_state_diagnostic: string | null
           opened_at: string | null
           updated_at: string | null
         }
@@ -233,6 +237,10 @@ export type Database = {
           id?: string
           last_failure_at?: string | null
           last_success_at?: string | null
+          merchant_business_status?: number | null
+          merchant_business_status_label?: string | null
+          merchant_state_checked_at?: string | null
+          merchant_state_diagnostic?: string | null
           opened_at?: string | null
           updated_at?: string | null
         }
@@ -244,6 +252,10 @@ export type Database = {
           id?: string
           last_failure_at?: string | null
           last_success_at?: string | null
+          merchant_business_status?: number | null
+          merchant_business_status_label?: string | null
+          merchant_state_checked_at?: string | null
+          merchant_state_diagnostic?: string | null
           opened_at?: string | null
           updated_at?: string | null
         }

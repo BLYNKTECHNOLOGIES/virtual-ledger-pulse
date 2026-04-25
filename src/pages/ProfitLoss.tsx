@@ -36,6 +36,16 @@ import { GrossProfitHistoryTab } from '@/components/financials/GrossProfitHistor
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
 
+const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
+
+const normalizeExpenseCategory = (category?: string | null, description?: string | null) => {
+  const descriptionText = String(description || '').toLowerCase();
+  if (category === PAYOUT_GATEWAY_FEE_CATEGORY || descriptionText.includes('payout gateway fee')) {
+    return 'Payout Gateway Fee';
+  }
+  return category || 'General';
+};
+
 interface PeriodMetrics {
   // Purchase metrics
   totalPurchaseValue: number;
@@ -465,7 +475,7 @@ export default function ProfitLoss() {
         ...(expenseData?.map(item => ({
           id: item.id,
           date: item.transaction_date,
-          category: item.category || 'General',
+          category: normalizeExpenseCategory(item.category, item.description),
           type: 'Expense' as const,
           amount: item.amount,
           description: item.description || ''

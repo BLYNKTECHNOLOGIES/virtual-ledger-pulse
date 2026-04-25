@@ -30,6 +30,15 @@ interface BeneficiaryRow {
 
 interface OrderScopeRow {
   order_number: string;
+  adv_no?: string | null;
+  trade_type?: string | null;
+  asset?: string | null;
+  fiat_unit?: string | null;
+  amount?: string | null;
+  total_price?: string | null;
+  unit_price?: string | null;
+  commission?: string | null;
+  counter_part_nick_name?: string | null;
   order_status: string;
   seller_payment_details: any;
   create_time: number;
@@ -240,14 +249,14 @@ function buildEnrichmentPatch(existing: BeneficiaryRow, incoming: PaymentInfo): 
 }
 
 const BINANCE_STATUS_MAP: Record<number, string> = {
-  0: "PENDING",
   1: "TRADING",
   2: "BUYER_PAYED",
-  3: "DISTRIBUTING",
-  4: "COMPLETED",
-  5: "CANCELLED",
-  6: "CANCELLED_BY_SYSTEM",
-  7: "IN_APPEAL",
+  3: "BUYER_PAYED",
+  4: "BUYER_PAYED",
+  5: "COMPLETED",
+  6: "CANCELLED",
+  7: "CANCELLED",
+  8: "APPEAL",
 };
 
 function mapOrderStatus(rawStatus: unknown): string {
@@ -307,6 +316,15 @@ async function fetchLiveActiveBuyOrders(
       seen.add(orderNumber);
       rows.push({
         order_number: orderNumber,
+        adv_no: clean(order?.advNo) || null,
+        trade_type: clean(order?.tradeType) || "BUY",
+        asset: clean(order?.asset) || "USDT",
+        fiat_unit: clean(order?.fiat || order?.fiatUnit) || "INR",
+        amount: clean(order?.amount) || "0",
+        total_price: clean(order?.totalPrice) || "0",
+        unit_price: clean(order?.unitPrice || order?.price) || null,
+        commission: clean(order?.commission) || "0",
+        counter_part_nick_name: clean(order?.counterPartNickName || order?.sellerNickname || order?.buyerNickname) || null,
         order_status: mappedStatus,
         seller_payment_details: null,
         create_time: createTime,
@@ -368,8 +386,18 @@ serve(async (req) => {
           .upsert(
             liveActiveOrders.map((order) => ({
               order_number: order.order_number,
+              adv_no: order.adv_no,
+              trade_type: order.trade_type || "BUY",
+              asset: order.asset || "USDT",
+              fiat_unit: order.fiat_unit || "INR",
+              amount: order.amount || "0",
+              total_price: order.total_price || "0",
+              unit_price: order.unit_price || (Number(order.amount || 0) > 0 && Number(order.total_price || 0) > 0
+                ? String(Number(order.total_price) / Number(order.amount))
+                : "0"),
+              commission: order.commission || "0",
+              counter_part_nick_name: order.counter_part_nick_name,
               order_status: order.order_status,
-              trade_type: "BUY",
               create_time: order.create_time,
               raw_data: order.raw_data || null,
               synced_at: new Date().toISOString(),

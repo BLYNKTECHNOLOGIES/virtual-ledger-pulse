@@ -308,9 +308,14 @@ export function useAutoSyncOrders() {
 
 // ---- Status mapping: Binance numeric → string ----
 const BINANCE_STATUS_MAP: Record<number, string> = {
-  0: 'PENDING', 1: 'TRADING', 2: 'BUYER_PAYED',
-  3: 'DISTRIBUTING', 4: 'COMPLETED', 5: 'CANCELLED',
-  6: 'CANCELLED_BY_SYSTEM', 7: 'IN_APPEAL',
+  1: 'TRADING',
+  2: 'BUYER_PAYED',
+  3: 'BUYER_PAYED',
+  4: 'BUYER_PAYED',
+  5: 'COMPLETED',
+  6: 'CANCELLED',
+  7: 'CANCELLED',
+  8: 'APPEAL',
 };
 
 function mapOrderStatus(raw: any): string {
@@ -324,6 +329,11 @@ function mapOrderStatus(raw: any): string {
 
 // ---- Mapping helpers ----
 function orderToDbRow(o: any) {
+  const amount = String(o.amount ?? o.quantity ?? '0');
+  const totalPrice = String(o.totalPrice ?? o.total_price ?? o.fiatAmount ?? '0');
+  const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : '0';
+  const unitPrice = String(o.unitPrice ?? o.price ?? o.unit_price ?? computedUnitPrice);
+
   return {
     order_number: o.orderNumber || '',
     adv_no: o.advNo || '',
@@ -331,10 +341,10 @@ function orderToDbRow(o: any) {
     asset: o.asset || 'USDT',
     fiat_unit: o.fiat || o.fiatUnit || 'INR',
     order_status: mapOrderStatus(o.orderStatus),
-    amount: String(o.amount || '0'),
-    total_price: String(o.totalPrice || '0'),
-    unit_price: String(o.unitPrice || '0'),
-    commission: String(o.commission || '0'),
+    amount,
+    total_price: totalPrice,
+    unit_price: unitPrice,
+    commission: String(o.commission ?? '0'),
     counter_part_nick_name: o.counterPartNickName || o.buyerNickname || o.sellerNickname || '',
     create_time: o.createTime || 0,
     pay_method_name: o.payMethodName || null,

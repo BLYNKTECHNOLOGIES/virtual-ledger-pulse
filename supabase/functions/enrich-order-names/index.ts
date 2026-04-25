@@ -7,6 +7,50 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function maskIdentifier(value: unknown): string | null {
+  const raw = typeof value === "string" || typeof value === "number" ? String(value) : "";
+  if (!raw) return null;
+  if (raw.length <= 4) return "****";
+  return `${raw.slice(0, 2)}${"*".repeat(Math.max(4, raw.length - 4))}${raw.slice(-2)}`;
+}
+
+function normalizeUserRisk(user: any) {
+  if (!user || typeof user !== "object") return null;
+  return {
+    historyStats: user.userOrderHistoryStatsVo || null,
+    inProgressStats: user.userOrderInProgressStatsVo || null,
+    kyc: user.userKycVo || null,
+    rawUserKeys: Object.keys(user).slice(0, 50),
+  };
+}
+
+function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
+  if (!detail || typeof detail !== "object") return null;
+  const normalizedTradeType = String(tradeType || detail.tradeType || "").toUpperCase();
+  const counterpartySide = normalizedTradeType === "BUY" ? "seller" : normalizedTradeType === "SELL" ? "buyer" : null;
+  const explicitUser = counterpartySide ? (detail[counterpartySide] || detail[`${counterpartySide}Vo`] || detail[`${counterpartySide}User`]) : null;
+  const fallbackUser = explicitUser || detail.counterparty || detail.counterpartyUser || detail.maker || detail.taker || null;
+
+  return {
+    source: "getUserOrderDetail",
+    capturedAt: new Date().toISOString(),
+    tradeType: normalizedTradeType || null,
+    counterpartySide,
+    topLevel: {
+      maliceInitiatorCount: detail.maliceInitiatorCount ?? null,
+      complaintCount: detail.complaintCount ?? null,
+      overComplained: detail.overComplained ?? null,
+      buyerCreditScore: detail.buyerCreditScore ?? null,
+      sellerCreditScore: detail.sellerCreditScore ?? null,
+      isRiskCount: detail.isRiskCount ?? null,
+      idNumberMasked: maskIdentifier(detail.idNumber),
+    },
+    counterparty: normalizeUserRisk(fallbackUser),
+    maker: normalizeUserRisk(detail.maker),
+    taker: normalizeUserRisk(detail.taker),
+  };
+}
+
 async function fetchWithRetry(
   url: string,
   options: RequestInit,

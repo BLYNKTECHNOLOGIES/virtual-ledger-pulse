@@ -1325,6 +1325,78 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_commission_rate_snapshots: {
+        Row: {
+          actual_commission_amount: number | null
+          adv_no: string | null
+          amount: number | null
+          asset: string | null
+          captured_at: string
+          commission_asset: string | null
+          effective_commission_rate: number | null
+          fiat_unit: string | null
+          id: string
+          maker_commission_rate: number | null
+          order_number: string | null
+          pay_id: string | null
+          pay_method_identifier: string | null
+          pay_method_name: string | null
+          raw_snapshot: Json
+          source_id: string
+          source_type: string
+          taker_commission_rate: number | null
+          total_price: number | null
+          trade_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_commission_amount?: number | null
+          adv_no?: string | null
+          amount?: number | null
+          asset?: string | null
+          captured_at?: string
+          commission_asset?: string | null
+          effective_commission_rate?: number | null
+          fiat_unit?: string | null
+          id?: string
+          maker_commission_rate?: number | null
+          order_number?: string | null
+          pay_id?: string | null
+          pay_method_identifier?: string | null
+          pay_method_name?: string | null
+          raw_snapshot?: Json
+          source_id: string
+          source_type: string
+          taker_commission_rate?: number | null
+          total_price?: number | null
+          trade_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_commission_amount?: number | null
+          adv_no?: string | null
+          amount?: number | null
+          asset?: string | null
+          captured_at?: string
+          commission_asset?: string | null
+          effective_commission_rate?: number | null
+          fiat_unit?: string | null
+          id?: string
+          maker_commission_rate?: number | null
+          order_number?: string | null
+          pay_id?: string | null
+          pay_method_identifier?: string | null
+          pay_method_name?: string | null
+          raw_snapshot?: Json
+          source_id?: string
+          source_type?: string
+          taker_commission_rate?: number | null
+          total_price?: number | null
+          trade_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       binance_order_history: {
         Row: {
           adv_no: string | null

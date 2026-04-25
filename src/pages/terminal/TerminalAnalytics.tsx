@@ -725,26 +725,6 @@ export default function TerminalAnalytics() {
       });
     }).sort(sortAdRowsByType);
 
-    const adCoinBreakdown = Object.fromEntries(
-      Array.from(byAd.entries()).map(([advNo, rows]) => {
-        const adAggregate = adRows.find((item) => item.key === advNo);
-        const byCoin = new Map<string, NormalizedOrder[]>();
-        for (const order of rows) {
-          const coin = String(order.asset || 'USDT').toUpperCase();
-          byCoin.set(coin, [...(byCoin.get(coin) || []), order]);
-        }
-        return [advNo, Array.from(byCoin.entries())
-          .map(([coin, coinOrders]) => aggregateOrders(coin, `${advNo}-${coin}`, coinOrders, { asset: coin, orderKind: adAggregate?.orderKind, orderKindLabel: adAggregate?.orderKindLabel, tradeType: adAggregate?.tradeType }))
-          .sort((a, b) => {
-            const aAsset = String(a.asset || 'USDT').toUpperCase();
-            const bAsset = String(b.asset || 'USDT').toUpperCase();
-            const aIndex = assetSortOrder.includes(aAsset) ? assetSortOrder.indexOf(aAsset) : assetSortOrder.length;
-            const bIndex = assetSortOrder.includes(bAsset) ? assetSortOrder.indexOf(bAsset) : assetSortOrder.length;
-            return aIndex !== bIndex ? aIndex - bIndex : aAsset.localeCompare(bAsset);
-          })];
-      })
-    ) as Record<string, Aggregate[]>;
-
     const rates = valuedCompleted.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
     const weightedBuyRate = weightedRate(valuedBuyVolume, valuedBuy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
     const weightedSellRate = weightedRate(valuedSellVolume, valuedSell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
@@ -774,7 +754,6 @@ export default function TerminalAnalytics() {
       orderTypes,
       orderTypeCoinBreakdown,
       adRows,
-      adCoinBreakdown,
       bestAd,
       highestSellAd,
       imbalance,
@@ -808,7 +787,6 @@ export default function TerminalAnalytics() {
   const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
   const filteredAdRows = useMemo(() => analytics.adRows.filter((item) => item.tradeType === adTradeFilter), [analytics.adRows, adTradeFilter]);
   const selectedAd = useMemo(() => filteredAdRows.find((item) => item.key === selectedAdKey) || filteredAdRows[0], [filteredAdRows, selectedAdKey]);
-  const selectedAdCoinRows = selectedAd ? analytics.adCoinBreakdown[selectedAd.key] || [] : [];
 
   useEffect(() => {
     if (filteredAdRows.length && !filteredAdRows.some((item) => item.key === selectedAdKey)) {

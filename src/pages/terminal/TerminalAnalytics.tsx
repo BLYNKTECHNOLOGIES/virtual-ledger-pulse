@@ -874,7 +874,7 @@ export default function TerminalAnalytics() {
 
           <TabsContent value="types" className="min-h-0 flex-1 overflow-auto">
             <div className="space-y-4 pb-2">
-              <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)] gap-4">
+              <div className="grid min-h-full grid-cols-1 gap-4">
                 <Card className="bg-card border-border min-h-full">
                   <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader>
                   <CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} selected={selectedOrderKind === item.key} onClick={() => setSelectedOrderKind(item.key as OrderKind)} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent>
@@ -904,15 +904,8 @@ export default function TerminalAnalytics() {
                   </CardHeader>
                   <CardContent>{filteredAdRows.length ? filteredAdRows.map((item) => <DataRow key={item.key} item={item} showType selected={selectedAd?.key === item.key} onClick={() => setSelectedAdKey(item.key)} />) : <EmptyPanel text={`No ${adTradeFilter.toLowerCase()} ad-linked completed orders in selected period`} />}</CardContent>
                 </Card>
-                <Card className="bg-card border-border min-h-full">
-                  <CardHeader className="flex flex-row items-center justify-between gap-3">
-                    <CardTitle className="text-sm">Coin Breakdown</CardTitle>
-                    {selectedAd?.orderKind && <Badge variant="secondary" className={orderKindTextClass[selectedAd.orderKind]}>{selectedAd.orderKindLabel}</Badge>}
-                  </CardHeader>
-                  <CardContent>{selectedAdCoinRows.length ? selectedAdCoinRows.map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected ad" />}</CardContent>
-                </Card>
               </div>
-              <AdPerformanceGraph rows={filteredAdRows} tradeFilter={adTradeFilter} selectedAd={selectedAd} coinRows={selectedAdCoinRows} />
+              <AdPerformanceGraph rows={filteredAdRows} tradeFilter={adTradeFilter} selectedAd={selectedAd} />
             </div>
           </TabsContent>
 

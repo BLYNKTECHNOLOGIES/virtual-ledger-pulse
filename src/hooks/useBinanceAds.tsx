@@ -70,6 +70,7 @@ export interface AdFilters {
   endDate?: string;
   page?: number;
   rows?: number;
+  fetchAll?: boolean;
 }
 
 async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
@@ -88,17 +89,38 @@ export function useBinanceAdsList(filters: AdFilters) {
   return useQuery({
     queryKey: ['binance-ads', filters],
     queryFn: async () => {
+      const fetchPage = (pageFilters: AdFilters) => callBinanceAds('listAds', pageFilters);
+      const fetchAds = async (pageFilters: AdFilters) => {
+        if (!filters.fetchAll) return fetchPage(pageFilters);
+
+        const pageSize = pageFilters.rows || 50;
+        const first = await fetchPage({ ...pageFilters, page: 1, rows: pageSize });
+        const list = first?.data || first?.list || [];
+        const totalCount = Number(first?.total || list.length);
+        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+        if (totalPages === 1) return { data: list, total: totalCount || list.length };
+
+        const rest = await Promise.all(
+          Array.from({ length: totalPages - 1 }, (_, index) =>
+            fetchPage({ ...pageFilters, page: index + 2, rows: pageSize })
+          )
+        );
+        const allAds = [list, ...rest.map((result: any) => result?.data || result?.list || [])].flat();
+        return { data: allAds, total: totalCount || allAds.length };
+      };
+
       if (isPrivateFilter) {
         // Private ads are returned by the API under advStatus=1, then enriched to 2 by edge fn.
         // So we fetch advStatus=1 and filter for only the private ones.
-        const result = await callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.ONLINE });
+        const result = await fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.ONLINE });
         const list = result?.data || result?.list || [];
         const privateAds = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.PRIVATE || ad._isPrivate);
         return { data: privateAds, total: privateAds.length };
       }
       if (!isAllStatuses) {
         // For Active tab (status 1), fetch and filter out private ads
-        const result = await callBinanceAds('listAds', filters);
+        const result = await fetchAds(filters);
         if (filters.advStatus === BINANCE_AD_STATUS.ONLINE) {
           const list = result?.data || result?.list || [];
           const onlineOnly = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.ONLINE && !ad._isPrivate);
@@ -108,8 +130,8 @@ export function useBinanceAdsList(filters: AdFilters) {
       }
       // Fetch online/private (advStatus=1, enriched by edge fn) and offline (3) in parallel
       const [onlineAndPrivate, offline] = await Promise.all([
-        callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.ONLINE }),
-        callBinanceAds('listAds', { ...filters, advStatus: BINANCE_AD_STATUS.OFFLINE }),
+        fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.ONLINE }),
+        fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.OFFLINE }),
       ]);
       const mergeList = (r: any) => r?.data || r?.list || [];
       const allAds = [...mergeList(onlineAndPrivate), ...mergeList(offline)];

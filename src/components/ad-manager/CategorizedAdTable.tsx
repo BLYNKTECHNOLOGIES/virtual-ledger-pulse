@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,6 +12,9 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/hooks/useAuth';
+
+const COLLAPSE_PREF_KEY_PREFIX = 'terminal_ad_group_collapse_';
 
 interface CategorizedAdTableProps {
   ads: BinanceAd[];
@@ -144,13 +147,41 @@ function categorizeAds(
 }
 
 export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selectedAdvNos, onSelectionChange }: CategorizedAdTableProps) {
+  const { user } = useAuth();
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const collapseStorageKey = user?.id ? `${COLLAPSE_PREF_KEY_PREFIX}${user.id}` : null;
 
   const categories = useMemo(() => categorizeAds(ads, buyConfig, sellConfig), [ads, buyConfig, sellConfig]);
+
+  useEffect(() => {
+    if (!collapseStorageKey) return;
+    try {
+      const stored = localStorage.getItem(collapseStorageKey);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      setCollapsedCategories(new Set(Array.isArray(parsed?.categories) ? parsed.categories : []));
+      setCollapsedGroups(new Set(Array.isArray(parsed?.groups) ? parsed.groups : []));
+    } catch {
+      setCollapsedCategories(new Set());
+      setCollapsedGroups(new Set());
+    }
+  }, [collapseStorageKey]);
+
+  const saveCollapsePrefs = (categoriesSet: Set<string>, groupsSet: Set<string>) => {
+    if (!collapseStorageKey) return;
+    try {
+      localStorage.setItem(collapseStorageKey, JSON.stringify({
+        categories: Array.from(categoriesSet),
+        groups: Array.from(groupsSet),
+      }));
+    } catch {
+      // Ignore localStorage quota/access failures.
+    }
+  };
 
   if (!ads || ads.length === 0) {
     return (
@@ -164,12 +195,14 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
     const next = new Set(collapsedCategories);
     next.has(key) ? next.delete(key) : next.add(key);
     setCollapsedCategories(next);
+    saveCollapsePrefs(next, collapsedGroups);
   };
 
   const toggleGroup = (key: string) => {
     const next = new Set(collapsedGroups);
     next.has(key) ? next.delete(key) : next.add(key);
     setCollapsedGroups(next);
+    saveCollapsePrefs(collapsedCategories, next);
   };
 
   const selectCategoryAds = (category: AdCategory) => {

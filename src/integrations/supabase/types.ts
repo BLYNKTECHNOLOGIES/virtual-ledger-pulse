@@ -1397,6 +1397,57 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_merchant_state_snapshots: {
+        Row: {
+          bind_mobile_status: string | null
+          business_status: number
+          business_status_label: string
+          checked_at: string
+          country_code: string | null
+          id: string
+          kyc_passed: boolean | null
+          kyc_type: number | null
+          nickname: string | null
+          over_complained: number | null
+          raw_data: Json
+          register_days: number | null
+          source: string
+          user_kyc_status: string | null
+        }
+        Insert: {
+          bind_mobile_status?: string | null
+          business_status: number
+          business_status_label: string
+          checked_at?: string
+          country_code?: string | null
+          id?: string
+          kyc_passed?: boolean | null
+          kyc_type?: number | null
+          nickname?: string | null
+          over_complained?: number | null
+          raw_data?: Json
+          register_days?: number | null
+          source?: string
+          user_kyc_status?: string | null
+        }
+        Update: {
+          bind_mobile_status?: string | null
+          business_status?: number
+          business_status_label?: string
+          checked_at?: string
+          country_code?: string | null
+          id?: string
+          kyc_passed?: boolean | null
+          kyc_type?: number | null
+          nickname?: string | null
+          over_complained?: number | null
+          raw_data?: Json
+          register_days?: number | null
+          source?: string
+          user_kyc_status?: string | null
+        }
+        Relationships: []
+      }
       binance_order_history: {
         Row: {
           adv_no: string | null

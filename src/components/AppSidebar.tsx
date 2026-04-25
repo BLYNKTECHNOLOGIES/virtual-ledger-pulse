@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Headphones } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -149,6 +149,15 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-violet-600",
     bgColor: "bg-violet-100",
     permissions: ["tasks_view", "tasks_manage"]
+  },
+  {
+    id: "customer-support",
+    title: "Customer Support",
+    url: "/support",
+    icon: Headphones,
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    permissions: ["support_view", "support_manage"]
   }
 ];
 

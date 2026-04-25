@@ -56,6 +56,8 @@ type Bucket = {
 type Aggregate = {
   key: string;
   label: string;
+  description?: string;
+  details?: string[];
   tradeType?: string;
   asset?: string;
   count: number;
@@ -81,6 +83,35 @@ function fmtINR(n: number, decimals = 0) {
 
 function fmtRate(n: number) {
   return Number.isFinite(n) && n > 0 ? `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—';
+}
+
+function fmtRange(min?: number | string, max?: number | string) {
+  const minValue = Number(min || 0);
+  const maxValue = Number(max || 0);
+  return minValue || maxValue ? `${fmtINR(minValue)}–${fmtINR(maxValue)}` : 'Limits not returned';
+}
+
+function getAdStatusText(status?: number) {
+  if (status === 1) return 'Active';
+  if (status === 2) return 'Private';
+  if (status === 3) return 'Inactive';
+  return 'Status not returned';
+}
+
+function getAdDetails(ad: any, fallback: NormalizedOrder[]) {
+  const tradeType = ad?.tradeType || ad?.trade_type || fallback[0]?.tradeType || '—';
+  const asset = ad?.asset || fallback[0]?.asset || 'USDT';
+  const priceType = Number(ad?.priceType ?? ad?.price_type ?? 0) === 2 ? 'Floating' : Number(ad?.priceType ?? ad?.price_type ?? 0) === 1 ? 'Fixed' : 'Price type not returned';
+  const methods = (ad?.tradeMethods || ad?.trade_methods || []).map((m: any) => m.tradeMethodName || m.identifier || m.payType).filter(Boolean).slice(0, 2).join(', ');
+
+  return {
+    description: `${tradeType} · ${asset} · ${getAdStatusText(Number(ad?.advStatus ?? ad?.adv_status))}`,
+    details: [
+      `${priceType} ${fmtRate(Number(ad?.price || 0))}`,
+      fmtRange(ad?.minSingleTransAmount ?? ad?.min_single_trans_amount, ad?.maxSingleTransAmount ?? ad?.max_single_trans_amount),
+      methods || 'Payment methods not returned',
+    ],
+  };
 }
 
 function weightedRate(volume: number, quantity: number) {
@@ -267,7 +298,8 @@ function DataRow({ item, showType = false }: { item: Aggregate; showType?: boole
     <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-xs">
       <div className="min-w-0">
         <p className="font-medium text-foreground truncate">{item.label}</p>
-        {showType && <p className="text-[10px] text-muted-foreground truncate">{item.tradeType || '—'} · {item.asset || 'USDT'}</p>}
+        {showType && <p className="text-[10px] text-muted-foreground truncate">{item.description || `${item.tradeType || '—'} · ${item.asset || 'USDT'}`}</p>}
+        {showType && item.details?.length ? <p className="text-[10px] text-muted-foreground truncate">{item.details.join(' · ')}</p> : null}
       </div>
       <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
       <div><p className="text-muted-foreground text-[10px]">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
@@ -345,6 +377,7 @@ export default function TerminalAnalytics() {
       return aggregateOrders(advNo, advNo, rows, {
         tradeType: rows[0]?.tradeType || ad?.tradeType,
         asset: rows[0]?.asset || ad?.asset,
+        ...getAdDetails(ad, rows),
       });
     }).sort((a, b) => b.volume - a.volume);
 

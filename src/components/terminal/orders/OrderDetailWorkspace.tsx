@@ -12,7 +12,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
 
@@ -31,6 +31,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
   const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
+  const { data: commissionSnapshots } = useOrderCommissionSnapshots(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
   const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number);
 
@@ -170,7 +171,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
         </div>
       ) : (
-        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
+        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} commissionSnapshots={commissionSnapshots} />
       )}
     </>
   );
@@ -220,7 +221,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           )}
           {mobileTab === 'profile' && (
             <div className="h-full overflow-hidden flex flex-col bg-card">
-              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
+              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} commissionSnapshots={commissionSnapshots} />
             </div>
           )}
         </div>
@@ -247,7 +248,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any }) {
+function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot, commissionSnapshots }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any; commissionSnapshots?: any[] }) {
   const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
   const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
   const { data: linkedClient } = useCounterpartyLinkedClient(
@@ -411,7 +412,10 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
           <ChevronDown className={`h-3 w-3 transition-transform ${showMoreBinanceData ? 'rotate-180' : ''}`} />
         </Button>
         {showMoreBinanceData && (
-          <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
+          <div className="space-y-3">
+            <CommissionSnapshotDetails snapshots={commissionSnapshots || []} order={order} />
+            <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
+          </div>
         )}
       </div>
 

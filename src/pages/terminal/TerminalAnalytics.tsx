@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -340,9 +340,14 @@ function StatCard({ icon: Icon, label, value, sub, tone = 'primary' }: {
   );
 }
 
-function DataRow({ item, showType = false }: { item: Aggregate; showType?: boolean }) {
+function DataRow({ item, showType = false, selected = false, onClick }: { item: Aggregate; showType?: boolean; selected?: boolean; onClick?: () => void }) {
+  const Wrapper = onClick ? 'button' : 'div';
   return (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-xs">
+    <Wrapper
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`grid w-full grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-left text-xs transition-colors ${onClick ? 'rounded-md px-2 hover:bg-secondary/60' : ''} ${selected ? 'bg-primary/5 ring-1 ring-primary/20' : ''}`}
+    >
       <div className="min-w-0">
         <p className="font-medium text-foreground truncate">{item.label}</p>
         {showType && <p className="text-[10px] text-muted-foreground truncate">
@@ -356,7 +361,7 @@ function DataRow({ item, showType = false }: { item: Aggregate; showType?: boole
       <div><p className="text-muted-foreground text-[10px]">Quantity</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
       <div><p className="text-muted-foreground text-[10px]">Avg rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
       <div><p className="text-muted-foreground text-[10px]">Avg order</p><p className="font-semibold tabular-nums">{fmtINR(item.avgOrder)}</p></div>
-    </div>
+    </Wrapper>
   );
 }
 

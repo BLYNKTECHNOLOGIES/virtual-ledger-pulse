@@ -619,11 +619,9 @@ async function processAsset(
       if (rule.price_type === "FIXED") {
         const roundedPrice = Math.round((newPrice!) * 100) / 100;
         adData.price = roundedPrice;
-        adData.priceType = 1;
       } else {
         const roundedRatio = Math.round((newRatio!) * 10000) / 10000;
         adData.priceFloatingRatio = roundedRatio;
-        adData.priceType = 2;
       }
 
       const resp = await fetch(binanceAdsUrl, {
@@ -741,10 +739,8 @@ async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, 
       const adData: any = { advNo: adNo };
       if (rule.price_type === "FIXED" && rule.resting_price) {
         adData.price = rule.resting_price;
-        adData.priceType = 1;
       } else if (rule.price_type === "FLOATING" && rule.resting_ratio) {
         adData.priceFloatingRatio = rule.resting_ratio;
-        adData.priceType = 2;
       } else {
         continue;
       }

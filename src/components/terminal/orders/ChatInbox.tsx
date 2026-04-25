@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, MessageSquare, Search, User, ChevronRight, AlertCircle } from 'lucide-react';
-import { useBinanceActiveOrders, useBinanceOrderHistory, useBinanceChatMessages } from '@/hooks/useBinanceActions';
+import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory, useBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { format } from 'date-fns';
 import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
@@ -38,6 +38,9 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
   const handleOpenChat = useCallback((conv: ChatConversation) => {
     markOrderChatRead(conv.orderNumber);
+    callBinanceAds('markOrderMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
+      console.warn('Failed to mark Binance chat read:', err);
+    });
     setReadVersion(v => v + 1);
     onOpenChat(conv);
   }, [onOpenChat]);

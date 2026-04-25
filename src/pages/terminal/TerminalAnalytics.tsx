@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, Banknote, Clock, Shield, Activity, AlertTriangle, Target, Percent, Layers } from 'lucide-react';
 import { useBinanceAdsList, BinanceAd } from '@/hooks/useBinanceAds';
@@ -24,6 +25,7 @@ const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 const VALUATION_QUERY_CHUNK_SIZE = 150;
 
 type OrderKind = 'smallBuy' | 'bigBuy' | 'smallSell' | 'bigSell';
+type AdTradeFilter = 'BUY' | 'SELL';
 
 type NormalizedOrder = {
   orderNumber: string;
@@ -249,6 +251,24 @@ const orderKindTextClass: Record<OrderKind, string> = {
   bigSell: 'text-destructive',
 };
 
+const assetSortOrder = ['USDT', 'BTC', 'ETH', 'USDC', 'FDUSD', 'BNB', 'TRX'];
+
+function sortAdRowsByType(a: Aggregate, b: Aggregate) {
+  const kindOrder: Record<OrderKind, number> = { smallBuy: 0, bigBuy: 1, smallSell: 0, bigSell: 1 };
+  const aKind = a.orderKind ? kindOrder[a.orderKind] : 99;
+  const bKind = b.orderKind ? kindOrder[b.orderKind] : 99;
+  if (aKind !== bKind) return aKind - bKind;
+
+  const aAsset = String(a.asset || 'USDT').toUpperCase();
+  const bAsset = String(b.asset || 'USDT').toUpperCase();
+  const aAssetIndex = assetSortOrder.includes(aAsset) ? assetSortOrder.indexOf(aAsset) : assetSortOrder.length;
+  const bAssetIndex = assetSortOrder.includes(bAsset) ? assetSortOrder.indexOf(bAsset) : assetSortOrder.length;
+  if (aAssetIndex !== bAssetIndex) return aAssetIndex - bAssetIndex;
+  if (aAsset !== bAsset) return aAsset.localeCompare(bAsset);
+
+  return a.label.localeCompare(b.label, 'en-IN', { numeric: true });
+}
+
 function dominantOrderKind(orders: NormalizedOrder[], smallBuyConfig?: RangeConfig | null, smallSalesConfig?: RangeConfig | null) {
   const counts = orders.reduce((acc, order) => {
     const kind = classifyOrder(order, smallBuyConfig, smallSalesConfig);
@@ -470,6 +490,7 @@ export default function TerminalAnalytics() {
   const { userId } = useTerminalAuth();
   const [prefs, setPref] = useTerminalUserPrefs(userId, 'analytics', { filter: '' as string });
   const [selectedOrderKind, setSelectedOrderKind] = useState<OrderKind>('smallBuy');
+  const [adTradeFilter, setAdTradeFilter] = useState<AdTradeFilter>('BUY');
 
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);
@@ -551,7 +572,7 @@ export default function TerminalAnalytics() {
         asset: rows[0]?.asset || ad?.asset,
         ...getAdDetails(ad, rows),
       });
-    }).sort((a, b) => b.volume - a.volume);
+    }).sort(sortAdRowsByType);
 
     const rates = valuedCompleted.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
     const weightedBuyRate = weightedRate(valuedBuyVolume, valuedBuy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
@@ -613,6 +634,7 @@ export default function TerminalAnalytics() {
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);
   const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
+  const filteredAdRows = useMemo(() => analytics.adRows.filter((item) => item.tradeType === adTradeFilter), [analytics.adRows, adTradeFilter]);
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -708,7 +730,16 @@ export default function TerminalAnalytics() {
           </TabsContent>
 
           <TabsContent value="ads" className="min-h-0 flex-1 overflow-auto">
-            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle></CardHeader><CardContent>{analytics.adRows.length ? analytics.adRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text="No ad-linked completed orders in selected period" />}</CardContent></Card>
+            <Card className="bg-card border-border min-h-full">
+              <CardHeader className="flex flex-row items-center justify-between gap-3">
+                <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle>
+                <div className="rounded-md bg-secondary p-1 flex items-center gap-1">
+                  <Button size="sm" variant={adTradeFilter === 'BUY' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('BUY')}>Buy Ads</Button>
+                  <Button size="sm" variant={adTradeFilter === 'SELL' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('SELL')}>Sell Ads</Button>
+                </div>
+              </CardHeader>
+              <CardContent>{filteredAdRows.length ? filteredAdRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text={`No ${adTradeFilter.toLowerCase()} ad-linked completed orders in selected period`} />}</CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="rates" className="min-h-0 flex-1">

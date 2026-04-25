@@ -212,7 +212,9 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                     <TableHead>Order</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Overdue</TableHead>
+                    <TableHead>Binance Paid</TableHead>
                     <TableHead>Release Deadline</TableHead>
+                    <TableHead>Complaint Cutoff</TableHead>
                     <TableHead>Checked</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -227,7 +229,9 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                         {log.live_order_status && <div className="text-[10px] text-muted-foreground mt-1">Binance: {log.live_order_status}</div>}
                       </TableCell>
                       <TableCell className="text-xs tabular-nums">{log.minutes_overdue != null ? `${Number(log.minutes_overdue).toFixed(1)} min` : "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.notify_pay_time ? format(new Date(log.notify_pay_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss")}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{log.complain_freeze_time ? format(new Date(log.complain_freeze_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}</TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(log.checked_at), "dd MMM HH:mm:ss")}</TableCell>
                     </TableRow>
                   ))}
@@ -265,7 +269,9 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                     <TableHead>Status</TableHead>
                     <TableHead>Order</TableHead>
                     <TableHead>Min Remaining</TableHead>
+                    <TableHead>Binance Paid</TableHead>
                     <TableHead>Release Deadline</TableHead>
+                    <TableHead>Complaint Cutoff</TableHead>
                     <TableHead>Error</TableHead>
                     <TableHead>Time</TableHead>
                   </TableRow>
@@ -287,7 +293,13 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                         )}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {log.notify_pay_time ? format(new Date(log.notify_pay_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {log.confirm_pay_end_time ? format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss") : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {log.complain_freeze_time ? format(new Date(log.complain_freeze_time), "dd MMM HH:mm:ss") : "Not returned by Binance"}
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         {log.error_message ? (

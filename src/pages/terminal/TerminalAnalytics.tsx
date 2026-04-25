@@ -59,6 +59,8 @@ type Aggregate = {
   label: string;
   description?: string;
   details?: string[];
+  orderKind?: OrderKind;
+  orderKindLabel?: string;
   tradeType?: string;
   asset?: string;
   count: number;
@@ -191,6 +193,30 @@ function classifyOrder(o: NormalizedOrder, smallBuyConfig?: RangeConfig | null, 
   }
   const isSmall = smallSalesConfig?.is_enabled && o.totalPrice >= smallSalesConfig.min_amount && o.totalPrice <= smallSalesConfig.max_amount;
   return isSmall ? 'smallSell' : 'bigSell';
+}
+
+const orderKindLabels: Record<OrderKind, string> = {
+  smallBuy: 'Small Buy',
+  bigBuy: 'Big Buy',
+  smallSell: 'Small Sale',
+  bigSell: 'Big Sale',
+};
+
+const orderKindTextClass: Record<OrderKind, string> = {
+  smallBuy: 'text-trade-buy',
+  bigBuy: 'text-primary',
+  smallSell: 'text-trade-sell',
+  bigSell: 'text-destructive',
+};
+
+function dominantOrderKind(orders: NormalizedOrder[], smallBuyConfig?: RangeConfig | null, smallSalesConfig?: RangeConfig | null) {
+  const counts = orders.reduce((acc, order) => {
+    const kind = classifyOrder(order, smallBuyConfig, smallSalesConfig);
+    acc[kind] = (acc[kind] || 0) + 1;
+    return acc;
+  }, {} as Record<OrderKind, number>);
+
+  return (Object.entries(counts) as [OrderKind, number][]).sort((a, b) => b[1] - a[1])[0]?.[0];
 }
 
 function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], extra: Partial<Aggregate> = {}): Aggregate {

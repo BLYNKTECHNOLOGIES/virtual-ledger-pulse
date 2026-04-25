@@ -28,7 +28,6 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: counterpartyById } = useP2PCounterparty(order.counterparty_id);
   const { data: counterpartyByNick } = useP2PCounterpartyByNickname(!order.counterparty_id ? order.counterparty_nickname : null);
   const counterparty = counterpartyById || counterpartyByNick;
-  const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
   const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
   const { data: commissionSnapshots } = useOrderCommissionSnapshots(order.binance_order_number);
@@ -122,6 +121,10 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
     if (!detail) return undefined;
     return order.trade_type === 'BUY' ? detail.sellerName : detail.buyerName;
   }, [liveDetail, order.trade_type]);
+  const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number, {
+    counterpartyNickname: order.counterparty_nickname,
+    verifiedName: counterpartyVerifiedName,
+  });
 
   const topBar = (
     <div className="flex items-center justify-between px-3 md:px-4 py-2 border-b border-border bg-card">

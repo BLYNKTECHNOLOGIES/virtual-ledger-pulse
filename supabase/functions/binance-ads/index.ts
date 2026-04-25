@@ -188,8 +188,10 @@ function extractChatMessages(result: any): any[] {
 }
 
 function normalizeChatMessage(orderNo: string, msg: any) {
-  const rawType = String(msg?.type || msg?.chatMessageType || msg?.messageType || "unknown").toLowerCase();
-  const messageType = rawType || "unknown";
+  const contentType = msg?.contentType == null ? null : String(msg.contentType).toLowerCase();
+  const rawType = String(msg?.type || msg?.chatMessageType || msg?.messageType || contentType || "unknown").toLowerCase();
+  const knownTypes = new Set(["text", "image", "system", "recall", "mark", "card", "video", "translate", "error"]);
+  const messageType = knownTypes.has(rawType) ? rawType : rawType || "unknown";
   const content = msg?.content ?? msg?.message ?? msg?.text ?? null;
   const createTime = Number(msg?.createTime || msg?.time || 0);
   const isSystem = messageType === "system" || msg?.self === undefined && /system|notice|risk|warning|kyc|appeal|complaint/i.test(String(content || ""));
@@ -197,13 +199,16 @@ function normalizeChatMessage(orderNo: string, msg: any) {
   const isComplianceRelevant = isSystem || isRecall || ["card", "video", "error", "mark"].includes(messageType);
   const binanceMessageId = msg?.id == null ? null : String(msg.id);
   const binanceUuid = msg?.uuid == null ? null : String(msg.uuid);
+  const fallbackKey = `${orderNo}-${createTime || "no-time"}-${messageType}-${String(content || JSON.stringify(msg || {})).slice(0, 160)}`;
 
   return {
     order_number: orderNo,
-    binance_message_id: binanceMessageId || binanceUuid || `${orderNo}-${createTime}-${messageType}-${String(content || "").slice(0, 80)}`,
+    dedupe_key: binanceMessageId || binanceUuid || fallbackKey,
+    binance_message_id: binanceMessageId,
     binance_uuid: binanceUuid,
     message_type: messageType,
     chat_message_type: msg?.chatMessageType == null ? null : String(msg.chatMessageType),
+    content_type: contentType,
     sender_is_self: typeof msg?.self === "boolean" ? msg.self : typeof msg?.isSelf === "boolean" ? msg.isSelf : null,
     sender_nickname: msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
     message_status: msg?.status == null ? msg?.sendStatus == null ? null : String(msg.sendStatus) : String(msg.status),
@@ -216,7 +221,6 @@ function normalizeChatMessage(orderNo: string, msg: any) {
     is_system_message: isSystem,
     is_recall: isRecall,
     is_compliance_relevant: isComplianceRelevant,
-    captured_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 }
@@ -238,7 +242,7 @@ async function persistChatMessages(supabase: any, orderNo: string, messages: any
       .from("binance_order_chat_messages")
       .select("id")
       .eq("order_number", orderNo)
-      .eq("binance_message_id", row.binance_message_id)
+      .eq("dedupe_key", row.dedupe_key)
       .maybeSingle();
     if (readErr) throw readErr;
 
@@ -247,7 +251,7 @@ async function persistChatMessages(supabase: any, orderNo: string, messages: any
       if (error) throw error;
       updated++;
     } else {
-      const { error } = await supabase.from("binance_order_chat_messages").insert(row);
+      const { error } = await supabase.from("binance_order_chat_messages").insert({ ...row, captured_at: new Date().toISOString() });
       if (error) throw error;
       inserted++;
     }

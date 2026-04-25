@@ -30,6 +30,15 @@ interface BeneficiaryRow {
 
 interface OrderScopeRow {
   order_number: string;
+  adv_no?: string | null;
+  trade_type?: string | null;
+  asset?: string | null;
+  fiat_unit?: string | null;
+  amount?: string | null;
+  total_price?: string | null;
+  unit_price?: string | null;
+  commission?: string | null;
+  counter_part_nick_name?: string | null;
   order_status: string;
   seller_payment_details: any;
   create_time: number;
@@ -307,6 +316,15 @@ async function fetchLiveActiveBuyOrders(
       seen.add(orderNumber);
       rows.push({
         order_number: orderNumber,
+        adv_no: clean(order?.advNo) || null,
+        trade_type: clean(order?.tradeType) || "BUY",
+        asset: clean(order?.asset) || "USDT",
+        fiat_unit: clean(order?.fiat || order?.fiatUnit) || "INR",
+        amount: clean(order?.amount) || "0",
+        total_price: clean(order?.totalPrice) || "0",
+        unit_price: clean(order?.unitPrice || order?.price) || null,
+        commission: clean(order?.commission) || "0",
+        counter_part_nick_name: clean(order?.counterPartNickName || order?.sellerNickname || order?.buyerNickname) || null,
         order_status: mappedStatus,
         seller_payment_details: null,
         create_time: createTime,

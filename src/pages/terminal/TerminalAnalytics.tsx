@@ -788,9 +788,27 @@ export default function TerminalAnalytics() {
 
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);
-  const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
+  const isLoading = ordersLoading || configLoading;
+  const isEnriching = adsLoading || valuationsLoading;
   const filteredAdRows = useMemo(() => analytics.adRows.filter((item) => item.tradeType === adTradeFilter), [analytics.adRows, adTradeFilter]);
   const selectedAd = useMemo(() => filteredAdRows.find((item) => item.key === selectedAdKey) || filteredAdRows[0], [filteredAdRows, selectedAdKey]);
+
+  const lastSyncLabel = syncMeta?.last_sync_at
+    ? `Synced ${new Date(syncMeta.last_sync_at).toLocaleTimeString()}`
+    : 'Never synced';
+  const syncDurationLabel = syncMeta?.last_sync_duration_ms
+    ? `${(Number(syncMeta.last_sync_duration_ms) / 1000).toFixed(1)}s`
+    : '—';
+
+  const handleAnalyticsSync = useCallback(() => {
+    toast.info('Analytics sync started — refreshing Binance order history...');
+    syncMutation.mutate(
+      { fullSync: false },
+      {
+        onSuccess: () => refetchOrders(),
+      }
+    );
+  }, [syncMutation, refetchOrders]);
 
   useEffect(() => {
     if (filteredAdRows.length && !filteredAdRows.some((item) => item.key === selectedAdKey)) {
@@ -811,8 +829,36 @@ export default function TerminalAnalytics() {
             <h1 className="text-lg font-semibold text-foreground">Analytics</h1>
             <p className="text-xs text-muted-foreground">{periodLabel} · {orders.length.toLocaleString('en-IN')} orders in view · {completed.length.toLocaleString('en-IN')} completed</p>
           </div>
-          <TimePeriodFilter value={filter} onChange={setFilter} />
+          <div className="flex items-center gap-3 flex-wrap">
+            <TimePeriodFilter value={filter} onChange={setFilter} />
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Database className="h-3 w-3" />
+              <span>{lastSyncLabel}</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span>{syncDurationLabel}</span>
+              {isEnriching && <span className="text-primary">· enriching</span>}
+            </div>
+            {canSync && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={handleAnalyticsSync}
+                disabled={syncMutation.isPending}
+                title="Refresh Analytics Orders"
+              >
+                <CloudDownload className={`h-3.5 w-3.5 ${syncMutation.isPending ? 'animate-pulse' : ''}`} />
+              </Button>
+            )}
+          </div>
         </div>
+
+        {syncMutation.isPending && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-primary/5 border border-primary/20 text-xs text-primary">
+            <RefreshCw className="h-3 w-3 animate-spin" />
+            Refreshing analytics source data from Binance...
+          </div>
+        )}
 
         <div className="grid shrink-0 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
           <StatCard icon={ShoppingCart} label="Completed" value={String(completed.length)} sub={`Buy ${analytics.buy.length} · Sell ${analytics.sell.length}`} />

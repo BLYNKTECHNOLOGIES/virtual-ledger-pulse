@@ -50,6 +50,9 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   useEffect(() => {
     if (orderNumber) {
       markOrderChatRead(orderNumber);
+      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }).catch((err) => {
+        console.warn('Failed to mark Binance chat read:', err);
+      });
     }
   }, [orderNumber]);
 

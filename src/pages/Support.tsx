@@ -116,6 +116,9 @@ export default function Support() {
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState('unassigned');
   const [formErrors, setFormErrors] = useState<Partial<Record<'orderNumber' | 'customerIssue', string>>>({});
+  const [transferTicket, setTransferTicket] = useState<SupportTicket | null>(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferReason, setTransferReason] = useState('');
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['customer_support_tickets'],
@@ -142,7 +145,24 @@ export default function Support() {
     },
   });
 
+  const { data: transfers = [] } = useQuery({
+    queryKey: ['customer_support_ticket_transfers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_support_ticket_transfers' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as TicketTransfer[];
+    },
+  });
+
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
+  const transfersByTicketId = useMemo(() => {
+    const grouped = new Map<string, TicketTransfer[]>();
+    transfers.forEach((transfer) => grouped.set(transfer.ticket_id, [...(grouped.get(transfer.ticket_id) || []), transfer]));
+    return grouped;
+  }, [transfers]);
 
   const createTicket = useMutation({
     mutationFn: async () => {

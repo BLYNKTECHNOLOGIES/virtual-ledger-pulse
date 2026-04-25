@@ -33,7 +33,14 @@ type NormalizedOrder = {
   totalPrice: number;
   amount: number;
   unitPrice: number;
+  effectiveUsdtQty: number;
+  effectiveUsdtRate: number;
   createTime: number;
+};
+
+type EffectiveValuation = {
+  effectiveUsdtQty: number;
+  effectiveUsdtRate: number;
 };
 
 type Bucket = {
@@ -86,11 +93,19 @@ function average(values: number[]) {
 }
 
 function getOrderRate(o: any) {
+  const effectiveRate = Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0);
+  if (Number.isFinite(effectiveRate) && effectiveRate > 0) return effectiveRate;
   const unit = Number(o.unitPrice || o.unit_price || 0);
   if (Number.isFinite(unit) && unit > 0) return unit;
   const amount = Number(o.amount || 0);
   const total = Number(o.totalPrice || o.total_price || 0);
   return amount > 0 ? total / amount : 0;
+}
+
+function getEffectiveQuantity(o: any) {
+  const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
+  if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
+  return Number(o.amount || 0);
 }
 
 function normalizeOrder(o: any): NormalizedOrder {
@@ -103,6 +118,8 @@ function normalizeOrder(o: any): NormalizedOrder {
     totalPrice: Number(o.totalPrice || o.total_price || 0),
     amount: Number(o.amount || 0),
     unitPrice: getOrderRate(o),
+    effectiveUsdtQty: getEffectiveQuantity(o),
+    effectiveUsdtRate: getOrderRate(o),
     createTime: Number(o.createTime || o.create_time || 0),
   };
 }
@@ -128,7 +145,7 @@ function classifyOrder(o: NormalizedOrder, smallBuyConfig?: RangeConfig | null, 
 
 function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], extra: Partial<Aggregate> = {}): Aggregate {
   const volume = orders.reduce((s, o) => s + o.totalPrice, 0);
-  const quantity = orders.reduce((s, o) => s + o.amount, 0);
+  const quantity = orders.reduce((s, o) => s + o.effectiveUsdtQty, 0);
   return {
     key,
     label,
@@ -136,7 +153,7 @@ function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], 
     volume,
     quantity,
     avgOrder: orders.length ? volume / orders.length : 0,
-    avgRate: average(orders.map((o) => o.unitPrice)),
+    avgRate: average(orders.map((o) => o.effectiveUsdtRate)),
     weightedRate: weightedRate(volume, quantity),
     lastOrderTime: orders.reduce((max, o) => Math.max(max, o.createTime || 0), 0) || undefined,
     ...extra,

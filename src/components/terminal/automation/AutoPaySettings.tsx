@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Timer, CheckCircle, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Timer, CheckCircle, XCircle, AlertTriangle, Loader2, Hourglass } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
@@ -54,6 +54,26 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
     },
     refetchInterval: 30000,
   });
+
+  const { data: releaseLogs = [], isLoading: releaseLogsLoading } = useQuery({
+    queryKey: ["release-deadline-monitor-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("p2p_release_deadline_monitor_log" as any)
+        .select("*")
+        .order("checked_at", { ascending: false })
+        .limit(30);
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  const overdueReleaseCount = releaseLogs.filter((log: any) => log.status === "overdue").length;
+  const awaitingReleaseCount = logs.filter((log: any) => {
+    if (!log.confirm_pay_end_time || !["success", "unverified_success"].includes(log.status)) return false;
+    return new Date(log.confirm_pay_end_time).getTime() > Date.now();
+  }).length;
 
   const updateSettings = useMutation({
     mutationFn: async (updates: { is_active?: boolean; minutes_before_expiry?: number }) => {
@@ -153,6 +173,62 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Hourglass className="h-4 w-4 text-primary" />
+              Release Deadline Monitoring
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">{awaitingReleaseCount} awaiting release</Badge>
+              {overdueReleaseCount > 0 && <Badge variant="outline" className="text-xs border-amber-500/30 text-amber-500 bg-amber-500/5">{overdueReleaseCount} overdue</Badge>}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {releaseLogsLoading ? (
+            <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : releaseLogs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Hourglass className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No overdue release checks yet</p>
+              <p className="text-xs mt-1">Checks appear after marked-paid orders pass Binance seller release deadline</p>
+            </div>
+          ) : (
+            <ScrollArea className="max-h-[260px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Overdue</TableHead>
+                    <TableHead>Release Deadline</TableHead>
+                    <TableHead>Checked</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {releaseLogs.map((log: any) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-xs">…{log.order_number?.slice(-8)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-xs ${log.status === "overdue" ? "border-amber-500/30 text-amber-500 bg-amber-500/5" : log.status === "resolved" ? "border-trade-buy/30 text-trade-buy bg-trade-buy/5" : ""}`}>
+                          {log.status}
+                        </Badge>
+                        {log.live_order_status && <div className="text-[10px] text-muted-foreground mt-1">Binance: {log.live_order_status}</div>}
+                      </TableCell>
+                      <TableCell className="text-xs tabular-nums">{log.minutes_overdue != null ? `${Number(log.minutes_overdue).toFixed(1)} min` : "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss")}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{format(new Date(log.checked_at), "dd MMM HH:mm:ss")}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Execution Log */}
       <Card>
         <CardHeader className="pb-3">
@@ -180,6 +256,7 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                     <TableHead>Status</TableHead>
                     <TableHead>Order</TableHead>
                     <TableHead>Min Remaining</TableHead>
+                    <TableHead>Release Deadline</TableHead>
                     <TableHead>Error</TableHead>
                     <TableHead>Time</TableHead>
                   </TableRow>
@@ -199,6 +276,9 @@ export function AutoPaySettings({ canToggle = true, canConfigure = true }: AutoP
                         ) : (
                           "—"
                         )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {log.confirm_pay_end_time ? format(new Date(log.confirm_pay_end_time), "dd MMM HH:mm:ss") : "—"}
                       </TableCell>
                       <TableCell className="max-w-[200px]">
                         {log.error_message ? (

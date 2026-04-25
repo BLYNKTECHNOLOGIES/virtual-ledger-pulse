@@ -1,170 +1,147 @@
-## Assessment
+## Assessment of Finding 5
 
-Claude's finding is useful, but only if implemented as a snapshot and audit feature, not as a replacement for dedicated pre-ad commission APIs.
+This finding is useful, but only partially as Claude stated it.
 
-What I verified in our project:
-- We already call these relevant Binance/proxy endpoints:
-  - `orderMatch/listOrders` via `listActiveOrders`
-  - `orderMatch/getUserOrderDetail` via `getOrderDetail`
-  - `ads/getDetailByNo` via `getAdDetail` and ad listing enrichment
-- Live `getAdDetail` currently returns `commissionRate` and `tradeMethodCommissionRateVoList` for the ad. Example verified response includes:
-  - `commissionRate: "0.00105"`
-  - `tradeMethodCommissionRateVoList: [{ tradeMethodIdentifier: "UPI", tradeMethodName: "UPI", commissionRate: "0.00105" }]`
-- Stored `order_detail_raw` rows also already contain `commissionRate`, `takerCommissionRate`, `commission`, `takerCommission`, and `tradeMethodCommissionRateVoList`.
-- Current DB only stores final commission amount as text (`commission`), plus raw JSON. There is no normalized commission-rate snapshot table/columns.
+Confirmed from the current code:
+- `auto-pay-engine` calls `POST /sapi/v1/c2c/orderMatch/markOrderAsPaid`.
+- It currently treats `code === "000000"` / `success === true` as success, then stores the full response only inside `p2p_auto_pay_log.metadata.markPaidResult`.
+- The response fields `notifyPayTime`, `confirmPayEndTime`, and `complainFreezeTime` are not normalized into first-class columns or a monitoring workflow.
+- Live data already shows those fields exist in successful auto-pay logs, but only buried in JSON metadata.
 
-Important limitation:
-- This does not fully solve “know the exact rate before creating a brand-new ad/payment-method combination” unless Binance/proxy supports the dedicated commission-rate endpoints.
-- Existing responses are still valuable because they give point-in-time proof of what rate Binance returned for actual ads/orders.
+Business interpretation for our flow:
+- `notifyPayTime`: proof timestamp that Binance accepted the “marked paid” notification.
+- `confirmPayEndTime`: operational SLA deadline for the seller to release crypto after we marked a BUY order as paid.
+- `complainFreezeTime`: useful compliance/appeal window marker, but less urgent than `confirmPayEndTime`.
 
-## Why this is useful for our ERP/terminal flow
+Important correction to Claude’s suggestion:
+- For BUY orders, once we mark paid, we cannot force the seller to release crypto unless Binance provides a supported endpoint/action. We should not invent an “auto-release” or fake escalation.
+- The safe useful automation is: store the deadline, monitor overdue unreleased BUY orders, refresh live Binance order detail, and create internal alerts/tasks/escalation indicators. If a Binance appeal/escalation endpoint is not confirmed in the official docs/proxy, the system should only alert operators and optionally send supported chat reminders if already available.
 
-1. Platform fee accuracy/audit
-   - We have had multiple commission/fee correction migrations before. A normalized snapshot lets us prove whether the final `commission` amount matches Binance rate × order amount.
+## Proposed Implementation Plan
 
-2. Drift detection
-   - If Binance changes UPI/IMPS/bank transfer commission rates, we can detect it from normal terminal traffic without extra API calls.
+### 1. Store mark-paid response timestamps as first-class operational data
 
-3. Ad profitability view
-   - Ad Manager can show the current Binance commission rate per payment method directly on each ad.
-   - Operators can understand net effective rate after platform fee.
+Add normalized columns to `p2p_auto_pay_log`:
+- `notify_pay_time timestamptz`
+- `confirm_pay_end_time timestamptz`
+- `complain_freeze_time timestamptz`
+- `mark_paid_order_status text`
 
-4. Order profile transparency
-   - In the existing “View more Binance data” profile area, we can show:
-     - selected payment method
-     - maker/taker commission rate
-     - actual commission charged
-     - expected commission based on captured rate
-     - mismatch warning if different
+Also add indexes:
+- `confirm_pay_end_time` for overdue monitoring
+- partial index for successful mark-paid logs with a non-null `confirm_pay_end_time`
 
-5. Future commission-rate API support
-   - If/when dedicated endpoints are confirmed and proxy-supported, they can feed the same table for pre-ad posting. Until then we only use verified Binance-returned data from existing calls.
+Backfill these columns from existing `metadata->'markPaidResult'->'data'` where present.
 
-## Implementation plan
+Why this table first:
+- The timestamp is created by the mark-paid action, so `p2p_auto_pay_log` is the cleanest audit source.
+- We avoid polluting `binance_order_history` with action-response data that may not exist for manually marked orders or older imports.
 
-### 1. Add normalized storage for commission snapshots
+### 2. Update `auto-pay-engine` to parse and persist these fields immediately
 
-Create a new table, not just hidden JSON fields, so it can be queried and audited:
+When `markOrderAsPaid` succeeds:
+- Extract `markPaidResult.data.notifyPayTime`
+- Extract `markPaidResult.data.confirmPayEndTime`
+- Extract `markPaidResult.data.complainFreezeTime`
+- Convert Binance millisecond timestamps into Postgres `timestamptz`
+- Save them directly via `logDecision(...)` alongside existing metadata
 
-```text
-binance_commission_rate_snapshots
-- id uuid primary key
-- source_type text              -- ad_detail, order_detail, active_order_list
-- source_id text                -- advNo or orderNumber
-- order_number text nullable
-- adv_no text nullable
-- trade_type text nullable
-- asset text default USDT
-- fiat_unit text default INR
-- pay_method_identifier text nullable
-- pay_method_name text nullable
-- pay_id text nullable
-- maker_commission_rate numeric nullable
-- taker_commission_rate numeric nullable
-- effective_commission_rate numeric nullable
-- actual_commission_amount numeric nullable
-- commission_asset text nullable
-- total_price numeric nullable
-- amount numeric nullable
-- raw_snapshot jsonb not null
-- captured_at timestamptz default now()
-- unique(source_type, source_id, pay_method_identifier, coalesce(pay_id,''))
-```
+Keep the raw response in metadata for audit, but use normalized columns for monitoring and UI.
 
-Also add helpful indexes by `adv_no`, `order_number`, `pay_method_identifier`, and `captured_at`.
+### 3. Capture the same fields for manual mark-paid actions, if applicable
 
-### 2. Add a shared extractor in `binance-ads`
+`binance-ads` has a `markOrderAsPaid` action used by the UI/manual flow. I will update it so that when a manual mark-paid response returns these same fields, the response is not discarded.
 
-Implement normalization that safely extracts from whichever Binance response has the fields:
+Two safe options:
+- Preferred: insert a corresponding operational log row into `p2p_auto_pay_log` with `action = 'manual_mark_paid'` or similar.
+- Alternative: store only in the existing action/audit log if the manual payer module already logs mark-paid actions with order number.
 
-- `tradeMethodCommissionRateVoList[]`
-- top-level `commissionRate`
-- `takerCommissionRate`
-- `commission`
-- `takerCommission`
-- `tradeMethods[]` / `payMethods[]`
-- `selectedPayId` / `payId`
+I will follow the existing audit pattern after checking the payer/manual mark-paid flow during implementation.
 
-Rules:
-- Use Binance-returned values only.
-- If fields are missing/empty, store nothing and show “Not provided by Binance”.
-- Do not infer commission rates from final commission amount unless clearly labelled as a derived audit calculation in UI.
+### 4. Add release-deadline monitoring without unsupported Binance actions
 
-### 3. Capture snapshots where data already flows
+Create a lightweight monitoring workflow that checks successful mark-paid BUY orders whose `confirm_pay_end_time` has passed and are not completed.
 
-Update `supabase/functions/binance-ads/index.ts`:
+The monitor will:
+1. Query recent successful mark-paid logs with `confirm_pay_end_time < now()`.
+2. For each order, call `getUserOrderDetail` through the existing proxy.
+3. If Binance status is completed/final, mark the monitor result as resolved.
+4. If still `BUYER_PAYED`, `PAID`, `RELEASING`, or equivalent after deadline, record an overdue release event.
+5. If already in `APPEAL`/`DISPUTE`, record it as already escalated externally, not pending release.
 
-- `getAdDetail`
-  - After successful response, normalize and upsert ad-level commission snapshots.
-  - This is best for Ad Manager because it captures current rate per payment method on each ad.
+No automatic Binance appeal will be implemented unless the official API docs and proxy confirm such an endpoint is available and allowed.
 
-- `getOrderDetail`
-  - Extend the existing `order_detail_raw` persistence to also upsert order-level commission snapshots.
-  - This is best for actual order audit.
+### 5. Persist overdue-release checks separately from auto-pay attempts
 
-- `listActiveOrders`
-  - If `listOrders` response includes commission-rate data, capture it too.
-  - If the proxy response does not include it in practice, do not fabricate anything.
+Create a new table, for example `p2p_release_deadline_monitor_log`, to avoid mixing “mark paid” action logs with “seller did not release” monitoring logs.
 
-Optional in same pass:
-- `enrich-order-names`
-  - When it calls `getUserOrderDetail` for completed orders, also persist commission snapshots so historical completed orders get covered during enrichment.
+Suggested fields:
+- `id`
+- `order_number`
+- `auto_pay_log_id`
+- `confirm_pay_end_time`
+- `checked_at`
+- `live_order_status`
+- `status` (`resolved`, `overdue`, `already_appeal`, `detail_unavailable`, `error`)
+- `minutes_overdue`
+- `message`
+- `metadata jsonb`
 
-### 4. Backfill from already stored raw JSON
+This gives operations and compliance a clean audit trail.
 
-Add a safe SQL backfill/function or one-time migration that reads existing:
-- `binance_order_history.raw_data`
-- `binance_order_history.order_detail_raw`
+### 6. Surface it in Terminal Automation UI
 
-and inserts snapshots where commission fields exist.
+Enhance the Auto-Pay tab with a small “Release deadline monitoring” section:
+- Count of orders marked paid and awaiting release.
+- Count of overdue releases.
+- Table of overdue orders with:
+  - order number
+  - marked paid time
+  - seller release deadline
+  - minutes overdue
+  - live Binance status
+  - last checked time
+  - action/status message
 
-This avoids needing to re-call Binance for every historical order.
+Also enhance the existing Auto-Pay Log table to display:
+- `notifyPayTime`
+- `confirmPayEndTime`
+- overdue badge when deadline passed and order is not final
 
-### 5. Add frontend hooks
+### 7. Optional internal escalation, not Binance escalation
 
-Add hooks in `useBinanceActions.tsx` / ad hooks:
+If overdue release is detected:
+- Create an internal alert/task only if there is already an established ERP task/alert pattern suitable for terminal operations.
+- Otherwise, keep it in the Terminal Automation tab as a visible operational alert.
 
-- `useOrderCommissionSnapshots(orderNumber)`
-- `useAdCommissionSnapshots(advNo)`
-- optional dashboard hook for latest rate by payment method
+This respects the rule that Binance-source-of-truth workflows must not be simulated or forced.
 
-These should query the normalized table, not scan raw JSON in the browser.
+### 8. Scheduling
 
-### 6. UI placement
+If a scheduled job is already invoking `auto-pay-engine`, I will either:
+- extend the same function to run release-deadline monitoring after auto-pay, or
+- create a separate `release-deadline-monitor` edge function if separation is cleaner.
 
-#### Order profile
-In `OrderDetailWorkspace.tsx`, inside the existing “View more Binance data” expanded section, add a “Commission snapshot” card:
+Preferred approach:
+- Separate function if monitoring has its own cadence and logs.
+- Same function only if existing cron/scheduling is already tightly coupled to auto-pay and we want less infrastructure.
 
-- Payment method
-- Maker commission rate
-- Taker commission rate
-- Effective rate used
-- Actual commission charged by Binance
-- Estimated commission from rate, only as an audit comparison
-- Difference/mismatch badge if outside a small tolerance
-- Captured timestamp and source (`getUserOrderDetail`, `listOrders`, etc.)
+Scheduling will use Supabase cron/net only after confirming the existing scheduling pattern in the project.
 
-#### Ad Manager
-For each ad/detail panel:
+## Validation Plan
 
-- Show “Binance commission rate” near payment methods.
-- Show rate per payment method if `tradeMethodCommissionRateVoList` exists.
-- Show “Not provided by Binance” if absent.
-- Optionally show estimated net price after commission for operator awareness, clearly labelled as estimate.
+After implementation:
+- Verify existing successful mark-paid metadata backfills into timestamp columns.
+- Trigger/test `auto-pay-engine` against a safe/current order only if available and authorized.
+- Confirm `markOrderAsPaid` success responses persist normalized timestamps.
+- Confirm overdue monitor does not act on completed, cancelled, expired, or appeal orders.
+- Confirm no Binance escalation/action is attempted unless officially supported.
+- Check edge function logs and database rows for parse correctness.
 
-### 7. Guardrails and validation
+## Expected Benefit
 
-- Do not implement fake/dummy commission rates.
-- Do not hardcode UPI/IMPS rates.
-- Do not use this as a substitute for pre-ad rates unless the official endpoint/proxy is verified.
-- Treat raw Binance response as source of truth.
-- Add mismatch warnings only, not automatic ledger corrections.
-- Run TypeScript check.
-- Test deployed edge function with:
-  - `getAdDetail` for a known ad
-  - `getOrderDetail` for a known order
-  - DB read query confirming snapshots were inserted
-
-## Expected result
-
-After implementation, we will have a commission-rate snapshot book built from actual Binance responses we already receive. It will improve auditability, operator visibility, and fee drift detection with minimal extra API usage, while staying compliant with the rule that Binance must be the source of truth.
+This is worth implementing because it converts the mark-paid response from passive JSON into an operational SLA control:
+- Operations can see which BUY orders are paid but not released by the seller.
+- Delayed sellers become visible before they become disputes.
+- Compliance/audit gets a timestamped trail of payment notification, seller release deadline, and complaint freeze window.
+- It strengthens terminal automation without inventing unsupported Binance behavior.

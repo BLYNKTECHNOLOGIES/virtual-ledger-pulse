@@ -291,6 +291,38 @@ export default function Support() {
     setTransferReason('');
   };
 
+  const addNote = useMutation({
+    mutationFn: async ({ ticketId, message }: { ticketId: string; message: string }) => {
+      if (!userId) throw new Error('User not authenticated');
+      const { error } = await supabase.from('customer_support_ticket_activities' as any).insert({ ticket_id: ticketId, activity_type: 'note', message, actor_id: userId });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      setTicketNotes((current) => ({ ...current, [variables.ticketId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_activities'] });
+      toast({ title: 'Note added', description: 'Ticket activity has been updated.' });
+    },
+    onError: (error: any) => toast({ title: 'Note failed', description: error.message, variant: 'destructive' }),
+  });
+
+  const uploadAttachment = useMutation({
+    mutationFn: async ({ ticketId, file, note }: { ticketId: string; file: File; note: string }) => {
+      if (!userId) throw new Error('User not authenticated');
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = `${ticketId}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('support-ticket-attachments').upload(filePath, file, { upsert: false, contentType: file.type || undefined });
+      if (uploadError) throw uploadError;
+      const { error } = await supabase.from('customer_support_ticket_attachments' as any).insert({ ticket_id: ticketId, file_name: file.name, file_path: filePath, mime_type: file.type || null, file_size: file.size, uploaded_by: userId, note: note.trim() || null });
+      if (error) throw error;
+    },
+    onSuccess: (_data, variables) => {
+      setAttachmentNotes((current) => ({ ...current, [variables.ticketId]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_attachments'] });
+      toast({ title: 'File uploaded', description: 'Attachment has been added to the ticket.' });
+    },
+    onError: (error: any) => toast({ title: 'Upload failed', description: error.message, variant: 'destructive' }),
+  });
+
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tickets.filter((ticket) => {

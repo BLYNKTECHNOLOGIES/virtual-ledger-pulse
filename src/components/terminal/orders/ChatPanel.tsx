@@ -15,8 +15,8 @@ import { QuickReplyBar } from './chat/QuickReplyBar';
 import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
-import { readOrderNumbers } from './ChatInbox';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
+import { markOrderChatRead } from '@/lib/chat-read-state';
 
 interface Props {
   orderId: string;
@@ -49,7 +49,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   // Mark this order's chat as read locally so ChatInbox clears the unread badge
   useEffect(() => {
     if (orderNumber) {
-      readOrderNumbers.add(orderNumber);
+      markOrderChatRead(orderNumber);
+      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }).catch((err) => {
+        console.warn('Failed to mark Binance chat read:', err);
+      });
     }
   }, [orderNumber]);
 

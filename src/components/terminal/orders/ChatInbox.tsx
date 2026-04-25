@@ -1,13 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, MessageSquare, Search, User, ChevronRight, AlertCircle } from 'lucide-react';
-import { useBinanceActiveOrders, useBinanceOrderHistory, useBinanceChatMessages } from '@/hooks/useBinanceActions';
+import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory, useBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { format } from 'date-fns';
+import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
 
 export interface ChatConversation {
   orderNumber: string;
@@ -29,9 +30,6 @@ interface Props {
   onOpenChat: (conversation: ChatConversation) => void;
 }
 
-/** Session-level set of order numbers whose chats have been opened in this terminal session */
-export const readOrderNumbers = new Set<string>();
-
 export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const [search, setSearch] = useState('');
@@ -39,10 +37,15 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [, setReadVersion] = useState(0);
 
   const handleOpenChat = useCallback((conv: ChatConversation) => {
-    readOrderNumbers.add(conv.orderNumber);
+    markOrderChatRead(conv.orderNumber);
+    callBinanceAds('markOrderMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
+      console.warn('Failed to mark Binance chat read:', err);
+    });
     setReadVersion(v => v + 1);
     onOpenChat(conv);
   }, [onOpenChat]);
+
+  useEffect(() => subscribeToChatReadState(() => setReadVersion(v => v + 1)), []);
 
   const { data: activeOrdersData, isLoading: activeLoading } = useBinanceActiveOrders();
   const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();
@@ -65,7 +68,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         amount: o.amount || '0',
         totalPrice: o.totalPrice || '0',
         orderStatus: String(o.orderStatus),
-        chatUnreadCount: readOrderNumbers.has(o.orderNumber) ? 0 : (o.chatUnreadCount || 0),
+        chatUnreadCount: isOrderChatRead(o.orderNumber) ? 0 : (o.chatUnreadCount || 0),
         createTime: o.createTime || 0,
         source: 'active',
       });

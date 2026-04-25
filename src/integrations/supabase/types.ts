@@ -222,6 +222,10 @@ export type Database = {
           id: string
           last_failure_at: string | null
           last_success_at: string | null
+          merchant_business_status: number | null
+          merchant_business_status_label: string | null
+          merchant_state_checked_at: string | null
+          merchant_state_diagnostic: string | null
           opened_at: string | null
           updated_at: string | null
         }
@@ -233,6 +237,10 @@ export type Database = {
           id?: string
           last_failure_at?: string | null
           last_success_at?: string | null
+          merchant_business_status?: number | null
+          merchant_business_status_label?: string | null
+          merchant_state_checked_at?: string | null
+          merchant_state_diagnostic?: string | null
           opened_at?: string | null
           updated_at?: string | null
         }
@@ -244,6 +252,10 @@ export type Database = {
           id?: string
           last_failure_at?: string | null
           last_success_at?: string | null
+          merchant_business_status?: number | null
+          merchant_business_status_label?: string | null
+          merchant_state_checked_at?: string | null
+          merchant_state_diagnostic?: string | null
           opened_at?: string | null
           updated_at?: string | null
         }
@@ -1394,6 +1406,57 @@ export type Database = {
           total_price?: number | null
           trade_type?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      binance_merchant_state_snapshots: {
+        Row: {
+          bind_mobile_status: string | null
+          business_status: number
+          business_status_label: string
+          checked_at: string
+          country_code: string | null
+          id: string
+          kyc_passed: boolean | null
+          kyc_type: number | null
+          nickname: string | null
+          over_complained: number | null
+          raw_data: Json
+          register_days: number | null
+          source: string
+          user_kyc_status: string | null
+        }
+        Insert: {
+          bind_mobile_status?: string | null
+          business_status: number
+          business_status_label: string
+          checked_at?: string
+          country_code?: string | null
+          id?: string
+          kyc_passed?: boolean | null
+          kyc_type?: number | null
+          nickname?: string | null
+          over_complained?: number | null
+          raw_data?: Json
+          register_days?: number | null
+          source?: string
+          user_kyc_status?: string | null
+        }
+        Update: {
+          bind_mobile_status?: string | null
+          business_status?: number
+          business_status_label?: string
+          checked_at?: string
+          country_code?: string | null
+          id?: string
+          kyc_passed?: boolean | null
+          kyc_type?: number | null
+          nickname?: string | null
+          over_complained?: number | null
+          raw_data?: Json
+          register_days?: number | null
+          source?: string
+          user_kyc_status?: string | null
         }
         Relationships: []
       }

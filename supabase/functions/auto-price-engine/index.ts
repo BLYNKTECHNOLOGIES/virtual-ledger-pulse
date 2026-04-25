@@ -34,6 +34,7 @@ serve(async (req) => {
       const openedAt = new Date(engineState.opened_at || 0);
       const cooldownMs = (engineState.cooldown_minutes || 10) * 60000;
       if (Date.now() - openedAt.getTime() < cooldownMs) {
+        await refreshMerchantStateDiagnostic(supabase, "circuit_open_cooldown");
         console.log("[circuit-breaker] Circuit OPEN, cooldown active. Skipping cycle.");
         return new Response(JSON.stringify({ success: true, message: "Circuit breaker OPEN, skipping" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -209,6 +210,7 @@ async function updateCircuitBreaker(supabase: any, currentState: any, successes:
         consecutive_failures: currentState.consecutive_failures + errors,
         last_failure_at: now, updated_at: now,
       }).eq("id", "singleton");
+      await refreshMerchantStateDiagnostic(supabase, "half_open_test_failed");
       console.log("[circuit-breaker] HALF_OPEN → OPEN (test failed)");
     }
     return;
@@ -223,6 +225,7 @@ async function updateCircuitBreaker(supabase: any, currentState: any, successes:
         circuit_status: "OPEN", consecutive_failures: newFailures,
         opened_at: now, last_failure_at: now, updated_at: now,
       }).eq("id", "singleton");
+      await refreshMerchantStateDiagnostic(supabase, "circuit_opened_after_failures");
       console.log(`[circuit-breaker] CLOSED → OPEN (${newFailures} failures >= ${threshold})`);
     } else {
       await supabase.from("ad_pricing_engine_state").update({
@@ -235,6 +238,47 @@ async function updateCircuitBreaker(supabase: any, currentState: any, successes:
         consecutive_failures: 0, last_success_at: now, updated_at: now,
       }).eq("id", "singleton");
     }
+  }
+}
+
+function getBusinessStatusLabel(status: unknown): string {
+  const value = Number(status);
+  if (value === 1) return "open";
+  if (value === 2) return "closed";
+  if (value === 3) return "take_break";
+  return "unknown";
+}
+
+async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
+  try {
+    const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resp = await fetch(binanceAdsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      body: JSON.stringify({ action: "refreshMerchantState" }),
+    });
+    const payload = await resp.json();
+    const data = payload?.data?.data?.data || payload?.data?.data || payload?.data;
+    const businessStatus = Number(data?.businessStatus ?? payload?.data?.normalized?.businessStatus);
+    const label = getBusinessStatusLabel(businessStatus);
+    await supabase.from("ad_pricing_engine_state").update({
+      merchant_business_status: Number.isFinite(businessStatus) ? businessStatus : null,
+      merchant_business_status_label: label,
+      merchant_state_checked_at: new Date().toISOString(),
+      merchant_state_diagnostic: Number.isFinite(businessStatus) ? reason : "merchant_status_unavailable",
+      updated_at: new Date().toISOString(),
+    }).eq("id", "singleton");
+    console.log(`[merchant-state] ${reason}: ${label}`);
+  } catch (err) {
+    console.warn("[merchant-state] diagnostic refresh failed:", err);
+    await supabase.from("ad_pricing_engine_state").update({
+      merchant_business_status: null,
+      merchant_business_status_label: "unknown",
+      merchant_state_checked_at: new Date().toISOString(),
+      merchant_state_diagnostic: "merchant_status_unavailable",
+      updated_at: new Date().toISOString(),
+    }).eq("id", "singleton");
   }
 }
 

@@ -72,6 +72,48 @@ function extractMarkPaidData(result: any) {
   return data && typeof data === "object" ? data : {};
 }
 
+function getBusinessStatusLabel(status: unknown): string {
+  const value = Number(status);
+  if (value === 1) return "open";
+  if (value === 2) return "closed";
+  if (value === 3) return "take_break";
+  return "unknown";
+}
+
+async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail") {
+  const businessStatus = Number(data?.businessStatus);
+  if (!Number.isFinite(businessStatus)) return;
+  await supabase.from("binance_merchant_state_snapshots").insert({
+    business_status: businessStatus,
+    business_status_label: getBusinessStatusLabel(businessStatus),
+    kyc_passed: typeof data.kycPassed === "boolean" ? data.kycPassed : null,
+    user_kyc_status: data.userKycStatus || null,
+    kyc_type: data.kycType == null ? null : Number(data.kycType),
+    nickname: data.nickname || null,
+    country_code: data.countryCode || null,
+    register_days: data.registerDays == null ? null : Number(data.registerDays),
+    bind_mobile_status: data.bindMobileStatus || null,
+    over_complained: data.overComplained == null ? null : Number(data.overComplained),
+    source,
+    raw_data: data,
+  });
+}
+
+async function fetchBaseDetail(proxyUrl: string, headers: Record<string, string>) {
+  const endpoint = "/api/sapi/v1/c2c/user/baseDetail";
+  const response = await fetch(`${proxyUrl}${endpoint}`, { method: "POST", headers });
+  const text = await response.text();
+  console.log("getUserDetail baseDetail response:", response.status, text.substring(0, 500));
+  let result: any;
+  try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+  result._diagnostics = { endpoint, method: "POST", httpStatus: response.status };
+  const userData = result?.data?.data || result?.data;
+  if (response.ok && result?.code === "000000" && (!userData || typeof userData !== "object" || Object.keys(userData).length === 0)) {
+    result = { code: "EMPTY_BASE_DETAIL", message: "Binance baseDetail returned no usable user data.", _diagnostics: { endpoint, method: "POST", httpStatus: response.status } };
+  }
+  return { result, userData };
+}
+
 function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId: string) {
   if (!detail || typeof detail !== "object" || !sourceId) return [];
   const list = Array.isArray(detail.tradeMethodCommissionRateVoList) ? detail.tradeMethodCommissionRateVoList : [];
@@ -930,20 +972,34 @@ serve(async (req) => {
 
       // ==================== USER ====================
       case "getUserDetail": {
-        const endpoint = "/api/sapi/v1/c2c/user/baseDetail";
-        const url = `${BINANCE_PROXY_URL}${endpoint}`;
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders });
-        const text = await response.text();
-        console.log("getUserDetail baseDetail response:", response.status, text.substring(0, 500));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
-        result._diagnostics = { endpoint, method: "POST", httpStatus: response.status };
-        const userData = result?.data?.data || result?.data;
-        if (response.ok && result?.code === "000000" && (!userData || typeof userData !== "object" || Object.keys(userData).length === 0)) {
-          result = {
-            code: "EMPTY_BASE_DETAIL",
-            message: "Binance baseDetail returned no usable user data.",
-            _diagnostics: { endpoint, method: "POST", httpStatus: response.status },
-          };
+        const fetched = await fetchBaseDetail(BINANCE_PROXY_URL, proxyHeaders);
+        result = fetched.result;
+        if (result?.code === "000000" && fetched.userData && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail");
+          } catch (persistErr) {
+            console.warn("merchant state snapshot persist failed:", persistErr);
+          }
+        }
+        break;
+      }
+
+      case "refreshMerchantState": {
+        const fetched = await fetchBaseDetail(BINANCE_PROXY_URL, proxyHeaders);
+        result = fetched.result;
+        if (result?.code === "000000" && fetched.userData && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail_refresh");
+            result.normalized = {
+              businessStatus: Number(fetched.userData.businessStatus),
+              businessStatusLabel: getBusinessStatusLabel(fetched.userData.businessStatus),
+              checkedAt: new Date().toISOString(),
+            };
+          } catch (persistErr) {
+            console.warn("merchant state refresh persist failed:", persistErr);
+          }
         }
         break;
       }

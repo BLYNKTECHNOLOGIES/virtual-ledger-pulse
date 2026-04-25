@@ -495,3 +495,16 @@ export function useBinanceUserDetail() {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+export function useRefreshMerchantState() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => callBinanceAds('refreshMerchantState'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['binance-user-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['binance-merchant-state-snapshots'] });
+      toast.success('Binance merchant state refreshed');
+    },
+    onError: (err: Error) => toast.error(`Merchant state refresh failed: ${err.message}`),
+  });
+}

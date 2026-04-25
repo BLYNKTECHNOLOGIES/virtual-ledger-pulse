@@ -35,6 +35,15 @@ function mapOrderStatusCode(code: number | string): string {
   return normaliseBinanceStatus(code);
 }
 
+function extractAppealStatusFromRaw(raw: unknown): string | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const status = (raw as Record<string, unknown>).orderStatus;
+  const statusText = status === undefined || status === null ? '' : String(status).toUpperCase();
+  return statusText.includes('APPEAL') || statusText.includes('DISPUTE') || statusText.includes('COMPLAINT')
+    ? normaliseBinanceStatus(status as string | number)
+    : undefined;
+}
+
 /** Convert raw Binance active order to display-ready P2POrderRecord shape */
 function binanceToOrderRecord(o: any): P2POrderRecord & { _notifyPayEndTime?: number; _notifyPayedExpireMinute?: number } {
   const status = mapOrderStatusCode(o.orderStatus);
@@ -648,7 +657,7 @@ function TerminalOrdersContent() {
     let enriched = rawOrders.map(o => {
       const orderNumber = o?.orderNumber === undefined || o?.orderNumber === null ? '' : String(o.orderNumber);
 
-      const liveStatus = mapOrderStatusCode(o.orderStatus);
+      const liveStatus = extractAppealStatusFromRaw(o.raw_data) || mapOrderStatusCode(o.orderStatus);
       const recentStatus = orderNumber ? recentStatusMap.get(orderNumber) : undefined;
       const historyStatus = orderNumber ? historyStatusMap.get(orderNumber) : undefined;
       const staleDetailStatus = orderNumber ? staleDetailStatusMap[orderNumber] : undefined;

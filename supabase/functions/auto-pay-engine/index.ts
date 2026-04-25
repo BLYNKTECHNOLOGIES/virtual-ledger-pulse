@@ -322,7 +322,7 @@ async function logDecision(supabase: any, params: {
     decision_reason: reason,
     raw_status: rawStatus == null ? null : String(rawStatus),
     source: order.source || "unknown",
-    metadata: metadata || {},
+    metadata: { ...(metadata || {}), listOrdersFields: listOrderFieldMetadata(order) },
     notify_pay_time: binanceMsToIso(markPaidData?.notifyPayTime),
     confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime),
     complain_freeze_time: binanceMsToIso(markPaidData?.complainFreezeTime),

@@ -345,7 +345,10 @@ function DataRow({ item, showType = false }: { item: Aggregate; showType?: boole
     <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-xs">
       <div className="min-w-0">
         <p className="font-medium text-foreground truncate">{item.label}</p>
-        {showType && <p className="text-[10px] text-muted-foreground truncate">{item.description || `${item.tradeType || '—'} · ${item.asset || 'USDT'}`}</p>}
+        {showType && <p className="text-[10px] text-muted-foreground truncate">
+          {item.orderKind && <span className={orderKindTextClass[item.orderKind]}>{item.orderKindLabel || orderKindLabels[item.orderKind]}</span>}
+          {item.orderKind && ' · '}{item.description || `${item.tradeType || '—'} · ${item.asset || 'USDT'}`}
+        </p>}
         {showType && item.details?.length ? <p className="text-[10px] text-muted-foreground truncate">{item.details.join(' · ')}</p> : null}
       </div>
       <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>

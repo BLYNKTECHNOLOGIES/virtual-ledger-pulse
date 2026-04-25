@@ -705,18 +705,25 @@ serve(async (req) => {
           page: payload.page || 1,
           rows: payload.rows || 50,
         };
-        if (payload.advNo) body.advNo = payload.advNo;
-        if (payload.asset) body.asset = payload.asset;
-        if (payload.tradeType) body.tradeType = payload.tradeType;
-        if (payload.startDate) body.startDate = payload.startDate;
-        if (payload.endDate) body.endDate = payload.endDate;
+        applyOptionalListOrderFilters(body, payload);
 
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`;
-        console.log("listActiveOrders URL:", url);
+        console.log("listActiveOrders URL:", url, "filters:", JSON.stringify({ ...body, page: body.page, rows: body.rows }));
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
         console.log("listActiveOrders response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (!response.ok || result?.code !== "000000") {
+          result = {
+            ...result,
+            _diagnostics: {
+              endpoint: "/sapi/v1/c2c/orderMatch/listOrders",
+              method: "POST",
+              httpStatus: response.status,
+              requestedFilters: Object.keys(body).filter((key) => !["page", "rows"].includes(key)),
+            },
+          };
+        }
         if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

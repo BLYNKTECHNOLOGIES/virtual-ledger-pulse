@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -780,6 +780,30 @@ function TerminalOrdersContent() {
   }, [visibleCount, displayOrders.length]);
 
   const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
+
+  const { data: releaseMonitorLogs = [] } = useQuery({
+    queryKey: ['terminal-release-monitor-latest'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('p2p_release_deadline_monitor_log' as any)
+        .select('order_number,status,minutes_overdue,confirm_pay_end_time,complain_freeze_time,checked_at,message')
+        .order('checked_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    refetchInterval: 30000,
+  });
+
+  const releaseMonitorByOrder = useMemo(() => {
+    const activeStatuses = new Set(['overdue', 'release_overdue', 'complaint_window_closing', 'complaint_window_expired', 'detail_unavailable']);
+    const map = new Map<string, any>();
+    for (const log of releaseMonitorLogs as any[]) {
+      if (!log.order_number || map.has(log.order_number)) continue;
+      if (activeStatuses.has(log.status)) map.set(log.order_number, log);
+    }
+    return map;
+  }, [releaseMonitorLogs]);
 
   // Internal chat unread counts
   const internalChatOrderNumbers = useMemo(() => visibleOrders.map(o => o.binance_order_number), [visibleOrders]);

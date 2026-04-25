@@ -34,12 +34,19 @@ interface PayerOrderLock {
   locked_at: string;
 }
 
-const PAYER_EXCLUDED_STATUSES = ['COMPLETED', 'CANCELLED', 'EXPIRED', 'APPEAL', 'DISPUTE'];
+const PAYER_FINAL_OR_BLOCKED_STATUSES = ['COMPLETED', 'CANCELLED', 'EXPIRED', 'APPEAL', 'DISPUTE'];
+const PAYER_PAYMENT_ALREADY_DONE_STATUSES = ['BUYER_PAYED', 'BUYER_PAID', 'PAID', 'PAYING', 'RELEASING'];
 
 function isPayerEligibleBuyOrder(order: any): boolean {
   if (order?.tradeType !== 'BUY' || !order?.orderNumber) return false;
   const status = normaliseBinanceStatus(order?.orderStatus);
-  return !PAYER_EXCLUDED_STATUSES.some((s) => status.includes(s));
+  return !PAYER_FINAL_OR_BLOCKED_STATUSES.some((s) => status.includes(s));
+}
+
+function isPayerPendingPaymentOrder(order: any): boolean {
+  if (!isPayerEligibleBuyOrder(order)) return false;
+  const status = normaliseBinanceStatus(order?.orderStatus);
+  return !PAYER_PAYMENT_ALREADY_DONE_STATUSES.some((s) => status.includes(s));
 }
 
 export function usePayerAssignments(payerUserId?: string | null) {
@@ -339,7 +346,10 @@ export function usePayerOrders() {
         continue;
       }
 
-      // No lock exists — distribute based on current assignments
+      // No lock exists — distribute only payment-pending orders based on current assignments.
+      // Orders already marked paid on Binance must not enter payer assignment/pending.
+      if (!isPayerPendingPaymentOrder(order)) continue;
+
       const matchingPayers = getMatchingPayers(order);
       if (matchingPayers.length === 0) continue;
 
@@ -384,25 +394,25 @@ export function usePayerOrders() {
     }
   }, [newLocks]);
 
-  // Pending: orders that still need payer action.
-  // NOTE: Status 3 (BUYER_PAYED → "Releasing" for BUY) is intentionally KEPT in pending
-  // because the payer may still want to trigger Quick Receive (self-release via security
-  // deposit) when the seller is slow to release coins. Finalized, cancelled/expired,
-  // and appeal/dispute orders are excluded from payer assignment entirely.
+  // Pending: only orders that still need payer payment action.
+  // Already-paid Binance states (BUYER_PAYED/PAID/PAYING) are not pending and must not
+  // remain in payer assignment just for Quick Receive.
   const pendingOrders = useMemo(() => {
     const result = allMatchedOrders
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
-      .filter((o: any) => isPayerEligibleBuyOrder(o));
+      .filter((o: any) => isPayerPendingPaymentOrder(o));
 
     return result;
   }, [allMatchedOrders, paidOrderNumbers]);
 
-  // Completed: orders marked paid by this payer (acknowledged) or finalized on Binance
+  // Completed: orders marked paid by this payer, already paid on Binance, or finalized on Binance
   const completedOrders = useMemo(() => {
-    return allMatchedOrders.filter((o: any) =>
-      paidOrderNumbers.has(o.orderNumber) ||
-      normaliseBinanceStatus(o.orderStatus).includes('COMPLETED')
-    );
+    return allMatchedOrders.filter((o: any) => {
+      const status = normaliseBinanceStatus(o.orderStatus);
+      return paidOrderNumbers.has(o.orderNumber)
+        || status.includes('COMPLETED')
+        || PAYER_PAYMENT_ALREADY_DONE_STATUSES.some((s) => status.includes(s));
+    });
   }, [allMatchedOrders, paidOrderNumbers]);
 
   return {

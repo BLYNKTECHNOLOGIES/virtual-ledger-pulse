@@ -9084,12 +9084,16 @@ export type Database = {
       p2p_auto_pay_log: {
         Row: {
           action: string
+          complain_freeze_time: string | null
+          confirm_pay_end_time: string | null
           decision_reason: string | null
           error_message: string | null
           executed_at: string
           id: string
+          mark_paid_order_status: string | null
           metadata: Json
           minutes_remaining: number | null
+          notify_pay_time: string | null
           order_number: string
           raw_status: string | null
           source: string | null
@@ -9097,12 +9101,16 @@ export type Database = {
         }
         Insert: {
           action?: string
+          complain_freeze_time?: string | null
+          confirm_pay_end_time?: string | null
           decision_reason?: string | null
           error_message?: string | null
           executed_at?: string
           id?: string
+          mark_paid_order_status?: string | null
           metadata?: Json
           minutes_remaining?: number | null
+          notify_pay_time?: string | null
           order_number: string
           raw_status?: string | null
           source?: string | null
@@ -9110,12 +9118,16 @@ export type Database = {
         }
         Update: {
           action?: string
+          complain_freeze_time?: string | null
+          confirm_pay_end_time?: string | null
           decision_reason?: string | null
           error_message?: string | null
           executed_at?: string
           id?: string
+          mark_paid_order_status?: string | null
           metadata?: Json
           minutes_remaining?: number | null
+          notify_pay_time?: string | null
           order_number?: string
           raw_status?: string | null
           source?: string | null
@@ -9611,6 +9623,53 @@ export type Database = {
           trade_type?: string | null
         }
         Relationships: []
+      }
+      p2p_release_deadline_monitor_log: {
+        Row: {
+          auto_pay_log_id: string | null
+          checked_at: string
+          confirm_pay_end_time: string
+          id: string
+          live_order_status: string | null
+          message: string | null
+          metadata: Json
+          minutes_overdue: number | null
+          order_number: string
+          status: string
+        }
+        Insert: {
+          auto_pay_log_id?: string | null
+          checked_at?: string
+          confirm_pay_end_time: string
+          id?: string
+          live_order_status?: string | null
+          message?: string | null
+          metadata?: Json
+          minutes_overdue?: number | null
+          order_number: string
+          status: string
+        }
+        Update: {
+          auto_pay_log_id?: string | null
+          checked_at?: string
+          confirm_pay_end_time?: string
+          id?: string
+          live_order_status?: string | null
+          message?: string | null
+          metadata?: Json
+          minutes_overdue?: number | null
+          order_number?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "p2p_release_deadline_monitor_log_auto_pay_log_id_fkey"
+            columns: ["auto_pay_log_id"]
+            isOneToOne: false
+            referencedRelation: "p2p_auto_pay_log"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       p2p_terminal_role_permissions: {
         Row: {

@@ -76,7 +76,9 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
         </div>
         <div
           style={{
-            display: "inline-block",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
             background: "rgba(255,255,255,0.2)",
             borderRadius: "20px",
             padding: "6px 16px",
@@ -85,9 +87,10 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
             marginTop: "10px",
             lineHeight: "1.4",
             textAlign: "center",
+            gap: "4px",
           }}
         >
-          <span style={{ marginRight: "4px" }}>✓</span>
+          <span style={{ lineHeight: 1 }}>✓</span>
           <span>Completed</span>
         </div>
         <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>

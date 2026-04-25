@@ -20,6 +20,16 @@ import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays,
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 
+const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
+
+const normalizeExpenseCategory = (category?: string | null, description?: string | null) => {
+  const descriptionText = String(description || '').toLowerCase();
+  if (category === PAYOUT_GATEWAY_FEE_CATEGORY || descriptionText.includes('payout gateway fee')) {
+    return 'Payout Gateway Fee';
+  }
+  return category || 'Other';
+};
+
 const CHART_COLORS = [
   "hsl(var(--primary))",
   "hsl(142, 76%, 36%)", // green
@@ -152,7 +162,7 @@ export function StatisticsTab() {
       // Fetch operating expenses
       const { data: expenses } = await supabase
         .from('bank_transactions')
-        .select('id, amount, category, transaction_date')
+        .select('id, amount, category, description, transaction_date')
         .eq('transaction_type', 'EXPENSE')
         .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
         .gte('transaction_date', startStr)
@@ -363,7 +373,7 @@ export function StatisticsTab() {
       const excludeExpenseCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const expenseByCategory = new Map<string, number>();
       expenses?.forEach(exp => {
-        const cat = exp.category || 'Other';
+        const cat = normalizeExpenseCategory(exp.category, exp.description);
         if (excludeExpenseCategories.includes(cat)) return;
         expenseByCategory.set(cat, (expenseByCategory.get(cat) || 0) + Number(exp.amount || 0));
       });

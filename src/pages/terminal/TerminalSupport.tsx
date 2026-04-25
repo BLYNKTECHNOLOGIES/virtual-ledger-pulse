@@ -106,7 +106,7 @@ export default function TerminalSupport() {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as SupportTicket[];
+      return (data || []) as unknown as SupportTicket[];
     },
   });
 
@@ -119,7 +119,7 @@ export default function TerminalSupport() {
         .eq('status', 'ACTIVE')
         .order('first_name', { ascending: true });
       if (error) throw error;
-      return (data || []) as UserOption[];
+      return (data || []) as unknown as UserOption[];
     },
   });
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -516,7 +516,7 @@ function BinanceRiskDetails({ snapshot, capturedAt, hasLiveDetail }: { snapshot:
   );
 }
 
-function RiskSection({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
+function RiskSection({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold text-primary uppercase tracking-wider">{icon}{title}</div>

@@ -828,6 +828,21 @@ export default function Sales() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label>Platform</Label>
+                    <Select value={filterPlatform || 'all'} onValueChange={(value) => setFilterPlatform(value === 'all' ? '' : value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All platforms" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All platforms</SelectItem>
+                        <SelectItem value="off-market">Off Market</SelectItem>
+                        {platformOptions.map((platform: any) => (
+                          <SelectItem key={platform.id} value={platform.id}>{platform.wallet_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>

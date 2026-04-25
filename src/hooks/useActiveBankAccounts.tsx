@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { isAdjustmentBank } from "@/lib/adjustment-accounts";
+import { filterNonAdjustmentBanks, isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 export interface ActiveBankAccount {
   id: string;
@@ -44,7 +44,7 @@ export function useActiveBankAccounts(enabled: boolean = true) {
         .order('account_name');
 
       if (error) throw error;
-      return data as ActiveBankAccount[];
+      return filterNonAdjustmentBanks(data as ActiveBankAccount[]);
     },
     enabled,
     staleTime: 10000,

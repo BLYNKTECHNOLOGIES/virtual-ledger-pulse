@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { SettlementReviewDialog } from "./SettlementReviewDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/usePermissions";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface Settlement {
   id: string;
@@ -75,7 +76,7 @@ const fetchSettlementBankAccounts = async () => {
     .eq('status', 'ACTIVE')
     .order('account_name');
   if (error) throw error;
-  return data || [];
+  return filterNonAdjustmentBanks(data || []);
 };
 
 export function SettlementSummary() {

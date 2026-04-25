@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { isPhoneBlocked } from "@/lib/blocked-phones";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface QuickSalesOrderDialogProps {
   open: boolean;
@@ -55,7 +56,7 @@ export function QuickSalesOrderDialog({ open, onOpenChange }: QuickSalesOrderDia
         .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     },
     enabled: open
   });

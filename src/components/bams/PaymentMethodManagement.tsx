@@ -18,6 +18,7 @@ import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/PermissionGate";
 import { batchComputeSalesUsage } from "@/lib/payment-method-usage";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface SalesPaymentMethod {
   id: string;
@@ -122,7 +123,7 @@ export function PaymentMethodManagement() {
         .order('account_name');
       
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     },
   });
 

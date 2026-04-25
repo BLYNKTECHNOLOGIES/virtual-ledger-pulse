@@ -15,6 +15,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface PendingSale {
   id: string;
@@ -120,7 +121,7 @@ const fetchActiveBankAccounts = async (): Promise<BankAccount[]> => {
     .select('id, account_name, bank_name, account_number')
     .eq('status', 'ACTIVE');
   if (error) throw error;
-  return data || [];
+  return filterNonAdjustmentBanks(data || []);
 };
 
 export function PendingSettlements() {

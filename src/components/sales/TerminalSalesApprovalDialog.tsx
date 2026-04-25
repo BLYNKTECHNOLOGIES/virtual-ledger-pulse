@@ -30,6 +30,7 @@ import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { resolveTerminalApprovalClient, sanitizeNickname, sanitizeVerifiedName, canAttachVerifiedName, type TerminalAutoMatchVia } from "@/lib/clientIdentityResolver";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface Props {
   open: boolean;
@@ -323,7 +324,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
         .select(`*, bank_accounts:bank_account_id(account_name, bank_name)`)
         .eq('is_active', true);
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((method: any) => !isAdjustmentBank(method.bank_accounts?.account_name));
     },
   });
 

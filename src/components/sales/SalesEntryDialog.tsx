@@ -23,6 +23,7 @@ import { calculateFee } from "@/hooks/useWalletFees";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
+import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 
 interface PaymentSplit {
   payment_method_id: string;
@@ -79,7 +80,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
     queryFn: async () => {
       const { data, error } = await supabase.from('products').select('*');
       if (error) throw error;
-      return data;
+      return (data || []).filter((method: any) => !isAdjustmentBank(method.bank_accounts?.account_name));
     },
   });
 

@@ -21,6 +21,7 @@ import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, requireCur
 import { Checkbox } from "@/components/ui/checkbox";
 import { getLastOrderDefaults, saveLastOrderDefaults } from "@/utils/orderDefaults";
 import { updateClientFromOrder } from "@/utils/updateClientFromOrder";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -83,7 +84,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
         .eq('status', 'ACTIVE');
       
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     }
   });
 

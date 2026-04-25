@@ -18,6 +18,7 @@ import { SupplierAutocomplete } from "@/components/purchase/SupplierAutocomplete
 import { fetchAndLockMarketRate } from "@/lib/effectiveUsdtEngine";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { Info, Loader2, Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface PaymentSplit {
   bank_account_id: string;
@@ -109,7 +110,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
     queryFn: async () => {
       const { data, error } = await supabase.from('bank_accounts').select('*').eq('status', 'ACTIVE');
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     },
   });
 

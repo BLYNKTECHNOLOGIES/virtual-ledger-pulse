@@ -21,6 +21,7 @@ import { resolveTerminalApprovalClient, sanitizeNickname, sanitizeVerifiedName, 
 import { format } from "date-fns";
 import { DataConflictBanner } from "@/components/terminal/DataConflictBanner";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface Props {
   open: boolean;
@@ -244,7 +245,7 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
         .select('*')
         .eq('status', 'ACTIVE');
       if (error) throw error;
-      return data || [];
+      return filterNonAdjustmentBanks(data || []);
     },
   });
 

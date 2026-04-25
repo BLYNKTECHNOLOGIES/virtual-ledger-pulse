@@ -18,6 +18,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
+import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
 interface TDSRecord {
   id: string;
@@ -164,7 +165,7 @@ export function TaxManagementTab() {
         .is('dormant_at', null) // Exclude dormant accounts
         .order('account_name');
       if (error) throw error;
-      return data;
+      return filterNonAdjustmentBanks(data || []);
     },
   });
 

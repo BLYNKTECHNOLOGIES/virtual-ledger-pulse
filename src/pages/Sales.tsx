@@ -142,6 +142,19 @@ export default function Sales() {
   // All orders displayed in completed tab now
   const completedOrders = salesOrders || [];
 
+  const { data: platformOptions = [] } = useQuery({
+    queryKey: ['sales-filter-platforms'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name')
+        .order('wallet_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300000,
+  });
+
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
       const { error } = await supabase.rpc('delete_sales_order_with_reversal', {
@@ -471,6 +484,7 @@ export default function Sales() {
 
   const clearFilters = () => {
     setFilterPaymentStatus("");
+    setFilterPlatform("");
     setFilterDateFrom(undefined);
     setFilterDateTo(undefined);
     setSearchTerm("");

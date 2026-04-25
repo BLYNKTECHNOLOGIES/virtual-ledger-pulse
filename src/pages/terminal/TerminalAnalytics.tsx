@@ -44,6 +44,13 @@ type EffectiveValuation = {
   effectiveUsdtRate: number;
 };
 
+type SmallOrderMapRow = {
+  binance_order_number: string;
+  order_data?: any;
+  small_buys_sync_id?: string;
+  small_sales_sync_id?: string;
+};
+
 type Bucket = {
   key: string;
   label: string;
@@ -155,6 +162,28 @@ function getRawOrderRate(o: any) {
 
 function hasEffectiveUsdtValuation(o: any) {
   return getEffectiveUsdtQuantity(o) > 0 && getEffectiveUsdtRate(o) > 0;
+}
+
+function getOrderDataNumber(orderData: any, camelKey: string, snakeKey: string) {
+  return Number(orderData?.[camelKey] ?? orderData?.[snakeKey] ?? 0);
+}
+
+function getSmallOrderValuation(orderData: any, syncRow: any, erpOrder: any): EffectiveValuation | null {
+  const orderAmount = getOrderDataNumber(orderData, 'amount', 'amount');
+  const orderTotal = getOrderDataNumber(orderData, 'totalPrice', 'total_price');
+  const marketRate = Number(erpOrder?.market_rate_usdt || 0);
+  const batchEffectiveQty = Number(erpOrder?.effective_usdt_qty || 0);
+  const batchRawQty = Number(syncRow?.total_quantity || erpOrder?.quantity || 0);
+  const effectiveUsdtQty = marketRate > 0 && orderAmount > 0
+    ? orderAmount * marketRate
+    : batchEffectiveQty > 0 && batchRawQty > 0 && orderAmount > 0
+      ? (orderAmount / batchRawQty) * batchEffectiveQty
+      : 0;
+  const effectiveUsdtRate = effectiveUsdtQty > 0 && orderTotal > 0
+    ? orderTotal / effectiveUsdtQty
+    : Number(erpOrder?.effective_usdt_rate || 0);
+
+  return effectiveUsdtQty > 0 && effectiveUsdtRate > 0 ? { effectiveUsdtQty, effectiveUsdtRate } : null;
 }
 
 function normalizeOrder(o: any): NormalizedOrder {

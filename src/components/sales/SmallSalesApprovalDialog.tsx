@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { requireCurrentUserId } from '@/lib/system-action-logger';
 import { fetchAndLockMarketRate, persistBatchValuation } from '@/lib/effectiveUsdtEngine';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
+import { isAdjustmentBank } from '@/lib/adjustment-accounts';
 
 interface Props {
   open: boolean;
@@ -80,11 +81,11 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sales_payment_methods')
-        .select('*')
+        .select('*, bank_accounts:bank_account_id(account_name)')
         .eq('is_active', true)
         .order('nickname');
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((method: any) => !isAdjustmentBank(method.bank_accounts?.account_name));
     },
     enabled: open,
   });

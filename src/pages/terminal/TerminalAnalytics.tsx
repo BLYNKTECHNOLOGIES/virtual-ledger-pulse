@@ -428,15 +428,15 @@ export default function TerminalAnalytics() {
             <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle></CardHeader><CardContent>{analytics.adRows.length ? analytics.adRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text="No ad-linked completed orders in selected period" />}</CardContent></Card>
           </TabsContent>
 
-          <TabsContent value="rates">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TabsContent value="rates" className="min-h-0 flex-1">
+            <div className="grid h-full grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate Summary</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-3 text-xs"><StatCard icon={TrendingDown} label="Weighted Buy" value={fmtRate(analytics.weightedBuyRate)} tone="buy" /><StatCard icon={TrendingUp} label="Weighted Sell" value={fmtRate(analytics.weightedSellRate)} tone="sell" /><StatCard icon={Banknote} label="Avg Buy" value={fmtRate(analytics.avgBuyRate)} /><StatCard icon={Banknote} label="Avg Sell" value={fmtRate(analytics.avgSellRate)} /></CardContent></Card>
               <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Rate by Type</CardTitle></CardHeader><CardContent>{analytics.orderTypes.map((item) => <div key={item.key} className="flex items-center justify-between py-2 border-b border-border last:border-0 text-xs"><span className="text-muted-foreground">{item.label}</span><span className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</span></div>)}</CardContent></Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="risk">
-            <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Status / Risk Snapshot</CardTitle></CardHeader><CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3"><StatCard icon={Shield} label="Completion" value={`${analytics.completionRate.toFixed(1)}%`} /><StatCard icon={AlertTriangle} label="Appeals" value={String(analytics.appeals.length)} tone="warning" /><StatCard icon={Clock} label="Cancelled" value={String(analytics.cancelled.length)} tone="muted" /><StatCard icon={BarChart3} label="Avg Order" value={fmtINR(analytics.avgOrder)} /></CardContent></Card>
+          <TabsContent value="risk" className="min-h-0 flex-1">
+            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm">Status / Risk Snapshot</CardTitle></CardHeader><CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3"><StatCard icon={Shield} label="Completion" value={`${analytics.completionRate.toFixed(1)}%`} /><StatCard icon={AlertTriangle} label="Appeals" value={String(analytics.appeals.length)} tone="warning" /><StatCard icon={Clock} label="Cancelled" value={String(analytics.cancelled.length)} tone="muted" /><StatCard icon={BarChart3} label="Avg Order" value={fmtINR(analytics.avgOrder)} /></CardContent></Card>
           </TabsContent>
         </Tabs>
       </div>

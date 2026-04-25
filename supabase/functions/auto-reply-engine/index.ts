@@ -443,6 +443,7 @@ serve(async (req) => {
     // ===== FETCH ACTIVE ORDERS =====
     // Paginate to ensure we don't miss orders beyond the first 50
     const allActiveOrders: BinanceOrder[] = [];
+    const listOrdersDiagnostics: Record<string, any> = { filteredFetchUsed: !forcedOrderNumber, requestedStatusFilters: ACTIONABLE_ORDER_STATUS_LIST, pages: [], fallbackReason: null };
     if (forcedOrderNumber) {
       // Event-driven: fetch just this one order's detail and synthesize a list entry
       try {
@@ -482,12 +483,33 @@ serve(async (req) => {
         const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
           method: "POST",
           headers: proxyHeaders,
-          body: JSON.stringify({ page, rows: 50 }),
+          body: JSON.stringify({ page, rows: 50, orderStatusList: ACTIONABLE_ORDER_STATUS_LIST }),
         });
         const activeData = await activeRes.json();
-        const pageOrders: BinanceOrder[] = activeData?.data || [];
+        if (!activeRes.ok || (activeData?.code && activeData.code !== "000000")) {
+          listOrdersDiagnostics.filteredFetchUsed = false;
+          listOrdersDiagnostics.fallbackReason = `filtered_listOrders_rejected:${activeData?.code || activeRes.status}`;
+          allActiveOrders.length = 0;
+          break;
+        }
+        const pageOrders: BinanceOrder[] = extractOrders(activeData);
+        listOrdersDiagnostics.pages.push({ page, count: pageOrders.length, filtered: true });
         allActiveOrders.push(...pageOrders);
         if (pageOrders.length < 50) break;
+      }
+      if (!listOrdersDiagnostics.filteredFetchUsed) {
+        for (let page = 1; page <= 3; page++) {
+          const activeRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+            method: "POST",
+            headers: proxyHeaders,
+            body: JSON.stringify({ page, rows: 50 }),
+          });
+          const activeData = await activeRes.json();
+          const pageOrders: BinanceOrder[] = extractOrders(activeData);
+          listOrdersDiagnostics.pages.push({ page, count: pageOrders.length, filtered: false });
+          allActiveOrders.push(...pageOrders);
+          if (pageOrders.length < 50) break;
+        }
       }
       console.log(`Processing ${allActiveOrders.length} active orders for auto-reply`);
     }

@@ -1,22 +1,27 @@
-I understand the frustration. The previous change centered the flex container, but it did not account for the visual imbalance caused by the checkmark glyph and font line-box rendering in html2canvas, so the badge can still look off-center in the generated PNG.
+Plan to add the bottom graphical representation:
 
-Plan:
+1. Add a dedicated visual analytics section below the current table/list content, so it appears when the user scrolls down.
 
-1. Replace the text checkmark with a controlled icon container
-   - Update `src/components/payer/ReceiptTemplate.tsx`.
-   - Stop relying on the raw `✓` text glyph for alignment.
-   - Render the checkmark inside a fixed-size circular/flex box so its height, width, and baseline do not shift the `Completed` text.
+2. For the Order Types tab, add a polished dashboard-style graphical block showing:
+   - Small Buy, Big Buy, Small Sale, Big Sale grouped clearly.
+   - Volume, order count, USDT-effective quantity, weighted average rate, and average order.
+   - Easy comparison using horizontal bars / composed chart styling instead of only text rows.
+   - Buy and sale colors matching the existing theme.
 
-2. Make the badge layout deterministic for screenshot capture
-   - Give the bubble a fixed height and stable min width.
-   - Use `inline-flex`, `alignItems: center`, and `justifyContent: center` on the bubble.
-   - Set every child’s height/display explicitly instead of depending on font baseline behavior.
-   - Use `boxSizing: border-box` and avoid line-height tricks that html2canvas can render inconsistently.
+3. For the Ad Performance tab, add a graphical block under the ad list that respects the current Buy Ads / Sell Ads toggle:
+   - Keep similar ads together in the same order already requested: small first, big after; then by asset priority such as USDT, BTC, ETH, USDC, FDUSD, BNB, TRX.
+   - Show a readable ranked bar chart/card layout for ad volume.
+   - Include secondary metrics: orders, effective USDT quantity, weighted rate, and avg order.
+   - Avoid sorting by volume as the primary grouping basis.
 
-3. Preserve the current receipt design
-   - Keep the green header, translucent bubble, amount, date, and `Payout ID` label unchanged.
-   - Only adjust the internal alignment of the `Completed` badge.
+4. Improve presentability and scanability:
+   - Use dark-theme-compatible cards, borders, muted labels, tabular numbers, and clear legends.
+   - Keep charts compact but detailed, with tooltips using the same INR/quantity/rate formatting already used in the page.
+   - Add empty states if there is no data for the selected period/toggle.
 
-4. Verify before final response
-   - Run the project TypeScript/build check.
-   - Where possible, inspect the rendered badge path so the icon and text are centered both vertically and horizontally in the bubble used by the automatic terminal screenshot flow.
+Technical details:
+- File to update: `src/pages/terminal/TerminalAnalytics.tsx`.
+- Reuse the existing Recharts dependency already imported in this file.
+- Add derived chart data from the existing `analytics.orderTypes`, `analytics.orderTypeCoinBreakdown`, and `filteredAdRows` so no new database/API changes are needed.
+- Keep Binance data source untouched; this is only a visualization layer over existing analytics data.
+- Run a build after implementation to catch TypeScript/rendering issues.

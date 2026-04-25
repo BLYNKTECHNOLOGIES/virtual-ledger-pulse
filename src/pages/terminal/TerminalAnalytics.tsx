@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, Banknote, Clock, Shield, Activity, AlertTriangle, Target, Percent, Layers } from 'lucide-react';
 import { useBinanceAdsList, BinanceAd } from '@/hooks/useBinanceAds';
 import { useCachedOrderHistory } from '@/hooks/useBinanceOrderSync';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend, Cell } from 'recharts';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 import {
   TimePeriodFilter,
@@ -483,6 +483,148 @@ function EmptyPanel({ text }: { text: string }) {
   return <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">{text}</div>;
 }
 
+const orderKindChartColor: Record<OrderKind, string> = {
+  smallBuy: 'hsl(var(--trade-buy))',
+  bigBuy: 'hsl(var(--primary))',
+  smallSell: 'hsl(var(--trade-sell))',
+  bigSell: 'hsl(var(--destructive))',
+};
+
+function GraphMetric({ label, value, tone }: { label: string; value: string; tone?: 'buy' | 'sell' | 'primary' }) {
+  const toneClass = tone === 'buy' ? 'text-trade-buy' : tone === 'sell' ? 'text-trade-sell' : tone === 'primary' ? 'text-primary' : 'text-foreground';
+  return (
+    <div className="rounded-md border border-border bg-secondary/40 p-3">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`mt-1 text-sm font-semibold tabular-nums ${toneClass}`}>{value}</p>
+    </div>
+  );
+}
+
+function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]; selectedKind: OrderKind; coinRows: Aggregate[] }) {
+  const chartRows = items.map((item) => ({ ...item, fill: item.key in orderKindChartColor ? orderKindChartColor[item.key as OrderKind] : 'hsl(var(--primary))' }));
+  const selected = items.find((item) => item.key === selectedKind);
+
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Graphical Order Type Analysis</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <GraphMetric label="Selected type" value={orderKindLabels[selectedKind]} tone={selectedKind.includes('Buy') ? 'buy' : 'sell'} />
+          <GraphMetric label="Effective quantity" value={fmt(selected?.quantity || 0, 4)} />
+          <GraphMetric label="Weighted rate" value={fmtRate(selected?.weightedRate || selected?.avgRate || 0)} tone="primary" />
+          <GraphMetric label="Average order" value={fmtINR(selected?.avgOrder || 0)} />
+        </div>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.9fr)] gap-4">
+          <div className="h-[310px] rounded-md border border-border bg-secondary/20 p-3">
+            {chartRows.some((item) => item.count) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartRows} layout="vertical" margin={{ top: 8, right: 18, left: 12, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} />
+                  <YAxis dataKey="label" type="category" width={78} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Orders' ? [v, name] : [fmt(v, 4), name]} />
+                  <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
+                  <Bar dataKey="volume" name="Volume" radius={[0, 4, 4, 0]}>
+                    {chartRows.map((entry) => <Cell key={entry.key} fill={entry.fill} />)}
+                  </Bar>
+                  <Bar dataKey="count" name="Orders" fill="hsl(var(--muted-foreground) / 0.35)" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <EmptyPanel text="No order type graph data in selected period" />}
+          </div>
+          <div className="rounded-md border border-border bg-secondary/20 p-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-foreground">Coin-wise effective USDT view</p>
+              <Badge variant="secondary" className={orderKindTextClass[selectedKind]}>{orderKindLabels[selectedKind]}</Badge>
+            </div>
+            <div className="space-y-3">
+              {coinRows.length ? coinRows.map((coin) => {
+                const pct = selected?.volume ? Math.min(100, (coin.volume / selected.volume) * 100) : 0;
+                return (
+                  <div key={coin.key} className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="font-medium text-foreground">{coin.label}</span>
+                      <span className="text-muted-foreground tabular-nums">{fmtINR(coin.volume)} · {fmt(coin.quantity, 4)} USDT</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>{coin.count} orders</span><span>{fmtRate(coin.weightedRate || coin.avgRate)}</span></div>
+                  </div>
+                );
+              }) : <EmptyPanel text="No coin graph data for selected type" />}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function AdPerformanceGraph({ rows, tradeFilter }: { rows: Aggregate[]; tradeFilter: AdTradeFilter }) {
+  const chartRows = rows.map((item) => ({ ...item, displayLabel: `${item.orderKind ? orderKindLabels[item.orderKind] : item.tradeType} · ${item.asset || 'USDT'} · ${item.label}` }));
+  const totalVolume = rows.reduce((sum, item) => sum + item.volume, 0);
+  const totalQty = rows.reduce((sum, item) => sum + item.quantity, 0);
+  const weighted = weightedRate(totalVolume, totalQty);
+  const chartHeight = Math.max(280, Math.min(680, chartRows.length * 42));
+
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Graphical Ad Performance Breakdown</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <GraphMetric label="Ad side" value={`${tradeFilter === 'BUY' ? 'Buy' : 'Sell'} Ads`} tone={tradeFilter === 'BUY' ? 'buy' : 'sell'} />
+          <GraphMetric label="Visible ads" value={rows.length.toLocaleString('en-IN')} />
+          <GraphMetric label="Effective quantity" value={fmt(totalQty, 4)} />
+          <GraphMetric label="Weighted rate" value={fmtRate(weighted)} tone="primary" />
+        </div>
+        <div className="rounded-md border border-border bg-secondary/20 p-3">
+          {chartRows.length ? (
+            <div className="w-full overflow-x-auto">
+              <div style={{ minWidth: 760, height: chartHeight }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartRows} layout="vertical" margin={{ top: 8, right: 18, left: 26, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} />
+                    <YAxis dataKey="displayLabel" type="category" width={210} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => name === 'Volume' ? [fmtINR(v), name] : name === 'Avg order' ? [fmtINR(v), name] : name === 'Weighted rate' ? [fmtRate(v), name] : [fmt(v, 4), name]} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
+                    <Bar dataKey="volume" name="Volume" fill={tradeFilter === 'BUY' ? 'hsl(var(--trade-buy))' : 'hsl(var(--trade-sell))'} radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="avgOrder" name="Avg order" fill="hsl(var(--primary) / 0.38)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : <EmptyPanel text={`No ${tradeFilter.toLowerCase()} ad graph data in selected period`} />}
+        </div>
+        {rows.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {rows.slice(0, 9).map((item) => (
+              <div key={`${item.key}-visual-card`} className="rounded-md border border-border bg-secondary/30 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-foreground">{item.label}</p>
+                    <p className="truncate text-[10px] text-muted-foreground">{item.orderKindLabel || (item.orderKind ? orderKindLabels[item.orderKind] : item.tradeType)} · {item.asset || 'USDT'}</p>
+                  </div>
+                  {item.orderKind && <Badge variant="secondary" className={orderKindTextClass[item.orderKind]}>{item.orderKindLabel}</Badge>}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                  <div><p className="text-muted-foreground">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
+                  <div><p className="text-muted-foreground">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
+                  <div><p className="text-muted-foreground">Eff. Qty</p><p className="font-semibold tabular-nums">{fmt(item.quantity, 4)}</p></div>
+                  <div><p className="text-muted-foreground">Rate</p><p className="font-semibold tabular-nums">{fmtRate(item.weightedRate || item.avgRate)}</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function TerminalAnalytics() {
   const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
   const { data: cachedOrders = [], isLoading: ordersLoading } = useCachedOrderHistory();
@@ -714,32 +856,38 @@ export default function TerminalAnalytics() {
           </TabsContent>
 
           <TabsContent value="types" className="min-h-0 flex-1 overflow-auto">
-            <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)] gap-4">
-              <Card className="bg-card border-border min-h-full">
-                <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader>
-                <CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} selected={selectedOrderKind === item.key} onClick={() => setSelectedOrderKind(item.key as OrderKind)} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent>
-              </Card>
-              <Card className="bg-card border-border min-h-full">
-                <CardHeader className="flex flex-row items-center justify-between gap-3">
-                  <CardTitle className="text-sm">Coin Breakdown</CardTitle>
-                  <Badge variant="secondary" className={orderKindTextClass[selectedOrderKind]}>{orderKindLabels[selectedOrderKind]}</Badge>
-                </CardHeader>
-                <CardContent>{analytics.orderTypeCoinBreakdown[selectedOrderKind]?.length ? analytics.orderTypeCoinBreakdown[selectedOrderKind].map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected type" />}</CardContent>
-              </Card>
+            <div className="space-y-4 pb-2">
+              <div className="grid min-h-full grid-cols-1 xl:grid-cols-[minmax(0,1.6fr)_minmax(360px,1fr)] gap-4">
+                <Card className="bg-card border-border min-h-full">
+                  <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader>
+                  <CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} selected={selectedOrderKind === item.key} onClick={() => setSelectedOrderKind(item.key as OrderKind)} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent>
+                </Card>
+                <Card className="bg-card border-border min-h-full">
+                  <CardHeader className="flex flex-row items-center justify-between gap-3">
+                    <CardTitle className="text-sm">Coin Breakdown</CardTitle>
+                    <Badge variant="secondary" className={orderKindTextClass[selectedOrderKind]}>{orderKindLabels[selectedOrderKind]}</Badge>
+                  </CardHeader>
+                  <CardContent>{analytics.orderTypeCoinBreakdown[selectedOrderKind]?.length ? analytics.orderTypeCoinBreakdown[selectedOrderKind].map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected type" />}</CardContent>
+                </Card>
+              </div>
+              <OrderTypesGraph items={analytics.orderTypes} selectedKind={selectedOrderKind} coinRows={analytics.orderTypeCoinBreakdown[selectedOrderKind] || []} />
             </div>
           </TabsContent>
 
           <TabsContent value="ads" className="min-h-0 flex-1 overflow-auto">
-            <Card className="bg-card border-border min-h-full">
-              <CardHeader className="flex flex-row items-center justify-between gap-3">
-                <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle>
-                <div className="rounded-md bg-secondary p-1 flex items-center gap-1">
-                  <Button size="sm" variant={adTradeFilter === 'BUY' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('BUY')}>Buy Ads</Button>
-                  <Button size="sm" variant={adTradeFilter === 'SELL' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('SELL')}>Sell Ads</Button>
-                </div>
-              </CardHeader>
-              <CardContent>{filteredAdRows.length ? filteredAdRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text={`No ${adTradeFilter.toLowerCase()} ad-linked completed orders in selected period`} />}</CardContent>
-            </Card>
+            <div className="space-y-4 pb-2">
+              <Card className="bg-card border-border min-h-full">
+                <CardHeader className="flex flex-row items-center justify-between gap-3">
+                  <CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle>
+                  <div className="rounded-md bg-secondary p-1 flex items-center gap-1">
+                    <Button size="sm" variant={adTradeFilter === 'BUY' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('BUY')}>Buy Ads</Button>
+                    <Button size="sm" variant={adTradeFilter === 'SELL' ? 'default' : 'ghost'} className="h-7 px-3 text-xs" onClick={() => setAdTradeFilter('SELL')}>Sell Ads</Button>
+                  </div>
+                </CardHeader>
+                <CardContent>{filteredAdRows.length ? filteredAdRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text={`No ${adTradeFilter.toLowerCase()} ad-linked completed orders in selected period`} />}</CardContent>
+              </Card>
+              <AdPerformanceGraph rows={filteredAdRows} tradeFilter={adTradeFilter} />
+            </div>
           </TabsContent>
 
           <TabsContent value="rates" className="min-h-0 flex-1">

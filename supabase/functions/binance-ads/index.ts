@@ -173,6 +173,54 @@ async function persistMerchantStateSnapshot(supabase: any, data: any, source = "
   if (error) throw error;
 }
 
+function unwrapCounterpartyStats(result: any) {
+  return result?.data?.data || result?.data || result;
+}
+
+async function persistCounterpartyStatsSnapshot(supabase: any, payload: any, result: any) {
+  const stats = unwrapCounterpartyStats(result);
+  if (!stats || typeof stats !== "object") return { persisted: false, reason: "empty_stats" };
+
+  const orderNumber = payload?.orderNumber ? String(payload.orderNumber) : null;
+  let nickname = payload?.counterpartyNickname ? String(payload.counterpartyNickname).trim() : "";
+  if (!nickname && orderNumber) {
+    const { data: orderRow, error: orderErr } = await supabase
+      .from("p2p_order_records")
+      .select("counterparty_nickname")
+      .eq("binance_order_number", orderNumber)
+      .maybeSingle();
+    if (orderErr) throw orderErr;
+    nickname = orderRow?.counterparty_nickname ? String(orderRow.counterparty_nickname).trim() : "";
+  }
+  if (!nickname) return { persisted: false, reason: "missing_counterparty_nickname" };
+
+  const registerDays = toNumeric(stats.registerDays);
+  const tradesWithUs30d = toNumeric(stats.numberOfTradesWithCounterpartyCompleted30day);
+  const { data: updated, error } = await supabase
+    .from("p2p_counterparties")
+    .update({
+      binance_register_days: registerDays,
+      binance_trades_with_us_30d: tradesWithUs30d,
+      binance_counterparty_stats_raw: stats,
+      binance_counterparty_stats_captured_at: new Date().toISOString(),
+      binance_counterparty_stats_order_number: orderNumber,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("binance_nickname", nickname)
+    .select("id")
+    .maybeSingle();
+  if (error) throw error;
+
+  return {
+    persisted: Boolean(updated?.id),
+    reason: updated?.id ? null : "counterparty_not_found",
+    fieldsPresent: {
+      registerDays: stats.registerDays !== undefined,
+      numberOfTradesWithCounterpartyCompleted30day: stats.numberOfTradesWithCounterpartyCompleted30day !== undefined,
+    },
+  };
+}
+
 async function fetchBaseDetail(proxyUrl: string, headers: Record<string, string>) {
   const endpoint = "/api/sapi/v1/c2c/user/baseDetail";
   const response = await fetch(`${proxyUrl}${endpoint}`, { method: "POST", headers });
@@ -955,6 +1003,16 @@ serve(async (req) => {
         const text = await response.text();
         console.log("queryCounterPartyStats response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (response.ok && result?.code === "000000" && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const snapshot = await persistCounterpartyStatsSnapshot(supabase, payload, result);
+            result = { ...result, _diagnostics: { ...(result?._diagnostics || {}), counterpartyStatsSnapshot: snapshot } };
+          } catch (persistErr) {
+            console.warn("queryCounterPartyStats snapshot persist failed:", persistErr);
+            result = { ...result, _diagnostics: { ...(result?._diagnostics || {}), counterpartyStatsSnapshot: { persisted: false, reason: "persist_error" } } };
+          }
+        }
         break;
       }
 

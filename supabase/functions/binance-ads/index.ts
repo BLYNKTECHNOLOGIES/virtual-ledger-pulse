@@ -585,6 +585,18 @@ serve(async (req) => {
             );
             await Promise.all(detailPromises);
           }
+          if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+            try {
+              const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+              const snapshotResults = await Promise.allSettled(
+                result.data.map((ad: any) => persistAdStateSnapshot(supabase, ad, payload.snapshotSource || "ad_list", payload.ruleId || null))
+              );
+              const persistedCount = snapshotResults.filter((r) => r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value?.persisted).length;
+              console.log(`[ad-state-snapshot] listAds persisted ${persistedCount}/${result.data.length}`);
+            } catch (persistErr) {
+              console.warn("listAds ad state snapshot persist failed:", persistErr);
+            }
+          }
         }
         break;
       }
@@ -600,8 +612,10 @@ serve(async (req) => {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
             await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo));
+            const snapshotResult = await persistAdStateSnapshot(supabase, detail, payload.snapshotSource || "ad_detail", payload.ruleId || null);
+            console.log("[ad-state-snapshot] getAdDetail", JSON.stringify(snapshotResult));
           } catch (persistErr) {
-            console.warn("getAdDetail commission snapshot persist failed:", persistErr);
+            console.warn("getAdDetail snapshot persist failed:", persistErr);
           }
         }
         break;

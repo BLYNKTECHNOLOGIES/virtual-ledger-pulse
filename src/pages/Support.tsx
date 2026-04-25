@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2, MessageSquare, Paperclip, Upload } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2, MessageSquare, Paperclip, Upload, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const ticketSchema = z.object({
   orderNumber: z.string().trim().min(3).max(80),
@@ -101,10 +103,16 @@ const nextWorkflowStatus = (status: TicketStatus): TicketStatus | null => {
   return index >= 0 && index < workflowStatuses.length - 1 ? workflowStatuses[index + 1] : null;
 };
 
+const isCompletedTicket = (ticket: SupportTicket) => ['resolved', 'closed'].includes(ticket.status);
+
 function userLabel(user?: UserOption | null) {
   if (!user) return 'Unassigned';
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
   return fullName || user.username || 'User';
+}
+
+function csvCell(value: string | number | null | undefined) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
 export default function Support() {
@@ -114,6 +122,8 @@ export default function Support() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const [myAssignmentsOnly, setMyAssignmentsOnly] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [customerIssue, setCustomerIssue] = useState('');
   const [assignedTo, setAssignedTo] = useState('unassigned');
@@ -307,15 +317,41 @@ export default function Support() {
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tickets.filter((ticket) => {
+      if (activeTab === 'active' && isCompletedTicket(ticket)) return false;
+      if (activeTab === 'completed' && !isCompletedTicket(ticket)) return false;
+      if (myAssignmentsOnly && ticket.assigned_to !== userId) return false;
       if (statusFilter !== 'all' && ticket.status !== statusFilter) return false;
       if (!q) return true;
       return ticket.order_number.toLowerCase().includes(q) || ticket.customer_issue.toLowerCase().includes(q);
     });
-  }, [tickets, search, statusFilter]);
+  }, [tickets, search, statusFilter, activeTab, myAssignmentsOnly, userId]);
 
-  const openCount = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status)).length;
+  const completedTickets = useMemo(() => tickets.filter(isCompletedTicket), [tickets]);
+  const openCount = tickets.filter((ticket) => !isCompletedTicket(ticket)).length;
   const escalatedCount = tickets.filter((ticket) => ticket.escalated).length;
-  const resolvedCount = tickets.filter((ticket) => ['resolved', 'closed'].includes(ticket.status)).length;
+  const resolvedCount = completedTickets.length;
+
+  const exportCompletedCsv = () => {
+    const rows = completedTickets.map((ticket) => [
+      ticket.order_number,
+      statusLabels[ticket.status],
+      userLabel(usersById.get(ticket.assigned_to || '')),
+      ticket.escalated ? 'Yes' : 'No',
+      ticket.customer_issue,
+      format(new Date(ticket.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      ticket.resolved_at ? format(new Date(ticket.resolved_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      format(new Date(ticket.updated_at), 'yyyy-MM-dd HH:mm:ss'),
+    ]);
+    const csv = [['Order Number', 'Status', 'Assigned To', 'Escalated', 'Customer Issue', 'Created At', 'Resolved At', 'Updated At'], ...rows]
+      .map((row) => row.map(csvCell).join(','))
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `completed-support-tickets-${format(new Date(), 'yyyyMMdd-HHmmss')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const content = (
       <div className="space-y-4 p-4 md:p-6">
@@ -369,8 +405,19 @@ export default function Support() {
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-3">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'active' | 'completed')}>
+                <TabsList className="h-8">
+                  <TabsTrigger value="active" className="h-7 text-xs">Active</TabsTrigger>
+                  <TabsTrigger value="completed" className="h-7 text-xs">Completed</TabsTrigger>
+                </TabsList>
+              </Tabs>
               <div className="relative min-w-[220px] flex-1"><Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order or issue" className="h-8 pl-8 text-xs" /></div>
               <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All status</SelectItem>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+              <Label className="flex h-8 items-center gap-2 rounded-md border border-border px-3 text-xs text-foreground">
+                <Checkbox checked={myAssignmentsOnly} onCheckedChange={(checked) => setMyAssignmentsOnly(checked === true)} />
+                My assignments only
+              </Label>
+              {activeTab === 'completed' && <Button variant="outline" size="sm" className="h-8 text-xs" onClick={exportCompletedCsv} disabled={completedTickets.length === 0}><Download className="mr-1.5 h-3.5 w-3.5" /> Export CSV</Button>}
               <span className="text-xs text-muted-foreground">{filteredTickets.length} tickets</span>
             </div>
           </CardContent>

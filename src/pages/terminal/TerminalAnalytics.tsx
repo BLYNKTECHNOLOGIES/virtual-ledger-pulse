@@ -35,6 +35,7 @@ type NormalizedOrder = {
   unitPrice: number;
   effectiveUsdtQty: number;
   effectiveUsdtRate: number;
+  hasEffectiveUsdtValuation: boolean;
   createTime: number;
 };
 
@@ -123,9 +124,26 @@ function average(values: number[]) {
   return valid.length ? valid.reduce((s, v) => s + v, 0) / valid.length : 0;
 }
 
-function getOrderRate(o: any) {
+function isUsdtAsset(asset?: string) {
+  return String(asset || 'USDT').toUpperCase() === 'USDT';
+}
+
+function getEffectiveUsdtQuantity(o: any) {
+  const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
+  if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
+  return isUsdtAsset(o.asset) ? Number(o.amount || 0) : 0;
+}
+
+function getEffectiveUsdtRate(o: any) {
   const effectiveRate = Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0);
   if (Number.isFinite(effectiveRate) && effectiveRate > 0) return effectiveRate;
+  const effectiveQty = getEffectiveUsdtQuantity(o);
+  const total = Number(o.totalPrice || o.total_price || 0);
+  if (effectiveQty > 0 && total > 0) return total / effectiveQty;
+  return 0;
+}
+
+function getRawOrderRate(o: any) {
   const unit = Number(o.unitPrice || o.unit_price || 0);
   if (Number.isFinite(unit) && unit > 0) return unit;
   const amount = Number(o.amount || 0);
@@ -133,13 +151,13 @@ function getOrderRate(o: any) {
   return amount > 0 ? total / amount : 0;
 }
 
-function getEffectiveQuantity(o: any) {
-  const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
-  if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
-  return Number(o.amount || 0);
+function hasEffectiveUsdtValuation(o: any) {
+  return getEffectiveUsdtQuantity(o) > 0 && getEffectiveUsdtRate(o) > 0;
 }
 
 function normalizeOrder(o: any): NormalizedOrder {
+  const effectiveUsdtQty = getEffectiveUsdtQuantity(o);
+  const effectiveUsdtRate = getEffectiveUsdtRate(o);
   return {
     orderNumber: o.orderNumber || o.order_number || '',
     advNo: o.advNo || o.adv_no || '',
@@ -148,9 +166,10 @@ function normalizeOrder(o: any): NormalizedOrder {
     asset: o.asset || 'USDT',
     totalPrice: Number(o.totalPrice || o.total_price || 0),
     amount: Number(o.amount || 0),
-    unitPrice: getOrderRate(o),
-    effectiveUsdtQty: getEffectiveQuantity(o),
-    effectiveUsdtRate: getOrderRate(o),
+    unitPrice: getRawOrderRate(o),
+    effectiveUsdtQty,
+    effectiveUsdtRate,
+    hasEffectiveUsdtValuation: effectiveUsdtQty > 0 && effectiveUsdtRate > 0,
     createTime: Number(o.createTime || o.create_time || 0),
   };
 }
@@ -176,7 +195,9 @@ function classifyOrder(o: NormalizedOrder, smallBuyConfig?: RangeConfig | null, 
 
 function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], extra: Partial<Aggregate> = {}): Aggregate {
   const volume = orders.reduce((s, o) => s + o.totalPrice, 0);
-  const quantity = orders.reduce((s, o) => s + o.effectiveUsdtQty, 0);
+  const valuedOrders = orders.filter((o) => o.hasEffectiveUsdtValuation);
+  const valuedVolume = valuedOrders.reduce((s, o) => s + o.totalPrice, 0);
+  const quantity = valuedOrders.reduce((s, o) => s + o.effectiveUsdtQty, 0);
   return {
     key,
     label,
@@ -184,8 +205,8 @@ function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], 
     volume,
     quantity,
     avgOrder: orders.length ? volume / orders.length : 0,
-    avgRate: average(orders.map((o) => o.effectiveUsdtRate)),
-    weightedRate: weightedRate(volume, quantity),
+    avgRate: average(valuedOrders.map((o) => o.effectiveUsdtRate)),
+    weightedRate: weightedRate(valuedVolume, quantity),
     lastOrderTime: orders.reduce((max, o) => Math.max(max, o.createTime || 0), 0) || undefined,
     ...extra,
   };

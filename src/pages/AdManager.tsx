@@ -13,6 +13,7 @@ import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDial
 import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPriceDialog';
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
+import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog';
 import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { MerchantStateCard } from '@/components/ad-manager/MerchantStateCard';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
@@ -31,6 +32,7 @@ export default function AdManager() {
   const [bulkFloatingOpen, setBulkFloatingOpen] = useState(false);
   const [bulkHybridOpen, setBulkHybridOpen] = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+  const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
   const effectiveFilters: AdFilters = {
@@ -120,6 +122,7 @@ export default function AdManager() {
           onBulkEditLimits={() => setBulkLimitsOpen(true)}
           onBulkFloatingPrice={() => setBulkFloatingOpen(true)}
           onBulkHybridAdjust={() => setBulkHybridOpen(true)}
+          onBulkRiskGuard={() => setBulkRiskGuardOpen(true)}
           onBulkActivate={handleBulkActivate}
           onBulkDeactivate={handleBulkDeactivate}
         />
@@ -171,6 +174,7 @@ export default function AdManager() {
       <BulkEditLimitsDialog open={bulkLimitsOpen} onOpenChange={setBulkLimitsOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
+      <BulkRiskGuardDialog open={bulkRiskGuardOpen} onOpenChange={setBulkRiskGuardOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>
   );

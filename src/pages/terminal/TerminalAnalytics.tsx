@@ -297,12 +297,20 @@ export default function TerminalAnalytics() {
     return Array.isArray(list) ? list : [];
   }, [adsRaw]);
 
+  const orderNumbers = useMemo(() => (
+    Array.isArray(cachedOrders) ? cachedOrders.map((order: any) => order.orderNumber || order.order_number || '').filter(Boolean) : []
+  ), [cachedOrders]);
+  const { data: effectiveValuations = new Map<string, EffectiveValuation>(), isLoading: valuationsLoading } = useEffectiveOrderValuations(orderNumbers);
+
   const orders = useMemo(() => {
     const { startTimestamp, endTimestamp } = getTimestampsForFilter(filter);
     return (Array.isArray(cachedOrders) ? cachedOrders : [])
-      .map(normalizeOrder)
+      .map((order: any) => {
+        const orderNumber = order.orderNumber || order.order_number || '';
+        return normalizeOrder({ ...order, ...(effectiveValuations.get(orderNumber) || {}) });
+      })
       .filter((o) => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [cachedOrders, filter]);
+  }, [cachedOrders, filter, effectiveValuations]);
 
   const completed = useMemo(() => orders.filter((o) => o.orderStatus.includes('COMPLETED')), [orders]);
 
@@ -314,7 +322,7 @@ export default function TerminalAnalytics() {
     const buyVolume = buy.reduce((s, o) => s + o.totalPrice, 0);
     const sellVolume = sell.reduce((s, o) => s + o.totalPrice, 0);
     const totalVolume = buyVolume + sellVolume;
-    const totalQty = completed.reduce((s, o) => s + o.amount, 0);
+    const totalQty = completed.reduce((s, o) => s + o.effectiveUsdtQty, 0);
 
     const kinds: Record<OrderKind, NormalizedOrder[]> = { smallBuy: [], bigBuy: [], smallSell: [], bigSell: [] };
     for (const o of completed) kinds[classifyOrder(o, configs?.smallBuy, configs?.smallSale)].push(o);
@@ -341,8 +349,8 @@ export default function TerminalAnalytics() {
     }).sort((a, b) => b.volume - a.volume);
 
     const rates = completed.map((o) => o.unitPrice).filter((v) => Number.isFinite(v) && v > 0);
-    const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.amount, 0));
-    const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.amount, 0));
+    const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
+    const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
 
     const bestAd = adRows[0];
     const highestSellAd = adRows.filter((a) => a.tradeType === 'SELL').sort((a, b) => b.weightedRate - a.weightedRate)[0];
@@ -359,8 +367,8 @@ export default function TerminalAnalytics() {
       totalQty,
       avgOrder: completed.length ? totalVolume / completed.length : 0,
       weightedAvgRate: weightedRate(totalVolume, totalQty),
-      avgBuyRate: average(buy.map((o) => o.unitPrice)),
-      avgSellRate: average(sell.map((o) => o.unitPrice)),
+      avgBuyRate: average(buy.map((o) => o.effectiveUsdtRate)),
+      avgSellRate: average(sell.map((o) => o.effectiveUsdtRate)),
       weightedBuyRate,
       weightedSellRate,
       minRate: rates.length ? Math.min(...rates) : 0,
@@ -398,7 +406,7 @@ export default function TerminalAnalytics() {
 
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);
-  const isLoading = adsLoading || ordersLoading || configLoading;
+  const isLoading = adsLoading || ordersLoading || configLoading || valuationsLoading;
 
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;

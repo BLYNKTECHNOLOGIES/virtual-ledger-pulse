@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { format } from 'date-fns';
-import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, ClipboardList, Headphones, Plus, Search, AlertTriangle, CheckCircle2, History, Repeat2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const ticketSchema = z.object({
   orderNumber: z.string().trim().min(3).max(80),
@@ -46,6 +47,16 @@ type UserOption = {
   username: string | null;
   first_name: string | null;
   last_name: string | null;
+};
+
+type TicketTransfer = {
+  id: string;
+  ticket_id: string;
+  from_user_id: string | null;
+  to_user_id: string;
+  transferred_by: string;
+  transfer_reason: string | null;
+  created_at: string;
 };
 
 const statusLabels: Record<TicketStatus, string> = {
@@ -105,6 +116,9 @@ export default function Support() {
   const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState('unassigned');
   const [formErrors, setFormErrors] = useState<Partial<Record<'orderNumber' | 'customerIssue', string>>>({});
+  const [transferTicket, setTransferTicket] = useState<SupportTicket | null>(null);
+  const [transferTo, setTransferTo] = useState('');
+  const [transferReason, setTransferReason] = useState('');
 
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['customer_support_tickets'],
@@ -131,7 +145,24 @@ export default function Support() {
     },
   });
 
+  const { data: transfers = [] } = useQuery({
+    queryKey: ['customer_support_ticket_transfers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('customer_support_ticket_transfers' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as TicketTransfer[];
+    },
+  });
+
   const usersById = useMemo(() => new Map(users.map((user) => [user.id, user])), [users]);
+  const transfersByTicketId = useMemo(() => {
+    const grouped = new Map<string, TicketTransfer[]>();
+    transfers.forEach((transfer) => grouped.set(transfer.ticket_id, [...(grouped.get(transfer.ticket_id) || []), transfer]));
+    return grouped;
+  }, [transfers]);
 
   const createTicket = useMutation({
     mutationFn: async () => {
@@ -183,6 +214,33 @@ export default function Support() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] }),
     onError: (error: any) => toast({ title: 'Ticket update failed', description: error.message, variant: 'destructive' }),
   });
+
+  const transferMutation = useMutation({
+    mutationFn: async () => {
+      if (!transferTicket || !transferTo) throw new Error('Select a transfer assignee.');
+      const { error } = await supabase.rpc('transfer_customer_support_ticket' as any, {
+        p_ticket_id: transferTicket.id,
+        p_to_user_id: transferTo,
+        p_transfer_reason: transferReason.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setTransferTicket(null);
+      setTransferTo('');
+      setTransferReason('');
+      queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_transfers'] });
+      toast({ title: 'Ticket transferred', description: 'Assignment history has been recorded.' });
+    },
+    onError: (error: any) => toast({ title: 'Ticket transfer failed', description: error.message, variant: 'destructive' }),
+  });
+
+  const openTransferDialog = (ticket: SupportTicket) => {
+    setTransferTicket(ticket);
+    setTransferTo('');
+    setTransferReason('');
+  };
 
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -257,7 +315,9 @@ export default function Support() {
         <div className="space-y-2">
           {isLoading ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-28 w-full" />) : filteredTickets.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground"><Headphones className="mx-auto mb-2 h-8 w-8 opacity-40" /><p className="text-sm">No support tickets found</p></CardContent></Card>
-          ) : filteredTickets.map((ticket) => (
+          ) : filteredTickets.map((ticket) => {
+            const ticketTransfers = transfersByTicketId.get(ticket.id) || [];
+            return (
             <Card key={ticket.id} className="overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -274,18 +334,47 @@ export default function Support() {
                       <span>Created: {format(new Date(ticket.created_at), 'dd MMM yyyy, HH:mm')}</span>
                       {ticket.resolved_at && <span>Resolved: {format(new Date(ticket.resolved_at), 'dd MMM yyyy, HH:mm')}</span>}
                     </div>
+                    {ticketTransfers.length > 0 && (
+                      <div className="space-y-1 rounded-md border border-border bg-muted/20 p-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5 font-medium text-foreground"><History className="h-3.5 w-3.5" /> Transfer history</div>
+                        {ticketTransfers.map((transfer) => (
+                          <div key={transfer.id} className="flex flex-wrap gap-x-1.5 gap-y-1">
+                            <span>{format(new Date(transfer.created_at), 'dd MMM, HH:mm')}:</span>
+                            <span>{userLabel(usersById.get(transfer.from_user_id || ''))}</span>
+                            <ArrowRight className="h-3 w-3" />
+                            <span>{userLabel(usersById.get(transfer.to_user_id))}</span>
+                            <span>by {userLabel(usersById.get(transfer.transferred_by))}</span>
+                            {transfer.transfer_reason && <span>• {transfer.transfer_reason}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="grid gap-2 sm:grid-cols-4 lg:w-[650px]">
                     {nextWorkflowStatus(ticket.status) && <Button variant="outline" className="h-8 text-xs" onClick={() => updateTicket.mutate({ id: ticket.id, patch: { status: nextWorkflowStatus(ticket.status) as TicketStatus, escalated: nextWorkflowStatus(ticket.status) === 'escalated' ? true : ticket.escalated } })}>Move to {statusLabels[nextWorkflowStatus(ticket.status) as TicketStatus]}</Button>}
                     <Select value={ticket.status} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { status: value as TicketStatus, escalated: value === 'escalated' ? true : ticket.escalated } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(statusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     <Select value={ticket.priority} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { priority: value as TicketPriority } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
-                    <Select value={ticket.assigned_to || 'unassigned'} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value === 'unassigned' ? null : value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>
+                    {ticket.assigned_to ? <Button variant="outline" className="h-8 text-xs" onClick={() => openTransferDialog(ticket)}><Repeat2 className="mr-1.5 h-3.5 w-3.5" /> Transfer</Button> : <Select value="unassigned" onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );})}
         </div>
+        <Dialog open={!!transferTicket} onOpenChange={(open) => !open && setTransferTicket(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Repeat2 className="h-4 w-4" /> Transfer ticket</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div className="rounded-md border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                <div className="font-mono font-medium text-foreground">{transferTicket?.order_number}</div>
+                <div>Current assignee: {userLabel(usersById.get(transferTicket?.assigned_to || ''))}</div>
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Transfer to</Label><Select value={transferTo} onValueChange={setTransferTo}><SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select assignee" /></SelectTrigger><SelectContent>{users.filter((user) => user.id !== transferTicket?.assigned_to).map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-1.5"><Label className="text-xs">Reason</Label><Textarea value={transferReason} onChange={(e) => setTransferReason(e.target.value)} placeholder="Reason for transfer" className="min-h-20 text-xs" maxLength={1000} /></div>
+            </div>
+            <DialogFooter><Button variant="outline" onClick={() => setTransferTicket(null)}>Cancel</Button><Button onClick={() => transferMutation.mutate()} disabled={!transferTo || transferMutation.isPending}>Transfer</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
   );
 

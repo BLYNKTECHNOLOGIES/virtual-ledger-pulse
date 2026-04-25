@@ -324,7 +324,7 @@ async function logDecision(supabase: any, params: {
     source: order.source || "unknown",
     metadata: { ...(metadata || {}), listOrdersFields: listOrderFieldMetadata(order) },
     notify_pay_time: binanceMsToIso(markPaidData?.notifyPayTime),
-    confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime),
+    confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime ?? order.confirmPayEndTime),
     complain_freeze_time: binanceMsToIso(markPaidData?.complainFreezeTime),
     mark_paid_order_status: markPaidData?.orderStatus == null ? null : String(markPaidData.orderStatus),
   });

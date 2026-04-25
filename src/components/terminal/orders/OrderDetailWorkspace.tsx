@@ -251,6 +251,27 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
+function deriveRelationshipRisk(registerDays: any, tradesWithUs30d: any) {
+  const days = registerDays === null || registerDays === undefined || registerDays === '' ? null : Number(registerDays);
+  const trades = tradesWithUs30d === null || tradesWithUs30d === undefined || tradesWithUs30d === '' ? null : Number(tradesWithUs30d);
+  const accountLabel = days === null || Number.isNaN(days)
+    ? 'Account age not returned'
+    : days < 7
+      ? 'Fresh Binance account'
+      : days < 30
+        ? 'New Binance account'
+        : 'Established Binance account';
+  const relationshipLabel = trades === null || Number.isNaN(trades)
+    ? 'Relationship count not returned'
+    : trades === 0
+      ? 'First-time counterparty'
+      : trades < 10
+        ? 'Known counterparty'
+        : 'Trusted recent counterparty';
+  const elevated = (days !== null && !Number.isNaN(days) && days < 30) || (trades !== null && !Number.isNaN(trades) && trades === 0);
+  return { days, trades, accountLabel, relationshipLabel, elevated };
+}
+
 function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot, commissionSnapshots }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any; commissionSnapshots?: any[] }) {
   const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
   const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
@@ -270,6 +291,13 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
     stats.completedOrderNumOfLatest30day !== undefined ||
     stats.registerDays !== undefined
   );
+  const storedStats = counterparty?.binance_counterparty_stats_raw || null;
+  const relationshipStats = hasApiStats ? stats : storedStats;
+  const relationshipRisk = deriveRelationshipRisk(
+    relationshipStats?.registerDays ?? counterparty?.binance_register_days,
+    relationshipStats?.numberOfTradesWithCounterpartyCompleted30day ?? counterparty?.binance_trades_with_us_30d
+  );
+  const hasRelationshipStats = relationshipStats || counterparty?.binance_counterparty_stats_captured_at;
   const riskSnapshot = buildRiskSnapshot(order.trade_type, liveDetail, storedRiskSnapshot?.counterparty_risk_snapshot);
 
   return (

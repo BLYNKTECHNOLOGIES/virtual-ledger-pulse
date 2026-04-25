@@ -143,6 +143,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         const msgType = msg.type || 'text';
         const isSelf = msg.self === true;
         const isImage = msgType === 'image';
+        const normalizedType = String(msgType).toLowerCase();
+        const isSystemLike = normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType);
         const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
         const content = msg.content || msg.message || '';
 
@@ -151,11 +153,14 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         return {
           id: `hist-${order.orderNumber}-${msg.id}`,
           source: 'binance' as const,
-          senderType: msgType === 'system' ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
+          senderType: isSystemLike ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
           text: isImage ? null : (content || null),
           imageUrl: effectiveImgUrl,
           timestamp: msg.createTime || 0,
           senderName: isSelf ? getSenderName(order.orderNumber, content) : null,
+          messageType: normalizedType,
+          isRecall: normalizedType === 'recall',
+          isComplianceRelevant: isSystemLike,
         };
       });
       return { order, messages: messages.sort((a, b) => a.timestamp - b.timestamp) };

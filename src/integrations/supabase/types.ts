@@ -12997,6 +12997,48 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_ad_risk_guard_logs: {
+        Row: {
+          accepted_payload: Json
+          actor_user_id: string | null
+          adv_nos: string[]
+          binance_response: Json
+          created_at: string
+          error_message: string | null
+          id: string
+          profile_name: string
+          requested_payload: Json
+          skipped_fields: Json
+          status: string
+        }
+        Insert: {
+          accepted_payload?: Json
+          actor_user_id?: string | null
+          adv_nos?: string[]
+          binance_response?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          profile_name: string
+          requested_payload?: Json
+          skipped_fields?: Json
+          status?: string
+        }
+        Update: {
+          accepted_payload?: Json
+          actor_user_id?: string | null
+          adv_nos?: string[]
+          binance_response?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          profile_name?: string
+          requested_payload?: Json
+          skipped_fields?: Json
+          status?: string
+        }
+        Relationships: []
+      }
       terminal_alternate_upi_requests: {
         Row: {
           created_at: string

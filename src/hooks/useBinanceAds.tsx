@@ -62,8 +62,17 @@ export interface BinanceAd {
   createTime?: string;
   updateTime?: string;
   buyerRegDaysLimit?: number | string;
+  buyerKycLimit?: number | string;
   buyerBtcPositionLimit?: number | string;
   takerAdditionalKycRequired?: number;
+  userTradeCompleteRateMin?: number | string;
+  userTradeCompleteCountMin?: number | string;
+  userTradeVolumeMin?: number | string;
+  userTradeVolumeMax?: number | string;
+  userBuyTradeCountMin?: number | string;
+  userSellTradeCountMin?: number | string;
+  userAllTradeCountMin?: number | string;
+  userAllTradeCountMax?: number | string;
   payTimeLimit?: number;
   onlineNow?: boolean;
   tags?: string[];
@@ -267,6 +276,23 @@ export function useUpdateAdStatus() {
         markAdBreakDetected(error.message);
       }
       toast({ title: 'Failed to Update Status', description: error.message, variant: 'destructive' });
+    },
+  });
+}
+
+export function useApplyAdRiskGuard() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ advNos, profileName, riskPayload }: { advNos: string[]; profileName: string; riskPayload: Record<string, any> }) =>
+      callBinanceAds('applyAdRiskGuard', { advNos, profileName, riskPayload }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
+      toast({ title: 'Risk Guard Applied', description: 'Selected ads were updated through Binance.' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Risk Guard Failed', description: error.message, variant: 'destructive' });
     },
   });
 }

@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Percent, Power, PowerOff, X, Blend } from 'lucide-react';
+import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert } from 'lucide-react';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 interface BulkActionToolbarProps {
@@ -9,6 +9,7 @@ interface BulkActionToolbarProps {
   onBulkEditLimits: () => void;
   onBulkFloatingPrice: () => void;
   onBulkHybridAdjust: () => void;
+  onBulkRiskGuard: () => void;
   onBulkActivate: () => void;
   onBulkDeactivate: () => void;
 }
@@ -19,6 +20,7 @@ export function BulkActionToolbar({
   onBulkEditLimits,
   onBulkFloatingPrice,
   onBulkHybridAdjust,
+  onBulkRiskGuard,
   onBulkActivate,
   onBulkDeactivate,
 }: BulkActionToolbarProps) {
@@ -60,6 +62,11 @@ export function BulkActionToolbar({
           Hybrid Adjust
         </Button>
       )}
+
+      <Button variant="outline" size="sm" onClick={onBulkRiskGuard} className="text-amber-500 border-amber-500/30">
+        <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+        Risk Guard
+      </Button>
 
       {hasOffline && (
         <Button variant="outline" size="sm" onClick={onBulkActivate} className="text-success border-success/30">

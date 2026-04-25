@@ -19,19 +19,17 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 const ticketSchema = z.object({
   orderNumber: z.string().trim().min(3).max(80),
   customerIssue: z.string().trim().min(5).max(2000),
-  priority: z.enum(['low', 'medium', 'high', 'urgent']),
   assignedTo: z.string().uuid().optional().nullable(),
 });
 
 type TicketStatus = 'open' | 'in_progress' | 'pending_customer' | 'resolved' | 'closed';
-type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 type SupportTicket = {
   id: string;
   order_number: string;
   customer_issue: string;
   status: TicketStatus;
-  priority: TicketPriority;
+  priority: 'high';
   assigned_to: string | null;
   created_by: string;
   escalated: boolean;
@@ -83,16 +81,9 @@ type TicketAttachment = {
 const statusLabels: Record<TicketStatus, string> = {
   open: 'Open',
   in_progress: 'In progress',
-  pending_customer: 'Pending customer',
+  pending_customer: 'Pending resolution',
   resolved: 'Resolved',
   closed: 'Closed',
-};
-
-const priorityLabels: Record<TicketPriority, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
 };
 
 const statusClasses: Record<TicketStatus, string> = {
@@ -101,13 +92,6 @@ const statusClasses: Record<TicketStatus, string> = {
   pending_customer: 'border-muted-foreground/30 bg-muted text-muted-foreground',
   resolved: 'border-success/30 bg-success/10 text-success',
   closed: 'border-muted-foreground/30 bg-muted text-muted-foreground',
-};
-
-const priorityClasses: Record<TicketPriority, string> = {
-  low: 'border-muted-foreground/30 text-muted-foreground',
-  medium: 'border-primary/30 text-primary',
-  high: 'border-destructive/30 text-destructive',
-  urgent: 'border-destructive bg-destructive/10 text-destructive',
 };
 
 const workflowStatuses: TicketStatus[] = ['open', 'in_progress', 'pending_customer', 'resolved', 'closed'];
@@ -132,7 +116,6 @@ export default function Support() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [orderNumber, setOrderNumber] = useState('');
   const [customerIssue, setCustomerIssue] = useState('');
-  const [priority, setPriority] = useState<TicketPriority>('medium');
   const [assignedTo, setAssignedTo] = useState('unassigned');
   const [formErrors, setFormErrors] = useState<Partial<Record<'orderNumber' | 'customerIssue', string>>>({});
   const [transferTicket, setTransferTicket] = useState<SupportTicket | null>(null);
@@ -219,7 +202,6 @@ export default function Support() {
       const parsed = ticketSchema.safeParse({
         orderNumber,
         customerIssue,
-        priority,
         assignedTo: assignedTo === 'unassigned' ? null : assignedTo,
       });
       if (!parsed.success) {
@@ -235,7 +217,7 @@ export default function Support() {
       const { error } = await supabase.from('customer_support_tickets' as any).insert({
         order_number: payload.orderNumber,
         customer_issue: payload.customerIssue,
-        priority: payload.priority,
+        priority: 'high',
         status: 'open',
         escalated: false,
         assigned_to: payload.assignedTo,
@@ -246,7 +228,6 @@ export default function Support() {
     onSuccess: () => {
       setOrderNumber('');
       setCustomerIssue('');
-      setPriority('medium');
       setAssignedTo('unassigned');
       setFormErrors({});
       queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] });
@@ -359,10 +340,9 @@ export default function Support() {
         <Card>
           <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><Plus className="h-4 w-4" /> New ticket</CardTitle></CardHeader>
           <CardContent>
-            <div className="grid gap-3 lg:grid-cols-[180px_1fr_150px_220px_auto] lg:items-start">
+            <div className="grid gap-3 lg:grid-cols-[180px_1fr_220px_auto] lg:items-start">
               <div className="space-y-1.5"><Label className="text-xs">Order Number</Label><Input value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)} placeholder="Order no." className="h-9 text-xs" aria-invalid={!!formErrors.orderNumber} />{formErrors.orderNumber && <p className="text-xs text-destructive">{formErrors.orderNumber}</p>}</div>
               <div className="space-y-1.5"><Label className="text-xs">Customer Issue</Label><Textarea value={customerIssue} onChange={(e) => setCustomerIssue(e.target.value)} placeholder="Describe issue raised by customer" className="min-h-20 text-xs" aria-invalid={!!formErrors.customerIssue} />{formErrors.customerIssue && <p className="text-xs text-destructive">{formErrors.customerIssue}</p>}</div>
-              <div className="space-y-1.5"><Label className="text-xs">Priority</Label><Select value={priority} onValueChange={(value) => setPriority(value as TicketPriority)}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1.5"><Label className="text-xs">Assign</Label><Select value={assignedTo} onValueChange={setAssignedTo}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select></div>
               <Button onClick={() => createTicket.mutate()} disabled={createTicket.isPending} className="h-9">Create</Button>
             </div>
@@ -439,7 +419,6 @@ export default function Support() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-sm font-semibold text-foreground">{ticket.order_number}</span>
                       <Badge variant="outline" className={statusClasses[ticket.status]}>{statusLabels[ticket.status]}</Badge>
-                      <Badge variant="outline" className={priorityClasses[ticket.priority]}>{priorityLabels[ticket.priority]}</Badge>
                       {ticket.escalated && <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">Escalated</Badge>}
                     </div>
                     <p className="whitespace-pre-wrap text-sm text-foreground">{ticket.customer_issue}</p>
@@ -493,7 +472,6 @@ export default function Support() {
                       <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
                       {ticket.escalated ? 'Escalated: On' : 'Escalated: Off'}
                     </Button>
-                    <Select value={ticket.priority} onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { priority: value as TicketPriority } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(priorityLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
                     {ticket.assigned_to ? <Button variant="outline" className="h-8 text-xs" onClick={() => openTransferDialog(ticket)}><Repeat2 className="mr-1.5 h-3.5 w-3.5" /> Transfer</Button> : <Select value="unassigned" onValueChange={(value) => updateTicket.mutate({ id: ticket.id, patch: { assigned_to: value } })}><SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger><SelectContent>{users.map((user) => <SelectItem key={user.id} value={user.id}>{userLabel(user)}</SelectItem>)}</SelectContent></Select>}
                   </div>
                 </div>

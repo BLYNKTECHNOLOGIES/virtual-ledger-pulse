@@ -234,7 +234,7 @@ export default function Support() {
       }
       setFormErrors({});
       const payload = parsed.data;
-      const { error } = await supabase.from('customer_support_tickets' as any).insert({
+      const { data: createdTicket, error } = await supabase.from('customer_support_tickets' as any).insert({
         order_number: payload.orderNumber,
         customer_issue: payload.customerIssue,
         priority: 'high',
@@ -242,8 +242,18 @@ export default function Support() {
         escalated: false,
         assigned_to: payload.assignedTo,
         created_by: userId,
-      });
+      }).select('id').single();
       if (error) throw error;
+      if (createdTicket?.id) {
+        const assignedLabel = payload.assignedTo ? userLabel(usersById.get(payload.assignedTo)) : 'Unassigned';
+        await supabase.from('customer_support_ticket_activities' as any).insert({
+          ticket_id: createdTicket.id,
+          activity_type: 'created',
+          actor_id: userId,
+          message: `Ticket created\nOrder: ${payload.orderNumber}\nStatus: ${statusLabels.open}\nAssigned: ${assignedLabel}\nIssue: ${truncateAuditValue(payload.customerIssue)}`,
+          metadata: { order_number: payload.orderNumber, status: 'open', assigned_to: payload.assignedTo, issue: payload.customerIssue },
+        });
+      }
     },
     onSuccess: () => {
       setOrderNumber('');
@@ -258,10 +268,64 @@ export default function Support() {
 
   const updateTicket = useMutation({
     mutationFn: async ({ id, patch }: { id: string; patch: Partial<SupportTicket> }) => {
+      if (!userId) throw new Error('User not authenticated');
+      const ticket = tickets.find((item) => item.id === id);
+      if (!ticket) throw new Error('Ticket not found');
+      const messages: Array<{ activity_type: TicketActivity['activity_type']; message: string; metadata: Record<string, unknown> }> = [];
+
+      if (patch.status && patch.status !== ticket.status) {
+        messages.push({
+          activity_type: 'status_change',
+          message: `Status changed from ${statusLabels[ticket.status]} to ${statusLabels[patch.status]}`,
+          metadata: { field: 'status', from: ticket.status, to: patch.status },
+        });
+      }
+      if (typeof patch.escalated === 'boolean' && patch.escalated !== ticket.escalated) {
+        messages.push({
+          activity_type: 'escalation',
+          message: patch.escalated ? 'Escalation flag turned on' : 'Escalation flag turned off',
+          metadata: { field: 'escalated', from: ticket.escalated, to: patch.escalated },
+        });
+      }
+      if ('assigned_to' in patch && patch.assigned_to !== ticket.assigned_to) {
+        messages.push({
+          activity_type: 'detail_change',
+          message: `Assignee changed from ${userLabel(usersById.get(ticket.assigned_to || ''))} to ${userLabel(usersById.get(patch.assigned_to || ''))}`,
+          metadata: { field: 'assigned_to', from: ticket.assigned_to, to: patch.assigned_to },
+        });
+      }
+      if (patch.customer_issue && patch.customer_issue !== ticket.customer_issue) {
+        messages.push({
+          activity_type: 'detail_change',
+          message: `Issue details updated\nFrom: ${truncateAuditValue(ticket.customer_issue)}\nTo: ${truncateAuditValue(patch.customer_issue)}`,
+          metadata: { field: 'customer_issue', from: ticket.customer_issue, to: patch.customer_issue },
+        });
+      }
+      if ('resolution_notes' in patch && patch.resolution_notes !== ticket.resolution_notes) {
+        messages.push({
+          activity_type: 'detail_change',
+          message: `Resolution notes updated\nFrom: ${truncateAuditValue(ticket.resolution_notes)}\nTo: ${truncateAuditValue(patch.resolution_notes)}`,
+          metadata: { field: 'resolution_notes', from: ticket.resolution_notes, to: patch.resolution_notes },
+        });
+      }
+
       const { error } = await supabase.from('customer_support_tickets' as any).update(patch).eq('id', id);
       if (error) throw error;
+      if (messages.length > 0) {
+        const { error: activityError } = await supabase.from('customer_support_ticket_activities' as any).insert(messages.map((entry) => ({
+          ticket_id: id,
+          actor_id: userId,
+          activity_type: entry.activity_type,
+          message: entry.message,
+          metadata: entry.metadata,
+        })));
+        if (activityError) throw activityError;
+      }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer_support_tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['customer_support_ticket_activities'] });
+    },
     onError: (error: any) => toast({ title: 'Ticket update failed', description: error.message, variant: 'destructive' }),
   });
 

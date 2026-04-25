@@ -27,6 +27,7 @@ import {
   UserCheck,
   CreditCard,
   Clock,
+  Headphones,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
@@ -51,6 +52,7 @@ const navItems: NavItem[] = [
   { title: 'MPI', url: '/terminal/mpi', icon: BarChart3, requiredPermission: 'terminal_mpi_view_own' },
   { title: 'Audit Logs', url: '/terminal/audit-logs', icon: ScrollText, requiredPermission: 'terminal_audit_logs_view' },
   { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, requiredPermission: 'terminal_kyc_view', comingSoon: true },
+  { title: 'Customer Support', url: '/terminal/support', icon: Headphones, requiredPermission: 'terminal_orders_escalate' },
   { title: 'Payer', url: '/terminal/payer', icon: CreditCard, requiredPermission: 'terminal_payer_view' },
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_logs_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },

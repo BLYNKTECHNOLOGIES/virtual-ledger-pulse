@@ -35,6 +35,7 @@ type NormalizedOrder = {
   unitPrice: number;
   effectiveUsdtQty: number;
   effectiveUsdtRate: number;
+  hasEffectiveValuation: boolean;
   createTime: number;
 };
 
@@ -56,6 +57,8 @@ type Bucket = {
 type Aggregate = {
   key: string;
   label: string;
+  description?: string;
+  details?: string[];
   tradeType?: string;
   asset?: string;
   count: number;
@@ -83,6 +86,32 @@ function fmtRate(n: number) {
   return Number.isFinite(n) && n > 0 ? `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—';
 }
 
+function fmtRange(min?: number | string, max?: number | string) {
+  const minValue = Number(min || 0);
+  const maxValue = Number(max || 0);
+  return minValue || maxValue ? `${fmtINR(minValue)}–${fmtINR(maxValue)}` : 'Limits not returned';
+}
+
+function getAdStatusText(status?: number) {
+  if (status === 1) return 'Active';
+  if (status === 2) return 'Private';
+  if (status === 3) return 'Inactive';
+  return 'Status not returned';
+}
+
+function getAdDetails(ad: any, fallback: NormalizedOrder[]) {
+  const tradeType = ad?.tradeType || ad?.trade_type || fallback[0]?.tradeType || '—';
+  const asset = ad?.asset || fallback[0]?.asset || 'USDT';
+  const priceTypeCode = Number(ad?.priceType ?? ad?.price_type ?? 0);
+  const priceType = priceTypeCode === 2 ? 'Floating' : priceTypeCode === 1 ? 'Fixed' : 'Price type not returned';
+  const methods = (ad?.tradeMethods || ad?.trade_methods || []).map((m: any) => m.tradeMethodName || m.identifier || m.payType).filter(Boolean).slice(0, 2).join(', ');
+
+  return {
+    description: `${tradeType} · ${asset} · ${getAdStatusText(Number(ad?.advStatus ?? ad?.adv_status))}`,
+    details: [`${priceType} ${fmtRate(Number(ad?.price || 0))}`, fmtRange(ad?.minSingleTransAmount ?? ad?.min_single_trans_amount, ad?.maxSingleTransAmount ?? ad?.max_single_trans_amount), methods || 'Payment methods not returned'],
+  };
+}
+
 function weightedRate(volume: number, quantity: number) {
   return quantity > 0 ? volume / quantity : 0;
 }
@@ -95,6 +124,8 @@ function average(values: number[]) {
 function getOrderRate(o: any) {
   const effectiveRate = Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0);
   if (Number.isFinite(effectiveRate) && effectiveRate > 0) return effectiveRate;
+  const asset = String(o.asset || 'USDT').toUpperCase();
+  if (!['USDT', 'USDC', 'FDUSD'].includes(asset)) return 0;
   const unit = Number(o.unitPrice || o.unit_price || 0);
   if (Number.isFinite(unit) && unit > 0) return unit;
   const amount = Number(o.amount || 0);
@@ -105,6 +136,8 @@ function getOrderRate(o: any) {
 function getEffectiveQuantity(o: any) {
   const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
   if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
+  const asset = String(o.asset || 'USDT').toUpperCase();
+  if (!['USDT', 'USDC', 'FDUSD'].includes(asset)) return 0;
   return Number(o.amount || 0);
 }
 
@@ -120,6 +153,7 @@ function normalizeOrder(o: any): NormalizedOrder {
     unitPrice: getOrderRate(o),
     effectiveUsdtQty: getEffectiveQuantity(o),
     effectiveUsdtRate: getOrderRate(o),
+    hasEffectiveValuation: Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0) > 0 && Number(o.effectiveUsdtRate || o.effective_usdt_rate || 0) > 0,
     createTime: Number(o.createTime || o.create_time || 0),
   };
 }
@@ -267,7 +301,8 @@ function DataRow({ item, showType = false }: { item: Aggregate; showType?: boole
     <div className="grid grid-cols-2 md:grid-cols-6 gap-3 items-center py-3 border-b border-border last:border-0 text-xs">
       <div className="min-w-0">
         <p className="font-medium text-foreground truncate">{item.label}</p>
-        {showType && <p className="text-[10px] text-muted-foreground truncate">{item.tradeType || '—'} · {item.asset || 'USDT'}</p>}
+        {showType && <p className="text-[10px] text-muted-foreground truncate">{item.description || `${item.tradeType || '—'} · ${item.asset || 'USDT'}`}</p>}
+        {showType && item.details?.length ? <p className="text-[10px] text-muted-foreground truncate">{item.details.join(' · ')}</p> : null}
       </div>
       <div><p className="text-muted-foreground text-[10px]">Orders</p><p className="font-semibold tabular-nums">{item.count}</p></div>
       <div><p className="text-muted-foreground text-[10px]">Volume</p><p className="font-semibold tabular-nums">{fmtINR(item.volume)}</p></div>
@@ -345,10 +380,11 @@ export default function TerminalAnalytics() {
       return aggregateOrders(advNo, advNo, rows, {
         tradeType: rows[0]?.tradeType || ad?.tradeType,
         asset: rows[0]?.asset || ad?.asset,
+        ...getAdDetails(ad, rows),
       });
     }).sort((a, b) => b.volume - a.volume);
 
-    const rates = completed.map((o) => o.unitPrice).filter((v) => Number.isFinite(v) && v > 0);
+    const rates = completed.map((o) => o.effectiveUsdtRate).filter((v) => Number.isFinite(v) && v > 0);
     const weightedBuyRate = weightedRate(buyVolume, buy.reduce((s, o) => s + o.effectiveUsdtQty, 0));
     const weightedSellRate = weightedRate(sellVolume, sell.reduce((s, o) => s + o.effectiveUsdtQty, 0));
 

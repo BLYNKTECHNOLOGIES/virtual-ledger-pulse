@@ -249,14 +249,14 @@ function buildEnrichmentPatch(existing: BeneficiaryRow, incoming: PaymentInfo): 
 }
 
 const BINANCE_STATUS_MAP: Record<number, string> = {
-  0: "PENDING",
   1: "TRADING",
   2: "BUYER_PAYED",
-  3: "DISTRIBUTING",
-  4: "COMPLETED",
-  5: "CANCELLED",
-  6: "CANCELLED_BY_SYSTEM",
-  7: "IN_APPEAL",
+  3: "BUYER_PAYED",
+  4: "BUYER_PAYED",
+  5: "COMPLETED",
+  6: "CANCELLED",
+  7: "CANCELLED",
+  8: "APPEAL",
 };
 
 function mapOrderStatus(rawStatus: unknown): string {

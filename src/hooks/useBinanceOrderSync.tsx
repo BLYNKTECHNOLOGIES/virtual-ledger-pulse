@@ -14,23 +14,33 @@ const GAP_FILL_INTERVAL_MS = 24 * 60 * 60 * 1000; // run gap-fill at most once p
 const DATA_RETENTION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
 const GAP_FILL_KEY = 'binance_order_gap_fill_last_at';
 
-// ---- DB Read: Get all cached orders for last 30 days ----
-export function useCachedOrderHistory() {
+type CachedOrderHistoryRange = {
+  startTimestamp?: number;
+  endTimestamp?: number;
+};
+
+// ---- DB Read: Get cached orders, optionally scoped to a selected analytics period ----
+export function useCachedOrderHistory(range: CachedOrderHistoryRange = {}) {
   return useQuery({
-    queryKey: ['cached-order-history'],
+    queryKey: ['cached-order-history', range.startTimestamp || null, range.endTimestamp || null],
     queryFn: async () => {
-      const cutoff = Date.now() - DATA_RETENTION_MS;
+      const cutoff = range.startTimestamp || Date.now() - DATA_RETENTION_MS;
       const allRows: any[] = [];
       const PAGE_SIZE = 1000;
       let from = 0;
 
       while (true) {
-      const { data, error } = await supabase
+        let query = supabase
           .from('binance_order_history')
           .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name')
           .gte('create_time', cutoff)
-          .order('create_time', { ascending: false })
-          .range(from, from + PAGE_SIZE - 1);
+          .order('create_time', { ascending: false });
+
+        if (range.endTimestamp) {
+          query = query.lte('create_time', range.endTimestamp);
+        }
+
+        const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
         allRows.push(...data);

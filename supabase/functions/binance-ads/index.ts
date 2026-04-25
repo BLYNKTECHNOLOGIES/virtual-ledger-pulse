@@ -80,6 +80,26 @@ function extractMarkPaidData(result: any) {
   return data && typeof data === "object" ? data : {};
 }
 
+function decodeCancelReason(code: unknown, fallback?: string | null): string | null {
+  const numeric = Number(code);
+  if (numeric === 4) return "Seller payment method issue";
+  if (numeric === 5) return "Other";
+  return fallback || (Number.isFinite(numeric) ? `Unknown Binance cancel reason ${numeric}` : null);
+}
+
+function extractCancelReason(detail: any) {
+  if (!detail || typeof detail !== "object") return null;
+  const code = detail.cancelReasonCode ?? detail.orderCancelReasonCode ?? detail.cancelReason;
+  const desc = detail.cancelReasonDesc ?? detail.cancelReasonDescription ?? detail.orderCancelReasonDesc ?? null;
+  const additional = detail.cancelReasonAdditional ?? detail.orderCancelAdditionalInfo ?? detail.cancelReasonAdditionalInfo ?? null;
+  if (code == null && !desc && !additional) return null;
+  return {
+    code: code == null || code === "" ? null : Number(code),
+    label: decodeCancelReason(code, desc),
+    additional: additional == null ? null : String(additional),
+  };
+}
+
 function getBusinessStatusLabel(status: unknown): string {
   const value = Number(status);
   if (value === 1) return "open";

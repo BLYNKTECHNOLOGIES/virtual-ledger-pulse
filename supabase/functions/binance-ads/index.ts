@@ -173,6 +173,49 @@ async function persistMerchantStateSnapshot(supabase: any, data: any, source = "
   if (error) throw error;
 }
 
+function normalizeAdStatePayload(ad: any) {
+  const detail = ad?.adDetailResp && typeof ad.adDetailResp === "object" ? { ...ad.adDetailResp, ...ad } : ad;
+  if (!detail || typeof detail !== "object") return null;
+  const advNo = detail.advNo || detail.adsNo || detail.advNoStr;
+  if (!advNo) return null;
+  return {
+    adv_no: String(advNo),
+    asset: detail.asset || null,
+    trade_type: detail.tradeType || null,
+    price_type: toNumeric(detail.priceType),
+    adv_status: toNumeric(detail.advStatus),
+    price: toNumeric(detail.price),
+    price_floating_ratio: toNumeric(detail.priceFloatingRatio),
+    init_amount: toNumeric(detail.initAmount),
+    surplus_amount: toNumeric(detail.surplusAmount),
+    min_single_trans_amount: toNumeric(detail.minSingleTransAmount),
+    max_single_trans_amount: toNumeric(detail.maxSingleTransAmount),
+    adv_visible_ret: detail.advVisibleRet || null,
+    raw_payload: detail,
+  };
+}
+
+async function persistAdStateSnapshot(supabase: any, ad: any, source = "ad_detail", ruleId?: string | null) {
+  const normalized = normalizeAdStatePayload(ad);
+  if (!normalized) return { persisted: false, reason: "missing_adv_no" };
+  const { error } = await supabase.from("binance_ad_state_snapshots").insert({
+    ...normalized,
+    rule_id: ruleId || null,
+    snapshot_source: source,
+  });
+  if (error) throw error;
+  return {
+    persisted: true,
+    advNo: normalized.adv_no,
+    source,
+    fieldsPresent: {
+      surplusAmount: normalized.surplus_amount !== null,
+      initAmount: normalized.init_amount !== null,
+      price: normalized.price !== null,
+    },
+  };
+}
+
 function unwrapCounterpartyStats(result: any) {
   return result?.data?.data || result?.data || result;
 }

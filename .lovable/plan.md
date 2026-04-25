@@ -1,237 +1,126 @@
-# Gap 5 Analysis — Binance `ads/update` Extended Fields
+# Plan: Binance Cancel Reason Hardening and Counterparty Intelligence
 
-## Verdict
+## Assessment
 
-Claude’s finding is partially useful, but it overstates the current gap.
+Claude’s finding is useful, but only partly.
 
-The project is not only using 5 fields. The manual Ad Manager already sends several important `ads/update` fields during edit/create, including:
+What is confirmed in this project:
+- `binance-ads` already forwards `orderCancelReasonCode` and `orderCancelAdditionalInfo` to Binance `POST /sapi/v1/c2c/orderMatch/cancelOrder`.
+- The current UI cancel flow does not ask for a reason at all, so the API is usually called without a reason code.
+- `getOrderDetail` already persists the raw Binance order detail into `binance_order_history.order_detail_raw`, but it does not extract cancel fields into first-class columns.
+- `p2p_counterparties` already supports `is_flagged` and `flag_reason`, but there is no cancellation-reason-based flagging logic.
 
-- `initAmount`
-- `minSingleTransAmount`
-- `maxSingleTransAmount`
-- `tradeMethods`
-- `payTimeLimit`
-- `advStatus`
-- `buyerKycLimit`
-- `buyerRegDaysLimit`
-- `buyerBtcPositionLimit`
-- `takerAdditionalKycRequired`
-- `autoReplyMsg`
-- `remarks`
-- price fields
+Your business rule overrides the broad enum: operators should only be offered these two cancellation reasons:
+- Code 4: Seller’s payment method issue
+- Code 5: Other
 
-The real gap is narrower and operationally important:
+Codes 1, 2, 3, and 6 should not be selectable in the ERP cancel UI. Because code 4 is the only operator-selected problematic seller signal in your allowed workflow, automatic flagging should be based on repeated code-4 cancellations, not codes 3/4/6.
 
-1. The auto-price engine only updates price/ratio and does not explicitly set `updateMode`.
-2. The project does not yet have a controlled way to bulk-tighten Binance buyer/taker requirements during risky windows.
-3. Some Binance-supported taker requirement fields are not surfaced in the UI/type model.
-4. We should not blindly automate risk tightening until Binance API/proxy support and exact accepted payload rules are verified.
+## Implementation Scope
 
-## How this is useful for Blynkex
+### 1. UI cancel flow
+Update `OrderActions.tsx` cancellation dialog for BUY orders so operators must choose one of only two Binance-supported reasons:
 
-This can be useful as an operations safety control, not as a fully automatic fraud-score system.
-
-Instead of immediately pausing ads during high-risk periods, authorized terminal managers could apply a “Risk Guard” profile to selected ads:
-
-- Require Binance KYC buyer: `buyerKycLimit = 1`
-- Require extra taker KYC: `takerAdditionalKycRequired = 1`
-- Require older Binance account: `buyerRegDaysLimit`
-- Require buyer BTC holding: `buyerBtcPositionLimit`, if Binance still accepts it
-- Tighten completion-rate / completed-trade thresholds only if official API/proxy confirms those fields are accepted
-- Optionally reduce max order size through `maxSingleTransAmount`
-- Optionally shorten/standardize `payTimeLimit`
-
-This preserves revenue from trusted counterparties while lowering exposure to new or suspicious takers.
-
-## What not to implement in this phase
-
-To stay aligned with your earlier exemptions and Binance-source-of-truth rule, this phase will not implement:
-
-- Automated fraud scoring from chat/order signals
-- Auto-applying risk profiles without human approval
-- Appeal evidence export
-- Compliance-only audit pages
-- Dummy/manual fields that Binance does not support
-
-## Implementation Plan
-
-### 1. Validate Binance API and proxy support first
-
-Before changing UI or database workflows, verify the official Binance documentation and the current proxy behavior for `/api/sapi/v1/c2c/ads/update`.
-
-Confirm:
-
-- Exact allowed `updateMode` values: `selective`, `full`, `quickedit`, or whatever Binance currently documents.
-- Whether `quickedit` is safe for price-only updates.
-- Whether extended taker fields are accepted on `update` or only on `post`.
-- Whether `buyerKycLimit`, `buyerRegDaysLimit`, `buyerBtcPositionLimit`, and `takerAdditionalKycRequired` can be changed after ad creation.
-- Whether the completion-rate / trade-volume fields listed by Claude are actually accepted by this proxy and account scope.
-- Whether omitted fields remain unchanged in `selective`/`quickedit`, or whether Binance expects full ad detail for updates.
-
-If any field is not API/proxy supported, it will be excluded and shown as out of Binance API scope rather than simulated.
-
-### 2. Harden the existing `updateAd` edge function action
-
-Update `supabase/functions/binance-ads/index.ts` so `updateAd` has a safe payload builder instead of forwarding arbitrary `payload.adData` directly.
-
-The builder will:
-
-- Whitelist only Binance-supported update fields.
-- Preserve numeric type conversion.
-- Reject unknown fields with a clear error in strict modes.
-- Support `updateMode` only after validation.
-- Default price-only engine updates to the safest verified mode:
-  - likely `quickedit` for price-only if confirmed by Binance/proxy;
-  - otherwise continue current behavior.
-- Continue mapping private ads carefully because project status `2` is synthetic and Binance only accepts native statuses.
-
-### 3. Add `updateMode` to price-only automation
-
-Update `supabase/functions/auto-price-engine/index.ts` so all price-only update calls include a verified lightweight mode.
-
-Example target behavior:
-
-```ts
-adData.updateMode = 'quickedit'; // only if officially supported
+```text
+4 — Seller’s payment method issue
+5 — Other
 ```
 
-This applies to:
+Additional behavior:
+- Require a reason before final confirmation.
+- Show an optional notes field for code 5 and for operational context.
+- Keep the existing two-step destructive confirmation pattern using `AlertDialog`.
+- Submit `orderCancelReasonCode` and `orderCancelAdditionalInfo` through the existing `useCancelOrder()` mutation.
 
-- competitor-based price updates
-- resting price/ratio updates
-- any other auto-price calls that only change `price`, `priceFloatingRatio`, and `priceType`
+### 2. Server-side validation
+Harden `supabase/functions/binance-ads/index.ts` so `cancelOrder` accepts only allowed reason codes `4` and `5` from this ERP.
 
-This is useful even without dynamic risk controls because it reduces the chance of accidentally overwriting non-price ad settings.
+If any other code is sent by a manipulated frontend, return a clear 400-style error and do not call Binance.
 
-### 4. Extend Ad Manager type model and manual edit support
+This avoids relying on UI-only restrictions.
 
-Update frontend ad models and edit dialog only for fields confirmed from Binance/proxy.
+### 3. Decode and store cancellation reasons
+Add first-class cancellation reason fields to `binance_order_history` and `p2p_order_records`:
+- `cancel_reason_code`
+- `cancel_reason_label`
+- `cancel_reason_additional`
+- `cancel_reason_source` (`operator_cancel`, `binance_order_detail`, or `unknown`)
+- `cancel_reason_captured_at`
 
-Likely additions:
+The label mapping will be conservative and API-aligned:
 
-- `buyerKycLimit`
-- `userTradeCompleteRateMin`
-- `userTradeCompleteCountMin`
-- `userTradeVolumeMin`
-- `userTradeVolumeMax`
-- `userBuyTradeCountMin`
-- `userSellTradeCountMin`
-- `userAllTradeCountMin`
-- `userAllTradeCountMax`
-- `updateMode`
-
-The UI should display unavailable/null Binance-returned fields as “Not returned by Binance” and should not infer defaults.
-
-### 5. Add manual “Risk Guard” bulk profile action
-
-Add a controlled bulk action in Ad Manager for selected ads:
-
-- “Apply Risk Guard”
-- “Relax Risk Guard” or “Restore standard filters” only if we store/know the previous Binance values from live ad detail
-
-Initial profile examples:
-
-**Moderate Guard**
-- KYC required
-- Additional KYC required
-- Minimum account age: configurable
-- Max order size: configurable
-
-**Strict Guard**
-- KYC required
-- Additional KYC required
-- Higher account age
-- Higher completed trade count / completion rate only if API-supported
-- Lower max single transaction amount
-
-Important: the first version should be manually triggered by authorized users, not automatically triggered by risk signals.
-
-### 6. Persist risk profile application audit logs
-
-Create a small audit table for operational accountability, not as Binance source-of-truth.
-
-Purpose:
-
-- Who applied a guard profile
-- Which ads were targeted
-- What payload was sent to Binance
-- What Binance returned
-- Whether any field was skipped because Binance/proxy did not support it
-
-This table should not replace Binance ad details. Binance remains source of truth.
-
-Suggested table:
-
-```sql
-terminal_ad_risk_guard_logs
-- id uuid
-- actor_user_id uuid
-- profile_name text
-- adv_nos text[]
-- requested_payload jsonb
-- accepted_payload jsonb
-- skipped_fields jsonb
-- binance_response jsonb
-- status text
-- error_message text
-- created_at timestamptz
+```text
+4 = Seller’s payment method issue
+5 = Other
+unknown = preserve raw code without guessing
 ```
 
-RLS:
+If Binance order detail returns `cancelReasonDesc` / `cancelReasonAdditional`, store those as Binance-provided cancellation intelligence. Do not infer missing values.
 
-- Read: terminal orders/ad-manager/audit permissions
-- Insert: service role / authorized edge function only
+### 4. Persist our own operator cancellation reason immediately
+After a successful `cancelOrder` call:
+- Save the selected reason code, decoded label, and notes to `binance_order_history` when the order exists locally.
+- Also update `p2p_order_records` if present.
+- Preserve the raw Binance response for audit where existing logging supports it.
 
-### 7. Permission gate the feature
+This gives the ERP a reliable audit trail even if the later order detail response is sparse.
 
-Only users with terminal management permissions should apply these changes.
+### 5. Capture counterparty-side / Binance-returned cancel reasons from order detail
+Enhance the existing `getOrderDetail` persistence path:
+- Extract `cancelReasonDesc`, `cancelReasonAdditional`, and any available code-like cancel field from the raw Binance detail object.
+- Store exactly what Binance returns.
+- Keep the raw `order_detail_raw` unchanged as the source of truth.
 
-Use existing terminal permission patterns, likely one or more of:
+If Binance returns null or omits the fields, the UI should show “Not returned by Binance,” not a guessed reason.
 
-- `terminal_orders_manage`
-- `terminal_automation_manage`
-- a more specific existing ad-manager permission if present
+### 6. Counterparty risk rule for repeated payment-method cancellations
+Implement a database-side helper that flags a counterparty only when repeated operator cancellations use code 4.
 
-No client-side-only authorization. Edge function must validate the caller’s JWT and permissions server-side before applying bulk risk guard updates.
+Suggested default threshold:
+- Flag after 2 code-4 BUY cancellations against the same Binance nickname within 30 days.
 
-### 8. Add safe operator UX
+Flag result:
+- `p2p_counterparties.is_flagged = true`
+- Append a clear `flag_reason`, e.g. `Repeated seller payment method issue cancellations: 2 in 30 days`
 
-In Ad Manager:
+Code 5 (`Other`) should be stored for audit, but should not auto-flag by itself because it is too broad.
 
-- Show current counterparty conditions per ad where Binance returns them.
-- Add a bulk toolbar action for “Risk Guard”.
-- Show exactly which Binance fields will be changed before submission.
-- Show unsupported fields separately as unavailable.
-- Use `AlertDialog`, not `confirm()`.
-- Avoid automatic restore unless previous live values are available.
+### 7. UI visibility
+Surface cancellation intelligence in the terminal without creating a separate compliance page:
+- In cancelled order rows/details, display the decoded cancel reason.
+- If `cancel_reason_source = binance_order_detail`, label it as Binance-returned.
+- If the counterparty is auto-flagged due to code-4 repeats, show the existing flagged counterparty indicator/reason where counterparty data is already displayed.
 
-### 9. Verification
+## Out of Scope / Not Implemented
+
+- Codes 1, 2, 3, and 6 will not be offered in the UI, per your instruction.
+- No fraud scoring engine.
+- No appeal evidence export.
+- No compliance-only audit page.
+- No manual synthetic Binance cancel data. If Binance does not return a field, the system will display it as unavailable.
+
+## Technical Notes
+
+Files likely to change:
+- `src/components/terminal/orders/OrderActions.tsx`
+- `src/hooks/useBinanceActions.tsx`
+- `supabase/functions/binance-ads/index.ts`
+- Supabase migration for cancel reason columns, indexes, and helper function/trigger
+- Type usage updates where needed, without manually editing generated Supabase types unless the environment regenerates them
+
+Security/data-integrity rules:
+- Server validates allowed cancel codes, not just the UI.
+- Existing destructive confirmation pattern remains.
+- RLS remains enforced; persistence from edge function uses service role internally only.
+- No hardcoded user identity strings; audit actor stays tied to authenticated flow/logging already in use.
+
+## Verification Plan
 
 After implementation:
-
-- Test one price-only update with `updateMode` in dry/safe mode first.
-- Test one selected ad with a minimal confirmed Risk Guard payload.
-- Re-fetch `getAdDetail` after update and compare returned fields.
-- Confirm unsupported fields are not sent again after failure.
-- Confirm audit logs are written with actual actor UUIDs, not hardcoded users.
-
-## Technical files likely affected
-
-- `supabase/functions/binance-ads/index.ts`
-- `supabase/functions/auto-price-engine/index.ts`
-- `src/hooks/useBinanceAds.tsx`
-- `src/components/ad-manager/CreateEditAdDialog.tsx`
-- `src/components/ad-manager/BulkActionToolbar.tsx`
-- New component for Risk Guard bulk dialog
-- New migration for `terminal_ad_risk_guard_logs`, only if implementation confirms bulk guard audit logging is needed
-
-## Expected outcome
-
-The useful implementation is not “use all 27 fields everywhere.”
-
-The useful implementation is:
-
-1. Price automation becomes safer by using verified `updateMode` for price-only edits.
-2. Operators get a controlled manual risk-tightening tool for Binance ads.
-3. The system respects Binance as source of truth and does not invent unsupported controls.
-4. Every risk-control update is auditable and permission-gated.
+- Confirm the UI only presents codes 4 and 5.
+- Confirm cancellation cannot be submitted without a selected reason.
+- Confirm a manipulated request with code 1/2/3/6 is rejected before reaching Binance.
+- Confirm code 4/5 are forwarded to the Binance proxy with the correct field names.
+- Confirm cancel reason fields are persisted for local order records.
+- Confirm repeated code-4 cancellations flag the counterparty, while code-5-only cancellations do not auto-flag.
+- Confirm missing Binance detail cancel fields render as unavailable rather than guessed.

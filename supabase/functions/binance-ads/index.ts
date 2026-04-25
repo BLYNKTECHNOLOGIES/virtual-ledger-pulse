@@ -80,6 +80,26 @@ function extractMarkPaidData(result: any) {
   return data && typeof data === "object" ? data : {};
 }
 
+function decodeCancelReason(code: unknown, fallback?: string | null): string | null {
+  const numeric = Number(code);
+  if (numeric === 4) return "Seller payment method issue";
+  if (numeric === 5) return "Other";
+  return fallback || (Number.isFinite(numeric) ? `Unknown Binance cancel reason ${numeric}` : null);
+}
+
+function extractCancelReason(detail: any) {
+  if (!detail || typeof detail !== "object") return null;
+  const code = detail.cancelReasonCode ?? detail.orderCancelReasonCode ?? detail.cancelReason;
+  const desc = detail.cancelReasonDesc ?? detail.cancelReasonDescription ?? detail.orderCancelReasonDesc ?? null;
+  const additional = detail.cancelReasonAdditional ?? detail.orderCancelAdditionalInfo ?? detail.cancelReasonAdditionalInfo ?? null;
+  if (code == null && !desc && !additional) return null;
+  return {
+    code: code == null || code === "" ? null : Number(code),
+    label: decodeCancelReason(code, desc),
+    additional: additional == null ? null : String(additional),
+  };
+}
+
 function getBusinessStatusLabel(status: unknown): string {
   const value = Number(status);
   if (value === 1) return "open";
@@ -718,14 +738,26 @@ serve(async (req) => {
               .eq("order_number", String(payload.orderNumber))
               .maybeSingle();
             if (existing) {
+              const cancelReason = extractCancelReason(detail);
+              const cancelUpdate = cancelReason ? {
+                cancel_reason_code: cancelReason.code,
+                cancel_reason_label: cancelReason.label,
+                cancel_reason_additional: cancelReason.additional,
+                cancel_reason_source: "binance_order_detail",
+                cancel_reason_captured_at: new Date().toISOString(),
+              } : {};
               await supabase
                 .from("binance_order_history")
                 .update({
                   order_detail_raw: detail,
                   counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, existing.trade_type),
                   counterparty_risk_captured_at: new Date().toISOString(),
+                  ...cancelUpdate,
                 })
                 .eq("order_number", String(payload.orderNumber));
+              if (cancelReason) {
+                await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));
+              }
               await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber));
             }
           } catch (persistErr) {
@@ -839,16 +871,45 @@ serve(async (req) => {
       case "cancelOrder": {
         // POST /sapi/v1/c2c/orderMatch/cancelOrder
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/cancelOrder`;
+        const reasonCode = Number(payload.orderCancelReasonCode);
+        if (![4, 5].includes(reasonCode)) {
+          result = { code: "INVALID_CANCEL_REASON", message: "Only Seller payment method issue (4) and Other (5) cancellation reasons are allowed." };
+          break;
+        }
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
-        if (payload.orderCancelReasonCode !== undefined) body.orderCancelReasonCode = payload.orderCancelReasonCode;
+        body.orderCancelReasonCode = reasonCode;
         if (payload.orderCancelAdditionalInfo) body.orderCancelAdditionalInfo = payload.orderCancelAdditionalInfo;
         console.log("cancelOrder body:", JSON.stringify(body));
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
         const text = await response.text();
         console.log("cancelOrder response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (payload.orderNumber && (result?.code === "000000" || result?.success === true) && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const cancelUpdate = {
+              cancel_reason_code: reasonCode,
+              cancel_reason_label: decodeCancelReason(reasonCode),
+              cancel_reason_additional: payload.orderCancelAdditionalInfo ? String(payload.orderCancelAdditionalInfo) : null,
+              cancel_reason_source: "operator_cancel",
+              cancel_reason_captured_at: new Date().toISOString(),
+            };
+            await supabase.from("binance_order_history").update(cancelUpdate).eq("order_number", String(payload.orderNumber));
+            const { data: orderRecord } = await supabase
+              .from("p2p_order_records")
+              .update(cancelUpdate)
+              .eq("binance_order_number", String(payload.orderNumber))
+              .select("counterparty_nickname, trade_type")
+              .maybeSingle();
+            if (reasonCode === 4 && orderRecord?.trade_type === "BUY") {
+              await supabase.rpc("flag_counterparty_for_payment_method_cancellations", { _nickname: orderRecord.counterparty_nickname });
+            }
+          } catch (persistErr) {
+            console.warn("cancelOrder reason persist failed:", persistErr);
+          }
+        }
         break;
       }
 

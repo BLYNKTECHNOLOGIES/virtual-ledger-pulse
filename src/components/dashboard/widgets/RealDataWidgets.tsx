@@ -17,6 +17,16 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart as
 
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#F97316"];
 
+const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
+
+const normalizeExpenseCategory = (category?: string | null, description?: string | null) => {
+  const descriptionText = String(description || '').toLowerCase();
+  if (category === PAYOUT_GATEWAY_FEE_CATEGORY || descriptionText.includes('payout gateway fee')) {
+    return 'Payout Gateway Fee';
+  }
+  return category || 'Uncategorized';
+};
+
 // ── Customer Growth Widget ──
 export function CustomerGrowthWidget() {
   const { data, isLoading } = useQuery({
@@ -206,13 +216,13 @@ export function ExpenseBreakdownWidget() {
       const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const catMap: Record<string, number> = {};
       (data || []).forEach((t: any) => {
-        const cat = t.category || 'Uncategorized';
+        const cat = normalizeExpenseCategory(t.category, t.description);
         if (excludeCategories.includes(cat)) return;
         catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount));
       });
       const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);
       const totalExpense = Object.values(catMap).reduce((s, v) => s + v, 0);
-      const recentItems = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).slice(0, 5).map((t: any) => ({
+      const recentItems = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).slice(0, 5).map((t: any) => ({
         desc: t.description || t.category || 'Expense',
         amount: Math.abs(Number(t.amount)),
         date: t.transaction_date,

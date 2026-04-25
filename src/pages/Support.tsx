@@ -122,6 +122,8 @@ export default function Support() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const [myAssignmentsOnly, setMyAssignmentsOnly] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
   const [customerIssue, setCustomerIssue] = useState('');
   const [assignedTo, setAssignedTo] = useState('unassigned');
@@ -315,15 +317,41 @@ export default function Support() {
   const filteredTickets = useMemo(() => {
     const q = search.trim().toLowerCase();
     return tickets.filter((ticket) => {
+      if (activeTab === 'active' && isCompletedTicket(ticket)) return false;
+      if (activeTab === 'completed' && !isCompletedTicket(ticket)) return false;
+      if (myAssignmentsOnly && ticket.assigned_to !== userId) return false;
       if (statusFilter !== 'all' && ticket.status !== statusFilter) return false;
       if (!q) return true;
       return ticket.order_number.toLowerCase().includes(q) || ticket.customer_issue.toLowerCase().includes(q);
     });
-  }, [tickets, search, statusFilter]);
+  }, [tickets, search, statusFilter, activeTab, myAssignmentsOnly, userId]);
 
-  const openCount = tickets.filter((ticket) => !['resolved', 'closed'].includes(ticket.status)).length;
+  const completedTickets = useMemo(() => tickets.filter(isCompletedTicket), [tickets]);
+  const openCount = tickets.filter((ticket) => !isCompletedTicket(ticket)).length;
   const escalatedCount = tickets.filter((ticket) => ticket.escalated).length;
-  const resolvedCount = tickets.filter((ticket) => ['resolved', 'closed'].includes(ticket.status)).length;
+  const resolvedCount = completedTickets.length;
+
+  const exportCompletedCsv = () => {
+    const rows = completedTickets.map((ticket) => [
+      ticket.order_number,
+      statusLabels[ticket.status],
+      userLabel(usersById.get(ticket.assigned_to || '')),
+      ticket.escalated ? 'Yes' : 'No',
+      ticket.customer_issue,
+      format(new Date(ticket.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      ticket.resolved_at ? format(new Date(ticket.resolved_at), 'yyyy-MM-dd HH:mm:ss') : '',
+      format(new Date(ticket.updated_at), 'yyyy-MM-dd HH:mm:ss'),
+    ]);
+    const csv = [['Order Number', 'Status', 'Assigned To', 'Escalated', 'Customer Issue', 'Created At', 'Resolved At', 'Updated At'], ...rows]
+      .map((row) => row.map(csvCell).join(','))
+      .join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `completed-support-tickets-${format(new Date(), 'yyyyMMdd-HHmmss')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const content = (
       <div className="space-y-4 p-4 md:p-6">

@@ -103,7 +103,7 @@ export function OrderActions({
         />
       )}
 
-      {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
+      {tradeType === 'BUY' && ['Pending Payment', 'Releasing'].includes(opStatus) && (
         <CancelOrderAction orderNumber={orderNumber} />
       )}
     </div>

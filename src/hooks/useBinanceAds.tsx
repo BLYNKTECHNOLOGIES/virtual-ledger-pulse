@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
+import { clearAdBreakDetected, markAdBreakDetected } from '@/hooks/useAdRestTimer';
 
 // Binance C2C ad status codes
 // Binance API returns advStatus: 1 for both Online and Private ads.
@@ -225,6 +226,7 @@ export function useUpdateAdStatus() {
     mutationFn: ({ advNos, advStatus, fromPrivate }: { advNos: string[]; advStatus: number; fromPrivate?: boolean }) =>
       callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }),
     onSuccess: (_data, vars) => {
+      clearAdBreakDetected();
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Status Updated', description: 'Ad status has been updated.' });
       const actionType = vars.advNos.length > 1 ? AdActionTypes.AD_BULK_STATUS_CHANGED : AdActionTypes.AD_STATUS_CHANGED;
@@ -237,6 +239,9 @@ export function useUpdateAdStatus() {
       }
     },
     onError: (error: Error) => {
+      if (/break|rest/i.test(error.message)) {
+        markAdBreakDetected(error.message);
+      }
       toast({ title: 'Failed to Update Status', description: error.message, variant: 'destructive' });
     },
   });

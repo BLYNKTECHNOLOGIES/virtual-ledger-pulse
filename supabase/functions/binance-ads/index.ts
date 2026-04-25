@@ -61,6 +61,17 @@ function toNumeric(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function binanceMsToIso(value: unknown): string | null {
+  const ms = Number(value || 0);
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  return new Date(ms).toISOString();
+}
+
+function extractMarkPaidData(result: any) {
+  const data = result?.data?.data || result?.data || result;
+  return data && typeof data === "object" ? data : {};
+}
+
 function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId: string) {
   if (!detail || typeof detail !== "object" || !sourceId) return [];
   const list = Array.isArray(detail.tradeMethodCommissionRateVoList) ? detail.tradeMethodCommissionRateVoList : [];
@@ -522,6 +533,27 @@ serve(async (req) => {
         const text = await response.text();
         console.log("markOrderAsPaid response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const markPaidData = extractMarkPaidData(result);
+        if (payload.orderNumber && (result?.code === "000000" || result?.success === true) && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            await supabase.from("p2p_auto_pay_log").insert({
+              order_number: String(payload.orderNumber),
+              action: "manual_mark_paid",
+              status: "success",
+              decision_reason: "manual_mark_paid",
+              raw_status: markPaidData?.orderStatus == null ? null : String(markPaidData.orderStatus),
+              source: "binance_ads_manual",
+              metadata: { markPaidResult: result, payId: payload.payId ?? null },
+              notify_pay_time: binanceMsToIso(markPaidData?.notifyPayTime),
+              confirm_pay_end_time: binanceMsToIso(markPaidData?.confirmPayEndTime),
+              complain_freeze_time: binanceMsToIso(markPaidData?.complainFreezeTime),
+              mark_paid_order_status: markPaidData?.orderStatus == null ? null : String(markPaidData.orderStatus),
+            });
+          } catch (persistErr) {
+            console.warn("markOrderAsPaid response timestamp persist failed:", persistErr);
+          }
+        }
         break;
       }
 

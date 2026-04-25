@@ -1,16 +1,22 @@
-Plan
+I understand the frustration. The previous change centered the flex container, but it did not account for the visual imbalance caused by the checkmark glyph and font line-box rendering in html2canvas, so the badge can still look off-center in the generated PNG.
 
-1. Update the receipt template used by the terminal auto-screenshot flow
-   - Modify `src/components/payer/ReceiptTemplate.tsx`, which is the shared receipt UI used by `captureReceiptPng()` and therefore by the automatic terminal order screenshot sender.
+Plan:
 
-2. Fix the Completed badge alignment
-   - Adjust the top green header status bubble so `✓ Completed` is centered both horizontally and vertically inside the translucent rounded bubble.
-   - Replace the current absolute-positioned tick layout with a normal centered inline-flex layout to avoid the text appearing off-center in the generated PNG.
+1. Replace the text checkmark with a controlled icon container
+   - Update `src/components/payer/ReceiptTemplate.tsx`.
+   - Stop relying on the raw `✓` text glyph for alignment.
+   - Render the checkmark inside a fixed-size circular/flex box so its height, width, and baseline do not shift the `Completed` text.
 
-3. Rename the transaction label
-   - Change the row label from `UPI Transaction ID` to `Payout ID`.
-   - Keep the existing generated ID/value logic unchanged unless a later requirement says the actual source of the ID should change.
+2. Make the badge layout deterministic for screenshot capture
+   - Give the bubble a fixed height and stable min width.
+   - Use `inline-flex`, `alignItems: center`, and `justifyContent: center` on the bubble.
+   - Set every child’s height/display explicitly instead of depending on font baseline behavior.
+   - Use `boxSizing: border-box` and avoid line-height tricks that html2canvas can render inconsistently.
 
-4. Verify the change
-   - Run a TypeScript/build check after editing.
-   - Visually inspect the receipt rendering path where feasible to ensure the badge is centered and the label reads `Payout ID` before finalizing.
+3. Preserve the current receipt design
+   - Keep the green header, translucent bubble, amount, date, and `Payout ID` label unchanged.
+   - Only adjust the internal alignment of the `Completed` badge.
+
+4. Verify before final response
+   - Run the project TypeScript/build check.
+   - Where possible, inspect the rendered badge path so the icon and text are centered both vertically and horizontally in the bubble used by the automatic terminal screenshot flow.

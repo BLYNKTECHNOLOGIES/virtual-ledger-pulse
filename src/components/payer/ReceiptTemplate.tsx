@@ -79,21 +79,37 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "5px",
+            gap: "6px",
             background: "rgba(255,255,255,0.2)",
             borderRadius: "20px",
-            padding: "0 18px",
+            padding: "0 16px",
             minWidth: "118px",
             height: "26px",
+            boxSizing: "border-box",
             fontSize: "12px",
             fontWeight: 600,
             marginTop: "10px",
-            lineHeight: "26px",
+            lineHeight: 1,
             textAlign: "center",
+            verticalAlign: "top",
           }}
         >
-          <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>✓</span>
-          <span style={{ display: "inline-flex", alignItems: "center", lineHeight: 1 }}>Completed</span>
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "12px",
+              height: "12px",
+              flex: "0 0 12px",
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>
+              <path d="M2.5 6.15L4.85 8.5L9.5 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", height: "12px", lineHeight: "12px" }}>Completed</span>
         </div>
         <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>
           {formatDateTime(data.dateTime)}

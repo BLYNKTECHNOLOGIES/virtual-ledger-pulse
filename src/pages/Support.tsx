@@ -287,15 +287,18 @@ export default function Support() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><ClipboardList className="h-4 w-4" /> Ticket status workflow</CardTitle></CardHeader>
+          <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><ClipboardList className="h-4 w-4" /> Ticket lifecycle workflow</CardTitle></CardHeader>
           <CardContent>
-            <div className="flex flex-wrap items-center gap-2">
-              {workflowStatuses.map((status, index) => (
-                <div key={status} className="flex items-center gap-2">
-                  <Badge variant="outline" className={statusClasses[status]}>{index + 1}. {statusLabels[status]}</Badge>
-                  {index < workflowStatuses.length - 1 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                </div>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {workflowStatuses.map((status, index) => (
+                  <div key={status} className="flex items-center gap-2">
+                    <Badge variant="outline" className={statusClasses[status]}>{index + 1}. {statusLabels[status]}</Badge>
+                    {index < workflowStatuses.length - 1 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </div>
+                ))}
+              </div>
+              <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive"><AlertTriangle className="mr-1 h-3 w-3" /> Escalated flag</Badge>
             </div>
           </CardContent>
         </Card>

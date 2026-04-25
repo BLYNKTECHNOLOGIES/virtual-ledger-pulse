@@ -239,6 +239,7 @@ serve(async (req) => {
             .eq("order_number", order.order_number);
 
           if (!updateErr) {
+            await persistCommissionRateSnapshots(supabase, detail, "order_detail", order.order_number);
             enriched++;
           } else {
             console.warn(`Update failed for ${order.order_number}:`, updateErr);

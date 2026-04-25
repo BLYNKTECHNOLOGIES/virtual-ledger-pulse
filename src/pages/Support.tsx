@@ -497,34 +497,6 @@ export default function Support() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-sm"><History className="h-4 w-4" /> Assignment history</CardTitle></CardHeader>
-          <CardContent>
-            {transfers.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No ticket transfers recorded yet.</p>
-            ) : (
-              <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                {transfers.map((transfer) => {
-                  const ticket = tickets.find((item) => item.id === transfer.ticket_id);
-                  return (
-                    <div key={transfer.id} className="grid gap-2 rounded-md border border-border bg-muted/20 p-3 text-xs md:grid-cols-[180px_1fr_220px] md:items-center">
-                      <div className="font-mono font-medium text-foreground">{ticket?.order_number || 'Unknown ticket'}</div>
-                      <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-muted-foreground">
-                        <span className="text-foreground">{userLabel(usersById.get(transfer.from_user_id || ''))}</span>
-                        <ArrowRight className="h-3 w-3" />
-                        <span className="text-foreground">{userLabel(usersById.get(transfer.to_user_id))}</span>
-                        <span>transferred by</span>
-                        <span className="text-foreground">{userLabel(usersById.get(transfer.transferred_by))}</span>
-                      </div>
-                      <div className="text-right font-mono text-muted-foreground">{format(new Date(transfer.created_at), 'dd MMM yyyy, HH:mm:ss')}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         <div className="space-y-2">
           {isLoading ? Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-28 w-full" />) : filteredTickets.length === 0 ? (
             <Card><CardContent className="py-12 text-center text-muted-foreground"><Headphones className="mx-auto mb-2 h-8 w-8 opacity-40" /><p className="text-sm">No support tickets found</p></CardContent></Card>

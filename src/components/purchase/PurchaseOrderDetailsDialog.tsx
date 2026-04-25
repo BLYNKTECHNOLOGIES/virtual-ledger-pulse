@@ -87,13 +87,18 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     queryFn: async () => {
       const { data: feeRows, error } = await supabase
         .from('bank_transactions')
-        .select('id, amount, bank_account_id, description, transaction_date')
+        .select('id, amount, bank_account_id, category, description, transaction_date')
         .eq('reference_number', order.order_number)
-        .eq('transaction_type', 'EXPENSE')
-        .or(`category.eq.${PAYOUT_GATEWAY_FEE_CATEGORY},description.ilike.%Payout gateway fee%`);
+        .eq('transaction_type', 'EXPENSE');
       if (error || !feeRows?.length) return [];
 
-      const bankIds = [...new Set(feeRows.map((row: any) => row.bank_account_id).filter(Boolean))];
+      const payoutFeeRows = feeRows.filter((row: any) =>
+        row.category === PAYOUT_GATEWAY_FEE_CATEGORY ||
+        String(row.description || '').toLowerCase().includes('payout gateway fee')
+      );
+      if (!payoutFeeRows.length) return [];
+
+      const bankIds = [...new Set(payoutFeeRows.map((row: any) => row.bank_account_id).filter(Boolean))];
       const { data: banks } = bankIds.length
         ? await supabase
           .from('bank_accounts')
@@ -102,7 +107,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
         : { data: [] } as any;
 
       const bankMap = new Map((banks || []).map((bank: any) => [bank.id, bank]));
-      return feeRows.map((row: any) => ({
+      return payoutFeeRows.map((row: any) => ({
         ...row,
         bank_accounts: bankMap.get(row.bank_account_id) || null,
       }));

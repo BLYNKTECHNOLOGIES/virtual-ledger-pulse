@@ -80,6 +80,35 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     enabled: !!order?.id,
   });
 
+  const { data: payoutGatewayFees = [] } = useQuery({
+    queryKey: ['purchase_payout_gateway_fees', order?.order_number],
+    queryFn: async () => {
+      const { data: feeRows, error } = await supabase
+        .from('bank_transactions')
+        .select('id, amount, bank_account_id, description, transaction_date')
+        .eq('reference_number', order.order_number)
+        .eq('transaction_type', 'EXPENSE')
+        .eq('category', 'finance_banking_compliance')
+        .ilike('description', '%Payout gateway fee%');
+      if (error || !feeRows?.length) return [];
+
+      const bankIds = [...new Set(feeRows.map((row: any) => row.bank_account_id).filter(Boolean))];
+      const { data: banks } = bankIds.length
+        ? await supabase
+          .from('bank_accounts')
+          .select('id, account_name, bank_name, account_number')
+          .in('id', bankIds)
+        : { data: [] } as any;
+
+      const bankMap = new Map((banks || []).map((bank: any) => [bank.id, bank]));
+      return feeRows.map((row: any) => ({
+        ...row,
+        bank_accounts: bankMap.get(row.bank_account_id) || null,
+      }));
+    },
+    enabled: !!order?.order_number,
+  });
+
   // Get product code for this order
   const productCode = order?.product_category || order?.purchase_order_items?.[0]?.products?.code || 'USDT';
   const isNonUsdt = productCode !== 'USDT';
@@ -96,6 +125,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
 
   const effectiveRate = storedMarketRate || liveCoinRate;
   const isLiveRate = !storedMarketRate && !!liveCoinRate;
+  const payoutGatewayFeeTotal = payoutGatewayFees.reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0);
 
   if (!order) return null;
 
@@ -269,6 +299,41 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
                   <label className="text-sm font-medium text-amber-700 dark:text-amber-500">Fee Amount (USDT)</label>
                   <p className="text-sm text-amber-900 dark:text-amber-300 font-medium">{Number(order.fee_amount || 0).toFixed(4)} USDT</p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {payoutGatewayFees.length > 0 && (
+            <div className="p-4 bg-muted/50 rounded-lg border border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-primary" />
+                Payout Gateway Fee
+              </h3>
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Total Fee</label>
+                  <p className="text-sm text-foreground font-medium">₹{payoutGatewayFeeTotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Entries</label>
+                  <p className="text-sm text-foreground font-medium">{payoutGatewayFees.length}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {payoutGatewayFees.map((fee: any) => (
+                  <div key={fee.id} className="flex items-center justify-between p-2.5 rounded-md border bg-background">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{fee.bank_accounts?.account_name || 'Bank account not found'}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {fee.bank_accounts ? `${fee.bank_accounts.bank_name} - ${fee.bank_accounts.account_number}` : fee.description}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-sm font-mono font-medium shrink-0">₹{Number(fee.amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}

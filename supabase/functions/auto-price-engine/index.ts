@@ -241,6 +241,47 @@ async function updateCircuitBreaker(supabase: any, currentState: any, successes:
   }
 }
 
+function getBusinessStatusLabel(status: unknown): string {
+  const value = Number(status);
+  if (value === 1) return "open";
+  if (value === 2) return "closed";
+  if (value === 3) return "take_break";
+  return "unknown";
+}
+
+async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
+  try {
+    const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const resp = await fetch(binanceAdsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      body: JSON.stringify({ action: "refreshMerchantState" }),
+    });
+    const payload = await resp.json();
+    const data = payload?.data?.data?.data || payload?.data?.data || payload?.data;
+    const businessStatus = Number(data?.businessStatus ?? payload?.data?.normalized?.businessStatus);
+    const label = getBusinessStatusLabel(businessStatus);
+    await supabase.from("ad_pricing_engine_state").update({
+      merchant_business_status: Number.isFinite(businessStatus) ? businessStatus : null,
+      merchant_business_status_label: label,
+      merchant_state_checked_at: new Date().toISOString(),
+      merchant_state_diagnostic: Number.isFinite(businessStatus) ? reason : "merchant_status_unavailable",
+      updated_at: new Date().toISOString(),
+    }).eq("id", "singleton");
+    console.log(`[merchant-state] ${reason}: ${label}`);
+  } catch (err) {
+    console.warn("[merchant-state] diagnostic refresh failed:", err);
+    await supabase.from("ad_pricing_engine_state").update({
+      merchant_business_status: null,
+      merchant_business_status_label: "unknown",
+      merchant_state_checked_at: new Date().toISOString(),
+      merchant_state_diagnostic: "merchant_status_unavailable",
+      updated_at: new Date().toISOString(),
+    }).eq("id", "singleton");
+  }
+}
+
 async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;

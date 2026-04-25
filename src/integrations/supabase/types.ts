@@ -9480,7 +9480,12 @@ export type Database = {
       }
       p2p_counterparties: {
         Row: {
+          binance_counterparty_stats_captured_at: string | null
+          binance_counterparty_stats_order_number: string | null
+          binance_counterparty_stats_raw: Json | null
           binance_nickname: string
+          binance_register_days: number | null
+          binance_trades_with_us_30d: number | null
           created_at: string
           first_seen_at: string
           flag_reason: string | null
@@ -9496,7 +9501,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          binance_counterparty_stats_captured_at?: string | null
+          binance_counterparty_stats_order_number?: string | null
+          binance_counterparty_stats_raw?: Json | null
           binance_nickname: string
+          binance_register_days?: number | null
+          binance_trades_with_us_30d?: number | null
           created_at?: string
           first_seen_at?: string
           flag_reason?: string | null
@@ -9512,7 +9522,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          binance_counterparty_stats_captured_at?: string | null
+          binance_counterparty_stats_order_number?: string | null
+          binance_counterparty_stats_raw?: Json | null
           binance_nickname?: string
+          binance_register_days?: number | null
+          binance_trades_with_us_30d?: number | null
           created_at?: string
           first_seen_at?: string
           flag_reason?: string | null

@@ -930,11 +930,21 @@ serve(async (req) => {
 
       // ==================== USER ====================
       case "getUserDetail": {
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/user/userDetail`;
+        const endpoint = "/api/sapi/v1/c2c/user/baseDetail";
+        const url = `${BINANCE_PROXY_URL}${endpoint}`;
         const response = await fetch(url, { method: "POST", headers: proxyHeaders });
         const text = await response.text();
-        console.log("getUserDetail response:", response.status, text.substring(0, 500));
+        console.log("getUserDetail baseDetail response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        result._diagnostics = { endpoint, method: "POST", httpStatus: response.status };
+        const userData = result?.data?.data || result?.data;
+        if (response.ok && result?.code === "000000" && (!userData || typeof userData !== "object" || Object.keys(userData).length === 0)) {
+          result = {
+            code: "EMPTY_BASE_DETAIL",
+            message: "Binance baseDetail returned no usable user data.",
+            _diagnostics: { endpoint, method: "POST", httpStatus: response.status },
+          };
+        }
         break;
       }
 

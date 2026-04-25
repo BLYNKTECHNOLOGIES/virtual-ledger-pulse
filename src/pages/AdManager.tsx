@@ -14,6 +14,7 @@ import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPri
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
+import { MerchantStateCard } from '@/components/ad-manager/MerchantStateCard';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
 export default function AdManager() {
@@ -73,6 +74,7 @@ export default function AdManager() {
     <div className="space-y-6 p-4 md:p-6">
       {/* Rest Timer Banner — visible to all when active */}
       <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
+      <MerchantStateCard />
 
       {/* Header */}
       <div className="flex items-center justify-between">

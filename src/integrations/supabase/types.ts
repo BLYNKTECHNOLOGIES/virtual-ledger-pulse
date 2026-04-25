@@ -1460,6 +1460,75 @@ export type Database = {
         }
         Relationships: []
       }
+      binance_order_chat_messages: {
+        Row: {
+          binance_create_time: number | null
+          binance_created_at: string | null
+          binance_message_id: string | null
+          binance_uuid: string | null
+          captured_at: string
+          chat_message_type: string | null
+          id: string
+          image_url: string | null
+          is_compliance_relevant: boolean
+          is_recall: boolean
+          is_system_message: boolean
+          message_status: string | null
+          message_text: string | null
+          message_type: string
+          order_number: string
+          raw_payload: Json
+          sender_is_self: boolean | null
+          sender_nickname: string | null
+          thumbnail_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          binance_create_time?: number | null
+          binance_created_at?: string | null
+          binance_message_id?: string | null
+          binance_uuid?: string | null
+          captured_at?: string
+          chat_message_type?: string | null
+          id?: string
+          image_url?: string | null
+          is_compliance_relevant?: boolean
+          is_recall?: boolean
+          is_system_message?: boolean
+          message_status?: string | null
+          message_text?: string | null
+          message_type?: string
+          order_number: string
+          raw_payload?: Json
+          sender_is_self?: boolean | null
+          sender_nickname?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          binance_create_time?: number | null
+          binance_created_at?: string | null
+          binance_message_id?: string | null
+          binance_uuid?: string | null
+          captured_at?: string
+          chat_message_type?: string | null
+          id?: string
+          image_url?: string | null
+          is_compliance_relevant?: boolean
+          is_recall?: boolean
+          is_system_message?: boolean
+          message_status?: string | null
+          message_text?: string | null
+          message_type?: string
+          order_number?: string
+          raw_payload?: Json
+          sender_is_self?: boolean | null
+          sender_nickname?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       binance_order_history: {
         Row: {
           adv_no: string | null

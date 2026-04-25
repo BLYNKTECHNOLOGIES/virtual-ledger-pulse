@@ -1,0 +1,8 @@
+DROP POLICY IF EXISTS "authenticated_all_binance_commission_rate_snapshots" ON public.binance_commission_rate_snapshots;
+DROP POLICY IF EXISTS "service_all_binance_commission_rate_snapshots" ON public.binance_commission_rate_snapshots;
+
+CREATE POLICY "authenticated_read_binance_commission_rate_snapshots"
+ON public.binance_commission_rate_snapshots
+FOR SELECT
+TO authenticated
+USING (true);

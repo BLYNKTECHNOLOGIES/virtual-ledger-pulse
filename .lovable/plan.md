@@ -1,158 +1,170 @@
-Plan to implement Binance counterparty risk-detail capture and UI
+## Assessment
 
-I agree with the finding: the system already calls `getUserOrderDetail`, but only uses it for verified name in `enrich-order-names`. The live terminal profile also calls `getOrderDetail`, but the extra maker/taker risk fields are not normalized, persisted, or displayed usefully. This is a real data-capture gap.
+Claude's finding is useful, but only if implemented as a snapshot and audit feature, not as a replacement for dedicated pre-ad commission APIs.
 
-What I will implement
+What I verified in our project:
+- We already call these relevant Binance/proxy endpoints:
+  - `orderMatch/listOrders` via `listActiveOrders`
+  - `orderMatch/getUserOrderDetail` via `getOrderDetail`
+  - `ads/getDetailByNo` via `getAdDetail` and ad listing enrichment
+- Live `getAdDetail` currently returns `commissionRate` and `tradeMethodCommissionRateVoList` for the ad. Example verified response includes:
+  - `commissionRate: "0.00105"`
+  - `tradeMethodCommissionRateVoList: [{ tradeMethodIdentifier: "UPI", tradeMethodName: "UPI", commissionRate: "0.00105" }]`
+- Stored `order_detail_raw` rows also already contain `commissionRate`, `takerCommissionRate`, `commission`, `takerCommission`, and `tradeMethodCommissionRateVoList`.
+- Current DB only stores final commission amount as text (`commission`), plus raw JSON. There is no normalized commission-rate snapshot table/columns.
 
-1. Validate and normalize the Binance payload shape
-- Keep using the existing supported proxy endpoint:
-  `POST /sapi/v1/c2c/orderMatch/getUserOrderDetail`
-- Use the existing `binance-ads` edge function action `getOrderDetail`, which already sends both `adOrderNo` and `orderNo`.
-- Add a small normalizer that chooses the actual counterparty object based on our side of trade:
-  - Our BUY order: counterparty is seller/maker-or-taker depending on Binance payload role.
-  - Our SELL order: counterparty is buyer/maker-or-taker depending on Binance payload role.
-- Avoid guessing fields that Binance does not return. If a field is absent/null, the UI will show “Not provided by Binance”, not inferred values.
+Important limitation:
+- This does not fully solve “know the exact rate before creating a brand-new ad/payment-method combination” unless Binance/proxy supports the dedicated commission-rate endpoints.
+- Existing responses are still valuable because they give point-in-time proof of what rate Binance returned for actual ads/orders.
 
-2. Store the extra order-detail snapshot
-- Add structured columns to `binance_order_history` so completed/historical orders keep the snapshot instead of losing it:
-  - `order_detail_raw jsonb` — raw `getUserOrderDetail` response detail for audit/debug.
-  - `counterparty_risk_snapshot jsonb` — normalized risk/stats/KYC subset used by UI and future risk scoring.
-  - `counterparty_risk_captured_at timestamptz`.
-- This keeps order-level snapshots because values like credit score, complaints, in-progress appeal counts, and risk flags can change over time. It is safer than only overwriting the master `p2p_counterparties` row.
-- No secrets or credentials will be stored.
+## Why this is useful for our ERP/terminal flow
 
-3. Update enrichment so it captures more than verified name
-- Update `supabase/functions/enrich-order-names/index.ts` to:
-  - Continue filling `verified_name`.
-  - Store `order_detail_raw` and `counterparty_risk_snapshot` for every order it processes.
-  - Process orders that are missing either verified name or risk snapshot, not just `verified_name IS NULL`.
-  - Include completed orders and recent terminal-relevant orders where detail is available.
-- Preserve rate limiting and retry behavior.
+1. Platform fee accuracy/audit
+   - We have had multiple commission/fee correction migrations before. A normalized snapshot lets us prove whether the final `commission` amount matches Binance rate × order amount.
 
-4. Capture snapshots during live terminal usage as well
-- Update `supabase/functions/binance-ads/index.ts` action `getOrderDetail` to return the full detail as it does now, and optionally persist a normalized snapshot to `binance_order_history` when an `orderNumber` is provided.
-- This means operators opening an order profile will also help fill missing snapshots without waiting for the enrichment job.
-- If the order is not yet in `binance_order_history`, the function will return live data only and not create fake/manual records.
+2. Drift detection
+   - If Binance changes UPI/IMPS/bank transfer commission rates, we can detect it from normal terminal traffic without extra API calls.
 
-5. Add a “View more Binance data” section in the order profile
-- Update `OrderDetailWorkspace.tsx` profile panel.
-- Keep the current profile clean by default.
-- Add a small button/accordion: “View more Binance data”.
-- Only after clicking, show organized sections:
-  - Risk warnings:
-    - maliceInitiatorCount
-    - complaintCount
-    - overComplained
-    - inAppealCount
-    - inAppealCountAfterBuyerPaid
-    - buyerCreditScore/sellerCreditScore or normalized counterparty credit score
-  - Historical stats:
-    - accountAge/register days
-    - appealed counts and appeal rates
-    - finish rates
-    - avg pay/release time
-    - counterparty count
-  - Current activity load:
-    - tradingCount
-    - inProcessCount
-    - buyerPayedCount
-    - active appeal counters
-  - KYC snapshot:
-    - kycLevel, kycStatus, identityStatus, faceStatus, addressStatus, certificateStatus
-    - kycType/companyName if provided
-    - Name fields only if Binance provides them for that order
-  - Raw/source metadata:
-    - captured timestamp
-    - “Live from Binance” vs “Stored snapshot”
-- High-risk signals will be highlighted, especially:
-  - `maliceInitiatorCount > 0`
-  - `inAppealCountAfterBuyerPaid > 0`
-  - `overComplained = true`
-  - high complaint/appeal counts
+3. Ad profitability view
+   - Ad Manager can show the current Binance commission rate per payment method directly on each ad.
+   - Operators can understand net effective rate after platform fee.
 
-6. Add reusable hooks/types for terminal profile data
-- Extend `useBinanceActions.tsx` / terminal hooks to expose:
-  - live order detail from Binance
-  - stored risk snapshot fallback from `binance_order_history`
-  - normalized `counterpartyRiskSnapshot`
-- Update TypeScript interfaces in local code. I will not manually edit generated Supabase types unless the build requires regeneration patterns already used in this repo.
+4. Order profile transparency
+   - In the existing “View more Binance data” profile area, we can show:
+     - selected payment method
+     - maker/taker commission rate
+     - actual commission charged
+     - expected commission based on captured rate
+     - mismatch warning if different
 
-7. Keep risk-detection integration ready, but do not silently auto-block yet
-- I will not immediately change order assignment, payer filtering, or client risk classification based only on this new data without a separate rule design, because that could disrupt operations.
-- I will surface the strongest Binance risk signals in the profile first.
-- The normalized snapshot will make it straightforward to later update the risk-detection edge function with explicit thresholds after you approve the policy.
+5. Future commission-rate API support
+   - If/when dedicated endpoints are confirmed and proxy-supported, they can feed the same table for pre-ad posting. Until then we only use verified Binance-returned data from existing calls.
 
-Technical details
+## Implementation plan
 
-Expected database migration:
-```sql
-alter table public.binance_order_history
-  add column if not exists order_detail_raw jsonb,
-  add column if not exists counterparty_risk_snapshot jsonb,
-  add column if not exists counterparty_risk_captured_at timestamptz;
+### 1. Add normalized storage for commission snapshots
 
-create index if not exists idx_binance_order_history_risk_snapshot_gin
-  on public.binance_order_history using gin (counterparty_risk_snapshot);
-```
+Create a new table, not just hidden JSON fields, so it can be queried and audited:
 
-Normalized snapshot shape will be similar to:
 ```text
-{
-  source: "getUserOrderDetail",
-  counterpartySide: "buyer" | "seller",
-  topLevel: {
-    maliceInitiatorCount,
-    complaintCount,
-    overComplained,
-    buyerCreditScore,
-    sellerCreditScore,
-    isRiskCount,
-    idNumberMasked
-  },
-  historyStats: {
-    accountAge,
-    appealedOrderCountHistorical,
-    appealedOrderCountLast30Days,
-    appealedRateHistorical,
-    appealedRateLast30Days,
-    creditScore,
-    avgPayTime,
-    avgReleaseTime,
-    counterpartyNum,
-    finishRate,
-    finishRateLatest30Day
-  },
-  inProgressStats: {
-    inAppealCount,
-    inAppealCountAfterBuyerPaid,
-    inAppealCountAfterCancelled,
-    inAppealCountAfterCompleted,
-    buyerPayedCount,
-    tradingCount,
-    inProcessCount
-  },
-  kyc: {
-    kycLevel,
-    kycStatus,
-    identityStatus,
-    faceStatus,
-    addressStatus,
-    certificateStatus,
-    kycType,
-    firstName,
-    middleName,
-    lastName,
-    companyName
-  }
-}
+binance_commission_rate_snapshots
+- id uuid primary key
+- source_type text              -- ad_detail, order_detail, active_order_list
+- source_id text                -- advNo or orderNumber
+- order_number text nullable
+- adv_no text nullable
+- trade_type text nullable
+- asset text default USDT
+- fiat_unit text default INR
+- pay_method_identifier text nullable
+- pay_method_name text nullable
+- pay_id text nullable
+- maker_commission_rate numeric nullable
+- taker_commission_rate numeric nullable
+- effective_commission_rate numeric nullable
+- actual_commission_amount numeric nullable
+- commission_asset text nullable
+- total_price numeric nullable
+- amount numeric nullable
+- raw_snapshot jsonb not null
+- captured_at timestamptz default now()
+- unique(source_type, source_id, pay_method_identifier, coalesce(pay_id,''))
 ```
 
-Important handling for sensitive fields
-- If Binance returns `idNumber`, I will not display it fully in the UI. I will mask it and store only a masked/limited representation in the normalized snapshot unless existing raw audit storage is explicitly required. The raw response column is useful for audit, but I will avoid exposing raw sensitive identifiers in the terminal UI.
+Also add helpful indexes by `adv_no`, `order_number`, `pay_method_identifier`, and `captured_at`.
 
-Validation after implementation
+### 2. Add a shared extractor in `binance-ads`
+
+Implement normalization that safely extracts from whichever Binance response has the fields:
+
+- `tradeMethodCommissionRateVoList[]`
+- top-level `commissionRate`
+- `takerCommissionRate`
+- `commission`
+- `takerCommission`
+- `tradeMethods[]` / `payMethods[]`
+- `selectedPayId` / `payId`
+
+Rules:
+- Use Binance-returned values only.
+- If fields are missing/empty, store nothing and show “Not provided by Binance”.
+- Do not infer commission rates from final commission amount unless clearly labelled as a derived audit calculation in UI.
+
+### 3. Capture snapshots where data already flows
+
+Update `supabase/functions/binance-ads/index.ts`:
+
+- `getAdDetail`
+  - After successful response, normalize and upsert ad-level commission snapshots.
+  - This is best for Ad Manager because it captures current rate per payment method on each ad.
+
+- `getOrderDetail`
+  - Extend the existing `order_detail_raw` persistence to also upsert order-level commission snapshots.
+  - This is best for actual order audit.
+
+- `listActiveOrders`
+  - If `listOrders` response includes commission-rate data, capture it too.
+  - If the proxy response does not include it in practice, do not fabricate anything.
+
+Optional in same pass:
+- `enrich-order-names`
+  - When it calls `getUserOrderDetail` for completed orders, also persist commission snapshots so historical completed orders get covered during enrichment.
+
+### 4. Backfill from already stored raw JSON
+
+Add a safe SQL backfill/function or one-time migration that reads existing:
+- `binance_order_history.raw_data`
+- `binance_order_history.order_detail_raw`
+
+and inserts snapshots where commission fields exist.
+
+This avoids needing to re-call Binance for every historical order.
+
+### 5. Add frontend hooks
+
+Add hooks in `useBinanceActions.tsx` / ad hooks:
+
+- `useOrderCommissionSnapshots(orderNumber)`
+- `useAdCommissionSnapshots(advNo)`
+- optional dashboard hook for latest rate by payment method
+
+These should query the normalized table, not scan raw JSON in the browser.
+
+### 6. UI placement
+
+#### Order profile
+In `OrderDetailWorkspace.tsx`, inside the existing “View more Binance data” expanded section, add a “Commission snapshot” card:
+
+- Payment method
+- Maker commission rate
+- Taker commission rate
+- Effective rate used
+- Actual commission charged by Binance
+- Estimated commission from rate, only as an audit comparison
+- Difference/mismatch badge if outside a small tolerance
+- Captured timestamp and source (`getUserOrderDetail`, `listOrders`, etc.)
+
+#### Ad Manager
+For each ad/detail panel:
+
+- Show “Binance commission rate” near payment methods.
+- Show rate per payment method if `tradeMethodCommissionRateVoList` exists.
+- Show “Not provided by Binance” if absent.
+- Optionally show estimated net price after commission for operator awareness, clearly labelled as estimate.
+
+### 7. Guardrails and validation
+
+- Do not implement fake/dummy commission rates.
+- Do not hardcode UPI/IMPS rates.
+- Do not use this as a substitute for pre-ad rates unless the official endpoint/proxy is verified.
+- Treat raw Binance response as source of truth.
+- Add mismatch warnings only, not automatic ledger corrections.
 - Run TypeScript check.
-- Deploy/test updated edge functions.
-- Call `binance-ads/getOrderDetail` on an existing order and verify the response still works.
-- Verify `binance_order_history` updates only existing Binance-origin records and does not create fake/manual order data.
-- Confirm the profile shows the compact view by default and reveals the extra sections only after “View more Binance data” is clicked.
+- Test deployed edge function with:
+  - `getAdDetail` for a known ad
+  - `getOrderDetail` for a known order
+  - DB read query confirming snapshots were inserted
+
+## Expected result
+
+After implementation, we will have a commission-rate snapshot book built from actual Binance responses we already receive. It will improve auditability, operator visibility, and fee drift detection with minimal extra API usage, while staying compliant with the rule that Binance must be the source of truth.

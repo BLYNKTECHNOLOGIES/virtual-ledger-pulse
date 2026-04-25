@@ -55,6 +55,63 @@ function normalizeOrderRiskSnapshot(detail: any, tradeType?: string | null) {
   };
 }
 
+function toNumeric(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId: string) {
+  if (!detail || typeof detail !== "object" || !sourceId) return [];
+  const list = Array.isArray(detail.tradeMethodCommissionRateVoList) ? detail.tradeMethodCommissionRateVoList : [];
+  const methods = Array.isArray(detail.tradeMethods) ? detail.tradeMethods : Array.isArray(detail.payMethods) ? detail.payMethods : [];
+  const entries = list.length > 0 ? list : methods.length > 0 ? methods : [{}];
+  const hasCommissionData = list.length > 0 || detail.commissionRate !== undefined || detail.takerCommissionRate !== undefined || detail.commission !== undefined || detail.takerCommission !== undefined;
+  if (!hasCommissionData) return [];
+
+  return entries.map((entry: any, index: number) => {
+    const method = methods.find((m: any) =>
+      String(m.identifier || m.payType || m.tradeMethodName || m.payId || "") === String(entry.tradeMethodIdentifier || entry.identifier || entry.payType || entry.tradeMethodName || entry.payId || "")
+    ) || methods[index] || {};
+    const effectiveRate = toNumeric(entry.commissionRate ?? detail.commissionRate ?? detail.takerCommissionRate);
+    return {
+      source_type: sourceType,
+      source_id: sourceId,
+      order_number: sourceType === "order_detail" || sourceType === "active_order_list" ? String(detail.orderNumber || detail.orderNo || detail.adOrderNo || sourceId) : null,
+      adv_no: String(detail.advNo || detail.adsNo || (sourceType === "ad_detail" ? sourceId : "")) || null,
+      trade_type: detail.tradeType || null,
+      asset: detail.asset || "USDT",
+      fiat_unit: detail.fiatUnit || detail.fiat || "INR",
+      pay_method_identifier: entry.tradeMethodIdentifier || entry.identifier || method.identifier || method.payType || detail.payType || null,
+      pay_method_name: entry.tradeMethodName || method.tradeMethodName || method.payType || detail.payMethodName || detail.payType || null,
+      pay_id: entry.payId !== undefined ? String(entry.payId) : method.payId !== undefined ? String(method.payId) : detail.selectedPayId !== undefined ? String(detail.selectedPayId) : null,
+      maker_commission_rate: toNumeric(detail.commissionRate),
+      taker_commission_rate: toNumeric(detail.takerCommissionRate),
+      effective_commission_rate: effectiveRate,
+      actual_commission_amount: toNumeric(detail.commission ?? detail.takerCommission),
+      commission_asset: detail.commissionAsset || detail.asset || "USDT",
+      total_price: toNumeric(detail.totalPrice),
+      amount: toNumeric(detail.amount ?? detail.takerAmount),
+      raw_snapshot: { sourceType, sourceId, entry, commissionRate: detail.commissionRate ?? null, takerCommissionRate: detail.takerCommissionRate ?? null, commission: detail.commission ?? null, takerCommission: detail.takerCommission ?? null },
+      captured_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  });
+}
+
+async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string) {
+  const snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
+  if (snapshots.length === 0) return;
+  const { error: deleteErr } = await supabase
+    .from("binance_commission_rate_snapshots")
+    .delete()
+    .eq("source_type", sourceType)
+    .eq("source_id", sourceId);
+  if (deleteErr) throw deleteErr;
+  const { error: insertErr } = await supabase.from("binance_commission_rate_snapshots").insert(snapshots);
+  if (insertErr) throw insertErr;
+}
+
 // Retry wrapper for transient network errors (connection closed, timeouts)
 async function fetchWithRetry(
   url: string,
@@ -207,12 +264,16 @@ serve(async (req) => {
               })
                 .then(r => r.json())
                 .then(detail => {
-                  const vis = detail?.data?.advVisibleRet;
+                  const detailData = detail?.data?.data || detail?.data || detail;
+                  const vis = detailData?.advVisibleRet;
                   if (vis && vis.userSetVisible === 1) {
                     ad.advStatus = 2; // Mark as Private
                     ad._isPrivate = true;
                   }
                   ad.advVisibleRet = vis || null;
+                  ad.commissionRate = detailData?.commissionRate ?? ad.commissionRate;
+                  ad.takerCommissionRate = detailData?.takerCommissionRate ?? ad.takerCommissionRate;
+                  ad.tradeMethodCommissionRateVoList = detailData?.tradeMethodCommissionRateVoList || ad.tradeMethodCommissionRateVoList;
                 })
                 .catch(err => {
                   console.warn(`Failed to get detail for ${ad.advNo}:`, err.message);
@@ -230,6 +291,15 @@ serve(async (req) => {
         const text = await response.text();
         console.log("getAdDetail response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const detail = result?.data?.data || result?.data || result;
+        if (payload.adsNo && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo));
+          } catch (persistErr) {
+            console.warn("getAdDetail commission snapshot persist failed:", persistErr);
+          }
+        }
         break;
       }
 
@@ -389,6 +459,18 @@ serve(async (req) => {
         const text = await response.text();
         console.log("listActiveOrders response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const orders = Array.isArray(result?.data?.data) ? result.data.data : Array.isArray(result?.data) ? result.data : [];
+            for (const order of orders) {
+              const orderNo = String(order?.orderNumber || order?.orderNo || "");
+              if (orderNo) await persistCommissionRateSnapshots(supabase, order, "active_order_list", orderNo);
+            }
+          } catch (persistErr) {
+            console.warn("listActiveOrders commission snapshot persist failed:", persistErr);
+          }
+        }
         break;
       }
 
@@ -421,6 +503,7 @@ serve(async (req) => {
                   counterparty_risk_captured_at: new Date().toISOString(),
                 })
                 .eq("order_number", String(payload.orderNumber));
+              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber));
             }
           } catch (persistErr) {
             console.warn("getOrderDetail risk snapshot persist failed:", persistErr);

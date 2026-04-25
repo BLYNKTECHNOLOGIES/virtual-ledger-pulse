@@ -12,7 +12,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
 
@@ -31,6 +31,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   const { data: binanceStats } = useCounterpartyBinanceStats(order.binance_order_number);
   const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
   const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
+  const { data: commissionSnapshots } = useOrderCommissionSnapshots(order.binance_order_number);
   const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
   const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number);
 
@@ -170,7 +171,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           <InternalChatPanel orderNumber={order.binance_order_number} advNo={order.binance_adv_no} totalPrice={order.total_price} tradeType={order.trade_type} />
         </div>
       ) : (
-        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
+        <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} commissionSnapshots={commissionSnapshots} />
       )}
     </>
   );
@@ -220,7 +221,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
           )}
           {mobileTab === 'profile' && (
             <div className="h-full overflow-hidden flex flex-col bg-card">
-              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} />
+              <CounterpartyProfile counterparty={counterparty} order={order} binanceStats={binanceStats} counterpartyNickname={order.counterparty_nickname} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} storedRiskSnapshot={storedRiskSnapshot} commissionSnapshots={commissionSnapshots} />
             </div>
           )}
         </div>
@@ -247,7 +248,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   );
 }
 
-function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any }) {
+function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot, commissionSnapshots }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any; commissionSnapshots?: any[] }) {
   const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
   const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
   const { data: linkedClient } = useCounterpartyLinkedClient(
@@ -411,7 +412,10 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
           <ChevronDown className={`h-3 w-3 transition-transform ${showMoreBinanceData ? 'rotate-180' : ''}`} />
         </Button>
         {showMoreBinanceData && (
-          <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
+          <div className="space-y-3">
+            <CommissionSnapshotDetails snapshots={commissionSnapshots || []} order={order} />
+            <BinanceRiskDetails snapshot={riskSnapshot} capturedAt={storedRiskSnapshot?.counterparty_risk_captured_at} hasLiveDetail={!!liveDetail} />
+          </div>
         )}
       </div>
 
@@ -511,6 +515,45 @@ function BinanceRiskDetails({ snapshot, capturedAt, hasLiveDetail }: { snapshot:
       </RiskSection>
       <div className="pt-2 border-t border-border/50 text-[10px] text-muted-foreground">
         Source: {hasLiveDetail ? 'Live Binance detail' : 'Stored Binance snapshot'}{capturedAt ? ` • Captured ${new Date(capturedAt).toLocaleString('en-IN')}` : ''}
+      </div>
+    </div>
+  );
+}
+
+function CommissionSnapshotDetails({ snapshots, order }: { snapshots: any[]; order: P2POrderRecord }) {
+  const latest = snapshots?.[0];
+  const provided = (v: any) => v !== null && v !== undefined && v !== '' ? String(v) : 'Not provided by Binance';
+  const pct = (v: any) => v !== null && v !== undefined && v !== '' ? `${(Number(v) * 100).toFixed(4)}%` : 'Not provided by Binance';
+  const amount = (v: any) => v !== null && v !== undefined && v !== '' ? `${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 8 })} ${latest?.commission_asset || order.asset}` : 'Not provided by Binance';
+  const expected = latest?.effective_commission_rate && latest?.amount ? Number(latest.amount) * Number(latest.effective_commission_rate) : null;
+  const difference = expected !== null && latest?.actual_commission_amount !== null && latest?.actual_commission_amount !== undefined
+    ? Number(latest.actual_commission_amount) - expected
+    : null;
+  const hasMismatch = difference !== null && Math.abs(difference) > 0.000001;
+
+  if (!latest) {
+    return <div className="mt-2 rounded-md border border-border bg-muted/30 p-3 text-[11px] text-muted-foreground">No Binance commission-rate snapshot is available for this order yet.</div>;
+  }
+
+  return (
+    <div className="mt-2 space-y-3 rounded-md border border-border bg-muted/20 p-3">
+      {hasMismatch && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-600 dark:text-amber-400 flex gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <span>Captured commission amount differs from the rate-based audit estimate.</span>
+        </div>
+      )}
+      <RiskSection icon={<Activity className="h-3 w-3" />} title="Commission snapshot">
+        <StatRow label="Payment method" value={provided(latest.pay_method_name || latest.pay_method_identifier)} />
+        <StatRow label="Maker rate" value={pct(latest.maker_commission_rate)} />
+        <StatRow label="Taker rate" value={pct(latest.taker_commission_rate)} />
+        <StatRow label="Effective rate" value={pct(latest.effective_commission_rate)} />
+        <StatRow label="Actual commission" value={amount(latest.actual_commission_amount)} />
+        <StatRow label="Rate audit estimate" value={expected === null ? 'Not provided by Binance' : amount(expected)} />
+        {difference !== null && <StatRow label="Difference" value={amount(difference)} />}
+      </RiskSection>
+      <div className="pt-2 border-t border-border/50 text-[10px] text-muted-foreground">
+        Source: {provided(latest.source_type)}{latest.captured_at ? ` • Captured ${new Date(latest.captured_at).toLocaleString('en-IN')}` : ''}
       </div>
     </div>
   );

@@ -14,6 +14,14 @@ import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExc
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 
+function formatCommissionRate(ad: BinanceAd, identifier?: string) {
+  const list = ad.tradeMethodCommissionRateVoList || [];
+  const matched = list.find((item) => String(item.tradeMethodIdentifier || item.tradeMethodName || '') === String(identifier || ''));
+  const rate = matched?.commissionRate ?? ad.commissionRate ?? ad.takerCommissionRate;
+  if (rate === undefined || rate === null || rate === '') return null;
+  return `${(Number(rate) * 100).toFixed(4)}%`;
+}
+
 const COLLAPSE_PREF_KEY_PREFIX = 'terminal_ad_group_collapse_';
 
 interface CategorizedAdTableProps {
@@ -358,7 +366,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     <TableCell>
                       <div className="flex flex-wrap gap-1 max-w-[180px]">
                         {(ad.tradeMethods || []).slice(0, 3).map((m, i) => (
-                          <PaymentMethodBadge key={i} identifier={m.identifier} payType={m.payType} size="sm" />
+                          <div key={i} className="flex items-center gap-1">
+                            <PaymentMethodBadge identifier={m.identifier} payType={m.payType} size="sm" />
+                            {formatCommissionRate(ad, m.identifier || m.payType) && (
+                              <span className="text-[10px] text-muted-foreground tabular-nums">{formatCommissionRate(ad, m.identifier || m.payType)}</span>
+                            )}
+                          </div>
                         ))}
                         {(ad.tradeMethods || []).length > 3 && (
                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">

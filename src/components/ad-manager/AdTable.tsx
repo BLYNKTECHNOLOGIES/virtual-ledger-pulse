@@ -7,6 +7,14 @@ import { BinanceAd, getAdStatusLabel, getAdStatusVariant, BINANCE_AD_STATUS } fr
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { format } from 'date-fns';
 
+function formatCommissionRate(ad: BinanceAd, identifier?: string) {
+  const list = ad.tradeMethodCommissionRateVoList || [];
+  const matched = list.find((item) => String(item.tradeMethodIdentifier || item.tradeMethodName || '') === String(identifier || ''));
+  const rate = matched?.commissionRate ?? ad.commissionRate ?? ad.takerCommissionRate;
+  if (rate === undefined || rate === null || rate === '') return null;
+  return `${(Number(rate) * 100).toFixed(4)}%`;
+}
+
 interface AdTableProps {
   ads: BinanceAd[];
   onEdit: (ad: BinanceAd) => void;
@@ -106,7 +114,12 @@ export function AdTable({ ads, onEdit, onToggleStatus, isTogglingStatus, selecte
             <TableCell>
               <div className="flex flex-wrap gap-1 max-w-[180px]">
                 {(ad.tradeMethods || []).slice(0, 3).map((m, i) => (
-                  <PaymentMethodBadge key={i} identifier={m.identifier} payType={m.payType} size="sm" />
+                  <div key={i} className="flex items-center gap-1">
+                    <PaymentMethodBadge identifier={m.identifier} payType={m.payType} size="sm" />
+                    {formatCommissionRate(ad, m.identifier || m.payType) && (
+                      <span className="text-[10px] text-muted-foreground tabular-nums">{formatCommissionRate(ad, m.identifier || m.payType)}</span>
+                    )}
+                  </div>
                 ))}
                 {(ad.tradeMethods || []).length > 3 && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">

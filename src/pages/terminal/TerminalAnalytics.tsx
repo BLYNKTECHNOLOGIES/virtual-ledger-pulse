@@ -405,7 +405,7 @@ export default function TerminalAnalytics() {
         </div>
 
         <Tabs defaultValue="overview" className="flex min-h-0 w-full flex-1 flex-col">
-          <TabsList className="h-auto flex flex-wrap justify-start">
+          <TabsList className="h-auto shrink-0 flex flex-wrap justify-start">
             <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
             <TabsTrigger value="types" className="text-xs">Order Types</TabsTrigger>
             <TabsTrigger value="ads" className="text-xs">Ad Performance</TabsTrigger>
@@ -413,19 +413,19 @@ export default function TerminalAnalytics() {
             <TabsTrigger value="risk" className="text-xs">Status / Risk</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TabsContent value="overview" className="min-h-0 flex-1">
+            <div className="grid h-full grid-cols-1 lg:grid-cols-2 gap-4">
               <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Volume Mix</CardTitle></CardHeader><CardContent className="space-y-3"><div className="h-3 rounded-full overflow-hidden bg-secondary flex"><div className="bg-trade-buy" style={{ width: `${analytics.totalVolume ? analytics.buyVolume / analytics.totalVolume * 100 : 0}%` }} /><div className="bg-trade-sell flex-1" /></div><div className="grid grid-cols-2 gap-3 text-xs"><div><p className="text-muted-foreground">Buy</p><p className="font-semibold text-trade-buy">{fmtINR(analytics.buyVolume)}</p></div><div><p className="text-muted-foreground">Sell</p><p className="font-semibold text-trade-sell">{fmtINR(analytics.sellVolume)}</p></div></div></CardContent></Card>
               <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm">Order Quality</CardTitle></CardHeader><CardContent className="grid grid-cols-3 gap-3 text-xs"><div><p className="text-muted-foreground">Completed</p><p className="font-semibold">{completed.length}</p></div><div><p className="text-muted-foreground">Cancelled</p><p className="font-semibold">{analytics.cancelled.length}</p></div><div><p className="text-muted-foreground">Appeals</p><p className="font-semibold">{analytics.appeals.length}</p></div></CardContent></Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="types">
-            <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader><CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent></Card>
+          <TabsContent value="types" className="min-h-0 flex-1 overflow-auto">
+            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Small / Big Order Types</CardTitle></CardHeader><CardContent>{analytics.orderTypes.some((i) => i.count) ? analytics.orderTypes.map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No completed order type data in selected period" />}</CardContent></Card>
           </TabsContent>
 
-          <TabsContent value="ads">
-            <Card className="bg-card border-border"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle></CardHeader><CardContent>{analytics.adRows.length ? analytics.adRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text="No ad-linked completed orders in selected period" />}</CardContent></Card>
+          <TabsContent value="ads" className="min-h-0 flex-1 overflow-auto">
+            <Card className="bg-card border-border min-h-full"><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Megaphone className="h-4 w-4 text-primary" /> Buy / Sell Volume by Ad</CardTitle></CardHeader><CardContent>{analytics.adRows.length ? analytics.adRows.map((item) => <DataRow key={item.key} item={item} showType />) : <EmptyPanel text="No ad-linked completed orders in selected period" />}</CardContent></Card>
           </TabsContent>
 
           <TabsContent value="rates">

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Coffee, Play, Loader2 } from 'lucide-react';
 import { useAdRestTimer } from '@/hooks/useAdRestTimer';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { format } from 'date-fns';
 import {
   AlertDialog,
   AlertDialogAction,

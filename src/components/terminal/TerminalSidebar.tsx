@@ -33,6 +33,7 @@ import {
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
 import { usePayerOrders } from '@/hooks/usePayerModule';
+import { usePendingAppealCheckInCount } from '@/hooks/useTerminalAppeals';
 
 interface NavItem {
   title: string;
@@ -40,6 +41,7 @@ interface NavItem {
   icon: React.ElementType;
   showActiveCount?: boolean;
   showPayerPendingCount?: boolean;
+  showAppealPendingCount?: boolean;
   badge?: string;
   requiredPermission?: TerminalPermission;
   comingSoon?: boolean;
@@ -56,7 +58,7 @@ const navItems: NavItem[] = [
   { title: 'Audit Logs', url: '/terminal/audit-logs', icon: ScrollText, requiredPermission: 'terminal_audit_logs_view' },
   { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, requiredPermission: 'terminal_kyc_view', comingSoon: true },
   { title: 'Payer', url: '/terminal/payer', icon: CreditCard, showPayerPendingCount: true, requiredPermission: 'terminal_payer_view' },
-  { title: 'Appeals', url: '/terminal/appeals', icon: FileWarning, requiredPermission: 'terminal_appeals_view' },
+  { title: 'Appeals', url: '/terminal/appeals', icon: FileWarning, showAppealPendingCount: true, requiredPermission: 'terminal_appeals_view' },
   { title: 'Small Payments', url: '/terminal/small-payments', icon: ReceiptText, requiredPermission: 'terminal_small_payments_view' },
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_logs_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
@@ -67,6 +69,7 @@ export function TerminalSidebar() {
   const location = useLocation();
   const { data: activeOrdersData } = useBinanceActiveOrders();
   const { orders: payerPendingOrders = [] } = usePayerOrders();
+  const { data: pendingAppealCheckInCount = 0 } = usePendingAppealCheckInCount();
   const { hasPermission, terminalPermissions, isLoading } = useTerminalAuth();
 
   const activeCount = (() => {
@@ -130,6 +133,11 @@ export function TerminalSidebar() {
                       {item.showPayerPendingCount && payerPendingOrders.length > 0 && (
                         <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
                           {payerPendingOrders.length}
+                        </span>
+                      )}
+                      {item.showAppealPendingCount && pendingAppealCheckInCount > 0 && (
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
+                          {pendingAppealCheckInCount}
                         </span>
                       )}
                       {item.comingSoon && (

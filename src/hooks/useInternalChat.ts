@@ -38,8 +38,9 @@ export function useInternalMessages(orderNumber: string | null) {
     if (!orderNumber) return;
     setRealtimeMessages([]);
 
+    const topic = `internal-chat-${orderNumber}-${crypto.randomUUID()}`;
     const channel = supabase
-      .channel(`internal-chat-${orderNumber}`)
+      .channel(topic)
       .on(
         'postgres_changes',
         {

@@ -239,8 +239,9 @@ export function usePayerOrders() {
 
   // Realtime: instantly invalidate locks/log when any payer takes action anywhere
   useEffect(() => {
+    const topic = `payer-tab-realtime-${crypto.randomUUID()}`;
     const channel = supabase
-      .channel('payer-tab-realtime')
+      .channel(topic)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'terminal_payer_order_locks' }, () => {
         queryClient.invalidateQueries({ queryKey: ['payer-order-locks'] });
       })

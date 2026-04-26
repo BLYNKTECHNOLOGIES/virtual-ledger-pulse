@@ -109,13 +109,14 @@ export default function ErpEntryManager() {
   useEffect(() => {
     if (!hasAccess) return;
 
+    const topic = `erp-entry-realtime-refresh-${crypto.randomUUID()}`;
     const channel = ERP_ENTRY_REALTIME_TABLES.reduce(
       (ch, table) => ch.on(
         "postgres_changes",
         { event: "*", schema: "public", table },
         refreshErpEntryCaches
       ),
-      supabase.channel("erp-entry-realtime-refresh")
+      supabase.channel(topic)
     ).subscribe();
 
     return () => {

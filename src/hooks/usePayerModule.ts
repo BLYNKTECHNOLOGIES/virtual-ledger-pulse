@@ -5,6 +5,7 @@ import { useBinanceActiveOrders, useBinanceOrderHistory, useMarkOrderAsPaid, cal
 import { useMemo, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { useOpenSmallPaymentCases } from '@/hooks/useSmallPaymentsManager';
 
 interface PayerAssignment {
   id: string;
@@ -233,6 +234,7 @@ export function usePayerOrders() {
   const { data: orderLog = [], isLoading: logLoading } = usePayerOrderLog();
   const { data: orderLocks = [], isLoading: locksLoading } = usePayerOrderLocks();
   const { data: exclusions = new Set<string>() } = useAutoReplyExclusions();
+  const { data: openSmallPaymentCases = [], isLoading: smallCasesLoading } = useOpenSmallPaymentCases();
   const lockOrder = useLockOrderToPayer();
 
   // Realtime: instantly invalidate locks/log when any payer takes action anywhere
@@ -255,6 +257,12 @@ export function usePayerOrders() {
   const paidOrderNumbers = useMemo(() => {
     return new Set(orderLog.filter(l => l.action === 'marked_paid').map(l => l.order_number));
   }, [orderLog]);
+
+  const smallPaymentCaseByOrder = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const c of openSmallPaymentCases as any[]) map.set(String(c.order_number), c);
+    return map;
+  }, [openSmallPaymentCases]);
 
   // Build lock maps for fast lookup
   const lockByOrder = useMemo(() => {
@@ -399,11 +407,12 @@ export function usePayerOrders() {
   // remain in payer assignment just for Quick Receive.
   const pendingOrders = useMemo(() => {
     const result = allMatchedOrders
+      .filter((o: any) => !smallPaymentCaseByOrder.has(String(o.orderNumber)))
       .filter((o: any) => !paidOrderNumbers.has(String(o.orderNumber)))
       .filter((o: any) => isPayerPendingPaymentOrder(o));
 
     return result;
-  }, [allMatchedOrders, paidOrderNumbers]);
+  }, [allMatchedOrders, paidOrderNumbers, smallPaymentCaseByOrder]);
 
   // Completed: orders marked paid by this payer, already paid on Binance, or finalized on Binance
   const completedOrders = useMemo(() => {
@@ -419,6 +428,7 @@ export function usePayerOrders() {
     orders: pendingOrders,
     completedOrders,
     isLoading: ordersLoading || historyLoading || assignmentsLoading || allAssignmentsLoading || logLoading || locksLoading,
+    smallPaymentCaseByOrder,
     isFetching: isFetching || isFetchingHistory,
     refetch: async () => { await Promise.all([refetchOrders(), refetchHistory()]); },
     exclusions,

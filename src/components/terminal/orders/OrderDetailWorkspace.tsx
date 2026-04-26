@@ -20,9 +20,10 @@ import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 interface Props {
   order: P2POrderRecord;
   onClose: () => void;
+  preserveOrderStatus?: boolean;
 }
 
-export function OrderDetailWorkspace({ order, onClose }: Props) {
+export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = false }: Props) {
   const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
   const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('internal');
   const isMobile = useIsMobile();
@@ -81,7 +82,9 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
 
   const liveOrder = useMemo(() => {
     let liveStatus = order.order_status;
-    if (historyOrder?.orderStatus && typeof historyOrder.orderStatus === 'string') {
+    if (preserveOrderStatus) {
+      liveStatus = order.order_status;
+    } else if (historyOrder?.orderStatus && typeof historyOrder.orderStatus === 'string') {
       liveStatus = historyOrder.orderStatus.toUpperCase();
     } else if (liveDetail?.data) {
       const detail = liveDetail.data;
@@ -109,7 +112,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       unitPrice = parseFloat(historyOrder.unitPrice) || unitPrice;
     }
     return { ...order, order_status: liveStatus, unit_price: unitPrice };
-  }, [order, liveDetail, historyOrder, hasPaymentMarkedSignal]);
+  }, [order, liveDetail, historyOrder, hasPaymentMarkedSignal, preserveOrderStatus]);
 
   const counterpartyVerifiedName = useMemo(() => {
     const detail = liveDetail?.data;
@@ -204,7 +207,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
         <div className="flex-1 overflow-hidden flex flex-col">
           {mobileTab === 'details' && (
             <div className="h-full overflow-y-auto bg-card">
-              <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} />
+              <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} preserveOrderStatus={preserveOrderStatus} />
             </div>
           )}
           {mobileTab === 'chat' && (
@@ -233,7 +236,7 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
       {topBar}
       <div className="flex flex-1 overflow-hidden">
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">
-          <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} />
+          <OrderSummaryPanel order={liveOrder} counterpartyVerifiedName={counterpartyVerifiedName} liveDetail={liveDetail?.data} preserveOrderStatus={preserveOrderStatus} />
         </div>
         <div className="flex-1 flex flex-col min-w-0 bg-background">
           {chatContent}

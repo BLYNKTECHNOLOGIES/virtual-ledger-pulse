@@ -70,9 +70,9 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      // Binance listOrders accepts numeric orderStatusList values through the proxy.
-      // Status 8 is the documented/observed APPEAL state in this project; do not send invented string filters.
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
+      // Binance/proxy currently returns live appeal orders as numeric status 7.
+      // Include 8 defensively for older mappings, but do not send unsupported string filters.
+      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [7, 8] });
       const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
       const appealOrders = list.filter((o: any) => {
         const s = normaliseBinanceStatus(o.orderStatus || o.order_status);

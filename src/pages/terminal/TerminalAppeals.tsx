@@ -284,8 +284,7 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      // Active-list status 7 is the proxy's appeal candidate; authoritative DB/history guards prevent cancelled stale orders from staying active.
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [7] });
+      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
       const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
       const appealOrders = list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status));
       const candidateOrderNumbers = appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean);
@@ -323,7 +322,7 @@ export default function TerminalAppeals() {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
           const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) {
+          if (!hasActiveBinanceComplaint(detail) && liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) {
             await upsertAppeal.mutateAsync({
               orderNumber: c.order_number,
               source: 'binance_status',

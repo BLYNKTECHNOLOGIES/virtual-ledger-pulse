@@ -1,72 +1,48 @@
-I found the root cause for the shown order `22881448455329239040`:
+Plan to fix the Small Payments Manager workflow
 
-- `getOrderDetail` from Binance returns `orderStatus: 5`, which correctly means the order itself is `COMPLETED`.
-- The same Binance detail response also returns appeal/complaint fields: `complaintStatus: 2`, `complaintReason: ...`, `canCancelComplaintOrder: true`, and chat logs include a `submit_appeal` system event.
-- The current UI only passes the order status into the detail panel as the primary status, and the active appeal marker is not consistently preserved into the opened chat/detail workspace.
-- A previous fix incorrectly tried to solve this by forcing or suppressing one status. That is flawed because order lifecycle and appeal/complaint lifecycle are two separate Binance states.
+1. Add a Chat action beside Manage
+- In the Small Payments Manager table, add a compact Chat button/icon next to the existing Manage button for every order.
+- Clicking Chat will open the same full order chat workspace pattern used on the Terminal Orders page, not the small embedded chat panel.
+- The chat shortcut will stop row-click propagation so it does not accidentally open the Manage dialog.
+- It will use the existing Binance chat component and existing `terminal_orders_chat` permission behavior where applicable.
 
-The correct behavior should be:
+2. Build a safe order object for Small Payments chat
+- The Small Payments table currently stores only case/order summary fields, while `OrderDetailWorkspace` expects a `P2POrderRecord`-shaped object.
+- The implementation will first look up the matching `p2p_order_records` row by `binance_order_number = case.order_number`.
+- If a local order record exists, open the full `OrderDetailWorkspace` using that authoritative row.
+- If not found, fall back to a minimal order object from the small-payment case fields so the Binance chat can still open by order number.
+- This does not create fake Binance data; it only uses existing local order data plus Binance chat API calls already supported by the current proxy.
 
-```text
-Order lifecycle:   Completed / Cancelled / Pending / etc.
-Appeal lifecycle:  Under Appeal / Resolved / Closed / etc.
+3. Preserve tags and case details when reassignment changes
+- Root cause found: `upsert_terminal_small_payment_case` currently keeps the old manager forever via `manager_user_id = COALESCE(manager_user_id, v_manager)`. That means when assignment rules change and the same open order should reflect under a different manager, reassignment may not happen correctly.
+- The fix will update the database function so reassignment changes only `manager_user_id` when the assignment resolver returns a different valid manager, while preserving:
+  - `tags`
+  - `notes`
+  - `case_type` history behavior
+  - status history
+  - payer, marked-paid timestamp, amount, asset, counterparty, and Binance status details
+  - event history
+- Add an `assigned` event when the manager actually changes, with previous and new manager IDs, so the audit trail remains intact.
 
-If both are true:
-Show both badges together, e.g.  Completed + Under Appeal
-```
+4. Keep the UI consistent after reassignment
+- Ensure small-payment queries still fetch the same case row and hydrate the current manager/payer names.
+- Invalidate/refetch small-payment case queries after status/event changes as already done.
+- Keep the current RLS model: normal managers only see their own assigned cases unless they have small-payment manage/view permissions.
 
-Plan to fix properly:
+5. Verify
+- Run TypeScript/build validation.
+- Verify the Small Payments table shows Manage + Chat actions.
+- Verify Chat opens the same order workspace behavior as Terminal Orders.
+- Verify an existing open case retains its tags/details/events after manager reassignment and simply appears under the newly assigned manager.
 
-1. Centralize dual-status resolution
-   - Add a small helper for appeal/complaint detection using Binance-supported fields:
-     - `complaintStatus`
-     - `complaintReason`
-     - `isComplaintAllowed`
-     - `canCancelComplaintOrder`
-     - existing `terminal_appeal_cases.status`
-   - Keep `orderStatus` mapping separate from complaint/appeal mapping.
-   - Do not map numeric completed status `5` into appeal, and do not let `COMPLETED` erase an active appeal.
-
-2. Fix the Appeal tab row data
-   - For active appeal cases, display the order lifecycle status from authoritative records/live detail where available.
-   - Also display the appeal status separately, so rows can show `Completed + Under Appeal` or `Cancelled + Under Appeal`.
-   - Stop using `binance_status` as a mixed field for both concepts in visible UI.
-
-3. Fix chat/detail opened from Appeal tab
-   - When opening the order workspace from Appeal tab, pass:
-     - `order_status`: actual order lifecycle status, e.g. `COMPLETED`
-     - `appeal_status`: active appeal status, e.g. `Under Appeal`
-   - Update `OrderDetailWorkspace` so live Binance detail can enhance, not overwrite, the active appeal marker.
-   - Update `OrderSummaryPanel` to render both badges consistently when both states exist.
-
-4. Fix active vs history logic
-   - Active Appeal view should be controlled by the appeal case status (`under_appeal`, `checked_in`, etc.), not only by final order status.
-   - Appeal History should only receive cases when the appeal case itself is resolved/closed/cancelled.
-   - This matches your requirement: completed/cancelled orders can still remain in active Appeal view if their appeal is still open.
-
-5. Add sync hardening for Binance APIs
-   - During `Sync Binance Appeals`, use Binance appeal candidate list plus detail verification where needed.
-   - If Binance detail shows a completed order with active complaint fields, keep it as active appeal and store/display both states.
-   - If Binance detail/history shows no active complaint/appeal signal, then move the case to Appeal History only when the appeal is actually final.
-
-6. Data integrity cleanup
-   - Add a migration to preserve existing appeal cases while correcting status semantics:
-     - keep active appeal records active when complaint/appeal evidence exists,
-     - keep `binance_status`/order lifecycle as order status only,
-     - log correction events in `terminal_appeal_case_events`.
-   - Avoid deleting appeal records so history remains intact.
-
-7. Verification
-   - Recheck the specific order `22881448455329239040` after implementation.
-   - Expected result:
-     - Appeal tab row: `Completed` and `Under Appeal` visible together.
-     - Opened chat/detail: Status section shows both `Completed` and `Under Appeal`.
-     - Orders tab remains consistent and still shows completed order status.
-
-Technical files expected to change:
-- `src/lib/orderStatusMapper.ts`
-- `src/pages/terminal/TerminalAppeals.tsx`
-- `src/components/terminal/orders/OrderDetailWorkspace.tsx`
-- `src/components/terminal/orders/OrderSummaryPanel.tsx`
-- possibly `src/hooks/useP2PTerminal.tsx` for typed appeal metadata
-- a Supabase migration for data cleanup / helper function updates
+Technical notes
+- Main files to update:
+  - `src/pages/terminal/TerminalSmallPayments.tsx`
+  - possibly `src/hooks/useSmallPaymentsManager.ts`
+  - a new Supabase migration replacing `public.upsert_terminal_small_payment_case`
+- Existing APIs/components to reuse:
+  - `OrderDetailWorkspace`
+  - `ChatPanel`
+  - `useBinanceChatMessages` / `sendChatMessage` through `binance-ads`
+  - `p2p_order_records` as the local order source
+- No manual Binance data creation will be added. Chat remains backed by the existing Binance chat API proxy.

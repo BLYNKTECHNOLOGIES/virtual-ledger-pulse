@@ -36,9 +36,11 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
   const liveIsFinalized = !preserveOrderStatus && liveStatusCanonical
     ? ['COMPLETED', 'CANCELLED', 'EXPIRED'].some(t => liveStatusCanonical.includes(t))
     : false;
-  const effectiveRawStatus = liveIsFinalized ? (liveStatusCanonical as string) : order.order_status;
+  const effectiveRawStatus = order.appeal_order_status || (liveIsFinalized ? (liveStatusCanonical as string) : order.order_status);
 
   const opStatus = mapToOperationalStatus(effectiveRawStatus, order.trade_type);
+  const appealOpStatus = order.appeal_status ? mapToOperationalStatus(order.appeal_status, order.trade_type) : null;
+  const shouldShowAppealStatus = appealOpStatus === 'Under Appeal' && opStatus !== 'Under Appeal';
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
 
@@ -138,9 +140,15 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
           {(() => {
             const style = getStatusStyle(opStatus);
             return (
-              <Badge variant="outline" className={`text-xs ${style.badgeClass}`}>
-                {style.label}
-              </Badge>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="outline" className={`text-xs ${style.badgeClass}`}>
+                  {style.label}
+                </Badge>
+                {shouldShowAppealStatus && (() => {
+                  const appealStyle = getStatusStyle('Under Appeal');
+                  return <Badge variant="outline" className={`text-xs ${appealStyle.badgeClass}`}>{appealStyle.label}</Badge>;
+                })()}
+              </div>
             );
           })()}
         </div>

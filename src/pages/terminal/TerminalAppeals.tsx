@@ -85,6 +85,10 @@ function isFinalStatus(status?: string | null) {
   return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
 }
 
+function isActiveAppealCase(c: TerminalAppealCase) {
+  return !['resolved', 'closed', 'cancelled'].includes(c.status);
+}
+
 function isActiveListAppealCandidate(rawStatus: unknown) {
   const raw = String(rawStatus ?? '').trim().toUpperCase();
   return raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
@@ -112,12 +116,12 @@ type AuthoritativeOrderStatus = {
 
 function getResolvedCaseStatus(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>) {
   const authoritative = statusMap.get(c.order_number)?.order_status;
-  if (authoritative && isFinalStatus(authoritative)) return authoritative;
+  if (authoritative && isFinalStatus(authoritative) && !isActiveAppealCase(c)) return authoritative;
   return c.binance_status || statusLabels[c.status] || c.status;
 }
 
 function isCaseTerminal(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>) {
-  return ['resolved', 'closed', 'cancelled'].includes(c.status) || isFinalStatus(getResolvedCaseStatus(c, statusMap));
+  return !isActiveAppealCase(c);
 }
 
 function appealCaseToOrderRecord(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>): P2POrderRecord {
@@ -137,6 +141,8 @@ function appealCaseToOrderRecord(c: TerminalAppealCase, statusMap: Map<string, A
     unit_price: Number(authoritative?.unit_price || 0),
     commission: 0,
     order_status: resolvedStatus,
+    appeal_status: statusLabels[c.status] || c.status,
+    appeal_order_status: authoritative?.order_status || null,
     pay_method_name: authoritative?.pay_method_name || null,
     binance_create_time: authoritative?.binance_create_time || (c.appeal_started_at ? new Date(c.appeal_started_at).getTime() : null),
     is_repeat_client: false,

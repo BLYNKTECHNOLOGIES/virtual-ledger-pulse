@@ -14253,6 +14253,231 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_small_payment_case_events: {
+        Row: {
+          actor_user_id: string | null
+          case_id: string
+          created_at: string
+          event_type: string
+          id: string
+          new_value: Json | null
+          note: string | null
+          order_number: string
+          previous_value: Json | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          case_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          order_number: string
+          previous_value?: Json | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          case_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          order_number?: string
+          previous_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_small_payment_case_events_actor_user_id_fkey"
+            columns: ["actor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_small_payment_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_small_payment_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_small_payment_cases: {
+        Row: {
+          adv_no: string | null
+          asset: string | null
+          binance_status: string | null
+          case_type: string
+          closed_at: string | null
+          counterparty_nickname: string | null
+          created_at: string
+          created_by: string | null
+          created_from: string
+          fiat_unit: string | null
+          id: string
+          last_checked_at: string | null
+          last_contacted_at: string | null
+          manager_user_id: string | null
+          marked_paid_at: string | null
+          notes: string | null
+          opened_at: string
+          order_number: string
+          payer_user_id: string | null
+          priority: string
+          resolved_at: string | null
+          status: string
+          tags: string[]
+          total_price: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          adv_no?: string | null
+          asset?: string | null
+          binance_status?: string | null
+          case_type?: string
+          closed_at?: string | null
+          counterparty_nickname?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_from?: string
+          fiat_unit?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_contacted_at?: string | null
+          manager_user_id?: string | null
+          marked_paid_at?: string | null
+          notes?: string | null
+          opened_at?: string
+          order_number: string
+          payer_user_id?: string | null
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          tags?: string[]
+          total_price?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          adv_no?: string | null
+          asset?: string | null
+          binance_status?: string | null
+          case_type?: string
+          closed_at?: string | null
+          counterparty_nickname?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_from?: string
+          fiat_unit?: string | null
+          id?: string
+          last_checked_at?: string | null
+          last_contacted_at?: string | null
+          manager_user_id?: string | null
+          marked_paid_at?: string | null
+          notes?: string | null
+          opened_at?: string
+          order_number?: string
+          payer_user_id?: string | null
+          priority?: string
+          resolved_at?: string | null
+          status?: string
+          tags?: string[]
+          total_price?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_small_payment_cases_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_small_payment_cases_manager_user_id_fkey"
+            columns: ["manager_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_small_payment_cases_payer_user_id_fkey"
+            columns: ["payer_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_small_payment_cases_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_small_payment_manager_assignments: {
+        Row: {
+          ad_id: string | null
+          assigned_by: string | null
+          assignment_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          manager_user_id: string
+          size_range_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ad_id?: string | null
+          assigned_by?: string | null
+          assignment_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager_user_id: string
+          size_range_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ad_id?: string | null
+          assigned_by?: string | null
+          assignment_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          manager_user_id?: string
+          size_range_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_small_payment_manager_assignments_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_small_payment_manager_assignments_manager_user_id_fkey"
+            columns: ["manager_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_small_payment_manager_assignments_size_range_id_fkey"
+            columns: ["size_range_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_order_size_ranges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       terminal_user_exchange_mappings: {
         Row: {
           created_at: string
@@ -15306,6 +15531,10 @@ export type Database = {
         Returns: string
       }
       archive_old_attendance_data: { Args: never; Returns: Json }
+      assign_small_payment_manager: {
+        Args: { p_adv_no?: string; p_total_price?: number }
+        Returns: string
+      }
       assign_terminal_order: {
         Args: {
           p_asset?: string
@@ -16254,6 +16483,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_terminal_small_payment_case_event: {
+        Args: {
+          p_case_id: string
+          p_event_type: string
+          p_new_value?: Json
+          p_note?: string
+          p_previous_value?: Json
+        }
+        Returns: string
+      }
       log_user_activity: {
         Args: {
           _action: string
@@ -16643,6 +16882,24 @@ export type Database = {
         Args: { p_nickname: string; p_trade_type: string; p_volume: number }
         Returns: string
       }
+      upsert_terminal_small_payment_case: {
+        Args: {
+          p_adv_no?: string
+          p_asset?: string
+          p_binance_status?: string
+          p_case_type?: string
+          p_counterparty_nickname?: string
+          p_created_from?: string
+          p_fiat_unit?: string
+          p_marked_paid_at?: string
+          p_note?: string
+          p_order_number: string
+          p_payer_user_id?: string
+          p_status?: string
+          p_total_price?: number
+        }
+        Returns: string
+      }
       user_has_function: {
         Args: { _function_key: string; _user_id: string }
         Returns: boolean
@@ -16963,6 +17220,8 @@ export type Database = {
         | "terminal_activity_logs_view"
         | "terminal_pricing_logs_view"
         | "terminal_destructive"
+        | "terminal_small_payments_view"
+        | "terminal_small_payments_manage"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -17252,6 +17511,8 @@ export const Constants = {
         "terminal_activity_logs_view",
         "terminal_pricing_logs_view",
         "terminal_destructive",
+        "terminal_small_payments_view",
+        "terminal_small_payments_manage",
       ],
     },
   },

@@ -84,6 +84,13 @@ const PERMISSION_MODULES: ModuleDef[] = [
     ],
   },
   {
+    key: 'small_payments', label: 'Small Payments', icon: '🧾',
+    permissions: [
+      { key: 'terminal_small_payments_view', label: 'View Cases', tier: 'view' },
+      { key: 'terminal_small_payments_manage', label: 'Manage Cases', tier: 'manage', requires: ['terminal_small_payments_view'] },
+    ],
+  },
+  {
     key: 'pricing', label: 'Pricing Rules', icon: '💹',
     permissions: [
       { key: 'terminal_pricing_view', label: 'View', tier: 'view' },
@@ -237,6 +244,14 @@ const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermi
       'terminal_assets_view', 'terminal_autopay_view',
     ],
   },
+  small_payments_manager: {
+    label: 'Small Payments Manager',
+    permissions: [
+      'terminal_dashboard_view', 'terminal_orders_view', 'terminal_orders_chat',
+      'terminal_payer_view', 'terminal_small_payments_view', 'terminal_small_payments_manage',
+      'terminal_shift_view', 'terminal_mpi_view_own', 'terminal_assets_view',
+    ],
+  },
   asst_manager: {
     label: 'Asst Manager',
     permissions: [
@@ -246,6 +261,7 @@ const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermi
       'terminal_orders_export',
       'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle',
       'terminal_payer_view', 'terminal_payer_manage',
+      'terminal_small_payments_view', 'terminal_small_payments_manage',
       'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle',
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
@@ -266,6 +282,7 @@ const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermi
       'terminal_orders_sync_approve', 'terminal_orders_export',
       'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
       'terminal_payer_view', 'terminal_payer_manage',
+      'terminal_small_payments_view', 'terminal_small_payments_manage',
       'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',

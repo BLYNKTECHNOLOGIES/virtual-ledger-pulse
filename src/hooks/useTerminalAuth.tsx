@@ -25,6 +25,9 @@ export type TerminalPermission =
   // Payer
   | 'terminal_payer_view'
   | 'terminal_payer_manage'
+  // Small Payments Manager
+  | 'terminal_small_payments_view'
+  | 'terminal_small_payments_manage'
   // Pricing
   | 'terminal_pricing_view'
   | 'terminal_pricing_manage'
@@ -203,6 +206,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     'terminal_orders_chat', 'terminal_orders_export', 'terminal_support_view', 'terminal_support_manage',
     'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
     'terminal_payer_view', 'terminal_payer_manage',
+    'terminal_small_payments_view', 'terminal_small_payments_manage',
     'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',
     'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
     'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',

@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
 import { supabase } from '@/integrations/supabase/client';
 import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
+import { formatCaseAge, getCaseAgeMinutes, useUpsertSmallPaymentCase } from '@/hooks/useSmallPaymentsManager';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
@@ -27,6 +28,7 @@ import {
 interface PayerOrderRowProps {
   order: any;
   isExcluded: boolean;
+  smallPaymentCase?: any;
   isCompleted?: boolean;
   onOpenOrder: () => void;
   onMarkPaidSuccess: () => void;
@@ -52,12 +54,13 @@ function getStatusBadgeClass(status: string): string {
   return 'border-muted-foreground/30 text-muted-foreground bg-muted/5';
 }
 
-export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onMarkPaidSuccess }: PayerOrderRowProps) {
+export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted, onOpenOrder, onMarkPaidSuccess }: PayerOrderRowProps) {
   const markPaid = useMarkOrderAsPaid();
   const excludeFromAuto = useExcludeFromAutoReply();
   const logAction = useLogPayerAction();
   const getUploadUrl = useGetChatImageUploadUrl();
   const requestAltUpi = useRequestAlternateUpi();
+  const upsertSmallPaymentCase = useUpsertSmallPaymentCase();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -99,6 +102,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const queryClient = useQueryClient();
   const quickEligible = quickConfirmLimit !== undefined
     && isQuickReceiveEligible(order.totalPrice || 0, quickConfirmLimit);
+  const caseAgeMinutes = smallPaymentCase ? getCaseAgeMinutes(smallPaymentCase) : null;
 
   const handleMarkPaid = async () => {
     setIsMarkingPaid(true);
@@ -115,6 +119,19 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
         }, ...current];
       });
       logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
+      upsertSmallPaymentCase.mutate({
+        orderNumber: order.orderNumber,
+        caseType: 'post_payment_followup',
+        status: 'open',
+        createdFrom: 'marked_paid',
+        markedPaidAt: new Date().toISOString(),
+        advNo: order.advNo || null,
+        totalPrice: Number(order.totalPrice || 0),
+        asset: order.asset || 'USDT',
+        fiatUnit: order.fiat || 'INR',
+        counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+        binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      });
       onMarkPaidSuccess();
 
       // Screenshot delivery must never block or undo the paid acknowledgement.
@@ -154,6 +171,20 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const handleRequestAltUpi = (e: React.MouseEvent) => {
     e.stopPropagation();
     requestAltUpi.mutate(order.orderNumber);
+    upsertSmallPaymentCase.mutate({
+      orderNumber: order.orderNumber,
+      caseType: 'alternate_upi_needed',
+      status: 'waiting_counterparty',
+      createdFrom: 'alt_upi',
+      advNo: order.advNo || null,
+      totalPrice: Number(order.totalPrice || 0),
+      asset: order.asset || 'USDT',
+      fiatUnit: order.fiat || 'INR',
+      counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+      binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      note: 'Payer requested alternate UPI and handed off to Small Payments Manager.',
+    });
+    onMarkPaidSuccess();
   };
 
   const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +214,19 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
         }, ...current];
       });
       logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
+      upsertSmallPaymentCase.mutate({
+        orderNumber: order.orderNumber,
+        caseType: 'post_payment_followup',
+        status: 'open',
+        createdFrom: 'marked_paid',
+        markedPaidAt: new Date().toISOString(),
+        advNo: order.advNo || null,
+        totalPrice: Number(order.totalPrice || 0),
+        asset: order.asset || 'USDT',
+        fiatUnit: order.fiat || 'INR',
+        counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+        binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      });
       onMarkPaidSuccess();
 
       void (async () => {
@@ -291,9 +335,16 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       {/* Status */}
       <TableCell className="py-3">
         {isCompleted ? (
-          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
-            Marked Paid
-          </Badge>
+          <div className="flex flex-col gap-1 items-start">
+            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
+              Marked Paid
+            </Badge>
+            {caseAgeMinutes !== null && (
+              <Badge variant="outline" className={`text-[10px] tabular-nums ${caseAgeMinutes >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : caseAgeMinutes >= 10 ? 'border-amber-500/30 text-amber-500 bg-amber-500/5' : 'border-primary/30 text-primary bg-primary/5'}`}>
+                {formatCaseAge(caseAgeMinutes)} unreleased
+              </Badge>
+            )}
+          </div>
         ) : (
           <Badge variant="outline" className={`text-[10px] ${getStatusBadgeClass(String(order.orderStatus))}`}>
             {statusStr}

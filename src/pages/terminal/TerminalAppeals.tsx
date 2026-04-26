@@ -153,15 +153,61 @@ export default function TerminalAppeals() {
   const isEnabled = Boolean(config?.is_enabled);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
+  const { data: authoritativeStatusMap = new Map<string, AuthoritativeOrderStatus>() } = useQuery({
+    queryKey: ['terminal-appeal-authoritative-statuses', cases.map((c) => c.order_number).join(',')],
+    queryFn: async () => {
+      const orderNumbers = [...new Set(cases.map((c) => c.order_number).filter(Boolean))];
+      const map = new Map<string, AuthoritativeOrderStatus>();
+      if (!orderNumbers.length) return map;
+
+      const [{ data: historyRows }, { data: recordRows }] = await Promise.all([
+        supabase.from('binance_order_history').select('order_number, order_status, create_time, amount, unit_price, pay_method_name, counter_part_nick_name, synced_at').in('order_number', orderNumbers),
+        supabase.from('p2p_order_records').select('binance_order_number, order_status, binance_create_time, amount, unit_price, pay_method_name, counterparty_nickname, synced_at').in('binance_order_number', orderNumbers),
+      ]);
+
+      for (const row of (recordRows || []) as any[]) {
+        map.set(String(row.binance_order_number), {
+          order_number: String(row.binance_order_number),
+          order_status: row.order_status,
+          binance_create_time: row.binance_create_time,
+          amount: row.amount,
+          unit_price: row.unit_price,
+          pay_method_name: row.pay_method_name,
+          counterparty_nickname: row.counterparty_nickname,
+        });
+      }
+
+      for (const row of (historyRows || []) as any[]) {
+        const existing = map.get(String(row.order_number));
+        if (!existing || isFinalStatus(row.order_status)) {
+          map.set(String(row.order_number), {
+            order_number: String(row.order_number),
+            order_status: row.order_status,
+            binance_create_time: row.create_time,
+            amount: row.amount,
+            unit_price: row.unit_price,
+            pay_method_name: row.pay_method_name,
+            counterparty_nickname: row.counter_part_nick_name,
+          });
+        }
+      }
+
+      return map;
+    },
+    enabled: cases.length > 0,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+
   const visibleCases = useMemo(() => {
-    const modeFiltered = cases.filter((c) => showHistory ? ['resolved', 'closed', 'cancelled'].includes(c.status) || isFinalStatus(c.binance_status) : !['resolved', 'closed', 'cancelled'].includes(c.status) && !isFinalStatus(c.binance_status));
+    const modeFiltered = cases.filter((c) => showHistory ? isCaseTerminal(c, authoritativeStatusMap) : !isCaseTerminal(c, authoritativeStatusMap));
     if (orderType === 'all') return modeFiltered;
     return modeFiltered.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
-  }, [cases, showHistory, orderType, smallBuyConfig, smallSalesConfig]);
+  }, [cases, showHistory, orderType, smallBuyConfig, smallSalesConfig, authoritativeStatusMap]);
 
   const activeCasesToRecheck = useMemo(
-    () => cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status) && !isFinalStatus(c.binance_status)),
-    [cases]
+    () => cases.filter((c) => !isCaseTerminal(c, authoritativeStatusMap)),
+    [cases, authoritativeStatusMap]
   );
 
   const { data: finalizedAppeals = [] } = useQuery({
@@ -218,9 +264,8 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      // Binance/proxy currently returns live appeal orders as numeric status 7.
-      // Include 8 defensively for older mappings, but do not send unsupported string filters.
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [7, 8] });
+      // Only request numeric status 8: project data shows detail status 7 can be stale/system-cancelled.
+      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
       const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
       const appealOrders = list.filter((o: any) => {
         const s = normaliseBinanceStatus(o.orderStatus || o.order_status);
@@ -282,13 +327,13 @@ export default function TerminalAppeals() {
     callBinanceAds('markOrderMessagesRead', { orderNo: caseItem.order_number }).catch((err) => {
       console.warn('Failed to mark Binance chat read:', err);
     });
-    setChatOrder(appealCaseToOrderRecord(caseItem));
+    setChatOrder(appealCaseToOrderRecord(caseItem, authoritativeStatusMap));
   };
 
   if (chatOrder) {
     return (
       <div className="h-[calc(100vh-48px)]">
-        <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} preserveOrderStatus />
+        <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} />
       </div>
     );
   }

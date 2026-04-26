@@ -85,24 +85,45 @@ function isFinalStatus(status?: string | null) {
   return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
 }
 
-function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
-  const isActiveAppeal = !['resolved', 'closed', 'cancelled'].includes(c.status) && !isFinalStatus(c.binance_status);
+type AuthoritativeOrderStatus = {
+  order_number: string;
+  order_status: string | null;
+  binance_create_time?: number | null;
+  amount?: number | string | null;
+  unit_price?: number | string | null;
+  pay_method_name?: string | null;
+  counterparty_nickname?: string | null;
+};
+
+function getResolvedCaseStatus(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>) {
+  const authoritative = statusMap.get(c.order_number)?.order_status;
+  if (authoritative && isFinalStatus(authoritative)) return authoritative;
+  return c.binance_status || statusLabels[c.status] || c.status;
+}
+
+function isCaseTerminal(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>) {
+  return ['resolved', 'closed', 'cancelled'].includes(c.status) || isFinalStatus(getResolvedCaseStatus(c, statusMap));
+}
+
+function appealCaseToOrderRecord(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>): P2POrderRecord {
+  const authoritative = statusMap.get(c.order_number);
+  const resolvedStatus = getResolvedCaseStatus(c, statusMap);
   return {
     id: c.order_number,
     binance_order_number: c.order_number,
     binance_adv_no: c.adv_no,
     counterparty_id: null,
-    counterparty_nickname: c.counterparty_nickname || '',
+    counterparty_nickname: authoritative?.counterparty_nickname || c.counterparty_nickname || '',
     trade_type: c.trade_type || 'SELL',
     asset: c.asset || 'USDT',
     fiat_unit: c.fiat_unit || 'INR',
-    amount: 0,
+    amount: Number(authoritative?.amount || 0),
     total_price: Number(c.total_price || 0),
-    unit_price: 0,
+    unit_price: Number(authoritative?.unit_price || 0),
     commission: 0,
-    order_status: isActiveAppeal ? 'APPEAL' : c.binance_status || statusLabels[c.status] || c.status,
-    pay_method_name: null,
-    binance_create_time: c.appeal_started_at ? new Date(c.appeal_started_at).getTime() : null,
+    order_status: resolvedStatus,
+    pay_method_name: authoritative?.pay_method_name || null,
+    binance_create_time: authoritative?.binance_create_time || (c.appeal_started_at ? new Date(c.appeal_started_at).getTime() : null),
     is_repeat_client: false,
     repeat_order_count: 0,
     assigned_operator_id: null,

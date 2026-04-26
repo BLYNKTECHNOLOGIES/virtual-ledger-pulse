@@ -16635,6 +16635,14 @@ export type Database = {
       is_ledger_auditor: { Args: { _uid?: string }; Returns: boolean }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_terminal_appeal_enabled: { Args: never; Returns: boolean }
+      is_terminal_final_order_status: {
+        Args: { p_status: string }
+        Returns: boolean
+      }
+      is_terminal_order_final: {
+        Args: { p_order_number: string }
+        Returns: boolean
+      }
       list_terminal_roles: {
         Args: never
         Returns: {

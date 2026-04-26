@@ -86,6 +86,7 @@ function isFinalStatus(status?: string | null) {
 }
 
 function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
+  const isActiveAppeal = !['resolved', 'closed', 'cancelled'].includes(c.status) && !isFinalStatus(c.binance_status);
   return {
     id: c.order_number,
     binance_order_number: c.order_number,
@@ -99,7 +100,7 @@ function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
     total_price: Number(c.total_price || 0),
     unit_price: 0,
     commission: 0,
-    order_status: c.binance_status || statusLabels[c.status] || c.status,
+    order_status: isActiveAppeal ? 'APPEAL' : c.binance_status || statusLabels[c.status] || c.status,
     pay_method_name: null,
     binance_create_time: c.appeal_started_at ? new Date(c.appeal_started_at).getTime() : null,
     is_repeat_client: false,
@@ -266,7 +267,7 @@ export default function TerminalAppeals() {
   if (chatOrder) {
     return (
       <div className="h-[calc(100vh-48px)]">
-        <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} />
+        <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} preserveOrderStatus />
       </div>
     );
   }

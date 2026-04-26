@@ -15,6 +15,7 @@ import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2P
 import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
+import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 
 interface Props {
   order: P2POrderRecord;
@@ -79,20 +80,14 @@ export function OrderDetailWorkspace({ order, onClose }: Props) {
   }, [chatMessages]);
 
   const liveOrder = useMemo(() => {
-    const numStatusMap: Record<number, string> = {
-      1: 'PENDING', 2: 'TRADING', 3: 'BUYER_PAYED', 4: 'BUYER_PAYED',
-      5: 'COMPLETED', 6: 'CANCELLED', 7: 'CANCELLED', 8: 'APPEAL',
-    };
     let liveStatus = order.order_status;
     if (historyOrder?.orderStatus && typeof historyOrder.orderStatus === 'string') {
       liveStatus = historyOrder.orderStatus.toUpperCase();
     } else if (liveDetail?.data) {
       const detail = liveDetail.data;
       const raw = detail.orderStatus ?? detail.tradeStatus ?? detail.status;
-      if (typeof raw === 'number') {
-        liveStatus = numStatusMap[raw] || liveStatus;
-      } else if (typeof raw === 'string' && raw.length > 0) {
-        liveStatus = raw.toUpperCase();
+      if (raw !== undefined && raw !== null && String(raw).length > 0) {
+        liveStatus = normaliseBinanceStatus(raw);
       }
     }
 

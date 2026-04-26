@@ -85,6 +85,21 @@ function isFinalStatus(status?: string | null) {
   return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
 }
 
+function isActiveListAppealCandidate(rawStatus: unknown) {
+  const raw = String(rawStatus ?? '').trim().toUpperCase();
+  return raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
+}
+
+function appealSyncStatus(rawStatus: unknown) {
+  return isActiveListAppealCandidate(rawStatus) ? 'APPEAL' : normaliseBinanceStatus(rawStatus as any);
+}
+
+function normalizeDetailFinalStatus(rawStatus: unknown) {
+  const raw = String(rawStatus ?? '').trim().toUpperCase();
+  if (!raw || raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT')) return null;
+  return normaliseBinanceStatus(rawStatus as any);
+}
+
 type AuthoritativeOrderStatus = {
   order_number: string;
   order_status: string | null;
@@ -218,8 +233,8 @@ export default function TerminalAppeals() {
         try {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
-          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
+          const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
         } catch {
           // Best-effort live recheck; leave visible if Binance detail is unavailable.
         }
@@ -264,13 +279,10 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      // Only request numeric status 8: project data shows detail status 7 can be stale/system-cancelled.
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
+      // Active-list status 7 is the proxy's appeal candidate; authoritative DB/history guards prevent cancelled stale orders from staying active.
+      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [7] });
       const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
-      const appealOrders = list.filter((o: any) => {
-        const s = normaliseBinanceStatus(o.orderStatus || o.order_status);
-        return s.includes('APPEAL') || s.includes('DISPUTE');
-      });
+      const appealOrders = list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status));
       for (const order of appealOrders) {
         await upsertAppeal.mutateAsync({
           orderNumber: String(order.orderNumber || order.orderNo),
@@ -283,7 +295,7 @@ export default function TerminalAppeals() {
           fiatUnit: order.fiat || order.fiatUnit || 'INR',
           totalPrice: Number(order.totalPrice || 0),
           counterpartyNickname: order.sellerNickname || order.buyerNickname || order.counterPartNickName || null,
-          binanceStatus: normaliseBinanceStatus(order.orderStatus || order.order_status),
+          binanceStatus: appealSyncStatus(order.orderStatus ?? order.order_status),
         });
       }
       const liveAppealOrderNumbers = new Set(appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean));
@@ -293,8 +305,8 @@ export default function TerminalAppeals() {
         try {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
-          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
+          const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
             await upsertAppeal.mutateAsync({
               orderNumber: c.order_number,
               source: 'binance_status',

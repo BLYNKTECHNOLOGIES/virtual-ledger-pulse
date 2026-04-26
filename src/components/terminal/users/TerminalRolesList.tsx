@@ -92,6 +92,15 @@ const PERMISSION_MODULES: ModuleDef[] = [
     ],
   },
   {
+    key: 'appeals', label: 'Appeals', icon: '⚖️',
+    permissions: [
+      { key: 'terminal_appeals_view', label: 'View All Appeals', tier: 'view' },
+      { key: 'terminal_appeals_manage', label: 'Manage Appeals', tier: 'manage', requires: ['terminal_appeals_view'] },
+      { key: 'terminal_appeals_request', label: 'Request Appeal', tier: 'action' },
+      { key: 'terminal_appeals_toggle', label: 'Toggle Module', tier: 'special', requires: ['terminal_appeals_view'] },
+    ],
+  },
+  {
     key: 'pricing', label: 'Pricing Rules', icon: '💹',
     permissions: [
       { key: 'terminal_pricing_view', label: 'View', tier: 'view' },

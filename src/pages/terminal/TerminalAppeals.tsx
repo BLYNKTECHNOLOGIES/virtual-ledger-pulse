@@ -32,7 +32,6 @@ import {
   useCheckInAppealCase,
   useSetAppealTimer,
   useToggleAppealModule,
-  useUpdateAppealStatus,
   useUpsertAppealCase,
 } from '@/hooks/useTerminalAppeals';
 import { toast } from 'sonner';
@@ -205,6 +204,7 @@ function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canC
   const age = getElapsedMinutes(c.appeal_started_at);
   const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
   const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
+  const canCheckIn = needsTimer || responseExpired;
   return <TableRow className="cursor-pointer hover:bg-secondary/40" onClick={onOpen}>
     <TableCell><Badge variant="outline" className="text-[10px] tabular-nums border-primary/30 text-primary bg-primary/5"><Clock className="h-3 w-3 mr-1" />{formatDuration(age)}</Badge></TableCell>
     <TableCell>{needsTimer ? <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive bg-destructive/5 animate-pulse">Select timer</Badge> : c.response_due_at ? <Badge variant="outline" className={`text-[10px] tabular-nums ${responseExpired ? 'border-destructive/30 text-destructive bg-destructive/5 animate-pulse' : 'border-amber-500/30 text-amber-500 bg-amber-500/5'}`}>{responseExpired ? 'Overdue' : formatDuration(Math.max(0, Math.floor((new Date(c.response_due_at).getTime() - Date.now()) / 60000)))}</Badge> : c.response_timer_set_at ? <Badge variant="outline" className="text-[10px]">No timer · {getAppealUserName(c.timerSetBy)}</Badge> : <Badge variant="outline" className="text-[10px]">No timer</Badge>}</TableCell>
@@ -213,7 +213,7 @@ function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canC
     <TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell>
     <TableCell><div className="flex flex-col gap-1"><Badge variant="secondary" className="w-fit text-[9px]">{statusLabels[c.status]}</Badge><Badge variant="outline" className="w-fit text-[9px]">{c.source === 'small_payment_request' ? `Requested by ${getAppealUserName(c.requester)}` : c.source === 'binance_status' ? 'Binance Appeal' : 'Manual Request'}</Badge></div></TableCell>
     <TableCell className="max-w-[220px]"><p className="text-[10px] text-muted-foreground truncate">{c.notes || c.request_reason || '—'}</p>{c.last_checked_in_at && <p className="text-[9px] text-muted-foreground/70">Checked {format(new Date(c.last_checked_in_at), 'dd MMM HH:mm')} by {getAppealUserName(c.checkedInBy)}</p>}</TableCell>
-    <TableCell className="text-right"><div className="inline-flex items-center gap-1"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button>{canChat && <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); onChat(); }}><MessageSquare className="h-3 w-3" />Chat</Button>}</div></TableCell>
+    <TableCell className="text-right"><div className="inline-flex items-center gap-1">{canCheckIn && <Button size="sm" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Check In</Button>}<Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button>{canChat && <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); onChat(); }}><MessageSquare className="h-3 w-3" />Chat</Button>}</div></TableCell>
   </TableRow>;
 }
 
@@ -226,10 +226,13 @@ function AppealDetailDialog({ caseItem, open, onOpenChange }: { caseItem: Termin
   const setTimer = useSetAppealTimer();
   const addNote = useAddAppealNote();
   const checkIn = useCheckInAppealCase();
-  const updateStatus = useUpdateAppealStatus();
+  const responseExpired = !!caseItem?.response_due_at && new Date(caseItem.response_due_at).getTime() <= Date.now();
+  const shouldShowCheckIn = !!caseItem && (responseExpired || (caseItem.status === 'under_appeal' && caseItem.response_timer_minutes === null && !caseItem.response_timer_set_at));
 
   useEffect(() => {
-    setTimerValue(caseItem?.response_timer_minutes == null ? (caseItem?.response_timer_set_at ? 'none' : '') : String(caseItem.response_timer_minutes));
+    const isDue = !!caseItem?.response_due_at && new Date(caseItem.response_due_at).getTime() <= Date.now();
+    const isMissingTimer = caseItem?.status === 'under_appeal' && caseItem.response_timer_minutes === null && !caseItem.response_timer_set_at;
+    setTimerValue(isDue || isMissingTimer ? '' : caseItem?.response_timer_minutes == null ? (caseItem?.response_timer_set_at ? 'none' : '') : String(caseItem.response_timer_minutes));
     setNote('');
     setCheckInNote('');
   }, [caseItem?.id, caseItem?.response_timer_minutes, caseItem?.response_timer_set_at]);
@@ -239,13 +242,12 @@ function AppealDetailDialog({ caseItem, open, onOpenChange }: { caseItem: Termin
   const needsTimer = caseItem.status === 'under_appeal' && caseItem.response_timer_minutes === null && !caseItem.response_timer_set_at;
   const saveTimer = async () => { if (!timerValue) return toast.error('Select a response timer first'); await setTimer.mutateAsync({ caseId: caseItem.id, minutes: timerValue === 'none' ? null : Number(timerValue) }); };
   const saveNote = async () => { if (!note.trim()) return; await addNote.mutateAsync({ caseId: caseItem.id, note: note.trim() }); setNote(''); };
-  const doCheckIn = async () => { await checkIn.mutateAsync({ caseId: caseItem.id, note: checkInNote.trim() || undefined }); setCheckInNote(''); };
-  const setStatus = (status: AppealStatus) => updateStatus.mutate({ caseId: caseItem.id, status });
+  const doCheckIn = async () => { if (!timerValue || timerValue === 'none') return toast.error('Assign the next response timer before check-in'); await setTimer.mutateAsync({ caseId: caseItem.id, minutes: Number(timerValue) }); await checkIn.mutateAsync({ caseId: caseItem.id, note: checkInNote.trim() || `Next check-in timer set for ${responseTimerOptions.find((o) => o.value === timerValue)?.label || `${timerValue} minutes`}` }); setCheckInNote(''); };
 
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-5xl max-h-[86vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-base">Appeal Case · {caseItem.order_number}</DialogTitle></DialogHeader><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
     <div className="space-y-3"><Card><CardContent className="p-4 space-y-3"><div className="flex items-center gap-2 flex-wrap"><Badge variant="secondary">{statusLabels[caseItem.status]}</Badge><Badge variant="outline" className="tabular-nums">Appeal age {formatDuration(getElapsedMinutes(caseItem.appeal_started_at))}</Badge>{needsTimer && <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5 animate-pulse">Select response timer</Badge>}</div><div className="grid grid-cols-2 gap-2 text-xs"><Info label="Amount" value={`${Number(caseItem.total_price || 0).toLocaleString('en-IN')} ${caseItem.fiat_unit || 'INR'}`} /><Info label="Asset" value={caseItem.asset || 'USDT'} /><Info label="Counterparty" value={caseItem.counterparty_nickname || '—'} /><Info label="Binance Status" value={caseItem.binance_status || '—'} /><Info label="Requested By" value={getAppealUserName(caseItem.requester)} /><Info label="Detected/Started" value={format(new Date(caseItem.appeal_started_at), 'dd MMM HH:mm')} /></div>{caseItem.request_reason && <p className="text-xs text-muted-foreground border-t border-border pt-2">{caseItem.request_reason}</p>}</CardContent></Card>
       <Card><CardContent className="p-4 space-y-3"><p className="text-xs font-medium">Response Timer</p><div className="flex gap-2"><Select value={timerValue} onValueChange={setTimerValue} disabled={!canManage}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select timer" /></SelectTrigger><SelectContent>{responseTimerOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select><Button size="sm" className="h-8 text-xs" onClick={saveTimer} disabled={!canManage || setTimer.isPending}>Save</Button></div>{caseItem.response_due_at ? <p className="text-[10px] text-muted-foreground">Due {format(new Date(caseItem.response_due_at), 'dd MMM HH:mm')} · set by {getAppealUserName(caseItem.timerSetBy)}</p> : caseItem.response_timer_set_at ? <p className="text-[10px] text-muted-foreground">No timer selected by {getAppealUserName(caseItem.timerSetBy)} at {format(new Date(caseItem.response_timer_set_at), 'dd MMM HH:mm')}</p> : <p className="text-[10px] text-destructive">Response timer not selected yet</p>}</CardContent></Card>
-      <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Case Actions</p><div className="flex flex-wrap gap-2">{(['under_appeal','resolved','closed','cancelled'] as AppealStatus[]).map((s) => <Button key={s} variant="outline" size="sm" className="h-7 text-[10px]" disabled={!canManage} onClick={() => setStatus(s)}>{statusLabels[s]}</Button>)}</div><Textarea value={checkInNote} onChange={(e) => setCheckInNote(e.target.value)} placeholder="Check-in note..." className="text-xs" disabled={!canManage} /><Button size="sm" className="h-8 text-xs" onClick={doCheckIn} disabled={!canManage || checkIn.isPending}>Check In</Button></CardContent></Card></div>
+      {shouldShowCheckIn && <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Check In</p><Select value={timerValue} onValueChange={setTimerValue} disabled={!canManage}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Assign next timer" /></SelectTrigger><SelectContent>{responseTimerOptions.filter((o) => o.value !== 'none').map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select><Textarea value={checkInNote} onChange={(e) => setCheckInNote(e.target.value)} placeholder="Check-in note..." className="text-xs" disabled={!canManage} /><Button size="sm" className="h-8 text-xs" onClick={doCheckIn} disabled={!canManage || checkIn.isPending || setTimer.isPending}>Check In</Button></CardContent></Card>}</div>
     <div className="space-y-3"><Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Shift Note</p><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add handover note for next shift..." className="text-xs" disabled={!canManage} /><Button size="sm" className="h-8 text-xs" onClick={saveNote} disabled={!canManage || addNote.isPending}>Add Note</Button></CardContent></Card><Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Event History</p><div className="space-y-2 max-h-80 overflow-y-auto">{events.map((e: any) => <div key={e.id} className="text-[10px] border-b border-border pb-1"><span className="font-medium">{e.event_type}</span> · {format(new Date(e.created_at), 'dd MMM HH:mm')} · {getAppealUserName(e.actor)}{e.note && <div className="text-muted-foreground mt-0.5">{e.note}</div>}</div>)}</div></CardContent></Card></div>
   </div></DialogContent></Dialog>;
 }

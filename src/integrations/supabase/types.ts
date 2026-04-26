@@ -13564,16 +13564,29 @@ export type Database = {
           avg_order_size: number | null
           avg_response_time_minutes: number | null
           buy_count: number
+          cancelled_after_action_count: number
           completion_rate: number | null
           created_at: string
+          data_confidence: number | null
+          data_quality: Json
+          fastest_handle_time_minutes: number | null
           id: string
           idle_time_minutes: number | null
+          lock_count: number
+          measurable_work_count: number
+          median_handle_time_minutes: number | null
           mpi_score: number | null
           orders_cancelled: number
           orders_completed: number
           orders_handled: number
+          payment_count: number
+          role_type: string | null
           sell_count: number
+          slowest_handle_time_minutes: number | null
           snapshot_date: string
+          source_counts: Json
+          stale_assignment_count: number
+          stale_lock_count: number
           total_volume: number
           user_id: string
         }
@@ -13582,16 +13595,29 @@ export type Database = {
           avg_order_size?: number | null
           avg_response_time_minutes?: number | null
           buy_count?: number
+          cancelled_after_action_count?: number
           completion_rate?: number | null
           created_at?: string
+          data_confidence?: number | null
+          data_quality?: Json
+          fastest_handle_time_minutes?: number | null
           id?: string
           idle_time_minutes?: number | null
+          lock_count?: number
+          measurable_work_count?: number
+          median_handle_time_minutes?: number | null
           mpi_score?: number | null
           orders_cancelled?: number
           orders_completed?: number
           orders_handled?: number
+          payment_count?: number
+          role_type?: string | null
           sell_count?: number
+          slowest_handle_time_minutes?: number | null
           snapshot_date?: string
+          source_counts?: Json
+          stale_assignment_count?: number
+          stale_lock_count?: number
           total_volume?: number
           user_id: string
         }
@@ -13600,16 +13626,29 @@ export type Database = {
           avg_order_size?: number | null
           avg_response_time_minutes?: number | null
           buy_count?: number
+          cancelled_after_action_count?: number
           completion_rate?: number | null
           created_at?: string
+          data_confidence?: number | null
+          data_quality?: Json
+          fastest_handle_time_minutes?: number | null
           id?: string
           idle_time_minutes?: number | null
+          lock_count?: number
+          measurable_work_count?: number
+          median_handle_time_minutes?: number | null
           mpi_score?: number | null
           orders_cancelled?: number
           orders_completed?: number
           orders_handled?: number
+          payment_count?: number
+          role_type?: string | null
           sell_count?: number
+          slowest_handle_time_minutes?: number | null
           snapshot_date?: string
+          source_counts?: Json
+          stale_assignment_count?: number
+          stale_lock_count?: number
           total_volume?: number
           user_id?: string
         }
@@ -15904,7 +15943,11 @@ export type Database = {
         Returns: string
       }
       generate_terminal_mpi_snapshots: {
-        Args: { p_date: string }
+        Args: { p_date?: string }
+        Returns: number
+      }
+      generate_terminal_mpi_snapshots_v2: {
+        Args: { p_date?: string }
         Returns: number
       }
       get_active_users: {
@@ -15977,6 +16020,17 @@ export type Database = {
         Args: { p_from: string; p_to: string; p_user_id: string }
         Returns: Json
       }
+      get_terminal_mpi_v2: {
+        Args: {
+          p_can_view_all?: boolean
+          p_from: string
+          p_requesting_user_id?: string
+          p_scope?: string
+          p_to: string
+          p_visible_user_ids?: string[]
+        }
+        Returns: Json
+      }
       get_terminal_operator_workloads: {
         Args: never
         Returns: {
@@ -15994,6 +16048,17 @@ export type Database = {
           depth: number
           user_id: string
         }[]
+      }
+      get_terminal_user_mpi_detail_v2: {
+        Args: {
+          p_can_view_all?: boolean
+          p_from: string
+          p_requesting_user_id?: string
+          p_to: string
+          p_user_id: string
+          p_visible_user_ids?: string[]
+        }
+        Returns: Json
       }
       get_terminal_user_roles: {
         Args: { p_user_id: string }

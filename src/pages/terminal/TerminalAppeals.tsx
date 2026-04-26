@@ -106,6 +106,7 @@ function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
 export default function TerminalAppeals() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [orderType, setOrderType] = useState<AppealOrderType>('all');
   const [selectedCase, setSelectedCase] = useState<TerminalAppealCase | null>(null);
   const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -114,19 +115,26 @@ export default function TerminalAppeals() {
   const toggleAppeal = useToggleAppealModule();
   const upsertAppeal = useUpsertAppealCase();
   const { data: cases = [], isLoading, refetch, isFetching } = useAppealCases({ status, search });
+  const { data: smallBuyConfig } = useQuery({ queryKey: ['small-buys-config'], queryFn: async () => { const { data, error } = await supabase.from('small_buys_config' as any).select('is_enabled, min_amount, max_amount').limit(1).maybeSingle(); if (error) throw error; return data as unknown as RangeConfig | null; }, staleTime: 30_000 });
+  const { data: smallSalesConfig } = useQuery({ queryKey: ['small-sales-config'], queryFn: async () => { const { data, error } = await supabase.from('small_sales_config' as any).select('is_enabled, min_amount, max_amount').limit(1).maybeSingle(); if (error) throw error; return data as unknown as RangeConfig | null; }, staleTime: 30_000 });
   const isEnabled = Boolean(config?.is_enabled);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
+  const visibleCases = useMemo(() => {
+    if (orderType === 'all') return cases;
+    return cases.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
+  }, [cases, orderType, smallBuyConfig, smallSalesConfig]);
+
   const summary = useMemo(() => {
-    const active = cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
+    const active = visibleCases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
     return {
       active: active.filter((c) => c.status !== 'requested').length,
       requests: active.filter((c) => c.status === 'requested').length,
       missingTimer: active.filter((c) => c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at).length,
       overdue: active.filter((c) => c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now()).length,
-      checkedToday: cases.filter((c) => c.last_checked_in_at && new Date(c.last_checked_in_at).toDateString() === new Date().toDateString()).length,
+      checkedToday: visibleCases.filter((c) => c.last_checked_in_at && new Date(c.last_checked_in_at).toDateString() === new Date().toDateString()).length,
     };
-  }, [cases]);
+  }, [visibleCases]);
 
   const syncAppealOrders = async () => {
     setIsSyncing(true);

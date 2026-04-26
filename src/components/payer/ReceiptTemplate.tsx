@@ -109,7 +109,18 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
               <path d="M2.5 6.15L4.85 8.5L9.5 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
-          <span style={{ display: "inline-flex", alignItems: "center", height: "12px", lineHeight: "12px" }}>Completed</span>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "26px",
+              lineHeight: "26px",
+              transform: "translateY(-0.5px)",
+            }}
+          >
+            Completed
+          </span>
         </div>
         <div style={{ fontSize: "12px", opacity: 0.85, marginTop: "8px" }}>
           {formatDateTime(data.dateTime)}

@@ -224,6 +224,17 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     codeRef.current = val;
   };
 
+  const handleSendCode = () => {
+    if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod }, {
+      onSuccess: () => {
+        toast.success(`${selectedAuth.label} sent by Binance`);
+        setSendCooldown(60);
+      },
+      onError: (err: Error) => toast.error(`Could not send ${selectedAuth.label}: ${err.message}`),
+    });
+  };
+
   const doRelease = (overrideCode?: string) => {
     const finalCode = overrideCode || codeRef.current;
     if (!finalCode.trim() || releaseFiredRef.current || releaseCoin.isPending) return;
@@ -237,7 +248,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
       params.yubikeyVerifyCode = finalCode;
     } else {
       params.authType = authMethod;
-      params.code = finalCode;
+      if (authMethod !== 'EMAIL') params.code = finalCode;
       params[selectedAuth.fieldName] = finalCode;
     }
     
@@ -311,29 +322,36 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
               {selectedAuth.icon}
               {selectedAuth.label} Code
             </Label>
-            <Input
-              id="yubikey-release-input"
-              type="text"
-              placeholder={selectedAuth.placeholder}
-              value={code}
-              onChange={(e) => {
-                handleCodeChange(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const val = (e.target as HTMLInputElement).value;
-                  if (val.trim()) {
-                    setTimeout(() => doRelease(val), 50);
+            <div className="flex gap-2">
+              <Input
+                id="yubikey-release-input"
+                type="text"
+                placeholder={selectedAuth.placeholder}
+                value={code}
+                onChange={(e) => {
+                  handleCodeChange(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const val = (e.target as HTMLInputElement).value;
+                    if (val.trim()) {
+                      setTimeout(() => doRelease(val), 50);
+                    }
                   }
-                }
-              }}
-              maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
-              className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
-              autoFocus
-              ref={(el) => { if (el) setTimeout(() => el.focus(), 100); }}
-            />
+                }}
+                maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
+                className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
+                autoFocus
+                ref={(el) => { if (el) setTimeout(() => el.focus(), 100); }}
+              />
+              {canRequestCode && (
+                <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 text-xs" onClick={handleSendCode} disabled={sendVerifyCode.isPending || sendCooldown > 0}>
+                  {sendVerifyCode.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : sendCooldown > 0 ? `${sendCooldown}s` : 'Send'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

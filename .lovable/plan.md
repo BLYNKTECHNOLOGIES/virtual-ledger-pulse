@@ -1,56 +1,72 @@
-I found the root cause, not just the visible symptom.
+I found the root cause for the shown order `22881448455329239040`:
 
-The Appeal tab currently treats Binance numeric status `7` as `APPEAL` in the shared UI mapper and the Appeal sync requests `orderStatusList: [7, 8]`. In this project’s actual data/API behavior, the same orders have authoritative history status `CANCELLED_BY_SYSTEM`, while `getUserOrderDetail` still returns numeric `7`. Because the Appeal tab trusted that stale/detail numeric code and later forced `order_status: 'APPEAL'` when opening chat, cancelled orders were incorrectly displayed as “Under Appeal”.
+- `getOrderDetail` from Binance returns `orderStatus: 5`, which correctly means the order itself is `COMPLETED`.
+- The same Binance detail response also returns appeal/complaint fields: `complaintStatus: 2`, `complaintReason: ...`, `canCancelComplaintOrder: true`, and chat logs include a `submit_appeal` system event.
+- The current UI only passes the order status into the detail panel as the primary status, and the active appeal marker is not consistently preserved into the opened chat/detail workspace.
+- A previous fix incorrectly tried to solve this by forcing or suppressing one status. That is flawed because order lifecycle and appeal/complaint lifecycle are two separate Binance states.
 
-Database check confirmed this is not a single-order issue: active appeal cases currently include cancelled orders where `terminal_appeal_cases.binance_status = APPEAL` but `binance_order_history.order_status = CANCELLED_BY_SYSTEM`.
+The correct behavior should be:
 
-Plan to fix the integrity properly:
+```text
+Order lifecycle:   Completed / Cancelled / Pending / etc.
+Appeal lifecycle:  Under Appeal / Resolved / Closed / etc.
 
-1. Stop hard-coding active appeal status in chat
-   - Remove the `preserveOrderStatus` / forced `APPEAL` behavior for Appeal-tab chat.
-   - When opening chat from Appeal tab, pass the authoritative resolved order status, not a synthetic appeal status.
-   - If the order is cancelled/completed, the detail panel must show Cancelled/Completed exactly like the Orders tab.
+If both are true:
+Show both badges together, e.g.  Completed + Under Appeal
+```
 
-2. Make Appeal tab status resolution authoritative
-   - Add a local helper in `TerminalAppeals.tsx` that resolves each case status using this priority:
-     1. `binance_order_history.order_status` when present and terminal
-     2. `p2p_order_records.order_status` when present and terminal
-     3. live Binance history/detail only as fallback
-     4. `terminal_appeal_cases.binance_status` only if no stronger status exists
-   - Active Appeal view will include only records whose resolved status is truly appeal/dispute/requested and not terminal.
-   - Cancelled/completed/expired cases will automatically appear only in Appeal History.
+Plan to fix properly:
 
-3. Repair existing bad appeal records in the database
-   - Add a migration/RPC-level cleanup that updates existing active `terminal_appeal_cases` to:
-     - `status = 'cancelled'` when authoritative order history says cancelled/system-cancelled/expired
-     - `status = 'resolved'` when authoritative order history says completed
-     - `binance_status = authoritative status`
-   - Insert an appeal case event noting the automatic finalization source so the audit/history remains intact.
-   - This will move the currently wrong active cases out of the active Appeal view without deleting history.
+1. Centralize dual-status resolution
+   - Add a small helper for appeal/complaint detection using Binance-supported fields:
+     - `complaintStatus`
+     - `complaintReason`
+     - `isComplaintAllowed`
+     - `canCancelComplaintOrder`
+     - existing `terminal_appeal_cases.status`
+   - Keep `orderStatus` mapping separate from complaint/appeal mapping.
+   - Do not map numeric completed status `5` into appeal, and do not let `COMPLETED` erase an active appeal.
 
-4. Harden `upsert_terminal_appeal_case`
-   - Update the database function so future syncs cannot downgrade a terminal order back into `under_appeal` just because list/detail returns numeric `7`.
-   - Before inserting/updating an appeal as `under_appeal`, it will check `binance_order_history` / `p2p_order_records`. If the authoritative status is terminal, it will store the case as history (`cancelled` or `resolved`) instead.
+2. Fix the Appeal tab row data
+   - For active appeal cases, display the order lifecycle status from authoritative records/live detail where available.
+   - Also display the appeal status separately, so rows can show `Completed + Under Appeal` or `Cancelled + Under Appeal`.
+   - Stop using `binance_status` as a mixed field for both concepts in visible UI.
 
-5. Fix the Appeal sync source logic
-   - Stop blindly trusting `orderStatusList: [7, 8]` as “appeal”.
-   - Cross-check every candidate returned from `listActiveOrders` against `binance_order_history` and/or `getOrderHistory` before upserting as active appeal.
-   - If Binance detail returns `7` but history says `CANCELLED_BY_SYSTEM`, history wins.
+3. Fix chat/detail opened from Appeal tab
+   - When opening the order workspace from Appeal tab, pass:
+     - `order_status`: actual order lifecycle status, e.g. `COMPLETED`
+     - `appeal_status`: active appeal status, e.g. `Under Appeal`
+   - Update `OrderDetailWorkspace` so live Binance detail can enhance, not overwrite, the active appeal marker.
+   - Update `OrderSummaryPanel` to render both badges consistently when both states exist.
 
-6. Align status mapping and remove conflicting interpretations
-   - Review and update the shared numeric status mapping so status `7` is not universally treated as `APPEAL` where this project’s actual C2C data uses it as cancelled/system-cancelled in detail responses.
-   - Keep appeal detection based on explicit string statuses (`APPEAL`, `IN_APPEAL`, `DISPUTE`, `COMPLAINT`) or confirmed active-list/history evidence, not the stale detail code alone.
+4. Fix active vs history logic
+   - Active Appeal view should be controlled by the appeal case status (`under_appeal`, `checked_in`, etc.), not only by final order status.
+   - Appeal History should only receive cases when the appeal case itself is resolved/closed/cancelled.
+   - This matches your requirement: completed/cancelled orders can still remain in active Appeal view if their appeal is still open.
 
-7. Overall logical flaw check
-   - Audit related order status paths in:
-     - `src/pages/terminal/TerminalAppeals.tsx`
-     - `src/components/terminal/orders/OrderDetailWorkspace.tsx`
-     - `src/components/terminal/orders/OrderSummaryPanel.tsx`
-     - `src/lib/orderStatusMapper.ts`
-     - terminal sync helpers that still maintain their own numeric maps
-   - Consolidate or make explicit any remaining inconsistent status mappings so Orders tab, Appeal tab, chat workspace, and history all agree.
+5. Add sync hardening for Binance APIs
+   - During `Sync Binance Appeals`, use Binance appeal candidate list plus detail verification where needed.
+   - If Binance detail shows a completed order with active complaint fields, keep it as active appeal and store/display both states.
+   - If Binance detail/history shows no active complaint/appeal signal, then move the case to Appeal History only when the appeal is actually final.
 
-8. Verification
-   - Run the build/type check.
-   - Re-query the database for active appeal cases whose authoritative order history is terminal; expected result should be zero.
-   - Confirm the example order `22881431966534434816` moves to Appeal History and opens as Cancelled, not Under Appeal.
+6. Data integrity cleanup
+   - Add a migration to preserve existing appeal cases while correcting status semantics:
+     - keep active appeal records active when complaint/appeal evidence exists,
+     - keep `binance_status`/order lifecycle as order status only,
+     - log correction events in `terminal_appeal_case_events`.
+   - Avoid deleting appeal records so history remains intact.
+
+7. Verification
+   - Recheck the specific order `22881448455329239040` after implementation.
+   - Expected result:
+     - Appeal tab row: `Completed` and `Under Appeal` visible together.
+     - Opened chat/detail: Status section shows both `Completed` and `Under Appeal`.
+     - Orders tab remains consistent and still shows completed order status.
+
+Technical files expected to change:
+- `src/lib/orderStatusMapper.ts`
+- `src/pages/terminal/TerminalAppeals.tsx`
+- `src/components/terminal/orders/OrderDetailWorkspace.tsx`
+- `src/components/terminal/orders/OrderSummaryPanel.tsx`
+- possibly `src/hooks/useP2PTerminal.tsx` for typed appeal metadata
+- a Supabase migration for data cleanup / helper function updates

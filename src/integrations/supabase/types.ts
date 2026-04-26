@@ -16937,6 +16937,10 @@ export type Database = {
         Args: { p_status: string }
         Returns: string
       }
+      terminal_order_is_appeal_status: {
+        Args: { p_status: string }
+        Returns: boolean
+      }
       terminal_order_is_final_status: {
         Args: { p_status: string }
         Returns: boolean

@@ -427,7 +427,7 @@ export function usePayerOrders() {
   return {
     orders: pendingOrders,
     completedOrders,
-    isLoading: ordersLoading || historyLoading || assignmentsLoading || allAssignmentsLoading || logLoading || locksLoading,
+    isLoading: ordersLoading || historyLoading || assignmentsLoading || allAssignmentsLoading || logLoading || locksLoading || smallCasesLoading,
     smallPaymentCaseByOrder,
     isFetching: isFetching || isFetchingHistory,
     refetch: async () => { await Promise.all([refetchOrders(), refetchHistory()]); },

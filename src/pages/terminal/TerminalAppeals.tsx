@@ -12,8 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
+import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { markOrderChatRead } from '@/lib/chat-read-state';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import {
   AppealStatus,
@@ -48,13 +51,15 @@ export default function TerminalAppeals() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [selectedCase, setSelectedCase] = useState<TerminalAppealCase | null>(null);
+  const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { isSuperAdmin, hasPermission } = useTerminalAuth();
+  const { isSuperAdmin, isTerminalAdmin, hasPermission } = useTerminalAuth();
   const { data: config, isLoading: configLoading } = useAppealConfig();
   const toggleAppeal = useToggleAppealModule();
   const upsertAppeal = useUpsertAppealCase();
   const { data: cases = [], isLoading, refetch, isFetching } = useAppealCases({ status, search });
   const isEnabled = Boolean(config?.is_enabled);
+  const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
   const summary = useMemo(() => {
     const active = cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
@@ -102,6 +107,22 @@ export default function TerminalAppeals() {
     }
   };
 
+  const openChatForCase = (caseItem: TerminalAppealCase) => {
+    markOrderChatRead(caseItem.order_number);
+    callBinanceAds('markOrderMessagesRead', { orderNo: caseItem.order_number }).catch((err) => {
+      console.warn('Failed to mark Binance chat read:', err);
+    });
+    setChatOrder(appealCaseToOrderRecord(caseItem));
+  };
+
+  if (chatOrder) {
+    return (
+      <div className="h-[calc(100vh-48px)]">
+        <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} />
+      </div>
+    );
+  }
+
   return (
     <TerminalPermissionGate permissions={['terminal_appeals_view']}>
       <div className="p-4 md:p-6 space-y-5">
@@ -133,7 +154,7 @@ export default function TerminalAppeals() {
 
           <Card className="bg-card border-border"><CardContent className="p-0">
             {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : cases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No appeal cases found</div> : (
-              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{cases.map((c) => <AppealRow key={c.id} c={c} onOpen={() => setSelectedCase(c)} />)}</TableBody></Table></div>
+              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{cases.map((c) => <AppealRow key={c.id} c={c} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
             )}
           </CardContent></Card>
           <AppealDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} />

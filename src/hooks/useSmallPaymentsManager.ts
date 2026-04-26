@@ -27,6 +27,7 @@ export interface SmallPaymentCase {
   fiat_unit: string | null;
   counterparty_nickname: string | null;
   binance_status: string | null;
+  current_order_status?: string | null;
   created_at: string;
   updated_at: string;
   manager?: any;
@@ -52,11 +53,33 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       const { data, error } = await query;
       if (error) throw error;
       const cases = (data || []) as unknown as SmallPaymentCase[];
+      const orderNumbers = [...new Set(cases.map((c) => c.order_number).filter(Boolean))];
       const userIds = [...new Set(cases.flatMap((c) => [c.manager_user_id, c.payer_user_id]).filter(Boolean))] as string[];
-      if (userIds.length === 0) return cases;
-      const { data: users } = await supabase.from('users').select('id, username, first_name, last_name').in('id', userIds);
+
+      const [usersRes, p2pRes, historyRes] = await Promise.all([
+        userIds.length ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
+        orderNumbers.length ? supabase.from('p2p_order_records').select('binance_order_number, order_status, synced_at, updated_at').in('binance_order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
+        orderNumbers.length ? supabase.from('binance_order_history').select('order_number, order_status, synced_at, updated_at').in('order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const users = usersRes.data || [];
       const userMap = new Map((users || []).map((u: any) => [u.id, u]));
-      return cases.map((c) => ({ ...c, manager: c.manager_user_id ? userMap.get(c.manager_user_id) : null, payer: c.payer_user_id ? userMap.get(c.payer_user_id) : null }));
+      const statusMap = new Map<string, { status: string | null; ts: number }>();
+      const rememberStatus = (orderNumber: string, status: string | null, syncedAt?: string | null, updatedAt?: string | null) => {
+        if (!orderNumber || !status) return;
+        const ts = Math.max(new Date(syncedAt || 0).getTime() || 0, new Date(updatedAt || 0).getTime() || 0);
+        const current = statusMap.get(orderNumber);
+        if (!current || ts >= current.ts) statusMap.set(orderNumber, { status, ts });
+      };
+      (p2pRes.data || []).forEach((r: any) => rememberStatus(r.binance_order_number, r.order_status, r.synced_at, r.updated_at));
+      (historyRes.data || []).forEach((r: any) => rememberStatus(r.order_number, r.order_status, r.synced_at, r.updated_at));
+
+      return cases.map((c) => ({
+        ...c,
+        current_order_status: statusMap.get(c.order_number)?.status || c.binance_status || null,
+        manager: c.manager_user_id ? userMap.get(c.manager_user_id) : null,
+        payer: c.payer_user_id ? userMap.get(c.payer_user_id) : null,
+      }));
     },
     refetchInterval: 10_000,
     staleTime: 5_000,

@@ -28,6 +28,7 @@ import {
 interface PayerOrderRowProps {
   order: any;
   isExcluded: boolean;
+  smallPaymentCase?: any;
   isCompleted?: boolean;
   onOpenOrder: () => void;
   onMarkPaidSuccess: () => void;
@@ -53,7 +54,7 @@ function getStatusBadgeClass(status: string): string {
   return 'border-muted-foreground/30 text-muted-foreground bg-muted/5';
 }
 
-export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onMarkPaidSuccess }: PayerOrderRowProps) {
+export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted, onOpenOrder, onMarkPaidSuccess }: PayerOrderRowProps) {
   const markPaid = useMarkOrderAsPaid();
   const excludeFromAuto = useExcludeFromAutoReply();
   const logAction = useLogPayerAction();
@@ -101,6 +102,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const queryClient = useQueryClient();
   const quickEligible = quickConfirmLimit !== undefined
     && isQuickReceiveEligible(order.totalPrice || 0, quickConfirmLimit);
+  const caseAgeMinutes = smallPaymentCase ? getCaseAgeMinutes(smallPaymentCase) : null;
 
   const handleMarkPaid = async () => {
     setIsMarkingPaid(true);
@@ -333,9 +335,16 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
       {/* Status */}
       <TableCell className="py-3">
         {isCompleted ? (
-          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
-            Marked Paid
-          </Badge>
+          <div className="flex flex-col gap-1 items-start">
+            <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-500 bg-emerald-500/5">
+              Marked Paid
+            </Badge>
+            {caseAgeMinutes !== null && (
+              <Badge variant="outline" className={`text-[10px] tabular-nums ${caseAgeMinutes >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : caseAgeMinutes >= 10 ? 'border-amber-500/30 text-amber-500 bg-amber-500/5' : 'border-primary/30 text-primary bg-primary/5'}`}>
+                {formatCaseAge(caseAgeMinutes)} unreleased
+              </Badge>
+            )}
+          </div>
         ) : (
           <Badge variant="outline" className={`text-[10px] ${getStatusBadgeClass(String(order.orderStatus))}`}>
             {statusStr}

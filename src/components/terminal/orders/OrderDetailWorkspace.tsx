@@ -15,7 +15,7 @@ import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2P
 import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
-import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { hasActiveBinanceComplaint, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 
 interface Props {
   order: P2POrderRecord;
@@ -111,7 +111,12 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
     if (historyOrder?.unitPrice) {
       unitPrice = parseFloat(historyOrder.unitPrice) || unitPrice;
     }
-    return { ...order, order_status: liveStatus, unit_price: unitPrice };
+    return {
+      ...order,
+      order_status: liveStatus,
+      unit_price: unitPrice,
+      appeal_status: order.appeal_status || (hasActiveBinanceComplaint(liveDetail?.data) ? 'Under Appeal' : null),
+    };
   }, [order, liveDetail, historyOrder, hasPaymentMarkedSignal, preserveOrderStatus]);
 
   const counterpartyVerifiedName = useMemo(() => {

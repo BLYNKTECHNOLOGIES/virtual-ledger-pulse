@@ -239,7 +239,7 @@ export default function TerminalAppeals() {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
           const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
+          if (liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
         } catch {
           // Best-effort live recheck; leave visible if Binance detail is unavailable.
         }
@@ -323,7 +323,7 @@ export default function TerminalAppeals() {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
           const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
+          if (liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) {
             await upsertAppeal.mutateAsync({
               orderNumber: c.order_number,
               source: 'binance_status',

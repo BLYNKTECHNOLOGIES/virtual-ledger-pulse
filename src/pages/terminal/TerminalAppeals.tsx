@@ -19,7 +19,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { markOrderChatRead } from '@/lib/chat-read-state';
-import { getStatusStyle, isAppealLikeBinanceStatus, isFinalBinanceStatus, normaliseBinanceStatus, mapToOperationalStatus } from '@/lib/orderStatusMapper';
+import { getStatusStyle, hasActiveBinanceComplaint, isAppealLikeBinanceStatus, isFinalBinanceStatus, normaliseBinanceStatus, mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import {
   AppealStatus,
   TerminalAppealCase,
@@ -110,7 +110,7 @@ type AuthoritativeOrderStatus = {
 
 function getResolvedCaseStatus(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>) {
   const authoritative = statusMap.get(c.order_number)?.order_status;
-  if (authoritative && isFinalStatus(authoritative) && !isActiveAppealCase(c)) return authoritative;
+  if (authoritative) return authoritative;
   return c.binance_status || statusLabels[c.status] || c.status;
 }
 
@@ -239,7 +239,7 @@ export default function TerminalAppeals() {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
           const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
+          if (!hasActiveBinanceComplaint(detail) && liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
         } catch {
           // Best-effort live recheck; leave visible if Binance detail is unavailable.
         }

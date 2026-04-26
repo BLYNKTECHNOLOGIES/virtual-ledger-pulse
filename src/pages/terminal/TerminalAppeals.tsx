@@ -19,7 +19,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { markOrderChatRead } from '@/lib/chat-read-state';
-import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { getStatusStyle, isAppealLikeBinanceStatus, isFinalBinanceStatus, normaliseBinanceStatus, mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import {
   AppealStatus,
   TerminalAppealCase,
@@ -75,14 +75,8 @@ function classifyAppealOrder(c: TerminalAppealCase, smallBuyConfig?: RangeConfig
   return isSmall ? 'smallSell' : 'bigSell';
 }
 
-function isAppealStatus(status?: string | null) {
-  const s = String(status || '').toUpperCase();
-  return s.includes('APPEAL') || s.includes('DISPUTE');
-}
-
 function isFinalStatus(status?: string | null) {
-  const s = String(status || '').toUpperCase();
-  return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
+  return isFinalBinanceStatus(status);
 }
 
 function isActiveAppealCase(c: TerminalAppealCase) {
@@ -91,7 +85,7 @@ function isActiveAppealCase(c: TerminalAppealCase) {
 
 function isActiveListAppealCandidate(rawStatus: unknown) {
   const raw = String(rawStatus ?? '').trim().toUpperCase();
-  return raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
+  return raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
 }
 
 function appealSyncStatus(rawStatus: unknown) {

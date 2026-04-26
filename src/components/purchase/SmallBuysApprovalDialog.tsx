@@ -292,6 +292,22 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
       // The trg_update_bank_account_balance trigger auto-deducts from the selected bank balance.
       if (gatewayFeeEnabled && parseFloat(gatewayFeeAmount) > 0 && gatewayFeeBankId) {
         const feeAmt = parseFloat(gatewayFeeAmount);
+        const { data: existingFeeRows, error: existingFeeError } = await supabase
+          .from('bank_transactions')
+          .select('id')
+          .eq('reference_number', orderNumber)
+          .eq('transaction_type', 'EXPENSE')
+          .or(`category.eq.${PAYOUT_GATEWAY_FEE_CATEGORY},description.ilike.%Payout gateway fee%`)
+          .limit(1);
+
+        if (existingFeeError) {
+          throw new Error(`Could not verify existing payout gateway fee: ${existingFeeError.message}`);
+        }
+
+        if (existingFeeRows?.length) {
+          throw new Error(`Payout gateway fee already exists for ${orderNumber}. Duplicate expense was not created.`);
+        }
+
         const { error: feeError } = await supabase.from('bank_transactions').insert({
           bank_account_id: gatewayFeeBankId,
           transaction_type: 'EXPENSE',
@@ -315,6 +331,8 @@ export function SmallBuysApprovalDialog({ open, onOpenChange, record }: Props) {
       queryClient.invalidateQueries({ queryKey: ['small_buys_sync'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase_orders_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
       queryClient.invalidateQueries({ queryKey: ['crypto_wallets'] });
       queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
       onOpenChange(false);

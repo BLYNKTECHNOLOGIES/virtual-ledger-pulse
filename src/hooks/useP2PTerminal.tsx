@@ -48,6 +48,8 @@ export interface P2POrderRecord {
   cancelled_at: string | null;
   created_at: string;
   additional_kyc_verify?: number; // 0=none, 1=pending, 2=verified
+  appeal_status?: string | null;
+  appeal_order_status?: string | null;
   // Joined
   counterparty?: P2PCounterparty;
 }

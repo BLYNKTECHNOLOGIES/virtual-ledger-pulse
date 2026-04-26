@@ -119,7 +119,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
         }, ...current];
       });
       logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
-      upsertSmallPaymentCase.mutate({
+      await upsertSmallPaymentCase.mutateAsync({
         orderNumber: order.orderNumber,
         caseType: 'post_payment_followup',
         status: 'open',
@@ -168,23 +168,27 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
     }
   };
 
-  const handleRequestAltUpi = (e: React.MouseEvent) => {
+  const handleRequestAltUpi = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    requestAltUpi.mutate(order.orderNumber);
-    upsertSmallPaymentCase.mutate({
-      orderNumber: order.orderNumber,
-      caseType: 'alternate_upi_needed',
-      status: 'waiting_counterparty',
-      createdFrom: 'alt_upi',
-      advNo: order.advNo || null,
-      totalPrice: Number(order.totalPrice || 0),
-      asset: order.asset || 'USDT',
-      fiatUnit: order.fiat || 'INR',
-      counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
-      binanceStatus: normaliseBinanceStatus(order.orderStatus),
-      note: 'Payer requested alternate UPI and handed off to Small Payments Manager.',
-    });
-    onMarkPaidSuccess();
+    try {
+      await requestAltUpi.mutateAsync(order.orderNumber);
+      await upsertSmallPaymentCase.mutateAsync({
+        orderNumber: order.orderNumber,
+        caseType: 'alternate_upi_needed',
+        status: 'waiting_counterparty',
+        createdFrom: 'alt_upi',
+        advNo: order.advNo || null,
+        totalPrice: Number(order.totalPrice || 0),
+        asset: order.asset || 'USDT',
+        fiatUnit: order.fiat || 'INR',
+        counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+        binanceStatus: normaliseBinanceStatus(order.orderStatus),
+        note: 'Payer requested alternate UPI and handed off to Small Payments Manager.',
+      });
+      onMarkPaidSuccess();
+    } catch (err: any) {
+      toast.error(`Alternate UPI handoff failed: ${err.message}`);
+    }
   };
 
   const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,7 +218,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
         }, ...current];
       });
       logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
-      upsertSmallPaymentCase.mutate({
+      await upsertSmallPaymentCase.mutateAsync({
         orderNumber: order.orderNumber,
         caseType: 'post_payment_followup',
         status: 'open',

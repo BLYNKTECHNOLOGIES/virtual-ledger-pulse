@@ -68,8 +68,9 @@ export function useAutoScreenshotLog(limit = 50) {
   const qc = useQueryClient();
 
   useEffect(() => {
+    const topic = `auto-screenshot-log-${crypto.randomUUID()}`;
     const ch = supabase
-      .channel('auto-screenshot-log')
+      .channel(topic)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payer_screenshot_automation_log' }, () => {
         qc.invalidateQueries({ queryKey: ['auto-screenshot-log'] });
       })

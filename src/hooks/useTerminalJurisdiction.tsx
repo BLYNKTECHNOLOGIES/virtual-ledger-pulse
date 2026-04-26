@@ -86,8 +86,9 @@ export function useTerminalJurisdiction() {
 
   // Realtime subscription for instant updates when assignments change
   useEffect(() => {
+    const topic = `terminal-order-assignments-realtime-${crypto.randomUUID()}`;
     const channel = supabase
-      .channel('terminal-order-assignments-realtime')
+      .channel(topic)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'terminal_order_assignments' },

@@ -68,6 +68,18 @@ export function formatDuration(minutes: number) {
   return rh ? `${d}d ${rh}h` : `${d}d`;
 }
 
+export function isAppealCheckInPending(caseItem: TerminalAppealCase, now = Date.now()) {
+  if (['resolved', 'closed', 'cancelled'].includes(caseItem.status)) return false;
+
+  const needsInitialTimer =
+    caseItem.status === 'under_appeal' &&
+    caseItem.response_timer_minutes === null &&
+    !caseItem.response_timer_set_at;
+  const responseTimerExpired = !!caseItem.response_due_at && new Date(caseItem.response_due_at).getTime() <= now;
+
+  return needsInitialTimer || responseTimerExpired;
+}
+
 export function useAppealConfig() {
   return useQuery({
     queryKey: ['terminal-appeal-config'],
@@ -128,6 +140,24 @@ export function useAppealCases(filters?: { status?: string; search?: string }) {
         checkedInBy: c.last_checked_in_by ? userMap.get(c.last_checked_in_by) : null,
         timerSetBy: c.response_timer_set_by ? userMap.get(c.response_timer_set_by) : null,
       }));
+    },
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  });
+}
+
+export function usePendingAppealCheckInCount() {
+  return useQuery({
+    queryKey: ['terminal-appeal-pending-check-in-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_appeal_cases' as any)
+        .select('status, response_timer_minutes, response_due_at, response_timer_set_at')
+        .not('status', 'in', '(resolved,closed,cancelled)');
+      if (error) throw error;
+      return ((data || []) as unknown as TerminalAppealCase[]).filter((caseItem) =>
+        isAppealCheckInPending(caseItem)
+      ).length;
     },
     refetchInterval: 10_000,
     staleTime: 5_000,

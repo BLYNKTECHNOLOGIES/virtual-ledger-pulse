@@ -34,6 +34,7 @@ import {
   useCheckInAppealCase,
   useSetAppealTimer,
   useToggleAppealModule,
+  useUpdateAppealStatus,
   useUpsertAppealCase,
 } from '@/hooks/useTerminalAppeals';
 import { toast } from 'sonner';
@@ -73,6 +74,16 @@ function classifyAppealOrder(c: TerminalAppealCase, smallBuyConfig?: RangeConfig
   }
   const isSmall = smallSalesConfig?.is_enabled && totalPrice >= smallSalesConfig.min_amount && totalPrice <= smallSalesConfig.max_amount;
   return isSmall ? 'smallSell' : 'bigSell';
+}
+
+function isAppealStatus(status?: string | null) {
+  const s = String(status || '').toUpperCase();
+  return s.includes('APPEAL') || s.includes('DISPUTE');
+}
+
+function isFinalStatus(status?: string | null) {
+  const s = String(status || '').toUpperCase();
+  return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
 }
 
 function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {

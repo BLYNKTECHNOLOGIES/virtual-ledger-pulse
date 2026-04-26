@@ -8,7 +8,7 @@ import { PaymentDetailsCard } from './PaymentDetailsCard';
 import { OrderActions } from './OrderActions';
 import { UpdatePaymentMethodDialog } from './UpdatePaymentMethodDialog';
 import { format } from 'date-fns';
-import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus, hasActiveBinanceComplaint } from '@/lib/orderStatusMapper';
 import { useState, useEffect } from 'react';
 import { useAlternateUpiRequest } from '@/hooks/usePayerModule';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
@@ -39,7 +39,7 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
   const effectiveRawStatus = order.appeal_order_status || (liveIsFinalized ? (liveStatusCanonical as string) : order.order_status);
 
   const opStatus = mapToOperationalStatus(effectiveRawStatus, order.trade_type);
-  const appealOpStatus = order.appeal_status ? mapToOperationalStatus(order.appeal_status, order.trade_type) : null;
+  const appealOpStatus = order.appeal_status || hasActiveBinanceComplaint(liveDetail) ? mapToOperationalStatus(order.appeal_status || 'APPEAL', order.trade_type) : null;
   const shouldShowAppealStatus = appealOpStatus === 'Under Appeal' && opStatus !== 'Under Appeal';
   const isTerminal = ['Completed', 'Cancelled', 'Expired'].includes(opStatus);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);

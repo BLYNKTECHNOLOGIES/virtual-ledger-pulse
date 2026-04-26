@@ -19,7 +19,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { markOrderChatRead } from '@/lib/chat-read-state';
-import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { getStatusStyle, hasActiveBinanceComplaint, isAppealLikeBinanceStatus, isFinalBinanceStatus, normaliseBinanceStatus, mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import {
   AppealStatus,
   TerminalAppealCase,
@@ -75,14 +75,8 @@ function classifyAppealOrder(c: TerminalAppealCase, smallBuyConfig?: RangeConfig
   return isSmall ? 'smallSell' : 'bigSell';
 }
 
-function isAppealStatus(status?: string | null) {
-  const s = String(status || '').toUpperCase();
-  return s.includes('APPEAL') || s.includes('DISPUTE');
-}
-
 function isFinalStatus(status?: string | null) {
-  const s = String(status || '').toUpperCase();
-  return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
+  return isFinalBinanceStatus(status);
 }
 
 function isActiveAppealCase(c: TerminalAppealCase) {
@@ -91,7 +85,7 @@ function isActiveAppealCase(c: TerminalAppealCase) {
 
 function isActiveListAppealCandidate(rawStatus: unknown) {
   const raw = String(rawStatus ?? '').trim().toUpperCase();
-  return raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
+  return raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
 }
 
 function appealSyncStatus(rawStatus: unknown) {
@@ -116,7 +110,7 @@ type AuthoritativeOrderStatus = {
 
 function getResolvedCaseStatus(c: TerminalAppealCase, statusMap: Map<string, AuthoritativeOrderStatus>) {
   const authoritative = statusMap.get(c.order_number)?.order_status;
-  if (authoritative && isFinalStatus(authoritative) && !isActiveAppealCase(c)) return authoritative;
+  if (authoritative) return authoritative;
   return c.binance_status || statusLabels[c.status] || c.status;
 }
 
@@ -245,7 +239,7 @@ export default function TerminalAppeals() {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
           const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
+          if (!hasActiveBinanceComplaint(detail) && liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
         } catch {
           // Best-effort live recheck; leave visible if Binance detail is unavailable.
         }
@@ -290,8 +284,7 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      // Active-list status 7 is the proxy's appeal candidate; authoritative DB/history guards prevent cancelled stale orders from staying active.
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [7] });
+      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
       const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
       const appealOrders = list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status));
       const candidateOrderNumbers = appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean);
@@ -329,7 +322,7 @@ export default function TerminalAppeals() {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
           const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
+          if (!hasActiveBinanceComplaint(detail) && liveStatus && !isAppealLikeBinanceStatus(liveStatus) && isFinalStatus(liveStatus)) {
             await upsertAppeal.mutateAsync({
               orderNumber: c.order_number,
               source: 'binance_status',
@@ -407,7 +400,7 @@ export default function TerminalAppeals() {
 
           <Card className="bg-card border-border"><CardContent className="p-0">
             {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : visibleCases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">{showHistory ? 'No appeal history found' : historyCaseCount ? 'No active appeal cases found. Finalized synced cases are in Appeal History.' : 'No appeal cases found'}</div> : (
-              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCases.map((c) => <AppealRow key={c.id} c={c} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
+              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCases.map((c) => <AppealRow key={c.id} c={c} statusMap={authoritativeStatusMap} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
             )}
           </CardContent></Card>
           <AppealDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} />
@@ -426,15 +419,17 @@ function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: 
   return <Card><CardContent className="p-3 flex items-center justify-between"><div><p className="text-[10px] text-muted-foreground">{label}</p><p className="text-xl font-semibold tabular-nums">{value}</p></div><div className={`p-2 rounded ${toneClass}`}><Icon className="h-4 w-4" /></div></CardContent></Card>;
 }
 
-function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canChat: boolean; onOpen: () => void; onChat: () => void }) {
+function AppealRow({ c, statusMap, canChat, onOpen, onChat }: { c: TerminalAppealCase; statusMap: Map<string, AuthoritativeOrderStatus>; canChat: boolean; onOpen: () => void; onChat: () => void }) {
   const age = getElapsedMinutes(c.appeal_started_at);
   const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
   const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
   const canCheckIn = needsTimer || responseExpired;
+  const orderStatus = getResolvedCaseStatus(c, statusMap);
+  const orderStyle = getStatusStyle(mapToOperationalStatus(orderStatus, c.trade_type || 'SELL'));
   return <TableRow className="cursor-pointer hover:bg-secondary/40" onClick={onOpen}>
     <TableCell><Badge variant="outline" className="text-[10px] tabular-nums border-primary/30 text-primary bg-primary/5"><Clock className="h-3 w-3 mr-1" />{formatDuration(age)}</Badge></TableCell>
     <TableCell>{needsTimer ? <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive bg-destructive/5 animate-pulse">Select timer</Badge> : c.response_due_at ? <Badge variant="outline" className={`text-[10px] tabular-nums ${responseExpired ? 'border-destructive/30 text-destructive bg-destructive/5 animate-pulse' : 'border-amber-500/30 text-amber-500 bg-amber-500/5'}`}>{responseExpired ? 'Overdue' : formatDuration(Math.max(0, Math.floor((new Date(c.response_due_at).getTime() - Date.now()) / 60000)))}</Badge> : c.response_timer_set_at ? <Badge variant="outline" className="text-[10px]">No timer · {getAppealUserName(c.timerSetBy)}</Badge> : <Badge variant="outline" className="text-[10px]">No timer</Badge>}</TableCell>
-    <TableCell><div className="flex flex-col"><span className="text-xs font-mono text-foreground">{c.order_number}</span><span className="text-[10px] text-muted-foreground">{c.adv_no || 'No Ad ID'} · {c.binance_status || '—'}</span></div></TableCell>
+    <TableCell><div className="flex flex-col gap-1"><span className="text-xs font-mono text-foreground">{c.order_number}</span><span className="text-[10px] text-muted-foreground">{c.adv_no || 'No Ad ID'}</span><div className="flex flex-wrap gap-1"><Badge variant="outline" className={`w-fit text-[9px] ${orderStyle.badgeClass}`}>{orderStyle.label}</Badge>{isActiveAppealCase(c) && <Badge variant="outline" className="w-fit text-[9px] border-primary/30 text-primary bg-primary/5">Under Appeal</Badge>}</div></div></TableCell>
     <TableCell><div className="text-xs tabular-nums">{Number(c.total_price || 0).toLocaleString('en-IN')} {c.fiat_unit || 'INR'}</div><div className="text-[10px] text-muted-foreground">{c.asset || 'USDT'}</div></TableCell>
     <TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell>
     <TableCell><div className="flex flex-col gap-1"><Badge variant="secondary" className="w-fit text-[9px]">{statusLabels[c.status]}</Badge><Badge variant="outline" className="w-fit text-[9px]">{c.source === 'small_payment_request' ? `Requested by ${getAppealUserName(c.requester)}` : c.source === 'binance_status' ? 'Binance Appeal' : 'Manual Request'}</Badge></div></TableCell>

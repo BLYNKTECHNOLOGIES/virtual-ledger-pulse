@@ -47,6 +47,24 @@ export function normaliseBinanceStatus(raw: number | string | undefined | null):
   return s.toUpperCase();
 }
 
+export function isFinalBinanceStatus(raw: number | string | undefined | null): boolean {
+  const s = normaliseBinanceStatus(raw);
+  return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED') || s.includes('TIMEOUT');
+}
+
+export function isAppealLikeBinanceStatus(raw: number | string | undefined | null): boolean {
+  const s = normaliseBinanceStatus(raw);
+  return s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT');
+}
+
+export function hasActiveBinanceComplaint(detail: any): boolean {
+  const d = detail?.data?.data || detail?.data || detail;
+  if (!d || typeof d !== 'object') return false;
+  const complaintStatus = d.complaintStatus ?? d.complainStatus ?? d.appealStatus;
+  const hasComplaintStatus = complaintStatus !== undefined && complaintStatus !== null && String(complaintStatus) !== '' && !['0', '3', 'CLOSED', 'RESOLVED', 'CANCELLED', 'CANCELED'].includes(String(complaintStatus).toUpperCase());
+  return hasComplaintStatus || Boolean(d.complaintReason) || d.canCancelComplaintOrder === true || isAppealLikeBinanceStatus(d.orderStatus ?? d.status ?? d.tradeStatus);
+}
+
 // ── Core mapper ─────────────────────────────────────────────────
 export function mapToOperationalStatus(
   rawStatus: string,

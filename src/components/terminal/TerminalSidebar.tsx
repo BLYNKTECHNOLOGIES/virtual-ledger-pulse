@@ -32,12 +32,14 @@ import {
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
+import { usePayerOrders } from '@/hooks/usePayerModule';
 
 interface NavItem {
   title: string;
   url: string;
   icon: React.ElementType;
   showActiveCount?: boolean;
+  showPayerPendingCount?: boolean;
   badge?: string;
   requiredPermission?: TerminalPermission;
   comingSoon?: boolean;
@@ -53,7 +55,7 @@ const navItems: NavItem[] = [
   { title: 'MPI', url: '/terminal/mpi', icon: BarChart3, requiredPermission: 'terminal_mpi_view_own' },
   { title: 'Audit Logs', url: '/terminal/audit-logs', icon: ScrollText, requiredPermission: 'terminal_audit_logs_view' },
   { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, requiredPermission: 'terminal_kyc_view', comingSoon: true },
-  { title: 'Payer', url: '/terminal/payer', icon: CreditCard, requiredPermission: 'terminal_payer_view' },
+  { title: 'Payer', url: '/terminal/payer', icon: CreditCard, showPayerPendingCount: true, requiredPermission: 'terminal_payer_view' },
   { title: 'Appeals', url: '/terminal/appeals', icon: FileWarning, requiredPermission: 'terminal_appeals_view' },
   { title: 'Small Payments', url: '/terminal/small-payments', icon: ReceiptText, requiredPermission: 'terminal_small_payments_view' },
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_logs_view' },
@@ -64,6 +66,7 @@ const navItems: NavItem[] = [
 export function TerminalSidebar() {
   const location = useLocation();
   const { data: activeOrdersData } = useBinanceActiveOrders();
+  const { orders: payerPendingOrders = [] } = usePayerOrders();
   const { hasPermission, terminalPermissions, isLoading } = useTerminalAuth();
 
   const activeCount = (() => {
@@ -122,6 +125,11 @@ export function TerminalSidebar() {
                       {item.showActiveCount && activeCount > 0 && (
                         <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
                           {activeCount}
+                        </span>
+                      )}
+                      {item.showPayerPendingCount && payerPendingOrders.length > 0 && (
+                        <span className="min-w-[18px] h-[18px] flex items-center justify-center text-[9px] font-bold bg-trade-pending text-background rounded-full tabular-nums px-1">
+                          {payerPendingOrders.length}
                         </span>
                       )}
                       {item.comingSoon && (

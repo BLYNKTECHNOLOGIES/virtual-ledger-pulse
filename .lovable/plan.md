@@ -1,208 +1,162 @@
-Plan: Build Small Payments Manager as a post-payment exception workflow
+Audit result: Small Payments Manager is partially implemented, but not safe to treat as fully working yet.
 
-Root-cause findings from the current system
+What is already correctly present
+- Route and sidebar entry exist for `/terminal/small-payments`.
+- New tables exist for manager assignments, cases, and case events.
+- Payer flow attempts to create a manager case after Mark Paid and Alternate UPI.
+- Payer pending queue excludes orders that already have an open Small Payment case.
+- Basic manager dashboard exists with timers, filters, case actions, notes, and Binance chat view.
+- TypeScript compile check passes.
 
-- Payer work is currently optimized only for executing payment. Once a payer clicks Mark Paid, `terminal_payer_order_log` records `marked_paid` and `terminal_payer_order_locks` is immediately changed from `active` to `completed`.
-- Because the lock is completed immediately after Mark Paid, the payer’s pending queue no longer keeps strong visibility on the order while the counterparty has not released crypto yet.
-- The current “Completed” payer tab shows marked-paid orders, but it is not a task queue with SLA timers, exception tags, ownership, or follow-up responsibility.
-- Alternate UPI requests already exist through `terminal_alternate_upi_requests`, but currently there are no rows in production and the workflow only highlights requests in Terminal Orders. It does not hand off the order into a dedicated manager queue.
-- Binance/API-supported actions already available: get order detail, list active/history orders, mark paid, send/read Binance chat messages. There is no reliable API-supported “refund received” event from Binance; refund tracking must be an internal operational tag/status, while order completion/cancellation/appeal remains Binance-sourced.
+Critical issues found
 
-Target operating flow
+1. No real users currently have the new permissions
+Database check shows zero role-permission rows for:
+- `terminal_small_payments_view`
+- `terminal_small_payments_manage`
+- `terminal_small_payments_assign`
 
-```text
-Payer assignment queue
-  -> payer copies payment details / pays
-  -> Mark Paid
-  -> order leaves payer payment queue
-  -> Small Payments Manager queue starts SLA timer
-  -> manager follows up in Binance chat / calls externally if needed
-  -> tags issue: Awaiting Refund, Payment Not Received, Invalid UPI, Unresponsive, Appeal Risk, etc.
-  -> Binance order completes/cancels/appeals
-  -> manager queue auto-closes or moves to final state
+Impact:
+- The sidebar tab will not show for normal users.
+- No manager can access the module unless they are Super Admin or the role is manually edited later.
+- The assignment manager dropdown can be empty because it searches users through these permissions.
 
-Alt UPI path
-  -> payer clicks Alt UPI before payment
-  -> order vanishes from payer queue
-  -> manager queue receives it as Invalid/Alternate UPI Needed
-  -> manager asks counterparty for new UPI in chat
-  -> manager records resolved UPI details
-  -> order can return to payer queue or be marked manager-ready for payment, depending on the existing resolved-override behavior
-```
+2. Payers may not be authorized to create cases
+The latest RPC requires:
+- `terminal_payer_manage`, or
+- `terminal_small_payments_manage`
 
-What will be built
+But the Payer page itself only requires `terminal_payer_view`, and the Small Payments Manager role template gives `terminal_payer_view` but not `terminal_payer_manage`.
 
-1. New Small Payments Manager permissions and navigation
+Impact:
+- Normal payer clicking Mark Paid or Alt UPI can successfully mark paid / request alternate UPI, but the small payment case creation can fail silently because it is fire-and-forget.
+- This directly breaks the main requirement that every marked-paid / Alt UPI order should move to the manager module.
 
-- Add terminal permissions:
-  - `terminal_small_payments_view`
-  - `terminal_small_payments_manage`
-- Add a new Terminal sidebar item: “Small Payments”.
-- Add a new route/page: `/terminal/small-payments`.
-- Add a new assignment manager tab under Terminal Users & Roles, similar to Payer Assignments.
+3. Mark Paid handoff is fire-and-forget and not awaited
+`PayerOrderRow` calls `upsertSmallPaymentCase.mutate(...)` instead of `await mutateAsync(...)`.
 
-2. Assignment system for Small Payments Managers
+Impact:
+- The payer sees success even if manager case creation fails.
+- The order may remain unmanaged or disappear inconsistently depending on later cache refresh.
+- Data integrity is weak because handoff is not transactional from the UI perspective.
 
-- Create a `terminal_small_payment_manager_assignments` table.
-- Assignment types will mirror payer assignment patterns:
-  - size range
-  - Binance Ad ID
-- The manager matching rule will use order total and ad ID, same as payer assignment logic, so dedicated managers can own different ranges.
-- If multiple managers match the same order, assignment will choose the least-loaded active manager to avoid one person getting all exceptions.
+4. Alternate UPI handoff can fail after already requesting alternate UPI
+The UI first creates the old `terminal_alternate_upi_requests` row, then separately creates a Small Payments case.
 
-3. Dedicated exception/work queue
+Impact:
+- If the second call fails, the old alternate UPI request exists but the manager module never receives the case.
+- The payer may think it was handed off because the button says requested.
 
-Create a first-class table, tentatively `terminal_small_payment_cases`, to track post-payment and exception ownership.
+5. RLS visibility is too broad for payers
+Current policy allows anyone with `terminal_payer_view` to read all small payment cases and events.
 
-Core fields:
-- `order_number`
-- `case_type`: `post_payment_followup`, `alternate_upi_needed`, `payment_not_received`, `awaiting_refund`, `invalid_upi`, `unresponsive_counterparty`, `appeal_risk`, `other`
-- `status`: `open`, `waiting_counterparty`, `awaiting_refund`, `ready_to_repay`, `resolved`, `closed`, `cancelled`, `appeal`
-- `payer_user_id` from the original payer log/lock
-- `manager_user_id` assigned by range/ad logic
-- `marked_paid_at` or `opened_at` for the SLA timer
-- `last_checked_at`, `last_contacted_at`
-- `priority`, `notes`, `tags`
-- source pointers for audit: `created_from` = `marked_paid`, `alt_upi`, `manual_tag`, etc.
+Impact:
+- A payer can potentially see every manager case, not only cases they originated.
+- This contradicts the intended dedicated manager workflow and leaks operational data.
 
-Important: this table will not replace Binance order status. Binance remains source of truth for order completion/cancellation/appeal. The case table only tracks internal operational follow-up.
+6. Assignment ownership allows overlapping managers
+The unique indexes prevent duplicate active assignment only for the same manager and same range/ad, but do not prevent two different managers from owning the same active Ad ID or same size range.
 
-4. Automatic case creation
+Impact:
+- Routing may become ambiguous.
+- The function picks one by workload, which may be useful for load sharing, but it contradicts “assigned to whoever that particular range was assigned” if the business intent is exclusive ownership.
 
-- When payer clicks Mark Paid:
-  - keep existing Binance Mark Paid action.
-  - keep existing `terminal_payer_order_log` insert.
-  - create or upsert a Small Payment case for that order.
-  - start timer from the exact marked-paid timestamp.
-  - assign to matching manager based on size range/ad ID.
-- When payer clicks Alt UPI:
-  - create/upsert an `alternate_upi_needed` Small Payment case.
-  - order should disappear from the payer’s pending queue immediately.
-  - assign it to the manager responsible for that order’s range/ad ID.
-  - keep existing `terminal_alternate_upi_requests` audit row.
+7. Closing/resolution does not happen automatically from Binance status
+Cases are opened after Mark Paid, but there is no status sync that automatically resolves/closes the case when Binance order status becomes `COMPLETED`, `CANCELLED`, or `EXPIRED`.
 
-5. Fix payer visibility and timer behavior
+Impact:
+- Manager dashboard will accumulate stale open cases after the counterparty releases.
+- Timers can show overdue even after the order is completed unless a manager manually closes it.
 
-- Payer pending queue should exclude orders with an open Small Payment case of `alternate_upi_needed` or similar manager-owned exception.
-- Payer completed/post-paid tab will show an obvious elapsed timer for marked-paid orders until Binance finalizes the order.
-- Timer styling:
-  - normal: under 10 minutes
-  - warning: 10–30 minutes
-  - urgent: 30+ minutes
-  - critical: long-running/unreleased orders
-- The timer will be based on `marked_paid_at` from logs/cases, not UI state, so it survives refreshes and shift changes.
+8. Case event logging is incomplete for status button changes
+Status buttons update the case row directly. They do not always add a case event unless using the RPC event function.
 
-6. Small Payments Manager page
+Impact:
+- Audit trail is incomplete for tag/status changes, reducing usefulness for accountability.
 
-New page sections:
-- Summary cards:
-  - Open cases
-  - Overdue cases
-  - Awaiting refund
-  - Alternate UPI needed
-  - Unresponsive counterparties
-  - Completed/closed today
-- Filters:
-  - My assigned / all if manager/admin
-  - case type
-  - tag/status
-  - age bucket
-  - size range/ad ID
-  - search by order number/counterparty
-- Main table:
-  - timer prominently visible
-  - order no, amount, asset, counterparty, payer, assigned manager
-  - Binance status
-  - case status/tag
-  - last contact/check
-  - actions
+9. “Mark Contacted” and “Mark Checked” do not update the selected dialog state immediately
+The underlying query invalidates, but the open dialog uses the old selected case object.
 
-7. Case detail workspace
+Impact:
+- The list may update after refetch, but the currently open dialog can display stale values until reopened.
 
-The manager will be able to open a case and see:
-- Binance order details
-- payment details / resolved alternate UPI if available
-- original payer and marked-paid time
-- Binance chat messages using existing chat APIs/hooks
-- send chat message using existing `sendChatMessage`
-- internal notes and status history
-- action buttons:
-  - Set tag/status: Awaiting Refund, Payment Not Received, Invalid UPI, Unresponsive, Alternate UPI Needed, Ready to Re-pay, Resolved
-  - Mark contacted
-  - Resolve alternate UPI with new details
-  - Close case when Binance is completed/cancelled or when operationally resolved
+10. Manager assignment UI permission mismatch
+`TerminalUsers.tsx` shows the Small Payments assignment tab for `terminal_small_payments_assign`, `terminal_users_manage`, or admin, but inside it uses a permission gate with only `terminal_small_payments_assign` and `terminal_users_manage`.
 
-8. Alternate UPI handoff behavior
+Impact:
+- A Super Admin/admin may see the tab but get silent blocked content if their effective admin path is not included by the gate logic.
 
-- The existing Alt UPI button will be changed from “request and remain in payer workflow” to “request and handoff to Small Payments Manager”.
-- Once manager resolves alternate UPI:
-  - the payer can see the updated override payment details if the order is returned to payer payment queue.
-  - the case status changes to `ready_to_repay` or `resolved`, depending on the existing Binance status.
-- I will keep this API-compliant: the updated UPI is internal operational override only. Binance’s original payment method payload is not mutated unless Binance supports such an action, which it currently does not appear to.
+11. No current production data verifies the flow
+Database currently shows:
+- 0 small payment cases
+- 0 manager assignments
+- 0 case events
 
-9. Data integrity and audit
+Impact:
+- The implementation has not yet been exercised end-to-end with live records.
 
-- Use idempotent inserts/upserts so repeated Mark Paid or Alt UPI clicks do not create duplicate cases.
-- Add case event history table, e.g. `terminal_small_payment_case_events`, for:
-  - created
-  - assigned
-  - tag changed
-  - status changed
-  - note added
-  - contacted
-  - resolved/closed
-- Use actual user UUIDs for all audit columns.
-- Do not use client-side localStorage for role/manager authorization.
-- Add RLS policies aligned with terminal permissions; authenticated users can only act through permissions and assignment rules.
+Fix plan
 
-10. Binance status reconciliation
+1. Seed and repair permissions properly
+- Add a migration to attach the new Small Payments permissions to appropriate existing roles:
+  - Small Payments Manager: view + manage
+  - Terminal Supervisor/Admin/Super Admin or equivalent roles: view + manage + assign
+- Keep roles in `p2p_terminal_roles` / `p2p_terminal_role_permissions`; do not store role flags on users.
+- Ensure the frontend role template and database defaults match.
 
-- The module will use Binance active/history data and existing `binance_order_history` to auto-detect final states.
-- Cases should auto-show final state when Binance status becomes `COMPLETED`, `CANCELLED`, `EXPIRED`, `APPEAL`, or dispute-related status.
-- Cases will not invent refund status from Binance. “Awaiting refund” will be an internal tag/status because refund-arrival evidence is outside currently confirmed Binance order APIs.
+2. Fix payer authorization for case handoff
+- Update `upsert_terminal_small_payment_case` so `terminal_payer_view` users can create/update cases only for orders they are actively handling/originating.
+- Do not grant broad manager powers to payers.
+- Tighten authorization inside the RPC instead of relying only on frontend gates.
 
-Technical implementation steps
+3. Make handoff reliable in the payer UI
+- Change Mark Paid and Upload+Mark Paid flows to `await upsertSmallPaymentCase.mutateAsync(...)` after Binance Mark Paid succeeds.
+- If case creation fails, show a clear error and keep the user aware that manager handoff failed.
+- Invalidate payer orders, open small payment cases, and manager case queries after successful handoff.
 
-1. Database migration
-- Add terminal permissions.
-- Create `terminal_small_payment_manager_assignments`.
-- Create `terminal_small_payment_cases`.
-- Create `terminal_small_payment_case_events`.
-- Add indexes for order number, manager, payer, status, case type, marked-paid/opened timestamp, and active cases.
-- Enable RLS and add policies consistent with terminal permission access.
+4. Make Alternate UPI handoff consistent
+- Ensure Alt UPI request and Small Payment case creation are coordinated.
+- If the old alternate UPI request succeeds but manager case creation fails, show an explicit warning and do not pretend the handoff is complete.
+- Prefer creating the manager case immediately and visibly as the operational source of truth.
 
-2. Hooks and logic
-- Add `useSmallPaymentsManager` hooks for assignments, cases, case updates, and event history.
-- Extend payer logic in `usePayerModule.ts`:
-  - create case on Mark Paid.
-  - create case on Alt UPI.
-  - exclude manager-owned Alt UPI/open exception cases from payer pending queue.
-  - expose marked-paid timer metadata.
+5. Tighten RLS policies
+- Remove broad `terminal_payer_view` read access from all cases/events.
+- Allow payer read only where `payer_user_id = auth.uid()`.
+- Allow manager read only where `manager_user_id = auth.uid()`.
+- Allow supervisor/admin read via `terminal_small_payments_manage`.
+- Assignment management remains restricted to `terminal_small_payments_assign` / admin-level permission.
 
-3. UI additions
-- Add `TerminalSmallPayments.tsx` page.
-- Add table row/card components for cases.
-- Add case detail dialog/workspace with Binance chat integration.
-- Add `SmallPaymentManagerAssignmentManager` under Users & Roles.
-- Add route and sidebar entry.
+6. Decide and enforce assignment collision behavior
+- If one range/Ad ID should have exactly one manager, add partial unique indexes on active `size_range_id` and active `ad_id` globally.
+- If multiple managers per range are intended for load balancing, update UI copy to say “pool” and show that it routes by workload.
+- I recommend exclusive assignment unless you want round-robin/team pools.
 
-4. Payer UI updates
-- Add highly visible post-Mark-Paid elapsed timer in completed/paid rows.
-- Change Alt UPI button behavior to show that the order is being handed off to Small Payments Manager.
-- Add badges when an order has an open small-payment case.
+7. Add automatic case closure/sync
+- Add a sync step in the manager query/RPC or a lightweight database function that checks matched Binance history/status.
+- Auto-close or flag cases when order status is completed/cancelled/expired.
+- Keep manual override/status notes for refund and exception states.
 
-5. Verification
-- Confirm Mark Paid creates exactly one case per order.
-- Confirm Alt UPI creates exactly one manager case and removes the order from payer pending view.
-- Confirm manager assignments route cases by size range/ad ID.
-- Confirm timers persist after refresh.
-- Confirm completed/cancelled Binance statuses close or clearly finalize cases.
-- Confirm users without manager permission cannot see or mutate manager cases.
+8. Improve audit trail
+- Route status changes through a function that logs `status_changed`, `tag_changed`, and `priority_changed` events.
+- Preserve previous and new values in `terminal_small_payment_case_events`.
+
+9. Fix frontend stale state and UI guards
+- Refresh selected case data in the dialog after updates.
+- Add manager reassignment/unassigned case visibility for supervisors.
+- Fix `TerminalUsers` permission gate so Super Admin/admin paths align with visible tab logic.
+
+10. Verification after implementation
+- Run TypeScript validation.
+- Query role permissions to confirm rows exist.
+- Test/create a controlled case through the RPC with an authorized user path.
+- Verify normal managers see only their assigned cases.
+- Verify payers can create handoff cases but cannot see all manager cases.
+- Verify zero-assignment cases show as unassigned/supervisor-visible instead of disappearing.
 
 Expected result
-
-- Payers focus only on making payments, not long follow-up conversations.
-- Every marked-paid order remains visible in a managed queue until Binance finalizes it.
-- Invalid UPI and payment-not-received exceptions are immediately routed to the right team.
-- Managers can tag, prioritize, chat, follow up, and audit every exception.
-- No fake Binance data is created; Binance status remains authoritative and internal operational tags are clearly separated.
+- Mark Paid and Alt UPI reliably create manager cases.
+- Dedicated managers get a clean queue based on assignment.
+- Payers cannot see unrelated manager cases.
+- Admins can configure assignments and supervise unassigned/stale cases.
+- Cases do not remain open forever after Binance completion.
+- The module becomes operationally reliable instead of only visually present.

@@ -137,6 +137,51 @@ export default function TerminalAppeals() {
     return modeFiltered.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
   }, [cases, showHistory, orderType, smallBuyConfig, smallSalesConfig]);
 
+  const activeCasesToRecheck = useMemo(
+    () => cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status) && !isFinalStatus(c.binance_status)),
+    [cases]
+  );
+
+  const { data: finalizedAppeals = [] } = useQuery({
+    queryKey: ['terminal-appeal-live-final-status', activeCasesToRecheck.map((c) => c.order_number).join(',')],
+    queryFn: async () => {
+      const finalized: Array<{ caseItem: TerminalAppealCase; liveStatus: string }> = [];
+      for (const c of activeCasesToRecheck) {
+        try {
+          const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
+          const detail = detailResp?.data || detailResp;
+          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
+        } catch {
+          // Best-effort live recheck; leave visible if Binance detail is unavailable.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 120));
+      }
+      return finalized;
+    },
+    enabled: isEnabled && activeCasesToRecheck.length > 0,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
+    finalizedAppeals.forEach(({ caseItem, liveStatus }) => {
+      upsertAppeal.mutate({
+        orderNumber: caseItem.order_number,
+        source: 'binance_status',
+        status: liveStatus.includes('COMPLETED') ? 'resolved' : 'cancelled',
+        requestReason: caseItem.request_reason || 'Detected from Binance order status.',
+        advNo: caseItem.adv_no,
+        tradeType: caseItem.trade_type,
+        asset: caseItem.asset,
+        fiatUnit: caseItem.fiat_unit || 'INR',
+        totalPrice: caseItem.total_price,
+        counterpartyNickname: caseItem.counterparty_nickname,
+        binanceStatus: liveStatus,
+      });
+    });
+  }, [finalizedAppeals, upsertAppeal]);
+
   const summary = useMemo(() => {
     const active = visibleCases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
     return {

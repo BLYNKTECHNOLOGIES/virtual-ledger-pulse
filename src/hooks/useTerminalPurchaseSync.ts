@@ -23,11 +23,11 @@ async function fetchOrderDetail(orderNumber: string): Promise<{ status: string |
     if (rawStatus !== null && rawStatus !== undefined) {
       const numStatus = Number(rawStatus);
       if (!isNaN(numStatus)) {
-        // Binance numeric: 0=pending, 1=paying, 2=buyer_paid, 3=distributing, 4=completed, 5=cancelled, 6=cancelled_by_system, 7=appeal
+        // Binance numeric: 7 from detail can remain stale for system-cancelled C2C orders; history is authoritative for appeal finality.
         const statusMap: Record<number, string> = {
           0: 'PENDING', 1: 'TRADING', 2: 'BUYER_PAYED',
           3: 'DISTRIBUTING', 4: 'COMPLETED', 5: 'CANCELLED',
-          6: 'CANCELLED_BY_SYSTEM', 7: 'IN_APPEAL',
+          6: 'CANCELLED_BY_SYSTEM', 7: 'CANCELLED_BY_SYSTEM', 8: 'IN_APPEAL',
         };
         status = statusMap[numStatus] ?? String(rawStatus);
       } else {

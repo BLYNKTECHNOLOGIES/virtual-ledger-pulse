@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Clock, FileWarning, MessageSquare, RefreshCw, ShieldOff, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWo
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import {
@@ -45,6 +47,33 @@ const statusLabels: Record<AppealStatus, string> = {
   closed: 'Closed',
   cancelled: 'Cancelled',
 };
+
+type AppealOrderType = 'all' | 'smallBuy' | 'smallSell' | 'bigBuy' | 'bigSell';
+
+interface RangeConfig {
+  is_enabled: boolean;
+  min_amount: number;
+  max_amount: number;
+}
+
+const orderTypeLabels: Record<AppealOrderType, string> = {
+  all: 'All Types',
+  smallBuy: 'Small Buyer',
+  smallSell: 'Small Sales',
+  bigBuy: 'Big Buyer',
+  bigSell: 'Big Sales',
+};
+
+function classifyAppealOrder(c: TerminalAppealCase, smallBuyConfig?: RangeConfig | null, smallSalesConfig?: RangeConfig | null): Exclude<AppealOrderType, 'all'> {
+  const tradeType = String(c.trade_type || '').toUpperCase();
+  const totalPrice = Number(c.total_price || 0);
+  if (tradeType === 'BUY') {
+    const isSmall = smallBuyConfig?.is_enabled && totalPrice >= smallBuyConfig.min_amount && totalPrice <= smallBuyConfig.max_amount;
+    return isSmall ? 'smallBuy' : 'bigBuy';
+  }
+  const isSmall = smallSalesConfig?.is_enabled && totalPrice >= smallSalesConfig.min_amount && totalPrice <= smallSalesConfig.max_amount;
+  return isSmall ? 'smallSell' : 'bigSell';
+}
 
 function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
   return {

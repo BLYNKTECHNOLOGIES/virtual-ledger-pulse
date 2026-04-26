@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
 import { supabase } from '@/integrations/supabase/client';
 import { useExcludeFromAutoReply, useLogPayerAction, useAlternateUpiRequest, useRequestAlternateUpi } from '@/hooks/usePayerModule';
+import { formatCaseAge, getCaseAgeMinutes, useUpsertSmallPaymentCase } from '@/hooks/useSmallPaymentsManager';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
@@ -58,6 +59,7 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const logAction = useLogPayerAction();
   const getUploadUrl = useGetChatImageUploadUrl();
   const requestAltUpi = useRequestAlternateUpi();
+  const upsertSmallPaymentCase = useUpsertSmallPaymentCase();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -115,6 +117,19 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
         }, ...current];
       });
       logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
+      upsertSmallPaymentCase.mutate({
+        orderNumber: order.orderNumber,
+        caseType: 'post_payment_followup',
+        status: 'open',
+        createdFrom: 'marked_paid',
+        markedPaidAt: new Date().toISOString(),
+        advNo: order.advNo || null,
+        totalPrice: Number(order.totalPrice || 0),
+        asset: order.asset || 'USDT',
+        fiatUnit: order.fiat || 'INR',
+        counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+        binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      });
       onMarkPaidSuccess();
 
       // Screenshot delivery must never block or undo the paid acknowledgement.
@@ -154,6 +169,20 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
   const handleRequestAltUpi = (e: React.MouseEvent) => {
     e.stopPropagation();
     requestAltUpi.mutate(order.orderNumber);
+    upsertSmallPaymentCase.mutate({
+      orderNumber: order.orderNumber,
+      caseType: 'alternate_upi_needed',
+      status: 'waiting_counterparty',
+      createdFrom: 'alt_upi',
+      advNo: order.advNo || null,
+      totalPrice: Number(order.totalPrice || 0),
+      asset: order.asset || 'USDT',
+      fiatUnit: order.fiat || 'INR',
+      counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+      binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      note: 'Payer requested alternate UPI and handed off to Small Payments Manager.',
+    });
+    onMarkPaidSuccess();
   };
 
   const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +212,19 @@ export function PayerOrderRow({ order, isExcluded, isCompleted, onOpenOrder, onM
         }, ...current];
       });
       logAction.mutate({ orderNumber: order.orderNumber, action: 'marked_paid' });
+      upsertSmallPaymentCase.mutate({
+        orderNumber: order.orderNumber,
+        caseType: 'post_payment_followup',
+        status: 'open',
+        createdFrom: 'marked_paid',
+        markedPaidAt: new Date().toISOString(),
+        advNo: order.advNo || null,
+        totalPrice: Number(order.totalPrice || 0),
+        asset: order.asset || 'USDT',
+        fiatUnit: order.fiat || 'INR',
+        counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+        binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      });
       onMarkPaidSuccess();
 
       void (async () => {

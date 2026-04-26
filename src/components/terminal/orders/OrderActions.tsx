@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,11 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Smartphone } from 'lucide-react';
-import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified } from '@/hooks/useBinanceActions';
+import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Smartphone, Mail } from 'lucide-react';
+import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
+import { toast } from 'sonner';
 
 interface Props {
   orderNumber: string;
@@ -188,22 +189,32 @@ function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
   );
 }
 
-type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'SMS';
+type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'SMS';
 
 const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string; fieldName: string }[] = [
   { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code', fieldName: 'googleVerifyCode' },
   { value: 'YUBIKEY', label: 'YubiKey', icon: <Fingerprint className="h-3.5 w-3.5" />, placeholder: 'Tap your YubiKey…', fieldName: 'yubikeyVerifyCode' },
+  { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code', fieldName: 'emailVerifyCode' },
   { value: 'SMS', label: 'SMS OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter SMS verification code', fieldName: 'mobileVerifyCode' },
 ];
 
 function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const releaseCoin = useReleaseCoin();
+  const sendVerifyCode = useCheckIfCanRelease();
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
+  const [sendCooldown, setSendCooldown] = useState(0);
   const codeRef = useRef('');
 
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
+  const canRequestCode = authMethod === 'EMAIL' || authMethod === 'SMS';
+
+  useEffect(() => {
+    if (sendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setSendCooldown((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [sendCooldown]);
 
   const releaseFiredRef = useRef(false);
 

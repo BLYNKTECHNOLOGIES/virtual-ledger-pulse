@@ -81,41 +81,40 @@ export function ReceiptTemplate({ data, onReady }: { data: ReceiptData; onReady?
             justifyContent: "center",
             gap: "6px",
             background: "rgba(255,255,255,0.2)",
-            borderRadius: "20px",
-            padding: "0 16px",
-            minWidth: "118px",
-            height: "26px",
+            borderRadius: "999px",
+            padding: "0 14px",
+            height: "34px",
             boxSizing: "border-box",
-            fontSize: "12px",
+            fontSize: "14px",
             fontWeight: 600,
             marginTop: "10px",
             lineHeight: 1,
             textAlign: "center",
-            verticalAlign: "top",
           }}
         >
           <span
             aria-hidden="true"
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              width: "12px",
-              height: "12px",
-              flex: "0 0 12px",
+              width: "16px",
+              height: "16px",
+              flex: "0 0 16px",
             }}
           >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>
-              <path d="M2.5 6.15L4.85 8.5L9.5 3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ display: "block" }}>
+              <path d="M3.75 8.15L6.45 10.85L12.25 4.85" stroke="white" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </span>
           <span
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              height: "26px",
-              lineHeight: "26px",
+              fontSize: "14px",
+              lineHeight: 1,
+              margin: 0,
+              padding: 0,
               transform: "translateY(-0.5px)",
             }}
           >

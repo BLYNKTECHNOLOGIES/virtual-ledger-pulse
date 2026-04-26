@@ -34,6 +34,19 @@ export interface SmallPaymentCase {
   payer?: any;
 }
 
+const FINAL_ORDER_STATUS_PARTS = ['COMPLETED', 'CANCEL', 'EXPIRED'];
+
+function isFinalOrderStatus(status?: string | null) {
+  const normalized = String(status || '').toUpperCase();
+  return FINAL_ORDER_STATUS_PARTS.some((part) => normalized.includes(part));
+}
+
+function pickAuthoritativeOrderStatus(records: Array<{ status: string | null; ts: number }>) {
+  const finalRecord = records.filter((record) => isFinalOrderStatus(record.status)).sort((a, b) => b.ts - a.ts)[0];
+  if (finalRecord) return finalRecord.status;
+  return records.sort((a, b) => b.ts - a.ts)[0]?.status || null;
+}
+
 export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: string; caseType?: string }) {
   const { userId, hasPermission, isTerminalAdmin } = useTerminalAuth();
   return useQuery({
@@ -64,22 +77,26 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
 
       const users = usersRes.data || [];
       const userMap = new Map((users || []).map((u: any) => [u.id, u]));
-      const statusMap = new Map<string, { status: string | null; ts: number }>();
+      const statusMap = new Map<string, Array<{ status: string | null; ts: number }>>();
       const rememberStatus = (orderNumber: string, status: string | null, syncedAt?: string | null, updatedAt?: string | null) => {
         if (!orderNumber || !status) return;
         const ts = Math.max(new Date(syncedAt || 0).getTime() || 0, new Date(updatedAt || 0).getTime() || 0);
-        const current = statusMap.get(orderNumber);
-        if (!current || ts >= current.ts) statusMap.set(orderNumber, { status, ts });
+        statusMap.set(orderNumber, [...(statusMap.get(orderNumber) || []), { status, ts }]);
       };
       (p2pRes.data || []).forEach((r: any) => rememberStatus(r.binance_order_number, r.order_status, r.synced_at, r.updated_at));
       (historyRes.data || []).forEach((r: any) => rememberStatus(r.order_number, r.order_status, r.synced_at, r.updated_at));
 
-      return cases.map((c) => ({
+      const enrichedCases = cases.map((c) => ({
         ...c,
-        current_order_status: statusMap.get(c.order_number)?.status || c.binance_status || null,
+        current_order_status: pickAuthoritativeOrderStatus(statusMap.get(c.order_number) || []) || c.binance_status || null,
         manager: c.manager_user_id ? userMap.get(c.manager_user_id) : null,
         payer: c.payer_user_id ? userMap.get(c.payer_user_id) : null,
       }));
+
+      return enrichedCases.filter((c) => {
+        if (['resolved', 'closed', 'cancelled'].includes(c.status)) return true;
+        return !isFinalOrderStatus(c.current_order_status);
+      });
     },
     refetchInterval: 10_000,
     staleTime: 5_000,
@@ -95,7 +112,13 @@ export function useOpenSmallPaymentCases() {
         .select('*')
         .not('status', 'in', '(resolved,closed,cancelled)');
       if (error) throw error;
-      return (data || []) as unknown as SmallPaymentCase[];
+      const cases = (data || []) as unknown as SmallPaymentCase[];
+      const orderNumbers = [...new Set(cases.map((c) => c.order_number).filter(Boolean))];
+      const { data: history } = orderNumbers.length
+        ? await supabase.from('binance_order_history').select('order_number, order_status, synced_at, updated_at').in('order_number', orderNumbers)
+        : { data: [] as any[] };
+      const finalOrders = new Set((history || []).filter((r: any) => isFinalOrderStatus(r.order_status)).map((r: any) => r.order_number));
+      return cases.filter((c) => !finalOrders.has(c.order_number));
     },
     refetchInterval: 10_000,
     staleTime: 5_000,

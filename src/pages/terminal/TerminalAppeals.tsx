@@ -32,7 +32,6 @@ import {
   useCheckInAppealCase,
   useSetAppealTimer,
   useToggleAppealModule,
-  useUpdateAppealStatus,
   useUpsertAppealCase,
 } from '@/hooks/useTerminalAppeals';
 import { toast } from 'sonner';
@@ -227,7 +226,6 @@ function AppealDetailDialog({ caseItem, open, onOpenChange }: { caseItem: Termin
   const setTimer = useSetAppealTimer();
   const addNote = useAddAppealNote();
   const checkIn = useCheckInAppealCase();
-  const updateStatus = useUpdateAppealStatus();
   const responseExpired = !!caseItem?.response_due_at && new Date(caseItem.response_due_at).getTime() <= Date.now();
   const shouldShowCheckIn = !!caseItem && (responseExpired || (caseItem.status === 'under_appeal' && caseItem.response_timer_minutes === null && !caseItem.response_timer_set_at));
 

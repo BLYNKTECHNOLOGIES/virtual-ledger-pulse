@@ -238,23 +238,30 @@ export function QuickReceiveDialog({
               {selectedAuth.icon}
               {selectedAuth.label} Code
             </Label>
-            <Input
-              type="text"
-              placeholder={selectedAuth.placeholder}
-              value={code}
-              onChange={(e) => handleCodeChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const val = (e.target as HTMLInputElement).value;
-                  if (val.trim()) setTimeout(() => doRelease(val), 50);
-                }
-              }}
-              maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
-              className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
-              autoFocus
-            />
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder={selectedAuth.placeholder}
+                value={code}
+                onChange={(e) => handleCodeChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const val = (e.target as HTMLInputElement).value;
+                    if (val.trim()) setTimeout(() => doRelease(val), 50);
+                  }
+                }}
+                maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
+                className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
+                autoFocus
+              />
+              {canRequestCode && (
+                <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 text-xs" onClick={handleSendCode} disabled={sendVerifyCode.isPending || sendCooldown > 0}>
+                  {sendVerifyCode.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : sendCooldown > 0 ? `${sendCooldown}s` : 'Send'}
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

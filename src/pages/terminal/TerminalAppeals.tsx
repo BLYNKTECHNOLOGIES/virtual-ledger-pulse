@@ -238,6 +238,7 @@ export default function TerminalAppeals() {
           </div>
           <div className="flex items-center gap-2">
             {isSuperAdmin && <div className="flex items-center gap-2 rounded border border-border px-3 py-1.5"><span className="text-xs text-muted-foreground">Module</span><Switch checked={isEnabled} onCheckedChange={(v) => toggleAppeal.mutate(v)} disabled={toggleAppeal.isPending || configLoading} /></div>}
+            <Button variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground" onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Active Appeals' : 'Appeal History'}</Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
             {hasPermission('terminal_appeals_manage') && isEnabled && <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={syncAppealOrders} disabled={isSyncing}><RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />Sync Binance Appeals</Button>}
           </div>

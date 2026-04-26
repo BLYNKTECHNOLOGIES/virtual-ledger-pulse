@@ -121,7 +121,7 @@ export default function TerminalSmallPayments() {
           )}
         </CardContent></Card>
 
-        <CaseDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} />
+        <CaseDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} onCaseUpdated={(patch) => setSelectedCase((current) => current ? { ...current, ...patch } : current)} />
       </div>
     </TerminalPermissionGate>
   );
@@ -167,7 +167,7 @@ function buildFallbackOrder(c: SmallPaymentCase): P2POrderRecord {
   };
 }
 
-function CaseDetailDialog({ caseItem, open, onOpenChange }: { caseItem: SmallPaymentCase | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+function CaseDetailDialog({ caseItem, open, onOpenChange, onCaseUpdated }: { caseItem: SmallPaymentCase | null; open: boolean; onOpenChange: (open: boolean) => void; onCaseUpdated: (patch: Partial<SmallPaymentCase>) => void }) {
   const [note, setNote] = useState('');
   const [appealReason, setAppealReason] = useState('');
   const { hasPermission } = useTerminalAuth();
@@ -177,7 +177,14 @@ function CaseDetailDialog({ caseItem, open, onOpenChange }: { caseItem: SmallPay
   const logEvent = useLogSmallPaymentCaseEvent();
   const { data: events = [] } = useSmallPaymentCaseEvents(caseItem?.id);
   if (!caseItem) return null;
-  const setStatus = (status: SmallPaymentCaseStatus) => updateStatus.mutate({ id: caseItem.id, status });
+  const setStatus = (status: SmallPaymentCaseStatus) => updateStatus.mutate(
+    { id: caseItem.id, status },
+    { onSuccess: () => onCaseUpdated({ status, updated_at: new Date().toISOString() }) }
+  );
+  const logCaseAction = (eventType: 'contacted' | 'checked') => logEvent.mutate(
+    { caseId: caseItem.id, eventType },
+    { onSuccess: () => onCaseUpdated({ [eventType === 'contacted' ? 'last_contacted_at' : 'last_checked_at']: new Date().toISOString() } as Partial<SmallPaymentCase>) }
+  );
   const addNote = async () => { if (!note.trim()) return; await logEvent.mutateAsync({ caseId: caseItem.id, eventType: 'note_added', note: note.trim() }); setNote(''); toast.success('Note added'); };
   const canRequestAppeal = hasPermission('terminal_appeals_request') || hasPermission('terminal_appeals_manage');
   const submitAppeal = async () => { await requestAppeal.mutateAsync({ caseId: caseItem.id, reason: appealReason.trim() || 'Appeal requested from Small Payments Manager.' }); setAppealReason(''); };
@@ -185,7 +192,7 @@ function CaseDetailDialog({ caseItem, open, onOpenChange }: { caseItem: SmallPay
 
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-2xl max-h-[86vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-base">Small Payment Case · {caseItem.order_number}</DialogTitle></DialogHeader><div className="space-y-3">
     <div className="space-y-3"><Card><CardContent className="p-4 space-y-2"><div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{caseTypeLabels[caseItem.case_type]}</Badge><Badge variant="secondary">Case: {statusLabels[caseItem.status]}</Badge><Badge variant="outline" className={getOrderStatusBadgeClass(orderStatus)}>Order: {orderStatus}</Badge><Badge variant="outline" className="tabular-nums">{formatCaseAge(getCaseAgeMinutes(caseItem))}</Badge></div><div className="grid grid-cols-2 gap-2 text-xs"><Info label="Amount" value={`${Number(caseItem.total_price || 0).toLocaleString('en-IN')} ${caseItem.fiat_unit || 'INR'}`} /><Info label="Asset" value={caseItem.asset || 'USDT'} /><Info label="Current Order Status" value={orderStatus} /><Info label="Counterparty" value={caseItem.counterparty_nickname || '—'} /><Info label="Marked Paid" value={caseItem.marked_paid_at ? format(new Date(caseItem.marked_paid_at), 'dd MMM HH:mm') : '—'} /><Info label="Payer" value={getUserName(caseItem.payer)} /><Info label="Manager" value={getUserName(caseItem.manager)} /></div></CardContent></Card>
-      <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Case Actions</p><div className="flex flex-wrap gap-2">{(['waiting_counterparty','awaiting_refund','ready_to_repay','resolved','closed','appeal'] as SmallPaymentCaseStatus[]).map((s) => <Button key={s} variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setStatus(s)}>{statusLabels[s]}</Button>)}<Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => logEvent.mutate({ caseId: caseItem.id, eventType: 'contacted' })}>Mark Contacted</Button><Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => logEvent.mutate({ caseId: caseItem.id, eventType: 'checked' })}>Mark Checked</Button></div><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Internal note..." className="text-xs" /><Button size="sm" className="h-8 text-xs" onClick={addNote}>Add Note</Button></CardContent></Card>
+      <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Case Actions</p><div className="flex flex-wrap gap-2">{(['waiting_counterparty','awaiting_refund','ready_to_repay','resolved','closed','appeal'] as SmallPaymentCaseStatus[]).map((s) => <Button key={s} type="button" variant="outline" size="sm" className="h-7 text-[10px]" disabled={updateStatus.isPending} onClick={() => setStatus(s)}>{statusLabels[s]}</Button>)}<Button type="button" variant="outline" size="sm" className="h-7 text-[10px]" disabled={logEvent.isPending} onClick={() => logCaseAction('contacted')}>Mark Contacted</Button><Button type="button" variant="outline" size="sm" className="h-7 text-[10px]" disabled={logEvent.isPending} onClick={() => logCaseAction('checked')}>Mark Checked</Button></div><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Internal note..." className="text-xs" /><Button type="button" size="sm" className="h-8 text-xs" onClick={addNote}>Add Note</Button></CardContent></Card>
       <Card><CardContent className="p-4 space-y-2"><div className="flex items-center gap-2"><FileWarning className="h-3.5 w-3.5 text-primary" /><p className="text-xs font-medium">Appeal Request</p></div><Textarea value={appealReason} onChange={(e) => setAppealReason(e.target.value)} placeholder="Reason for appeal request..." className="text-xs" disabled={!canRequestAppeal || !appealConfig?.is_enabled} /><Button size="sm" variant="outline" className="h-8 text-xs" onClick={submitAppeal} disabled={!canRequestAppeal || !appealConfig?.is_enabled || requestAppeal.isPending}>{appealConfig?.is_enabled ? 'Request Appeal' : 'Appeal Module Off'}</Button></CardContent></Card>
       <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Event History</p><div className="space-y-2 max-h-48 overflow-y-auto">{events.map((e: any) => <div key={e.id} className="text-[10px] border-b border-border pb-1"><span className="font-medium">{e.event_type}</span> · {format(new Date(e.created_at), 'dd MMM HH:mm')}{e.note && <div className="text-muted-foreground mt-0.5">{e.note}</div>}</div>)}</div></CardContent></Card></div>
   </div></DialogContent></Dialog>;

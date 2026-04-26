@@ -1,10 +1,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import { AlertTriangle, CheckCircle, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
+import { CheckCircle, Loader2, RefreshCw, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useBinanceUserDetail, useRefreshMerchantState } from '@/hooks/useBinanceActions';
 
@@ -52,56 +50,18 @@ export function MerchantStateCard() {
   const businessStatus = hasLiveStatus ? apiData?.businessStatus : latestSnapshot?.business_status;
   const hasRestriction = Number(businessStatus) === 2 || Number(businessStatus) === 3;
   const isCachedOnly = !hasLiveStatus && !!latestSnapshot;
-  const checkedAt = latestSnapshot?.checked_at ? new Date(latestSnapshot.checked_at) : null;
 
   return (
-    <Card className={hasRestriction || isCachedOnly ? 'border-amber-500/30 bg-amber-500/5' : ''}>
-      <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-primary/10 p-2">
-            {hasRestriction ? <ShieldAlert className="h-5 w-5 text-amber-500" /> : <CheckCircle className="h-5 w-5 text-primary" />}
-          </div>
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-medium text-foreground">Binance Merchant State</p>
-              <Badge variant="outline" className={`text-xs ${statusClass(businessStatus)}`}>
-                {isCachedOnly ? `Cached: ${statusLabel(businessStatus)}` : statusLabel(businessStatus)}
-              </Badge>
-              {(userDetail.isError || isCachedOnly) && (
-                <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5 text-xs">
-                  API unavailable
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {apiData?.nickname || latestSnapshot?.nickname || 'Binance merchant'}
-              {apiData?.userKycStatus || latestSnapshot?.user_kyc_status ? ` · KYC ${apiData?.userKycStatus || latestSnapshot?.user_kyc_status}` : ''}
-              {checkedAt ? ` · Checked ${format(checkedAt, 'dd MMM HH:mm:ss')}` : ''}
-            </p>
-            {hasRestriction && (
-              <p className="flex items-center gap-1 text-xs text-amber-500">
-                <AlertTriangle className="h-3.5 w-3.5" /> Binance is reporting a restricted merchant state; automation failures may be Binance-side.
-              </p>
-            )}
-            {isCachedOnly && !hasRestriction && (
-              <p className="flex items-center gap-1 text-xs text-amber-500">
-                <AlertTriangle className="h-3.5 w-3.5" /> Showing cached Binance state only; refresh failed or live state is unavailable.
-              </p>
-            )}
-            {userDetail.isError && <p className="text-xs text-destructive">{(userDetail.error as Error).message}</p>}
-          </div>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refreshState.mutate()}
-          disabled={refreshState.isPending || userDetail.isLoading}
-          className="shrink-0"
-        >
-          {refreshState.isPending || userDetail.isLoading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
-          Refresh State
-        </Button>
-      </CardContent>
-    </Card>
+    <div className={`flex h-9 shrink-0 items-center gap-2 rounded-md border px-2.5 ${hasRestriction || isCachedOnly ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'}`}>
+      {hasRestriction ? <ShieldAlert className="h-4 w-4 text-amber-500" /> : <CheckCircle className="h-4 w-4 text-primary" />}
+      <span className="text-xs font-medium text-foreground">Merchant</span>
+      <Badge variant="outline" className={`h-5 px-1.5 text-[10px] ${statusClass(businessStatus)}`}>
+        {isCachedOnly ? `Cached ${statusLabel(businessStatus)}` : statusLabel(businessStatus)}
+      </Badge>
+      {(userDetail.isError || isCachedOnly) && <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-destructive/30 text-destructive bg-destructive/5">API</Badge>}
+      <Button variant="ghost" size="icon" onClick={() => refreshState.mutate()} disabled={refreshState.isPending || userDetail.isLoading} className="h-6 w-6 text-muted-foreground hover:text-foreground">
+        {refreshState.isPending || userDetail.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+      </Button>
+    </div>
   );
 }

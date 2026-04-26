@@ -75,6 +75,16 @@ function classifyAppealOrder(c: TerminalAppealCase, smallBuyConfig?: RangeConfig
   return isSmall ? 'smallSell' : 'bigSell';
 }
 
+function isAppealStatus(status?: string | null) {
+  const s = String(status || '').toUpperCase();
+  return s.includes('APPEAL') || s.includes('DISPUTE');
+}
+
+function isFinalStatus(status?: string | null) {
+  const s = String(status || '').toUpperCase();
+  return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
+}
+
 function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
   return {
     id: c.order_number,
@@ -107,6 +117,7 @@ export default function TerminalAppeals() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [orderType, setOrderType] = useState<AppealOrderType>('all');
+  const [showHistory, setShowHistory] = useState(false);
   const [selectedCase, setSelectedCase] = useState<TerminalAppealCase | null>(null);
   const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -121,9 +132,10 @@ export default function TerminalAppeals() {
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
   const visibleCases = useMemo(() => {
-    if (orderType === 'all') return cases;
-    return cases.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
-  }, [cases, orderType, smallBuyConfig, smallSalesConfig]);
+    const modeFiltered = cases.filter((c) => showHistory ? ['resolved', 'closed', 'cancelled'].includes(c.status) || isFinalStatus(c.binance_status) : !['resolved', 'closed', 'cancelled'].includes(c.status) && !isFinalStatus(c.binance_status));
+    if (orderType === 'all') return modeFiltered;
+    return modeFiltered.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
+  }, [cases, showHistory, orderType, smallBuyConfig, smallSalesConfig]);
 
   const summary = useMemo(() => {
     const active = visibleCases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
@@ -162,6 +174,33 @@ export default function TerminalAppeals() {
           binanceStatus: normaliseBinanceStatus(order.orderStatus || order.order_status),
         });
       }
+      const liveAppealOrderNumbers = new Set(appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean));
+      const activeAppealCases = cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status) && c.source === 'binance_status');
+      for (const c of activeAppealCases) {
+        if (liveAppealOrderNumbers.has(c.order_number)) continue;
+        try {
+          const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
+          const detail = detailResp?.data || detailResp;
+          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
+            await upsertAppeal.mutateAsync({
+              orderNumber: c.order_number,
+              source: 'binance_status',
+              status: liveStatus.includes('COMPLETED') ? 'resolved' : 'cancelled',
+              requestReason: c.request_reason || 'Detected from Binance order status.',
+              advNo: c.adv_no,
+              tradeType: c.trade_type,
+              asset: c.asset,
+              fiatUnit: c.fiat_unit || 'INR',
+              totalPrice: c.total_price,
+              counterpartyNickname: c.counterparty_nickname,
+              binanceStatus: liveStatus,
+            });
+          }
+        } catch {
+          // Best-effort finalization only; keep case active if Binance detail is unavailable.
+        }
+      }
       await refetch();
       toast.success(appealOrders.length ? `${appealOrders.length} appeal order(s) synced` : 'No live Binance appeal orders found');
     } catch (err: any) {
@@ -197,6 +236,7 @@ export default function TerminalAppeals() {
           </div>
           <div className="flex items-center gap-2">
             {isSuperAdmin && <div className="flex items-center gap-2 rounded border border-border px-3 py-1.5"><span className="text-xs text-muted-foreground">Module</span><Switch checked={isEnabled} onCheckedChange={(v) => toggleAppeal.mutate(v)} disabled={toggleAppeal.isPending || configLoading} /></div>}
+            <Button variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground" onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Active Appeals' : 'Appeal History'}</Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
             {hasPermission('terminal_appeals_manage') && isEnabled && <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={syncAppealOrders} disabled={isSyncing}><RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />Sync Binance Appeals</Button>}
           </div>

@@ -235,8 +235,9 @@ export function PurchaseManagement() {
     fetchPurchaseMethods();
 
     // Set up real-time subscription for purchase payment methods
+    const topic = `purchase_payment_methods_changes-${crypto.randomUUID()}`;
     const subscription = supabase
-      .channel('purchase_payment_methods_changes')
+      .channel(topic)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'purchase_payment_methods' }, 
         () => {

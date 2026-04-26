@@ -61,8 +61,8 @@ export function hasActiveBinanceComplaint(detail: any): boolean {
   const d = detail?.data?.data || detail?.data || detail;
   if (!d || typeof d !== 'object') return false;
   const complaintStatus = d.complaintStatus ?? d.complainStatus ?? d.appealStatus;
-  const hasComplaintStatus = complaintStatus !== undefined && complaintStatus !== null && String(complaintStatus) !== '' && !['0', '3', 'CLOSED', 'RESOLVED', 'CANCELLED', 'CANCELED'].includes(String(complaintStatus).toUpperCase());
-  return hasComplaintStatus || Boolean(d.complaintReason) || d.canCancelComplaintOrder === true || isAppealLikeBinanceStatus(d.orderStatus ?? d.status ?? d.tradeStatus);
+  const hasComplaintStatus = complaintStatus !== undefined && complaintStatus !== null && String(complaintStatus) !== '' && !['0', '2', '3', 'CLOSED', 'RESOLVED', 'CANCELLED', 'CANCELED'].includes(String(complaintStatus).toUpperCase());
+  return hasComplaintStatus || d.canCancelComplaintOrder === true || isAppealLikeBinanceStatus(d.orderStatus ?? d.status ?? d.tradeStatus);
 }
 
 // ── Core mapper ─────────────────────────────────────────────────

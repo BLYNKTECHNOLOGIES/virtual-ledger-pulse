@@ -25,8 +25,8 @@ const NUMERIC_STATUS_MAP: Record<number, string> = {
   3: 'BUYER_PAYED',
   4: 'BUYER_PAYED',
   5: 'COMPLETED',
-  6: 'CANCELLED',
-  7: 'APPEAL',
+  6: 'CANCELLED_BY_SYSTEM',
+  7: 'CANCELLED_BY_SYSTEM',
   8: 'APPEAL',
 };
 

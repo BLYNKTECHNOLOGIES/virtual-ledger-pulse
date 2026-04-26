@@ -16363,6 +16363,10 @@ export type Database = {
         }[]
       }
       get_ad_pricing_health: { Args: never; Returns: Json }
+      get_authoritative_terminal_order_status: {
+        Args: { p_order_number: string }
+        Returns: string
+      }
       get_bank_calculated_balances: {
         Args: never
         Returns: {
@@ -16929,6 +16933,14 @@ export type Database = {
       }
       sync_usdt_stock: { Args: never; Returns: undefined }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
+      terminal_order_final_appeal_status: {
+        Args: { p_status: string }
+        Returns: string
+      }
+      terminal_order_is_final_status: {
+        Args: { p_status: string }
+        Returns: boolean
+      }
       transfer_customer_support_ticket: {
         Args: {
           p_ticket_id: string

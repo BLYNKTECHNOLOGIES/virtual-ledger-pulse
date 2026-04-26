@@ -28,6 +28,15 @@ const caseTypeLabels: Record<string, string> = {
   post_payment_followup: 'Post Payment', alternate_upi_needed: 'Alternate UPI', payment_not_received: 'Payment Not Received', awaiting_refund: 'Awaiting Refund', invalid_upi: 'Invalid UPI', unresponsive_counterparty: 'Unresponsive', appeal_risk: 'Appeal Risk', other: 'Other',
 };
 
+function getOrderStatusBadgeClass(status?: string | null) {
+  const s = String(status || '').toUpperCase();
+  if (s.includes('COMPLETED')) return 'border-emerald-500/30 text-emerald-500 bg-emerald-500/5';
+  if (s.includes('CANCEL') || s.includes('EXPIRED')) return 'border-destructive/30 text-destructive bg-destructive/5';
+  if (s.includes('APPEAL') || s.includes('DISPUTE')) return 'border-amber-500/30 text-amber-500 bg-amber-500/5';
+  if (s.includes('BUYER_PAY') || s.includes('PAID') || s.includes('RELEAS')) return 'border-primary/30 text-primary bg-primary/5';
+  return 'border-muted-foreground/30 text-muted-foreground bg-muted/5';
+}
+
 export default function TerminalSmallPayments() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -127,7 +136,8 @@ function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: 
 function CaseRow({ c, onOpen, onChat, canChat }: { c: SmallPaymentCase; onOpen: () => void; onChat: () => void; canChat: boolean }) {
   const age = getCaseAgeMinutes(c);
   const timerClass = age >= 30 ? 'border-destructive/30 text-destructive bg-destructive/5' : age >= 10 ? 'border-amber-500/30 text-amber-500 bg-amber-500/5' : 'border-primary/30 text-primary bg-primary/5';
-  return <TableRow className="cursor-pointer hover:bg-secondary/40" onClick={onOpen}><TableCell><Badge variant="outline" className={`text-[10px] tabular-nums ${timerClass}`}>{formatCaseAge(age)}</Badge></TableCell><TableCell><div className="flex flex-col"><span className="text-xs font-mono text-foreground">{c.order_number}</span><span className="text-[10px] text-muted-foreground">{c.adv_no || 'No Ad ID'} · {c.binance_status || '—'}</span></div></TableCell><TableCell><div className="text-xs tabular-nums">{Number(c.total_price || 0).toLocaleString('en-IN')} {c.fiat_unit || 'INR'}</div><div className="text-[10px] text-muted-foreground">{c.asset || 'USDT'}</div></TableCell><TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell><TableCell><div className="flex flex-col gap-1"><Badge variant="outline" className="w-fit text-[9px]">{caseTypeLabels[c.case_type]}</Badge><Badge variant="secondary" className="w-fit text-[9px]">{statusLabels[c.status]}</Badge></div></TableCell><TableCell><div className="text-[10px] text-muted-foreground">Payer: {getUserName(c.payer)}</div><div className="text-[10px] text-muted-foreground">Mgr: {getUserName(c.manager)}</div></TableCell><TableCell className="text-[10px] text-muted-foreground">{c.last_contacted_at ? `Contacted ${format(new Date(c.last_contacted_at), 'HH:mm')}` : c.last_checked_at ? `Checked ${format(new Date(c.last_checked_at), 'HH:mm')}` : '—'}</TableCell><TableCell className="text-right"><div className="flex justify-end gap-1.5"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button><Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); onChat(); }} disabled={!canChat}><MessageSquare className="h-3 w-3" />Chat</Button></div></TableCell></TableRow>;
+  const orderStatus = c.current_order_status || c.binance_status || '—';
+  return <TableRow className="cursor-pointer hover:bg-secondary/40" onClick={onOpen}><TableCell><Badge variant="outline" className={`text-[10px] tabular-nums ${timerClass}`}>{formatCaseAge(age)}</Badge></TableCell><TableCell><div className="flex flex-col gap-1"><span className="text-xs font-mono text-foreground">{c.order_number}</span><span className="text-[10px] text-muted-foreground">{c.adv_no || 'No Ad ID'}</span><Badge variant="outline" className={`w-fit text-[9px] ${getOrderStatusBadgeClass(orderStatus)}`}>Order: {orderStatus}</Badge></div></TableCell><TableCell><div className="text-xs tabular-nums">{Number(c.total_price || 0).toLocaleString('en-IN')} {c.fiat_unit || 'INR'}</div><div className="text-[10px] text-muted-foreground">{c.asset || 'USDT'}</div></TableCell><TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell><TableCell><div className="flex flex-col gap-1"><Badge variant="outline" className="w-fit text-[9px]">{caseTypeLabels[c.case_type]}</Badge><Badge variant="secondary" className="w-fit text-[9px]">Case: {statusLabels[c.status]}</Badge></div></TableCell><TableCell><div className="text-[10px] text-muted-foreground">Payer: {getUserName(c.payer)}</div><div className="text-[10px] text-muted-foreground">Mgr: {getUserName(c.manager)}</div></TableCell><TableCell className="text-[10px] text-muted-foreground">{c.last_contacted_at ? `Contacted ${format(new Date(c.last_contacted_at), 'HH:mm')}` : c.last_checked_at ? `Checked ${format(new Date(c.last_checked_at), 'HH:mm')}` : '—'}</TableCell><TableCell className="text-right"><div className="flex justify-end gap-1.5"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button><Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={(e) => { e.stopPropagation(); onChat(); }} disabled={!canChat}><MessageSquare className="h-3 w-3" />Chat</Button></div></TableCell></TableRow>;
 }
 
 function buildFallbackOrder(c: SmallPaymentCase): P2POrderRecord {
@@ -144,7 +154,7 @@ function buildFallbackOrder(c: SmallPaymentCase): P2POrderRecord {
     total_price: Number(c.total_price || 0),
     unit_price: 0,
     commission: 0,
-    order_status: c.binance_status || 'TRADING',
+    order_status: c.current_order_status || c.binance_status || 'TRADING',
     pay_method_name: null,
     binance_create_time: null,
     is_repeat_client: false,

@@ -34,7 +34,6 @@ import {
   useCheckInAppealCase,
   useSetAppealTimer,
   useToggleAppealModule,
-  useUpdateAppealStatus,
   useUpsertAppealCase,
 } from '@/hooks/useTerminalAppeals';
 import { toast } from 'sonner';
@@ -126,7 +125,6 @@ export default function TerminalAppeals() {
   const { data: config, isLoading: configLoading } = useAppealConfig();
   const toggleAppeal = useToggleAppealModule();
   const upsertAppeal = useUpsertAppealCase();
-  const updateAppealStatus = useUpdateAppealStatus();
   const { data: cases = [], isLoading, refetch, isFetching } = useAppealCases({ status, search });
   const { data: smallBuyConfig } = useQuery({ queryKey: ['small-buys-config'], queryFn: async () => { const { data, error } = await supabase.from('small_buys_config' as any).select('is_enabled, min_amount, max_amount').limit(1).maybeSingle(); if (error) throw error; return data as unknown as RangeConfig | null; }, staleTime: 30_000 });
   const { data: smallSalesConfig } = useQuery({ queryKey: ['small-sales-config'], queryFn: async () => { const { data, error } = await supabase.from('small_sales_config' as any).select('is_enabled, min_amount, max_amount').limit(1).maybeSingle(); if (error) throw error; return data as unknown as RangeConfig | null; }, staleTime: 30_000 });

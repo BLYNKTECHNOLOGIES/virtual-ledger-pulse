@@ -143,6 +143,26 @@ export function useUpdateSmallPaymentCase() {
   });
 }
 
+export function useUpdateSmallPaymentCaseStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, note }: { id: string; status: SmallPaymentCaseStatus; note?: string | null }) => {
+      const { error } = await supabase.rpc('update_terminal_small_payment_case_status' as any, {
+        p_case_id: id,
+        p_status: status,
+        p_note: note || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['small-payment-cases'] });
+      queryClient.invalidateQueries({ queryKey: ['open-small-payment-cases'] });
+      toast.success('Case status updated');
+    },
+    onError: (err: Error) => toast.error(`Status update failed: ${err.message}`),
+  });
+}
+
 export function useSmallPaymentCaseEvents(caseId?: string | null) {
   return useQuery({
     queryKey: ['small-payment-case-events', caseId],

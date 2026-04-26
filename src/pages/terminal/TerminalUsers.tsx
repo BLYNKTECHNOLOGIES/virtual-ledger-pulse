@@ -5,6 +5,7 @@ import { TerminalRolesList } from "@/components/terminal/users/TerminalRolesList
 import { TerminalExchangeAccounts } from "@/components/terminal/users/TerminalExchangeAccounts";
 import { TerminalSizeRanges } from "@/components/terminal/users/TerminalSizeRanges";
 import { PayerAssignmentManager } from "@/components/terminal/payer/PayerAssignmentManager";
+import { SmallPaymentManagerAssignmentManager } from "@/components/terminal/small-payments/SmallPaymentManagerAssignmentManager";
 import { OperatorAssignmentManager } from "@/components/terminal/users/OperatorAssignmentManager";
 import { TerminalOrgChart } from "@/components/terminal/users/TerminalOrgChart";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
@@ -32,6 +33,7 @@ export default function TerminalUsers() {
             <TabsTrigger value="exchanges" className="text-xs">Exchange Accounts</TabsTrigger>
             <TabsTrigger value="ranges" className="text-xs">Size Ranges</TabsTrigger>
             <TabsTrigger value="payer" className="text-xs">Payer Assignments</TabsTrigger>
+            <TabsTrigger value="small-payments" className="text-xs">Small Payments</TabsTrigger>
             <TabsTrigger value="operator" className="text-xs">Operator Assignments</TabsTrigger>
             <TabsTrigger value="orgchart" className="text-xs">Org Chart</TabsTrigger>
           </TabsList>
@@ -54,6 +56,10 @@ export default function TerminalUsers() {
 
           <TabsContent value="payer" className="mt-4">
             <PayerAssignmentManager />
+          </TabsContent>
+
+          <TabsContent value="small-payments" className="mt-4">
+            <SmallPaymentManagerAssignmentManager />
           </TabsContent>
 
           <TabsContent value="operator" className="mt-4">

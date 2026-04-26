@@ -28,7 +28,7 @@ export default function TerminalSmallPayments() {
   const [status, setStatus] = useState('all');
   const [caseType, setCaseType] = useState('all');
   const [selectedCase, setSelectedCase] = useState<SmallPaymentCase | null>(null);
-  const { data: cases = [], isLoading, refetch, isFetching } = useSmallPaymentCases({ status, caseType });
+  const { data: cases = [], isLoading, refetch, isFetching } = useSmallPaymentCases({ mineOnly: true, status, caseType });
 
   const filteredCases = useMemo(() => {
     const q = search.trim().toLowerCase();

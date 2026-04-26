@@ -17222,6 +17222,7 @@ export type Database = {
         | "terminal_destructive"
         | "terminal_small_payments_view"
         | "terminal_small_payments_manage"
+        | "terminal_small_payments_assign"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -17513,6 +17514,7 @@ export const Constants = {
         "terminal_destructive",
         "terminal_small_payments_view",
         "terminal_small_payments_manage",
+        "terminal_small_payments_assign",
       ],
     },
   },

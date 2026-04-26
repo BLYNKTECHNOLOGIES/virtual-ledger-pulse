@@ -88,6 +88,7 @@ const PERMISSION_MODULES: ModuleDef[] = [
     permissions: [
       { key: 'terminal_small_payments_view', label: 'View Cases', tier: 'view' },
       { key: 'terminal_small_payments_manage', label: 'Manage Cases', tier: 'manage', requires: ['terminal_small_payments_view'] },
+      { key: 'terminal_small_payments_assign', label: 'Assign Managers', tier: 'special', requires: ['terminal_small_payments_view', 'terminal_small_payments_manage'] },
     ],
   },
   {
@@ -261,7 +262,7 @@ const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermi
       'terminal_orders_export',
       'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle',
       'terminal_payer_view', 'terminal_payer_manage',
-      'terminal_small_payments_view', 'terminal_small_payments_manage',
+      'terminal_small_payments_view', 'terminal_small_payments_manage', 'terminal_small_payments_assign',
       'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle',
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
@@ -282,7 +283,7 @@ const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermi
       'terminal_orders_sync_approve', 'terminal_orders_export',
       'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
       'terminal_payer_view', 'terminal_payer_manage',
-      'terminal_small_payments_view', 'terminal_small_payments_manage',
+      'terminal_small_payments_view', 'terminal_small_payments_manage', 'terminal_small_payments_assign',
       'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',

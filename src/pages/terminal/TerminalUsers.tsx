@@ -17,6 +17,8 @@ export default function TerminalUsers() {
   const activeTab = prefs.activeTab;
   const setActiveTab = (v: string) => setPref('activeTab', v);
   const canAssignRoles = hasPermission('terminal_users_role_assign') || isTerminalAdmin;
+  const canManageSmallPaymentAssignments =
+    hasPermission('terminal_small_payments_assign') || hasPermission('terminal_users_manage') || isTerminalAdmin;
 
   return (
     <TerminalPermissionGate permissions={["terminal_users_view"]}>
@@ -33,7 +35,7 @@ export default function TerminalUsers() {
             <TabsTrigger value="exchanges" className="text-xs">Exchange Accounts</TabsTrigger>
             <TabsTrigger value="ranges" className="text-xs">Size Ranges</TabsTrigger>
             <TabsTrigger value="payer" className="text-xs">Payer Assignments</TabsTrigger>
-            <TabsTrigger value="small-payments" className="text-xs">Small Payments</TabsTrigger>
+            {canManageSmallPaymentAssignments && <TabsTrigger value="small-payments" className="text-xs">Small Payments</TabsTrigger>}
             <TabsTrigger value="operator" className="text-xs">Operator Assignments</TabsTrigger>
             <TabsTrigger value="orgchart" className="text-xs">Org Chart</TabsTrigger>
           </TabsList>
@@ -59,7 +61,9 @@ export default function TerminalUsers() {
           </TabsContent>
 
           <TabsContent value="small-payments" className="mt-4">
-            <SmallPaymentManagerAssignmentManager />
+            <TerminalPermissionGate permissions={["terminal_small_payments_assign", "terminal_users_manage"]} silent>
+              <SmallPaymentManagerAssignmentManager />
+            </TerminalPermissionGate>
           </TabsContent>
 
           <TabsContent value="operator" className="mt-4">

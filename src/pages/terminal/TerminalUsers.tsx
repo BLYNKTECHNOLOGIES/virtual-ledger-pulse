@@ -61,7 +61,7 @@ export default function TerminalUsers() {
           </TabsContent>
 
           <TabsContent value="small-payments" className="mt-4">
-            <TerminalPermissionGate permissions={["terminal_small_payments_assign", "terminal_users_manage"]} silent>
+            <TerminalPermissionGate permissions={["terminal_small_payments_assign", "terminal_users_manage"]} silent fallback={isTerminalAdmin ? <SmallPaymentManagerAssignmentManager /> : null}>
               <SmallPaymentManagerAssignmentManager />
             </TerminalPermissionGate>
           </TabsContent>

@@ -68,6 +68,18 @@ export function formatDuration(minutes: number) {
   return rh ? `${d}d ${rh}h` : `${d}d`;
 }
 
+export function isAppealCheckInPending(caseItem: TerminalAppealCase, now = Date.now()) {
+  if (['resolved', 'closed', 'cancelled'].includes(caseItem.status)) return false;
+
+  const needsInitialTimer =
+    caseItem.status === 'under_appeal' &&
+    caseItem.response_timer_minutes === null &&
+    !caseItem.response_timer_set_at;
+  const responseTimerExpired = !!caseItem.response_due_at && new Date(caseItem.response_due_at).getTime() <= now;
+
+  return needsInitialTimer || responseTimerExpired;
+}
+
 export function useAppealConfig() {
   return useQuery({
     queryKey: ['terminal-appeal-config'],

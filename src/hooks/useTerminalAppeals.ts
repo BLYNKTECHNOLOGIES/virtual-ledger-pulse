@@ -146,6 +146,24 @@ export function useAppealCases(filters?: { status?: string; search?: string }) {
   });
 }
 
+export function usePendingAppealCheckInCount() {
+  return useQuery({
+    queryKey: ['terminal-appeal-pending-check-in-count'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_appeal_cases' as any)
+        .select('status, response_timer_minutes, response_due_at, response_timer_set_at')
+        .not('status', 'in', '(resolved,closed,cancelled)');
+      if (error) throw error;
+      return ((data || []) as unknown as TerminalAppealCase[]).filter((caseItem) =>
+        isAppealCheckInPending(caseItem)
+      ).length;
+    },
+    refetchInterval: 10_000,
+    staleTime: 5_000,
+  });
+}
+
 export function useAppealCaseEvents(caseId?: string | null) {
   return useQuery({
     queryKey: ['terminal-appeal-case-events', caseId],

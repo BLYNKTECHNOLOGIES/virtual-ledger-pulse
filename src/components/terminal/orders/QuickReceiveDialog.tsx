@@ -97,6 +97,17 @@ export function QuickReceiveDialog({
     codeRef.current = val;
   };
 
+  const handleSendCode = () => {
+    if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod, confirmPaidType: 'quick' }, {
+      onSuccess: () => {
+        toast.success(`${selectedAuth.label} sent by Binance`);
+        setSendCooldown(60);
+      },
+      onError: (err: Error) => toast.error(`Could not send ${selectedAuth.label}: ${err.message}`),
+    });
+  };
+
   const doRelease = async (overrideCode?: string) => {
     const finalCode = overrideCode || codeRef.current;
     if (!finalCode.trim() || firedRef.current || releaseCoin.isPending || markPaid.isPending) return;
@@ -123,7 +134,7 @@ export function QuickReceiveDialog({
       params.yubikeyVerifyCode = finalCode;
     } else {
       params.authType = authMethod;
-      params.code = finalCode;
+      if (authMethod !== 'EMAIL') params.code = finalCode;
       params[selectedAuth.fieldName] = finalCode;
     }
 

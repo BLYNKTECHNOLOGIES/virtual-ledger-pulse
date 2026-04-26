@@ -1,247 +1,208 @@
-## Plan: Rebuild Terminal MPI as a decision-grade performance analytics module
+Plan: Build Small Payments Manager as a post-payment exception workflow
 
-### Current root-cause findings
+Root-cause findings from the current system
 
-The current MPI screen is inconsistent because it is measuring the wrong/partial sources:
+- Payer work is currently optimized only for executing payment. Once a payer clicks Mark Paid, `terminal_payer_order_log` records `marked_paid` and `terminal_payer_order_locks` is immediately changed from `active` to `completed`.
+- Because the lock is completed immediately after Mark Paid, the payer’s pending queue no longer keeps strong visibility on the order while the counterparty has not released crypto yet.
+- The current “Completed” payer tab shows marked-paid orders, but it is not a task queue with SLA timers, exception tags, ownership, or follow-up responsibility.
+- Alternate UPI requests already exist through `terminal_alternate_upi_requests`, but currently there are no rows in production and the workflow only highlights requests in Terminal Orders. It does not hand off the order into a dedicated manager queue.
+- Binance/API-supported actions already available: get order detail, list active/history orders, mark paid, send/read Binance chat messages. There is no reliable API-supported “refund received” event from Binance; refund tracking must be an internal operational tag/status, while order completion/cancellation/appeal remains Binance-sourced.
 
-1. **Operator assignment data is almost empty**
-   - `terminal_order_assignments`: only 15 rows, last activity around March 10.
-   - This is why the screen shows many users with `0 orders`, `₹0K volume`, but still displays scores like 10/30.
-
-2. **Actual payer work exists elsewhere**
-   - `terminal_payer_order_log`: 451 rows, all `marked_paid`, current through April 25.
-   - `terminal_payer_order_locks`: 396 rows, current through April 25.
-   - The current overview mostly scores assignment rows, so payer performance is under-counted or misrepresented.
-
-3. **Terminal action logs are not populated for MPI**
-   - `system_action_logs where module='terminal'`: 0 rows.
-   - So cards like chat count, releases, action breakdown, escalation count are currently low-value/noise unless action logging is fixed.
-
-4. **Snapshot table is stale/misleading**
-   - `terminal_mpi_snapshots` shows 16 users daily, `0 orders`, `0 volume`, average score `30` for recent days.
-   - This comes from snapshot logic still relying on assignment/order-record joins that are not the actual source of terminal payer activity.
-
-5. **Current score is not appraisal-safe**
-   - Existing scoring gives score even with no work.
-   - It mixes payer/operator/admin roles under one score formula.
-   - It does not clearly separate productivity, speed, reliability, quality/risk, and data confidence.
-
----
-
-## What will be removed or downgraded as useless/noisy
-
-1. **Remove the current generic “Action Breakdown” pie chart**
-   - It is based on empty/missing `system_action_logs` and currently shows only fragments like payments.
-
-2. **Remove ranking users with no measurable work as “Top Performers”**
-   - Users with no orders/payments/locks should be shown as “No activity”, not ranked.
-
-3. **Stop using one blended score for all roles**
-   - Payers, operators, and admins need different measurable responsibilities.
-
-4. **Stop using `terminal_order_assignments` as the primary truth for payer performance**
-   - Keep it only for operator assignment analysis where applicable.
-
-5. **Hide/label metrics with missing source data**
-   - Chat, release, escalation, and admin action metrics should show “Not tracked” or be omitted until the relevant logs exist.
-
----
-
-## Features worth adding
-
-### 1. Role-specific performance views
-
-Add tabs/segments inside MPI:
+Target operating flow
 
 ```text
-Overview | Payers | Operators | Data Quality | User Detail
+Payer assignment queue
+  -> payer copies payment details / pays
+  -> Mark Paid
+  -> order leaves payer payment queue
+  -> Small Payments Manager queue starts SLA timer
+  -> manager follows up in Binance chat / calls externally if needed
+  -> tags issue: Awaiting Refund, Payment Not Received, Invalid UPI, Unresponsive, Appeal Risk, etc.
+  -> Binance order completes/cancels/appeals
+  -> manager queue auto-closes or moves to final state
+
+Alt UPI path
+  -> payer clicks Alt UPI before payment
+  -> order vanishes from payer queue
+  -> manager queue receives it as Invalid/Alternate UPI Needed
+  -> manager asks counterparty for new UPI in chat
+  -> manager records resolved UPI details
+  -> order can return to payer queue or be marked manager-ready for payment, depending on the existing resolved-override behavior
 ```
 
-For each user, show role-specific analytics:
+What will be built
 
-**Payer metrics**
-- Orders/payments handled from `terminal_payer_order_log` and `terminal_payer_order_locks`.
-- Payment volume enriched from `binance_order_history`.
-- Lock-to-pay time: `locked_at -> completed_at` or `locked_at -> marked_paid` fallback.
-- Completion ratio: completed locks / total locks.
-- Active/stale locks.
-- Cancelled-after-lock count using Binance order status.
-- Average, median, fastest, slowest payment time.
-- Peak working hour and hourly throughput.
-- Data confidence badge.
+1. New Small Payments Manager permissions and navigation
 
-**Operator metrics**
-- Assigned orders from `terminal_order_assignments`.
-- Completion/cancellation using `binance_order_history` as authoritative order status.
-- Assignment-to-close time.
-- Active workload and stale active assignments.
-- Volume handled.
-- Buy/sell split.
-- Data confidence badge.
+- Add terminal permissions:
+  - `terminal_small_payments_view`
+  - `terminal_small_payments_manage`
+- Add a new Terminal sidebar item: “Small Payments”.
+- Add a new route/page: `/terminal/small-payments`.
+- Add a new assignment manager tab under Terminal Users & Roles, similar to Payer Assignments.
 
-**Admin/supervisor metrics**
-- Only if real action logs exist.
-- Until then, display “Admin actions are not currently tracked” instead of fake/empty analytics.
+2. Assignment system for Small Payments Managers
 
-### 2. Decision-grade scorecard, not incentive logic
+- Create a `terminal_small_payment_manager_assignments` table.
+- Assignment types will mirror payer assignment patterns:
+  - size range
+  - Binance Ad ID
+- The manager matching rule will use order total and ad ID, same as payer assignment logic, so dedicated managers can own different ranges.
+- If multiple managers match the same order, assignment will choose the least-loaded active manager to avoid one person getting all exceptions.
 
-No incentive model will be added. Instead MPI will provide clear decision inputs:
+3. Dedicated exception/work queue
 
-```text
-Productivity     how much measurable work was completed
-Speed            how quickly assigned/locked orders were handled
-Reliability      completion vs stale/cancelled/abandoned work
-Quality/Risk     cancelled-after-action, stale locks, disputed/appeal status if available
-Consistency      work distribution over selected period
-Data Confidence  how complete the underlying tracking data is
-```
+Create a first-class table, tentatively `terminal_small_payment_cases`, to track post-payment and exception ownership.
 
-Scores should be role-specific and explainable. Example:
+Core fields:
+- `order_number`
+- `case_type`: `post_payment_followup`, `alternate_upi_needed`, `payment_not_received`, `awaiting_refund`, `invalid_upi`, `unresponsive_counterparty`, `appeal_risk`, `other`
+- `status`: `open`, `waiting_counterparty`, `awaiting_refund`, `ready_to_repay`, `resolved`, `closed`, `cancelled`, `appeal`
+- `payer_user_id` from the original payer log/lock
+- `manager_user_id` assigned by range/ad logic
+- `marked_paid_at` or `opened_at` for the SLA timer
+- `last_checked_at`, `last_contacted_at`
+- `priority`, `notes`, `tags`
+- source pointers for audit: `created_from` = `marked_paid`, `alt_upi`, `manual_tag`, etc.
 
-**Payer score**
-- 35% payment completion rate
-- 25% lock-to-pay speed
-- 20% volume/order throughput
-- 15% reliability penalty for stale/abandoned locks
-- 5% consistency
+Important: this table will not replace Binance order status. Binance remains source of truth for order completion/cancellation/appeal. The case table only tracks internal operational follow-up.
 
-**Operator score**
-- 35% completion rate
-- 25% assignment handling speed
-- 20% order/volume throughput
-- 15% cancellation/stale assignment penalty
-- 5% consistency
+4. Automatic case creation
 
-Important: if a user has no measurable work, score should be `N/A`, not 10/30/100.
+- When payer clicks Mark Paid:
+  - keep existing Binance Mark Paid action.
+  - keep existing `terminal_payer_order_log` insert.
+  - create or upsert a Small Payment case for that order.
+  - start timer from the exact marked-paid timestamp.
+  - assign to matching manager based on size range/ad ID.
+- When payer clicks Alt UPI:
+  - create/upsert an `alternate_upi_needed` Small Payment case.
+  - order should disappear from the payer’s pending queue immediately.
+  - assign it to the manager responsible for that order’s range/ad ID.
+  - keep existing `terminal_alternate_upi_requests` audit row.
 
-### 3. Data confidence and audit warnings
+5. Fix payer visibility and timer behavior
 
-Add a “Data Quality” section to explain why numbers can or cannot be trusted:
+- Payer pending queue should exclude orders with an open Small Payment case of `alternate_upi_needed` or similar manager-owned exception.
+- Payer completed/post-paid tab will show an obvious elapsed timer for marked-paid orders until Binance finalizes the order.
+- Timer styling:
+  - normal: under 10 minutes
+  - warning: 10–30 minutes
+  - urgent: 30+ minutes
+  - critical: long-running/unreleased orders
+- The timer will be based on `marked_paid_at` from logs/cases, not UI state, so it survives refreshes and shift changes.
 
-- Assignment coverage: how many Binance orders are linked to assignments.
-- Payer coverage: how many marked-paid logs have matching Binance history.
-- Missing action logs count.
-- Snapshot freshness.
-- Users with roles but no activity.
-- Active locks older than threshold.
-- Orders with payment logs but no completed lock.
+6. Small Payments Manager page
 
-This directly supports appraisal decisions by showing whether the score is backed by enough data.
+New page sections:
+- Summary cards:
+  - Open cases
+  - Overdue cases
+  - Awaiting refund
+  - Alternate UPI needed
+  - Unresponsive counterparties
+  - Completed/closed today
+- Filters:
+  - My assigned / all if manager/admin
+  - case type
+  - tag/status
+  - age bucket
+  - size range/ad ID
+  - search by order number/counterparty
+- Main table:
+  - timer prominently visible
+  - order no, amount, asset, counterparty, payer, assigned manager
+  - Binance status
+  - case status/tag
+  - last contact/check
+  - actions
 
-### 4. Server-side MPI calculation RPC
+7. Case detail workspace
 
-Move the heavy and sensitive aggregation into Supabase RPCs instead of computing everything in the browser.
+The manager will be able to open a case and see:
+- Binance order details
+- payment details / resolved alternate UPI if available
+- original payer and marked-paid time
+- Binance chat messages using existing chat APIs/hooks
+- send chat message using existing `sendChatMessage`
+- internal notes and status history
+- action buttons:
+  - Set tag/status: Awaiting Refund, Payment Not Received, Invalid UPI, Unresponsive, Alternate UPI Needed, Ready to Re-pay, Resolved
+  - Mark contacted
+  - Resolve alternate UPI with new details
+  - Close case when Binance is completed/cancelled or when operationally resolved
 
-Create/replace functions such as:
+8. Alternate UPI handoff behavior
 
-```text
-get_terminal_mpi_v2(p_from timestamptz, p_to timestamptz, p_scope text)
-get_terminal_user_mpi_detail_v2(p_user_id uuid, p_from timestamptz, p_to timestamptz)
-generate_terminal_mpi_snapshots_v2(p_date date)
-```
+- The existing Alt UPI button will be changed from “request and remain in payer workflow” to “request and handoff to Small Payments Manager”.
+- Once manager resolves alternate UPI:
+  - the payer can see the updated override payment details if the order is returned to payer payment queue.
+  - the case status changes to `ready_to_repay` or `resolved`, depending on the existing Binance status.
+- I will keep this API-compliant: the updated UPI is internal operational override only. Binance’s original payment method payload is not mutated unless Binance supports such an action, which it currently does not appear to.
 
-These will aggregate from:
+9. Data integrity and audit
 
-- `terminal_payer_order_log`
-- `terminal_payer_order_locks`
-- `terminal_order_assignments`
-- `binance_order_history`
-- `p2p_terminal_user_roles`
-- `p2p_terminal_roles`
-- `terminal_user_profiles`
+- Use idempotent inserts/upserts so repeated Mark Paid or Alt UPI clicks do not create duplicate cases.
+- Add case event history table, e.g. `terminal_small_payment_case_events`, for:
+  - created
+  - assigned
+  - tag changed
+  - status changed
+  - note added
+  - contacted
+  - resolved/closed
+- Use actual user UUIDs for all audit columns.
+- Do not use client-side localStorage for role/manager authorization.
+- Add RLS policies aligned with terminal permissions; authenticated users can only act through permissions and assignment rules.
 
-### 5. Fix snapshot generation
+10. Binance status reconciliation
 
-Replace current snapshot logic so daily snapshots no longer show meaningless `0 orders / 30 score` rows.
+- The module will use Binance active/history data and existing `binance_order_history` to auto-detect final states.
+- Cases should auto-show final state when Binance status becomes `COMPLETED`, `CANCELLED`, `EXPIRED`, `APPEAL`, or dispute-related status.
+- Cases will not invent refund status from Binance. “Awaiting refund” will be an internal tag/status because refund-arrival evidence is outside currently confirmed Binance order APIs.
 
-New snapshot rules:
-- Generate snapshots only for active terminal users.
-- Use payer logs/locks for payer work.
-- Use assignments plus Binance status for operator work.
-- Store `score = null` when activity is zero.
-- Store data confidence fields.
-- Use Asia/Kolkata date attribution consistently.
+Technical implementation steps
 
-### 6. Rebuild the MPI UI
+1. Database migration
+- Add terminal permissions.
+- Create `terminal_small_payment_manager_assignments`.
+- Create `terminal_small_payment_cases`.
+- Create `terminal_small_payment_case_events`.
+- Add indexes for order number, manager, payer, status, case type, marked-paid/opened timestamp, and active cases.
+- Enable RLS and add policies consistent with terminal permission access.
 
-Update `src/pages/terminal/TerminalMPI.tsx`:
+2. Hooks and logic
+- Add `useSmallPaymentsManager` hooks for assignments, cases, case updates, and event history.
+- Extend payer logic in `usePayerModule.ts`:
+  - create case on Mark Paid.
+  - create case on Alt UPI.
+  - exclude manager-owned Alt UPI/open exception cases from payer pending queue.
+  - expose marked-paid timer metadata.
 
-- Replace current cards with meaningful summary cards:
-  - Active users with measurable work
-  - Total handled orders/payments
-  - Total volume
-  - Median payment/handle time
-  - Completion rate
-  - Stale work count
-  - Data confidence
-- Replace Top Performers with leaderboard rows that show:
-  - Score
-  - Work count
-  - Volume
-  - Speed
-  - Reliability flags
-  - Confidence badge
-- Add filters:
-  - Today / Yesterday / 7D / Month / custom-ready structure
-  - All / Payers / Operators
-  - Sort by score, volume, completion, speed, stale risk
-- Show “No measurable activity” clearly instead of ranking inactive users.
+3. UI additions
+- Add `TerminalSmallPayments.tsx` page.
+- Add table row/card components for cases.
+- Add case detail dialog/workspace with Binance chat integration.
+- Add `SmallPaymentManagerAssignmentManager` under Users & Roles.
+- Add route and sidebar entry.
 
-Update `src/pages/terminal/TerminalOperatorDetail.tsx`:
+4. Payer UI updates
+- Add highly visible post-Mark-Paid elapsed timer in completed/paid rows.
+- Change Alt UPI button behavior to show that the order is being handed off to Small Payments Manager.
+- Add badges when an order has an open small-payment case.
 
-- Use the same server-side detail RPC.
-- Show per-user evidence:
-  - Recent handled orders
-  - Payments/locks timeline
-  - Speed distribution
-  - stale/cancelled/appeal flags
-  - data quality warnings
-- Keep decision analytics only; no incentive amount calculations.
+5. Verification
+- Confirm Mark Paid creates exactly one case per order.
+- Confirm Alt UPI creates exactly one manager case and removes the order from payer pending view.
+- Confirm manager assignments route cases by size range/ad ID.
+- Confirm timers persist after refresh.
+- Confirm completed/cancelled Binance statuses close or clearly finalize cases.
+- Confirm users without manager permission cannot see or mutate manager cases.
 
----
+Expected result
 
-## Technical implementation steps
-
-1. **Database migration**
-   - Add/adjust MPI snapshot columns for role type, payer metrics, operator metrics, data confidence, stale counts, and nullable score.
-   - Add indexes for fast date/user/order lookups:
-     - `terminal_payer_order_log(payer_id, created_at)`
-     - `terminal_payer_order_locks(payer_user_id, locked_at, status)`
-     - `terminal_order_assignments(assigned_to, created_at, is_active)`
-     - `binance_order_history(order_number, create_time, order_status, trade_type)` if not already sufficient.
-
-2. **Create MPI v2 RPCs**
-   - Build consolidated per-user metrics from the real terminal sources.
-   - Use Binance order history as order-status/volume enrichment source.
-   - Return data confidence and source coverage indicators.
-
-3. **Backfill/fix snapshots**
-   - Recompute recent snapshot rows using the new source logic.
-   - Prevent no-activity users from getting artificial scores.
-
-4. **Refactor MPI overview UI**
-   - Replace the current client-side aggregation with RPC-backed data.
-   - Remove useless/noisy widgets.
-   - Add role-specific cards and decision-focused leaderboard.
-
-5. **Refactor user detail UI**
-   - Align detail page with the same scoring and evidence model.
-   - Remove unsupported/empty action metrics unless logs exist.
-
-6. **Verification**
-   - Query sample output for Today/7D to ensure payer logs and locks are counted.
-   - Confirm users with zero activity show `N/A` score.
-   - Confirm payment volume comes from matched Binance order history only.
-   - Confirm stale locks and missing data warnings are visible.
-
----
-
-## Expected result
-
-The MPI module will become a reliable performance evidence system for appraisal/incentive decisions:
-
-- Payers are measured by payment execution, speed, reliability, and volume.
-- Operators are measured by assigned order handling, completion, speed, and stale workload.
-- Empty or missing data is not converted into fake scores.
-- Every score is explainable and backed by source coverage.
-- Management can clearly see who performed, who did not, and where the underlying data is incomplete.
+- Payers focus only on making payments, not long follow-up conversations.
+- Every marked-paid order remains visible in a managed queue until Binance finalizes it.
+- Invalid UPI and payment-not-received exceptions are immediately routed to the right team.
+- Managers can tag, prioritize, chat, follow up, and audit every exception.
+- No fake Binance data is created; Binance status remains authoritative and internal operational tags are clearly separated.

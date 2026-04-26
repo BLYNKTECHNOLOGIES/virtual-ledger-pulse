@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Clock, FileWarning, MessageSquare, RefreshCw, ShieldOff, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWo
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import {
@@ -45,6 +47,33 @@ const statusLabels: Record<AppealStatus, string> = {
   closed: 'Closed',
   cancelled: 'Cancelled',
 };
+
+type AppealOrderType = 'all' | 'smallBuy' | 'smallSell' | 'bigBuy' | 'bigSell';
+
+interface RangeConfig {
+  is_enabled: boolean;
+  min_amount: number;
+  max_amount: number;
+}
+
+const orderTypeLabels: Record<AppealOrderType, string> = {
+  all: 'All Types',
+  smallBuy: 'Small Buyer',
+  smallSell: 'Small Sales',
+  bigBuy: 'Big Buyer',
+  bigSell: 'Big Sales',
+};
+
+function classifyAppealOrder(c: TerminalAppealCase, smallBuyConfig?: RangeConfig | null, smallSalesConfig?: RangeConfig | null): Exclude<AppealOrderType, 'all'> {
+  const tradeType = String(c.trade_type || '').toUpperCase();
+  const totalPrice = Number(c.total_price || 0);
+  if (tradeType === 'BUY') {
+    const isSmall = smallBuyConfig?.is_enabled && totalPrice >= smallBuyConfig.min_amount && totalPrice <= smallBuyConfig.max_amount;
+    return isSmall ? 'smallBuy' : 'bigBuy';
+  }
+  const isSmall = smallSalesConfig?.is_enabled && totalPrice >= smallSalesConfig.min_amount && totalPrice <= smallSalesConfig.max_amount;
+  return isSmall ? 'smallSell' : 'bigSell';
+}
 
 function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
   return {
@@ -77,6 +106,7 @@ function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
 export default function TerminalAppeals() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
+  const [orderType, setOrderType] = useState<AppealOrderType>('all');
   const [selectedCase, setSelectedCase] = useState<TerminalAppealCase | null>(null);
   const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -85,19 +115,26 @@ export default function TerminalAppeals() {
   const toggleAppeal = useToggleAppealModule();
   const upsertAppeal = useUpsertAppealCase();
   const { data: cases = [], isLoading, refetch, isFetching } = useAppealCases({ status, search });
+  const { data: smallBuyConfig } = useQuery({ queryKey: ['small-buys-config'], queryFn: async () => { const { data, error } = await supabase.from('small_buys_config' as any).select('is_enabled, min_amount, max_amount').limit(1).maybeSingle(); if (error) throw error; return data as unknown as RangeConfig | null; }, staleTime: 30_000 });
+  const { data: smallSalesConfig } = useQuery({ queryKey: ['small-sales-config'], queryFn: async () => { const { data, error } = await supabase.from('small_sales_config' as any).select('is_enabled, min_amount, max_amount').limit(1).maybeSingle(); if (error) throw error; return data as unknown as RangeConfig | null; }, staleTime: 30_000 });
   const isEnabled = Boolean(config?.is_enabled);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
+  const visibleCases = useMemo(() => {
+    if (orderType === 'all') return cases;
+    return cases.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
+  }, [cases, orderType, smallBuyConfig, smallSalesConfig]);
+
   const summary = useMemo(() => {
-    const active = cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
+    const active = visibleCases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
     return {
       active: active.filter((c) => c.status !== 'requested').length,
       requests: active.filter((c) => c.status === 'requested').length,
       missingTimer: active.filter((c) => c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at).length,
       overdue: active.filter((c) => c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now()).length,
-      checkedToday: cases.filter((c) => c.last_checked_in_at && new Date(c.last_checked_in_at).toDateString() === new Date().toDateString()).length,
+      checkedToday: visibleCases.filter((c) => c.last_checked_in_at && new Date(c.last_checked_in_at).toDateString() === new Date().toDateString()).length,
     };
-  }, [cases]);
+  }, [visibleCases]);
 
   const syncAppealOrders = async () => {
     setIsSyncing(true);
@@ -177,11 +214,12 @@ export default function TerminalAppeals() {
           <div className="flex items-center gap-2 flex-wrap">
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, counterparty, Ad ID..." className="h-8 text-xs bg-secondary border-border max-w-sm" />
             <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-[190px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
+            <Select value={orderType} onValueChange={(v) => setOrderType(v as AppealOrderType)}><SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(orderTypeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
           </div>
 
           <Card className="bg-card border-border"><CardContent className="p-0">
-            {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : cases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No appeal cases found</div> : (
-              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{cases.map((c) => <AppealRow key={c.id} c={c} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
+            {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : visibleCases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No appeal cases found</div> : (
+              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCases.map((c) => <AppealRow key={c.id} c={c} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
             )}
           </CardContent></Card>
           <AppealDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} />

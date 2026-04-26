@@ -176,6 +176,33 @@ export default function TerminalAppeals() {
           binanceStatus: normaliseBinanceStatus(order.orderStatus || order.order_status),
         });
       }
+      const liveAppealOrderNumbers = new Set(appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean));
+      const activeAppealCases = cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status) && c.source === 'binance_status');
+      for (const c of activeAppealCases) {
+        if (liveAppealOrderNumbers.has(c.order_number)) continue;
+        try {
+          const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
+          const detail = detailResp?.data || detailResp;
+          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
+            await upsertAppeal.mutateAsync({
+              orderNumber: c.order_number,
+              source: 'binance_status',
+              status: liveStatus.includes('COMPLETED') ? 'resolved' : 'cancelled',
+              requestReason: c.request_reason || 'Detected from Binance order status.',
+              advNo: c.adv_no,
+              tradeType: c.trade_type,
+              asset: c.asset,
+              fiatUnit: c.fiat_unit || 'INR',
+              totalPrice: c.total_price,
+              counterpartyNickname: c.counterparty_nickname,
+              binanceStatus: liveStatus,
+            });
+          }
+        } catch {
+          // Best-effort finalization only; keep case active if Binance detail is unavailable.
+        }
+      }
       await refetch();
       toast.success(appealOrders.length ? `${appealOrders.length} appeal order(s) synced` : 'No live Binance appeal orders found');
     } catch (err: any) {

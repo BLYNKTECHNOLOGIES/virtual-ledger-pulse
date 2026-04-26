@@ -85,6 +85,21 @@ function isFinalStatus(status?: string | null) {
   return s.includes('COMPLETED') || s.includes('CANCEL') || s.includes('EXPIRED');
 }
 
+function isActiveListAppealCandidate(rawStatus: unknown) {
+  const raw = String(rawStatus ?? '').trim().toUpperCase();
+  return raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
+}
+
+function appealSyncStatus(rawStatus: unknown) {
+  return isActiveListAppealCandidate(rawStatus) ? 'APPEAL' : normaliseBinanceStatus(rawStatus as any);
+}
+
+function normalizeDetailFinalStatus(rawStatus: unknown) {
+  const raw = String(rawStatus ?? '').trim().toUpperCase();
+  if (!raw || raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT')) return null;
+  return normaliseBinanceStatus(rawStatus as any);
+}
+
 type AuthoritativeOrderStatus = {
   order_number: string;
   order_status: string | null;
@@ -205,6 +220,11 @@ export default function TerminalAppeals() {
     return modeFiltered.filter((c) => classifyAppealOrder(c, smallBuyConfig, smallSalesConfig) === orderType);
   }, [cases, showHistory, orderType, smallBuyConfig, smallSalesConfig, authoritativeStatusMap]);
 
+  const historyCaseCount = useMemo(
+    () => cases.filter((c) => isCaseTerminal(c, authoritativeStatusMap)).length,
+    [cases, authoritativeStatusMap]
+  );
+
   const activeCasesToRecheck = useMemo(
     () => cases.filter((c) => !isCaseTerminal(c, authoritativeStatusMap)),
     [cases, authoritativeStatusMap]
@@ -218,8 +238,8 @@ export default function TerminalAppeals() {
         try {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
-          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
+          const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) finalized.push({ caseItem: c, liveStatus });
         } catch {
           // Best-effort live recheck; leave visible if Binance detail is unavailable.
         }
@@ -264,18 +284,27 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      // Only request numeric status 8: project data shows detail status 7 can be stale/system-cancelled.
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
+      // Active-list status 7 is the proxy's appeal candidate; authoritative DB/history guards prevent cancelled stale orders from staying active.
+      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [7] });
       const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
-      const appealOrders = list.filter((o: any) => {
-        const s = normaliseBinanceStatus(o.orderStatus || o.order_status);
-        return s.includes('APPEAL') || s.includes('DISPUTE');
-      });
+      const appealOrders = list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status));
+      const candidateOrderNumbers = appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean);
+      const finalStatusByOrder = new Map<string, string>();
+      if (candidateOrderNumbers.length) {
+        const { data: finalRows } = await supabase
+          .from('binance_order_history')
+          .select('order_number, order_status')
+          .in('order_number', candidateOrderNumbers);
+        for (const row of (finalRows || []) as any[]) {
+          if (isFinalStatus(row.order_status)) finalStatusByOrder.set(String(row.order_number), row.order_status);
+        }
+      }
       for (const order of appealOrders) {
+        const orderNumber = String(order.orderNumber || order.orderNo);
         await upsertAppeal.mutateAsync({
-          orderNumber: String(order.orderNumber || order.orderNo),
+          orderNumber,
           source: 'binance_status',
-          status: 'under_appeal',
+          status: finalStatusByOrder.has(orderNumber) ? (String(finalStatusByOrder.get(orderNumber)).includes('COMPLETED') ? 'resolved' : 'cancelled') : 'under_appeal',
           requestReason: 'Detected from Binance order status.',
           advNo: order.advNo || null,
           tradeType: order.tradeType || null,
@@ -283,7 +312,7 @@ export default function TerminalAppeals() {
           fiatUnit: order.fiat || order.fiatUnit || 'INR',
           totalPrice: Number(order.totalPrice || 0),
           counterpartyNickname: order.sellerNickname || order.buyerNickname || order.counterPartNickName || null,
-          binanceStatus: normaliseBinanceStatus(order.orderStatus || order.order_status),
+          binanceStatus: finalStatusByOrder.get(orderNumber) || appealSyncStatus(order.orderStatus ?? order.order_status),
         });
       }
       const liveAppealOrderNumbers = new Set(appealOrders.map((o: any) => String(o.orderNumber || o.orderNo)).filter(Boolean));
@@ -293,8 +322,8 @@ export default function TerminalAppeals() {
         try {
           const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber: c.order_number });
           const detail = detailResp?.data || detailResp;
-          const liveStatus = normaliseBinanceStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
-          if (!isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
+          const liveStatus = normalizeDetailFinalStatus(detail?.orderStatus ?? detail?.status ?? c.binance_status);
+          if (liveStatus && !isAppealStatus(liveStatus) && isFinalStatus(liveStatus)) {
             await upsertAppeal.mutateAsync({
               orderNumber: c.order_number,
               source: 'binance_status',
@@ -314,7 +343,8 @@ export default function TerminalAppeals() {
         }
       }
       await refetch();
-      toast.success(appealOrders.length ? `${appealOrders.length} appeal order(s) synced` : 'No live Binance appeal orders found');
+      const terminalCount = [...finalStatusByOrder.keys()].length;
+      toast.success(appealOrders.length ? `${appealOrders.length} appeal candidate(s) synced${terminalCount ? ` · ${terminalCount} already final in history` : ''}` : 'No live Binance appeal orders found');
     } catch (err: any) {
       toast.error(`Appeal sync failed: ${err.message}`);
     } finally {
@@ -348,7 +378,7 @@ export default function TerminalAppeals() {
           </div>
           <div className="flex items-center gap-2">
             {isSuperAdmin && <div className="flex items-center gap-2 rounded border border-border px-3 py-1.5"><span className="text-xs text-muted-foreground">Module</span><Switch checked={isEnabled} onCheckedChange={(v) => toggleAppeal.mutate(v)} disabled={toggleAppeal.isPending || configLoading} /></div>}
-            <Button variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground" onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Active Appeals' : 'Appeal History'}</Button>
+            <Button variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground" onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Active Appeals' : `Appeal History${historyCaseCount ? ` (${historyCaseCount})` : ''}`}</Button>
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
             {hasPermission('terminal_appeals_manage') && isEnabled && <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={syncAppealOrders} disabled={isSyncing}><RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />Sync Binance Appeals</Button>}
           </div>
@@ -370,7 +400,7 @@ export default function TerminalAppeals() {
           </div>
 
           <Card className="bg-card border-border"><CardContent className="p-0">
-            {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : visibleCases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No appeal cases found</div> : (
+            {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : visibleCases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">{showHistory ? 'No appeal history found' : historyCaseCount ? 'No active appeal cases found. Finalized synced cases are in Appeal History.' : 'No appeal cases found'}</div> : (
               <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCases.map((c) => <AppealRow key={c.id} c={c} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
             )}
           </CardContent></Card>

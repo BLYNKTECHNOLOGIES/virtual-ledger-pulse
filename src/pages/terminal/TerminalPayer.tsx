@@ -30,7 +30,7 @@ export default function TerminalPayer() {
   const activeTab = prefs.activeTab as 'pending' | 'completed';
   const setActiveTab = (v: string) => setPref('activeTab', v);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const { orders, completedOrders, isLoading, isFetching, refetch, exclusions } = usePayerOrders();
+  const { orders, completedOrders, isLoading, isFetching, refetch, exclusions, smallPaymentCaseByOrder } = usePayerOrders();
 
   const currentOrders = activeTab === 'pending' ? orders : completedOrders;
 
@@ -187,6 +187,7 @@ export default function TerminalPayer() {
                         key={order.orderNumber}
                         order={order}
                         isExcluded={exclusions.has(order.orderNumber)}
+                        smallPaymentCase={smallPaymentCaseByOrder?.get?.(String(order.orderNumber))}
                         isCompleted={activeTab === 'completed'}
                         onOpenOrder={() => setSelectedOrder(order)}
                         onMarkPaidSuccess={() => refetch()}

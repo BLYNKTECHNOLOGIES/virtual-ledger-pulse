@@ -10,7 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, CheckCircle2, Clock, CreditCard, FileWarning, MessageSquare, RefreshCw, Search, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
+import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { formatCaseAge, getCaseAgeMinutes, getUserName, SmallPaymentCase, SmallPaymentCaseStatus, useLogSmallPaymentCaseEvent, useSmallPaymentCaseEvents, useSmallPaymentCases, useUpdateSmallPaymentCaseStatus } from '@/hooks/useSmallPaymentsManager';
 import { useBinanceChatMessages, useSendBinanceChatMessage } from '@/hooks/useBinanceActions';
 import { useAppealConfig, useRequestAppealFromSmallPayment } from '@/hooks/useTerminalAppeals';
@@ -30,7 +33,10 @@ export default function TerminalSmallPayments() {
   const [status, setStatus] = useState('all');
   const [caseType, setCaseType] = useState('all');
   const [selectedCase, setSelectedCase] = useState<SmallPaymentCase | null>(null);
+  const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const { data: cases = [], isLoading, refetch, isFetching } = useSmallPaymentCases({ mineOnly: true, status, caseType });
+  const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
   const filteredCases = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -48,6 +54,36 @@ export default function TerminalSmallPayments() {
       closedToday: cases.filter((c) => ['resolved', 'closed'].includes(c.status) && new Date(c.updated_at).toDateString() === new Date().toDateString()).length,
     };
   }, [cases]);
+
+  const openChatForCase = async (caseItem: SmallPaymentCase) => {
+    if (!canChat) {
+      toast.error('Chat permission is required');
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('p2p_order_records')
+      .select('*')
+      .eq('binance_order_number', caseItem.order_number)
+      .maybeSingle();
+
+    if (error) {
+      toast.error(`Unable to open order chat: ${error.message}`);
+      return;
+    }
+
+    setChatOrder((data as P2POrderRecord | null) || buildFallbackOrder(caseItem));
+  };
+
+  if (chatOrder) {
+    return (
+      <TerminalPermissionGate permissions={['terminal_small_payments_view']}>
+        <div className="h-[calc(100vh-48px)]">
+          <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} preserveOrderStatus />
+        </div>
+      </TerminalPermissionGate>
+    );
+  }
 
   return (
     <TerminalPermissionGate permissions={['terminal_small_payments_view']}>
@@ -73,7 +109,7 @@ export default function TerminalSmallPayments() {
 
         <Card className="bg-card border-border"><CardContent className="p-0">
           {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : filteredCases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No small payment cases found</div> : (
-            <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Case</TableHead><TableHead className="text-[10px]">People</TableHead><TableHead className="text-[10px]">Last Action</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{filteredCases.map((c) => <CaseRow key={c.id} c={c} onOpen={() => setSelectedCase(c)} />)}</TableBody></Table></div>
+            <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Case</TableHead><TableHead className="text-[10px]">People</TableHead><TableHead className="text-[10px]">Last Action</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{filteredCases.map((c) => <CaseRow key={c.id} c={c} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} canChat={canChat} />)}</TableBody></Table></div>
           )}
         </CardContent></Card>
 

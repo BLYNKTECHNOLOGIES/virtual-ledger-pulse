@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import TerminalComingSoon from './pages/terminal/TerminalComingSoon';
 import TerminalPayer from './pages/terminal/TerminalPayer';
 import TerminalSmallPayments from './pages/terminal/TerminalSmallPayments';
+import TerminalAppeals from './pages/terminal/TerminalAppeals';
 import TerminalMPI from './pages/terminal/TerminalMPI';
 import TerminalAuditLogs from './pages/terminal/TerminalAuditLogs';
 import TerminalOperatorDetail from './pages/terminal/TerminalOperatorDetail';
@@ -600,6 +601,20 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalPayer />
+              </TerminalLayout>
+            </AuthCheck>
+          </AuthProvider>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/appeals",
+      element: (
+        <QueryProvider>
+          <AuthProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalAppeals />
               </TerminalLayout>
             </AuthCheck>
           </AuthProvider>

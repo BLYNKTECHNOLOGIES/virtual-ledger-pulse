@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw, CheckCheck } from 'lucide-react';
+import { Copy, BanknoteIcon, BotOff, Loader2, ClipboardCopy, ImageIcon, RefreshCw, CheckCheck, FileWarning } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useMarkOrderAsPaid, useGetChatImageUploadUrl, callBinanceAds } from '@/hooks/useBinanceActions';
@@ -13,6 +13,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { QuickReceiveDialog, isQuickReceiveEligible } from '@/components/terminal/orders/QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { useAppealConfig, useUpsertAppealCase } from '@/hooks/useTerminalAppeals';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +63,9 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
   const getUploadUrl = useGetChatImageUploadUrl();
   const requestAltUpi = useRequestAlternateUpi();
   const upsertSmallPaymentCase = useUpsertSmallPaymentCase();
+  const upsertAppeal = useUpsertAppealCase();
+  const { data: appealConfig } = useAppealConfig();
+  const { hasPermission } = useTerminalAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isMarkingPaid, setIsMarkingPaid] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -188,6 +193,28 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
       onMarkPaidSuccess();
     } catch (err: any) {
       toast.error(`Alternate UPI handoff failed: ${err.message}`);
+    }
+  };
+
+  const handleRequestAppeal = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await upsertAppeal.mutateAsync({
+        orderNumber: order.orderNumber,
+        source: 'manual_request',
+        status: 'requested',
+        requestReason: 'Appeal requested from Payer queue.',
+        advNo: order.advNo || null,
+        tradeType: 'BUY',
+        asset: order.asset || 'USDT',
+        fiatUnit: order.fiat || 'INR',
+        totalPrice: Number(order.totalPrice || 0),
+        counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
+        binanceStatus: normaliseBinanceStatus(order.orderStatus),
+      });
+      toast.success('Appeal requested');
+    } catch (err: any) {
+      toast.error(`Appeal request failed: ${err.message}`);
     }
   };
 
@@ -465,6 +492,19 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
               {requestAltUpi.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
               {hasPendingRequest ? 'Requested' : 'Alt UPI'}
             </Button>
+
+            {(hasPermission('terminal_appeals_request') || hasPermission('terminal_appeals_manage')) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[10px] gap-1 px-2"
+                onClick={handleRequestAppeal}
+                disabled={!appealConfig?.is_enabled || upsertAppeal.isPending}
+              >
+                {upsertAppeal.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileWarning className="h-3 w-3" />}
+                Appeal
+              </Button>
+            )}
 
             {/* Remove from Auto */}
             <Button

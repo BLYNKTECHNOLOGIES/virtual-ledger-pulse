@@ -47,6 +47,34 @@ const statusLabels: Record<AppealStatus, string> = {
   cancelled: 'Cancelled',
 };
 
+function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
+  return {
+    id: c.order_number,
+    binance_order_number: c.order_number,
+    binance_adv_no: c.adv_no,
+    counterparty_id: null,
+    counterparty_nickname: c.counterparty_nickname || '',
+    trade_type: c.trade_type || 'SELL',
+    asset: c.asset || 'USDT',
+    fiat_unit: c.fiat_unit || 'INR',
+    amount: 0,
+    total_price: Number(c.total_price || 0),
+    unit_price: 0,
+    commission: 0,
+    order_status: c.binance_status || statusLabels[c.status] || c.status,
+    pay_method_name: null,
+    binance_create_time: c.appeal_started_at ? new Date(c.appeal_started_at).getTime() : null,
+    is_repeat_client: false,
+    repeat_order_count: 0,
+    assigned_operator_id: null,
+    order_type: null,
+    synced_at: c.updated_at || new Date().toISOString(),
+    completed_at: null,
+    cancelled_at: null,
+    created_at: c.created_at || new Date().toISOString(),
+  };
+}
+
 export default function TerminalAppeals() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
@@ -173,7 +201,7 @@ function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: 
   return <Card><CardContent className="p-3 flex items-center justify-between"><div><p className="text-[10px] text-muted-foreground">{label}</p><p className="text-xl font-semibold tabular-nums">{value}</p></div><div className={`p-2 rounded ${toneClass}`}><Icon className="h-4 w-4" /></div></CardContent></Card>;
 }
 
-function AppealRow({ c, onOpen }: { c: TerminalAppealCase; onOpen: () => void }) {
+function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canChat: boolean; onOpen: () => void; onChat: () => void }) {
   const age = getElapsedMinutes(c.appeal_started_at);
   const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
   const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
@@ -185,7 +213,7 @@ function AppealRow({ c, onOpen }: { c: TerminalAppealCase; onOpen: () => void })
     <TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell>
     <TableCell><div className="flex flex-col gap-1"><Badge variant="secondary" className="w-fit text-[9px]">{statusLabels[c.status]}</Badge><Badge variant="outline" className="w-fit text-[9px]">{c.source === 'small_payment_request' ? `Requested by ${getAppealUserName(c.requester)}` : c.source === 'binance_status' ? 'Binance Appeal' : 'Manual Request'}</Badge></div></TableCell>
     <TableCell className="max-w-[220px]"><p className="text-[10px] text-muted-foreground truncate">{c.notes || c.request_reason || '—'}</p>{c.last_checked_in_at && <p className="text-[9px] text-muted-foreground/70">Checked {format(new Date(c.last_checked_in_at), 'dd MMM HH:mm')} by {getAppealUserName(c.checkedInBy)}</p>}</TableCell>
-    <TableCell className="text-right"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button></TableCell>
+    <TableCell className="text-right"><div className="inline-flex items-center gap-1"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button>{canChat && <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); onChat(); }}><MessageSquare className="h-3 w-3" />Chat</Button>}</div></TableCell>
   </TableRow>;
 }
 

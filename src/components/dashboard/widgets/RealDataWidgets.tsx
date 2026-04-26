@@ -744,7 +744,7 @@ export function CashFlowWidget() {
       // Fetch expenses from bank_transactions
       const { data: txns } = await supabase
         .from('bank_transactions')
-        .select('amount, transaction_type, transaction_date, category')
+        .select('amount, transaction_type, transaction_date, category, description')
         .eq('transaction_type', 'EXPENSE')
         .gte('transaction_date', days[0].date)
         .lte('transaction_date', days[days.length - 1].date);
@@ -763,7 +763,7 @@ export function CashFlowWidget() {
       (txns || []).forEach((t: any) => {
         const entry = dayMap[t.transaction_date];
         if (!entry) return;
-        if (!excludeExpenseCats.includes(t.category || '')) {
+        if (!excludeExpenseCats.includes(normalizeExpenseCategory(t.category, t.description))) {
           entry.expense += Math.abs(Number(t.amount));
         }
       });
@@ -833,8 +833,8 @@ export function ExpenseTrendsWidget() {
           months.push({ label: format(d, 'MMM'), start: s, end: e });
         }
         const results = await Promise.all(months.map(async m => {
-          const { data } = await supabase.from('bank_transactions').select('amount, category').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
-          const total = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          const { data } = await supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
+          const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: m.label, expense: total };
         }));
         const currentMonth = results[results.length - 1]?.expense || 0;
@@ -850,8 +850,8 @@ export function ExpenseTrendsWidget() {
           days.push({ label: format(d, 'dd MMM'), start: dateStr, end: dateStr });
         }
         const results = await Promise.all(days.map(async day => {
-          const { data } = await supabase.from('bank_transactions').select('amount, category').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start);
-          const total = (data || []).filter((t: any) => !excludeCategories.includes(t.category || '')).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          const { data } = await supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start);
+          const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: day.label, expense: total };
         }));
         const today = results[results.length - 1]?.expense || 0;

@@ -15,7 +15,6 @@ import { TerminalPermissionGate } from '@/components/terminal/TerminalPermission
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { formatCaseAge, getCaseAgeMinutes, getUserName, SmallPaymentCase, SmallPaymentCaseStatus, useLogSmallPaymentCaseEvent, useSmallPaymentCaseEvents, useSmallPaymentCases, useUpdateSmallPaymentCaseStatus } from '@/hooks/useSmallPaymentsManager';
-import { useBinanceChatMessages, useSendBinanceChatMessage } from '@/hooks/useBinanceActions';
 import { useAppealConfig, useRequestAppealFromSmallPayment } from '@/hooks/useTerminalAppeals';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { toast } from 'sonner';
@@ -169,7 +168,6 @@ function buildFallbackOrder(c: SmallPaymentCase): P2POrderRecord {
 }
 
 function CaseDetailDialog({ caseItem, open, onOpenChange }: { caseItem: SmallPaymentCase | null; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [message, setMessage] = useState('');
   const [note, setNote] = useState('');
   const [appealReason, setAppealReason] = useState('');
   const { hasPermission } = useTerminalAuth();
@@ -177,24 +175,19 @@ function CaseDetailDialog({ caseItem, open, onOpenChange }: { caseItem: SmallPay
   const requestAppeal = useRequestAppealFromSmallPayment();
   const updateStatus = useUpdateSmallPaymentCaseStatus();
   const logEvent = useLogSmallPaymentCaseEvent();
-  const sendMessage = useSendBinanceChatMessage();
   const { data: events = [] } = useSmallPaymentCaseEvents(caseItem?.id);
-  const { data: chatData } = useBinanceChatMessages(caseItem?.order_number || null);
   if (!caseItem) return null;
-  const chatItems = Array.isArray((chatData as any)?.data) ? (chatData as any).data : Array.isArray(chatData) ? chatData as any[] : [];
   const setStatus = (status: SmallPaymentCaseStatus) => updateStatus.mutate({ id: caseItem.id, status });
-  const sendChat = async () => { if (!message.trim()) return; await sendMessage.mutateAsync({ orderNo: caseItem.order_number, message: message.trim() }); setMessage(''); toast.success('Message sent'); };
   const addNote = async () => { if (!note.trim()) return; await logEvent.mutateAsync({ caseId: caseItem.id, eventType: 'note_added', note: note.trim() }); setNote(''); toast.success('Note added'); };
   const canRequestAppeal = hasPermission('terminal_appeals_request') || hasPermission('terminal_appeals_manage');
   const submitAppeal = async () => { await requestAppeal.mutateAsync({ caseId: caseItem.id, reason: appealReason.trim() || 'Appeal requested from Small Payments Manager.' }); setAppealReason(''); };
   const orderStatus = caseItem.current_order_status || caseItem.binance_status || '—';
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-5xl max-h-[86vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-base">Small Payment Case · {caseItem.order_number}</DialogTitle></DialogHeader><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-2xl max-h-[86vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-base">Small Payment Case · {caseItem.order_number}</DialogTitle></DialogHeader><div className="space-y-3">
     <div className="space-y-3"><Card><CardContent className="p-4 space-y-2"><div className="flex items-center gap-2 flex-wrap"><Badge variant="outline">{caseTypeLabels[caseItem.case_type]}</Badge><Badge variant="secondary">Case: {statusLabels[caseItem.status]}</Badge><Badge variant="outline" className={getOrderStatusBadgeClass(orderStatus)}>Order: {orderStatus}</Badge><Badge variant="outline" className="tabular-nums">{formatCaseAge(getCaseAgeMinutes(caseItem))}</Badge></div><div className="grid grid-cols-2 gap-2 text-xs"><Info label="Amount" value={`${Number(caseItem.total_price || 0).toLocaleString('en-IN')} ${caseItem.fiat_unit || 'INR'}`} /><Info label="Asset" value={caseItem.asset || 'USDT'} /><Info label="Current Order Status" value={orderStatus} /><Info label="Counterparty" value={caseItem.counterparty_nickname || '—'} /><Info label="Marked Paid" value={caseItem.marked_paid_at ? format(new Date(caseItem.marked_paid_at), 'dd MMM HH:mm') : '—'} /><Info label="Payer" value={getUserName(caseItem.payer)} /><Info label="Manager" value={getUserName(caseItem.manager)} /></div></CardContent></Card>
       <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Case Actions</p><div className="flex flex-wrap gap-2">{(['waiting_counterparty','awaiting_refund','ready_to_repay','resolved','closed','appeal'] as SmallPaymentCaseStatus[]).map((s) => <Button key={s} variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => setStatus(s)}>{statusLabels[s]}</Button>)}<Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => logEvent.mutate({ caseId: caseItem.id, eventType: 'contacted' })}>Mark Contacted</Button><Button variant="outline" size="sm" className="h-7 text-[10px]" onClick={() => logEvent.mutate({ caseId: caseItem.id, eventType: 'checked' })}>Mark Checked</Button></div><Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Internal note..." className="text-xs" /><Button size="sm" className="h-8 text-xs" onClick={addNote}>Add Note</Button></CardContent></Card>
       <Card><CardContent className="p-4 space-y-2"><div className="flex items-center gap-2"><FileWarning className="h-3.5 w-3.5 text-primary" /><p className="text-xs font-medium">Appeal Request</p></div><Textarea value={appealReason} onChange={(e) => setAppealReason(e.target.value)} placeholder="Reason for appeal request..." className="text-xs" disabled={!canRequestAppeal || !appealConfig?.is_enabled} /><Button size="sm" variant="outline" className="h-8 text-xs" onClick={submitAppeal} disabled={!canRequestAppeal || !appealConfig?.is_enabled || requestAppeal.isPending}>{appealConfig?.is_enabled ? 'Request Appeal' : 'Appeal Module Off'}</Button></CardContent></Card>
       <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Event History</p><div className="space-y-2 max-h-48 overflow-y-auto">{events.map((e: any) => <div key={e.id} className="text-[10px] border-b border-border pb-1"><span className="font-medium">{e.event_type}</span> · {format(new Date(e.created_at), 'dd MMM HH:mm')}{e.note && <div className="text-muted-foreground mt-0.5">{e.note}</div>}</div>)}</div></CardContent></Card></div>
-    <div className="space-y-3"><Card><CardContent className="p-4 space-y-2"><div className="flex items-center gap-2"><MessageSquare className="h-3.5 w-3.5 text-primary" /><p className="text-xs font-medium">Binance Chat</p></div><div className="space-y-2 max-h-80 overflow-y-auto rounded border border-border p-2 bg-secondary/20">{chatItems.length === 0 ? <p className="text-xs text-muted-foreground">No chat messages loaded</p> : chatItems.map((m: any, i: number) => <div key={m.id || m.msgId || i} className={`text-[11px] p-2 rounded ${m.self || m.sender_is_self ? 'bg-primary/10 ml-8' : 'bg-muted mr-8'}`}><div className="text-[9px] text-muted-foreground mb-1">{m.fromNickName || m.sender_nickname || (m.self ? 'You' : 'Counterparty')}</div>{m.content || m.message_text || m.text || '—'}</div>)}</div><div className="flex gap-2"><Input value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Send Binance chat message..." className="h-8 text-xs" /><Button size="sm" className="h-8 text-xs" onClick={sendChat} disabled={sendMessage.isPending}>Send</Button></div></CardContent></Card></div>
   </div></DialogContent></Dialog>;
 }
 

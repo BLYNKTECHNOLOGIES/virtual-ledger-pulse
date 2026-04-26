@@ -44,12 +44,14 @@ export default function AdManager() {
   };
 
   const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters);
+  const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
   const updateStatus = useUpdateAdStatus();
 
   const ads: BinanceAd[] = data?.data || data?.list || [];
+  const restAds: BinanceAd[] = restAdsData?.data || restAdsData?.list || [];
   const total = data?.total || ads.length;
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
-  const activeAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [ads]);
+  const activeAds = useMemo(() => restAds.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [restAds]);
 
   const selectedAds = useMemo(() => ads.filter(ad => selectedAdvNos.has(ad.advNo)), [ads, selectedAdvNos]);
 
@@ -74,9 +76,11 @@ export default function AdManager() {
 
   const content = (
     <div className="space-y-6 p-4 md:p-6">
-      {/* Rest Timer Banner — visible to all when active */}
-      <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
-      <MerchantStateCard />
+      {/* Rest controls — uses all ads, independent of current tab/filter */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <RestTimerBanner onlineAds={onlineAds} activeAds={activeAds} />
+        <MerchantStateCard />
+      </div>
 
       {/* Header */}
       <div className="flex items-center justify-between">

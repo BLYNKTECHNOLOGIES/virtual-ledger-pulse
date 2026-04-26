@@ -16834,6 +16834,10 @@ export type Database = {
           updated_id: string
         }[]
       }
+      update_terminal_small_payment_case_status: {
+        Args: { p_case_id: string; p_note?: string; p_status: string }
+        Returns: string
+      }
       update_user_activity: { Args: { user_uuid: string }; Returns: undefined }
       update_user_password: {
         Args: { new_password: string; user_id: string }

@@ -62,7 +62,8 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       if (filters?.mineOnly && userId && !isTerminalAdmin && !hasPermission('terminal_small_payments_manage')) {
         query = query.eq('manager_user_id', userId);
       }
-      if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
+      if (filters?.status === 'active') query = query.not('status', 'in', '(resolved,closed,cancelled)');
+      else if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
       if (filters?.caseType && filters.caseType !== 'all') query = query.eq('case_type', filters.caseType);
 
       const { data, error } = await query;

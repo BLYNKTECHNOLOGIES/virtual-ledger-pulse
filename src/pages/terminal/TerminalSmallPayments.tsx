@@ -38,7 +38,7 @@ function getOrderStatusBadgeClass(status?: string | null) {
 
 export default function TerminalSmallPayments() {
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState('active');
   const [caseType, setCaseType] = useState('all');
   const [selectedCase, setSelectedCase] = useState<SmallPaymentCase | null>(null);
   const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
@@ -111,7 +111,7 @@ export default function TerminalSmallPayments() {
 
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[220px] max-w-sm"><Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, counterparty, manager..." className="h-8 pl-8 text-xs bg-secondary border-border" /></div>
-          <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
+          <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="active">Active Only</SelectItem><SelectItem value="all">All Status</SelectItem>{Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
           <Select value={caseType} onValueChange={setCaseType}><SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Case Types</SelectItem>{Object.entries(caseTypeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
         </div>
 

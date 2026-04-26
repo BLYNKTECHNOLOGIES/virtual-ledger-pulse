@@ -35,10 +35,12 @@ export interface SmallPaymentCase {
 }
 
 const FINAL_ORDER_STATUS_PARTS = ['COMPLETED', 'CANCEL', 'EXPIRED'];
+const FINAL_ORDER_STATUS_CODES = new Set(['5', '6', '7']);
 
 function isFinalOrderStatus(status?: string | null) {
-  const normalized = String(status || '').toUpperCase();
-  return FINAL_ORDER_STATUS_PARTS.some((part) => normalized.includes(part));
+  const raw = String(status || '').trim();
+  const normalized = raw.toUpperCase();
+  return FINAL_ORDER_STATUS_CODES.has(raw) || FINAL_ORDER_STATUS_PARTS.some((part) => normalized.includes(part));
 }
 
 function pickAuthoritativeOrderStatus(records: Array<{ status: string | null; ts: number }>) {
@@ -60,7 +62,8 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       if (filters?.mineOnly && userId && !isTerminalAdmin && !hasPermission('terminal_small_payments_manage')) {
         query = query.eq('manager_user_id', userId);
       }
-      if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
+      if (filters?.status === 'active') query = query.not('status', 'in', '(resolved,closed,cancelled)');
+      else if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status);
       if (filters?.caseType && filters.caseType !== 'all') query = query.eq('case_type', filters.caseType);
 
       const { data, error } = await query;
@@ -72,7 +75,7 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       const [usersRes, p2pRes, historyRes] = await Promise.all([
         userIds.length ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
         orderNumbers.length ? supabase.from('p2p_order_records').select('binance_order_number, order_status, synced_at, updated_at').in('binance_order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
-        orderNumbers.length ? supabase.from('binance_order_history').select('order_number, order_status, synced_at, updated_at').in('order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
+        orderNumbers.length ? supabase.from('binance_order_history').select('order_number, order_status, synced_at').in('order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const users = usersRes.data || [];
@@ -84,7 +87,9 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
         statusMap.set(orderNumber, [...(statusMap.get(orderNumber) || []), { status, ts }]);
       };
       (p2pRes.data || []).forEach((r: any) => rememberStatus(r.binance_order_number, r.order_status, r.synced_at, r.updated_at));
-      (historyRes.data || []).forEach((r: any) => rememberStatus(r.order_number, r.order_status, r.synced_at, r.updated_at));
+      if ((p2pRes as any).error) console.warn('Small Payments p2p status lookup failed', (p2pRes as any).error);
+      if ((historyRes as any).error) console.warn('Small Payments history status lookup failed', (historyRes as any).error);
+      (historyRes.data || []).forEach((r: any) => rememberStatus(r.order_number, r.order_status, r.synced_at));
 
       const enrichedCases = cases.map((c) => ({
         ...c,
@@ -114,10 +119,16 @@ export function useOpenSmallPaymentCases() {
       if (error) throw error;
       const cases = (data || []) as unknown as SmallPaymentCase[];
       const orderNumbers = [...new Set(cases.map((c) => c.order_number).filter(Boolean))];
-      const { data: history } = orderNumbers.length
-        ? await supabase.from('binance_order_history').select('order_number, order_status, synced_at, updated_at').in('order_number', orderNumbers)
-        : { data: [] as any[] };
-      const finalOrders = new Set((history || []).filter((r: any) => isFinalOrderStatus(r.order_status)).map((r: any) => r.order_number));
+      const [historyRes, p2pRes] = await Promise.all([
+        orderNumbers.length ? supabase.from('binance_order_history').select('order_number, order_status, synced_at').in('order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
+        orderNumbers.length ? supabase.from('p2p_order_records').select('binance_order_number, order_status, synced_at, updated_at').in('binance_order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      if ((historyRes as any).error) console.warn('Open Small Payments history status lookup failed', (historyRes as any).error);
+      if ((p2pRes as any).error) console.warn('Open Small Payments p2p status lookup failed', (p2pRes as any).error);
+      const finalOrders = new Set([
+        ...(historyRes.data || []).filter((r: any) => isFinalOrderStatus(r.order_status)).map((r: any) => r.order_number),
+        ...(p2pRes.data || []).filter((r: any) => isFinalOrderStatus(r.order_status)).map((r: any) => r.binance_order_number),
+      ]);
       return cases.filter((c) => !finalOrders.has(c.order_number));
     },
     refetchInterval: 10_000,

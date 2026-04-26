@@ -180,6 +180,76 @@ export function useLogSmallPaymentCaseEvent() {
   });
 }
 
+export function useAllSmallPaymentManagerAssignments() {
+  return useQuery({
+    queryKey: ['small-payment-manager-assignments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_small_payment_manager_assignments' as any)
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      const rows = data || [];
+      const userIds = [...new Set(rows.map((a: any) => a.manager_user_id).filter(Boolean))] as string[];
+      const rangeIds = [...new Set(rows.map((a: any) => a.size_range_id).filter(Boolean))] as string[];
+      const [usersRes, rangesRes] = await Promise.all([
+        userIds.length ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
+        rangeIds.length ? supabase.from('terminal_order_size_ranges').select('id, name, min_amount, max_amount').in('id', rangeIds) : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const users = new Map((usersRes.data || []).map((u: any) => [u.id, u]));
+      const ranges = new Map((rangesRes.data || []).map((r: any) => [r.id, r]));
+      return rows.map((a: any) => ({ ...a, user: users.get(a.manager_user_id), size_range: a.size_range_id ? ranges.get(a.size_range_id) : null }));
+    },
+  });
+}
+
+export function useCreateSmallPaymentManagerAssignment() {
+  const queryClient = useQueryClient();
+  const { userId } = useTerminalAuth();
+  return useMutation({
+    mutationFn: async (params: { manager_user_id: string; assignment_type: 'size_range' | 'ad_id'; size_range_id?: string; ad_id?: string }) => {
+      const { error } = await supabase.from('terminal_small_payment_manager_assignments' as any).insert({
+        manager_user_id: params.manager_user_id,
+        assignment_type: params.assignment_type,
+        size_range_id: params.assignment_type === 'size_range' ? params.size_range_id : null,
+        ad_id: params.assignment_type === 'ad_id' ? params.ad_id : null,
+        assigned_by: userId,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Small Payments assignment created');
+      queryClient.invalidateQueries({ queryKey: ['small-payment-manager-assignments'] });
+    },
+    onError: (err: Error) => toast.error(`Assignment failed: ${err.message}`),
+  });
+}
+
+export function useToggleSmallPaymentManagerAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
+      const { error } = await supabase.from('terminal_small_payment_manager_assignments' as any).update({ is_active }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['small-payment-manager-assignments'] }),
+  });
+}
+
+export function useDeleteSmallPaymentManagerAssignment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('terminal_small_payment_manager_assignments' as any).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Assignment removed');
+      queryClient.invalidateQueries({ queryKey: ['small-payment-manager-assignments'] });
+    },
+  });
+}
+
 export function getUserName(user: any) {
   if (!user) return '—';
   if (user.first_name || user.last_name) return `${user.first_name || ''} ${user.last_name || ''}`.trim();

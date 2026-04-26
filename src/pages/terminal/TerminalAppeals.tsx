@@ -205,6 +205,7 @@ function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canC
   const age = getElapsedMinutes(c.appeal_started_at);
   const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
   const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
+  const canCheckIn = needsTimer || responseExpired;
   return <TableRow className="cursor-pointer hover:bg-secondary/40" onClick={onOpen}>
     <TableCell><Badge variant="outline" className="text-[10px] tabular-nums border-primary/30 text-primary bg-primary/5"><Clock className="h-3 w-3 mr-1" />{formatDuration(age)}</Badge></TableCell>
     <TableCell>{needsTimer ? <Badge variant="outline" className="text-[10px] border-destructive/30 text-destructive bg-destructive/5 animate-pulse">Select timer</Badge> : c.response_due_at ? <Badge variant="outline" className={`text-[10px] tabular-nums ${responseExpired ? 'border-destructive/30 text-destructive bg-destructive/5 animate-pulse' : 'border-amber-500/30 text-amber-500 bg-amber-500/5'}`}>{responseExpired ? 'Overdue' : formatDuration(Math.max(0, Math.floor((new Date(c.response_due_at).getTime() - Date.now()) / 60000)))}</Badge> : c.response_timer_set_at ? <Badge variant="outline" className="text-[10px]">No timer · {getAppealUserName(c.timerSetBy)}</Badge> : <Badge variant="outline" className="text-[10px]">No timer</Badge>}</TableCell>
@@ -213,7 +214,7 @@ function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canC
     <TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell>
     <TableCell><div className="flex flex-col gap-1"><Badge variant="secondary" className="w-fit text-[9px]">{statusLabels[c.status]}</Badge><Badge variant="outline" className="w-fit text-[9px]">{c.source === 'small_payment_request' ? `Requested by ${getAppealUserName(c.requester)}` : c.source === 'binance_status' ? 'Binance Appeal' : 'Manual Request'}</Badge></div></TableCell>
     <TableCell className="max-w-[220px]"><p className="text-[10px] text-muted-foreground truncate">{c.notes || c.request_reason || '—'}</p>{c.last_checked_in_at && <p className="text-[9px] text-muted-foreground/70">Checked {format(new Date(c.last_checked_in_at), 'dd MMM HH:mm')} by {getAppealUserName(c.checkedInBy)}</p>}</TableCell>
-    <TableCell className="text-right"><div className="inline-flex items-center gap-1"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button>{canChat && <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); onChat(); }}><MessageSquare className="h-3 w-3" />Chat</Button>}</div></TableCell>
+    <TableCell className="text-right"><div className="inline-flex items-center gap-1">{canCheckIn && <Button size="sm" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Check In</Button>}<Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button>{canChat && <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); onChat(); }}><MessageSquare className="h-3 w-3" />Chat</Button>}</div></TableCell>
   </TableRow>;
 }
 

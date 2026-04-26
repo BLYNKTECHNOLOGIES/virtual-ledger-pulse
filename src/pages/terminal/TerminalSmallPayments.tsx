@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, CheckCircle2, Clock, CreditCard, MessageSquare, RefreshCw, Search, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
-import { formatCaseAge, getCaseAgeMinutes, getUserName, SmallPaymentCase, useLogSmallPaymentCaseEvent, useSmallPaymentCaseEvents, useSmallPaymentCases, useUpdateSmallPaymentCase } from '@/hooks/useSmallPaymentsManager';
+import { formatCaseAge, getCaseAgeMinutes, getUserName, SmallPaymentCase, SmallPaymentCaseStatus, useLogSmallPaymentCaseEvent, useSmallPaymentCaseEvents, useSmallPaymentCases, useUpdateSmallPaymentCaseStatus } from '@/hooks/useSmallPaymentsManager';
 import { useBinanceChatMessages, useSendBinanceChatMessage } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
 
@@ -95,14 +95,14 @@ function CaseRow({ c, onOpen }: { c: SmallPaymentCase; onOpen: () => void }) {
 function CaseDetailDialog({ caseItem, open, onOpenChange }: { caseItem: SmallPaymentCase | null; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [message, setMessage] = useState('');
   const [note, setNote] = useState('');
-  const updateCase = useUpdateSmallPaymentCase();
+  const updateStatus = useUpdateSmallPaymentCaseStatus();
   const logEvent = useLogSmallPaymentCaseEvent();
   const sendMessage = useSendBinanceChatMessage();
   const { data: events = [] } = useSmallPaymentCaseEvents(caseItem?.id);
   const { data: chatData } = useBinanceChatMessages(caseItem?.order_number || null);
   if (!caseItem) return null;
   const chatItems = Array.isArray((chatData as any)?.data) ? (chatData as any).data : Array.isArray(chatData) ? chatData as any[] : [];
-  const setStatus = (status: string) => updateCase.mutate({ id: caseItem.id, patch: { status: status as any, tags: Array.from(new Set([...(caseItem.tags || []), status])) as any } });
+  const setStatus = (status: SmallPaymentCaseStatus) => updateStatus.mutate({ id: caseItem.id, status });
   const sendChat = async () => { if (!message.trim()) return; await sendMessage.mutateAsync({ orderNo: caseItem.order_number, message: message.trim() }); setMessage(''); toast.success('Message sent'); };
   const addNote = async () => { if (!note.trim()) return; await logEvent.mutateAsync({ caseId: caseItem.id, eventType: 'note_added', note: note.trim() }); setNote(''); toast.success('Note added'); };
 

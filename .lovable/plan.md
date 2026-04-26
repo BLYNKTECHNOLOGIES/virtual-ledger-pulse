@@ -1,162 +1,222 @@
-Audit result: Small Payments Manager is partially implemented, but not safe to treat as fully working yet.
+Plan: Build Terminal Appeal tab with controlled appeal workflow
 
-What is already correctly present
-- Route and sidebar entry exist for `/terminal/small-payments`.
-- New tables exist for manager assignments, cases, and case events.
-- Payer flow attempts to create a manager case after Mark Paid and Alternate UPI.
-- Payer pending queue excludes orders that already have an open Small Payment case.
-- Basic manager dashboard exists with timers, filters, case actions, notes, and Binance chat view.
-- TypeScript compile check passes.
+Goal
 
-Critical issues found
+Create a dedicated Terminal Appeal module for orders that are either:
 
-1. No real users currently have the new permissions
-Database check shows zero role-permission rows for:
-- `terminal_small_payments_view`
-- `terminal_small_payments_manage`
-- `terminal_small_payments_assign`
+1. Already under appeal/dispute according to Binance order status, or
+2. Internally requested for appeal by ERP users from the Small Payments Manager module.
 
-Impact:
-- The sidebar tab will not show for normal users.
-- No manager can access the module unless they are Super Admin or the role is manually edited later.
-- The assignment manager dropdown can be empty because it searches users through these permissions.
+Important Binance API boundary
 
-2. Payers may not be authorized to create cases
-The latest RPC requires:
-- `terminal_payer_manage`, or
-- `terminal_small_payments_manage`
+Based on existing Binance proxy capabilities in this project, Binance supports reading order status/details through endpoints such as:
 
-But the Payer page itself only requires `terminal_payer_view`, and the Small Payments Manager role template gives `terminal_payer_view` but not `terminal_payer_manage`.
+- listOrders
+- listUserOrderHistory
+- getUserOrderDetail
 
-Impact:
-- Normal payer clicking Mark Paid or Alt UPI can successfully mark paid / request alternate UPI, but the small payment case creation can fail silently because it is fire-and-forget.
-- This directly breaks the main requirement that every marked-paid / Alt UPI order should move to the manager module.
+Existing code already detects APPEAL/DISPUTE statuses from these sources.
 
-3. Mark Paid handoff is fire-and-forget and not awaited
-`PayerOrderRow` calls `upsertSmallPaymentCase.mutate(...)` instead of `await mutateAsync(...)`.
+I did not find an existing Binance endpoint/proxy action for actually filing/creating an appeal. Therefore this implementation will not pretend to file an appeal on Binance. The “Request Appeal” action will create an internal ERP appeal request and surface it to appeal handlers. Actual appeal filing, if required, remains a manual Binance-side action unless a supported Binance appeal endpoint is later verified and added.
 
-Impact:
-- The payer sees success even if manager case creation fails.
-- The order may remain unmanaged or disappear inconsistently depending on later cache refresh.
-- Data integrity is weak because handoff is not transactional from the UI perspective.
+Workflow
 
-4. Alternate UPI handoff can fail after already requesting alternate UPI
-The UI first creates the old `terminal_alternate_upi_requests` row, then separately creates a Small Payments case.
+```text
+Small Payments Manager case
+  -> Request Appeal
+  -> terminal_appeal_cases row created as requested
+  -> Appeal tab shows it to all appeal handlers
 
-Impact:
-- If the second call fails, the old alternate UPI request exists but the manager module never receives the case.
-- The payer may think it was handed off because the button says requested.
+Binance order status becomes APPEAL/DISPUTE
+  -> Appeal sync/upsert records order as under_appeal
+  -> Appeal timer starts from detected appeal time
+  -> Appeal handlers manage notes, response timer, and check-ins
 
-5. RLS visibility is too broad for payers
-Current policy allows anyone with `terminal_payer_view` to read all small payment cases and events.
+Super Admin turns Appeal system OFF
+  -> tab remains accessible only as disabled/blank state
+  -> request buttons disabled/hidden
+  -> sync/upsert/status-change RPCs refuse automation work
+```
 
-Impact:
-- A payer can potentially see every manager case, not only cases they originated.
-- This contradicts the intended dedicated manager workflow and leaks operational data.
+Database changes
 
-6. Assignment ownership allows overlapping managers
-The unique indexes prevent duplicate active assignment only for the same manager and same range/ad, but do not prevent two different managers from owning the same active Ad ID or same size range.
+Add a separate appeal system instead of overloading small payment cases:
 
-Impact:
-- Routing may become ambiguous.
-- The function picks one by workload, which may be useful for load sharing, but it contradicts “assigned to whoever that particular range was assigned” if the business intent is exclusive ownership.
+1. `terminal_appeal_config`
+   - singleton config row
+   - `is_enabled boolean`
+   - `updated_by uuid`
+   - `updated_at timestamptz`
+   - only Super Admin can toggle through RPC
 
-7. Closing/resolution does not happen automatically from Binance status
-Cases are opened after Mark Paid, but there is no status sync that automatically resolves/closes the case when Binance order status becomes `COMPLETED`, `CANCELLED`, or `EXPIRED`.
+2. `terminal_appeal_cases`
+   - `order_number text`
+   - `source text`: `binance_status`, `small_payment_request`, `manual_request`
+   - `status text`: `requested`, `under_appeal`, `respond_by_set`, `checked_in`, `resolved`, `closed`, `cancelled`
+   - `appeal_started_at timestamptz`
+   - `requested_by uuid`
+   - `requested_from_case_id uuid` nullable reference to small payment case
+   - `request_reason text`
+   - Binance enrichment fields: `adv_no`, `trade_type`, `asset`, `fiat_unit`, `total_price`, `counterparty_nickname`, `binance_status`
+   - required response timer fields:
+     - `response_timer_minutes integer null`
+     - `response_due_at timestamptz null`
+     - `response_timer_set_by uuid null`
+     - `response_timer_set_at timestamptz null`
+   - latest check-in fields:
+     - `last_checked_in_at timestamptz`
+     - `last_checked_in_by uuid`
+   - `notes text` optional latest summary
+   - audit fields: `created_by`, `updated_by`, `created_at`, `updated_at`
 
-Impact:
-- Manager dashboard will accumulate stale open cases after the counterparty releases.
-- Timers can show overdue even after the order is completed unless a manager manually closes it.
+3. `terminal_appeal_case_events`
+   - append-only audit/event history
+   - event types: `created`, `requested`, `binance_appeal_detected`, `timer_set`, `timer_expired_seen`, `checked_in`, `note_added`, `status_changed`, `resolved`, `closed`
+   - actor user id, previous/new values, note, created_at
 
-8. Case event logging is incomplete for status button changes
-Status buttons update the case row directly. They do not always add a case event unless using the RPC event function.
+4. Permissions
+   - Add enum permissions:
+     - `terminal_appeals_view`
+     - `terminal_appeals_manage`
+     - `terminal_appeals_request`
+     - `terminal_appeals_toggle`
+   - Add to role editor UI.
+   - Seed sensible defaults:
+     - Super Admin/Admin: all appeal permissions
+     - Supervisor/Manager: view/manage/request
+     - Small Payments Manager: request, and optionally view/manage if role is intended to handle appeals
+     - Payer: no direct appeal access unless explicitly assigned later
 
-Impact:
-- Audit trail is incomplete for tag/status changes, reducing usefulness for accountability.
+Security/RLS
 
-9. “Mark Contacted” and “Mark Checked” do not update the selected dialog state immediately
-The underlying query invalidates, but the open dialog uses the old selected case object.
+1. Appeal cases are not assignment-based.
+   - Anyone with `terminal_appeals_view` can read all appeal cases.
+   - Anyone with `terminal_appeals_manage` can update notes, timers, check-ins, and statuses.
+   - Anyone with `terminal_appeals_request` can create internal appeal requests.
+   - Only Super Admin or `terminal_appeals_toggle` plus Super Admin validation can toggle the module.
 
-Impact:
-- The list may update after refetch, but the currently open dialog can display stale values until reopened.
+2. All writes go through SECURITY DEFINER RPCs with explicit permission checks:
+   - `get_terminal_appeal_config()`
+   - `set_terminal_appeal_enabled(p_enabled boolean)`
+   - `upsert_terminal_appeal_case(...)`
+   - `request_terminal_appeal_from_small_payment(p_case_id uuid, p_reason text)`
+   - `set_terminal_appeal_response_timer(p_case_id uuid, p_minutes integer)`
+   - `check_in_terminal_appeal_case(p_case_id uuid, p_note text)`
+   - `add_terminal_appeal_note(p_case_id uuid, p_note text)`
+   - `update_terminal_appeal_status(p_case_id uuid, p_status text, p_note text)`
 
-10. Manager assignment UI permission mismatch
-`TerminalUsers.tsx` shows the Small Payments assignment tab for `terminal_small_payments_assign`, `terminal_users_manage`, or admin, but inside it uses a permission gate with only `terminal_small_payments_assign` and `terminal_users_manage`.
+3. RPCs check the global config first.
+   - If appeal system is off, request/sync/update RPCs reject changes.
+   - Read RPC/UI returns empty/disabled state.
 
-Impact:
-- A Super Admin/admin may see the tab but get silent blocked content if their effective admin path is not included by the gate logic.
+Appeal detection logic
 
-11. No current production data verifies the flow
-Database currently shows:
-- 0 small payment cases
-- 0 manager assignments
-- 0 case events
+1. Internal requests
+   - Add “Request Appeal” action inside Small Payments Manager case detail.
+   - It creates/updates an appeal case with source `small_payment_request` and status `requested`.
+   - It logs requester user id and username for display: “Appeal requested by [username]”.
+   - It can also mark the small payment case status as `appeal` and add an event for cross-reference.
 
-Impact:
-- The implementation has not yet been exercised end-to-end with live records.
+2. Binance appeal status
+   - Build frontend/server logic to upsert appeal cases when existing active order/history/detail data contains status including `APPEAL` or `DISPUTE`.
+   - Use Binance status as source of truth for “under appeal”.
+   - `appeal_started_at` is set to the first ERP detection time unless Binance provides a reliable appeal timestamp in the order detail payload. If Binance returns no appeal-start timestamp, UI will label it as “Detected at” rather than pretending it is the true Binance appeal start time.
 
-Fix plan
+Appeal tab UI
 
-1. Seed and repair permissions properly
-- Add a migration to attach the new Small Payments permissions to appropriate existing roles:
-  - Small Payments Manager: view + manage
-  - Terminal Supervisor/Admin/Super Admin or equivalent roles: view + manage + assign
-- Keep roles in `p2p_terminal_roles` / `p2p_terminal_role_permissions`; do not store role flags on users.
-- Ensure the frontend role template and database defaults match.
+Create `src/pages/terminal/TerminalAppeals.tsx` and route `/terminal/appeals`.
 
-2. Fix payer authorization for case handoff
-- Update `upsert_terminal_small_payment_case` so `terminal_payer_view` users can create/update cases only for orders they are actively handling/originating.
-- Do not grant broad manager powers to payers.
-- Tighten authorization inside the RPC instead of relying only on frontend gates.
+Main page:
 
-3. Make handoff reliable in the payer UI
-- Change Mark Paid and Upload+Mark Paid flows to `await upsertSmallPaymentCase.mutateAsync(...)` after Binance Mark Paid succeeds.
-- If case creation fails, show a clear error and keep the user aware that manager handoff failed.
-- Invalidate payer orders, open small payment cases, and manager case queries after successful handoff.
+1. Permission gate: `terminal_appeals_view`.
+2. If global appeal system is off:
+   - show blank/disabled state: “Appeal module is turned off by Super Admin.”
+   - no automation/sync/request controls visible.
+3. If enabled:
+   - summary cards:
+     - Under Appeal
+     - Appeal Requests
+     - Response Timer Missing
+     - Response Overdue
+     - Checked In Today
+   - table columns:
+     - Appeal age timer, very visible
+     - Response due timer, blinking when expired
+     - Order number
+     - Amount/asset
+     - Counterparty
+     - Binance status
+     - Source/tag: Binance Appeal, Dispute, Appeal Requested
+     - Requested by
+     - Last note/check-in
+     - Actions
 
-4. Make Alternate UPI handoff consistent
-- Ensure Alt UPI request and Small Payment case creation are coordinated.
-- If the old alternate UPI request succeeds but manager case creation fails, show an explicit warning and do not pretend the handoff is complete.
-- Prefer creating the manager case immediately and visibly as the operational source of truth.
+Case detail dialog:
 
-5. Tighten RLS policies
-- Remove broad `terminal_payer_view` read access from all cases/events.
-- Allow payer read only where `payer_user_id = auth.uid()`.
-- Allow manager read only where `manager_user_id = auth.uid()`.
-- Allow supervisor/admin read via `terminal_small_payments_manage`.
-- Assignment management remains restricted to `terminal_small_payments_assign` / admin-level permission.
+- Order evidence and Binance status
+- Full event history
+- Add shift note
+- Required response timer selector:
+  - 10 minutes
+  - 30 minutes
+  - 1 hour
+  - 2 hours
+  - 4 hours
+  - 8 hours
+  - 1 day
+  - No timer
+- For under-appeal cases, show flashing “Select response timer” until one is selected.
+- If timer expires, response timer badge blinks/destructive color.
+- Check-in button records current user and timestamp for audit.
+- Status actions: Under Appeal, Resolved, Closed, Cancelled.
 
-6. Decide and enforce assignment collision behavior
-- If one range/Ad ID should have exactly one manager, add partial unique indexes on active `size_range_id` and active `ad_id` globally.
-- If multiple managers per range are intended for load balancing, update UI copy to say “pool” and show that it routes by workload.
-- I recommend exclusive assignment unless you want round-robin/team pools.
+Small Payments Manager integration
 
-7. Add automatic case closure/sync
-- Add a sync step in the manager query/RPC or a lightweight database function that checks matched Binance history/status.
-- Auto-close or flag cases when order status is completed/cancelled/expired.
-- Keep manual override/status notes for refund and exception states.
+Update `TerminalSmallPayments.tsx` case actions:
 
-8. Improve audit trail
-- Route status changes through a function that logs `status_changed`, `tag_changed`, and `priority_changed` events.
-- Preserve previous and new values in `terminal_small_payment_case_events`.
+- Add “Request Appeal” button.
+- Requires `terminal_appeals_request` or `terminal_appeals_manage`.
+- Button disabled when Appeal system is off.
+- On click, ask for a short reason/note.
+- Create appeal case via RPC.
+- Show visual tag on small payment case if an appeal case already exists.
 
-9. Fix frontend stale state and UI guards
-- Refresh selected case data in the dialog after updates.
-- Add manager reassignment/unassigned case visibility for supervisors.
-- Fix `TerminalUsers` permission gate so Super Admin/admin paths align with visible tab logic.
+Navigation and permissions UI
 
-10. Verification after implementation
-- Run TypeScript validation.
-- Query role permissions to confirm rows exist.
-- Test/create a controlled case through the RPC with an authorized user path.
-- Verify normal managers see only their assigned cases.
-- Verify payers can create handoff cases but cannot see all manager cases.
-- Verify zero-assignment cases show as unassigned/supervisor-visible instead of disappearing.
+1. Add sidebar item:
+   - title: `Appeals`
+   - route: `/terminal/appeals`
+   - permission: `terminal_appeals_view`
 
-Expected result
-- Mark Paid and Alt UPI reliably create manager cases.
-- Dedicated managers get a clean queue based on assignment.
-- Payers cannot see unrelated manager cases.
-- Admins can configure assignments and supervise unassigned/stale cases.
-- Cases do not remain open forever after Binance completion.
-- The module becomes operationally reliable instead of only visually present.
+2. Update Terminal auth permission union and Super Admin all-permissions list.
+
+3. Update role permissions editor:
+   - New module: “Appeals”
+   - Permissions: View, Manage, Request Appeal, Toggle System
+
+4. Route protection through existing `TerminalPermissionGate`.
+
+Technical notes
+
+- Do not edit `src/integrations/supabase/types.ts` manually.
+- Use migrations for schema/RLS/RPC changes.
+- Use data-operation tooling for permission seeding if needed, not schema-only migrations where inappropriate.
+- Use `@tanstack/react-query` hooks for appeal data and mutations.
+- Avoid hardcoding usernames; resolve user UUIDs through existing `users` table for display.
+- Keep timers based on persisted timestamps, not browser-local state.
+- Use `AlertDialog`/dialogs for confirmation and notes, not `confirm()`.
+
+Verification
+
+After implementation:
+
+1. TypeScript validation.
+2. Verify Super Admin can toggle Appeal system.
+3. Verify disabled state blocks request/sync/update RPCs.
+4. Verify Small Payments Manager can request appeal only with permission.
+5. Verify appeal handlers see all appeal cases, not assigned-only cases.
+6. Verify under-appeal rows show appeal age timer.
+7. Verify response timer is mandatory/flagged until selected.
+8. Verify expired response timers blink clearly.
+9. Verify check-in records actual user UUID and visible username.
+10. Verify all events are present in audit history.

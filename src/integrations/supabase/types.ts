@@ -13191,6 +13191,169 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_appeal_case_events: {
+        Row: {
+          actor_user_id: string | null
+          case_id: string
+          created_at: string
+          event_type: string
+          id: string
+          new_value: Json | null
+          note: string | null
+          order_number: string
+          previous_value: Json | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          case_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          order_number: string
+          previous_value?: Json | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          case_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          new_value?: Json | null
+          note?: string | null
+          order_number?: string
+          previous_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_appeal_case_events_case_id_fkey"
+            columns: ["case_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_appeal_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_appeal_cases: {
+        Row: {
+          adv_no: string | null
+          appeal_started_at: string
+          asset: string | null
+          binance_status: string | null
+          counterparty_nickname: string | null
+          created_at: string
+          created_by: string | null
+          fiat_unit: string | null
+          id: string
+          last_checked_in_at: string | null
+          last_checked_in_by: string | null
+          notes: string | null
+          order_number: string
+          request_reason: string | null
+          requested_by: string | null
+          requested_from_case_id: string | null
+          response_due_at: string | null
+          response_timer_minutes: number | null
+          response_timer_set_at: string | null
+          response_timer_set_by: string | null
+          source: string
+          status: string
+          total_price: number | null
+          trade_type: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          adv_no?: string | null
+          appeal_started_at?: string
+          asset?: string | null
+          binance_status?: string | null
+          counterparty_nickname?: string | null
+          created_at?: string
+          created_by?: string | null
+          fiat_unit?: string | null
+          id?: string
+          last_checked_in_at?: string | null
+          last_checked_in_by?: string | null
+          notes?: string | null
+          order_number: string
+          request_reason?: string | null
+          requested_by?: string | null
+          requested_from_case_id?: string | null
+          response_due_at?: string | null
+          response_timer_minutes?: number | null
+          response_timer_set_at?: string | null
+          response_timer_set_by?: string | null
+          source?: string
+          status?: string
+          total_price?: number | null
+          trade_type?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          adv_no?: string | null
+          appeal_started_at?: string
+          asset?: string | null
+          binance_status?: string | null
+          counterparty_nickname?: string | null
+          created_at?: string
+          created_by?: string | null
+          fiat_unit?: string | null
+          id?: string
+          last_checked_in_at?: string | null
+          last_checked_in_by?: string | null
+          notes?: string | null
+          order_number?: string
+          request_reason?: string | null
+          requested_by?: string | null
+          requested_from_case_id?: string | null
+          response_due_at?: string | null
+          response_timer_minutes?: number | null
+          response_timer_set_at?: string | null
+          response_timer_set_by?: string | null
+          source?: string
+          status?: string
+          total_price?: number | null
+          trade_type?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "terminal_appeal_cases_requested_from_case_id_fkey"
+            columns: ["requested_from_case_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_small_payment_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      terminal_appeal_config: {
+        Row: {
+          created_at: string
+          id: boolean
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       terminal_assignment_audit_logs: {
         Row: {
           action_type: string
@@ -15510,6 +15673,10 @@ export type Database = {
       }
     }
     Functions: {
+      add_terminal_appeal_note: {
+        Args: { p_case_id: string; p_note: string }
+        Returns: undefined
+      }
       admin_reset_user_password: {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
@@ -15630,6 +15797,10 @@ export type Database = {
       can_manage_customer_support_tickets: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      check_in_terminal_appeal_case: {
+        Args: { p_case_id: string; p_note?: string }
+        Returns: undefined
       }
       check_snapshot_drift: {
         Args: { p_critical_threshold?: number; p_warning_threshold?: number }
@@ -16459,6 +16630,7 @@ export type Database = {
           }
       is_ledger_auditor: { Args: { _uid?: string }; Returns: boolean }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_terminal_appeal_enabled: { Args: never; Returns: boolean }
       list_terminal_roles: {
         Args: never
         Returns: {
@@ -16482,6 +16654,16 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      log_terminal_appeal_case_event: {
+        Args: {
+          p_case_id: string
+          p_event_type: string
+          p_new_value?: Json
+          p_note?: string
+          p_previous_value?: Json
+        }
+        Returns: string
       }
       log_terminal_small_payment_case_event: {
         Args: {
@@ -16639,6 +16821,10 @@ export type Database = {
         Args: { p_role_id: string; p_user_id: string }
         Returns: undefined
       }
+      request_terminal_appeal_from_small_payment: {
+        Args: { p_case_id: string; p_reason?: string }
+        Returns: string
+      }
       require_permission: {
         Args: { _action_name?: string; _permission: string; _user_id: string }
         Returns: boolean
@@ -16692,6 +16878,14 @@ export type Database = {
           count: number
           scope: string
         }[]
+      }
+      set_terminal_appeal_enabled: {
+        Args: { p_enabled: boolean }
+        Returns: boolean
+      }
+      set_terminal_appeal_response_timer: {
+        Args: { p_case_id: string; p_minutes: number }
+        Returns: undefined
       }
       set_terminal_user_status: {
         Args: { p_status: string; p_user_id: string }
@@ -16834,6 +17028,10 @@ export type Database = {
           updated_id: string
         }[]
       }
+      update_terminal_appeal_status: {
+        Args: { p_case_id: string; p_note?: string; p_status: string }
+        Returns: undefined
+      }
       update_terminal_small_payment_case_status: {
         Args: { p_case_id: string; p_note?: string; p_status: string }
         Returns: string
@@ -16884,6 +17082,23 @@ export type Database = {
           }
       upsert_p2p_counterparty: {
         Args: { p_nickname: string; p_trade_type: string; p_volume: number }
+        Returns: string
+      }
+      upsert_terminal_appeal_case: {
+        Args: {
+          p_adv_no?: string
+          p_asset?: string
+          p_binance_status?: string
+          p_counterparty_nickname?: string
+          p_fiat_unit?: string
+          p_order_number: string
+          p_request_reason?: string
+          p_requested_from_case_id?: string
+          p_source?: string
+          p_status?: string
+          p_total_price?: number
+          p_trade_type?: string
+        }
         Returns: string
       }
       upsert_terminal_small_payment_case: {
@@ -17227,6 +17442,10 @@ export type Database = {
         | "terminal_small_payments_view"
         | "terminal_small_payments_manage"
         | "terminal_small_payments_assign"
+        | "terminal_appeals_view"
+        | "terminal_appeals_manage"
+        | "terminal_appeals_request"
+        | "terminal_appeals_toggle"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -17519,6 +17738,10 @@ export const Constants = {
         "terminal_small_payments_view",
         "terminal_small_payments_manage",
         "terminal_small_payments_assign",
+        "terminal_appeals_view",
+        "terminal_appeals_manage",
+        "terminal_appeals_request",
+        "terminal_appeals_toggle",
       ],
     },
   },

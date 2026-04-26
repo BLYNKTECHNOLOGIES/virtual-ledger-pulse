@@ -88,6 +88,7 @@ const PERMISSION_MODULES: ModuleDef[] = [
     permissions: [
       { key: 'terminal_small_payments_view', label: 'View Cases', tier: 'view' },
       { key: 'terminal_small_payments_manage', label: 'Manage Cases', tier: 'manage', requires: ['terminal_small_payments_view'] },
+      { key: 'terminal_small_payments_assign', label: 'Assign Managers', tier: 'special', requires: ['terminal_small_payments_view', 'terminal_small_payments_manage'] },
     ],
   },
   {

@@ -26,6 +26,7 @@ import {
   BarChart3,
   UserCheck,
   CreditCard,
+  ReceiptText,
   Clock,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
@@ -52,6 +53,7 @@ const navItems: NavItem[] = [
   { title: 'Audit Logs', url: '/terminal/audit-logs', icon: ScrollText, requiredPermission: 'terminal_audit_logs_view' },
   { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, requiredPermission: 'terminal_kyc_view', comingSoon: true },
   { title: 'Payer', url: '/terminal/payer', icon: CreditCard, requiredPermission: 'terminal_payer_view' },
+  { title: 'Small Payments', url: '/terminal/small-payments', icon: ReceiptText, requiredPermission: 'terminal_small_payments_view' },
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_logs_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, requiredPermission: 'terminal_settings_view' },

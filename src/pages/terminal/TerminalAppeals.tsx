@@ -32,6 +32,7 @@ import {
   useAppealCases,
   useAppealConfig,
   useCheckInAppealCase,
+  isAppealCheckInPending,
   useSetAppealTimer,
   useToggleAppealModule,
   useUpsertAppealCase,
@@ -314,8 +315,8 @@ export default function TerminalAppeals() {
     return {
       active: active.filter((c) => c.status !== 'requested').length,
       requests: active.filter((c) => c.status === 'requested').length,
-      missingTimer: active.filter((c) => c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at).length,
-      overdue: active.filter((c) => c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now()).length,
+      missingTimer: active.filter((c) => isAppealCheckInPending(c) && c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at).length,
+      overdue: active.filter((c) => isAppealCheckInPending(c) && c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now()).length,
       checkedToday: visibleCases.filter((c) => c.last_checked_in_at && new Date(c.last_checked_in_at).toDateString() === new Date().toDateString()).length,
     };
   }, [visibleCases]);
@@ -485,9 +486,9 @@ function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: 
 function AppealRow({ c, statusMap, canChat, onOpen, onChat }: { c: TerminalAppealCase; statusMap: Map<string, AuthoritativeOrderStatus>; canChat: boolean; onOpen: () => void; onChat: () => void }) {
   const age = getElapsedMinutes(c.appeal_started_at);
   const isActive = isActiveAppealCase(c);
-  const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
   const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
-  const canCheckIn = isActive && (needsTimer || responseExpired);
+  const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
+  const canCheckIn = isActive && isAppealCheckInPending(c);
   const orderStatus = getResolvedCaseStatus(c, statusMap);
   const orderStyle = getStatusStyle(mapToOperationalStatus(orderStatus, c.trade_type || 'SELL'));
   return <TableRow className="cursor-pointer hover:bg-secondary/40" onClick={onOpen}>

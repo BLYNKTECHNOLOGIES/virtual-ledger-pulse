@@ -97,7 +97,7 @@ const PERMISSION_MODULES: ModuleDef[] = [
       { key: 'terminal_appeals_view', label: 'View All Appeals', tier: 'view' },
       { key: 'terminal_appeals_manage', label: 'Manage Appeals', tier: 'manage', requires: ['terminal_appeals_view'] },
       { key: 'terminal_appeals_request', label: 'Request Appeal', tier: 'action' },
-      { key: 'terminal_appeals_toggle', label: 'Toggle Module', tier: 'special', requires: ['terminal_appeals_view'] },
+      { key: 'terminal_appeals_toggle', label: 'Toggle Module (Super Admin)', tier: 'special', requires: ['terminal_appeals_view'] },
     ],
   },
   {
@@ -295,7 +295,7 @@ const ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermi
       'terminal_ads_view', 'terminal_ads_manage', 'terminal_ads_toggle', 'terminal_ads_rest_timer',
       'terminal_payer_view', 'terminal_payer_manage',
       'terminal_small_payments_view', 'terminal_small_payments_manage', 'terminal_small_payments_assign',
-      'terminal_appeals_view', 'terminal_appeals_manage', 'terminal_appeals_request', 'terminal_appeals_toggle',
+      'terminal_appeals_view', 'terminal_appeals_manage', 'terminal_appeals_request',
       'terminal_pricing_view', 'terminal_pricing_manage', 'terminal_pricing_toggle', 'terminal_pricing_delete',
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',

@@ -1,222 +1,127 @@
-Plan: Build Terminal Appeal tab with controlled appeal workflow
+Audit result: Appeal module is partially implemented, but it is not production-safe yet. The main UI exists, but there are permission, workflow, Binance-source, and data-integrity gaps that can make the module appear blank, fail silently, or produce misleading operational data.
 
-Goal
+Critical findings
 
-Create a dedicated Terminal Appeal module for orders that are either:
+1. Appeal permissions are not seeded to existing roles
+- Database check shows all existing terminal roles currently have `NULL` for `terminal_appeals_*` permissions.
+- Result: nobody except Super Admin fallback can reliably access/use the tab, request appeals, or manage timers.
+- The role templates in the UI were updated, but templates do not update already-existing roles in the database.
 
-1. Already under appeal/dispute according to Binance order status, or
-2. Internally requested for appeal by ERP users from the Small Payments Manager module.
+2. Toggle permission mismatch
+- UI shows the module toggle only for `isSuperAdmin`.
+- Database function also allows only Super Admin.
+- But `terminal_appeals_toggle` permission was created and added to role templates, which is misleading because it does nothing unless the user is Super Admin.
+- Fix: either remove functional reliance on this permission, or keep it visible as informational but enforce “Super Admin only.” I recommend Super Admin only, per your requirement.
 
-Important Binance API boundary
+3. The tab may be blank by default
+- `terminal_appeal_config.is_enabled` defaults to `false`.
+- Since no appeal permissions are seeded, normal appeal handlers cannot even see the tab/config.
+- Result: users may think implementation is broken.
+- Fix: seed correct permissions, but keep the global module off until Super Admin turns it on.
 
-Based on existing Binance proxy capabilities in this project, Binance supports reading order status/details through endpoints such as:
+4. Binance appeal sync is likely not reliable enough
+- Current sync calls `listActiveOrders` with `orderStatusList: [8, 'APPEAL', 'DISPUTE']`.
+- This was not validated against the actual Binance proxy action contract in the implementation.
+- Per project rule, Binance API-dependent functionality must not invent unsupported request params/status values.
+- Fix: inspect `binance-ads` edge function/proxy mapping and official Binance status handling already used in project. Only keep sync if supported. If not supported, label it as “Not available from Binance API/proxy” and remove/disable that button.
 
-- listOrders
-- listUserOrderHistory
-- getUserOrderDetail
+5. Internal appeal request from Payer queue is manual/shadow data
+- The Payer queue “Appeal” button creates a manual ERP appeal request from visible order data.
+- This is acceptable only as an internal request workflow, not as “filing appeal on Binance.”
+- The UI copy should explicitly say “Request Appeal” / “internal request,” not imply Binance appeal filing.
 
-Existing code already detects APPEAL/DISPUTE statuses from these sources.
+6. Timer requirement is not fully enforced
+- Requirement: for orders under appeal, response timer selection is mandatory; if not selected, flashing tag should show.
+- Current UI flashes “Select timer,” but database does not enforce this before case handling/check-in/status changes.
+- A manager can check in or resolve without ever selecting a timer.
+- Fix: enforce timer requirement in RPCs for `under_appeal` cases before check-in/management actions, except for closing/cancelling/resolving where explicitly allowed.
 
-I did not find an existing Binance endpoint/proxy action for actually filing/creating an appeal. Therefore this implementation will not pretend to file an appeal on Binance. The “Request Appeal” action will create an internal ERP appeal request and surface it to appeal handlers. Actual appeal filing, if required, remains a manual Binance-side action unless a supported Binance appeal endpoint is later verified and added.
+7. “No timer” handling is ambiguous
+- Requirement includes “No timer” as a dropdown option, but selection is mandatory.
+- Current database stores `response_timer_minutes = null`, `response_due_at = null`, and `response_timer_set_at = now()` for No Timer.
+- This is workable, but the UI should show “No timer selected by [user] at [time]” instead of only “No timer,” otherwise it is indistinguishable from missing timer in some contexts.
 
-Workflow
+8. Check-in audit is incomplete for display
+- Database stores `last_checked_in_by` and event actor UUIDs.
+- UI resolves usernames for cases/events, but only via `users` table. If user row is missing or inaccessible, audit displays `—`.
+- Fix: add resilient fallback display and ensure event history visibly records actor username/name.
 
-```text
-Small Payments Manager case
-  -> Request Appeal
-  -> terminal_appeal_cases row created as requested
-  -> Appeal tab shows it to all appeal handlers
+9. Notes are overwritten, not appended
+- `add_terminal_appeal_note` sets `notes = p_note`, replacing previous handover note.
+- Event history preserves old notes, but the current “shift note” field loses previous context.
+- Fix: either rename to “Current handover note” or append notes with timestamp/actor in `notes`; I recommend keeping `notes` as latest note but adding clear event history and showing last 3 notes.
 
-Binance order status becomes APPEAL/DISPUTE
-  -> Appeal sync/upsert records order as under_appeal
-  -> Appeal timer starts from detected appeal time
-  -> Appeal handlers manage notes, response timer, and check-ins
+10. RLS has no direct insert/update policies, only security-definer RPCs
+- This is good for controlled writes, but only if all UI writes use RPCs. Current Appeal UI does use RPCs.
+- Need to keep direct table writes disabled and add explicit comments/migration hardening if needed.
 
-Super Admin turns Appeal system OFF
-  -> tab remains accessible only as disabled/blank state
-  -> request buttons disabled/hidden
-  -> sync/upsert/status-change RPCs refuse automation work
-```
+11. Status lifecycle is too loose
+- Current statuses can be moved freely to `under_appeal`, `resolved`, `closed`, `cancelled`.
+- No guard prevents going from closed back to active via status RPC? The RPC permits any listed status; upsert prevents reopening, but update status does not.
+- Fix: prevent reopening terminal states unless Super Admin performs a special reopen RPC/audit action.
 
-Database changes
+12. Auto-closure/sync with Binance final state is missing
+- If Binance appeal/order later completes or cancels, ERP appeal case remains active unless manually closed.
+- This can create stale appeal queues.
+- Fix: if proxy supports order detail/status check, add a safe “Refresh Status” action per case and optionally a manager-only bulk refresh. Do not auto-close unless Binance status is definitively final.
 
-Add a separate appeal system instead of overloading small payment cases:
+13. Build/runtime validation was only TypeScript-level
+- Previous implementation reported TypeScript pass, but no RLS permission scenario testing, no function behavior test, no browser/network verification.
+- Fix: add targeted verification: Super Admin toggle, appeal handler view, small-payment request, payer request, timer enforcement, no-permission denial.
 
-1. `terminal_appeal_config`
-   - singleton config row
-   - `is_enabled boolean`
-   - `updated_by uuid`
-   - `updated_at timestamptz`
-   - only Super Admin can toggle through RPC
+Implementation plan after approval
 
-2. `terminal_appeal_cases`
-   - `order_number text`
-   - `source text`: `binance_status`, `small_payment_request`, `manual_request`
-   - `status text`: `requested`, `under_appeal`, `respond_by_set`, `checked_in`, `resolved`, `closed`, `cancelled`
-   - `appeal_started_at timestamptz`
-   - `requested_by uuid`
-   - `requested_from_case_id uuid` nullable reference to small payment case
-   - `request_reason text`
-   - Binance enrichment fields: `adv_no`, `trade_type`, `asset`, `fiat_unit`, `total_price`, `counterparty_nickname`, `binance_status`
-   - required response timer fields:
-     - `response_timer_minutes integer null`
-     - `response_due_at timestamptz null`
-     - `response_timer_set_by uuid null`
-     - `response_timer_set_at timestamptz null`
-   - latest check-in fields:
-     - `last_checked_in_at timestamptz`
-     - `last_checked_in_by uuid`
-   - `notes text` optional latest summary
-   - audit fields: `created_by`, `updated_by`, `created_at`, `updated_at`
+1. Permission and role migration
+- Seed `terminal_appeals_view/manage/request` to the correct existing roles:
+  - Super Admin/Admin/Operations Manager/Assistant Manager: view/manage/request
+  - Small Payments Manager: request only, and optionally view if they are also appeal handlers
+  - Payer: request only if intended; otherwise no direct appeal request from payer queue
+- Do not grant `terminal_appeals_toggle` to non-Super Admin roles, or remove it from operational templates to avoid confusion.
 
-3. `terminal_appeal_case_events`
-   - append-only audit/event history
-   - event types: `created`, `requested`, `binance_appeal_detected`, `timer_set`, `timer_expired_seen`, `checked_in`, `note_added`, `status_changed`, `resolved`, `closed`
-   - actor user id, previous/new values, note, created_at
+2. Binance/proxy validation
+- Inspect the `binance-ads` edge function action list and existing order status mapping.
+- Confirm whether `listActiveOrders` supports appeal/dispute filters.
+- If unsupported, disable/remove “Sync Binance Appeals” and replace with a compliant message.
+- If supported, correct the request payload/status mapping and handle pagination safely.
 
-4. Permissions
-   - Add enum permissions:
-     - `terminal_appeals_view`
-     - `terminal_appeals_manage`
-     - `terminal_appeals_request`
-     - `terminal_appeals_toggle`
-   - Add to role editor UI.
-   - Seed sensible defaults:
-     - Super Admin/Admin: all appeal permissions
-     - Supervisor/Manager: view/manage/request
-     - Small Payments Manager: request, and optionally view/manage if role is intended to handle appeals
-     - Payer: no direct appeal access unless explicitly assigned later
+3. Harden database RPC lifecycle
+- Add status transition guards:
+  - terminal statuses cannot be reopened casually
+  - timer must be explicitly selected for `under_appeal` cases before check-in/action work
+  - “No Timer” remains a valid explicit selection using `response_timer_set_at`
+- Add stronger audit event details for timer, check-in, status changes, and notes.
 
-Security/RLS
+4. Improve Appeal UI clarity
+- Rename Payer button to “Request Appeal” and add tooltip/text that it creates an internal request only.
+- In Appeal tab, distinguish:
+  - Binance detected appeal
+  - Internal appeal request from Small Payments
+  - Internal request from Payer queue
+- Show “Timer not selected” vs “No timer selected by [user]” clearly.
+- Show actor names/timestamps more prominently in check-in and note history.
 
-1. Appeal cases are not assignment-based.
-   - Anyone with `terminal_appeals_view` can read all appeal cases.
-   - Anyone with `terminal_appeals_manage` can update notes, timers, check-ins, and statuses.
-   - Anyone with `terminal_appeals_request` can create internal appeal requests.
-   - Only Super Admin or `terminal_appeals_toggle` plus Super Admin validation can toggle the module.
+5. Add status refresh workflow
+- Add per-case “Refresh Binance Status” if `getOrderDetail`/proxy supports it.
+- When Binance returns final statuses (`COMPLETED`, `CANCELLED`, `EXPIRED`), prompt/allow manager to resolve/close with audit.
+- Do not infer finality if Binance returns null/empty/restricted data.
 
-2. All writes go through SECURITY DEFINER RPCs with explicit permission checks:
-   - `get_terminal_appeal_config()`
-   - `set_terminal_appeal_enabled(p_enabled boolean)`
-   - `upsert_terminal_appeal_case(...)`
-   - `request_terminal_appeal_from_small_payment(p_case_id uuid, p_reason text)`
-   - `set_terminal_appeal_response_timer(p_case_id uuid, p_minutes integer)`
-   - `check_in_terminal_appeal_case(p_case_id uuid, p_note text)`
-   - `add_terminal_appeal_note(p_case_id uuid, p_note text)`
-   - `update_terminal_appeal_status(p_case_id uuid, p_status text, p_note text)`
+6. Verification pass
+- Run TypeScript checks.
+- Verify database permissions and RLS with read-only queries.
+- Test main flows in preview:
+  - module off shows blank/disabled state
+  - Super Admin can toggle
+  - appeal handler can see all active appeals
+  - requester can request but not manage
+  - timer selection and expired blinking behavior
+  - check-in creates visible audit event
 
-3. RPCs check the global config first.
-   - If appeal system is off, request/sync/update RPCs reject changes.
-   - Read RPC/UI returns empty/disabled state.
+Expected outcome
 
-Appeal detection logic
-
-1. Internal requests
-   - Add “Request Appeal” action inside Small Payments Manager case detail.
-   - It creates/updates an appeal case with source `small_payment_request` and status `requested`.
-   - It logs requester user id and username for display: “Appeal requested by [username]”.
-   - It can also mark the small payment case status as `appeal` and add an event for cross-reference.
-
-2. Binance appeal status
-   - Build frontend/server logic to upsert appeal cases when existing active order/history/detail data contains status including `APPEAL` or `DISPUTE`.
-   - Use Binance status as source of truth for “under appeal”.
-   - `appeal_started_at` is set to the first ERP detection time unless Binance provides a reliable appeal timestamp in the order detail payload. If Binance returns no appeal-start timestamp, UI will label it as “Detected at” rather than pretending it is the true Binance appeal start time.
-
-Appeal tab UI
-
-Create `src/pages/terminal/TerminalAppeals.tsx` and route `/terminal/appeals`.
-
-Main page:
-
-1. Permission gate: `terminal_appeals_view`.
-2. If global appeal system is off:
-   - show blank/disabled state: “Appeal module is turned off by Super Admin.”
-   - no automation/sync/request controls visible.
-3. If enabled:
-   - summary cards:
-     - Under Appeal
-     - Appeal Requests
-     - Response Timer Missing
-     - Response Overdue
-     - Checked In Today
-   - table columns:
-     - Appeal age timer, very visible
-     - Response due timer, blinking when expired
-     - Order number
-     - Amount/asset
-     - Counterparty
-     - Binance status
-     - Source/tag: Binance Appeal, Dispute, Appeal Requested
-     - Requested by
-     - Last note/check-in
-     - Actions
-
-Case detail dialog:
-
-- Order evidence and Binance status
-- Full event history
-- Add shift note
-- Required response timer selector:
-  - 10 minutes
-  - 30 minutes
-  - 1 hour
-  - 2 hours
-  - 4 hours
-  - 8 hours
-  - 1 day
-  - No timer
-- For under-appeal cases, show flashing “Select response timer” until one is selected.
-- If timer expires, response timer badge blinks/destructive color.
-- Check-in button records current user and timestamp for audit.
-- Status actions: Under Appeal, Resolved, Closed, Cancelled.
-
-Small Payments Manager integration
-
-Update `TerminalSmallPayments.tsx` case actions:
-
-- Add “Request Appeal” button.
-- Requires `terminal_appeals_request` or `terminal_appeals_manage`.
-- Button disabled when Appeal system is off.
-- On click, ask for a short reason/note.
-- Create appeal case via RPC.
-- Show visual tag on small payment case if an appeal case already exists.
-
-Navigation and permissions UI
-
-1. Add sidebar item:
-   - title: `Appeals`
-   - route: `/terminal/appeals`
-   - permission: `terminal_appeals_view`
-
-2. Update Terminal auth permission union and Super Admin all-permissions list.
-
-3. Update role permissions editor:
-   - New module: “Appeals”
-   - Permissions: View, Manage, Request Appeal, Toggle System
-
-4. Route protection through existing `TerminalPermissionGate`.
-
-Technical notes
-
-- Do not edit `src/integrations/supabase/types.ts` manually.
-- Use migrations for schema/RLS/RPC changes.
-- Use data-operation tooling for permission seeding if needed, not schema-only migrations where inappropriate.
-- Use `@tanstack/react-query` hooks for appeal data and mutations.
-- Avoid hardcoding usernames; resolve user UUIDs through existing `users` table for display.
-- Keep timers based on persisted timestamps, not browser-local state.
-- Use `AlertDialog`/dialogs for confirmation and notes, not `confirm()`.
-
-Verification
-
-After implementation:
-
-1. TypeScript validation.
-2. Verify Super Admin can toggle Appeal system.
-3. Verify disabled state blocks request/sync/update RPCs.
-4. Verify Small Payments Manager can request appeal only with permission.
-5. Verify appeal handlers see all appeal cases, not assigned-only cases.
-6. Verify under-appeal rows show appeal age timer.
-7. Verify response timer is mandatory/flagged until selected.
-8. Verify expired response timers blink clearly.
-9. Verify check-in records actual user UUID and visible username.
-10. Verify all events are present in audit history.
+The Appeal tab will become a controlled, audit-safe operations module rather than a partial manual board:
+- Correct users can access it.
+- Super Admin remains the only toggle authority.
+- Internal appeal requests are clearly separated from Binance-detected appeals.
+- Unsupported Binance automation is not faked.
+- Timers and check-ins are enforceable and auditable.
+- Stale or closed cases cannot distort workload visibility.

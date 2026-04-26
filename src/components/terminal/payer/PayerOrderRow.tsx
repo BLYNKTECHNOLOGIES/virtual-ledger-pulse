@@ -203,7 +203,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
         orderNumber: order.orderNumber,
         source: 'manual_request',
         status: 'requested',
-        requestReason: 'Appeal requested from Payer queue.',
+        requestReason: 'Internal appeal request created from Payer queue. This does not file an appeal on Binance.',
         advNo: order.advNo || null,
         tradeType: 'BUY',
         asset: order.asset || 'USDT',
@@ -212,7 +212,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
         counterpartyNickname: order.sellerNickname || order.counterPartNickName || null,
         binanceStatus: normaliseBinanceStatus(order.orderStatus),
       });
-      toast.success('Appeal requested');
+      toast.success('Internal appeal request created');
     } catch (err: any) {
       toast.error(`Appeal request failed: ${err.message}`);
     }
@@ -502,7 +502,7 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
                 disabled={!appealConfig?.is_enabled || upsertAppeal.isPending}
               >
                 {upsertAppeal.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileWarning className="h-3 w-3" />}
-                Appeal
+                Request Appeal
               </Button>
             )}
 

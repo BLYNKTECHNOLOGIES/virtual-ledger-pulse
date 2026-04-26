@@ -19,18 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Zap, Loader2, Fingerprint, Key, Mail, Smartphone, Shield } from 'lucide-react';
+import { Zap, Loader2, Fingerprint, Key, Smartphone, Shield } from 'lucide-react';
 import { useReleaseCoin, useMarkOrderAsPaid } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 
-type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'MOBILE';
+type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'SMS';
 
 const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string; fieldName: string }[] = [
   { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code', fieldName: 'googleVerifyCode' },
   { value: 'YUBIKEY', label: 'YubiKey', icon: <Fingerprint className="h-3.5 w-3.5" />, placeholder: 'Tap your YubiKey…', fieldName: 'yubikeyVerifyCode' },
-  { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code', fieldName: 'emailVerifyCode' },
-  { value: 'MOBILE', label: 'Mobile OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter mobile verification code', fieldName: 'mobileVerifyCode' },
+  { value: 'SMS', label: 'SMS OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter SMS verification code', fieldName: 'mobileVerifyCode' },
 ];
 
 export interface QuickReceiveDialogProps {

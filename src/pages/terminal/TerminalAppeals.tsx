@@ -12,8 +12,11 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
+import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { markOrderChatRead } from '@/lib/chat-read-state';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import {
   AppealStatus,
@@ -44,17 +47,47 @@ const statusLabels: Record<AppealStatus, string> = {
   cancelled: 'Cancelled',
 };
 
+function appealCaseToOrderRecord(c: TerminalAppealCase): P2POrderRecord {
+  return {
+    id: c.order_number,
+    binance_order_number: c.order_number,
+    binance_adv_no: c.adv_no,
+    counterparty_id: null,
+    counterparty_nickname: c.counterparty_nickname || '',
+    trade_type: c.trade_type || 'SELL',
+    asset: c.asset || 'USDT',
+    fiat_unit: c.fiat_unit || 'INR',
+    amount: 0,
+    total_price: Number(c.total_price || 0),
+    unit_price: 0,
+    commission: 0,
+    order_status: c.binance_status || statusLabels[c.status] || c.status,
+    pay_method_name: null,
+    binance_create_time: c.appeal_started_at ? new Date(c.appeal_started_at).getTime() : null,
+    is_repeat_client: false,
+    repeat_order_count: 0,
+    assigned_operator_id: null,
+    order_type: null,
+    synced_at: c.updated_at || new Date().toISOString(),
+    completed_at: null,
+    cancelled_at: null,
+    created_at: c.created_at || new Date().toISOString(),
+  };
+}
+
 export default function TerminalAppeals() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('all');
   const [selectedCase, setSelectedCase] = useState<TerminalAppealCase | null>(null);
+  const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const { isSuperAdmin, hasPermission } = useTerminalAuth();
+  const { isSuperAdmin, isTerminalAdmin, hasPermission } = useTerminalAuth();
   const { data: config, isLoading: configLoading } = useAppealConfig();
   const toggleAppeal = useToggleAppealModule();
   const upsertAppeal = useUpsertAppealCase();
   const { data: cases = [], isLoading, refetch, isFetching } = useAppealCases({ status, search });
   const isEnabled = Boolean(config?.is_enabled);
+  const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
 
   const summary = useMemo(() => {
     const active = cases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
@@ -102,6 +135,22 @@ export default function TerminalAppeals() {
     }
   };
 
+  const openChatForCase = (caseItem: TerminalAppealCase) => {
+    markOrderChatRead(caseItem.order_number);
+    callBinanceAds('markOrderMessagesRead', { orderNo: caseItem.order_number }).catch((err) => {
+      console.warn('Failed to mark Binance chat read:', err);
+    });
+    setChatOrder(appealCaseToOrderRecord(caseItem));
+  };
+
+  if (chatOrder) {
+    return (
+      <div className="h-[calc(100vh-48px)]">
+        <OrderDetailWorkspace order={chatOrder} onClose={() => setChatOrder(null)} />
+      </div>
+    );
+  }
+
   return (
     <TerminalPermissionGate permissions={['terminal_appeals_view']}>
       <div className="p-4 md:p-6 space-y-5">
@@ -133,7 +182,7 @@ export default function TerminalAppeals() {
 
           <Card className="bg-card border-border"><CardContent className="p-0">
             {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : cases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">No appeal cases found</div> : (
-              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{cases.map((c) => <AppealRow key={c.id} c={c} onOpen={() => setSelectedCase(c)} />)}</TableBody></Table></div>
+              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{cases.map((c) => <AppealRow key={c.id} c={c} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
             )}
           </CardContent></Card>
           <AppealDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} />
@@ -152,7 +201,7 @@ function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: 
   return <Card><CardContent className="p-3 flex items-center justify-between"><div><p className="text-[10px] text-muted-foreground">{label}</p><p className="text-xl font-semibold tabular-nums">{value}</p></div><div className={`p-2 rounded ${toneClass}`}><Icon className="h-4 w-4" /></div></CardContent></Card>;
 }
 
-function AppealRow({ c, onOpen }: { c: TerminalAppealCase; onOpen: () => void }) {
+function AppealRow({ c, canChat, onOpen, onChat }: { c: TerminalAppealCase; canChat: boolean; onOpen: () => void; onChat: () => void }) {
   const age = getElapsedMinutes(c.appeal_started_at);
   const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
   const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
@@ -164,7 +213,7 @@ function AppealRow({ c, onOpen }: { c: TerminalAppealCase; onOpen: () => void })
     <TableCell className="text-xs">{c.counterparty_nickname || '—'}</TableCell>
     <TableCell><div className="flex flex-col gap-1"><Badge variant="secondary" className="w-fit text-[9px]">{statusLabels[c.status]}</Badge><Badge variant="outline" className="w-fit text-[9px]">{c.source === 'small_payment_request' ? `Requested by ${getAppealUserName(c.requester)}` : c.source === 'binance_status' ? 'Binance Appeal' : 'Manual Request'}</Badge></div></TableCell>
     <TableCell className="max-w-[220px]"><p className="text-[10px] text-muted-foreground truncate">{c.notes || c.request_reason || '—'}</p>{c.last_checked_in_at && <p className="text-[9px] text-muted-foreground/70">Checked {format(new Date(c.last_checked_in_at), 'dd MMM HH:mm')} by {getAppealUserName(c.checkedInBy)}</p>}</TableCell>
-    <TableCell className="text-right"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button></TableCell>
+    <TableCell className="text-right"><div className="inline-flex items-center gap-1"><Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={(e) => { e.stopPropagation(); onOpen(); }}>Manage</Button>{canChat && <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); onChat(); }}><MessageSquare className="h-3 w-3" />Chat</Button>}</div></TableCell>
   </TableRow>;
 }
 

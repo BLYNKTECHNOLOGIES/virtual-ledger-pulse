@@ -725,7 +725,7 @@ export default function TerminalAnalytics() {
           byCoin.set(coin, [...(byCoin.get(coin) || []), order]);
         }
         return [kind, Array.from(byCoin.entries())
-          .map(([coin, rows]) => aggregateOrders(coin, `${kind}-${coin}`, rows, { asset: coin, orderKind: kind }))
+          .map(([coin, rows]) => aggregateCoinOrders(coin, `${kind}-${coin}`, rows, { asset: coin, orderKind: kind }))
           .sort((a, b) => b.volume - a.volume)];
       })
     ) as Record<OrderKind, Aggregate[]>;

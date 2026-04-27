@@ -28,6 +28,21 @@ const PAYMENT_TIME_OPTIONS = [
   { label: '2 hr', value: 120 },
 ];
 
+const normalizeTradeMethodKey = (method: { identifier?: string; payType?: string; payId?: number }) =>
+  String(method.identifier || method.payType || method.payId || '').trim();
+
+const tradeMethodsChanged = (
+  current: Array<{ identifier?: string; payType?: string; payId?: number }> = [],
+  next: Array<{ identifier?: string; payType?: string; payId?: number }> = []
+) => {
+  const currentKeys = current.map(normalizeTradeMethodKey).filter(Boolean).sort();
+  const nextKeys = next.map(normalizeTradeMethodKey).filter(Boolean).sort();
+  return currentKeys.length !== nextKeys.length || currentKeys.some((key, index) => key !== nextKeys[index]);
+};
+
+const changedNumber = (current: unknown, next: unknown) => Number(current ?? 0) !== Number(next ?? 0);
+const changedString = (current: unknown, next: unknown) => String(current ?? '') !== String(next ?? '');
+
 // Priority assets shown first in the dropdown
 const PRIORITY_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC', 'FDUSD'];
 
@@ -293,7 +308,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     // Private = online + visibility restriction, handled separately by the edge function.
     const binanceAdvStatus = form.advStatus === BINANCE_AD_STATUS.PRIVATE ? BINANCE_AD_STATUS.ONLINE : form.advStatus;
 
-    const adData: Record<string, any> = {
+    const fullAdData: Record<string, any> = {
       initAmount: Number(form.initAmount),
       minSingleTransAmount: Number(form.minSingleTransAmount),
       maxSingleTransAmount: Number(form.maxSingleTransAmount),
@@ -310,27 +325,39 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     };
 
     if (!isEditing) {
-      adData.asset = form.asset;
-      adData.fiatUnit = form.fiatUnit;
-      adData.tradeType = form.tradeType;
-      adData.priceType = form.priceType;
+      fullAdData.asset = form.asset;
+      fullAdData.fiatUnit = form.fiatUnit;
+      fullAdData.tradeType = form.tradeType;
+      fullAdData.priceType = form.priceType;
     } else {
-      adData.advNo = editingAd!.advNo;
-      adData.asset = editingAd!.asset;
-      adData.fiatUnit = editingAd!.fiatUnit;
-      adData.tradeType = editingAd!.tradeType;
-      adData.priceType = editingAd!.priceType;
-      adData.surplusAmount = Number(editingAd!.surplusAmount) || Number(editingAd!.initAmount);
+      fullAdData.advNo = editingAd!.advNo;
     }
 
     if (form.priceType === 1) {
-      adData.price = Number(form.price);
+      fullAdData.price = Number(form.price);
     } else {
-      adData.priceFloatingRatio = Number(form.priceFloatingRatio);
+      fullAdData.priceFloatingRatio = Number(form.priceFloatingRatio);
     }
 
-    if (form.autoReplyMsg) adData.autoReplyMsg = form.autoReplyMsg;
-    if (form.remarks) adData.remarks = form.remarks;
+    if (form.autoReplyMsg) fullAdData.autoReplyMsg = form.autoReplyMsg;
+    if (form.remarks) fullAdData.remarks = form.remarks;
+
+    const adData = isEditing ? { advNo: editingAd!.advNo } as Record<string, any> : fullAdData;
+    if (isEditing) {
+      if (changedNumber(editingAd!.initAmount, form.initAmount)) adData.initAmount = fullAdData.initAmount;
+      if (changedNumber(editingAd!.minSingleTransAmount, form.minSingleTransAmount)) adData.minSingleTransAmount = fullAdData.minSingleTransAmount;
+      if (changedNumber(editingAd!.maxSingleTransAmount, form.maxSingleTransAmount)) adData.maxSingleTransAmount = fullAdData.maxSingleTransAmount;
+      if (tradeMethodsChanged(editingAd!.tradeMethods || [], tradeMethods)) adData.tradeMethods = tradeMethods;
+      if (changedNumber(editingAd!.payTimeLimit, form.payTimeLimit)) adData.payTimeLimit = fullAdData.payTimeLimit;
+      if (changedNumber(editingAd!.advStatus, binanceAdvStatus)) adData.advStatus = fullAdData.advStatus;
+      if (changedNumber(editingAd!.buyerRegDaysLimit, form.buyerRegDaysLimit)) adData.buyerRegDaysLimit = fullAdData.buyerRegDaysLimit;
+      if (changedNumber(editingAd!.buyerBtcPositionLimit, form.buyerBtcPositionLimit)) adData.buyerBtcPositionLimit = fullAdData.buyerBtcPositionLimit;
+      if (changedNumber(editingAd!.takerAdditionalKycRequired, form.takerAdditionalKycRequired)) adData.takerAdditionalKycRequired = fullAdData.takerAdditionalKycRequired;
+      if (form.priceType === 1 && changedNumber(editingAd!.price, form.price)) adData.price = fullAdData.price;
+      if (form.priceType === 2 && changedNumber(editingAd!.priceFloatingRatio, form.priceFloatingRatio)) adData.priceFloatingRatio = fullAdData.priceFloatingRatio;
+      if (changedString(editingAd!.autoReplyMsg, form.autoReplyMsg)) adData.autoReplyMsg = form.autoReplyMsg;
+      if (changedString(editingAd!.remarks, form.remarks)) adData.remarks = form.remarks;
+    }
     
 
     if (isEditing) {

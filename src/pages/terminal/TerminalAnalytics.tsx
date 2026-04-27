@@ -848,8 +848,19 @@ export default function TerminalAnalytics() {
         bigSellVolume: 0,
       };
       const kind = classifyOrder(o, configs?.smallBuy, configs?.smallSale);
-      entry[`${kind}Orders` as keyof Bucket] = Number(entry[`${kind}Orders` as keyof Bucket]) + 1 as never;
-      entry[`${kind}Volume` as keyof Bucket] = Number(entry[`${kind}Volume` as keyof Bucket]) + o.totalPrice as never;
+      if (kind === 'smallBuy') {
+        entry.smallBuyOrders += 1;
+        entry.smallBuyVolume += o.totalPrice;
+      } else if (kind === 'bigBuy') {
+        entry.bigBuyOrders += 1;
+        entry.bigBuyVolume += o.totalPrice;
+      } else if (kind === 'smallSell') {
+        entry.smallSellOrders += 1;
+        entry.smallSellVolume += o.totalPrice;
+      } else {
+        entry.bigSellOrders += 1;
+        entry.bigSellVolume += o.totalPrice;
+      }
       if (o.tradeType === 'BUY') {
         entry.buyOrders += 1;
         entry.buyVolume += o.totalPrice;
@@ -1013,6 +1024,7 @@ export default function TerminalAnalytics() {
                   <CardContent>{analytics.orderTypeCoinBreakdown[selectedOrderKind]?.length ? analytics.orderTypeCoinBreakdown[selectedOrderKind].map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected type" />}</CardContent>
                 </Card>
               </div>
+              <OrderTypeActivityChart data={chartData} isHourly={filter.mode === '1d'} />
               <OrderTypesGraph items={analytics.orderTypes} selectedKind={selectedOrderKind} coinRows={analytics.orderTypeCoinBreakdown[selectedOrderKind] || []} />
             </div>
           </TabsContent>

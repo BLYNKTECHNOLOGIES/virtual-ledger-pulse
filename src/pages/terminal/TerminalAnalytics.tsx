@@ -63,6 +63,14 @@ type Bucket = {
   sellOrders: number;
   buyVolume: number;
   sellVolume: number;
+  smallBuyOrders: number;
+  bigBuyOrders: number;
+  smallSellOrders: number;
+  bigSellOrders: number;
+  smallBuyVolume: number;
+  bigBuyVolume: number;
+  smallSellVolume: number;
+  bigSellVolume: number;
 };
 
 type Aggregate = {
@@ -581,6 +589,36 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
   );
 }
 
+function OrderTypeActivityChart({ data, isHourly }: { data: Bucket[]; isHourly: boolean }) {
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> {isHourly ? 'Hourly' : 'Daily'} Activity by Order Type</CardTitle>
+      </CardHeader>
+      <CardContent className="h-[340px] px-2 pb-4">
+        {data.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="orders" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={34} />
+              <YAxis yAxisId="volume" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} width={50} />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => String(name).includes('Volume') ? [fmtINR(v), name] : [v, name]} />
+              <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="smallBuyOrders" name="Small Buy" fill={orderKindChartColor.smallBuy} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="bigBuyOrders" name="Big Buy" fill={orderKindChartColor.bigBuy} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="smallSellOrders" name="Small Sale" fill={orderKindChartColor.smallSell} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="bigSellOrders" name="Big Sale" fill={orderKindChartColor.bigSell} radius={[3, 3, 0, 0]} />
+              <Area yAxisId="volume" type="monotone" dataKey="buyVolume" name="Buy Volume" stroke="hsl(var(--trade-buy))" fill="hsl(var(--trade-buy) / 0.10)" strokeWidth={2} dot={false} />
+              <Area yAxisId="volume" type="monotone" dataKey="sellVolume" name="Sell Volume" stroke="hsl(var(--trade-sell))" fill="hsl(var(--trade-sell) / 0.08)" strokeWidth={2} dot={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <EmptyPanel text={`No ${isHourly ? 'hourly' : 'daily'} order type activity in selected period`} />}
+      </CardContent>
+    </Card>
+  );
+}
+
 function AdPerformanceGraph({ rows, tradeFilter, selectedAd }: { rows: Aggregate[]; tradeFilter: AdTradeFilter; selectedAd?: Aggregate }) {
   const chartRows = rows.map((item) => ({ ...item, displayLabel: `${item.orderKind ? orderKindLabels[item.orderKind] : item.tradeType} · ${item.asset || 'USDT'} · ${item.label}` }));
   const totalVolume = rows.reduce((sum, item) => sum + item.volume, 0);
@@ -792,7 +830,37 @@ export default function TerminalAnalytics() {
       const key = isHourly ? `${dateKey}-${String(p.hour).padStart(2, '0')}` : dateKey;
       const label = isHourly ? `${String(p.hour).padStart(2, '0')}:00` : `${String(p.day).padStart(2, '0')}/${String(p.month).padStart(2, '0')}`;
       const sort = isHourly ? Date.UTC(p.year, p.month - 1, p.day, p.hour) : Date.UTC(p.year, p.month - 1, p.day);
-      const entry = map.get(key) || { key, label, sort, buyOrders: 0, sellOrders: 0, buyVolume: 0, sellVolume: 0 };
+      const entry = map.get(key) || {
+        key,
+        label,
+        sort,
+        buyOrders: 0,
+        sellOrders: 0,
+        buyVolume: 0,
+        sellVolume: 0,
+        smallBuyOrders: 0,
+        bigBuyOrders: 0,
+        smallSellOrders: 0,
+        bigSellOrders: 0,
+        smallBuyVolume: 0,
+        bigBuyVolume: 0,
+        smallSellVolume: 0,
+        bigSellVolume: 0,
+      };
+      const kind = classifyOrder(o, configs?.smallBuy, configs?.smallSale);
+      if (kind === 'smallBuy') {
+        entry.smallBuyOrders += 1;
+        entry.smallBuyVolume += o.totalPrice;
+      } else if (kind === 'bigBuy') {
+        entry.bigBuyOrders += 1;
+        entry.bigBuyVolume += o.totalPrice;
+      } else if (kind === 'smallSell') {
+        entry.smallSellOrders += 1;
+        entry.smallSellVolume += o.totalPrice;
+      } else {
+        entry.bigSellOrders += 1;
+        entry.bigSellVolume += o.totalPrice;
+      }
       if (o.tradeType === 'BUY') {
         entry.buyOrders += 1;
         entry.buyVolume += o.totalPrice;
@@ -803,7 +871,7 @@ export default function TerminalAnalytics() {
       map.set(key, entry);
     }
     return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
-  }, [completed, filter.mode]);
+  }, [completed, filter.mode, configs]);
 
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);
@@ -956,6 +1024,7 @@ export default function TerminalAnalytics() {
                   <CardContent>{analytics.orderTypeCoinBreakdown[selectedOrderKind]?.length ? analytics.orderTypeCoinBreakdown[selectedOrderKind].map((item) => <DataRow key={item.key} item={item} />) : <EmptyPanel text="No coin data for selected type" />}</CardContent>
                 </Card>
               </div>
+              <OrderTypeActivityChart data={chartData} isHourly={filter.mode === '1d'} />
               <OrderTypesGraph items={analytics.orderTypes} selectedKind={selectedOrderKind} coinRows={analytics.orderTypeCoinBreakdown[selectedOrderKind] || []} />
             </div>
           </TabsContent>

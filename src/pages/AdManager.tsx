@@ -18,6 +18,10 @@ import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { MerchantStateCard } from '@/components/ad-manager/MerchantStateCard';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 
+function isBlockAd(ad: BinanceAd) {
+  return String(ad.classify || '').toLowerCase() === 'block';
+}
+
 export default function AdManager() {
   const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
@@ -49,11 +53,12 @@ export default function AdManager() {
 
   const ads: BinanceAd[] = data?.data || data?.list || [];
   const restAds: BinanceAd[] = restAdsData?.data || restAdsData?.list || [];
-  const total = data?.total || ads.length;
+  const displayAds = useMemo(() => activeTab === 'block' ? ads.filter(isBlockAd) : ads.filter(ad => !isBlockAd(ad)), [ads, activeTab]);
+  const total = displayAds.length;
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
   const activeAds = useMemo(() => restAds.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE || ad.advStatus === BINANCE_AD_STATUS.PRIVATE), [restAds]);
 
-  const selectedAds = useMemo(() => ads.filter(ad => selectedAdvNos.has(ad.advNo)), [ads, selectedAdvNos]);
+  const selectedAds = useMemo(() => displayAds.filter(ad => selectedAdvNos.has(ad.advNo)), [displayAds, selectedAdvNos]);
 
   const handleEdit = (ad: BinanceAd) => { setEditingAd(ad); setDialogOpen(true); };
   const handleCreate = () => { setEditingAd(null); setDialogOpen(true); };
@@ -136,6 +141,7 @@ export default function AdManager() {
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="all">All Ads</TabsTrigger>
+          <TabsTrigger value="block">Block Ads</TabsTrigger>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="private">Private</TabsTrigger>
           <TabsTrigger value="inactive">Inactive</TabsTrigger>
@@ -146,7 +152,7 @@ export default function AdManager() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center justify-between">
                 <span>
-                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : 'All'} Ads
+                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : activeTab === 'block' ? 'Block' : 'All'} Ads
                 </span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {total} ad{total !== 1 ? 's' : ''} found
@@ -160,7 +166,7 @@ export default function AdManager() {
                 </div>
               ) : (
                 <CategorizedAdTable
-                  ads={ads}
+                  ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
                   isTogglingStatus={updateStatus.isPending}

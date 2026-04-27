@@ -28,6 +28,7 @@ export interface SmallPaymentCase {
   counterparty_nickname: string | null;
   binance_status: string | null;
   current_order_status?: string | null;
+  has_pending_alt_upi_request?: boolean;
   created_at: string;
   updated_at: string;
   manager?: any;
@@ -72,10 +73,11 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       const orderNumbers = [...new Set(cases.map((c) => c.order_number).filter(Boolean))];
       const userIds = [...new Set(cases.flatMap((c) => [c.manager_user_id, c.payer_user_id]).filter(Boolean))] as string[];
 
-      const [usersRes, p2pRes, historyRes] = await Promise.all([
+      const [usersRes, p2pRes, historyRes, altUpiRes] = await Promise.all([
         userIds.length ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
         orderNumbers.length ? supabase.from('p2p_order_records').select('binance_order_number, order_status, synced_at, updated_at').in('binance_order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
         orderNumbers.length ? supabase.from('binance_order_history').select('order_number, order_status, synced_at').in('order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
+        orderNumbers.length ? supabase.from('terminal_alternate_upi_requests' as any).select('order_number, status').in('order_number', orderNumbers).eq('status', 'pending') : Promise.resolve({ data: [] as any[] }),
       ]);
 
       const users = usersRes.data || [];
@@ -89,11 +91,14 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       (p2pRes.data || []).forEach((r: any) => rememberStatus(r.binance_order_number, r.order_status, r.synced_at, r.updated_at));
       if ((p2pRes as any).error) console.warn('Small Payments p2p status lookup failed', (p2pRes as any).error);
       if ((historyRes as any).error) console.warn('Small Payments history status lookup failed', (historyRes as any).error);
+      if ((altUpiRes as any).error) console.warn('Small Payments alternate UPI lookup failed', (altUpiRes as any).error);
       (historyRes.data || []).forEach((r: any) => rememberStatus(r.order_number, r.order_status, r.synced_at));
+      const pendingAltUpiOrders = new Set((altUpiRes.data || []).map((r: any) => r.order_number));
 
       const enrichedCases = cases.map((c) => ({
         ...c,
         current_order_status: pickAuthoritativeOrderStatus(statusMap.get(c.order_number) || []) || c.binance_status || null,
+        has_pending_alt_upi_request: pendingAltUpiOrders.has(c.order_number),
         manager: c.manager_user_id ? userMap.get(c.manager_user_id) : null,
         payer: c.payer_user_id ? userMap.get(c.payer_user_id) : null,
       }));

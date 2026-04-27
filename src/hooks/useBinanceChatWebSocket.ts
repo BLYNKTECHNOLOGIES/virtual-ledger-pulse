@@ -218,11 +218,14 @@ export function useBinanceChatWebSocket(
     try {
       const now = Date.now();
       const groupId = groupIdMapRef.current.get(orderNo);
+      const isImage = type === 'image';
       const payload: Record<string, any> = {
-        type: 'text',
+        type,
         uuid: String(now),
         orderNo,
         content,
+        contentType: isImage ? 'IMAGE' : 'TEXT',
+        msgType: isImage ? 'U_IMAGE' : 'U_TEXT',
         self: true,
         clientType: 'web',
         createTime: now,
@@ -230,6 +233,10 @@ export function useBinanceChatWebSocket(
         topicId: orderNo,
         topicType: 'ORDER',
       };
+      if (isImage) {
+        payload.imageUrl = content;
+        payload.thumbnailUrl = content;
+      }
       if (groupId) payload.groupId = groupId;
 
       ws.send(JSON.stringify(payload));

@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Loader2, X, Send } from 'lucide-react';
 import { useGetChatImageUploadUrl } from '@/hooks/useBinanceActions';
-import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { toast } from 'sonner';
 
 interface Props {
@@ -81,24 +80,10 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
       }
 
 
-      // Step 2c: Try REST first, fallback to WS if REST fails (proxy may not support sendMessage yet)
-      let restSent = false;
-      try {
-        const sendResult = await callBinanceAds('sendChatMessage', {
-          orderNo,
-          imageUrl: imageUrl,
-        });
-        
-        if (sendResult?.data?.code === '000000' || (sendResult?.success && !sendResult?.error)) {
-          restSent = true;
-        }
-      } catch (restErr: any) {
-        console.warn('⚠️ REST sendChatMessage failed:', restErr.message, '— using WebSocket fallback');
-      }
-
-      // Always notify parent — it handles WS send as fallback and adds optimistic UI
+      // Notify parent to send a Binance image-type WebSocket message. Do not send
+      // the uploaded image URL through REST first, because Binance renders that as a text link.
       onImageSent(imageUrl);
-      toast.success(restSent ? 'Image sent' : 'Image sent via chat');
+      toast.success('Image sent via chat');
       
       // Clear preview after successful upload + delivery attempt
       setPreview(null);

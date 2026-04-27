@@ -22,6 +22,10 @@ function formatCommissionRate(ad: BinanceAd, identifier?: string) {
   return `${(Number(rate) * 100).toFixed(4)}%`;
 }
 
+function isBlockAd(ad: BinanceAd) {
+  return String(ad.classify || '').toLowerCase() === 'block';
+}
+
 const COLLAPSE_PREF_KEY_PREFIX = 'terminal_ad_group_collapse_';
 
 interface CategorizedAdTableProps {
@@ -93,7 +97,7 @@ function categorizeAds(
   };
 
   for (const ad of ads) {
-    const isBlock = String(ad.classify || '').toLowerCase() === 'block';
+    const isBlock = isBlockAd(ad);
     const isBuy = ad.tradeType === 'BUY';
     const isFixed = ad.priceType === 1;
     const maxTrans = Number(ad.maxSingleTransAmount || 0);
@@ -128,8 +132,8 @@ function categorizeAds(
       key: 'block',
       colorClass: 'bg-secondary text-secondary-foreground border-border',
       groups: [
-        { label: 'Block', subLabel: 'Fixed', ads: buckets.blockFixed, key: 'block-fixed' },
-        { label: 'Block', subLabel: 'Floating', ads: buckets.blockFloating, key: 'block-floating' },
+        { label: 'Block', subLabel: 'Block Fixed', ads: buckets.blockFixed, key: 'block-fixed' },
+        { label: 'Block', subLabel: 'Block Floating', ads: buckets.blockFloating, key: 'block-floating' },
       ],
     },
     {
@@ -357,9 +361,16 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                     </TableCell>
                     <TableCell className="font-mono text-xs">{ad.advNo?.slice(-8) || '—'}</TableCell>
                     <TableCell>
-                      <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>
-                        {ad.tradeType}
-                      </Badge>
+                      <div className="flex flex-col items-start gap-1">
+                        <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>
+                          {ad.tradeType}
+                        </Badge>
+                        {isBlockAd(ad) && (
+                          <Badge variant="outline" className="border-border bg-secondary text-[10px] text-secondary-foreground">
+                            Block
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="font-medium">{ad.asset}</TableCell>
                     <TableCell>

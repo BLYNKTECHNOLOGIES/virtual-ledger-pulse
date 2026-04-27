@@ -830,7 +830,26 @@ export default function TerminalAnalytics() {
       const key = isHourly ? `${dateKey}-${String(p.hour).padStart(2, '0')}` : dateKey;
       const label = isHourly ? `${String(p.hour).padStart(2, '0')}:00` : `${String(p.day).padStart(2, '0')}/${String(p.month).padStart(2, '0')}`;
       const sort = isHourly ? Date.UTC(p.year, p.month - 1, p.day, p.hour) : Date.UTC(p.year, p.month - 1, p.day);
-      const entry = map.get(key) || { key, label, sort, buyOrders: 0, sellOrders: 0, buyVolume: 0, sellVolume: 0 };
+      const entry = map.get(key) || {
+        key,
+        label,
+        sort,
+        buyOrders: 0,
+        sellOrders: 0,
+        buyVolume: 0,
+        sellVolume: 0,
+        smallBuyOrders: 0,
+        bigBuyOrders: 0,
+        smallSellOrders: 0,
+        bigSellOrders: 0,
+        smallBuyVolume: 0,
+        bigBuyVolume: 0,
+        smallSellVolume: 0,
+        bigSellVolume: 0,
+      };
+      const kind = classifyOrder(o, configs?.smallBuy, configs?.smallSale);
+      entry[`${kind}Orders` as keyof Bucket] = Number(entry[`${kind}Orders` as keyof Bucket]) + 1 as never;
+      entry[`${kind}Volume` as keyof Bucket] = Number(entry[`${kind}Volume` as keyof Bucket]) + o.totalPrice as never;
       if (o.tradeType === 'BUY') {
         entry.buyOrders += 1;
         entry.buyVolume += o.totalPrice;
@@ -841,7 +860,7 @@ export default function TerminalAnalytics() {
       map.set(key, entry);
     }
     return Array.from(map.values()).sort((a, b) => a.sort - b.sort);
-  }, [completed, filter.mode]);
+  }, [completed, filter.mode, configs]);
 
   const peakBucket = useMemo(() => chartData.slice().sort((a, b) => (b.buyOrders + b.sellOrders) - (a.buyOrders + a.sellOrders))[0], [chartData]);
   const periodLabel = getFilterLabel(filter);

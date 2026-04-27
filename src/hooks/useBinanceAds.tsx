@@ -37,6 +37,7 @@ export interface BinanceAd {
   asset: string;
   fiatUnit: string;
   tradeType: string; // BUY or SELL
+  classify?: 'block' | 'profession' | string;
   price: number;
   priceType: number; // 1 = fixed, 2 = floating
   priceFloatingRatio?: number | string;

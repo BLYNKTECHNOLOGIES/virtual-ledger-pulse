@@ -295,9 +295,10 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
-      const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
-      const appealOrders = list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status));
+      const pages = [1, 2, 3, 4, 5];
+      const pageResults = await Promise.all(pages.map((page) => callBinanceAds('listActiveOrders', { page, rows: 100, orderStatusList: [8] }).catch(() => [])));
+      const list = pageResults.flatMap(extractBinanceOrderList);
+      const appealOrders = Array.from(new Map(list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status)).map((o: any) => [String(o.orderNumber || o.orderNo), o])).values());
       const { data: historyEvidenceRows } = await supabase
         .from('binance_order_history')
         .select('order_number, adv_no, trade_type, asset, fiat_unit, order_status, amount, total_price, unit_price, counter_part_nick_name, raw_data, order_detail_raw, synced_at')
@@ -335,6 +336,9 @@ export default function TerminalAppeals() {
       for (const row of historyAppealRows) {
         const orderNumber = String(row.order_number);
         if (!orderNumber || appealOrders.some((o: any) => String(o.orderNumber || o.orderNo) === orderNumber)) continue;
+        const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber }).catch(() => null);
+        const detail = detailResp?.data || detailResp;
+        if (!hasActiveBinanceComplaint(detail)) continue;
         await upsertAppeal.mutateAsync({
           orderNumber,
           source: 'binance_status',

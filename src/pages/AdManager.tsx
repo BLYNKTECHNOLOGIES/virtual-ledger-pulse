@@ -152,7 +152,7 @@ export default function AdManager() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center justify-between">
                 <span>
-                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : 'All'} Ads
+                  {activeTab === 'active' ? 'Active' : activeTab === 'inactive' ? 'Inactive' : activeTab === 'private' ? 'Private' : activeTab === 'block' ? 'Block' : 'All'} Ads
                 </span>
                 <span className="text-sm font-normal text-muted-foreground">
                   {total} ad{total !== 1 ? 's' : ''} found

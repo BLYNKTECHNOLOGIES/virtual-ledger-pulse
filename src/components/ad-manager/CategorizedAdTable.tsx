@@ -80,6 +80,8 @@ function categorizeAds(
   const smallSellMax = sellConfig?.max_amount ?? 4000;
 
   const buckets = {
+    blockFixed: [] as BinanceAd[],
+    blockFloating: [] as BinanceAd[],
     smallBuyFixed: [] as BinanceAd[],
     smallBuyFloating: [] as BinanceAd[],
     bigBuyFixed: [] as BinanceAd[],
@@ -91,10 +93,16 @@ function categorizeAds(
   };
 
   for (const ad of ads) {
+    const isBlock = String(ad.classify || '').toLowerCase() === 'block';
     const isBuy = ad.tradeType === 'BUY';
     const isFixed = ad.priceType === 1;
     const maxTrans = Number(ad.maxSingleTransAmount || 0);
     const minTrans = Number(ad.minSingleTransAmount || 0);
+
+    if (isBlock) {
+      (isFixed ? buckets.blockFixed : buckets.blockFloating).push(ad);
+      continue;
+    }
 
     if (isBuy) {
       // An ad is "small" if its minimum order limit falls within the small config range
@@ -115,6 +123,15 @@ function categorizeAds(
   }
 
   return [
+    {
+      label: 'Block Ads',
+      key: 'block',
+      colorClass: 'bg-secondary text-secondary-foreground border-border',
+      groups: [
+        { label: 'Block', subLabel: 'Fixed', ads: buckets.blockFixed, key: 'block-fixed' },
+        { label: 'Block', subLabel: 'Floating', ads: buckets.blockFloating, key: 'block-floating' },
+      ],
+    },
     {
       label: 'Small Buy Ads',
       key: 'small-buy',

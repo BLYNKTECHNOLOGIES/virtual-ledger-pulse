@@ -1162,11 +1162,16 @@ serve(async (req) => {
         const msgContent = payload.imageUrl || payload.content || payload.message;
         const msgType = payload.imageUrl ? "IMAGE" : (payload.contentType || payload.chatMessageType || "TEXT");
         
-        // Try proxy first
+        // Try proxy first for text only. Image URLs sent through the REST/proxy path are
+        // rendered by Binance as text links; inline images must be sent as image WS frames.
         const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
         console.log("sendChatMessage trying proxy:", sendMsgUrl);
-        let response = await fetchWithRetry(sendMsgUrl, { method: "POST", headers: proxyHeaders });
-        let text = await response.text();
+        let response: Response | { status: number } = { status: 404 };
+        let text = "Image messages use WebSocket delivery";
+        if (!payload.imageUrl) {
+          response = await fetchWithRetry(sendMsgUrl, { method: "POST", headers: proxyHeaders });
+          text = await response.text();
+        }
         console.log("sendChatMessage proxy response:", response.status, text.substring(0, 500));
 
         // If proxy 404, use WebSocket approach
@@ -1214,10 +1219,13 @@ serve(async (req) => {
                 const msgPayload = JSON.stringify({
                   type: "chat",
                   data: JSON.stringify({
-                    type: "text",
+                    type: payload.imageUrl ? "image" : "text",
                     orderNo: payload.orderNo,
                     content: msgContent,
                     contentType: msgType,
+                    msgType: payload.imageUrl ? "U_IMAGE" : "U_TEXT",
+                    imageUrl: payload.imageUrl ? msgContent : undefined,
+                    thumbnailUrl: payload.imageUrl ? msgContent : undefined,
                     self: true,
                     uuid: crypto.randomUUID(),
                   }),

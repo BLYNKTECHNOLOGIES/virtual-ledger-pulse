@@ -141,10 +141,14 @@ function isUsdtAsset(asset?: string) {
   return String(asset || 'USDT').toUpperCase() === 'USDT';
 }
 
+function isUsdStableAsset(asset?: string) {
+  return ['USDT', 'USDC', 'FDUSD'].includes(String(asset || 'USDT').toUpperCase());
+}
+
 function getEffectiveUsdtQuantity(o: any) {
   const effectiveQty = Number(o.effectiveUsdtQty || o.effective_usdt_qty || 0);
   if (Number.isFinite(effectiveQty) && effectiveQty > 0) return effectiveQty;
-  return isUsdtAsset(o.asset) ? Number(o.amount || 0) : 0;
+  return isUsdStableAsset(o.asset) ? Number(o.amount || 0) : 0;
 }
 
 function getEffectiveUsdtRate(o: any) {
@@ -296,6 +300,21 @@ function aggregateOrders(label: string, key: string, orders: NormalizedOrder[], 
     weightedRate: weightedRate(valuedVolume, quantity),
     lastOrderTime: orders.reduce((max, o) => Math.max(max, o.createTime || 0), 0) || undefined,
     ...extra,
+  };
+}
+
+function aggregateCoinOrders(coin: string, key: string, orders: NormalizedOrder[], extra: Partial<Aggregate> = {}): Aggregate {
+  const base = aggregateOrders(coin, key, orders, extra);
+  if (base.quantity > 0 && (base.weightedRate > 0 || base.avgRate > 0)) return base;
+
+  const rawQuantity = orders.reduce((s, o) => s + (Number.isFinite(o.amount) && o.amount > 0 ? o.amount : 0), 0);
+  const rawRates = orders.map((o) => o.unitPrice).filter((v) => Number.isFinite(v) && v > 0);
+
+  return {
+    ...base,
+    quantity: rawQuantity,
+    avgRate: average(rawRates),
+    weightedRate: weightedRate(base.volume, rawQuantity),
   };
 }
 
@@ -706,7 +725,7 @@ export default function TerminalAnalytics() {
           byCoin.set(coin, [...(byCoin.get(coin) || []), order]);
         }
         return [kind, Array.from(byCoin.entries())
-          .map(([coin, rows]) => aggregateOrders(coin, `${kind}-${coin}`, rows, { asset: coin, orderKind: kind }))
+          .map(([coin, rows]) => aggregateCoinOrders(coin, `${kind}-${coin}`, rows, { asset: coin, orderKind: kind }))
           .sort((a, b) => b.volume - a.volume)];
       })
     ) as Record<OrderKind, Aggregate[]>;

@@ -380,6 +380,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     });
   };
 
+  const adjustFloatingRatio = (delta: number) => {
+    setForm(prev => {
+      const current = Number(prev.priceFloatingRatio) || 0;
+      const currentDecimals = (String(prev.priceFloatingRatio).split('.')[1] || '').length;
+      const decimals = Math.min(Math.max(currentDecimals, 2), 8);
+      const next = Math.max(0.01, current + delta);
+      return { ...prev, priceFloatingRatio: next.toFixed(decimals) };
+    });
+  };
+
   // Press-and-hold: continuously adjust price while button is held down
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -389,6 +399,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => adjustPrice(delta), 100);
     }, 400); // 400ms delay before continuous repeat
+  };
+
+  const startFloatingRatioHold = (delta: number) => {
+    adjustFloatingRatio(delta);
+    holdTimeoutRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => adjustFloatingRatio(delta), 100);
+    }, 400);
   };
 
   const stopHold = () => {
@@ -542,13 +559,35 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             })() : (
               <div>
                 <Label>Floating Ratio (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.priceFloatingRatio}
-                  onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
-                  placeholder="e.g., 1.5 for 1.5% above market"
-                />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" type="button"
+                    onMouseDown={() => startFloatingRatioHold(-0.01)}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={() => startFloatingRatioHold(-0.01)}
+                    onTouchEnd={stopHold}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.priceFloatingRatio}
+                    onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
+                    placeholder="e.g., 1.5 for 1.5% above market"
+                    className="text-center"
+                  />
+                  <Button variant="outline" size="icon" type="button"
+                    onMouseDown={() => startFloatingRatioHold(0.01)}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={() => startFloatingRatioHold(0.01)}
+                    onTouchEnd={stopHold}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
                 {(() => {
                   const ratio = Number(form.priceFloatingRatio);
                   // Back-calculate the index price Binance uses for floating ads

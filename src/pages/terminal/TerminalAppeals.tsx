@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Clock, FileWarning, MessageSquare, RefreshCw, ShieldOff, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
@@ -96,7 +96,11 @@ function appealSyncStatus(rawStatus: unknown) {
 function hasActiveHistoryAppealEvidence(row: any) {
   const rawStatus = row?.raw_data?.orderStatus ?? row?.raw_data?.order_status ?? row?.order_status;
   const detail = row?.order_detail_raw;
-  return isAppealLikeBinanceStatus(rawStatus) || hasActiveBinanceComplaint(detail);
+  return !isFinalStatus(row?.order_status) && (isAppealLikeBinanceStatus(rawStatus) || hasActiveBinanceComplaint(detail));
+}
+
+function extractBinanceOrderList(resp: any) {
+  return Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
 }
 
 function normalizeDetailFinalStatus(rawStatus: unknown) {

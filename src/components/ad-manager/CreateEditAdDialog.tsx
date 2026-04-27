@@ -559,13 +559,35 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
             })() : (
               <div>
                 <Label>Floating Ratio (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.priceFloatingRatio}
-                  onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
-                  placeholder="e.g., 1.5 for 1.5% above market"
-                />
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" type="button"
+                    onMouseDown={() => startFloatingRatioHold(-0.01)}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={() => startFloatingRatioHold(-0.01)}
+                    onTouchEnd={stopHold}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.priceFloatingRatio}
+                    onChange={(e) => setForm({ ...form, priceFloatingRatio: e.target.value })}
+                    placeholder="e.g., 1.5 for 1.5% above market"
+                    className="text-center"
+                  />
+                  <Button variant="outline" size="icon" type="button"
+                    onMouseDown={() => startFloatingRatioHold(0.01)}
+                    onMouseUp={stopHold}
+                    onMouseLeave={stopHold}
+                    onTouchStart={() => startFloatingRatioHold(0.01)}
+                    onTouchEnd={stopHold}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
                 {(() => {
                   const ratio = Number(form.priceFloatingRatio);
                   // Back-calculate the index price Binance uses for floating ads

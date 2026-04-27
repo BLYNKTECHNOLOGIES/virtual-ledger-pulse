@@ -63,6 +63,14 @@ type Bucket = {
   sellOrders: number;
   buyVolume: number;
   sellVolume: number;
+  smallBuyOrders: number;
+  bigBuyOrders: number;
+  smallSellOrders: number;
+  bigSellOrders: number;
+  smallBuyVolume: number;
+  bigBuyVolume: number;
+  smallSellVolume: number;
+  bigSellVolume: number;
 };
 
 type Aggregate = {
@@ -576,6 +584,36 @@ function OrderTypesGraph({ items, selectedKind, coinRows }: { items: Aggregate[]
             </div>
           </div>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function OrderTypeActivityChart({ data, isHourly }: { data: Bucket[]; isHourly: boolean }) {
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2"><Activity className="h-4 w-4 text-primary" /> {isHourly ? 'Hourly' : 'Daily'} Activity by Order Type</CardTitle>
+      </CardHeader>
+      <CardContent className="h-[340px] px-2 pb-4">
+        {data.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 8, right: 12, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis yAxisId="orders" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={34} />
+              <YAxis yAxisId="volume" orientation="right" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(v) => fmtINR(Number(v))} axisLine={false} tickLine={false} width={50} />
+              <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '6px', fontSize: '11px' }} formatter={(v: number, name: string) => String(name).includes('Volume') ? [fmtINR(v), name] : [v, name]} />
+              <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: '10px' }} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="smallBuyOrders" name="Small Buy" fill={orderKindChartColor.smallBuy} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="bigBuyOrders" name="Big Buy" fill={orderKindChartColor.bigBuy} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="smallSellOrders" name="Small Sale" fill={orderKindChartColor.smallSell} radius={[3, 3, 0, 0]} />
+              <Bar yAxisId="orders" stackId="orders" dataKey="bigSellOrders" name="Big Sale" fill={orderKindChartColor.bigSell} radius={[3, 3, 0, 0]} />
+              <Area yAxisId="volume" type="monotone" dataKey="buyVolume" name="Buy Volume" stroke="hsl(var(--trade-buy))" fill="hsl(var(--trade-buy) / 0.10)" strokeWidth={2} dot={false} />
+              <Area yAxisId="volume" type="monotone" dataKey="sellVolume" name="Sell Volume" stroke="hsl(var(--trade-sell))" fill="hsl(var(--trade-sell) / 0.08)" strokeWidth={2} dot={false} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : <EmptyPanel text={`No ${isHourly ? 'hourly' : 'daily'} order type activity in selected period`} />}
       </CardContent>
     </Card>
   );

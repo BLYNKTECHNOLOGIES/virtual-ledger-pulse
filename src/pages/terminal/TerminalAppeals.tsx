@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Clock, FileWarning, MessageSquare, RefreshCw, ShieldOff, TimerReset } from 'lucide-react';
 import { format } from 'date-fns';
@@ -96,7 +96,11 @@ function appealSyncStatus(rawStatus: unknown) {
 function hasActiveHistoryAppealEvidence(row: any) {
   const rawStatus = row?.raw_data?.orderStatus ?? row?.raw_data?.order_status ?? row?.order_status;
   const detail = row?.order_detail_raw;
-  return isAppealLikeBinanceStatus(rawStatus) || hasActiveBinanceComplaint(detail);
+  return !isFinalStatus(row?.order_status) && (isAppealLikeBinanceStatus(rawStatus) || hasActiveBinanceComplaint(detail));
+}
+
+function extractBinanceOrderList(resp: any) {
+  return Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
 }
 
 function normalizeDetailFinalStatus(rawStatus: unknown) {
@@ -165,7 +169,6 @@ export default function TerminalAppeals() {
   const [selectedCase, setSelectedCase] = useState<TerminalAppealCase | null>(null);
   const [chatOrder, setChatOrder] = useState<P2POrderRecord | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const historyBackfillStarted = useRef(false);
   const { isSuperAdmin, isTerminalAdmin, hasPermission } = useTerminalAuth();
   const { data: config, isLoading: configLoading } = useAppealConfig();
   const toggleAppeal = useToggleAppealModule();
@@ -278,38 +281,6 @@ export default function TerminalAppeals() {
     });
   }, [finalizedAppeals, upsertAppeal]);
 
-  useEffect(() => {
-    if (!isEnabled || !hasPermission('terminal_appeals_manage') || isLoading || historyBackfillStarted.current) return;
-    const activeCount = cases.filter(isActiveAppealCase).length;
-    if (activeCount > 0) return;
-    historyBackfillStarted.current = true;
-    (async () => {
-      const { data } = await supabase
-        .from('binance_order_history')
-        .select('order_number, adv_no, trade_type, asset, fiat_unit, order_status, total_price, counter_part_nick_name, raw_data, order_detail_raw, synced_at')
-        .order('synced_at', { ascending: false })
-        .limit(500);
-      const rows = ((data || []) as any[]).filter(hasActiveHistoryAppealEvidence);
-      for (const row of rows) {
-        if (!row.order_number) continue;
-        await upsertAppeal.mutateAsync({
-          orderNumber: String(row.order_number),
-          source: 'binance_status',
-          status: 'under_appeal',
-          requestReason: row.order_detail_raw?.complaintReason || 'Detected from Binance appeal/complaint evidence.',
-          advNo: row.adv_no || null,
-          tradeType: row.trade_type || null,
-          asset: row.asset || null,
-          fiatUnit: row.fiat_unit || 'INR',
-          totalPrice: Number(row.total_price || 0),
-          counterpartyNickname: row.counter_part_nick_name || null,
-          binanceStatus: row.order_status || appealSyncStatus(row.raw_data?.orderStatus),
-        });
-      }
-      if (rows.length) await refetch();
-    })().catch((err) => console.warn('Appeal history backfill failed:', err));
-  }, [isEnabled, hasPermission, isLoading, cases, upsertAppeal, refetch]);
-
   const summary = useMemo(() => {
     const active = visibleCases.filter((c) => !['resolved', 'closed', 'cancelled'].includes(c.status));
     return {
@@ -324,9 +295,10 @@ export default function TerminalAppeals() {
   const syncAppealOrders = async () => {
     setIsSyncing(true);
     try {
-      const resp: any = await callBinanceAds('listActiveOrders', { rows: 100, orderStatusList: [8] });
-      const list = Array.isArray(resp?.data?.data) ? resp.data.data : Array.isArray(resp?.data) ? resp.data : Array.isArray(resp) ? resp : [];
-      const appealOrders = list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status));
+      const pages = [1, 2, 3, 4, 5];
+      const pageResults = await Promise.all(pages.map((page) => callBinanceAds('listActiveOrders', { page, rows: 100, orderStatusList: [8] }).catch(() => [])));
+      const list = pageResults.flatMap(extractBinanceOrderList);
+      const appealOrders = Array.from(new Map(list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status)).map((o: any) => [String(o.orderNumber || o.orderNo), o])).values());
       const { data: historyEvidenceRows } = await supabase
         .from('binance_order_history')
         .select('order_number, adv_no, trade_type, asset, fiat_unit, order_status, amount, total_price, unit_price, counter_part_nick_name, raw_data, order_detail_raw, synced_at')
@@ -364,6 +336,9 @@ export default function TerminalAppeals() {
       for (const row of historyAppealRows) {
         const orderNumber = String(row.order_number);
         if (!orderNumber || appealOrders.some((o: any) => String(o.orderNumber || o.orderNo) === orderNumber)) continue;
+        const detailResp: any = await callBinanceAds('getOrderDetail', { orderNumber }).catch(() => null);
+        const detail = detailResp?.data || detailResp;
+        if (!hasActiveBinanceComplaint(detail)) continue;
         await upsertAppeal.mutateAsync({
           orderNumber,
           source: 'binance_status',

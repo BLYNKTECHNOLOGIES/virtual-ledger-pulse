@@ -380,6 +380,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     });
   };
 
+  const adjustFloatingRatio = (delta: number) => {
+    setForm(prev => {
+      const current = Number(prev.priceFloatingRatio) || 0;
+      const currentDecimals = (String(prev.priceFloatingRatio).split('.')[1] || '').length;
+      const decimals = Math.min(Math.max(currentDecimals, 2), 8);
+      const next = Math.max(0.01, current + delta);
+      return { ...prev, priceFloatingRatio: next.toFixed(decimals) };
+    });
+  };
+
   // Press-and-hold: continuously adjust price while button is held down
   const holdIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -389,6 +399,13 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
     holdTimeoutRef.current = setTimeout(() => {
       holdIntervalRef.current = setInterval(() => adjustPrice(delta), 100);
     }, 400); // 400ms delay before continuous repeat
+  };
+
+  const startFloatingRatioHold = (delta: number) => {
+    adjustFloatingRatio(delta);
+    holdTimeoutRef.current = setTimeout(() => {
+      holdIntervalRef.current = setInterval(() => adjustFloatingRatio(delta), 100);
+    }, 400);
   };
 
   const stopHold = () => {

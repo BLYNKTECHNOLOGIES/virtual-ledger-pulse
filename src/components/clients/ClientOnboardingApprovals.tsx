@@ -1517,6 +1517,7 @@ export function ClientOnboardingApprovals() {
                 <TableHead>Reviewed By</TableHead>
                 <TableHead>Review Date</TableHead>
                 <TableHead>Details</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1540,11 +1541,26 @@ export function ClientOnboardingApprovals() {
                       </span>
                     ) : '-'}
                   </TableCell>
+                  <TableCell>
+                    {approval.approval_status === 'REJECTED' && hasPermission('clients_destructive') ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => undoRejectClientMutation.mutate(approval.id)}
+                        disabled={undoRejectClientMutation.isPending}
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />
+                        Undo
+                      </Button>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {reviewedApprovals.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No reviewed applications yet.
                   </TableCell>
                 </TableRow>

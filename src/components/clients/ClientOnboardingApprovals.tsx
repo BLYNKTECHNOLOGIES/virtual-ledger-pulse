@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Plus,
   X,
+  Undo2,
   CalendarIcon,
   Upload,
   CreditCard
@@ -935,6 +936,46 @@ export function ClientOnboardingApprovals() {
       toast({
         title: "Error",
         description: error.message || "Failed to reject client",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const undoRejectClientMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('client_onboarding_approvals')
+        .update({
+          approval_status: 'PENDING',
+          reviewed_by: null,
+          reviewed_at: null,
+          rejection_reason: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('approval_status', 'REJECTED');
+
+      if (error) throw error;
+    },
+    onSuccess: (_, id) => {
+      logActionWithCurrentUser({
+        actionType: 'client.buyer_rejection_undone',
+        entityType: EntityTypes.CLIENT_ONBOARDING,
+        entityId: id,
+        module: Modules.CLIENTS,
+      });
+
+      toast({
+        title: "Rejection Undone",
+        description: "Client application has been moved back to pending review."
+      });
+      queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Undo Failed",
+        description: error.message || "Failed to move client back to pending review",
         variant: "destructive"
       });
     }

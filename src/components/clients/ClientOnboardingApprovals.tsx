@@ -972,7 +972,7 @@ export function ClientOnboardingApprovals() {
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Undo Failed",
         description: error.message || "Failed to move client back to pending review",

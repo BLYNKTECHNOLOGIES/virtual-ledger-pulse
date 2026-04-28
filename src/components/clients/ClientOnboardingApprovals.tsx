@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Plus,
   X,
+  Undo2,
   CalendarIcon,
   Upload,
   CreditCard
@@ -940,6 +941,46 @@ export function ClientOnboardingApprovals() {
     }
   });
 
+  const undoRejectClientMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('client_onboarding_approvals')
+        .update({
+          approval_status: 'PENDING',
+          reviewed_by: null,
+          reviewed_at: null,
+          rejection_reason: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .eq('approval_status', 'REJECTED');
+
+      if (error) throw error;
+    },
+    onSuccess: (_, id) => {
+      logActionWithCurrentUser({
+        actionType: 'client.buyer_rejection_undone',
+        entityType: EntityTypes.CLIENT_ONBOARDING,
+        entityId: id,
+        module: Modules.CLIENTS,
+      });
+
+      toast({
+        title: "Rejection Undone",
+        description: "Client application has been moved back to pending review."
+      });
+      queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+      queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Undo Failed",
+        description: error.message || "Failed to move client back to pending review",
+        variant: "destructive"
+      });
+    }
+  });
+
   const handleApprovalClick = async (approval: ClientOnboardingApproval) => {
     setSelectedApproval(approval);
     const phone = approval.client_phone || '';
@@ -1476,6 +1517,7 @@ export function ClientOnboardingApprovals() {
                 <TableHead>Reviewed By</TableHead>
                 <TableHead>Review Date</TableHead>
                 <TableHead>Details</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1499,11 +1541,26 @@ export function ClientOnboardingApprovals() {
                       </span>
                     ) : '-'}
                   </TableCell>
+                  <TableCell>
+                    {approval.approval_status === 'REJECTED' && hasPermission('clients_destructive') ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => undoRejectClientMutation.mutate(approval.id)}
+                        disabled={undoRejectClientMutation.isPending}
+                      >
+                        <Undo2 className="h-3 w-3 mr-1" />
+                        Undo
+                      </Button>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {reviewedApprovals.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     No reviewed applications yet.
                   </TableCell>
                 </TableRow>

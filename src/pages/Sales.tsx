@@ -32,6 +32,7 @@ import { useNavigate } from "react-router-dom";
 import { useNavigateToClient } from "@/hooks/useNavigateToClient";
 import { usePermissions } from "@/hooks/usePermissions";
 import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 export default function Sales() {
   const navigate = useNavigate();
@@ -139,11 +140,7 @@ export default function Sales() {
         query = query.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
       }
 
-      // Fetch up to 5000 rows for the active tab
-      query = query.limit(5000);
-
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => query);
       
       // Sort: description-only matches go to bottom
       if (searchTerm && data) {
@@ -940,7 +937,7 @@ export default function Sales() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="completed">
-                  Completed ({completedOrders.length})
+                  Completed ({filterAssetType ? completedOrders.length : orderCounts?.completed ?? completedOrders.length})
                 </TabsTrigger>
                 <TabsTrigger value="terminal-sync">
                   Terminal Sync

@@ -140,7 +140,7 @@ export default function Sales() {
         query = query.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
       }
 
-      const data = await fetchAllPaginated<any>(() => query);
+      const data = await fetchAllPaginated<Record<string, any>>(() => query);
       
       // Sort: description-only matches go to bottom
       if (searchTerm && data) {

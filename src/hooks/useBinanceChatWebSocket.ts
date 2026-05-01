@@ -22,6 +22,10 @@ interface QueuedMessage {
   type: 'text' | 'image';
   createdAt: number;
   retries: number;
+  // 'sending' = handed to WS, awaiting server echo (optimistic bubble with spinner)
+  // 'queued'  = WS not connected, will retry on reconnect
+  // 'failed'  = exceeded retry budget, requires manual retry
+  status: 'sending' | 'queued' | 'failed';
 }
 
 interface UseBinanceChatWebSocketReturn {
@@ -83,6 +87,23 @@ export function useBinanceChatWebSocket(
   // Keep refs in sync
   useEffect(() => {
     queueRef.current = queuedMessages;
+  }, [queuedMessages]);
+
+  // Watchdog: if a 'sending' bubble doesn't get echoed by the server within
+  // 30s, flip it to 'failed' so the user can manually retry. Prevents a
+  // permanently spinning bubble on silent network/relay drops.
+  useEffect(() => {
+    const hasSending = queuedMessages.some(q => q.status === 'sending');
+    if (!hasSending) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setQueuedMessages(prev => prev.map(q =>
+        q.status === 'sending' && now - q.createdAt > 30000
+          ? { ...q, status: 'failed' as const }
+          : q
+      ));
+    }, 5000);
+    return () => window.clearInterval(timer);
   }, [queuedMessages]);
 
   // Helper to capture sessionId and groupId from any frame
@@ -259,18 +280,26 @@ export function useBinanceChatWebSocket(
     for (const msg of queue) {
       if (msg.orderNo === activeOrderRef.current) {
         const sent = doWsSend(msg.orderNo, msg.content, msg.type);
-        if (!sent) {
-          remaining.push({ ...msg, retries: msg.retries + 1 });
+        if (sent) {
+          // Sent over WS — keep optimistic bubble visible as 'sending'
+          // until the server echo arrives via the chat history poll, which
+          // removes it via the dedupe logic in fetchChatHistory.
+          remaining.push({ ...msg, status: 'sending' });
+        } else {
+          remaining.push({ ...msg, retries: msg.retries + 1, status: 'queued' });
         }
-        // If sent, it'll be removed once confirmed via REST poll
       } else {
         remaining.push(msg); // Keep messages for other orders
       }
     }
     setQueuedMessages(remaining);
 
-    if (queue.length > remaining.length) {
-      toast.success(`${queue.length - remaining.length} queued message(s) sent`);
+    const flushed = queue.filter(q =>
+      q.orderNo === activeOrderRef.current &&
+      remaining.find(r => r.tempId === q.tempId)?.status === 'sending'
+    ).length - queue.filter(q => q.status === 'sending').length;
+    if (flushed > 0) {
+      toast.success(`${flushed} queued message(s) sent`);
     }
   }, [doWsSend]);
 
@@ -455,40 +484,50 @@ export function useBinanceChatWebSocket(
     sessionIdRef.current = null;
   }, [activeOrderNo]);
 
-  // ---- Send message (with queue fallback) ----
+  // ---- Send message (always optimistic; queue tracks delivery) ----
+  // The message is ALWAYS added to `queuedMessages` first so the UI can show
+  // an immediate optimistic bubble (with a small spinner). The bubble is
+  // removed automatically once Binance echoes the message back via the
+  // chat history poll (see dedupe logic in fetchChatHistory).
   const sendMessage = useCallback((orderNo: string, content: string) => {
+    const id = tempIdCounter++;
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
+    let status: QueuedMessage['status'] = 'sending';
+    if (wsOpen) {
       const sent = doWsSend(orderNo, content, 'text');
       if (!sent) {
-        // WS open but send failed — queue it
-        const id = tempIdCounter++;
-        setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0 }]);
+        status = 'queued';
         toast.warning('Message queued — will retry when connection stabilizes');
       }
     } else {
-      // WS not connected — queue the message
-      const id = tempIdCounter++;
-      setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0 }]);
+      status = 'queued';
       toast.warning('Chat not connected — message queued for delivery');
     }
+    setQueuedMessages(prev => [...prev, {
+      tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0, status,
+    }]);
   }, [doWsSend]);
 
-  // ---- Send image (with queue fallback) ----
+  // ---- Send image (same optimistic pattern as text) ----
   const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
+    const id = tempIdCounter++;
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
+    let status: QueuedMessage['status'] = 'sending';
+    if (wsOpen) {
       const sent = doWsSend(orderNo, imageUrl, 'image');
       if (!sent) {
-        const id = tempIdCounter++;
-        setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0 }]);
+        status = 'queued';
         toast.warning('Image queued — will retry when connection stabilizes');
       }
     } else {
-      const id = tempIdCounter++;
-      setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0 }]);
+      status = 'queued';
       toast.warning('Chat not connected — image queued for delivery');
     }
+    setQueuedMessages(prev => [...prev, {
+      tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0, status,
+    }]);
   }, [doWsSend]);
 
   // ---- Manual retry for a failed message ----
@@ -500,7 +539,8 @@ export function useBinanceChatWebSocket(
     if (ws && ws.readyState === WebSocket.OPEN) {
       const sent = doWsSend(msg.orderNo, msg.content, msg.type);
       if (sent) {
-        setQueuedMessages(prev => prev.filter(m => m.tempId !== tempId));
+        // Move bubble to 'sending' — chat-history dedupe purges it once echoed.
+        setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
         toast.success('Message resent');
       } else {
         toast.error('Still unable to send — will retry on reconnect');

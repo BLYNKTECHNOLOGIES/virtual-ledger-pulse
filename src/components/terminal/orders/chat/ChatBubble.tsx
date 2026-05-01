@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
-import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages } from 'lucide-react';
+import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface UnifiedMessage {
@@ -16,7 +16,7 @@ export interface UnifiedMessage {
   messageType?: string;
   isRecall?: boolean;
   isComplianceRelevant?: boolean;
-  _deliveryStatus?: 'queued' | 'failed';
+  _deliveryStatus?: 'sending' | 'queued' | 'failed';
   _tempId?: number;
   _onRetry?: (tempId: number) => void;
 }
@@ -129,6 +129,12 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
             <p className="text-[9px] text-muted-foreground">
               {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''}
             </p>
+            {message._deliveryStatus === 'sending' && (
+              <span className="flex items-center gap-0.5 text-[8px] text-muted-foreground">
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                Sending
+              </span>
+            )}
             {message._deliveryStatus === 'queued' && (
               <span className="flex items-center gap-0.5 text-[8px] text-warning">
                 <Clock className="h-2.5 w-2.5" />

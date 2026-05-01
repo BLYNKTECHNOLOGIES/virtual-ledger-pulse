@@ -131,10 +131,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     }
 
     // Append queued messages (not yet confirmed by server)
+    // status: 'sending' = handed to WS, awaiting echo (spinner)
+    //         'queued'  = WS down, will retry on reconnect (clock icon)
+    //         'failed'  = retry budget exceeded, manual retry button
     const MAX_QUEUE_RETRIES = 3;
     for (const qm of queuedMessages) {
       if (qm.orderNo !== orderNumber) continue;
-      const isFailed = qm.retries >= MAX_QUEUE_RETRIES;
+      const isFailed = qm.status === 'failed' || qm.retries >= MAX_QUEUE_RETRIES;
+      const deliveryStatus: 'sending' | 'queued' | 'failed' =
+        isFailed ? 'failed' : (qm.status === 'sending' ? 'sending' : 'queued');
       messages.push({
         id: `queued-${qm.tempId}`,
         source: 'local',
@@ -143,7 +148,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         imageUrl: qm.type === 'image' ? qm.content : undefined,
         timestamp: qm.createdAt,
         senderName: username || 'Operator',
-        _deliveryStatus: isFailed ? 'failed' : 'queued',
+        _deliveryStatus: deliveryStatus,
         _tempId: qm.tempId,
         _onRetry: retryMessage,
       });

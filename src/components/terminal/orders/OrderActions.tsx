@@ -200,7 +200,7 @@ const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; p
 
 function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const releaseCoin = useReleaseCoin();
-  const sendVerifyCode = useCheckIfCanRelease();
+  const sendVerifyCode = useSendReleaseVerifyCode();
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);

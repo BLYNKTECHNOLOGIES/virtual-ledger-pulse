@@ -263,10 +263,14 @@ export function useBinanceChatWebSocket(
     for (const msg of queue) {
       if (msg.orderNo === activeOrderRef.current) {
         const sent = doWsSend(msg.orderNo, msg.content, msg.type);
-        if (!sent) {
-          remaining.push({ ...msg, retries: msg.retries + 1 });
+        if (sent) {
+          // Sent over WS — keep optimistic bubble visible as 'sending'
+          // until the server echo arrives via the chat history poll, which
+          // removes it via the dedupe logic in fetchChatHistory.
+          remaining.push({ ...msg, status: 'sending' });
+        } else {
+          remaining.push({ ...msg, retries: msg.retries + 1, status: 'queued' });
         }
-        // If sent, it'll be removed once confirmed via REST poll
       } else {
         remaining.push(msg); // Keep messages for other orders
       }

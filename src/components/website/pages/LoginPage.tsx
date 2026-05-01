@@ -19,6 +19,22 @@ export function LoginPage() {
   const [showForcedReset, setShowForcedReset] = useState(false);
   const navigate = useNavigate();
 
+  const writeCompatibilitySession = (authenticatedUser: {
+    id: string;
+    username: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    roles: string[];
+  }) => {
+    localStorage.setItem('userSession', JSON.stringify({
+      user: authenticatedUser,
+      timestamp: Date.now(),
+      expiresIn: 7 * 24 * 60 * 60 * 1000,
+    }));
+    localStorage.setItem('isLoggedIn', 'true');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -89,6 +105,8 @@ export function LoginPage() {
         lastName: userData.last_name || undefined,
         roles
       };
+
+      writeCompatibilitySession(authenticatedUser);
 
 
       // Check if user must change password (ERP onboarding or transition)

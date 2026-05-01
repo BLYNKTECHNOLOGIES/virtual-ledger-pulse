@@ -373,7 +373,7 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
 
   // Listen for Supabase auth state changes
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setUser(null);
         localStorage.removeItem('userSession');

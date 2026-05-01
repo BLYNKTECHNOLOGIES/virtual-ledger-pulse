@@ -459,40 +459,50 @@ export function useBinanceChatWebSocket(
     sessionIdRef.current = null;
   }, [activeOrderNo]);
 
-  // ---- Send message (with queue fallback) ----
+  // ---- Send message (always optimistic; queue tracks delivery) ----
+  // The message is ALWAYS added to `queuedMessages` first so the UI can show
+  // an immediate optimistic bubble (with a small spinner). The bubble is
+  // removed automatically once Binance echoes the message back via the
+  // chat history poll (see dedupe logic in fetchChatHistory).
   const sendMessage = useCallback((orderNo: string, content: string) => {
+    const id = tempIdCounter++;
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
+    let status: QueuedMessage['status'] = 'sending';
+    if (wsOpen) {
       const sent = doWsSend(orderNo, content, 'text');
       if (!sent) {
-        // WS open but send failed — queue it
-        const id = tempIdCounter++;
-        setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0 }]);
+        status = 'queued';
         toast.warning('Message queued — will retry when connection stabilizes');
       }
     } else {
-      // WS not connected — queue the message
-      const id = tempIdCounter++;
-      setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0 }]);
+      status = 'queued';
       toast.warning('Chat not connected — message queued for delivery');
     }
+    setQueuedMessages(prev => [...prev, {
+      tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0, status,
+    }]);
   }, [doWsSend]);
 
-  // ---- Send image (with queue fallback) ----
+  // ---- Send image (same optimistic pattern as text) ----
   const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
+    const id = tempIdCounter++;
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
+    let status: QueuedMessage['status'] = 'sending';
+    if (wsOpen) {
       const sent = doWsSend(orderNo, imageUrl, 'image');
       if (!sent) {
-        const id = tempIdCounter++;
-        setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0 }]);
+        status = 'queued';
         toast.warning('Image queued — will retry when connection stabilizes');
       }
     } else {
-      const id = tempIdCounter++;
-      setQueuedMessages(prev => [...prev, { tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0 }]);
+      status = 'queued';
       toast.warning('Chat not connected — image queued for delivery');
     }
+    setQueuedMessages(prev => [...prev, {
+      tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0, status,
+    }]);
   }, [doWsSend]);
 
   // ---- Manual retry for a failed message ----

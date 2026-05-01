@@ -142,13 +142,11 @@ const router = createBrowserRouter([
     path: "/dashboard",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Dashboard />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -156,13 +154,11 @@ const router = createBrowserRouter([
     path: "/sales",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Sales />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -170,13 +166,11 @@ const router = createBrowserRouter([
       path: "/support",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <Layout>
                 <Support />
               </Layout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -184,13 +178,11 @@ const router = createBrowserRouter([
     path: "/purchase",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Purchase />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -198,13 +190,11 @@ const router = createBrowserRouter([
     path: "/bams",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <BAMS />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -212,13 +202,11 @@ const router = createBrowserRouter([
     path: "/clients",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Clients />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -226,13 +214,11 @@ const router = createBrowserRouter([
     path: "/clients/:id",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <ClientDetail />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -240,13 +226,11 @@ const router = createBrowserRouter([
     path: "/leads",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Leads />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -254,13 +238,11 @@ const router = createBrowserRouter([
     path: "/user-management",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <UserManagement />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -268,13 +250,11 @@ const router = createBrowserRouter([
     path: "/compliance",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Compliance />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -282,13 +262,11 @@ const router = createBrowserRouter([
     path: "/stock",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <StockManagement />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -296,13 +274,11 @@ const router = createBrowserRouter([
     path: "/accounting",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Accounting />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -310,13 +286,11 @@ const router = createBrowserRouter([
     path: "/video-kyc",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <VideoKYC />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -324,13 +298,11 @@ const router = createBrowserRouter([
     path: "/kyc-approvals",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <KYCApprovals />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -338,13 +310,11 @@ const router = createBrowserRouter([
     path: "/statistics",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Statistics />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -352,13 +322,11 @@ const router = createBrowserRouter([
     path: "/profit-loss",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <ProfitLoss />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -366,13 +334,11 @@ const router = createBrowserRouter([
     path: "/financials",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <Financials />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -380,13 +346,11 @@ const router = createBrowserRouter([
      path: "/profile",
      element: (
        <QueryProvider>
-         <AuthProvider>
            <AuthCheck>
              <Layout>
                <UserProfile />
              </Layout>
            </AuthCheck>
-         </AuthProvider>
        </QueryProvider>
      ),
    },
@@ -394,13 +358,11 @@ const router = createBrowserRouter([
      path: "/tasks",
      element: (
        <QueryProvider>
-         <AuthProvider>
            <AuthCheck>
              <Layout>
                <Tasks />
              </Layout>
            </AuthCheck>
-         </AuthProvider>
        </QueryProvider>
      ),
    },
@@ -410,13 +372,11 @@ const router = createBrowserRouter([
       path: "/erp-entry",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <Layout>
                 <ErpEntryManager />
               </Layout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -424,13 +384,11 @@ const router = createBrowserRouter([
       path: "/risk-management",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <Layout>
                 <RiskManagement />
               </Layout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -438,13 +396,11 @@ const router = createBrowserRouter([
       path: "/ad-manager",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <Layout>
                 <AdManager />
               </Layout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -453,13 +409,11 @@ const router = createBrowserRouter([
       path: "/terminal",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalDashboard />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -467,13 +421,11 @@ const router = createBrowserRouter([
       path: "/terminal/ads",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAdManager />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -481,13 +433,11 @@ const router = createBrowserRouter([
       path: "/terminal/orders",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalOrders />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -495,13 +445,11 @@ const router = createBrowserRouter([
       path: "/terminal/automation",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAutomation />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -509,13 +457,11 @@ const router = createBrowserRouter([
       path: "/terminal/users",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalUsers />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -523,13 +469,11 @@ const router = createBrowserRouter([
       path: "/terminal/analytics",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAnalytics />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -537,13 +481,11 @@ const router = createBrowserRouter([
       path: "/terminal/settings",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalSettings />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -551,13 +493,11 @@ const router = createBrowserRouter([
       path: "/terminal/assets",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAssets />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -565,13 +505,11 @@ const router = createBrowserRouter([
       path: "/terminal/logs",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalLogs />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -579,7 +517,6 @@ const router = createBrowserRouter([
       path: "/terminal/kyc",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalComingSoon
@@ -589,7 +526,6 @@ const router = createBrowserRouter([
                 />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -597,13 +533,11 @@ const router = createBrowserRouter([
       path: "/terminal/payer",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalPayer />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -611,13 +545,11 @@ const router = createBrowserRouter([
       path: "/terminal/appeals",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAppeals />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -625,13 +557,11 @@ const router = createBrowserRouter([
       path: "/terminal/small-payments",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalSmallPayments />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -639,13 +569,11 @@ const router = createBrowserRouter([
       path: "/terminal/mpi",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalMPI />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -653,13 +581,11 @@ const router = createBrowserRouter([
       path: "/terminal/mpi/:userId",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalOperatorDetail />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -667,13 +593,11 @@ const router = createBrowserRouter([
       path: "/terminal/audit-logs",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAuditLogs />
               </TerminalLayout>
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
     },
@@ -686,11 +610,9 @@ const router = createBrowserRouter([
       path: "/hrms",
       element: (
         <QueryProvider>
-          <AuthProvider>
             <AuthCheck>
               <HorillaLayout />
             </AuthCheck>
-          </AuthProvider>
         </QueryProvider>
       ),
       children: [
@@ -768,13 +690,11 @@ const router = createBrowserRouter([
     path: "/utility",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <UtilityHub />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -782,13 +702,11 @@ const router = createBrowserRouter([
     path: "/utility/invoice-creator",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <InvoiceCreatorPage />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },
@@ -796,13 +714,11 @@ const router = createBrowserRouter([
     path: "/utility/payment-screenshot",
     element: (
       <QueryProvider>
-        <AuthProvider>
           <AuthCheck>
             <Layout>
               <PaymentScreenshotGenerator />
             </Layout>
           </AuthCheck>
-        </AuthProvider>
       </QueryProvider>
     ),
   },

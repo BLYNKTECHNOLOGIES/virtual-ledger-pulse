@@ -995,6 +995,40 @@ serve(async (req) => {
         break;
       }
 
+      case "sendVerifyCode": {
+        // POST /sapi/v1/c2c/orderMatch/sendVerifyCode
+        // Triggers Binance to dispatch an Email or SMS verification code
+        // to the merchant's registered contact for the given order's
+        // releaseCoin action. This is the ONLY endpoint that actually
+        // sends the OTP — `checkIfCanReleaseCoin` is a pre-validation
+        // call and does NOT dispatch any code.
+        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/sendVerifyCode`;
+        const rawAuth = String(payload.authType || "").toUpperCase();
+        // Normalize: only EMAIL and SMS are valid OTP-dispatch targets here.
+        // Google 2FA, YubiKey/FIDO2 do NOT require Binance to send a code.
+        if (rawAuth !== "EMAIL" && rawAuth !== "SMS") {
+          result = {
+            code: "UNSUPPORTED_AUTH_TYPE",
+            message: `sendVerifyCode supports only EMAIL or SMS authType (got '${payload.authType}'). Google/YubiKey codes are generated on the user's device and do not require dispatch.`,
+          };
+          break;
+        }
+        const body: Record<string, any> = {
+          orderNumber: payload.orderNumber,
+          authType: rawAuth,
+        };
+        console.log("sendVerifyCode body:", JSON.stringify(body));
+        const response = await fetchWithRetry(url, {
+          method: "POST",
+          headers: proxyHeaders,
+          body: JSON.stringify(body),
+        }, 0, 500, 12000);
+        const text = await response.text();
+        console.log("sendVerifyCode response:", response.status, text.substring(0, 500));
+        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        break;
+      }
+
       case "cancelOrder": {
         // POST /sapi/v1/c2c/orderMatch/cancelOrder
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/cancelOrder`;

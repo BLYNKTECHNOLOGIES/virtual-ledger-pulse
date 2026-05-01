@@ -170,6 +170,11 @@ export default function ProfitLoss() {
     if (dateRange?.from && dateRange?.to) {
       return { startDate: dateRange.from, endDate: dateRange.to };
     }
+    // Single-day custom selection (only `from` chosen) — treat as one-day range,
+    // not as "All Time". Prevents silent fallback that pulled lifetime data.
+    if (dateRange?.from && !dateRange?.to) {
+      return { startDate: dateRange.from, endDate: dateRange.from };
+    }
     // Final fallback — treat as allTime if nothing else matches
     return { startDate: new Date(2020, 0, 1), endDate: new Date() };
   };

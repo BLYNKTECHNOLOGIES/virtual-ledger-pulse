@@ -522,7 +522,8 @@ export function useBinanceChatWebSocket(
     if (ws && ws.readyState === WebSocket.OPEN) {
       const sent = doWsSend(msg.orderNo, msg.content, msg.type);
       if (sent) {
-        setQueuedMessages(prev => prev.filter(m => m.tempId !== tempId));
+        // Move bubble to 'sending' — chat-history dedupe purges it once echoed.
+        setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
         toast.success('Message resent');
       } else {
         toast.error('Still unable to send — will retry on reconnect');

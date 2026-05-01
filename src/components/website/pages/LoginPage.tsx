@@ -92,7 +92,9 @@ export function LoginPage() {
       if (userWithRoles && Array.isArray(userWithRoles) && userWithRoles.length > 0) {
         const userRoleData = userWithRoles[0];
         if (userRoleData.roles && Array.isArray(userRoleData.roles)) {
-          roles = userRoleData.roles.map((role: any) => role.name || role).filter(Boolean);
+          roles = userRoleData.roles
+            .map((role: unknown) => typeof role === 'string' ? role : (role as { name?: string }).name)
+            .filter(Boolean) as string[];
         }
       }
       if (roles.length === 0) roles = ['user'];
@@ -124,12 +126,13 @@ export function LoginPage() {
       setSuccess('Correct password, redirecting to Dashboard...');
       setTimeout(() => navigate('/dashboard'), 1500);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('NetworkError') || error?.message?.includes('ERR_')) {
+      const message = error instanceof Error ? error.message : '';
+      if (message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('ERR_')) {
         setError('Network error — unable to reach the server. Please check your internet connection and try again.');
-      } else if (error?.message?.includes('Username login is no longer supported')) {
-        setError(error.message);
+      } else if (message.includes('Username login is no longer supported')) {
+        setError(message);
       } else {
         setError('Login failed. Please try again.');
       }

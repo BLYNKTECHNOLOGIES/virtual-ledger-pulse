@@ -277,8 +277,12 @@ export function useBinanceChatWebSocket(
     }
     setQueuedMessages(remaining);
 
-    if (queue.length > remaining.length) {
-      toast.success(`${queue.length - remaining.length} queued message(s) sent`);
+    const flushed = queue.filter(q =>
+      q.orderNo === activeOrderRef.current &&
+      remaining.find(r => r.tempId === q.tempId)?.status === 'sending'
+    ).length - queue.filter(q => q.status === 'sending').length;
+    if (flushed > 0) {
+      toast.success(`${flushed} queued message(s) sent`);
     }
   }, [doWsSend]);
 

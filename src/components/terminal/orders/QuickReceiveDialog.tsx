@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Loader2, Fingerprint, Key, Smartphone, Shield, Mail } from 'lucide-react';
-import { useReleaseCoin, useMarkOrderAsPaid, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
+import { useReleaseCoin, useMarkOrderAsPaid, useSendReleaseVerifyCode } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 import { toast } from 'sonner';

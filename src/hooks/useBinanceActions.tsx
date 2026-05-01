@@ -103,6 +103,22 @@ export function useCheckIfCanRelease() {
   });
 }
 
+/**
+ * Trigger Binance to actually dispatch an EMAIL or SMS verification code
+ * for a release. This hits POST /sapi/v1/c2c/orderMatch/sendVerifyCode.
+ *
+ * NOTE: `useCheckIfCanRelease` is only a pre-validation call — it does NOT
+ * cause Binance to send any OTP. Use this hook for the "Send" button in
+ * the Release / Quick Receive dialogs when authType is EMAIL or SMS.
+ */
+export function useSendReleaseVerifyCode() {
+  return useMutation({
+    mutationFn: async (params: { orderNumber: string; authType: 'EMAIL' | 'SMS' }) => {
+      return callBinanceAds('sendVerifyCode', params);
+    },
+  });
+}
+
 /** Cancel order */
 export function useCancelOrder() {
   const queryClient = useQueryClient();

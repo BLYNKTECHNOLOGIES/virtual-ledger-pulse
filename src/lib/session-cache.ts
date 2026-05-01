@@ -26,14 +26,9 @@ export function initSessionCache() {
   if (initialized) return;
   initialized = true;
 
-  // Seed from current session
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    if (session?.user) {
-      updateCacheFromAuth(session.user.id, session.user.email || '');
-    } else {
-      updateCacheFromLocalStorage();
-    }
-  });
+  // Seed only from the compatibility session synchronously; AuthProvider owns
+  // the single Supabase getSession() call to avoid concurrent refreshes.
+  updateCacheFromLocalStorage();
 
   // Listen for changes
   supabase.auth.onAuthStateChange((_event, session) => {

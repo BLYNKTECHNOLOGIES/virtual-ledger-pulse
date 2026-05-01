@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ValidationUser, UserWithRoles, User, AuthContextType } from '@/types/auth';
@@ -18,7 +19,30 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+let pendingSessionRead: Promise<Session | null> | null = null;
+
+const getSupabaseSessionSafely = () => {
+  if (!pendingSessionRead) {
+    pendingSessionRead = supabase.auth.getSession()
+      .then(({ data: { session } }) => session)
+      .finally(() => {
+        pendingSessionRead = null;
+      });
+  }
+  return pendingSessionRead;
+};
+
 export function AuthProvider({ children }: AuthProviderProps) {
+  const parentContext = useContext(AuthContext);
+
+  if (parentContext) {
+    return <>{children}</>;
+  }
+
+  return <AuthProviderRoot>{children}</AuthProviderRoot>;
+}
+
+function AuthProviderRoot({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -162,31 +186,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const applySupabaseSession = async (supaSession: Session): Promise<boolean> => {
+    const builtUser = await buildUserFromUserId(supaSession.user.id, supaSession.user.email || '');
+    if (!builtUser) return false;
+
+    const savedSession = localStorage.getItem('userSession');
+    const sessionTimestamp = savedSession ? JSON.parse(savedSession).timestamp || Date.now() : Date.now();
+    const shouldLogout = await checkForceLogout(builtUser.id, sessionTimestamp);
+    if (shouldLogout) {
+      await clearAllSessions();
+      toast({
+        title: "Session Expired",
+        description: "Your account has been updated or removed. Please log in again.",
+        variant: "destructive",
+      });
+      return true;
+    }
+
+    setUser(builtUser);
+    writeCompatibilitySession(builtUser);
+    return true;
+  };
+
   const restoreSessionFromStorage = async () => {
     try {
       // ═══════════════════════════════════════════════════
       // PATH A: Try restoring from Supabase Auth session
       // ═══════════════════════════════════════════════════
-      const { data: { session: supaSession } } = await supabase.auth.getSession();
+      const supaSession = await getSupabaseSessionSafely();
       if (supaSession?.user) {
-        const builtUser = await buildUserFromUserId(supaSession.user.id, supaSession.user.email || '');
-        if (builtUser) {
-          // Check force logout
-          const savedSession = localStorage.getItem('userSession');
-          const sessionTimestamp = savedSession ? JSON.parse(savedSession).timestamp || Date.now() : Date.now();
-          const shouldLogout = await checkForceLogout(builtUser.id, sessionTimestamp);
-          if (shouldLogout) {
-            await clearAllSessions();
-            toast({
-              title: "Session Expired",
-              description: "Your account has been updated or removed. Please log in again.",
-              variant: "destructive",
-            });
-            setIsLoading(false);
-            return;
-          }
-          setUser(builtUser);
-          writeCompatibilitySession(builtUser);
+        if (await applySupabaseSession(supaSession)) {
           setIsLoading(false);
           return;
         }
@@ -357,11 +386,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Listen for Supabase auth state changes
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setUser(null);
         localStorage.removeItem('userSession');
         localStorage.removeItem('isLoggedIn');
+        return;
+      }
+
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+        setTimeout(() => {
+          applySupabaseSession(session).catch((error) => {
+            console.error('[useAuth] Failed to apply auth state change:', error);
+          });
+        }, 0);
       }
     });
 

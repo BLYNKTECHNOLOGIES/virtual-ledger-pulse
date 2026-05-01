@@ -19,6 +19,19 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+let pendingSessionRead: Promise<Session | null> | null = null;
+
+const getSupabaseSessionSafely = () => {
+  if (!pendingSessionRead) {
+    pendingSessionRead = supabase.auth.getSession()
+      .then(({ data: { session } }) => session)
+      .finally(() => {
+        pendingSessionRead = null;
+      });
+  }
+  return pendingSessionRead;
+};
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const parentContext = useContext(AuthContext);
 
@@ -200,7 +213,7 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
       // ═══════════════════════════════════════════════════
       // PATH A: Try restoring from Supabase Auth session
       // ═══════════════════════════════════════════════════
-      const { data: { session: supaSession } } = await supabase.auth.getSession();
+      const supaSession = await getSupabaseSessionSafely();
       if (supaSession?.user) {
         if (await applySupabaseSession(supaSession)) {
           setIsLoading(false);

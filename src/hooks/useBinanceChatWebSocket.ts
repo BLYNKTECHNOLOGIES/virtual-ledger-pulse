@@ -89,6 +89,23 @@ export function useBinanceChatWebSocket(
     queueRef.current = queuedMessages;
   }, [queuedMessages]);
 
+  // Watchdog: if a 'sending' bubble doesn't get echoed by the server within
+  // 30s, flip it to 'failed' so the user can manually retry. Prevents a
+  // permanently spinning bubble on silent network/relay drops.
+  useEffect(() => {
+    const hasSending = queuedMessages.some(q => q.status === 'sending');
+    if (!hasSending) return;
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+      setQueuedMessages(prev => prev.map(q =>
+        q.status === 'sending' && now - q.createdAt > 30000
+          ? { ...q, status: 'failed' as const }
+          : q
+      ));
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [queuedMessages]);
+
   // Helper to capture sessionId and groupId from any frame
   const captureMetadata = useCallback((data: any) => {
     if (data.sessionId && !sessionIdRef.current) {

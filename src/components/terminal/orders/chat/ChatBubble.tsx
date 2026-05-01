@@ -129,6 +129,12 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
             <p className="text-[9px] text-muted-foreground">
               {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''}
             </p>
+            {message._deliveryStatus === 'sending' && (
+              <span className="flex items-center gap-0.5 text-[8px] text-muted-foreground">
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                Sending
+              </span>
+            )}
             {message._deliveryStatus === 'queued' && (
               <span className="flex items-center gap-0.5 text-[8px] text-warning">
                 <Clock className="h-2.5 w-2.5" />

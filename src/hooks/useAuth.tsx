@@ -26,6 +26,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return <>{children}</>;
   }
 
+  return <AuthProviderRoot>{children}</AuthProviderRoot>;
+}
+
+function AuthProviderRoot({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();

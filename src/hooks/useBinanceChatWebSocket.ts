@@ -22,6 +22,10 @@ interface QueuedMessage {
   type: 'text' | 'image';
   createdAt: number;
   retries: number;
+  // 'sending' = handed to WS, awaiting server echo (optimistic bubble with spinner)
+  // 'queued'  = WS not connected, will retry on reconnect
+  // 'failed'  = exceeded retry budget, requires manual retry
+  status: 'sending' | 'queued' | 'failed';
 }
 
 interface UseBinanceChatWebSocketReturn {

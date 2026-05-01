@@ -16,7 +16,7 @@ export interface UnifiedMessage {
   messageType?: string;
   isRecall?: boolean;
   isComplianceRelevant?: boolean;
-  _deliveryStatus?: 'queued' | 'failed';
+  _deliveryStatus?: 'sending' | 'queued' | 'failed';
   _tempId?: number;
   _onRetry?: (tempId: number) => void;
 }

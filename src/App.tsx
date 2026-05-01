@@ -833,8 +833,10 @@ function App() {
 
   return (
     <React.StrictMode>
-      <RouterProvider router={router} />
-      <Toaster />
+      <AuthProvider>
+        <RouterProvider router={router} />
+        <Toaster />
+      </AuthProvider>
     </React.StrictMode>
   );
 }

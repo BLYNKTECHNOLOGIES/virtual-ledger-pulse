@@ -1,7 +1,6 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
 interface AuthCheckProps {
@@ -22,14 +21,7 @@ export function AuthCheck({ children }: AuthCheckProps) {
     }
 
     const checkAuth = async () => {
-      // Primary: Check Supabase Auth session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setIsAuthenticated(true);
-        return;
-      }
-
-      // Fallback: Check legacy localStorage session
+      // Fallback: Check legacy localStorage session only after AuthProvider has settled.
       const isLoggedIn = localStorage.getItem('isLoggedIn');
       const userSession = localStorage.getItem('userSession');
       

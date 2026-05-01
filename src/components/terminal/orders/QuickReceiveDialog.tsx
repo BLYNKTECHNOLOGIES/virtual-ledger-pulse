@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Zap, Loader2, Fingerprint, Key, Smartphone, Shield, Mail } from 'lucide-react';
-import { useReleaseCoin, useMarkOrderAsPaid, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
+import { useReleaseCoin, useMarkOrderAsPaid, useSendReleaseVerifyCode } from '@/hooks/useBinanceActions';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
 import { toast } from 'sonner';
@@ -75,7 +75,7 @@ export function QuickReceiveDialog({
 }: QuickReceiveDialogProps) {
   const releaseCoin = useReleaseCoin();
   const markPaid = useMarkOrderAsPaid();
-  const sendVerifyCode = useCheckIfCanRelease();
+  const sendVerifyCode = useSendReleaseVerifyCode();
   const [open, setOpen] = useState(false);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
@@ -99,7 +99,7 @@ export function QuickReceiveDialog({
 
   const handleSendCode = () => {
     if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
-    sendVerifyCode.mutate({ orderNumber, authType: authMethod, confirmPaidType: 'quick' }, {
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS' }, {
       onSuccess: () => {
         toast.success(`${selectedAuth.label} sent by Binance`);
         setSendCooldown(60);

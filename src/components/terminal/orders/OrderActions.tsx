@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Smartphone, Mail } from 'lucide-react';
-import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
+import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease, useSendReleaseVerifyCode } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
@@ -200,7 +200,7 @@ const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; p
 
 function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   const releaseCoin = useReleaseCoin();
-  const sendVerifyCode = useCheckIfCanRelease();
+  const sendVerifyCode = useSendReleaseVerifyCode();
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
@@ -226,7 +226,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 
   const handleSendCode = () => {
     if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
-    sendVerifyCode.mutate({ orderNumber, authType: authMethod }, {
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS' }, {
       onSuccess: () => {
         toast.success(`${selectedAuth.label} sent by Binance`);
         setSendCooldown(60);

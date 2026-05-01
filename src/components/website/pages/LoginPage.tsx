@@ -49,6 +49,10 @@ export function LoginPage() {
         return;
       }
 
+      // Clear only this browser's stale Supabase session before password login.
+      // This prevents old refresh tokens from racing the new login request.
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+
       // ═══════════════════════════════════════════════════
       // Supabase Auth — single authentication path
       // ═══════════════════════════════════════════════════

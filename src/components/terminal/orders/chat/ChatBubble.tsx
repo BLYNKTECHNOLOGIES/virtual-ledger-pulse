@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
-import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages } from 'lucide-react';
+import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface UnifiedMessage {

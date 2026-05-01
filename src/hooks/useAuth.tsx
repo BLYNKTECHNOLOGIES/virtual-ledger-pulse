@@ -21,6 +21,10 @@ interface AuthProviderProps {
 
 let pendingSessionRead: Promise<Session | null> | null = null;
 
+const PUBLIC_AUTH_ROUTES = new Set(['/', '/login', '/reset-password', '/unsubscribe', '/raci']);
+
+const isPublicAuthRoute = () => PUBLIC_AUTH_ROUTES.has(window.location.pathname);
+
 const getSupabaseSessionSafely = () => {
   if (!pendingSessionRead) {
     pendingSessionRead = supabase.auth.getSession()
@@ -129,6 +133,10 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
         throw new Error('Please use your email address to log in. Username login is no longer supported.');
       }
 
+      // Drop any stale local Supabase session before a fresh password login.
+      // Otherwise an in-flight refresh of an old token can race with the new login.
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+
       // ═══════════════════════════════════════════════════
       // Supabase Auth — single authentication path
       // ═══════════════════════════════════════════════════
@@ -210,6 +218,11 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
 
   const restoreSessionFromStorage = async () => {
     try {
+      if (isPublicAuthRoute()) {
+        setIsLoading(false);
+        return;
+      }
+
       // ═══════════════════════════════════════════════════
       // PATH A: Try restoring from Supabase Auth session
       // ═══════════════════════════════════════════════════

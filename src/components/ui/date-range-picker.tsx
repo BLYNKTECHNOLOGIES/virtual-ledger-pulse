@@ -120,7 +120,13 @@ export function DateRangePicker({
   };
 
   const handleCalendarSelect = (range: DateRange | undefined) => {
-    setLocalRange(range);
+    // If only `from` is selected (single-day pick), treat it as a single-day range
+    // so downstream consumers don't silently fall back to "All Time".
+    if (range?.from && !range.to) {
+      setLocalRange({ from: range.from, to: range.from });
+    } else {
+      setLocalRange(range);
+    }
     setSelectedPreset("custom");
   };
 

@@ -226,7 +226,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 
   const handleSendCode = () => {
     if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
-    sendVerifyCode.mutate({ orderNumber, authType: authMethod }, {
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS' }, {
       onSuccess: () => {
         toast.success(`${selectedAuth.label} sent by Binance`);
         setSendCooldown(60);

@@ -75,7 +75,7 @@ export function QuickReceiveDialog({
 }: QuickReceiveDialogProps) {
   const releaseCoin = useReleaseCoin();
   const markPaid = useMarkOrderAsPaid();
-  const sendVerifyCode = useCheckIfCanRelease();
+  const sendVerifyCode = useSendReleaseVerifyCode();
   const [open, setOpen] = useState(false);
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');

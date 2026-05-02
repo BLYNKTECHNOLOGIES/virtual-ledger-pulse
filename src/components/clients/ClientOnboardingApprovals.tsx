@@ -945,6 +945,7 @@ export function ClientOnboardingApprovals() {
           ? "Client has been linked to existing record and approved"
           : "Client has been successfully onboarded and added to the directory"
       });
+      buyerApprovalDrafts.delete(variables.id);
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
@@ -991,6 +992,7 @@ export function ClientOnboardingApprovals() {
         title: "Client Rejected",
         description: "Client application has been rejected"
       });
+      buyerApprovalDrafts.delete(variables.id);
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
     },
     onError: (error: any) => {
@@ -1258,22 +1260,13 @@ export function ClientOnboardingApprovals() {
   };
 
   const resetForm = () => {
-    setFormData({
-      aadhar_number: '',
-      address: '',
-      purpose_of_buying: '',
-      proposed_monthly_limit: '',
-      risk_assessment: 'HIGH_RISK',
-      compliance_notes: '',
-      client_state: '',
-      client_phone: ''
-    });
+    setFormData(createEmptyApprovalFormData());
     setSelectedApproval(null);
     setExistingClientMatch(null);
     setApprovalMode('normal');
     setPhoneEditEnabled(false);
     setStateEditEnabled(false);
-    setBankEntries([{ bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }]);
+    setBankEntries([createEmptyBankEntry()]);
     setPrimarySourceOfIncome('');
     setOccupationBusinessType('');
     setMonthlyIncomeRange('');

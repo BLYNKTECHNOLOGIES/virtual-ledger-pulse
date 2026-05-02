@@ -355,14 +355,21 @@ export function ClientOnboardingApprovals() {
   useEffect(() => {
     if (dialogOpen || selectedApproval || !approvals?.length) return;
     const activeDraftId = readActiveApprovalDraftId();
-    if (!activeDraftId || !buyerApprovalDrafts.has(activeDraftId)) return;
+    if (!activeDraftId) return;
+    let cancelled = false;
+    void loadBuyerApprovalDraft(activeDraftId).then((draft) => {
+      if (cancelled || !draft) return;
     const approval = approvals.find(a => a.id === activeDraftId && a.approval_status === 'PENDING');
     if (approval) {
       handleApprovalClick(approval);
     } else {
-      buyerApprovalDrafts.delete(activeDraftId);
+      void deleteBuyerApprovalDraft(activeDraftId);
       writeActiveApprovalDraftId(null);
     }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [approvals, dialogOpen, selectedApproval]);
 
   const { data: identityMap } = useQuery({

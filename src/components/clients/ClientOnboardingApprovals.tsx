@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { compressVideo } from '@/utils/videoCompressor';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -105,6 +105,43 @@ interface ExistingClientMatch {
   assigned_operator: string | null;
 }
 
+const createEmptyApprovalFormData = () => ({
+  aadhar_number: '',
+  address: '',
+  purpose_of_buying: '',
+  proposed_monthly_limit: '',
+  risk_assessment: 'HIGH_RISK',
+  compliance_notes: '',
+  client_state: '',
+  client_phone: ''
+});
+
+const createEmptyBankEntry = (): BankEntry => ({
+  bankName: '',
+  lastFourDigits: '',
+  statementFile: null,
+  statementPeriodFrom: undefined,
+  statementPeriodTo: undefined
+});
+
+interface BuyerApprovalDraft {
+  formData: ReturnType<typeof createEmptyApprovalFormData>;
+  bankEntries: BankEntry[];
+  approvalMode: 'normal' | 'merge' | 'create_new';
+  phoneEditEnabled: boolean;
+  stateEditEnabled: boolean;
+  primarySourceOfIncome: string;
+  occupationBusinessType: string;
+  monthlyIncomeRange: string;
+  sourceOfFundFile: File | null;
+  aadhaarFiles: File[];
+  usdtProofFile: File | null;
+  tradeHistoryFile: File | null;
+  vkycVideoFile: File | null;
+}
+
+const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();
+
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -113,21 +150,10 @@ export function ClientOnboardingApprovals() {
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
-  const [formData, setFormData] = useState({
-    aadhar_number: '',
-    address: '',
-    purpose_of_buying: '',
-    proposed_monthly_limit: '',
-    risk_assessment: 'HIGH_RISK',
-    compliance_notes: '',
-    client_state: '',
-    client_phone: ''
-  });
+  const [formData, setFormData] = useState(createEmptyApprovalFormData);
   const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);
   const [stateEditEnabled, setStateEditEnabled] = useState(false);
-  const [bankEntries, setBankEntries] = useState<BankEntry[]>([
-    { bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }
-  ]);
+  const [bankEntries, setBankEntries] = useState<BankEntry[]>([createEmptyBankEntry()]);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Source of Income state (all optional)
@@ -150,6 +176,41 @@ export function ClientOnboardingApprovals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+
+  useEffect(() => {
+    if (!selectedApproval || !dialogOpen) return;
+    buyerApprovalDrafts.set(selectedApproval.id, {
+      formData,
+      bankEntries,
+      approvalMode,
+      phoneEditEnabled,
+      stateEditEnabled,
+      primarySourceOfIncome,
+      occupationBusinessType,
+      monthlyIncomeRange,
+      sourceOfFundFile,
+      aadhaarFiles,
+      usdtProofFile,
+      tradeHistoryFile,
+      vkycVideoFile,
+    });
+  }, [
+    selectedApproval,
+    dialogOpen,
+    formData,
+    bankEntries,
+    approvalMode,
+    phoneEditEnabled,
+    stateEditEnabled,
+    primarySourceOfIncome,
+    occupationBusinessType,
+    monthlyIncomeRange,
+    sourceOfFundFile,
+    aadhaarFiles,
+    usdtProofFile,
+    tradeHistoryFile,
+    vkycVideoFile,
+  ]);
 
   // Fetch approvals - all pending, and all reviewed (history)
   const { data: approvals, isLoading } = useQuery({
@@ -884,6 +945,7 @@ export function ClientOnboardingApprovals() {
           ? "Client has been linked to existing record and approved"
           : "Client has been successfully onboarded and added to the directory"
       });
+      buyerApprovalDrafts.delete(variables.id);
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
@@ -930,6 +992,7 @@ export function ClientOnboardingApprovals() {
         title: "Client Rejected",
         description: "Client application has been rejected"
       });
+      buyerApprovalDrafts.delete(variables.id);
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
     },
     onError: (error: any) => {
@@ -985,19 +1048,45 @@ export function ClientOnboardingApprovals() {
     setSelectedApproval(approval);
     const phone = approval.client_phone || '';
     const state = approval.client_state || '';
-    setFormData({
-      aadhar_number: approval.aadhar_number || '',
-      address: approval.address || '',
-      purpose_of_buying: approval.purpose_of_buying || '',
-      proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
-      risk_assessment: approval.risk_assessment || 'HIGH_RISK',
-      compliance_notes: approval.compliance_notes || '',
-      client_state: state,
-      client_phone: phone
-    });
-    // Lock fields if already pre-populated
-    setPhoneEditEnabled(!phone);
-    setStateEditEnabled(!state);
+    const draft = buyerApprovalDrafts.get(approval.id);
+    if (draft) {
+      setFormData(draft.formData);
+      setBankEntries(draft.bankEntries);
+      setApprovalMode(draft.approvalMode);
+      setPhoneEditEnabled(draft.phoneEditEnabled);
+      setStateEditEnabled(draft.stateEditEnabled);
+      setPrimarySourceOfIncome(draft.primarySourceOfIncome);
+      setOccupationBusinessType(draft.occupationBusinessType);
+      setMonthlyIncomeRange(draft.monthlyIncomeRange);
+      setSourceOfFundFile(draft.sourceOfFundFile);
+      setAadhaarFiles(draft.aadhaarFiles);
+      setUsdtProofFile(draft.usdtProofFile);
+      setTradeHistoryFile(draft.tradeHistoryFile);
+      setVkycVideoFile(draft.vkycVideoFile);
+    } else {
+      setFormData({
+        aadhar_number: approval.aadhar_number || '',
+        address: approval.address || '',
+        purpose_of_buying: approval.purpose_of_buying || '',
+        proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
+        risk_assessment: approval.risk_assessment || 'HIGH_RISK',
+        compliance_notes: approval.compliance_notes || '',
+        client_state: state,
+        client_phone: phone
+      });
+      setBankEntries([createEmptyBankEntry()]);
+      setPrimarySourceOfIncome('');
+      setOccupationBusinessType('');
+      setMonthlyIncomeRange('');
+      setSourceOfFundFile(null);
+      setAadhaarFiles([]);
+      setUsdtProofFile(null);
+      setTradeHistoryFile(null);
+      setVkycVideoFile(null);
+      // Lock fields if already pre-populated
+      setPhoneEditEnabled(!phone);
+      setStateEditEnabled(!state);
+    }
     
     // Hard-lock to resolved_client_id when the DB trigger has already
     // identified the counterparty as an existing client (nickname / verified-
@@ -1027,13 +1116,13 @@ export function ClientOnboardingApprovals() {
     }
     setExistingClientMatch(existing);
     if (existing) {
-      setApprovalMode('merge');
+      if (!draft) setApprovalMode('merge');
       // Auto-fill monthly limit from existing client if not already provided in the approval
-      if (existing.monthly_limit && !approval.proposed_monthly_limit) {
+      if (!draft && existing.monthly_limit && !approval.proposed_monthly_limit) {
         setFormData(prev => ({ ...prev, proposed_monthly_limit: existing!.monthly_limit!.toString() }));
       }
     } else {
-      setApprovalMode('normal');
+      if (!draft) setApprovalMode('normal');
     }
     setDialogOpen(true);
   };
@@ -1171,22 +1260,13 @@ export function ClientOnboardingApprovals() {
   };
 
   const resetForm = () => {
-    setFormData({
-      aadhar_number: '',
-      address: '',
-      purpose_of_buying: '',
-      proposed_monthly_limit: '',
-      risk_assessment: 'HIGH_RISK',
-      compliance_notes: '',
-      client_state: '',
-      client_phone: ''
-    });
+    setFormData(createEmptyApprovalFormData());
     setSelectedApproval(null);
     setExistingClientMatch(null);
     setApprovalMode('normal');
     setPhoneEditEnabled(false);
     setStateEditEnabled(false);
-    setBankEntries([{ bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }]);
+    setBankEntries([createEmptyBankEntry()]);
     setPrimarySourceOfIncome('');
     setOccupationBusinessType('');
     setMonthlyIncomeRange('');

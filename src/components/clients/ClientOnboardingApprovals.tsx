@@ -141,6 +141,92 @@ interface BuyerApprovalDraft {
 }
 
 const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();
+const BUYER_APPROVAL_ACTIVE_DRAFT_KEY = 'clientOnboardingApprovals.activeDraftId';
+const BUYER_APPROVAL_DRAFT_DB = 'blynkex-client-approval-drafts';
+const BUYER_APPROVAL_DRAFT_STORE = 'buyerApprovals';
+
+const readActiveApprovalDraftId = () => {
+  try {
+    return sessionStorage.getItem(BUYER_APPROVAL_ACTIVE_DRAFT_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeActiveApprovalDraftId = (id: string | null) => {
+  try {
+    if (id) {
+      sessionStorage.setItem(BUYER_APPROVAL_ACTIVE_DRAFT_KEY, id);
+    } else {
+      sessionStorage.removeItem(BUYER_APPROVAL_ACTIVE_DRAFT_KEY);
+    }
+  } catch {
+    // Session storage may be unavailable in restricted browser modes.
+  }
+};
+
+const openBuyerDraftDb = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const request = indexedDB.open(BUYER_APPROVAL_DRAFT_DB, 1);
+  request.onupgradeneeded = () => {
+    const db = request.result;
+    if (!db.objectStoreNames.contains(BUYER_APPROVAL_DRAFT_STORE)) {
+      db.createObjectStore(BUYER_APPROVAL_DRAFT_STORE, { keyPath: 'id' });
+    }
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const loadBuyerApprovalDraft = async (id: string): Promise<BuyerApprovalDraft | null> => {
+  const memoryDraft = buyerApprovalDrafts.get(id);
+  if (memoryDraft) return memoryDraft;
+  try {
+    const db = await openBuyerDraftDb();
+    return await new Promise<BuyerApprovalDraft | null>((resolve) => {
+      const request = db.transaction(BUYER_APPROVAL_DRAFT_STORE, 'readonly')
+        .objectStore(BUYER_APPROVAL_DRAFT_STORE)
+        .get(id);
+      request.onsuccess = () => {
+        const draft = request.result?.draft as BuyerApprovalDraft | undefined;
+        if (draft) buyerApprovalDrafts.set(id, draft);
+        resolve(draft || null);
+        db.close();
+      };
+      request.onerror = () => {
+        resolve(null);
+        db.close();
+      };
+    });
+  } catch {
+    return null;
+  }
+};
+
+const saveBuyerApprovalDraft = async (id: string, draft: BuyerApprovalDraft) => {
+  buyerApprovalDrafts.set(id, draft);
+  try {
+    const db = await openBuyerDraftDb();
+    const request = db.transaction(BUYER_APPROVAL_DRAFT_STORE, 'readwrite')
+      .objectStore(BUYER_APPROVAL_DRAFT_STORE)
+      .put({ id, draft, updatedAt: Date.now() });
+    request.onsuccess = request.onerror = () => db.close();
+  } catch {
+    // IndexedDB can be unavailable in private/restricted contexts; memory draft still works.
+  }
+};
+
+const deleteBuyerApprovalDraft = async (id: string) => {
+  buyerApprovalDrafts.delete(id);
+  try {
+    const db = await openBuyerDraftDb();
+    const request = db.transaction(BUYER_APPROVAL_DRAFT_STORE, 'readwrite')
+      .objectStore(BUYER_APPROVAL_DRAFT_STORE)
+      .delete(id);
+    request.onsuccess = request.onerror = () => db.close();
+  } catch {
+    // Best-effort cleanup only.
+  }
+};
 
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
@@ -177,9 +263,14 @@ export function ClientOnboardingApprovals() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
 
+  const closeApprovalDialog = () => {
+    setDialogOpen(false);
+    writeActiveApprovalDraftId(null);
+  };
+
   useEffect(() => {
     if (!selectedApproval || !dialogOpen) return;
-    buyerApprovalDrafts.set(selectedApproval.id, {
+    const draft = {
       formData,
       bankEntries,
       approvalMode,
@@ -193,7 +284,9 @@ export function ClientOnboardingApprovals() {
       usdtProofFile,
       tradeHistoryFile,
       vkycVideoFile,
-    });
+    };
+    void saveBuyerApprovalDraft(selectedApproval.id, draft);
+    writeActiveApprovalDraftId(selectedApproval.id);
   }, [
     selectedApproval,
     dialogOpen,
@@ -258,6 +351,26 @@ export function ClientOnboardingApprovals() {
   const pendingSalesOrderIds = pendingApprovalsRaw
     .filter(a => a.sales_order_id)
     .map(a => a.sales_order_id);
+
+  useEffect(() => {
+    if (dialogOpen || selectedApproval || !approvals?.length) return;
+    const activeDraftId = readActiveApprovalDraftId();
+    if (!activeDraftId) return;
+    let cancelled = false;
+    void loadBuyerApprovalDraft(activeDraftId).then((draft) => {
+      if (cancelled || !draft) return;
+    const approval = approvals.find(a => a.id === activeDraftId && a.approval_status === 'PENDING');
+    if (approval) {
+      handleApprovalClick(approval);
+    } else {
+      void deleteBuyerApprovalDraft(activeDraftId);
+      writeActiveApprovalDraftId(null);
+    }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [approvals, dialogOpen, selectedApproval]);
 
   const { data: identityMap } = useQuery({
     queryKey: ['buyer-approval-identity', pendingApprovalsRaw.map(a => a.id).sort().join(',')],
@@ -945,11 +1058,11 @@ export function ClientOnboardingApprovals() {
           ? "Client has been linked to existing record and approved"
           : "Client has been successfully onboarded and added to the directory"
       });
-      buyerApprovalDrafts.delete(variables.id);
+      void deleteBuyerApprovalDraft(variables.id);
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
-      setDialogOpen(false);
+      closeApprovalDialog();
       resetForm();
     },
     onError: (error: any) => {
@@ -992,7 +1105,7 @@ export function ClientOnboardingApprovals() {
         title: "Client Rejected",
         description: "Client application has been rejected"
       });
-      buyerApprovalDrafts.delete(variables.id);
+      void deleteBuyerApprovalDraft(variables.id);
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
     },
     onError: (error: any) => {
@@ -1048,7 +1161,7 @@ export function ClientOnboardingApprovals() {
     setSelectedApproval(approval);
     const phone = approval.client_phone || '';
     const state = approval.client_state || '';
-    const draft = buyerApprovalDrafts.get(approval.id);
+    const draft = await loadBuyerApprovalDraft(approval.id);
     if (draft) {
       setFormData(draft.formData);
       setBankEntries(draft.bankEntries);
@@ -1651,7 +1764,7 @@ export function ClientOnboardingApprovals() {
       </Card>
 
       {/* Approval Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : closeApprovalDialog()}>
         <DialogContent className="md:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
@@ -2321,7 +2434,7 @@ export function ClientOnboardingApprovals() {
 
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button variant="outline" onClick={closeApprovalDialog}>
                   Cancel
                 </Button>
                 <Button

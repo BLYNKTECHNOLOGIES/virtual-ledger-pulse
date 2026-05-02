@@ -989,7 +989,7 @@ export function ClientOnboardingApprovals() {
       queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['buyer-approval-identity'] });
-      setDialogOpen(false);
+      closeApprovalDialog();
       resetForm();
     },
     onError: (error: any) => {
@@ -1691,7 +1691,7 @@ export function ClientOnboardingApprovals() {
       </Card>
 
       {/* Approval Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : closeApprovalDialog()}>
         <DialogContent className="md:max-w-[95vw] lg:max-w-[1400px] max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>Client Onboarding Form</DialogTitle>
@@ -2361,7 +2361,7 @@ export function ClientOnboardingApprovals() {
 
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button variant="outline" onClick={closeApprovalDialog}>
                   Cancel
                 </Button>
                 <Button

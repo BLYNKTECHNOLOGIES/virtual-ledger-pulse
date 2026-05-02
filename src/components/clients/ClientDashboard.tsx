@@ -426,7 +426,7 @@ export function ClientDashboard() {
 
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="directory" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="directory">Client Directory</TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-2">
@@ -437,7 +437,7 @@ export function ClientDashboard() {
 
         <TabsContent value="directory" className="space-y-6">
           {/* Nested tabs for Buyers and Sellers */}
-          <Tabs defaultValue="buyers" className="w-full">
+          <Tabs value={activeDirectoryTab} onValueChange={setActiveDirectoryTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="buyers">Buyers</TabsTrigger>
               <TabsTrigger value="sellers">Sellers</TabsTrigger>
@@ -729,7 +729,7 @@ export function ClientDashboard() {
         </TabsContent>
 
         <TabsContent value="approvals">
-          <Tabs defaultValue="buyer-approvals" className="w-full">
+          <Tabs value={activeApprovalTab} onValueChange={setActiveApprovalTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="buyer-approvals" className="flex items-center gap-2">
                 <UserCheck className="h-4 w-4" />

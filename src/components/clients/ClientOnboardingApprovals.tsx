@@ -270,7 +270,7 @@ export function ClientOnboardingApprovals() {
 
   useEffect(() => {
     if (!selectedApproval || !dialogOpen) return;
-    buyerApprovalDrafts.set(selectedApproval.id, {
+    const draft = {
       formData,
       bankEntries,
       approvalMode,
@@ -284,7 +284,8 @@ export function ClientOnboardingApprovals() {
       usdtProofFile,
       tradeHistoryFile,
       vkycVideoFile,
-    });
+    };
+    void saveBuyerApprovalDraft(selectedApproval.id, draft);
     writeActiveApprovalDraftId(selectedApproval.id);
   }, [
     selectedApproval,

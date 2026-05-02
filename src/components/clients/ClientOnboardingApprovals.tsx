@@ -286,6 +286,19 @@ export function ClientOnboardingApprovals() {
     .filter(a => a.sales_order_id)
     .map(a => a.sales_order_id);
 
+  useEffect(() => {
+    if (dialogOpen || selectedApproval || !approvals?.length) return;
+    const activeDraftId = readActiveApprovalDraftId();
+    if (!activeDraftId || !buyerApprovalDrafts.has(activeDraftId)) return;
+    const approval = approvals.find(a => a.id === activeDraftId && a.approval_status === 'PENDING');
+    if (approval) {
+      handleApprovalClick(approval);
+    } else {
+      buyerApprovalDrafts.delete(activeDraftId);
+      writeActiveApprovalDraftId(null);
+    }
+  }, [approvals, dialogOpen, selectedApproval]);
+
   const { data: identityMap } = useQuery({
     queryKey: ['buyer-approval-identity', pendingApprovalsRaw.map(a => a.id).sort().join(',')],
     enabled: pendingApprovalsRaw.length > 0,

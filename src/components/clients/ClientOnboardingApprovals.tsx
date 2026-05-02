@@ -1046,19 +1046,45 @@ export function ClientOnboardingApprovals() {
     setSelectedApproval(approval);
     const phone = approval.client_phone || '';
     const state = approval.client_state || '';
-    setFormData({
-      aadhar_number: approval.aadhar_number || '',
-      address: approval.address || '',
-      purpose_of_buying: approval.purpose_of_buying || '',
-      proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
-      risk_assessment: approval.risk_assessment || 'HIGH_RISK',
-      compliance_notes: approval.compliance_notes || '',
-      client_state: state,
-      client_phone: phone
-    });
-    // Lock fields if already pre-populated
-    setPhoneEditEnabled(!phone);
-    setStateEditEnabled(!state);
+    const draft = buyerApprovalDrafts.get(approval.id);
+    if (draft) {
+      setFormData(draft.formData);
+      setBankEntries(draft.bankEntries);
+      setApprovalMode(draft.approvalMode);
+      setPhoneEditEnabled(draft.phoneEditEnabled);
+      setStateEditEnabled(draft.stateEditEnabled);
+      setPrimarySourceOfIncome(draft.primarySourceOfIncome);
+      setOccupationBusinessType(draft.occupationBusinessType);
+      setMonthlyIncomeRange(draft.monthlyIncomeRange);
+      setSourceOfFundFile(draft.sourceOfFundFile);
+      setAadhaarFiles(draft.aadhaarFiles);
+      setUsdtProofFile(draft.usdtProofFile);
+      setTradeHistoryFile(draft.tradeHistoryFile);
+      setVkycVideoFile(draft.vkycVideoFile);
+    } else {
+      setFormData({
+        aadhar_number: approval.aadhar_number || '',
+        address: approval.address || '',
+        purpose_of_buying: approval.purpose_of_buying || '',
+        proposed_monthly_limit: approval.proposed_monthly_limit?.toString() || '',
+        risk_assessment: approval.risk_assessment || 'HIGH_RISK',
+        compliance_notes: approval.compliance_notes || '',
+        client_state: state,
+        client_phone: phone
+      });
+      setBankEntries([createEmptyBankEntry()]);
+      setPrimarySourceOfIncome('');
+      setOccupationBusinessType('');
+      setMonthlyIncomeRange('');
+      setSourceOfFundFile(null);
+      setAadhaarFiles([]);
+      setUsdtProofFile(null);
+      setTradeHistoryFile(null);
+      setVkycVideoFile(null);
+      // Lock fields if already pre-populated
+      setPhoneEditEnabled(!phone);
+      setStateEditEnabled(!state);
+    }
     
     // Hard-lock to resolved_client_id when the DB trigger has already
     // identified the counterparty as an existing client (nickname / verified-
@@ -1088,13 +1114,13 @@ export function ClientOnboardingApprovals() {
     }
     setExistingClientMatch(existing);
     if (existing) {
-      setApprovalMode('merge');
+      if (!draft) setApprovalMode('merge');
       // Auto-fill monthly limit from existing client if not already provided in the approval
-      if (existing.monthly_limit && !approval.proposed_monthly_limit) {
+      if (!draft && existing.monthly_limit && !approval.proposed_monthly_limit) {
         setFormData(prev => ({ ...prev, proposed_monthly_limit: existing!.monthly_limit!.toString() }));
       }
     } else {
-      setApprovalMode('normal');
+      if (!draft) setApprovalMode('normal');
     }
     setDialogOpen(true);
   };

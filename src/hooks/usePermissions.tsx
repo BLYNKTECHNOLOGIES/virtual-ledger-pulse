@@ -35,7 +35,6 @@ const permissionCache = new Map<string, string[]>();
 export function usePermissions() {
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?.id || null;
-  const rolesKey = (user?.roles || []).slice().sort().join('|');
   const cachedPermissions = userId ? permissionCache.get(userId) : undefined;
   const [permissions, setPermissions] = useState<string[]>(cachedPermissions || []);
   const [isLoading, setIsLoading] = useState(!cachedPermissions);

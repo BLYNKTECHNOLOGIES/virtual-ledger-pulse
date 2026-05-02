@@ -141,6 +141,27 @@ interface BuyerApprovalDraft {
 }
 
 const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();
+const BUYER_APPROVAL_ACTIVE_DRAFT_KEY = 'clientOnboardingApprovals.activeDraftId';
+
+const readActiveApprovalDraftId = () => {
+  try {
+    return sessionStorage.getItem(BUYER_APPROVAL_ACTIVE_DRAFT_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeActiveApprovalDraftId = (id: string | null) => {
+  try {
+    if (id) {
+      sessionStorage.setItem(BUYER_APPROVAL_ACTIVE_DRAFT_KEY, id);
+    } else {
+      sessionStorage.removeItem(BUYER_APPROVAL_ACTIVE_DRAFT_KEY);
+    }
+  } catch {
+    // Session storage may be unavailable in restricted browser modes.
+  }
+};
 
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);

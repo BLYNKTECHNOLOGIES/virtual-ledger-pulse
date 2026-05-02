@@ -177,6 +177,41 @@ export function ClientOnboardingApprovals() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
 
+  useEffect(() => {
+    if (!selectedApproval || !dialogOpen) return;
+    buyerApprovalDrafts.set(selectedApproval.id, {
+      formData,
+      bankEntries,
+      approvalMode,
+      phoneEditEnabled,
+      stateEditEnabled,
+      primarySourceOfIncome,
+      occupationBusinessType,
+      monthlyIncomeRange,
+      sourceOfFundFile,
+      aadhaarFiles,
+      usdtProofFile,
+      tradeHistoryFile,
+      vkycVideoFile,
+    });
+  }, [
+    selectedApproval,
+    dialogOpen,
+    formData,
+    bankEntries,
+    approvalMode,
+    phoneEditEnabled,
+    stateEditEnabled,
+    primarySourceOfIncome,
+    occupationBusinessType,
+    monthlyIncomeRange,
+    sourceOfFundFile,
+    aadhaarFiles,
+    usdtProofFile,
+    tradeHistoryFile,
+    vkycVideoFile,
+  ]);
+
   // Fetch approvals - all pending, and all reviewed (history)
   const { data: approvals, isLoading } = useQuery({
     queryKey: ['client_onboarding_approvals'],

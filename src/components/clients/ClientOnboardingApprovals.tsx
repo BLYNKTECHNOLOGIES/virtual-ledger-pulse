@@ -198,6 +198,11 @@ export function ClientOnboardingApprovals() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
 
+  const closeApprovalDialog = () => {
+    setDialogOpen(false);
+    writeActiveApprovalDraftId(null);
+  };
+
   useEffect(() => {
     if (!selectedApproval || !dialogOpen) return;
     buyerApprovalDrafts.set(selectedApproval.id, {
@@ -215,6 +220,7 @@ export function ClientOnboardingApprovals() {
       tradeHistoryFile,
       vkycVideoFile,
     });
+    writeActiveApprovalDraftId(selectedApproval.id);
   }, [
     selectedApproval,
     dialogOpen,

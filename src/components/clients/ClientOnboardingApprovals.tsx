@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { compressVideo } from '@/utils/videoCompressor';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -105,6 +105,43 @@ interface ExistingClientMatch {
   assigned_operator: string | null;
 }
 
+const createEmptyApprovalFormData = () => ({
+  aadhar_number: '',
+  address: '',
+  purpose_of_buying: '',
+  proposed_monthly_limit: '',
+  risk_assessment: 'HIGH_RISK',
+  compliance_notes: '',
+  client_state: '',
+  client_phone: ''
+});
+
+const createEmptyBankEntry = (): BankEntry => ({
+  bankName: '',
+  lastFourDigits: '',
+  statementFile: null,
+  statementPeriodFrom: undefined,
+  statementPeriodTo: undefined
+});
+
+interface BuyerApprovalDraft {
+  formData: ReturnType<typeof createEmptyApprovalFormData>;
+  bankEntries: BankEntry[];
+  approvalMode: 'normal' | 'merge' | 'create_new';
+  phoneEditEnabled: boolean;
+  stateEditEnabled: boolean;
+  primarySourceOfIncome: string;
+  occupationBusinessType: string;
+  monthlyIncomeRange: string;
+  sourceOfFundFile: File | null;
+  aadhaarFiles: File[];
+  usdtProofFile: File | null;
+  tradeHistoryFile: File | null;
+  vkycVideoFile: File | null;
+}
+
+const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();
+
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -113,21 +150,10 @@ export function ClientOnboardingApprovals() {
   const [existingClientMatch, setExistingClientMatch] = useState<ExistingClientMatch | null>(null);
   const [existingClientTransactions, setExistingClientTransactions] = useState<any[]>([]);
   const [approvalMode, setApprovalMode] = useState<'normal' | 'merge' | 'create_new'>('normal');
-  const [formData, setFormData] = useState({
-    aadhar_number: '',
-    address: '',
-    purpose_of_buying: '',
-    proposed_monthly_limit: '',
-    risk_assessment: 'HIGH_RISK',
-    compliance_notes: '',
-    client_state: '',
-    client_phone: ''
-  });
+  const [formData, setFormData] = useState(createEmptyApprovalFormData);
   const [phoneEditEnabled, setPhoneEditEnabled] = useState(false);
   const [stateEditEnabled, setStateEditEnabled] = useState(false);
-  const [bankEntries, setBankEntries] = useState<BankEntry[]>([
-    { bankName: '', lastFourDigits: '', statementFile: null, statementPeriodFrom: undefined, statementPeriodTo: undefined }
-  ]);
+  const [bankEntries, setBankEntries] = useState<BankEntry[]>([createEmptyBankEntry()]);
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
   // Source of Income state (all optional)

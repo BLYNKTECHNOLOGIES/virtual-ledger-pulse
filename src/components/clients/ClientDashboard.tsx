@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,31 @@ import { ClientDirectoryFilterButton, ClientDirectoryFilterPanel, ClientFilters,
 import { VolumeTrendBadge } from "./VolumeTrendBadge";
 import { format, differenceInDays } from "date-fns";
 
+const CLIENT_DASHBOARD_TAB_KEY = 'clientDashboard.activeTab';
+const CLIENT_DIRECTORY_TAB_KEY = 'clientDashboard.directoryTab';
+const CLIENT_APPROVAL_TAB_KEY = 'clientDashboard.approvalTab';
+
+const readStoredTab = (key: string, fallback: string) => {
+  try {
+    return sessionStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeStoredTab = (key: string, value: string) => {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Session storage may be unavailable in restricted browser modes.
+  }
+};
+
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState(() => readStoredTab(CLIENT_DASHBOARD_TAB_KEY, 'directory'));
+  const [activeDirectoryTab, setActiveDirectoryTab] = useState(() => readStoredTab(CLIENT_DIRECTORY_TAB_KEY, 'buyers'));
+  const [activeApprovalTab, setActiveApprovalTab] = useState(() => readStoredTab(CLIENT_APPROVAL_TAB_KEY, 'buyer-approvals'));
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
   const [showAddBuyerDialog, setShowAddBuyerDialog] = useState(false);
   const [buyerFilters, setBuyerFilters] = useState<ClientFilters>(defaultFilters);
@@ -30,6 +53,18 @@ export function ClientDashboard() {
   const [buyerSort, setBuyerSort] = useState("onboarding-desc");
   const [sellerSort, setSellerSort] = useState("onboarding-desc");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    writeStoredTab(CLIENT_DASHBOARD_TAB_KEY, activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    writeStoredTab(CLIENT_DIRECTORY_TAB_KEY, activeDirectoryTab);
+  }, [activeDirectoryTab]);
+
+  useEffect(() => {
+    writeStoredTab(CLIENT_APPROVAL_TAB_KEY, activeApprovalTab);
+  }, [activeApprovalTab]);
 
   // Fetch clients (paginated past Supabase's 1000-row default cap)
   const { data: clients, isLoading } = useQuery({

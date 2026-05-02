@@ -142,6 +142,8 @@ interface BuyerApprovalDraft {
 
 const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();
 const BUYER_APPROVAL_ACTIVE_DRAFT_KEY = 'clientOnboardingApprovals.activeDraftId';
+const BUYER_APPROVAL_DRAFT_DB = 'blynkex-client-approval-drafts';
+const BUYER_APPROVAL_DRAFT_STORE = 'buyerApprovals';
 
 const readActiveApprovalDraftId = () => {
   try {
@@ -160,6 +162,69 @@ const writeActiveApprovalDraftId = (id: string | null) => {
     }
   } catch {
     // Session storage may be unavailable in restricted browser modes.
+  }
+};
+
+const openBuyerDraftDb = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const request = indexedDB.open(BUYER_APPROVAL_DRAFT_DB, 1);
+  request.onupgradeneeded = () => {
+    const db = request.result;
+    if (!db.objectStoreNames.contains(BUYER_APPROVAL_DRAFT_STORE)) {
+      db.createObjectStore(BUYER_APPROVAL_DRAFT_STORE, { keyPath: 'id' });
+    }
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const loadBuyerApprovalDraft = async (id: string): Promise<BuyerApprovalDraft | null> => {
+  const memoryDraft = buyerApprovalDrafts.get(id);
+  if (memoryDraft) return memoryDraft;
+  try {
+    const db = await openBuyerDraftDb();
+    return await new Promise<BuyerApprovalDraft | null>((resolve) => {
+      const request = db.transaction(BUYER_APPROVAL_DRAFT_STORE, 'readonly')
+        .objectStore(BUYER_APPROVAL_DRAFT_STORE)
+        .get(id);
+      request.onsuccess = () => {
+        const draft = request.result?.draft as BuyerApprovalDraft | undefined;
+        if (draft) buyerApprovalDrafts.set(id, draft);
+        resolve(draft || null);
+        db.close();
+      };
+      request.onerror = () => {
+        resolve(null);
+        db.close();
+      };
+    });
+  } catch {
+    return null;
+  }
+};
+
+const saveBuyerApprovalDraft = async (id: string, draft: BuyerApprovalDraft) => {
+  buyerApprovalDrafts.set(id, draft);
+  try {
+    const db = await openBuyerDraftDb();
+    const request = db.transaction(BUYER_APPROVAL_DRAFT_STORE, 'readwrite')
+      .objectStore(BUYER_APPROVAL_DRAFT_STORE)
+      .put({ id, draft, updatedAt: Date.now() });
+    request.onsuccess = request.onerror = () => db.close();
+  } catch {
+    // IndexedDB can be unavailable in private/restricted contexts; memory draft still works.
+  }
+};
+
+const deleteBuyerApprovalDraft = async (id: string) => {
+  buyerApprovalDrafts.delete(id);
+  try {
+    const db = await openBuyerDraftDb();
+    const request = db.transaction(BUYER_APPROVAL_DRAFT_STORE, 'readwrite')
+      .objectStore(BUYER_APPROVAL_DRAFT_STORE)
+      .delete(id);
+    request.onsuccess = request.onerror = () => db.close();
+  } catch {
+    // Best-effort cleanup only.
   }
 };
 

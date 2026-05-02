@@ -102,7 +102,7 @@ export function usePermissions() {
     } finally {
       setIsLoading(false);
     }
-  }, [authLoading, userId, rolesKey]);
+  }, [authLoading, user]);
 
   const hasPermission = useCallback((permission: string): boolean => {
     return permissions.includes(permission);

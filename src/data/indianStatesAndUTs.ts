@@ -37,5 +37,7 @@ export const INDIAN_STATES_AND_UTS = [
   "Delhi",
   "Puducherry",
   "Ladakh",
-  "Jammu and Kashmir"
+  "Jammu and Kashmir",
+  // For International / Non-resident clients (GST State Code 97)
+  "Other Territory (97)"
 ];

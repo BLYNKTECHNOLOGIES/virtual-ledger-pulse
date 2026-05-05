@@ -156,6 +156,7 @@ Deno.serve(async (req) => {
     const messages: any[] = [{ role: "system", content: systemPrompt }];
     for (const h of history ?? []) {
       if (h.role === "system") continue;
+      if (h.role === "user" && h.content === (message ?? "")) continue;
       messages.push({ role: h.role, content: h.content });
     }
     // current user turn — always include it; multimodal if images

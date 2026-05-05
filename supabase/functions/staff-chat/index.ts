@@ -178,12 +178,13 @@ Deno.serve(async (req) => {
       return json({ error: "AI gateway error" }, 500);
     }
 
-    // Bump rate limit
-    await admin.from("staff_chat_rate_limit").upsert({
+    // Bump rate limit (don't block stream start)
+    admin.from("staff_chat_rate_limit").upsert({
       user_id: user.id,
       window_start: windowStart.toISOString(),
       message_count: (rl?.message_count ?? 0) + 1,
-    }, { onConflict: "user_id,window_start" });
+    }, { onConflict: "user_id,window_start" }).then(() => {});
+    void userInsertPromise;
 
     // Stream + capture
     const encoder = new TextEncoder();

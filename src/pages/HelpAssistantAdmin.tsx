@@ -255,3 +255,61 @@ function DocsTab() {
     </div>
   );
 }
+
+const STAGES: { key: string; label: string; icon: any }[] = [
+  { key: "downloading", label: "Download", icon: Download },
+  { key: "extracting", label: "Extract", icon: FileSearch },
+  { key: "chunking", label: "Chunk", icon: Scissors },
+  { key: "embedding", label: "Embed", icon: Sparkles },
+  { key: "saving", label: "Save", icon: Database },
+];
+
+function IngestProgress({ doc }: { doc: any }) {
+  const stage: string = doc.ingest_stage ?? "queued";
+  const progress: number = doc.ingest_progress ?? 0;
+  const detail: string = doc.ingest_stage_detail ?? "Preparing…";
+  const done: number = doc.ingest_done_chunks ?? 0;
+  const total: number = doc.ingest_total_chunks ?? 0;
+
+  const currentIdx = STAGES.findIndex((s) => s.key === stage);
+  const activeIdx = currentIdx === -1 ? 0 : currentIdx;
+  const failed = stage === "failed";
+
+  return (
+    <div className="border-t border-border pt-3 space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          {failed ? <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" /> :
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />}
+          <span className="text-xs text-foreground font-medium truncate">{detail}</span>
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums shrink-0">{progress}%</span>
+      </div>
+      <Progress value={progress} className="h-1.5" />
+      <div className="grid grid-cols-5 gap-1">
+        {STAGES.map((s, idx) => {
+          const Icon = s.icon;
+          const isDone = idx < activeIdx || progress >= 100;
+          const isActive = idx === activeIdx && progress < 100 && !failed;
+          return (
+            <div key={s.key} className="flex flex-col items-center gap-1 text-center">
+              <div className={`h-7 w-7 rounded-full flex items-center justify-center transition-colors ${
+                isDone ? "bg-primary text-primary-foreground" :
+                isActive ? "bg-primary/20 text-primary ring-2 ring-primary animate-pulse" :
+                "bg-muted text-muted-foreground"
+              }`}>
+                {isDone ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-3.5 w-3.5" />}
+              </div>
+              <span className={`text-[10px] ${isActive ? "text-foreground font-medium" : "text-muted-foreground"}`}>{s.label}</span>
+            </div>
+          );
+        })}
+      </div>
+      {total > 0 && (stage === "embedding" || stage === "saving") && (
+        <div className="text-[11px] text-muted-foreground text-center">
+          {done} / {total} chunks embedded
+        </div>
+      )}
+    </div>
+  );
+}

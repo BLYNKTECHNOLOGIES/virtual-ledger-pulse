@@ -1,6 +1,4 @@
-
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Scale, Receipt, Shield, Building } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";
@@ -14,94 +12,115 @@ import { useNavigate } from "react-router-dom";
 
 export default function Compliance() {
   const navigate = useNavigate();
-  
+
   return (
     <PermissionGate
       permissions={["compliance_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-background p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
                 <Shield className="h-12 w-12 text-muted-foreground" />
                 <div>
-                  <h2 className="text-xl font-semibold">Access Denied</h2>
+                  <h2 className="text-xl font-semibold text-foreground">Access Denied</h2>
                   <p className="text-muted-foreground mt-2">
                     You don't have permission to access Compliance Management.
                   </p>
                 </div>
-                <Button onClick={() => navigate("/dashboard")}>
-                  Return to Dashboard
-                </Button>
+                <Button onClick={() => navigate("/dashboard")}>Return to Dashboard</Button>
               </div>
             </CardContent>
           </Card>
         </div>
       }
     >
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-purple-50 rounded-xl shadow-sm">
-          <Shield className="h-8 w-8 text-purple-600" />
+      <div className="min-h-screen bg-background">
+        {/* Executive Header */}
+        <div className="border-b border-border bg-card">
+          <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
+            <div className="flex items-start justify-between gap-6 flex-wrap">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-md border border-border bg-muted/40 flex items-center justify-center">
+                  <Shield className="h-6 w-6 text-foreground" strokeWidth={1.5} />
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground font-medium">
+                    Governance · Risk · Compliance
+                  </p>
+                  <h1 className="text-2xl md:text-3xl font-semibold text-foreground tracking-tight mt-1">
+                    Compliance Management
+                  </h1>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Centralized oversight for legal, regulatory, and statutory obligations
+                  </p>
+                </div>
+              </div>
+              <div className="hidden md:flex items-center gap-6 text-right">
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Jurisdiction</p>
+                  <p className="text-sm font-medium text-foreground mt-0.5">India · RBI / FIU-IND</p>
+                </div>
+                <div className="h-10 w-px bg-border" />
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Reporting Cycle</p>
+                  <p className="text-sm font-medium text-foreground mt-0.5">FY 2025-26</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Compliance Management</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Legal, regulatory, and compliance monitoring</p>
+
+        <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
+          <ErrorBoundary>
+            <Tabs defaultValue="banking" className="space-y-6">
+              <TabsList className="h-auto w-full justify-start gap-1 bg-transparent border-b border-border rounded-none p-0">
+                <TabsTrigger
+                  value="banking"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Banking
+                </TabsTrigger>
+                <TabsTrigger
+                  value="legal"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
+                >
+                  <Scale className="h-4 w-4" />
+                  Legal
+                </TabsTrigger>
+                <TabsTrigger
+                  value="taxation"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
+                >
+                  <Receipt className="h-4 w-4" />
+                  Taxation
+                </TabsTrigger>
+                <TabsTrigger
+                  value="company"
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
+                >
+                  <Building className="h-4 w-4" />
+                  Company
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="banking" className="mt-6">
+                <ErrorBoundary><BankingComplianceTab /></ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="legal" className="mt-6">
+                <ErrorBoundary><LegalComplianceTab /></ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="taxation" className="mt-6">
+                <ErrorBoundary><TaxationComplianceTab /></ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="company" className="mt-6">
+                <ErrorBoundary><CompanyComplianceTab /></ErrorBoundary>
+              </TabsContent>
+            </Tabs>
+          </ErrorBoundary>
         </div>
       </div>
-
-      <ErrorBoundary>
-        <Tabs defaultValue="banking" className="space-y-6">
-          <TabsList className="flex w-full overflow-x-auto gap-1 md:grid md:grid-cols-4">
-            <TabsTrigger value="banking" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Banking Compliance</span>
-              <span className="sm:hidden">Banking</span>
-            </TabsTrigger>
-            <TabsTrigger value="legal" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-              <Scale className="h-4 w-4" />
-              <span className="hidden sm:inline">Legal Compliance</span>
-              <span className="sm:hidden">Legal</span>
-            </TabsTrigger>
-            <TabsTrigger value="taxation" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-              <Receipt className="h-4 w-4" />
-              <span className="hidden sm:inline">Taxation Compliance</span>
-              <span className="sm:hidden">Tax</span>
-            </TabsTrigger>
-            <TabsTrigger value="company" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-              <Building className="h-4 w-4" />
-              <span className="hidden sm:inline">Company Compliance</span>
-              <span className="sm:hidden">Company</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="banking">
-            <ErrorBoundary>
-              <BankingComplianceTab />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="legal">
-            <ErrorBoundary>
-              <LegalComplianceTab />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="taxation">
-            <ErrorBoundary>
-              <TaxationComplianceTab />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="company">
-            <ErrorBoundary>
-              <CompanyComplianceTab />
-            </ErrorBoundary>
-          </TabsContent>
-        </Tabs>
-      </ErrorBoundary>
-    </div>
     </PermissionGate>
   );
 }

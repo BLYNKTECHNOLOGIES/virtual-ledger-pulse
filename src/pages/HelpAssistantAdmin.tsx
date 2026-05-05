@@ -212,36 +212,42 @@ function DocsTab() {
       <div className="space-y-2">
         {docs.map((d: any) => (
           <Card key={d.id}>
-            <CardContent className="p-4 flex items-center justify-between gap-4">
-              <div className="flex items-start gap-3 min-w-0">
-                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-foreground truncate">{d.title}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant={d.status === "ready" ? "default" : d.status === "failed" ? "destructive" : "secondary"}>{d.status}</Badge>
-                    <span className="text-xs text-muted-foreground">{Math.round((d.file_size_bytes ?? 0) / 1024)} KB</span>
-                    {d.error_message && <span className="text-xs text-destructive truncate">{d.error_message}</span>}
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <FileText className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-foreground truncate">{d.title}</h3>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <Badge variant={d.status === "ready" ? "default" : d.status === "failed" ? "destructive" : "secondary"}>{d.status}</Badge>
+                      <span className="text-xs text-muted-foreground">{Math.round((d.file_size_bytes ?? 0) / 1024)} KB</span>
+                      {d.status === "ready" && d.ingest_total_chunks > 0 && (
+                        <span className="text-xs text-muted-foreground">{d.ingest_total_chunks} chunks</span>
+                      )}
+                      {d.error_message && <span className="text-xs text-destructive truncate">{d.error_message}</span>}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button variant="outline" size="icon" onClick={() => reindex(d.id)}><RefreshCw className="h-4 w-4" /></Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="icon"><Trash2 className="h-4 w-4" /></Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                        <AlertDialogDescription>This removes the file and all indexed chunks.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => del(d.id, d.file_path)}>Delete</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="icon" onClick={() => reindex(d.id)}><RefreshCw className="h-4 w-4" /></Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="icon"><Trash2 className="h-4 w-4" /></Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete document?</AlertDialogTitle>
-                      <AlertDialogDescription>This removes the file and all indexed chunks.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => del(d.id, d.file_path)}>Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+              {d.status === "processing" && <IngestProgress doc={d} />}
             </CardContent>
           </Card>
         ))}

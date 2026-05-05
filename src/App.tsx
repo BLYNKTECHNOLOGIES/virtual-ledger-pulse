@@ -29,6 +29,8 @@ import UserManagement from './pages/UserManagement';
 
 
 import Compliance from './pages/Compliance';
+import HelpAssistant from './pages/HelpAssistant';
+import HelpAssistantAdmin from './pages/HelpAssistantAdmin';
 import StockManagement from './pages/StockManagement';
 import Accounting from './pages/Accounting';
 import VideoKYC from './pages/VideoKYC';
@@ -253,6 +255,30 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Compliance />
+            </Layout>
+          </AuthCheck>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/help-assistant",
+    element: (
+      <QueryProvider>
+          <AuthCheck>
+            <Layout>
+              <HelpAssistant />
+            </Layout>
+          </AuthCheck>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/help-assistant/admin",
+    element: (
+      <QueryProvider>
+          <AuthCheck>
+            <Layout>
+              <HelpAssistantAdmin />
             </Layout>
           </AuthCheck>
       </QueryProvider>

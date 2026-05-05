@@ -61,15 +61,11 @@ function chunkText(text: string, chunkSize = 1500, overlap = 200): string[] {
   return chunks.filter((c) => c.length > 20);
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+async function runIngestion(documentId: string) {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-
-  let documentId: string | undefined;
 
   const updateProgress = async (
     stage: Stage,
@@ -77,7 +73,6 @@ Deno.serve(async (req) => {
     detail?: string,
     extra: Record<string, unknown> = {},
   ) => {
-    if (!documentId) return;
     await supabase.from("kb_documents").update({
       ingest_stage: stage,
       ingest_progress: Math.max(0, Math.min(100, Math.round(progress))),
@@ -88,13 +83,9 @@ Deno.serve(async (req) => {
   };
 
   try {
-    const body = await req.json();
-    documentId = body.documentId;
-    if (!documentId) return json({ error: "documentId required" }, 400);
-
     const { data: doc, error: docErr } = await supabase
       .from("kb_documents").select("*").eq("id", documentId).maybeSingle();
-    if (docErr || !doc) return json({ error: "Document not found" }, 404);
+    if (docErr || !doc) throw new Error("Document not found");
 
     await supabase.from("kb_documents").update({
       status: "processing",
@@ -108,7 +99,6 @@ Deno.serve(async (req) => {
       ingest_updated_at: new Date().toISOString(),
     }).eq("id", documentId);
 
-    // 1. Download (0 → 15%)
     await updateProgress("downloading", 5, "Fetching file from storage…");
     const { data: fileData, error: dlErr } = await supabase
       .storage.from("kb-documents").download(doc.file_path);
@@ -117,12 +107,11 @@ Deno.serve(async (req) => {
         status: "failed", ingest_stage: "failed",
         error_message: dlErr?.message ?? "Download failed",
       }).eq("id", documentId);
-      return json({ error: "Failed to download file" }, 500);
+      return;
     }
     const bytes = new Uint8Array(await fileData.arrayBuffer());
     await updateProgress("downloading", 15, `Downloaded ${Math.round(bytes.length / 1024)} KB`);
 
-    // 2. Extract (15 → 50%)
     await updateProgress("extracting", 20, "Extracting text from document…");
     const text = await extractTextFromFile(bytes, doc.title, doc.file_type);
     if (!text || text.trim().length < 20) {
@@ -130,11 +119,10 @@ Deno.serve(async (req) => {
         status: "failed", ingest_stage: "failed",
         error_message: "No extractable text",
       }).eq("id", documentId);
-      return json({ error: "No text extracted" }, 422);
+      return;
     }
     await updateProgress("extracting", 50, `Extracted ${text.length.toLocaleString()} characters`);
 
-    // 3. Chunk (50 → 55%)
     await updateProgress("chunking", 52, "Splitting into chunks…");
     await supabase.from("kb_document_chunks").delete().eq("document_id", documentId);
     const chunks = chunkText(text);
@@ -143,7 +131,6 @@ Deno.serve(async (req) => {
       ingest_done_chunks: 0,
     });
 
-    // 4. Embed + 5. Save (55 → 99%)
     let saved = 0;
     for (let i = 0; i < chunks.length; i++) {
       const c = chunks[i];
@@ -160,7 +147,6 @@ Deno.serve(async (req) => {
         console.error("chunk failed", i, e);
       }
       const pct = 55 + Math.round(((i + 1) / chunks.length) * 44);
-      // Throttle: update every chunk for small docs, every 2nd for big ones
       if (chunks.length <= 20 || i % 2 === 0 || i === chunks.length - 1) {
         await updateProgress(
           i === chunks.length - 1 ? "saving" : "embedding",
@@ -180,16 +166,45 @@ Deno.serve(async (req) => {
       ingest_updated_at: new Date().toISOString(),
       error_message: saved > 0 ? null : "Embedding failed for all chunks",
     }).eq("id", documentId);
-
-    return json({ ok: true, chunks: saved });
   } catch (e) {
     console.error("kb-ingest-document error", e);
-    if (documentId) {
-      await supabase.from("kb_documents").update({
-        status: "failed", ingest_stage: "failed",
-        error_message: e instanceof Error ? e.message : "Unknown",
-      }).eq("id", documentId);
-    }
+    await supabase.from("kb_documents").update({
+      status: "failed", ingest_stage: "failed",
+      ingest_stage_detail: "Failed",
+      ingest_updated_at: new Date().toISOString(),
+      error_message: e instanceof Error ? e.message : "Unknown",
+    }).eq("id", documentId);
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const { documentId } = await req.json();
+    if (!documentId) return json({ error: "documentId required" }, 400);
+
+    // Mark as queued immediately so UI shows progress instantly
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    await supabase.from("kb_documents").update({
+      status: "processing",
+      ingest_stage: "queued",
+      ingest_progress: 1,
+      ingest_stage_detail: "Queued…",
+      ingest_started_at: new Date().toISOString(),
+      ingest_updated_at: new Date().toISOString(),
+      error_message: null,
+    }).eq("id", documentId);
+
+    // Run ingestion in background — survives past the response
+    // @ts-ignore EdgeRuntime is provided by Supabase
+    EdgeRuntime.waitUntil(runIngestion(documentId));
+
+    return json({ ok: true, queued: true, documentId }, 202);
+  } catch (e) {
     return json({ error: e instanceof Error ? e.message : "Unknown" }, 500);
   }
 });

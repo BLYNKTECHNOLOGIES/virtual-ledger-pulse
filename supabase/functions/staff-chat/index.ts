@@ -98,26 +98,38 @@ Deno.serve(async (req) => {
     });
 
     // ----- Retrieve KB context + history IN PARALLEL -----
-    let contextItems: Array<{ n: number; title: string; content: string; sourceType: string; parentId: string }> = [];
+    let contextItems: Array<{ n: number; title: string; content: string; sourceType: string; parentId: string; similarity?: number }> = [];
     let contextBlock = "(No knowledge base entries matched this question.)";
 
     const kbPromise = (async () => {
       if (!message || message.trim().length < 3) return;
       try {
-        const qVec = await embedText(message);
-        const { data: matches } = await admin.rpc("match_kb", {
-          query_embedding: toPgVector(qVec) as any,
-          match_count: 5,
-          similarity_threshold: 0.45,
-        });
-        if (Array.isArray(matches) && matches.length > 0) {
-          contextItems = matches.map((m: any, i: number) => ({
-            n: i + 1,
-            title: m.title,
-            content: (m.content ?? "").slice(0, 1200),
-            sourceType: m.source_type,
-            parentId: m.parent_id,
-          }));
+        try {
+          const qVec = await embedText(message);
+          const { data: matches } = await admin.rpc("match_kb", {
+            query_embedding: toPgVector(qVec) as any,
+            match_count: 5,
+            similarity_threshold: 0.45,
+          });
+          if (Array.isArray(matches) && matches.length > 0) {
+            contextItems = matches.map((m: any, i: number) => ({
+              n: i + 1,
+              title: m.title,
+              content: (m.content ?? "").slice(0, 1200),
+              sourceType: m.source_type,
+              parentId: m.parent_id,
+              similarity: m.similarity,
+            }));
+          }
+        } catch (e) {
+          console.warn("Vector KB retrieval unavailable, using text fallback", e);
+        }
+
+        if (contextItems.length === 0) {
+          contextItems = await findTextKbMatches(admin, message);
+        }
+
+        if (contextItems.length > 0) {
           contextBlock = contextItems
             .map((c) => `[${c.n}] (${c.sourceType}) ${c.title}\n${c.content}`)
             .join("\n\n---\n\n");
@@ -146,14 +158,15 @@ Deno.serve(async (req) => {
       if (h.role === "system") continue;
       messages.push({ role: h.role, content: h.content });
     }
-    // current user turn — multimodal if images
+    // current user turn — always include it; multimodal if images
     if (Array.isArray(imageUrls) && imageUrls.length > 0) {
       const parts: any[] = [{ type: "text", text: message || "Please analyse the attached image(s)." }];
       for (const url of imageUrls.slice(0, 3)) {
         parts.push({ type: "image_url", image_url: { url } });
       }
-      // replace last user message (already added) with multimodal version
       messages.push({ role: "user", content: parts });
+    } else if (message) {
+      messages.push({ role: "user", content: message });
     }
 
     // ----- Call Lovable AI (streaming) -----

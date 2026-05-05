@@ -17402,6 +17402,8 @@ export type Database = {
         | "terminal_manage"
         | "erp_entry_view"
         | "erp_entry_manage"
+        | "help_assistant_view"
+        | "help_assistant_manage"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -17696,6 +17698,8 @@ export const Constants = {
         "terminal_manage",
         "erp_entry_view",
         "erp_entry_manage",
+        "help_assistant_view",
+        "help_assistant_manage",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

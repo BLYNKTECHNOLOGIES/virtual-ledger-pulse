@@ -73,6 +73,12 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.auto-absent-marking]
     verify_jwt = false
+  [functions.staff-chat]
+    verify_jwt = true
+  [functions.kb-embed]
+    verify_jwt = true
+  [functions.kb-ingest-document]
+    verify_jwt = true
 
 [inbucket]
   enabled = true

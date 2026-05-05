@@ -97,22 +97,24 @@ Deno.serve(async (req) => {
       image_urls: imageUrls,
     });
 
-    // ----- Retrieve KB context -----
+    // ----- Retrieve KB context + history IN PARALLEL -----
     let contextItems: Array<{ n: number; title: string; content: string; sourceType: string; parentId: string }> = [];
     let contextBlock = "(No knowledge base entries matched this question.)";
-    try {
-      if (message && message.trim().length > 0) {
+
+    const kbPromise = (async () => {
+      if (!message || message.trim().length < 3) return;
+      try {
         const qVec = await embedText(message);
         const { data: matches } = await admin.rpc("match_kb", {
           query_embedding: toPgVector(qVec) as any,
-          match_count: 6,
+          match_count: 5,
           similarity_threshold: 0.45,
         });
         if (Array.isArray(matches) && matches.length > 0) {
           contextItems = matches.map((m: any, i: number) => ({
             n: i + 1,
             title: m.title,
-            content: m.content,
+            content: (m.content ?? "").slice(0, 1200),
             sourceType: m.source_type,
             parentId: m.parent_id,
           }));
@@ -120,18 +122,21 @@ Deno.serve(async (req) => {
             .map((c) => `[${c.n}] (${c.sourceType}) ${c.title}\n${c.content}`)
             .join("\n\n---\n\n");
         }
+      } catch (e) {
+        console.error("KB retrieval failed", e);
       }
-    } catch (e) {
-      console.error("KB retrieval failed", e);
-    }
+    })();
 
-    // ----- Recent history -----
-    const { data: history } = await admin
+    const historyPromise = admin
       .from("staff_chat_messages")
       .select("role, content")
       .eq("conversation_id", convId)
-      .order("created_at", { ascending: true })
-      .limit(20);
+      .order("created_at", { ascending: false })
+      .limit(8)
+      .then((r) => ({ data: (r.data ?? []).reverse() }));
+
+    const [, historyRes] = await Promise.all([kbPromise, historyPromise]);
+    const history = historyRes.data;
 
     const systemPrompt =
       `${SYSTEM_PROMPT_BASE}\n\n${LANG_DIRECTIVE[lang]}\n\nKNOWLEDGE BASE CONTEXT:\n${contextBlock}`;

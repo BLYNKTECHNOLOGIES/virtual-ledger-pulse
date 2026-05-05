@@ -6,6 +6,7 @@ import { PinUnlockProvider } from "@/contexts/PinUnlockContext";
 
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { HelpAssistantFab } from "./HelpAssistantFab";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,6 +30,8 @@ export function Layout({ children }: LayoutProps) {
                   </main>
                   {/* Mobile bottom navigation */}
                   <MobileBottomNav />
+                  {/* Floating AI Help Assistant */}
+                  <HelpAssistantFab />
                 </SidebarInset>
               </div>
             </SidebarProvider>

@@ -88,8 +88,8 @@ Deno.serve(async (req) => {
         .eq("id", convId).eq("user_id", user.id);
     }
 
-    // Persist user message
-    await admin.from("staff_chat_messages").insert({
+    // Persist user message (don't await — runs in parallel with KB+history)
+    const userInsertPromise = admin.from("staff_chat_messages").insert({
       conversation_id: convId,
       user_id: user.id,
       role: "user",

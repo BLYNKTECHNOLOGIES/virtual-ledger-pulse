@@ -157,7 +157,10 @@ function DocsTab() {
       const { data } = await supabase.from("kb_documents").select("*").order("created_at", { ascending: false });
       return data ?? [];
     },
-    refetchInterval: 8000,
+    refetchInterval: (q) => {
+      const list = (q.state.data as any[]) ?? [];
+      return list.some((d) => d?.status === "processing") ? 1500 : 10000;
+    },
   });
 
   const handleUpload = async (file: File) => {

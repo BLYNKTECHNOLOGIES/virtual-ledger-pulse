@@ -98,26 +98,38 @@ Deno.serve(async (req) => {
     });
 
     // ----- Retrieve KB context + history IN PARALLEL -----
-    let contextItems: Array<{ n: number; title: string; content: string; sourceType: string; parentId: string }> = [];
+    let contextItems: Array<{ n: number; title: string; content: string; sourceType: string; parentId: string; similarity?: number }> = [];
     let contextBlock = "(No knowledge base entries matched this question.)";
 
     const kbPromise = (async () => {
       if (!message || message.trim().length < 3) return;
       try {
-        const qVec = await embedText(message);
-        const { data: matches } = await admin.rpc("match_kb", {
-          query_embedding: toPgVector(qVec) as any,
-          match_count: 5,
-          similarity_threshold: 0.45,
-        });
-        if (Array.isArray(matches) && matches.length > 0) {
-          contextItems = matches.map((m: any, i: number) => ({
-            n: i + 1,
-            title: m.title,
-            content: (m.content ?? "").slice(0, 1200),
-            sourceType: m.source_type,
-            parentId: m.parent_id,
-          }));
+        try {
+          const qVec = await embedText(message);
+          const { data: matches } = await admin.rpc("match_kb", {
+            query_embedding: toPgVector(qVec) as any,
+            match_count: 5,
+            similarity_threshold: 0.45,
+          });
+          if (Array.isArray(matches) && matches.length > 0) {
+            contextItems = matches.map((m: any, i: number) => ({
+              n: i + 1,
+              title: m.title,
+              content: (m.content ?? "").slice(0, 1200),
+              sourceType: m.source_type,
+              parentId: m.parent_id,
+              similarity: m.similarity,
+            }));
+          }
+        } catch (e) {
+          console.warn("Vector KB retrieval unavailable, using text fallback", e);
+        }
+
+        if (contextItems.length === 0) {
+          contextItems = await findTextKbMatches(admin, message);
+        }
+
+        if (contextItems.length > 0) {
           contextBlock = contextItems
             .map((c) => `[${c.n}] (${c.sourceType}) ${c.title}\n${c.content}`)
             .join("\n\n---\n\n");
@@ -144,16 +156,18 @@ Deno.serve(async (req) => {
     const messages: any[] = [{ role: "system", content: systemPrompt }];
     for (const h of history ?? []) {
       if (h.role === "system") continue;
+      if (h.role === "user" && h.content === (message ?? "")) continue;
       messages.push({ role: h.role, content: h.content });
     }
-    // current user turn — multimodal if images
+    // current user turn — always include it; multimodal if images
     if (Array.isArray(imageUrls) && imageUrls.length > 0) {
       const parts: any[] = [{ type: "text", text: message || "Please analyse the attached image(s)." }];
       for (const url of imageUrls.slice(0, 3)) {
         parts.push({ type: "image_url", image_url: { url } });
       }
-      // replace last user message (already added) with multimodal version
       messages.push({ role: "user", content: parts });
+    } else if (message) {
+      messages.push({ role: "user", content: message });
     }
 
     // ----- Call Lovable AI (streaming) -----
@@ -262,4 +276,61 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+async function findTextKbMatches(admin: any, query: string) {
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return [];
+
+  const [{ data: faqs }, { data: chunks }] = await Promise.all([
+    admin.from("kb_faqs")
+      .select("id, question, answer, category")
+      .eq("status", "published")
+      .limit(500),
+    admin.from("kb_document_chunks")
+      .select("id, chunk_text, document_id, kb_documents!inner(id, title, status)")
+      .eq("kb_documents.status", "ready")
+      .limit(500),
+  ]);
+
+  const scored = [
+    ...((faqs ?? []).map((f: any) => ({
+      sourceType: "faq",
+      parentId: f.id,
+      title: f.question,
+      content: f.answer,
+      score: textScore(queryTokens, `${f.question} ${f.category ?? ""} ${f.answer}`),
+    }))),
+    ...((chunks ?? []).map((c: any) => ({
+      sourceType: "doc",
+      parentId: c.document_id,
+      title: c.kb_documents?.title ?? "Document",
+      content: c.chunk_text,
+      score: textScore(queryTokens, `${c.kb_documents?.title ?? ""} ${c.chunk_text}`),
+    }))),
+  ].filter((x) => x.score >= 2)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  return scored.map((m, i) => ({
+    n: i + 1,
+    title: m.title,
+    content: (m.content ?? "").slice(0, 1200),
+    sourceType: m.sourceType,
+    parentId: m.parentId,
+    similarity: m.score,
+  }));
+}
+
+function tokenize(text: string): string[] {
+  const stop = new Set(["the", "and", "for", "you", "your", "what", "should", "during", "have", "received", "with", "that", "this", "from", "about", "please", "kya", "hai", "hain", "karna", "do"]);
+  return Array.from(new Set(text.toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length > 2 && !stop.has(t))));
+}
+
+function textScore(queryTokens: string[], haystack: string): number {
+  const text = haystack.toLowerCase();
+  return queryTokens.reduce((sum, token) => sum + (text.includes(token) ? 1 : 0), 0);
 }

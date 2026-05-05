@@ -8749,6 +8749,13 @@ export type Database = {
           file_size_bytes: number | null
           file_type: string
           id: string
+          ingest_done_chunks: number
+          ingest_progress: number
+          ingest_stage: string | null
+          ingest_stage_detail: string | null
+          ingest_started_at: string | null
+          ingest_total_chunks: number
+          ingest_updated_at: string | null
           status: string
           title: string
           updated_at: string
@@ -8762,6 +8769,13 @@ export type Database = {
           file_size_bytes?: number | null
           file_type: string
           id?: string
+          ingest_done_chunks?: number
+          ingest_progress?: number
+          ingest_stage?: string | null
+          ingest_stage_detail?: string | null
+          ingest_started_at?: string | null
+          ingest_total_chunks?: number
+          ingest_updated_at?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -8775,6 +8789,13 @@ export type Database = {
           file_size_bytes?: number | null
           file_type?: string
           id?: string
+          ingest_done_chunks?: number
+          ingest_progress?: number
+          ingest_stage?: string | null
+          ingest_stage_detail?: string | null
+          ingest_started_at?: string | null
+          ingest_total_chunks?: number
+          ingest_updated_at?: string | null
           status?: string
           title?: string
           updated_at?: string

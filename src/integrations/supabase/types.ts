@@ -8705,6 +8705,122 @@ export type Database = {
           },
         ]
       }
+      kb_document_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_text: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_text: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_text?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kb_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_documents: {
+        Row: {
+          created_at: string
+          description: string | null
+          error_message: string | null
+          file_path: string
+          file_size_bytes: number | null
+          file_type: string
+          id: string
+          status: string
+          title: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          file_path: string
+          file_size_bytes?: number | null
+          file_type: string
+          id?: string
+          status?: string
+          title: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          file_path?: string
+          file_size_bytes?: number | null
+          file_type?: string
+          id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      kb_faqs: {
+        Row: {
+          answer: string
+          category: string | null
+          created_at: string
+          created_by: string
+          embedding: string | null
+          id: string
+          question: string
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          category?: string | null
+          created_at?: string
+          created_by: string
+          embedding?: string | null
+          id?: string
+          question: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          embedding?: string | null
+          id?: string
+          question?: string
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kyc_approval_requests: {
         Row: {
           aadhar_back_url: string | null
@@ -12698,6 +12814,116 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_chat_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      staff_chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          feedback: number | null
+          id: string
+          image_urls: string[] | null
+          role: string
+          sources: Json | null
+          token_usage: Json | null
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          conversation_id: string
+          created_at?: string
+          feedback?: number | null
+          id?: string
+          image_urls?: string[] | null
+          role: string
+          sources?: Json | null
+          token_usage?: Json | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          feedback?: number | null
+          id?: string
+          image_urls?: string[] | null
+          role?: string
+          sources?: Json | null
+          token_usage?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "staff_chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_chat_rate_limit: {
+        Row: {
+          message_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          message_count?: number
+          user_id: string
+          window_start: string
+        }
+        Update: {
+          message_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      staff_chat_user_prefs: {
+        Row: {
+          language: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          language?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          language?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stock_adjustments: {
         Row: {
           adjustment_date: string
@@ -16592,6 +16818,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_help_assistant_permission: {
+        Args: {
+          _perm: Database["public"]["Enums"]["app_permission"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       has_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
       has_terminal_permission:
@@ -16705,6 +16938,21 @@ export type Database = {
       mark_terminal_user_offline: {
         Args: { p_user_id: string }
         Returns: undefined
+      }
+      match_kb: {
+        Args: {
+          match_count?: number
+          query_embedding: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          content: string
+          parent_id: string
+          similarity: number
+          source_id: string
+          source_type: string
+          title: string
+        }[]
       }
       maybe_delete_orphan_client: {
         Args: { client_name_param: string }

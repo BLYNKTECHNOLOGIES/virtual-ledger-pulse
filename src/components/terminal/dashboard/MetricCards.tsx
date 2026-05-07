@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { ShoppingCart, Clock, TrendingUp, AlertTriangle, IndianRupee, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ShoppingCart, Clock, TrendingUp, AlertTriangle, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function formatVolume(v: number): string {

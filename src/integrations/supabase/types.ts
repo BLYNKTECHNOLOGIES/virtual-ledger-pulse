@@ -1614,11 +1614,13 @@ export type Database = {
           cancel_reason_label: string | null
           cancel_reason_source: string | null
           commission: string | null
+          complaint_status: string | null
           counter_part_nick_name: string | null
           counterparty_risk_captured_at: string | null
           counterparty_risk_snapshot: Json | null
           create_time: number
           fiat_unit: string | null
+          has_active_complaint: boolean | null
           order_detail_raw: Json | null
           order_number: string
           order_status: string | null
@@ -1641,11 +1643,13 @@ export type Database = {
           cancel_reason_label?: string | null
           cancel_reason_source?: string | null
           commission?: string | null
+          complaint_status?: string | null
           counter_part_nick_name?: string | null
           counterparty_risk_captured_at?: string | null
           counterparty_risk_snapshot?: Json | null
           create_time: number
           fiat_unit?: string | null
+          has_active_complaint?: boolean | null
           order_detail_raw?: Json | null
           order_number: string
           order_status?: string | null
@@ -1668,11 +1672,13 @@ export type Database = {
           cancel_reason_label?: string | null
           cancel_reason_source?: string | null
           commission?: string | null
+          complaint_status?: string | null
           counter_part_nick_name?: string | null
           counterparty_risk_captured_at?: string | null
           counterparty_risk_snapshot?: Json | null
           create_time?: number
           fiat_unit?: string | null
+          has_active_complaint?: boolean | null
           order_detail_raw?: Json | null
           order_number?: string
           order_status?: string | null

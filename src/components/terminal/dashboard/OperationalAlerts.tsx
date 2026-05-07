@@ -14,8 +14,13 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
     if (!orders.length) return [];
 
     const items: { icon: typeof AlertTriangle; label: string; detail: string; severity: 'warning' | 'error' | 'info' | 'success' }[] = [];
+    const STALE_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
 
-    const appealOrders = orders.filter(o => (o.orderStatus || '').toUpperCase().includes('APPEAL'));
+    const appealOrders = orders.filter(o => {
+      const s = (o.orderStatus || '').toUpperCase();
+      return s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT') || (o as any).hasActiveComplaint;
+    });
     if (appealOrders.length > 0) {
       items.push({
         icon: ShieldAlert,
@@ -25,14 +30,28 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
       });
     }
 
+    const releaseOrders = orders.filter(o => {
+      const s = (o.orderStatus || '').toUpperCase();
+      return (s.includes('BUYER_PAYED') || s.includes('BUYER_PAID')) && (now - (o.createTime || 0)) <= STALE_MS;
+    });
+    if (releaseOrders.length > 0) {
+      items.push({
+        icon: ShieldAlert,
+        label: `${releaseOrders.length} Awaiting Release`,
+        detail: `Coin release pending: ${releaseOrders.slice(0, 3).map(o => o.orderNumber.slice(-6)).join(', ')}`,
+        severity: 'warning',
+      });
+    }
+
     const pendingOrders = orders.filter(o => {
       const status = (o.orderStatus || '').toUpperCase();
-      return status.includes('TRADING') || status.includes('PENDING') || status.includes('BUYER_PAYED');
+      const fresh = (now - (o.createTime || 0)) <= STALE_MS;
+      return fresh && (status.includes('TRADING') || status === 'PENDING');
     });
     if (pendingOrders.length > 0) {
       items.push({
         icon: Clock,
-        label: `${pendingOrders.length} Order${pendingOrders.length > 1 ? 's' : ''} Awaiting Action`,
+        label: `${pendingOrders.length} Order${pendingOrders.length > 1 ? 's' : ''} Awaiting Payment`,
         detail: pendingOrders.length > 3 ? 'Multiple orders need operator attention' : `Order${pendingOrders.length > 1 ? 's' : ''}: ${pendingOrders.slice(0, 3).map(o => o.orderNumber.slice(-6)).join(', ')}`,
         severity: pendingOrders.length > 3 ? 'warning' : 'info',
       });

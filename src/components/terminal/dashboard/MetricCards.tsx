@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { ShoppingCart, Clock, TrendingUp, AlertTriangle, IndianRupee, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { ShoppingCart, Clock, TrendingUp, AlertTriangle, BarChart3, Percent, ArrowLeftRight, ArrowDownLeft, ArrowUpRight, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function formatVolume(v: number): string {
@@ -10,8 +10,9 @@ function formatVolume(v: number): string {
 
 interface MetricCardsProps {
   activeOrders: number;
-  pendingPayments: number;
-  completedToday: number;
+  awaitingPayment: number;
+  awaitingRelease: number;
+  completedInPeriod: number;
   appeals: number;
   totalBuyVolume: number;
   totalSellVolume: number;
@@ -19,21 +20,24 @@ interface MetricCardsProps {
   completionRate: number;
   buySellRatio: string;
   isLoading: boolean;
+  periodLabel?: string;
 }
 
 export function MetricCards({
-  activeOrders, pendingPayments, completedToday, appeals,
+  activeOrders, awaitingPayment, awaitingRelease, completedInPeriod, appeals,
   totalBuyVolume, totalSellVolume, avgOrderSize, completionRate, buySellRatio,
-  isLoading,
+  isLoading, periodLabel,
 }: MetricCardsProps) {
   const avg = avgOrderSize || 0;
   const rate = completionRate || 0;
   const ratio = buySellRatio || '0 / 0';
+  const completedLabel = periodLabel ? `Completed · ${periodLabel}` : 'Completed';
 
   const cards = [
     { label: 'Active Orders', formatted: String(activeOrders || 0), icon: ShoppingCart, color: 'text-primary', bg: 'bg-primary/10' },
-    { label: 'Pending Payments', formatted: String(pendingPayments || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
-    { label: 'Completed Today', formatted: String(completedToday || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
+    { label: 'Awaiting Payment', formatted: String(awaitingPayment || 0), icon: Clock, color: 'text-trade-pending', bg: 'bg-trade-pending/10' },
+    { label: 'Awaiting Release', formatted: String(awaitingRelease || 0), icon: Send, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { label: completedLabel, formatted: String(completedInPeriod || 0), icon: TrendingUp, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Appeals', formatted: String(appeals || 0), icon: AlertTriangle, color: 'text-destructive', bg: 'bg-destructive/10' },
     { label: 'Buy Volume', formatted: formatVolume(totalBuyVolume || 0), icon: ArrowDownLeft, color: 'text-trade-buy', bg: 'bg-trade-buy/10' },
     { label: 'Sell Volume', formatted: formatVolume(totalSellVolume || 0), icon: ArrowUpRight, color: 'text-trade-sell', bg: 'bg-trade-sell/10' },

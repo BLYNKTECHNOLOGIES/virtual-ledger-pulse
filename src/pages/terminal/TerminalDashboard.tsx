@@ -125,7 +125,8 @@ export default function TerminalDashboard() {
     return allOrders.filter(o => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
   }, [allOrders, filter]);
 
-  const stats = useMemo(() => computeOrderStats(orders), [orders]);
+  const filterBounds = useMemo(() => getTimestampsForFilter(filter), [filter]);
+  const stats = useMemo(() => computeOrderStats(orders, filterBounds), [orders, filterBounds]);
 
   const periodLabel = getFilterLabel(filter);
 
@@ -176,8 +177,9 @@ export default function TerminalDashboard() {
       {/* Metric cards */}
       <MetricCards
         activeOrders={stats.activeOrders}
-        pendingPayments={stats.pendingPayments}
-        completedToday={stats.completedToday}
+        awaitingPayment={stats.awaitingPayment}
+        awaitingRelease={stats.awaitingRelease}
+        completedInPeriod={stats.completedInPeriod}
         appeals={stats.appeals}
         totalBuyVolume={stats.totalBuyVolume}
         totalSellVolume={stats.totalSellVolume}
@@ -185,6 +187,7 @@ export default function TerminalDashboard() {
         completionRate={stats.completionRate}
         buySellRatio={stats.buySellRatio}
         isLoading={dbLoading}
+        periodLabel={periodLabel}
       />
 
       {/* Charts row */}

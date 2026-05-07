@@ -13,10 +13,12 @@ interface Props {
 const STATUS_COLORS: Record<string, string> = {
   Completed: 'hsl(142, 76%, 36%)',
   Cancelled: 'hsl(220, 9%, 46%)',
+  'Auto-Cancelled': 'hsl(220, 9%, 30%)',
   Appeal: 'hsl(0, 84%, 60%)',
   Paid: 'hsl(217, 91%, 60%)',
   Trading: 'hsl(38, 92%, 50%)',
   Pending: 'hsl(45, 93%, 47%)',
+  Expired: 'hsl(280, 30%, 50%)',
 };
 
 export function OrderStatusBreakdown({ orders, isLoading }: Props) {
@@ -117,11 +119,13 @@ export function OrderStatusBreakdown({ orders, isLoading }: Props) {
 
 function normalizeStatus(raw: string): string {
   const s = raw.toUpperCase();
-  if (s.includes('COMPLETED')) return 'Completed';
-  if (s.includes('CANCELLED')) return 'Cancelled';
-  if (s.includes('APPEAL')) return 'Appeal';
-  if (s.includes('BUYER_PAYED')) return 'Paid';
+  if (s.includes('COMPLETED') || s.includes('RELEASED')) return 'Completed';
+  if (s.includes('CANCELLED_BY_SYSTEM') || s.includes('CANCELED_BY_SYSTEM')) return 'Auto-Cancelled';
+  if (s.includes('CANCEL')) return 'Cancelled';
+  if (s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT')) return 'Appeal';
+  if (s.includes('BUYER_PAYED') || s.includes('BUYER_PAID')) return 'Paid';
   if (s.includes('TRADING')) return 'Trading';
   if (s.includes('PENDING')) return 'Pending';
+  if (s.includes('EXPIRED') || s.includes('TIMEOUT')) return 'Expired';
   return raw;
 }

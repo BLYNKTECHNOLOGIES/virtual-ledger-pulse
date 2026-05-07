@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from './useTerminalSalesSync';
 import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
+import { hasActiveBinanceComplaint } from '@/lib/orderStatusMapper';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 24 * 60 * 60 * 1000; // 24 hours — re-fetch recent orders for status updates (was 3h, widened to catch out-of-order Binance updates)
@@ -32,7 +33,7 @@ export function useCachedOrderHistory(range: CachedOrderHistoryRange = {}) {
       while (true) {
         let query = supabase
           .from('binance_order_history')
-          .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name')
+          .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint')
           .gte('create_time', cutoff)
           .order('create_time', { ascending: false });
 
@@ -344,6 +345,12 @@ function orderToDbRow(o: any) {
   const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : '0';
   const unitPrice = String(o.unitPrice ?? o.price ?? o.unit_price ?? computedUnitPrice);
 
+  const complaintStatusRaw = o.complaintStatus ?? o.complainStatus ?? o.appealStatus ?? null;
+  const complaintStatus = complaintStatusRaw !== null && complaintStatusRaw !== undefined && complaintStatusRaw !== ''
+    ? String(complaintStatusRaw)
+    : null;
+  const hasActiveComplaint = hasActiveBinanceComplaint(o);
+
   return {
     order_number: o.orderNumber || '',
     adv_no: o.advNo || '',
@@ -358,6 +365,8 @@ function orderToDbRow(o: any) {
     counter_part_nick_name: o.counterPartNickName || o.buyerNickname || o.sellerNickname || '',
     create_time: o.createTime || 0,
     pay_method_name: o.payMethodName || null,
+    complaint_status: complaintStatus,
+    has_active_complaint: hasActiveComplaint,
     raw_data: o,
     synced_at: new Date().toISOString(),
   };
@@ -378,5 +387,7 @@ function dbRowToOrder(row: any) {
     counterPartNickName: row.counter_part_nick_name,
     createTime: row.create_time,
     payMethodName: row.pay_method_name,
+    complaintStatus: row.complaint_status,
+    hasActiveComplaint: !!row.has_active_complaint,
   };
 }

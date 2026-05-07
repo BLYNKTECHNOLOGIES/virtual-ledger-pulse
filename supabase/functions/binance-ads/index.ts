@@ -333,15 +333,15 @@ async function persistCommissionRateSnapshots(supabase: any, detail: any, source
     try {
       const { error } = await supabase
         .from("binance_commission_rate_snapshots")
-        .upsert(snapshots, {
-          onConflict: "source_type,source_id,pay_method_identifier,pay_id",
-          ignoreDuplicates: false,
-        });
-      if (error && !String(error?.code || "") .startsWith("23505")) {
-        console.warn("commission snapshot upsert non-fatal:", error?.message || error);
+        .insert(snapshots);
+      // 23505 = duplicate key; expected & harmless under concurrent load,
+      // since rows for the same (source_type, source_id, pay_method, pay_id)
+      // are functionally identical for snapshot purposes.
+      if (error && error.code !== "23505" && !String(error.message || "").includes("duplicate key")) {
+        console.warn("commission snapshot insert non-fatal:", error?.message || error);
       }
     } catch (e) {
-      console.warn("commission snapshot upsert threw (non-fatal):", e);
+      console.warn("commission snapshot insert threw (non-fatal):", e);
     }
   })();
 

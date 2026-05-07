@@ -119,11 +119,13 @@ export function OrderStatusBreakdown({ orders, isLoading }: Props) {
 
 function normalizeStatus(raw: string): string {
   const s = raw.toUpperCase();
-  if (s.includes('COMPLETED')) return 'Completed';
-  if (s.includes('CANCELLED')) return 'Cancelled';
-  if (s.includes('APPEAL')) return 'Appeal';
-  if (s.includes('BUYER_PAYED')) return 'Paid';
+  if (s.includes('COMPLETED') || s.includes('RELEASED')) return 'Completed';
+  if (s.includes('CANCELLED_BY_SYSTEM') || s.includes('CANCELED_BY_SYSTEM')) return 'Auto-Cancelled';
+  if (s.includes('CANCEL')) return 'Cancelled';
+  if (s.includes('APPEAL') || s.includes('DISPUTE') || s.includes('COMPLAINT')) return 'Appeal';
+  if (s.includes('BUYER_PAYED') || s.includes('BUYER_PAID')) return 'Paid';
   if (s.includes('TRADING')) return 'Trading';
   if (s.includes('PENDING')) return 'Pending';
+  if (s.includes('EXPIRED') || s.includes('TIMEOUT')) return 'Expired';
   return raw;
 }

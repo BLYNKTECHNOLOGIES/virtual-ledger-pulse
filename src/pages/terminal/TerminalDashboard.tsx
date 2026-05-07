@@ -177,8 +177,9 @@ export default function TerminalDashboard() {
       {/* Metric cards */}
       <MetricCards
         activeOrders={stats.activeOrders}
-        pendingPayments={stats.pendingPayments}
-        completedToday={stats.completedToday}
+        awaitingPayment={stats.awaitingPayment}
+        awaitingRelease={stats.awaitingRelease}
+        completedInPeriod={stats.completedInPeriod}
         appeals={stats.appeals}
         totalBuyVolume={stats.totalBuyVolume}
         totalSellVolume={stats.totalSellVolume}
@@ -186,6 +187,7 @@ export default function TerminalDashboard() {
         completionRate={stats.completionRate}
         buySellRatio={stats.buySellRatio}
         isLoading={dbLoading}
+        periodLabel={periodLabel}
       />
 
       {/* Charts row */}

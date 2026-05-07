@@ -125,7 +125,8 @@ export default function TerminalDashboard() {
     return allOrders.filter(o => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
   }, [allOrders, filter]);
 
-  const stats = useMemo(() => computeOrderStats(orders), [orders]);
+  const filterBounds = useMemo(() => getTimestampsForFilter(filter), [filter]);
+  const stats = useMemo(() => computeOrderStats(orders, filterBounds), [orders, filterBounds]);
 
   const periodLabel = getFilterLabel(filter);
 

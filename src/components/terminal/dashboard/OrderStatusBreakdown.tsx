@@ -13,10 +13,12 @@ interface Props {
 const STATUS_COLORS: Record<string, string> = {
   Completed: 'hsl(142, 76%, 36%)',
   Cancelled: 'hsl(220, 9%, 46%)',
+  'Auto-Cancelled': 'hsl(220, 9%, 30%)',
   Appeal: 'hsl(0, 84%, 60%)',
   Paid: 'hsl(217, 91%, 60%)',
   Trading: 'hsl(38, 92%, 50%)',
   Pending: 'hsl(45, 93%, 47%)',
+  Expired: 'hsl(280, 30%, 50%)',
 };
 
 export function OrderStatusBreakdown({ orders, isLoading }: Props) {

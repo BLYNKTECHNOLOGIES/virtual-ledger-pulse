@@ -323,14 +323,34 @@ function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId:
 async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string) {
   const snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
   if (snapshots.length === 0) return;
-  const { error: deleteErr } = await supabase
-    .from("binance_commission_rate_snapshots")
-    .delete()
-    .eq("source_type", sourceType)
-    .eq("source_id", sourceId);
-  if (deleteErr) throw deleteErr;
-  const { error: insertErr } = await supabase.from("binance_commission_rate_snapshots").insert(snapshots);
-  if (insertErr) throw insertErr;
+
+  // Non-blocking, idempotent upsert keyed on the existing unique index
+  // (source_type, source_id, COALESCE(pay_method_identifier,''), COALESCE(pay_id,'')).
+  // Previously this did DELETE+INSERT which (a) doubled DB roundtrips, (b) raced with
+  // concurrent operators causing thousands of "duplicate key" errors and (c) blocked
+  // listActiveOrders / getOrderDetail responses, freezing the whole ERP UI.
+  const work = (async () => {
+    try {
+      const { error } = await supabase
+        .from("binance_commission_rate_snapshots")
+        .insert(snapshots);
+      // 23505 = duplicate key; expected & harmless under concurrent load,
+      // since rows for the same (source_type, source_id, pay_method, pay_id)
+      // are functionally identical for snapshot purposes.
+      if (error && error.code !== "23505" && !String(error.message || "").includes("duplicate key")) {
+        console.warn("commission snapshot insert non-fatal:", error?.message || error);
+      }
+    } catch (e) {
+      console.warn("commission snapshot insert threw (non-fatal):", e);
+    }
+  })();
+
+  // Fire-and-forget: do NOT await — keeps Binance response latency low.
+  // @ts-ignore EdgeRuntime is provided by Supabase
+  if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
+    // @ts-ignore
+    (EdgeRuntime as any).waitUntil(work);
+  }
 }
 
 function extractChatMessages(result: any): any[] {

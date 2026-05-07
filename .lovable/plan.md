@@ -1,99 +1,79 @@
-# AI FAQ Doubt Solver — Implementation Plan
+## Audit findings — what's actually wrong
 
-A staff-only AI assistant that answers internal questions about Blynkex ERP processes, grounded in your own curated FAQs and uploaded SOP documents using semantic (embeddings-based) retrieval. Supports **multi-language UI (English / Hindi / Hinglish)** and **multimodal input (text + image)**.
+I cross-checked the dashboard code (`computeOrderStats` in `src/hooks/useBinanceOrders.tsx`, `MetricCards`, `OrderStatusBreakdown`, `OperationalAlerts`) against the live `binance_order_history` table. Confirmed bugs:
 
-## What gets built
+### 1. "Completed Today" ignores the selected filter (high impact)
+`computeOrderStats` builds `todayStart` from the **browser's local midnight** and counts only orders with `createTime >= local-midnight` AND `status COMPLETED`. It does this even when the user has selected a different date, a shift (S1/S2/S3), or a 7D/30D/1Y range. Result:
+- Selecting any past date or shift shows "0 Completed Today" even when the filter window contains hundreds of completed orders (DB confirms 122 SELL + 5 BUY completed today alone).
+- Browsers on non-IST timezones get a different "today" than the IST-based filter window.
 
-### 1. New sidebar module: "Help Assistant"
-- Available to all logged-in staff via `PermissionGate` (new `help_assistant_view` permission)
-- Admin sub-section gated by `help_assistant_manage` (Super Admin / Admin)
+**Fix:** Rename to "Completed (period)" and count completed orders **within the active filter window** (`startTimestamp`–`endTimestamp` from `getTimestampsForFilter`). Pass the filter bounds into `computeOrderStats`.
 
-### 2. Staff chat interface (`/help-assistant`)
-- ChatGPT-style UI: message list, input box, streaming token-by-token responses, markdown rendering
-- **Language switcher** (top-right): English / हिन्दी / Hinglish — persists per user
-  - UI strings translated via a lightweight i18n dictionary (no heavy i18next needed for 3 langs)
-  - AI is instructed to reply in the user's chosen language; Hinglish = Roman-script Hindi mixed with English
-- **Image + text input**:
-  - Paperclip / camera button to attach an image (screenshot of an error, a Binance order, a document photo)
-  - Drag-and-drop and paste-from-clipboard supported
-  - Image previewed as thumbnail in input bar before sending
-  - Multi-image support (up to 3 per message)
-  - Mobile uses native camera capture (`<input type="file" accept="image/*" capture>`)
-- Conversation history per user (sidebar list, "New chat" button)
-- "Sources" section under each AI answer showing which FAQs/documents were used
-- "Was this helpful?" 👍/👎 feedback per answer
-- Respects existing dark/light theme
+### 2. "Appeals" undercounts — only reads `orderStatus` string
+The metric checks `status.includes('APPEAL')` only. Binance returns a separate `complaintStatus` / `complainStatus` field that stays active on orders whose `orderStatus` is already `COMPLETED` or `CANCELLED`. The codebase already has `hasActiveBinanceComplaint()` in `src/lib/orderStatusMapper.ts` but the dashboard never uses it.
 
-### 3. Admin KB Manager (`/help-assistant/admin`)
-- **FAQs tab**: CRUD table of curated Q&A pairs with category, tags, status (draft/published). Each FAQ can be authored in English; AI handles translation at answer time.
-- **Documents tab**: Upload SOPs (PDF/DOCX/TXT/MD), view list, delete, re-index
-- **Analytics tab**: top questions, unanswered queries, low-rated answers, language breakdown
+Also: cached `binance_order_history` rows do not store `complaintStatus`. Appeals on completed orders are invisible to the dashboard.
 
-### 4. Backend (Lovable Cloud / Supabase)
+**Fix:**
+- Add `complaint_status` (text/int) and `has_active_complaint` (bool) columns to `binance_order_history`.
+- Populate them in `orderToDbRow` (`useBinanceOrderSync.tsx`) using the raw payload.
+- Count appeals as `status APPEAL/DISPUTE/COMPLAINT` **OR** `has_active_complaint = true`. Apply the same in `OperationalAlerts`.
 
-**New tables:**
-- `kb_faqs` — id, question, answer, category, tags[], status, created_by, embedding (vector)
-- `kb_documents` — id, title, file_path, file_type, uploaded_by, status
-- `kb_document_chunks` — id, document_id, chunk_text, chunk_index, embedding (vector)
-- `staff_chat_conversations` — id, user_id, title, language, created_at, updated_at
-- `staff_chat_messages` — id, conversation_id, role, content, image_urls[], sources (jsonb), feedback, created_at
-- `staff_chat_user_prefs` — user_id, language ('en'|'hi'|'hinglish')
+### 3. "Pending Payments" is inconsistent with "Active Orders"
+- `activeOrders` counts `TRADING | BUYER_PAYED | PENDING`.
+- `pendingPayments` counts `PENDING | TRADING` but **excludes `BUYER_PAYED`**.
 
-**Storage buckets** (private, RLS-gated):
-- `kb-documents` — admin-uploaded SOPs
-- `staff-chat-uploads` — user-uploaded images per message (auto-cleanup policy after 90 days)
+For SELL orders, `BUYER_PAYED` means the buyer paid and we owe coin release — that is the most operationally urgent "pending action", yet it shows as zero. The card label "Pending Payments" is also ambiguous.
 
-**RLS:**
-- Conversations/messages/uploads: users see only their own
-- FAQs/documents: all authenticated read published; only `help_assistant_manage` can write (via `has_role`)
+**Fix:** Split into two clean metrics:
+- **Awaiting Payment** = SELL or BUY with status `TRADING` (no payment yet).
+- **Awaiting Release** = SELL with status `BUYER_PAYED` (we must release coin).
+Update `MetricCards` labels accordingly. `activeOrders` = sum of both + any other non-final states.
 
-**pgvector** extension + HNSW index on embedding columns.
+### 4. Stale "active" orders from incremental sync
+`syncOrderHistoryFromBinance` uses a 24h status-overlap window. Orders older than 24h that transitioned out of `TRADING`/`BUYER_PAYED` between gap-fill runs (every 24h) keep their stale active status in the DB, inflating "Active Orders" and "Pending Payments" for the 7D/30D/1Y views.
 
-### 5. Edge functions
+**Fix:** When computing dashboard stats, exclude any "active" order whose `create_time` is older than 24 hours (Binance auto-cancels unpaid P2P orders within minutes, so any older active row is almost certainly stale). Optionally also trigger a targeted re-fetch of those specific order numbers via `getOrderDetail` to repair the cached status.
 
-- `kb-embed` — generates embeddings via Lovable AI when FAQs/docs are added/updated
-- `kb-ingest-document` — parses uploaded PDF/DOCX into ~500-token chunks with overlap, calls `kb-embed`
-- `staff-chat` — streaming SSE endpoint:
-  1. Accept `{ messages, conversationId, language, imageUrls[] }`
-  2. If images present, embed query using **text portion only**; use `google/gemini-3-flash-preview` (vision-capable) for the answer call
-  3. Retrieve top 5–8 relevant FAQ + doc chunks via cosine similarity RPC
-  4. Build system prompt:
-     - "You are an internal assistant for Blynkex ERP staff."
-     - "Answer ONLY from the provided context. If context doesn't cover it, say so."
-     - Language directive: `en` → English; `hi` → Devanagari Hindi; `hinglish` → Roman-script Hindi-English mix natural to Indian office staff
-     - Vision directive when image attached: "Describe what you see in the image and connect it to the user's question."
-  5. Stream response from Lovable AI; persist user + assistant messages with `image_urls` + `sources`
-- `staff-chat-feedback` — records 👍/👎
+### 5. "Completion Rate" denominator is misleading
+`completedCount / orders.length` includes still-active orders in the denominator, so the rate dips artificially while orders are open.
 
-### 6. Guardrails
-- AI explicitly told to never fabricate ERP procedures — only answer from KB
-- All KB writes audited (`created_by` = actual user UUID)
-- Admin-only deletions use `AlertDialog`
-- Rate limit: 30 messages/user/hour; max 3 images per message; max 5 MB per image (compressed client-side before upload)
-- Token usage logged per message for cost visibility
-- Errors 429 / 402 from Lovable AI surfaced as toasts in user's selected language
+**Fix:** Denominator = completed + cancelled + expired (final-state orders only). Active orders excluded.
 
-## Technical notes
+### 6. `OrderStatusBreakdown` lumps `CANCELLED_BY_SYSTEM` into `Cancelled`
+Acceptable but hides operator vs. system cancellations. Add a separate "Auto-Cancelled" slice using `s.includes('CANCELLED_BY_SYSTEM')` checked **before** the generic CANCELLED branch.
 
-- **AI provider**: Lovable AI Gateway, no API key needed. Default text model `google/gemini-3-flash-preview` (already vision-capable, so same model handles image inputs).
-- **Embeddings**: Lovable AI gateway embedding model (768-dim), stored via `pgvector`.
-- **i18n**: simple `t(key, lang)` helper with `en/hi/hinglish` dictionaries — no extra dependency.
-- **Image upload flow**: client compresses to ≤1600px wide JPEG → uploads to `staff-chat-uploads` bucket → signed URL passed to `staff-chat` edge function → injected into Gemini multimodal payload as `image_url` parts.
-- **Document parsing**: server-side in `kb-ingest-document` using Deno PDF/DOCX text extractor.
-- **Permissions**: two new entries — `help_assistant_view`, `help_assistant_manage`.
+### 7. `OperationalAlerts` mirrors the same defects
+Reuses the same `APPEAL` string match and the same TRADING/BUYER_PAYED logic. Same fixes apply once `has_active_complaint` exists and the buckets are split.
 
-## Out of scope (first version)
-- Voice input/output
-- Slack/Teams notification integration
-- Auto-learning from chat (admin still curates KB)
-- Languages beyond English / Hindi / Hinglish
+---
 
-## Build order
-1. DB schema + pgvector + RLS + permissions + storage buckets
-2. `kb-embed` + `kb-ingest-document` edge functions
-3. Admin KB Manager UI (FAQs CRUD + document upload)
-4. `staff-chat` streaming edge function with retrieval + vision + language directive
-5. Staff chat UI: streaming, sources, feedback, language switcher, image upload
-6. Sidebar entry + permission gates + analytics tab
+## Implementation steps
 
-Ready to build when you approve.
+1. **DB migration** — add columns to `binance_order_history`:
+   ```
+   complaint_status text
+   has_active_complaint boolean default false
+   ```
+   Backfill from existing `raw_data` payload via a one-shot SQL update.
+
+2. **`src/hooks/useBinanceOrderSync.tsx`** — extend `orderToDbRow` to set `complaint_status` and `has_active_complaint` from the raw order using `hasActiveBinanceComplaint`. Add the two fields to `useCachedOrderHistory` SELECT and `dbRowToOrder`.
+
+3. **`src/hooks/useBinanceOrders.tsx`** — extend `C2COrderHistoryItem` with `hasActiveComplaint`. Refactor `computeOrderStats(orders, { startTs, endTs })`:
+   - `completedInPeriod` replaces `completedToday`.
+   - `awaitingPayment`, `awaitingRelease` replace `pendingPayments`.
+   - `appeals` uses `hasActiveComplaint || status APPEAL/DISPUTE/COMPLAINT`.
+   - `activeOrders` skips rows older than 24h still in active state.
+   - `completionRate` denominator = final states only.
+
+4. **`src/components/terminal/dashboard/MetricCards.tsx`** — update props/labels: "Completed (period)", "Awaiting Payment", "Awaiting Release", keep "Appeals" / "Active Orders" / volumes / completion rate.
+
+5. **`src/pages/terminal/TerminalDashboard.tsx`** — pass filter bounds into `computeOrderStats`; wire new metric props.
+
+6. **`src/components/terminal/dashboard/OperationalAlerts.tsx`** — use `hasActiveComplaint` for appeal alerts; separate "Awaiting Release" alert for SELL+BUYER_PAYED.
+
+7. **`src/components/terminal/dashboard/OrderStatusBreakdown.tsx`** — add `Auto-Cancelled` bucket; ensure `IN_APPEAL` maps to `Appeal`.
+
+8. **Verification** — after deploy: run a SQL spot-check (`SELECT order_status, COUNT(*)`) for the active filter window and confirm card numbers match.
+
+No change to Binance API calls — all fixes are computation/storage; the source of truth (`binance_order_history` + raw payloads already cached) stays intact.

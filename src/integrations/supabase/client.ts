@@ -8,9 +8,10 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 const SUPABASE_REQUEST_TIMEOUT_MS = 30000;
 
-const fetchWithTimeout: typeof fetch = async (input, init = {}) => {
+const fetchWithTimeout: typeof fetch = async (input, init) => {
+  const requestInit: RequestInit = init ?? {};
   const controller = new AbortController();
-  const upstreamSignal = init.signal;
+  const upstreamSignal = requestInit.signal;
   const timeoutId = window.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
 
   if (upstreamSignal) {
@@ -19,7 +20,7 @@ const fetchWithTimeout: typeof fetch = async (input, init = {}) => {
   }
 
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    return await fetch(input, { ...requestInit, signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted && !upstreamSignal?.aborted) {
       throw new Error('Supabase request timed out. Please try again.');

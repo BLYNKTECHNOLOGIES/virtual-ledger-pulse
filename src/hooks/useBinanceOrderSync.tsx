@@ -345,6 +345,12 @@ function orderToDbRow(o: any) {
   const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : '0';
   const unitPrice = String(o.unitPrice ?? o.price ?? o.unit_price ?? computedUnitPrice);
 
+  const complaintStatusRaw = o.complaintStatus ?? o.complainStatus ?? o.appealStatus ?? null;
+  const complaintStatus = complaintStatusRaw !== null && complaintStatusRaw !== undefined && complaintStatusRaw !== ''
+    ? String(complaintStatusRaw)
+    : null;
+  const hasActiveComplaint = hasActiveBinanceComplaint(o);
+
   return {
     order_number: o.orderNumber || '',
     adv_no: o.advNo || '',
@@ -359,6 +365,8 @@ function orderToDbRow(o: any) {
     counter_part_nick_name: o.counterPartNickName || o.buyerNickname || o.sellerNickname || '',
     create_time: o.createTime || 0,
     pay_method_name: o.payMethodName || null,
+    complaint_status: complaintStatus,
+    has_active_complaint: hasActiveComplaint,
     raw_data: o,
     synced_at: new Date().toISOString(),
   };
@@ -379,5 +387,7 @@ function dbRowToOrder(row: any) {
     counterPartNickName: row.counter_part_nick_name,
     createTime: row.create_time,
     payMethodName: row.pay_method_name,
+    complaintStatus: row.complaint_status,
+    hasActiveComplaint: !!row.has_active_complaint,
   };
 }

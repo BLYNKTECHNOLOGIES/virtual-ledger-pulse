@@ -198,9 +198,11 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       return Math.max(min, Math.min(max, widest + 5));
     };
 
+    const hasHsn = invoice.items.some((it) => (it.hsnSac || "").trim() !== "");
+
     let columnWidths = hasGst
-      ? { hash: 8, sac: 18, qty: 12, unit: 12, price: 24, igst: 26, amount: 30 }
-      : { hash: 8, sac: 20, qty: 12, unit: 12, price: 24, igst: 0, amount: 30 };
+      ? { hash: 8, sac: hasHsn ? 18 : 0, qty: 12, unit: 12, price: 24, igst: 26, amount: 30 }
+      : { hash: 8, sac: hasHsn ? 20 : 0, qty: 12, unit: 12, price: 24, igst: 0, amount: 30 };
 
     columnWidths.price = measuredWidth([
       "Price/unit",
@@ -289,7 +291,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     const headerY = y + 5;
     doc.text("#", colX.hash + columnWidths.hash / 2, headerY, { align: "center" });
     doc.text("Item name", colX.name + 1, headerY);
-    doc.text("HSN/SAC", colX.sac + columnWidths.sac / 2, headerY, { align: "center" });
+    if (hasHsn) doc.text("HSN/SAC", colX.sac + columnWidths.sac / 2, headerY, { align: "center" });
     doc.text("Quantity", colX.qty + columnWidths.qty / 2, headerY, { align: "center" });
     doc.text("Unit", colX.unit + columnWidths.unit / 2, headerY, { align: "center" });
     doc.text("Price/unit", colR.price - 1, headerY, { align: "right" });
@@ -324,7 +326,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
 
       const unitLabel = item.unit || (isFinancial ? "Service" : "NOS");
       const descLines = doc.splitTextToSize(item.description || "-", Math.max(20, colR.name - colX.name - 2));
-      const hsnLines = doc.splitTextToSize(item.hsnSac || "-", Math.max(8, colR.sac - colX.sac - 2));
+      const hsnLines = hasHsn ? doc.splitTextToSize(item.hsnSac || "-", Math.max(8, colR.sac - colX.sac - 2)) : [];
       const rowLineCount = Math.max(descLines.length, hsnLines.length);
       const rowHeight = Math.max(8, rowLineCount * 3.5 + 4);
       const rowY = y + 4.8;
@@ -340,9 +342,11 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         doc.text(line, colX.name + 1, rowY + i * 3.5);
       });
 
-      hsnLines.forEach((line: string, i: number) => {
-        doc.text(line, colX.sac + columnWidths.sac / 2, rowY + i * 3.5, { align: "center" });
-      });
+      if (hasHsn) {
+        hsnLines.forEach((line: string, i: number) => {
+          doc.text(line, colX.sac + columnWidths.sac / 2, rowY + i * 3.5, { align: "center" });
+        });
+      }
 
       doc.text(item.quantity.toFixed(0), colR.qty - 1, rowY, { align: "right" });
       doc.text(unitLabel, colX.unit + columnWidths.unit / 2, rowY, { align: "center" });

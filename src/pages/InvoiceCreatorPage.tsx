@@ -17,6 +17,7 @@ const emptyCompany: CompanyInfo = {
   name: "",
   address: [""],
   email: "",
+  phone: "",
   gstin: "",
   bankName: "",
   accountName: "",

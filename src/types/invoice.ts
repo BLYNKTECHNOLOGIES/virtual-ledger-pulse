@@ -62,6 +62,7 @@ export interface CompanyInfo {
   name: string;
   address: string[];
   email: string;
+  phone?: string;
   gstin: string;
   bankName: string;
   accountName: string;

@@ -202,6 +202,10 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
               <Input placeholder="company@email.com" value={company.email} onChange={(e) => update("email", e.target.value)} />
             </div>
             <div>
+              <Label>Phone</Label>
+              <Input placeholder="+91 9999999999" value={company.phone ?? ""} onChange={(e) => update("phone", e.target.value)} />
+            </div>
+            <div>
               <Label>GSTIN/UIN</Label>
               <Input placeholder="Enter GSTIN" value={company.gstin} onChange={(e) => update("gstin", e.target.value)} />
             </div>

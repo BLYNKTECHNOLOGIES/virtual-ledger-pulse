@@ -595,6 +595,31 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(line, marginL, y);
       y += 3.5;
     });
+    y += 3;
+
+    // ── Terms & Conditions ──
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8.5);
+    setColor(t.colors.bodyText);
+    doc.text("Terms & Conditions", marginL, y);
+    y += 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    setColor(t.colors.mutedText);
+    const terms = [
+      "Services once delivered are non-refundable.",
+      "Client is responsible for accuracy of submitted documents.",
+      "Processing timelines may vary depending upon authority verification.",
+      "This invoice is generated for accounting and record-keeping purposes.",
+      "Disputes subject to Bhopal jurisdiction.",
+    ];
+    terms.forEach((term) => {
+      const lines = doc.splitTextToSize(`• ${term}`, contentW);
+      lines.forEach((line: string) => {
+        doc.text(line, marginL, y);
+        y += 3.5;
+      });
+    });
 
     // ── Signatory ──
     let sigY = 255;

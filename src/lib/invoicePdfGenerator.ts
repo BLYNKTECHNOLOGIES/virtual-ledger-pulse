@@ -95,6 +95,15 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       }
       y += 3.5;
     }
+    if (company.phone) {
+      const phoneText = `Phone: ${company.phone}`;
+      if (t.style.companyAlign === "center") {
+        doc.text(phoneText, pageW / 2, y, { align: "center" });
+      } else {
+        doc.text(phoneText, marginL, y);
+      }
+      y += 3.5;
+    }
     if (company.gstin) {
       const gstinText = `GSTIN Number: ${company.gstin}`;
       if (t.style.companyAlign === "center") {

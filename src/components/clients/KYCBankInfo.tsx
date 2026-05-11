@@ -323,10 +323,22 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
           </div>
         )}
 
-        <Button size="sm" variant="outline" className="w-full">
-          <CreditCard className="h-4 w-4 mr-2" />
-          Manage KYC Documents
+        <Button size="sm" variant="outline" className="w-full" onClick={() => setUploadOpen(true)} disabled={!clientId}>
+          <Upload className="h-4 w-4 mr-2" />
+          Upload KYC Document
         </Button>
+      </CardContent>
+      {clientId && (
+        <UploadKYCDocumentDialog
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          clientId={clientId}
+          clientName={client?.name}
+        />
+      )}
+    </Card>
+  );
+}
       </CardContent>
     </Card>
   );

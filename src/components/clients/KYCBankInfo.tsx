@@ -339,7 +339,3 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
     </Card>
   );
 }
-      </CardContent>
-    </Card>
-  );
-}

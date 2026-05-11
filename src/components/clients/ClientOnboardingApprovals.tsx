@@ -1348,7 +1348,8 @@ export function ClientOnboardingApprovals() {
         aadhaarFiles,
         usdtProofFile,
         tradeHistoryFile,
-        vkycVideoFile
+        vkycVideoFile,
+        additionalDocs
       }
     });
   };

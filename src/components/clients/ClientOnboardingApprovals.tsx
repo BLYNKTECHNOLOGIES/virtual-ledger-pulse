@@ -287,6 +287,7 @@ export function ClientOnboardingApprovals() {
       usdtProofFile,
       tradeHistoryFile,
       vkycVideoFile,
+      additionalDocs,
     };
     void saveBuyerApprovalDraft(selectedApproval.id, draft);
     writeActiveApprovalDraftId(selectedApproval.id);

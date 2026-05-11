@@ -23,6 +23,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 const DOC_TYPE_ORDER = ['aadhaar', 'usdt_usage_proof', 'trade_history_screenshot', 'vkyc_video'];
 
 export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
+  const [uploadOpen, setUploadOpen] = useState(false);
   const { data: client } = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {

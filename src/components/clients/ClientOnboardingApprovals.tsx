@@ -138,6 +138,7 @@ interface BuyerApprovalDraft {
   usdtProofFile: File | null;
   tradeHistoryFile: File | null;
   vkycVideoFile: File | null;
+  additionalDocs: File[];
 }
 
 const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();

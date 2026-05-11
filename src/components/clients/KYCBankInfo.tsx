@@ -1,10 +1,12 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, CheckCircle, AlertCircle, CreditCard, ExternalLink, Download, Video, Image } from "lucide-react";
+import { FileText, CheckCircle, AlertCircle, ExternalLink, Download, Video, Upload } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { UploadKYCDocumentDialog } from "./UploadKYCDocumentDialog";
 
 interface KYCBankInfoProps {
   clientId?: string;
@@ -21,6 +23,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 const DOC_TYPE_ORDER = ['aadhaar', 'usdt_usage_proof', 'trade_history_screenshot', 'vkyc_video'];
 
 export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
+  const [uploadOpen, setUploadOpen] = useState(false);
   const { data: client } = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
@@ -320,11 +323,19 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
           </div>
         )}
 
-        <Button size="sm" variant="outline" className="w-full">
-          <CreditCard className="h-4 w-4 mr-2" />
-          Manage KYC Documents
+        <Button size="sm" variant="outline" className="w-full" onClick={() => setUploadOpen(true)} disabled={!clientId}>
+          <Upload className="h-4 w-4 mr-2" />
+          Upload KYC Document
         </Button>
       </CardContent>
+      {clientId && (
+        <UploadKYCDocumentDialog
+          open={uploadOpen}
+          onOpenChange={setUploadOpen}
+          clientId={clientId}
+          clientName={client?.name}
+        />
+      )}
     </Card>
   );
 }

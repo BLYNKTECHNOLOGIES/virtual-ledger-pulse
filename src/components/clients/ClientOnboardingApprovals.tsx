@@ -654,6 +654,7 @@ export function ClientOnboardingApprovals() {
         usdtProofFile: File | null;
         tradeHistoryFile: File | null;
         vkycVideoFile: File | null;
+        additionalDocs?: File[];
       };
     }) => {
       const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails, kycDocuments } = approvalData;

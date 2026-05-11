@@ -921,7 +921,7 @@ export function ClientOnboardingApprovals() {
 
       // Save KYC documents
       if (kycDocuments) {
-        const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile } = kycDocuments;
+        const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile, additionalDocs: addDocs } = kycDocuments;
         const allDocs: { file: File; type: string; folder: string }[] = [];
         for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
         if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
@@ -935,6 +935,9 @@ export function ClientOnboardingApprovals() {
             console.warn('Video compression failed, uploading original:', err);
           }
           allDocs.push({ file: compressedVideo, type: 'vkyc_video', folder: 'vkyc' });
+        }
+        if (addDocs && addDocs.length > 0) {
+          for (const f of addDocs) allDocs.push({ file: f, type: 'other', folder: 'additional' });
         }
 
         if (allDocs.length > 0) {

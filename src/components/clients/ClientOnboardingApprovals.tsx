@@ -138,6 +138,7 @@ interface BuyerApprovalDraft {
   usdtProofFile: File | null;
   tradeHistoryFile: File | null;
   vkycVideoFile: File | null;
+  additionalDocs: File[];
 }
 
 const buyerApprovalDrafts = new Map<string, BuyerApprovalDraft>();
@@ -254,10 +255,12 @@ export function ClientOnboardingApprovals() {
   const [usdtProofFile, setUsdtProofFile] = useState<File | null>(null);
   const [tradeHistoryFile, setTradeHistoryFile] = useState<File | null>(null);
   const [vkycVideoFile, setVkycVideoFile] = useState<File | null>(null);
+  const [additionalDocs, setAdditionalDocs] = useState<File[]>([]);
   const aadhaarInputRef = useRef<HTMLInputElement | null>(null);
   const usdtProofInputRef = useRef<HTMLInputElement | null>(null);
   const tradeHistoryInputRef = useRef<HTMLInputElement | null>(null);
   const vkycVideoInputRef = useRef<HTMLInputElement | null>(null);
+  const additionalDocsInputRef = useRef<HTMLInputElement | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -284,6 +287,7 @@ export function ClientOnboardingApprovals() {
       usdtProofFile,
       tradeHistoryFile,
       vkycVideoFile,
+      additionalDocs,
     };
     void saveBuyerApprovalDraft(selectedApproval.id, draft);
     writeActiveApprovalDraftId(selectedApproval.id);
@@ -303,6 +307,7 @@ export function ClientOnboardingApprovals() {
     usdtProofFile,
     tradeHistoryFile,
     vkycVideoFile,
+    additionalDocs,
   ]);
 
   // Fetch approvals - all pending, and all reviewed (history)
@@ -649,6 +654,7 @@ export function ClientOnboardingApprovals() {
         usdtProofFile: File | null;
         tradeHistoryFile: File | null;
         vkycVideoFile: File | null;
+        additionalDocs?: File[];
       };
     }) => {
       const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails, kycDocuments } = approvalData;
@@ -915,7 +921,7 @@ export function ClientOnboardingApprovals() {
 
       // Save KYC documents
       if (kycDocuments) {
-        const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile } = kycDocuments;
+        const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile, additionalDocs: addDocs } = kycDocuments;
         const allDocs: { file: File; type: string; folder: string }[] = [];
         for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
         if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
@@ -929,6 +935,9 @@ export function ClientOnboardingApprovals() {
             console.warn('Video compression failed, uploading original:', err);
           }
           allDocs.push({ file: compressedVideo, type: 'vkyc_video', folder: 'vkyc' });
+        }
+        if (addDocs && addDocs.length > 0) {
+          for (const f of addDocs) allDocs.push({ file: f, type: 'other', folder: 'additional' });
         }
 
         if (allDocs.length > 0) {
@@ -1176,6 +1185,7 @@ export function ClientOnboardingApprovals() {
       setUsdtProofFile(draft.usdtProofFile);
       setTradeHistoryFile(draft.tradeHistoryFile);
       setVkycVideoFile(draft.vkycVideoFile);
+      setAdditionalDocs(draft.additionalDocs || []);
     } else {
       setFormData({
         aadhar_number: approval.aadhar_number || '',
@@ -1338,7 +1348,8 @@ export function ClientOnboardingApprovals() {
         aadhaarFiles,
         usdtProofFile,
         tradeHistoryFile,
-        vkycVideoFile
+        vkycVideoFile,
+        additionalDocs
       }
     });
   };
@@ -2349,6 +2360,58 @@ export function ClientOnboardingApprovals() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Additional Documents Section */}
+              <div className="bg-purple-50/40 border border-purple-100 rounded-md p-4 space-y-3">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-purple-600" />
+                  Additional Documents <span className="text-xs font-normal text-muted-foreground">(Optional — payment receipts, invoices, supporting docs)</span>
+                </Label>
+                <div className="bg-white p-3 rounded-md border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                      Upload Files <span className="text-xs text-muted-foreground">(PDF, images, multiple allowed)</span>
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => additionalDocsInputRef.current?.click()}
+                    >
+                      <Upload className="h-3 w-3 mr-1" />
+                      {additionalDocs.length > 0 ? 'Add More' : 'Upload'}
+                    </Button>
+                    <input
+                      type="file"
+                      ref={additionalDocsInputRef}
+                      className="hidden"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const newFiles = Array.from(e.target.files || []);
+                        if (newFiles.length > 0) setAdditionalDocs(prev => [...prev, ...newFiles]);
+                        if (additionalDocsInputRef.current) additionalDocsInputRef.current.value = '';
+                      }}
+                    />
+                  </div>
+                  {additionalDocs.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      {additionalDocs.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                          <span className="truncate flex-1">{f.name} <span className="text-muted-foreground">({(f.size / 1024).toFixed(0)}KB)</span></span>
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalDocs(prev => prev.filter((_, idx) => idx !== i))}
+                            className="ml-2"
+                          >
+                            <X className="h-3 w-3 text-destructive" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

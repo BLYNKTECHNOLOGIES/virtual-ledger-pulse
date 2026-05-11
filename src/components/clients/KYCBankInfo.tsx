@@ -1,10 +1,12 @@
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, CheckCircle, AlertCircle, CreditCard, ExternalLink, Download, Video, Image } from "lucide-react";
+import { FileText, CheckCircle, AlertCircle, ExternalLink, Download, Video, Upload } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { UploadKYCDocumentDialog } from "./UploadKYCDocumentDialog";
 
 interface KYCBankInfoProps {
   clientId?: string;

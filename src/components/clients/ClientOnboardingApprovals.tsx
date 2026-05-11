@@ -2363,6 +2363,58 @@ export function ClientOnboardingApprovals() {
                 </div>
               </div>
 
+              {/* Additional Documents Section */}
+              <div className="bg-purple-50/40 border border-purple-100 rounded-md p-4 space-y-3">
+                <Label className="text-base font-semibold flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-purple-600" />
+                  Additional Documents <span className="text-xs font-normal text-muted-foreground">(Optional — payment receipts, invoices, supporting docs)</span>
+                </Label>
+                <div className="bg-white p-3 rounded-md border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                      Upload Files <span className="text-xs text-muted-foreground">(PDF, images, multiple allowed)</span>
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => additionalDocsInputRef.current?.click()}
+                    >
+                      <Upload className="h-3 w-3 mr-1" />
+                      {additionalDocs.length > 0 ? 'Add More' : 'Upload'}
+                    </Button>
+                    <input
+                      type="file"
+                      ref={additionalDocsInputRef}
+                      className="hidden"
+                      multiple
+                      accept="image/*,.pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const newFiles = Array.from(e.target.files || []);
+                        if (newFiles.length > 0) setAdditionalDocs(prev => [...prev, ...newFiles]);
+                        if (additionalDocsInputRef.current) additionalDocsInputRef.current.value = '';
+                      }}
+                    />
+                  </div>
+                  {additionalDocs.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      {additionalDocs.map((f, i) => (
+                        <div key={i} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                          <span className="truncate flex-1">{f.name} <span className="text-muted-foreground">({(f.size / 1024).toFixed(0)}KB)</span></span>
+                          <button
+                            type="button"
+                            onClick={() => setAdditionalDocs(prev => prev.filter((_, idx) => idx !== i))}
+                            className="ml-2"
+                          >
+                            <X className="h-3 w-3 text-destructive" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label htmlFor="proposed_monthly_limit">

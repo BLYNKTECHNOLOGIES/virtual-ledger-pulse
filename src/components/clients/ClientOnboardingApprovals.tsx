@@ -1185,6 +1185,7 @@ export function ClientOnboardingApprovals() {
       setUsdtProofFile(draft.usdtProofFile);
       setTradeHistoryFile(draft.tradeHistoryFile);
       setVkycVideoFile(draft.vkycVideoFile);
+      setAdditionalDocs(draft.additionalDocs || []);
     } else {
       setFormData({
         aadhar_number: approval.aadhar_number || '',

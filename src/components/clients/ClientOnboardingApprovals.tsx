@@ -307,6 +307,7 @@ export function ClientOnboardingApprovals() {
     usdtProofFile,
     tradeHistoryFile,
     vkycVideoFile,
+    additionalDocs,
   ]);
 
   // Fetch approvals - all pending, and all reviewed (history)

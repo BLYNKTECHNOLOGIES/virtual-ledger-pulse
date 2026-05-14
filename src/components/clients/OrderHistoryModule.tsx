@@ -436,7 +436,7 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
               <Filter className="h-4 w-4 mr-1" />
               Filter
             </Button>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-1" />
               Export
             </Button>

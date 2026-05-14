@@ -261,6 +261,41 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
     return '-';
   };
 
+  const handleExport = () => {
+    const rows = [
+      ...filteredBuyOrders.map((o: any) => ({ o, isBuy: true })),
+      ...filteredSellOrders.map((o: any) => ({ o, isBuy: false })),
+    ];
+    if (rows.length === 0) return;
+    const headers = ['Order Number','Date','Type','Description','Quantity','Amount (INR)','Platform','Status'];
+    const escape = (v: any) => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(',')];
+    rows.forEach(({ o, isBuy }) => {
+      lines.push([
+        o.order_number,
+        new Date(o.order_date).toLocaleDateString(),
+        isBuy ? 'Buy' : 'Sell',
+        o.description || o.notes || 'USDT Transaction',
+        o.quantity,
+        o.total_amount,
+        isBuy ? (o.wallet?.wallet_name || o.platform || 'Off Market') : getPurchaseWalletName(o),
+        o.status,
+      ].map(escape).join(','));
+    });
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `order-history-${client?.name || 'client'}-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Filter orders based on search term
   const filteredBuyOrders = buyOrders?.filter(order => 
     order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||

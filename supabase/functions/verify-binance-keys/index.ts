@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,19 +13,51 @@ serve(async (req) => {
   }
 
   try {
+    // ── AUTH: require a signed-in Super Admin ──
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: userData } = await supabase.auth.getUser(token);
+    const uid = userData?.user?.id;
+    if (!uid) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isSA } = await supabase.rpc("has_role", {
+      _user_id: uid,
+      _role: "super admin",
+    });
+    if (!isSA) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
     const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
     const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
 
+    // Return only boolean configuration flags — never any portion of the secret values.
     const results: Record<string, any> = {
-      BINANCE_PROXY_URL: BINANCE_PROXY_URL ? `Set (${BINANCE_PROXY_URL.substring(0, 20)}...)` : "NOT SET",
-      BINANCE_API_KEY: BINANCE_API_KEY ? `Set (${BINANCE_API_KEY.substring(0, 8)}...${BINANCE_API_KEY.slice(-4)})` : "NOT SET",
-      BINANCE_API_SECRET: BINANCE_API_SECRET ? `Set (${BINANCE_API_SECRET.substring(0, 4)}...${BINANCE_API_SECRET.slice(-4)})` : "NOT SET",
-      BINANCE_PROXY_TOKEN: BINANCE_PROXY_TOKEN ? `Set (${BINANCE_PROXY_TOKEN.substring(0, 4)}...)` : "NOT SET",
+      proxy_url_configured: !!BINANCE_PROXY_URL,
+      api_key_configured: !!BINANCE_API_KEY,
+      api_secret_configured: !!BINANCE_API_SECRET,
+      proxy_token_configured: !!BINANCE_PROXY_TOKEN,
     };
 
-    // Test 1: Ping proxy
     let proxyAlive = false;
     try {
       const pingRes = await fetch(`${BINANCE_PROXY_URL}/api/v3/ping`, {
@@ -36,18 +69,15 @@ serve(async (req) => {
       results.proxy_ping = `Error: ${(e as Error).message}`;
     }
 
-    // Test 2: Server time (no auth needed)
     try {
       const timeRes = await fetch(`${BINANCE_PROXY_URL}/api/v3/time`, {
         headers: { "x-proxy-token": BINANCE_PROXY_TOKEN || "" },
       });
-      const timeData = await timeRes.json();
-      results.server_time = timeData;
+      results.server_time_ok = timeRes.ok;
     } catch (e) {
-      results.server_time = `Error: ${(e as Error).message}`;
+      results.server_time_ok = false;
     }
 
-    // Test 3: Account info (requires valid API key + secret)
     try {
       const accRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/capital/config/getall`, {
         headers: {
@@ -57,25 +87,23 @@ serve(async (req) => {
           "x-api-secret": BINANCE_API_SECRET || "",
         },
       });
-      const accText = await accRes.text();
       if (accRes.ok) {
-        const parsed = JSON.parse(accText);
+        const parsed = await accRes.json();
         results.api_key_valid = true;
-        results.assets_found = Array.isArray(parsed) ? parsed.length : "non-array response";
+        results.assets_found = Array.isArray(parsed) ? parsed.length : 0;
       } else {
         results.api_key_valid = false;
-        results.api_error = accText.substring(0, 300);
+        results.api_status = accRes.status;
       }
     } catch (e) {
       results.api_key_valid = false;
-      results.api_error = (e as Error).message;
     }
 
     return new Response(JSON.stringify(results, null, 2), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -261,7 +261,8 @@ Deno.serve(async (req) => {
       const webhookSecret = Deno.env.get("BIOMETRIC_WEBHOOK_SECRET");
       const providedSecret = req.headers.get("x-webhook-secret");
 
-      if (webhookSecret && providedSecret !== webhookSecret) {
+      // Require a configured secret — never accept punches if it is missing.
+      if (!webhookSecret || providedSecret !== webhookSecret) {
         return new Response(
           JSON.stringify({ error: "Unauthorized" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }

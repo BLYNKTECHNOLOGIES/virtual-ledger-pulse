@@ -195,13 +195,17 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
     const matchesAsset = !selectedAsset || orderAsset === selectedAsset;
     return matchesSearch && inFrom && inTo && matchesAsset;
   }).sort((a: any, b: any) => {
-    if (!searchTerm) return 0;
-    const term = searchTerm.toLowerCase();
-    const aPrimary = a.order_number?.toLowerCase().includes(term) || a.supplier_name?.toLowerCase().includes(term);
-    const bPrimary = b.order_number?.toLowerCase().includes(term) || b.supplier_name?.toLowerCase().includes(term);
-    if (aPrimary && !bPrimary) return -1;
-    if (!aPrimary && bPrimary) return 1;
-    return 0;
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const aPrimary = a.order_number?.toLowerCase().includes(term) || a.supplier_name?.toLowerCase().includes(term);
+      const bPrimary = b.order_number?.toLowerCase().includes(term) || b.supplier_name?.toLowerCase().includes(term);
+      if (aPrimary && !bPrimary) return -1;
+      if (!aPrimary && bPrimary) return 1;
+    }
+    // Strict date-wise ordering (newest first) using created_at, fallback to order_date
+    const aTime = new Date(a.created_at || a.order_date || 0).getTime();
+    const bTime = new Date(b.created_at || b.order_date || 0).getTime();
+    return bTime - aTime;
   });
 
   // Helper to get wallet name

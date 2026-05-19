@@ -685,6 +685,7 @@ const router = createBrowserRouter([
         { path: "pms", element: <PMSDashboardPage /> },
         { path: "pms/objectives", element: <ObjectivesPage /> },
         { path: "pms/feedback", element: <Feedback360Page /> },
+        { path: "pms/mpi", element: <MPIPage /> },
         // offboarding route removed — merged into HRMS Separation tab
         { path: "offboarding/fnf", element: <FnFSettlementPage /> },
         { path: "employee/documents", element: <EmployeeDocumentsPage /> },

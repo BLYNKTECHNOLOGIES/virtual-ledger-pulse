@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -217,6 +217,21 @@ export function HorillaSidebar({
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Auto-expand any parent group whose child matches current route
+  useEffect(() => {
+    const toExpand: string[] = [];
+    navGroups.forEach((g) =>
+      g.items.forEach((it) => {
+        if (it.children?.some((c) => location.pathname.startsWith(c.path) || location.pathname === c.path)) {
+          toExpand.push(it.label);
+        }
+      })
+    );
+    if (toExpand.length) {
+      setExpandedItems((prev) => Array.from(new Set([...prev, ...toExpand])));
+    }
+  }, [location.pathname]);
 
   const isActive = (path: string) => {
     if (path === "/hrms") return location.pathname === "/hrms";

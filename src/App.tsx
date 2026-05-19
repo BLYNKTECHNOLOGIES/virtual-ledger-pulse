@@ -106,6 +106,7 @@ import ReportsPage from './pages/horilla/ReportsPage';
 import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
 import ObjectivesPage from './pages/horilla/ObjectivesPage';
 import Feedback360Page from './pages/horilla/Feedback360Page';
+import MPIPage from './pages/horilla/MPIPage';
 import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
 import DisciplinaryActionsPage from './pages/horilla/DisciplinaryActionsPage';
 
@@ -684,6 +685,7 @@ const router = createBrowserRouter([
         { path: "pms", element: <PMSDashboardPage /> },
         { path: "pms/objectives", element: <ObjectivesPage /> },
         { path: "pms/feedback", element: <Feedback360Page /> },
+        { path: "pms/mpi", element: <MPIPage /> },
         // offboarding route removed — merged into HRMS Separation tab
         { path: "offboarding/fnf", element: <FnFSettlementPage /> },
         { path: "employee/documents", element: <EmployeeDocumentsPage /> },

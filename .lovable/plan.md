@@ -1,79 +1,72 @@
-## Audit findings — what's actually wrong
+## MPI Module — Enterprise KPI/KRA/Performance Framework
 
-I cross-checked the dashboard code (`computeOrderStats` in `src/hooks/useBinanceOrders.tsx`, `MetricCards`, `OrderStatusBreakdown`, `OperationalAlerts`) against the live `binance_order_history` table. Confirmed bugs:
+Add a new **MPI** sub-tab (Management Performance Index) under the HRMS/PMS area as a comprehensive, department-aware performance scoring system aligned with MNC fintech standards.
 
-### 1. "Completed Today" ignores the selected filter (high impact)
-`computeOrderStats` builds `todayStart` from the **browser's local midnight** and counts only orders with `createTime >= local-midnight` AND `status COMPLETED`. It does this even when the user has selected a different date, a shift (S1/S2/S3), or a 7D/30D/1Y range. Result:
-- Selecting any past date or shift shows "0 Completed Today" even when the filter window contains hundreds of completed orders (DB confirms 122 SELL + 5 BUY completed today alone).
-- Browsers on non-IST timezones get a different "today" than the IST-based filter window.
+### Where it lives
+- New route: `/hrms/pms/mpi` (sub-tab under existing PMS Dashboard)
+- New nav entry "MPI" inside the PMS tab strip alongside Objectives, 360° Feedback
 
-**Fix:** Rename to "Completed (period)" and count completed orders **within the active filter window** (`startTimestamp`–`endTimestamp` from `getTimestampsForFilter`). Pass the filter bounds into `computeOrderStats`.
+### Scope of Phase 1 build (Tracking phase — no incentives wired to payroll yet)
 
-### 2. "Appeals" undercounts — only reads `orderStatus` string
-The metric checks `status.includes('APPEAL')` only. Binance returns a separate `complaintStatus` / `complainStatus` field that stays active on orders whose `orderStatus` is already `COMPLETED` or `CANCELLED`. The codebase already has `hasActiveBinanceComplaint()` in `src/lib/orderStatusMapper.ts` but the dashboard never uses it.
+**1. Database (new tables, all RLS-protected, audit-trailed)**
+- `mpi_scorecard_templates` — department-specific weightage configs (Operations, Compliance, Management, HR, Sales, Tech). Locked weights, only Super Admin can edit.
+- `mpi_kpi_definitions` — KPI catalog per template (name, category, formula_type, weight, data_source: auto/manual)
+- `mpi_monthly_scores` — per-employee monthly score rows (kpi_id, raw_value, normalized_score, weighted_score, period)
+- `mpi_score_overrides` — manual adjustments with reviewer + reason + dual approval
+- `mpi_critical_violations` — wrong-beneficiary / AML / SOP-bypass log → caps grade at B
+- `mpi_pip_records` — 30-day PIP tracking
+- `mpi_promotion_eligibility` — auto-computed from 3/6-month grade trend
+- `mpi_audit_log` — every score edit tracked
 
-Also: cached `binance_order_history` rows do not store `complaintStatus`. Appeals on completed orders are invisible to the dashboard.
+**2. Auto-calculation engine (edge function `compute-mpi-scores`)**
+Pulls from existing tables:
+- Orders completed / volume → `sales_orders` + `purchase_orders`
+- Error rate / appeals → `terminal_appeals` + reversal tables
+- Attendance / punctuality → `attendance` (Asia/Kolkata)
+- SOP violations → `mpi_critical_violations` + existing escalation logs
+- Response time → terminal chat / action timing tables
+Runs monthly (cron) + on-demand recompute button.
 
-**Fix:**
-- Add `complaint_status` (text/int) and `has_active_complaint` (bool) columns to `binance_order_history`.
-- Populate them in `orderToDbRow` (`useBinanceOrderSync.tsx`) using the raw payload.
-- Count appeals as `status APPEAL/DISPUTE/COMPLAINT` **OR** `has_active_complaint = true`. Apply the same in `OperationalAlerts`.
+**3. UI sub-tabs inside MPI module**
+1. **KPI Dashboard** — org-wide heatmap, grade distribution, top/bottom performers
+2. **Monthly Scorecards** — per-employee drill-down, category breakdown, trend chart
+3. **Incentive Calculator** — read-only preview (Grade → bonus %), no payroll write in Phase 1
+4. **Warning Tracker** — flagged employees (Grade C/D, repeat violations)
+5. **PIP Tracker** — active 30-day plans with weekly review checkpoints
+6. **Promotion Eligibility** — auto list based on grade trend matrix
+7. **Compliance Violations** — critical error log with grade-cap enforcement
+8. **Leaderboard** — top performers by department
+9. **Scorecard Templates** (Super Admin only) — manage weightages per department
 
-### 3. "Pending Payments" is inconsistent with "Active Orders"
-- `activeOrders` counts `TRADING | BUYER_PAYED | PENDING`.
-- `pendingPayments` counts `PENDING | TRADING` but **excludes `BUYER_PAYED`**.
+**4. Scoring logic**
+- Weighted sum → 100-point scale → Grade band (S/A+/A/B/C/D)
+- Critical violation override → cap at B + red flag
+- Per-department template (Operations 35/25/20/10/10 split, Managers different, HR different, etc.)
 
-For SELL orders, `BUYER_PAYED` means the buyer paid and we owe coin release — that is the most operationally urgent "pending action", yet it shows as zero. The card label "Pending Payments" is also ambiguous.
+**5. Anti-manipulation controls**
+- All auto-calc metrics read-only; manual overrides require maker-checker (creator ≠ approver)
+- Weight locking: only Super Admin can edit `mpi_scorecard_templates`; changes audit-logged
+- Every score row writes to `mpi_audit_log`
 
-**Fix:** Split into two clean metrics:
-- **Awaiting Payment** = SELL or BUY with status `TRADING` (no payment yet).
-- **Awaiting Release** = SELL with status `BUYER_PAYED` (we must release coin).
-Update `MetricCards` labels accordingly. `activeOrders` = sum of both + any other non-final states.
+### Out of scope (deferred to Phase 2/3)
+- Auto-debit incentives to payroll (Phase 3)
+- Bell-curve normalization
+- 360° integration into MPI score (uses existing `hr_feedback_360` as read-only signal only)
+- Self-review / employee-facing portal
 
-### 4. Stale "active" orders from incremental sync
-`syncOrderHistoryFromBinance` uses a 24h status-overlap window. Orders older than 24h that transitioned out of `TRADING`/`BUYER_PAYED` between gap-fill runs (every 24h) keep their stale active status in the DB, inflating "Active Orders" and "Pending Payments" for the 7D/30D/1Y views.
+### Permissions
+- `hr_mpi_view` — view dashboards (HR + Managers)
+- `hr_mpi_manage` — create/edit scores, run PIP (HR Lead, Ops Manager)
+- `hr_mpi_admin` — edit templates, weightages (Super Admin only)
+- Employees see only their own scorecard via existing self-service area
 
-**Fix:** When computing dashboard stats, exclude any "active" order whose `create_time` is older than 24 hours (Binance auto-cancels unpaid P2P orders within minutes, so any older active row is almost certainly stale). Optionally also trigger a targeted re-fetch of those specific order numbers via `getOrderDetail` to repair the cached status.
+### Tech specifics
+- Frontend: React Query for all reads (30s polling opt-in), Recharts for trend/distribution
+- Backend: All scoring math in `compute-mpi-scores` edge function (deterministic, idempotent per period)
+- Period key: `YYYY-MM` in Asia/Kolkata
+- AlertDialog for destructive actions (per project memory)
 
-### 5. "Completion Rate" denominator is misleading
-`completedCount / orders.length` includes still-active orders in the denominator, so the rate dips artificially while orders are open.
-
-**Fix:** Denominator = completed + cancelled + expired (final-state orders only). Active orders excluded.
-
-### 6. `OrderStatusBreakdown` lumps `CANCELLED_BY_SYSTEM` into `Cancelled`
-Acceptable but hides operator vs. system cancellations. Add a separate "Auto-Cancelled" slice using `s.includes('CANCELLED_BY_SYSTEM')` checked **before** the generic CANCELLED branch.
-
-### 7. `OperationalAlerts` mirrors the same defects
-Reuses the same `APPEAL` string match and the same TRADING/BUYER_PAYED logic. Same fixes apply once `has_active_complaint` exists and the buckets are split.
-
----
-
-## Implementation steps
-
-1. **DB migration** — add columns to `binance_order_history`:
-   ```
-   complaint_status text
-   has_active_complaint boolean default false
-   ```
-   Backfill from existing `raw_data` payload via a one-shot SQL update.
-
-2. **`src/hooks/useBinanceOrderSync.tsx`** — extend `orderToDbRow` to set `complaint_status` and `has_active_complaint` from the raw order using `hasActiveBinanceComplaint`. Add the two fields to `useCachedOrderHistory` SELECT and `dbRowToOrder`.
-
-3. **`src/hooks/useBinanceOrders.tsx`** — extend `C2COrderHistoryItem` with `hasActiveComplaint`. Refactor `computeOrderStats(orders, { startTs, endTs })`:
-   - `completedInPeriod` replaces `completedToday`.
-   - `awaitingPayment`, `awaitingRelease` replace `pendingPayments`.
-   - `appeals` uses `hasActiveComplaint || status APPEAL/DISPUTE/COMPLAINT`.
-   - `activeOrders` skips rows older than 24h still in active state.
-   - `completionRate` denominator = final states only.
-
-4. **`src/components/terminal/dashboard/MetricCards.tsx`** — update props/labels: "Completed (period)", "Awaiting Payment", "Awaiting Release", keep "Appeals" / "Active Orders" / volumes / completion rate.
-
-5. **`src/pages/terminal/TerminalDashboard.tsx`** — pass filter bounds into `computeOrderStats`; wire new metric props.
-
-6. **`src/components/terminal/dashboard/OperationalAlerts.tsx`** — use `hasActiveComplaint` for appeal alerts; separate "Awaiting Release" alert for SELL+BUYER_PAYED.
-
-7. **`src/components/terminal/dashboard/OrderStatusBreakdown.tsx`** — add `Auto-Cancelled` bucket; ensure `IN_APPEAL` maps to `Appeal`.
-
-8. **Verification** — after deploy: run a SQL spot-check (`SELECT order_status, COUNT(*)`) for the active filter window and confirm card numbers match.
-
-No change to Binance API calls — all fixes are computation/storage; the source of truth (`binance_order_history` + raw payloads already cached) stays intact.
+### Confirmation needed before I start
+This is a sizeable build (~7 new DB tables, 1 edge function, 9 sub-tab UIs). Want me to:
+- **(A)** Build the full Phase-1 scope above in one go, or
+- **(B)** Ship in two passes: first DB + core scorecard + dashboard, then PIP/promotion/leaderboard/admin tooling in a follow-up?

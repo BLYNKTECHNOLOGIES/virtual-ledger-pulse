@@ -9350,6 +9350,369 @@ export type Database = {
           },
         ]
       }
+      mpi_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      mpi_critical_violations: {
+        Row: {
+          acknowledged: boolean
+          description: string
+          employee_id: string
+          evidence_url: string | null
+          id: string
+          period_key: string
+          reported_at: string
+          reported_by: string
+          severity: Database["public"]["Enums"]["mpi_violation_severity"]
+          violation_type: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          description: string
+          employee_id: string
+          evidence_url?: string | null
+          id?: string
+          period_key: string
+          reported_at?: string
+          reported_by: string
+          severity?: Database["public"]["Enums"]["mpi_violation_severity"]
+          violation_type: string
+        }
+        Update: {
+          acknowledged?: boolean
+          description?: string
+          employee_id?: string
+          evidence_url?: string | null
+          id?: string
+          period_key?: string
+          reported_at?: string
+          reported_by?: string
+          severity?: Database["public"]["Enums"]["mpi_violation_severity"]
+          violation_type?: string
+        }
+        Relationships: []
+      }
+      mpi_kpi_definitions: {
+        Row: {
+          category: Database["public"]["Enums"]["mpi_kpi_category"]
+          created_at: string
+          data_source: Database["public"]["Enums"]["mpi_data_source"]
+          description: string | null
+          formula_key: string | null
+          id: string
+          is_active: boolean
+          name: string
+          target_value: number | null
+          template_id: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["mpi_kpi_category"]
+          created_at?: string
+          data_source?: Database["public"]["Enums"]["mpi_data_source"]
+          description?: string | null
+          formula_key?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          target_value?: number | null
+          template_id: string
+          updated_at?: string
+          weight: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["mpi_kpi_category"]
+          created_at?: string
+          data_source?: Database["public"]["Enums"]["mpi_data_source"]
+          description?: string | null
+          formula_key?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          target_value?: number | null
+          template_id?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mpi_kpi_definitions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "mpi_scorecard_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mpi_monthly_results: {
+        Row: {
+          cap_reason: string | null
+          computed_at: string
+          employee_id: string
+          grade: Database["public"]["Enums"]["mpi_grade"]
+          grade_capped: boolean
+          id: string
+          period_key: string
+          template_id: string
+          total_score: number
+        }
+        Insert: {
+          cap_reason?: string | null
+          computed_at?: string
+          employee_id: string
+          grade?: Database["public"]["Enums"]["mpi_grade"]
+          grade_capped?: boolean
+          id?: string
+          period_key: string
+          template_id: string
+          total_score?: number
+        }
+        Update: {
+          cap_reason?: string | null
+          computed_at?: string
+          employee_id?: string
+          grade?: Database["public"]["Enums"]["mpi_grade"]
+          grade_capped?: boolean
+          id?: string
+          period_key?: string
+          template_id?: string
+          total_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mpi_monthly_results_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "mpi_scorecard_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mpi_monthly_scores: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          is_overridden: boolean
+          kpi_id: string
+          normalized_score: number
+          override_id: string | null
+          period_key: string
+          raw_value: number | null
+          template_id: string
+          updated_at: string
+          weighted_score: number
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          is_overridden?: boolean
+          kpi_id: string
+          normalized_score?: number
+          override_id?: string | null
+          period_key: string
+          raw_value?: number | null
+          template_id: string
+          updated_at?: string
+          weighted_score?: number
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          is_overridden?: boolean
+          kpi_id?: string
+          normalized_score?: number
+          override_id?: string | null
+          period_key?: string
+          raw_value?: number | null
+          template_id?: string
+          updated_at?: string
+          weighted_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mpi_monthly_scores_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "mpi_kpi_definitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mpi_monthly_scores_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "mpi_scorecard_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mpi_pip_records: {
+        Row: {
+          closed_by: string | null
+          created_at: string
+          created_by: string
+          employee_id: string
+          end_date: string
+          final_outcome: string | null
+          id: string
+          start_date: string
+          status: Database["public"]["Enums"]["mpi_pip_status"]
+          target_metrics: Json
+          triggering_grade: Database["public"]["Enums"]["mpi_grade"] | null
+          updated_at: string
+          weekly_reviews: Json
+        }
+        Insert: {
+          closed_by?: string | null
+          created_at?: string
+          created_by: string
+          employee_id: string
+          end_date: string
+          final_outcome?: string | null
+          id?: string
+          start_date: string
+          status?: Database["public"]["Enums"]["mpi_pip_status"]
+          target_metrics?: Json
+          triggering_grade?: Database["public"]["Enums"]["mpi_grade"] | null
+          updated_at?: string
+          weekly_reviews?: Json
+        }
+        Update: {
+          closed_by?: string | null
+          created_at?: string
+          created_by?: string
+          employee_id?: string
+          end_date?: string
+          final_outcome?: string | null
+          id?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["mpi_pip_status"]
+          target_metrics?: Json
+          triggering_grade?: Database["public"]["Enums"]["mpi_grade"] | null
+          updated_at?: string
+          weekly_reviews?: Json
+        }
+        Relationships: []
+      }
+      mpi_score_overrides: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          employee_id: string
+          id: string
+          kpi_id: string
+          period_key: string
+          proposed_at: string
+          proposed_by: string
+          proposed_score: number
+          reason: string
+          status: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          employee_id: string
+          id?: string
+          kpi_id: string
+          period_key: string
+          proposed_at?: string
+          proposed_by: string
+          proposed_score: number
+          reason: string
+          status?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          employee_id?: string
+          id?: string
+          kpi_id?: string
+          period_key?: string
+          proposed_at?: string
+          proposed_by?: string
+          proposed_score?: number
+          reason?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mpi_score_overrides_kpi_id_fkey"
+            columns: ["kpi_id"]
+            isOneToOne: false
+            referencedRelation: "mpi_kpi_definitions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mpi_scorecard_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: Database["public"]["Enums"]["mpi_department"]
+          description: string | null
+          id: string
+          is_active: boolean
+          locked: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department: Database["public"]["Enums"]["mpi_department"]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          locked?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: Database["public"]["Enums"]["mpi_department"]
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          locked?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       offer_documents: {
         Row: {
           applicant_id: string
@@ -17675,6 +18038,26 @@ export type Database = {
         | "cancelled"
         | "on_hold"
       kyc_approval_status: "PENDING" | "APPROVED" | "REJECTED" | "QUERY"
+      mpi_data_source: "auto" | "manual"
+      mpi_department:
+        | "operations"
+        | "compliance"
+        | "management"
+        | "hr"
+        | "sales"
+        | "technical"
+      mpi_grade: "S" | "A+" | "A" | "B" | "C" | "D"
+      mpi_kpi_category:
+        | "productivity"
+        | "quality"
+        | "compliance"
+        | "behavioral"
+        | "ownership"
+        | "leadership"
+        | "retention"
+        | "reporting"
+      mpi_pip_status: "active" | "passed" | "failed" | "cancelled"
+      mpi_violation_severity: "minor" | "major" | "critical"
       query_type: "VKYC_REQUIRED" | "MANUAL_QUERY"
       terminal_permission:
         | "terminal_dashboard_view"
@@ -17973,6 +18356,28 @@ export const Constants = {
         "on_hold",
       ],
       kyc_approval_status: ["PENDING", "APPROVED", "REJECTED", "QUERY"],
+      mpi_data_source: ["auto", "manual"],
+      mpi_department: [
+        "operations",
+        "compliance",
+        "management",
+        "hr",
+        "sales",
+        "technical",
+      ],
+      mpi_grade: ["S", "A+", "A", "B", "C", "D"],
+      mpi_kpi_category: [
+        "productivity",
+        "quality",
+        "compliance",
+        "behavioral",
+        "ownership",
+        "leadership",
+        "retention",
+        "reporting",
+      ],
+      mpi_pip_status: ["active", "passed", "failed", "cancelled"],
+      mpi_violation_severity: ["minor", "major", "critical"],
       query_type: ["VKYC_REQUIRED", "MANUAL_QUERY"],
       terminal_permission: [
         "terminal_dashboard_view",

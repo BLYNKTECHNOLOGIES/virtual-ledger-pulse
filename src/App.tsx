@@ -106,6 +106,7 @@ import ReportsPage from './pages/horilla/ReportsPage';
 import PMSDashboardPage from './pages/horilla/PMSDashboardPage';
 import ObjectivesPage from './pages/horilla/ObjectivesPage';
 import Feedback360Page from './pages/horilla/Feedback360Page';
+import MPIPage from './pages/horilla/MPIPage';
 import EmployeeOnboardingPipelinePage from './pages/horilla/EmployeeOnboardingPipelinePage';
 import DisciplinaryActionsPage from './pages/horilla/DisciplinaryActionsPage';
 

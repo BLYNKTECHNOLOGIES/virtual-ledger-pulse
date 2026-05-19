@@ -17348,6 +17348,9 @@ export type Database = {
         Args: { client_name_param: string }
         Returns: undefined
       }
+      mpi_can_manage: { Args: { _uid: string }; Returns: boolean }
+      mpi_can_view: { Args: { _uid: string }; Returns: boolean }
+      mpi_is_admin: { Args: { _uid: string }; Returns: boolean }
       next_small_sales_order_number: { Args: never; Returns: string }
       preview_off_market_purchase_order_number: { Args: never; Returns: string }
       preview_off_market_sales_order_number: { Args: never; Returns: string }

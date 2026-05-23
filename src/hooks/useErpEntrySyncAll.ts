@@ -28,6 +28,8 @@ export function useSyncAll() {
           await syncOrderHistoryFromBinance({ fullSync: false, forceGapFill: true });
           const buyResult = await syncCompletedBuyOrders();
           const sellResult = await syncCompletedSellOrders();
+          // Void any pending sync rows whose Binance order is now cancelled
+          await supabase.rpc("reconcile_terminal_sync_cancellations" as any, { p_order_number: null });
           return { buyResult, sellResult };
         })(),
         (async () => {

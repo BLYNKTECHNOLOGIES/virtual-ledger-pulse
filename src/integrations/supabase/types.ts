@@ -17435,6 +17435,13 @@ export type Database = {
         }
         Returns: Json
       }
+      reconcile_terminal_sync_cancellations: {
+        Args: { p_order_number?: string }
+        Returns: {
+          table_name: string
+          voided_count: number
+        }[]
+      }
       refresh_hour_accounts: {
         Args: { p_month?: number; p_year?: number }
         Returns: undefined

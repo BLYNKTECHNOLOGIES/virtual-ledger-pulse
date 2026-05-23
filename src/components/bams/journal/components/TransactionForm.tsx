@@ -172,6 +172,15 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       return;
     }
 
+    // Receipt/bill upload is MANDATORY for every expense entry
+    if (formData.transactionType === 'EXPENSE' && !billFile) {
+      toast({
+        title: "Receipt required",
+        description: "Please attach a bill/receipt — it is mandatory for every expense entry.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const amount = parseFloat(formData.amount);
     if (amount <= 0) {
@@ -182,6 +191,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       });
       return;
     }
+
 
     createTransactionMutation.mutate(formData);
   };
@@ -339,7 +349,12 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           </div>
 
            <div className="lg:col-span-2">
-             <Label htmlFor="billAttachment"><Label htmlFor="billAttachment">Bill / Receipt Attachment</Label></Label>
+             <Label htmlFor="billAttachment">
+               Bill / Receipt Attachment
+               {formData.transactionType === 'EXPENSE' && (
+                 <span className="text-destructive ml-1">* (required for expenses)</span>
+               )}
+             </Label>
              <div className="mt-1">
                {billFile ? (
                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">

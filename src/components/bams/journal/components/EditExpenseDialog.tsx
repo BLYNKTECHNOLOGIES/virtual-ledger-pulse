@@ -109,6 +109,27 @@
         ? getFullCategoryLabel(formData.category, formData.subCategory)
         : null;
 
+      // Upload new bill if user picked one; otherwise keep existing (unless cleared)
+      let billUrl: string | null = removeBill ? null : existingBillUrl;
+      if (billFile) {
+        setUploadingBill(true);
+        try {
+          const fileExt = billFile.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+          const filePath = `bills/${fileName}`;
+          const { error: uploadError } = await supabase.storage
+            .from('transaction-bills')
+            .upload(filePath, billFile);
+          if (uploadError) throw new Error('Failed to upload bill: ' + uploadError.message);
+          const { data: publicUrlData } = supabase.storage
+            .from('transaction-bills')
+            .getPublicUrl(filePath);
+          billUrl = publicUrlData.publicUrl;
+        } finally {
+          setUploadingBill(false);
+        }
+      }
+
       // Bank ledger is append-only: reverse the original then insert the new version.
       const { error: revErr } = await supabase.rpc('reverse_bank_transaction', {
         p_original_id: transaction.id,
@@ -127,6 +148,7 @@
           transaction_date: formData.date ? format(formData.date, 'yyyy-MM-dd') : null,
           reference_number: formData.referenceNumber || null,
           related_account_name: transaction.related_account_name ?? null,
+          bill_url: billUrl,
         });
 
       if (insErr) throw insErr;

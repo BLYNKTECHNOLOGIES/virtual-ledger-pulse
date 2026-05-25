@@ -32,16 +32,20 @@
    const { toast } = useToast();
    const queryClient = useQueryClient();
    
-   const [formData, setFormData] = useState({
-     bankAccountId: "",
-     transactionType: "",
-     amount: "",
-     category: "",
-     subCategory: "",
-     description: "",
-     date: undefined as Date | undefined,
-     referenceNumber: "",
-   });
+  const [formData, setFormData] = useState({
+    bankAccountId: "",
+    transactionType: "",
+    amount: "",
+    category: "",
+    subCategory: "",
+    description: "",
+    date: undefined as Date | undefined,
+    referenceNumber: "",
+  });
+  const [existingBillUrl, setExistingBillUrl] = useState<string | null>(null);
+  const [billFile, setBillFile] = useState<File | null>(null);
+  const [removeBill, setRemoveBill] = useState(false);
+  const [uploadingBill, setUploadingBill] = useState(false);
  
    // Parse existing category to extract main category and sub-category
    useEffect(() => {

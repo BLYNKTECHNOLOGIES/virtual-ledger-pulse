@@ -13,7 +13,7 @@
  import { Textarea } from "@/components/ui/textarea";
  import { Calendar } from "@/components/ui/calendar";
  import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
- import { CalendarIcon } from "lucide-react";
+ import { CalendarIcon, Paperclip, X, ExternalLink } from "lucide-react";
  import { format } from "date-fns";
  import { cn } from "@/lib/utils";
  import { useToast } from "@/hooks/use-toast";
@@ -32,16 +32,20 @@
    const { toast } = useToast();
    const queryClient = useQueryClient();
    
-   const [formData, setFormData] = useState({
-     bankAccountId: "",
-     transactionType: "",
-     amount: "",
-     category: "",
-     subCategory: "",
-     description: "",
-     date: undefined as Date | undefined,
-     referenceNumber: "",
-   });
+  const [formData, setFormData] = useState({
+    bankAccountId: "",
+    transactionType: "",
+    amount: "",
+    category: "",
+    subCategory: "",
+    description: "",
+    date: undefined as Date | undefined,
+    referenceNumber: "",
+  });
+  const [existingBillUrl, setExistingBillUrl] = useState<string | null>(null);
+  const [billFile, setBillFile] = useState<File | null>(null);
+  const [removeBill, setRemoveBill] = useState(false);
+  const [uploadingBill, setUploadingBill] = useState(false);
  
    // Parse existing category to extract main category and sub-category
    useEffect(() => {
@@ -69,18 +73,21 @@
          }
        }
        
-       setFormData({
-         bankAccountId: transaction.bank_account_id || "",
-         transactionType: transaction.transaction_type || "",
-         amount: transaction.amount?.toString() || "",
-         category: mainCategory,
-         subCategory: subCategory,
-         description: transaction.description || "",
-         date: transaction.transaction_date ? new Date(transaction.transaction_date) : undefined,
-         referenceNumber: transaction.reference_number || "",
-       });
-     }
-   }, [transaction, open]);
+      setFormData({
+        bankAccountId: transaction.bank_account_id || "",
+        transactionType: transaction.transaction_type || "",
+        amount: transaction.amount?.toString() || "",
+        category: mainCategory,
+        subCategory: subCategory,
+        description: transaction.description || "",
+        date: transaction.transaction_date ? new Date(transaction.transaction_date) : undefined,
+        referenceNumber: transaction.reference_number || "",
+      });
+      setExistingBillUrl(transaction.bill_url || null);
+      setBillFile(null);
+      setRemoveBill(false);
+    }
+  }, [transaction, open]);
  
    // Get main categories based on transaction type
    const mainCategories = formData.transactionType === 'INCOME' 
@@ -102,6 +109,27 @@
         ? getFullCategoryLabel(formData.category, formData.subCategory)
         : null;
 
+      // Upload new bill if user picked one; otherwise keep existing (unless cleared)
+      let billUrl: string | null = removeBill ? null : existingBillUrl;
+      if (billFile) {
+        setUploadingBill(true);
+        try {
+          const fileExt = billFile.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+          const filePath = `bills/${fileName}`;
+          const { error: uploadError } = await supabase.storage
+            .from('transaction-bills')
+            .upload(filePath, billFile);
+          if (uploadError) throw new Error('Failed to upload bill: ' + uploadError.message);
+          const { data: publicUrlData } = supabase.storage
+            .from('transaction-bills')
+            .getPublicUrl(filePath);
+          billUrl = publicUrlData.publicUrl;
+        } finally {
+          setUploadingBill(false);
+        }
+      }
+
       // Bank ledger is append-only: reverse the original then insert the new version.
       const { error: revErr } = await supabase.rpc('reverse_bank_transaction', {
         p_original_id: transaction.id,
@@ -120,6 +148,7 @@
           transaction_date: formData.date ? format(formData.date, 'yyyy-MM-dd') : null,
           reference_number: formData.referenceNumber || null,
           related_account_name: transaction.related_account_name ?? null,
+          bill_url: billUrl,
         });
 
       if (insErr) throw insErr;
@@ -172,8 +201,21 @@
        return;
      }
  
-     updateTransactionMutation.mutate();
-   };
+    // Receipt mandatory for expenses
+    if (formData.transactionType === 'EXPENSE') {
+      const willHaveBill = billFile || (!removeBill && existingBillUrl);
+      if (!willHaveBill) {
+        toast({
+          title: "Receipt required",
+          description: "Please attach a bill/receipt — it is mandatory for every expense entry.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    updateTransactionMutation.mutate();
+  };
  
    const handleCategoryChange = (value: string) => {
      setFormData({
@@ -310,28 +352,99 @@
              />
            </div>
  
-           <div className="md:col-span-2">
-             <Label htmlFor="description">Description (optional)</Label>
-             <Textarea
-               id="description"
-               placeholder="Describe the transaction..."
-               value={formData.description}
-               onChange={(e) => setFormData({...formData, description: e.target.value})}
-             />
-           </div>
-         </div>
- 
-         <DialogFooter>
-           <Button variant="outline" onClick={() => onOpenChange(false)}>
-             Cancel
-           </Button>
-           <Button 
-             onClick={handleSubmit}
-             disabled={updateTransactionMutation.isPending}
-           >
-             {updateTransactionMutation.isPending ? "Saving..." : "Save Changes"}
-           </Button>
-         </DialogFooter>
+          <div className="md:col-span-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Describe the transaction..."
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <Label htmlFor="editBillAttachment">
+              Bill / Receipt Attachment
+              {formData.transactionType === 'EXPENSE' && (
+                <span className="text-destructive ml-1">* (required for expenses)</span>
+              )}
+            </Label>
+
+            {existingBillUrl && !removeBill && !billFile && (
+              <div className="mt-1 flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <a
+                  href={existingBillUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex-1 truncate flex items-center gap-1"
+                >
+                  View current receipt <ExternalLink className="h-3 w-3" />
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRemoveBill(true)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {billFile ? (
+              <div className="mt-1 flex items-center gap-2 p-2 border rounded-md">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm truncate flex-1">{billFile.name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBillFile(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <label
+                htmlFor="editBillAttachment"
+                className="mt-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/30"
+              >
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {existingBillUrl && !removeBill
+                    ? "Click to replace receipt (PDF, JPG, PNG)"
+                    : "Click to upload receipt (PDF, JPG, PNG)"}
+                </span>
+              </label>
+            )}
+            <input
+              id="editBillAttachment"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setBillFile(file);
+                  setRemoveBill(false);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={updateTransactionMutation.isPending || uploadingBill}
+          >
+            {updateTransactionMutation.isPending || uploadingBill ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
        </DialogContent>
      </Dialog>
    );

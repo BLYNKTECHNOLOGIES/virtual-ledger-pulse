@@ -352,28 +352,99 @@
              />
            </div>
  
-           <div className="md:col-span-2">
-             <Label htmlFor="description">Description (optional)</Label>
-             <Textarea
-               id="description"
-               placeholder="Describe the transaction..."
-               value={formData.description}
-               onChange={(e) => setFormData({...formData, description: e.target.value})}
-             />
-           </div>
-         </div>
- 
-         <DialogFooter>
-           <Button variant="outline" onClick={() => onOpenChange(false)}>
-             Cancel
-           </Button>
-           <Button 
-             onClick={handleSubmit}
-             disabled={updateTransactionMutation.isPending}
-           >
-             {updateTransactionMutation.isPending ? "Saving..." : "Save Changes"}
-           </Button>
-         </DialogFooter>
+          <div className="md:col-span-2">
+            <Label htmlFor="description">Description (optional)</Label>
+            <Textarea
+              id="description"
+              placeholder="Describe the transaction..."
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <Label htmlFor="editBillAttachment">
+              Bill / Receipt Attachment
+              {formData.transactionType === 'EXPENSE' && (
+                <span className="text-destructive ml-1">* (required for expenses)</span>
+              )}
+            </Label>
+
+            {existingBillUrl && !removeBill && !billFile && (
+              <div className="mt-1 flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <a
+                  href={existingBillUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex-1 truncate flex items-center gap-1"
+                >
+                  View current receipt <ExternalLink className="h-3 w-3" />
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRemoveBill(true)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
+            {billFile ? (
+              <div className="mt-1 flex items-center gap-2 p-2 border rounded-md">
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm truncate flex-1">{billFile.name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setBillFile(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <label
+                htmlFor="editBillAttachment"
+                className="mt-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/30"
+              >
+                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  {existingBillUrl && !removeBill
+                    ? "Click to replace receipt (PDF, JPG, PNG)"
+                    : "Click to upload receipt (PDF, JPG, PNG)"}
+                </span>
+              </label>
+            )}
+            <input
+              id="editBillAttachment"
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setBillFile(file);
+                  setRemoveBill(false);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={updateTransactionMutation.isPending || uploadingBill}
+          >
+            {updateTransactionMutation.isPending || uploadingBill ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
        </DialogContent>
      </Dialog>
    );

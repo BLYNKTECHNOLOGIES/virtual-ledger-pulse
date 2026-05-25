@@ -73,18 +73,21 @@
          }
        }
        
-       setFormData({
-         bankAccountId: transaction.bank_account_id || "",
-         transactionType: transaction.transaction_type || "",
-         amount: transaction.amount?.toString() || "",
-         category: mainCategory,
-         subCategory: subCategory,
-         description: transaction.description || "",
-         date: transaction.transaction_date ? new Date(transaction.transaction_date) : undefined,
-         referenceNumber: transaction.reference_number || "",
-       });
-     }
-   }, [transaction, open]);
+      setFormData({
+        bankAccountId: transaction.bank_account_id || "",
+        transactionType: transaction.transaction_type || "",
+        amount: transaction.amount?.toString() || "",
+        category: mainCategory,
+        subCategory: subCategory,
+        description: transaction.description || "",
+        date: transaction.transaction_date ? new Date(transaction.transaction_date) : undefined,
+        referenceNumber: transaction.reference_number || "",
+      });
+      setExistingBillUrl(transaction.bill_url || null);
+      setBillFile(null);
+      setRemoveBill(false);
+    }
+  }, [transaction, open]);
  
    // Get main categories based on transaction type
    const mainCategories = formData.transactionType === 'INCOME' 

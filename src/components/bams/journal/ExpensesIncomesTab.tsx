@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
    AlertDialogTitle,
  } from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
- import { TrendingUp, TrendingDown, ArrowRightLeft, Pencil, Undo2 } from "lucide-react";
+ import { TrendingUp, TrendingDown, ArrowRightLeft, Pencil, Undo2, ExternalLink } from "lucide-react";
 import { PermissionGate } from "@/components/PermissionGate";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
  import { useToast } from "@/hooks/use-toast";
@@ -276,6 +276,19 @@ export function ExpensesIncomesTab() {
                     </div>
                   </div>
                    <div className="flex items-center gap-2">
+                     {transaction.bill_url && (
+                       <Button
+                         variant="ghost"
+                         size="icon"
+                         className="h-8 w-8 text-primary hover:text-primary"
+                         title="View receipt"
+                         asChild
+                       >
+                         <a href={transaction.bill_url} target="_blank" rel="noreferrer">
+                           <ExternalLink className="h-4 w-4" />
+                         </a>
+                       </Button>
+                     )}
                      <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                        <Button
                          variant="ghost"

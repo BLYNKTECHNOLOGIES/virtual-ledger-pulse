@@ -196,7 +196,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
                       ?.filter((w) => w.id !== item.wallet_id)
                       .map((w) => (
                         <SelectItem key={w.id} value={w.id}>
-                          {w.wallet_name} — {getAssetBalance(w.id).toFixed(4)} {item.asset}
+                          {w.wallet_name} — {getAssetBalance(w.id).toFixed(8)} {item.asset}
                         </SelectItem>
                       ))}
                   </SelectContent>

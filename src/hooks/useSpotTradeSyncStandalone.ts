@@ -168,10 +168,29 @@ export async function syncSpotTradesToConversions(): Promise<{ inserted: number 
     }
   }
 
+  // STALE-FILL GUARD: per-symbol max trade_time of APPROVED conversions
+  const { data: approved } = await supabase
+    .from("erp_product_conversions" as any)
+    .select("metadata")
+    .eq("status", "APPROVED");
+  const maxApprovedBySymbol = new Map<string, number>();
+  for (const a of (approved || []) as any[]) {
+    const sym = a?.metadata?.binance_symbol;
+    const tt = Number(a?.metadata?.trade_time);
+    if (sym && Number.isFinite(tt)) {
+      const prev = maxApprovedBySymbol.get(sym) ?? 0;
+      if (tt > prev) maxApprovedBySymbol.set(sym, tt);
+    }
+  }
+
   const unsyncedTrades = trades.filter((t: any) => {
     const fillIds: string[] = t._fill_ids || [t.id];
-    return !fillIds.some((fid: string) => syncedTradeIds.has(fid)) &&
-      !(t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+    const alreadySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
+      (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+    if (alreadySynced) return false;
+    const cutoff = maxApprovedBySymbol.get(t.symbol) ?? 0;
+    const isStale = Number(t.trade_time) > 0 && cutoff > 0 && Number(t.trade_time) < cutoff;
+    return !isStale;
   });
 
   if (unsyncedTrades.length === 0) return { inserted: 0 };

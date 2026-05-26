@@ -97,12 +97,32 @@ export function useUnsyncedSpotTrades() {
         }
       }
 
+      // STALE-FILL GUARD: compute the max trade_time of already-APPROVED conversions
+      // per symbol. Any unsynced trade older than that is a historical backfill
+      // whose inventory effect was already absorbed — skip it to prevent phantom
+      // PENDING conversions against current wallet balances.
+      const { data: approved } = await supabase
+        .from("erp_product_conversions" as any)
+        .select("metadata")
+        .eq("status", "APPROVED");
+      const maxApprovedBySymbol = new Map<string, number>();
+      for (const a of (approved || []) as any[]) {
+        const sym = a?.metadata?.binance_symbol;
+        const tt = Number(a?.metadata?.trade_time);
+        if (sym && Number.isFinite(tt)) {
+          const prev = maxApprovedBySymbol.get(sym) ?? 0;
+          if (tt > prev) maxApprovedBySymbol.set(sym, tt);
+        }
+      }
+
       return trades.map((t: any) => {
         const fillIds: string[] = t._fill_ids || [t.id];
         const anySynced = fillIds.some((fid: string) => syncedTradeIds.has(fid)) ||
           (t.binance_order_id && syncedOrderIds.has(t.binance_order_id));
+        const cutoff = maxApprovedBySymbol.get(t.symbol) ?? 0;
+        const isStale = !anySynced && Number(t.trade_time) > 0 && cutoff > 0 && Number(t.trade_time) < cutoff;
         const { _fill_ids, ...rest } = t;
-        return { ...rest, fill_ids: fillIds, already_synced: anySynced } as SpotTradeForSync;
+        return { ...rest, fill_ids: fillIds, already_synced: anySynced || isStale } as SpotTradeForSync;
       });
     },
   });

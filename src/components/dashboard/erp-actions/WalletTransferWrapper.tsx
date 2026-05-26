@@ -73,7 +73,9 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   // Fee is deducted from the transfer amount (not added on top) for on-chain transfers
   // The source wallet is debited only the transfer amount; fee reduces what the destination receives
   const totalRequired = transferAmount;
-  const hasInsufficientBalance = fromWalletId ? sourceBalance < totalRequired : false;
+  // Use a tiny epsilon tolerance to avoid blocking on sub-satoshi floating-point dust differences
+  const BALANCE_EPSILON = 1e-8;
+  const hasInsufficientBalance = fromWalletId ? sourceBalance + BALANCE_EPSILON < totalRequired : false;
 
   const transferMutation = useMutation({
     mutationFn: async () => {
@@ -81,9 +83,10 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
       if (!fromWalletId || !toWalletId) throw new Error("Wallet not mapped");
       if (feeAmount < 0) throw new Error("Fee cannot be negative");
       if (feeAmount >= transferAmount) throw new Error("Fee cannot exceed transfer amount");
-      if (sourceBalance < transferAmount) {
-        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(4)}, Required: ${transferAmount.toFixed(4)}`);
+      if (sourceBalance + BALANCE_EPSILON < transferAmount) {
+        throw new Error(`Insufficient ${item.asset} balance in source wallet. Available: ${sourceBalance.toFixed(8)}, Required: ${transferAmount.toFixed(8)}`);
       }
+
 
       const refId = globalThis.crypto?.randomUUID?.() ?? null;
 

@@ -426,7 +426,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                             )}
                           </div>
                         </TableCell>
-                      </TableRow>
+                      </ClickableRow>
                     ))}
                   </TableBody>
                 </Table>

@@ -632,7 +632,7 @@ export default function Sales() {
           </TableHeader>
           <TableBody>
             {orders.map((order) => (
-              <TableRow key={order.id}>
+              <ClickableRow key={order.id} txType="sales_order" txId={order.id}>
                 <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                 <TableCell>
                   <div
@@ -718,7 +718,7 @@ export default function Sales() {
                     )}
                   </div>
                 </TableCell>
-              </TableRow>
+              </ClickableRow>
             ))}
           </TableBody>
         </Table>

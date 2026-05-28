@@ -535,7 +535,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['activity_timeline'] });
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to update purchase order", variant: "destructive" });
     }
   });
@@ -596,7 +596,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     });
   };
 
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
+  const handleInputChange = (field: keyof typeof formData, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 

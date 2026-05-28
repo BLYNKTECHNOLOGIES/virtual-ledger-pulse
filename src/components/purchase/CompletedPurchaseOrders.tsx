@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ClickableRow } from "@/components/transaction-detail";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { CheckCircle, Eye, Edit, Trash2 } from "lucide-react";
@@ -346,7 +347,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                   </TableHeader>
                   <TableBody>
                     {filteredOrders.map((order) => (
-                      <TableRow key={order.id}>
+                      <ClickableRow key={order.id} txType="purchase_order" txId={order.id}>
                         <TableCell className="font-mono text-sm">{order.order_number}</TableCell>
                         <TableCell>
                           <div
@@ -425,7 +426,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                             )}
                           </div>
                         </TableCell>
-                      </TableRow>
+                      </ClickableRow>
                     ))}
                   </TableBody>
                 </Table>

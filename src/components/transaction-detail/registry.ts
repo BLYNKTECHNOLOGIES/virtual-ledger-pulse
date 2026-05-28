@@ -2,11 +2,13 @@ import type { TransactionAdapter, TransactionType } from './types';
 import { purchaseOrderAdapter } from './adapters/purchaseOrder';
 import { salesOrderAdapter } from './adapters/salesOrder';
 import { bankTransactionAdapter } from './adapters/bankTransaction';
+import { walletTransactionAdapter } from './adapters/walletTransaction';
 
 const adapters: Record<TransactionType, TransactionAdapter> = {
   purchase_order: purchaseOrderAdapter,
   sales_order: salesOrderAdapter,
   bank_transaction: bankTransactionAdapter,
+  wallet_transaction: walletTransactionAdapter,
 };
 
 export function getAdapter(type: TransactionType): TransactionAdapter {

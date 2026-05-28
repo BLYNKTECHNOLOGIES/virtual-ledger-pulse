@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ClickableRow } from "@/components/transaction-detail";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 
@@ -87,7 +88,7 @@ export function SalesPurchasesTab() {
                     </TableHeader>
                     <TableBody>
                       {salesOrders.map(o => (
-                        <TableRow key={o.id}>
+                        <ClickableRow key={o.id} txType="sales_order" txId={o.id}>
                           <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                           <TableCell className="text-xs">{o.order_date ? format(new Date(o.order_date), 'dd MMM yyyy') : '—'}</TableCell>
                           <TableCell>{o.client_name || '—'}</TableCell>
@@ -98,7 +99,7 @@ export function SalesPurchasesTab() {
                           <TableCell className="text-right font-medium">{formatCurrency(o.net_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
                           <TableCell>{statusBadge(o.payment_status)}</TableCell>
-                        </TableRow>
+                        </ClickableRow>
                       ))}
                     </TableBody>
                   </Table>
@@ -143,7 +144,7 @@ export function SalesPurchasesTab() {
                     </TableHeader>
                     <TableBody>
                       {purchaseOrders.map(o => (
-                        <TableRow key={o.id}>
+                        <ClickableRow key={o.id} txType="purchase_order" txId={o.id}>
                           <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                           <TableCell className="text-xs">{o.order_date ? format(new Date(o.order_date), 'dd MMM yyyy') : '—'}</TableCell>
                           <TableCell>{o.supplier_name || '—'}</TableCell>
@@ -154,7 +155,7 @@ export function SalesPurchasesTab() {
                           <TableCell className="text-right">{formatCurrency(o.tds_amount)}</TableCell>
                           <TableCell className="text-right font-medium">{formatCurrency(o.net_payable_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
-                        </TableRow>
+                        </ClickableRow>
                       ))}
                     </TableBody>
                   </Table>

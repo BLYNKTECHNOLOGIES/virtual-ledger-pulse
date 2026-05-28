@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
-
 export type TransactionType =
   | 'purchase_order'
   | 'sales_order'
-  | 'bank_transaction';
+  | 'bank_transaction'
+  | 'wallet_transaction';
+
+import type { ReactNode } from 'react';
 
 export interface DetailField {
   label: string;
@@ -21,8 +22,6 @@ export interface TransactionAdapterResult {
 
 export interface TransactionAdapter {
   type: TransactionType;
-  /** Permission required to NAVIGATE to the source module. View-only dialog is always allowed. */
   modulePermission: string;
-  /** Fetches the record and returns a normalized render spec. */
   fetch: (id: string) => Promise<TransactionAdapterResult>;
 }

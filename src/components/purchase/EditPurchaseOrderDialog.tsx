@@ -410,6 +410,21 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           .eq('id', firstItemId);
       }
 
+      if (isCompleted) {
+        const { data: valuationResult, error: valuationError } = await supabase.rpc(
+          'recalculate_purchase_order_effective_usdt' as never,
+          {
+            p_order_id: order.id,
+            p_reason: 'Completed purchase order edited from Edit Purchase Order dialog',
+          } as never,
+        );
+
+        const valuation = valuationResult as ReconcilePurchaseOrderResult | null;
+        if (valuationError || (valuation && valuation.success === false)) {
+          throw new Error(valuationError?.message || valuation?.error || 'Failed to recalculate effective USDT valuation');
+        }
+      }
+
       // Payment splits are now handled inside the reconcile_purchase_order_edit RPC
       // (SECURITY DEFINER) to prevent silent RLS failures causing duplicate accumulation
 
@@ -526,6 +541,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['wallet_asset_balances_summary'] });
       queryClient.invalidateQueries({ queryKey: ['wallet_stock_summary'] });
       queryClient.invalidateQueries({ queryKey: ['wallet-stock'] });
+      queryClient.invalidateQueries({ queryKey: ['period_based_pl_dashboard_v2'] });
+      queryClient.invalidateQueries({ queryKey: ['average_cost_calculation'] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['counterparty-pan-records'] });
       queryClient.invalidateQueries({ queryKey: ['tds-records'] });

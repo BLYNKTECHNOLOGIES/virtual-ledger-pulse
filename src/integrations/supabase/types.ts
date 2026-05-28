@@ -17391,6 +17391,10 @@ export type Database = {
         }
         Returns: Json
       }
+      recalculate_purchase_order_effective_usdt: {
+        Args: { p_order_id: string; p_reason?: string }
+        Returns: Json
+      }
       recalculate_wallet_balance: {
         Args: { wallet_id_param: string }
         Returns: undefined

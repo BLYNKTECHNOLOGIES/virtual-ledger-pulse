@@ -11,24 +11,15 @@ export const purchaseOrderAdapter: TransactionAdapter = {
   async fetch(id) {
     const { data, error } = await supabase
       .from('purchase_orders')
-      .select(`
-        id, order_number, order_date, status, supplier_name,
-        total_amount, net_payable_amount, payment_method,
-        effective_usdt_qty, market_rate_usdt, notes,
-        purchase_order_items ( quantity, unit_price, products ( code, name ) )
-      `)
+      .select('*')
       .eq('id', id)
       .maybeSingle();
 
     if (error) throw error;
     if (!data) throw new Error('Purchase order not found');
 
-    const items = (data.purchase_order_items as any[]) || [];
-    const first = items[0];
-    const productCode = first?.products?.code || '—';
-    const productName = first?.products?.name || '';
-    const qty = Number(first?.quantity || 0);
-    const unit = Number(first?.unit_price || 0);
+    const qty = Number(data.quantity || 0);
+    const unit = Number(data.price_per_unit || 0);
     const effUsdt = Number(data.effective_usdt_qty || 0);
 
     return {
@@ -38,15 +29,16 @@ export const purchaseOrderAdapter: TransactionAdapter = {
       fields: [
         { label: 'Date', value: data.order_date ? format(new Date(data.order_date), 'dd MMM yyyy') : '—' },
         { label: 'Status', value: String(data.status || '—') },
-        { label: 'Asset', value: `${productCode}${productName ? ` · ${productName}` : ''}` },
+        { label: 'Asset', value: data.product_name || data.product_category || '—' },
         { label: 'Quantity', value: qty.toLocaleString('en-IN', { maximumFractionDigits: 8 }) },
         { label: 'Unit Price (₹)', value: formatINR(unit) },
         { label: 'Total (₹)', value: formatINR(Number(data.total_amount || 0)) },
         { label: 'Net Payable (₹)', value: formatINR(Number(data.net_payable_amount || 0)) },
         { label: 'Effective USDT Qty', value: effUsdt.toLocaleString('en-IN', { maximumFractionDigits: 8 }) },
         { label: 'Market Rate (USDT/INR)', value: data.market_rate_usdt ? Number(data.market_rate_usdt).toLocaleString('en-IN', { maximumFractionDigits: 6 }) : '—' },
-        { label: 'Payment Method', value: data.payment_method || '—' },
-        { label: 'Notes', value: data.notes || '—', span: 2 },
+        { label: 'Payment Method', value: data.payment_method_used || data.payment_method_type || '—' },
+        { label: 'Bank Account', value: data.bank_account_name || '—' },
+        { label: 'Notes', value: data.notes || data.description || '—', span: 2 },
       ],
       deepLink: { route: `/purchase?orderId=${data.id}`, label: 'Open in Purchase', permission: 'purchase_view' },
     };

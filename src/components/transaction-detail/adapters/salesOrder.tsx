@@ -32,7 +32,7 @@ export const salesOrderAdapter: TransactionAdapter = {
         .select('first_name, last_name, email, username')
         .eq('id', data.created_by)
         .maybeSingle();
-      createdByName = u?.name || u?.email || null;
+      createdByName = [u?.first_name, u?.last_name].filter(Boolean).join(' ') || u?.username || u?.email || null;
     }
 
     // Fetch payment splits

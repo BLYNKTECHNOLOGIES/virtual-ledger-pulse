@@ -31,7 +31,7 @@ export const purchaseOrderAdapter: TransactionAdapter = {
     if (data.created_by) {
       const { data: u } = await supabase
         .from('users')
-        .select('name, email')
+        .select('first_name, last_name, email, username')
         .eq('id', data.created_by)
         .maybeSingle();
       createdByName = u?.name || u?.email || null;

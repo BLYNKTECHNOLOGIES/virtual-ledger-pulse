@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { ClickableUser } from "@/components/ui/clickable-user";
+import { openTransaction, type TransactionType } from "@/components/transaction-detail";
 import { getCurrentUserId, logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { fetchActiveWalletsWithLedgerAssetBalance, fetchWalletLedgerAssetBalance } from "@/lib/wallet-ledger-balance";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -940,8 +941,26 @@ export function StockTransactionsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEntries?.map((entry, index) => (
-                    <tr key={`${entry.type}-${entry.id}-${index}`} className="border-b hover:bg-gray-50">
+                  {filteredEntries?.map((entry, index) => {
+                    const txType: TransactionType | null = entry.type === 'purchase'
+                      ? 'purchase_order'
+                      : (entry.type === 'transaction' || entry.type === 'wallet')
+                        ? 'wallet_transaction'
+                        : null;
+                    const txId: string | null = entry.type === 'purchase'
+                      ? ((entry as any).purchase_order_id || (entry as any).purchase_orders?.id || null)
+                      : ((entry as any).id || null);
+                    return (
+                    <tr
+                      key={`${entry.type}-${entry.id}-${index}`}
+                      className={`border-b hover:bg-gray-50${txType && txId ? ' cursor-pointer' : ''}`}
+                      onClick={(e) => {
+                        if (!txType || !txId) return;
+                        const target = e.target as HTMLElement;
+                        if (target.closest('button, a, input, [role="button"], [data-no-row-click]')) return;
+                        openTransaction({ type: txType, id: txId });
+                      }}
+                    >
                       <td className="py-3 px-4">{formatInTimeZone(new Date(entry.date), 'Asia/Kolkata', 'dd/MM/yyyy HH:mm:ss')}</td>
                       <td className="py-3 px-4">
                         <div>

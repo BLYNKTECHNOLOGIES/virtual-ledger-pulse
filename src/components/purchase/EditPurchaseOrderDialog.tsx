@@ -27,6 +27,20 @@ interface EditPurchaseOrderDialogProps {
   order: any;
 }
 
+const DECIMAL_INPUT_PATTERN = /^\d*(?:\.\d*)?$/;
+
+const parseDecimalInput = (value: string) => {
+  const normalized = value.replace(/,/g, '').trim();
+  if (!normalized || normalized === '.') return 0;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const toDecimalInput = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return '';
+  return String(value);
+};
+
 export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurchaseOrderDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -50,6 +64,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const [quantityInput, setQuantityInput] = useState('');
+  const [pricePerUnitInput, setPricePerUnitInput] = useState('');
 
   // Fetch employees for assignment
   const { data: employees } = useQuery({
@@ -162,6 +178,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         bank_account_id: order.bank_account_id || '',
         product_id: productId,
       });
+      setQuantityInput(toDecimalInput(quantity));
+      setPricePerUnitInput(toDecimalInput(pricePerUnit));
     }
   }, [order, existingWalletCredit]);
 
@@ -195,7 +213,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   // Calculate amounts based on TDS option
   // Use formData.total_amount (preserves original value, only recalculated when user changes qty/price)
-  const totalAmount = formData.total_amount;
+  const totalAmount = parseDecimalInput(quantityInput) * parseDecimalInput(pricePerUnitInput);
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
   const tdsAmount = totalAmount * tdsRate;
   const netPayableAmount = totalAmount - tdsAmount;

@@ -1055,7 +1055,8 @@ export function StockTransactionsTab() {
                         )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               

@@ -72,8 +72,8 @@ interface EditPurchaseOrderDialogProps {
 
 const DECIMAL_INPUT_PATTERN = /^\d*(?:\.\d*)?$/;
 
-const parseDecimalInput = (value: string) => {
-  const normalized = value.replace(/,/g, '').trim();
+const parseDecimalInput = (value: unknown) => {
+  const normalized = String(value ?? '').replace(/,/g, '').trim();
   if (!normalized || normalized === '.') return 0;
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -190,14 +190,15 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   useEffect(() => {
     if (order) {
       const firstItem = order.purchase_order_items?.[0];
-      const quantity = firstItem?.quantity || order.quantity || 0;
-      const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
+      const quantity = parseDecimalInput(firstItem?.quantity ?? order.quantity ?? 0);
+      const totalFromOrder = parseDecimalInput(order.total_amount ?? 0);
+      const pricePerUnit = parseDecimalInput(firstItem?.unit_price ?? order.price_per_unit ?? (quantity > 0 ? totalFromOrder / quantity : 0));
       const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || existingWalletCredit || '';
       const productId = firstItem?.product_id || '';
 
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
-        const tdsRate = order.tds_amount / order.total_amount;
+        const tdsRate = totalFromOrder > 0 ? parseDecimalInput(order.tds_amount) / totalFromOrder : 0;
         if (Math.abs(tdsRate - 0.01) < 0.001) {
           tdsOption = 'TDS_1_PERCENT';
         } else if (Math.abs(tdsRate - 0.20) < 0.001) {
@@ -209,7 +210,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         order_number: order.order_number || '',
         supplier_name: order.supplier_name || '',
         contact_number: order.contact_number || '',
-        total_amount: order.total_amount || 0,
+        total_amount: totalFromOrder,
         order_date: order.order_date || '',
         description: order.description || '',
         assigned_to: order.assigned_to || '',

@@ -21,10 +21,53 @@ interface PaymentSplit {
   amount: string;
 }
 
+interface ExistingPaymentSplit {
+  bank_account_id: string | null;
+  amount: number | string | null;
+}
+
+interface PurchaseOrderItem {
+  id: string;
+  quantity?: number | string | null;
+  unit_price?: number | string | null;
+  warehouse_id?: string | null;
+  product_id?: string | null;
+  products?: { code?: string | null } | null;
+}
+
+interface PurchaseOrder {
+  id: string;
+  order_number?: string | null;
+  supplier_name?: string | null;
+  contact_number?: string | null;
+  total_amount?: number | string | null;
+  order_date?: string | null;
+  description?: string | null;
+  assigned_to?: string | null;
+  tds_applied?: boolean | null;
+  tds_amount?: number | string | null;
+  net_payable_amount?: number | string | null;
+  pan_number?: string | null;
+  quantity?: number | string | null;
+  price_per_unit?: number | string | null;
+  wallet_id?: string | null;
+  wallet?: { id?: string | null } | null;
+  bank_account_id?: string | null;
+  product_id?: string | null;
+  status?: string | null;
+  is_off_market?: boolean | null;
+  purchase_order_items?: PurchaseOrderItem[] | null;
+}
+
+interface ReconcilePurchaseOrderResult {
+  success?: boolean;
+  error?: string;
+}
+
 interface EditPurchaseOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: any;
+  order: PurchaseOrder | null;
 }
 
 const DECIMAL_INPUT_PATTERN = /^\d*(?:\.\d*)?$/;

@@ -536,18 +536,37 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       }
     }
 
-    updatePurchaseOrderMutation.mutate(formData);
+    const quantity = parseDecimalInput(quantityInput);
+    const pricePerUnit = parseDecimalInput(pricePerUnitInput);
+
+    if (quantity <= 0 || pricePerUnit <= 0) {
+      toast({ title: "Error", description: "Quantity and price per unit must be greater than 0", variant: "destructive" });
+      return;
+    }
+
+    updatePurchaseOrderMutation.mutate({
+      ...formData,
+      quantity,
+      price_per_unit: pricePerUnit,
+      total_amount: quantity * pricePerUnit,
+    });
   };
 
   const handleInputChange = (field: keyof typeof formData, value: any) => {
-    setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      // Auto-recalculate total_amount only when user explicitly changes quantity or price_per_unit
-      if (field === 'quantity' || field === 'price_per_unit') {
-        updated.total_amount = updated.quantity * updated.price_per_unit;
-      }
-      return updated;
-    });
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDecimalInputChange = (field: 'quantity' | 'price_per_unit', value: string) => {
+    const normalizedValue = value.replace(/,/g, '').trim();
+    if (!DECIMAL_INPUT_PATTERN.test(normalizedValue)) return;
+
+    if (field === 'quantity') setQuantityInput(normalizedValue);
+    else setPricePerUnitInput(normalizedValue);
+
+    setFormData(prev => ({
+      ...prev,
+      [field]: parseDecimalInput(normalizedValue),
+    }));
   };
 
   if (!order) return null;

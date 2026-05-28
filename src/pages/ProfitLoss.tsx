@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ClickableRow } from '@/components/transaction-detail';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
@@ -856,7 +857,11 @@ export default function ProfitLoss() {
                 </TableHeader>
                 <TableBody>
                   {tradeEntries?.slice(0, 15).map((entry, idx) => (
-                    <TableRow key={`${entry.id}-${idx}`}>
+                    <ClickableRow
+                      key={`${entry.id}-${idx}`}
+                      txType={entry.type === 'Buy' ? 'purchase_order' : 'sales_order'}
+                      txId={entry.id}
+                    >
                       <TableCell>{entry.date ? format(new Date(entry.date), 'dd MMM yyyy') : '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{entry.asset}</Badge>
@@ -869,7 +874,7 @@ export default function ProfitLoss() {
                       <TableCell className="text-right">{entry.quantity.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{entry.rate.toFixed(2)}</TableCell>
                       <TableCell className="text-right">{formatCurrency(entry.total)}</TableCell>
-                    </TableRow>
+                    </ClickableRow>
                   ))}
                 </TableBody>
               </Table>
@@ -908,7 +913,7 @@ export default function ProfitLoss() {
                 </TableHeader>
                 <TableBody>
                   {expenseIncomeEntries?.slice(0, 10).map((entry) => (
-                    <TableRow key={entry.id}>
+                    <ClickableRow key={entry.id} txType="bank_transaction" txId={entry.id}>
                       <TableCell>{format(new Date(entry.date), 'dd MMM yyyy')}</TableCell>
                       <TableCell>{entry.category}</TableCell>
                       <TableCell>
@@ -924,7 +929,7 @@ export default function ProfitLoss() {
                       <TableCell className="text-sm text-muted-foreground">
                         {entry.description || '-'}
                       </TableCell>
-                    </TableRow>
+                    </ClickableRow>
                   ))}
                 </TableBody>
               </Table>

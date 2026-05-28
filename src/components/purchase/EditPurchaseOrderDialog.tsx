@@ -667,24 +667,22 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             <div>
               <Label>Quantity *</Label>
               <Input
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={quantityInput}
+                onChange={(e) => handleDecimalInputChange('quantity', e.target.value)}
                 required
-                min="0"
-                step="any"
               />
             </div>
 
             <div>
               <Label>Price Per Unit *</Label>
               <Input
-                type="number"
-                value={formData.price_per_unit}
-                onChange={(e) => handleInputChange('price_per_unit', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={pricePerUnitInput}
+                onChange={(e) => handleDecimalInputChange('price_per_unit', e.target.value)}
                 required
-                min="0"
-                step="any"
               />
             </div>
 

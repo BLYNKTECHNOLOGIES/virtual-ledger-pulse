@@ -7,6 +7,7 @@ import { PinUnlockProvider } from "@/contexts/PinUnlockContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { HelpAssistantFab } from "./HelpAssistantFab";
+import { TransactionDetailDialog } from "./transaction-detail";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -32,6 +33,8 @@ export function Layout({ children }: LayoutProps) {
                   <MobileBottomNav />
                   {/* Floating AI Help Assistant */}
                   <HelpAssistantFab />
+                  {/* Global click-to-view transaction detail dialog */}
+                  <TransactionDetailDialog />
                 </SidebarInset>
               </div>
             </SidebarProvider>

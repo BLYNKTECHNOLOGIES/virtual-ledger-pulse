@@ -1,72 +1,95 @@
-## MPI Module — Enterprise KPI/KRA/Performance Framework
+## Goal
 
-Add a new **MPI** sub-tab (Management Performance Index) under the HRMS/PMS area as a comprehensive, department-aware performance scoring system aligned with MNC fintech standards.
+Make every transaction-like row across the ERP clickable to open a read-only detail dialog. The dialog also exposes a "Open in module" deep link that is gated by the user's existing module permissions (view allowed, deep-link disabled if the user lacks access to the target module). No changes to default UI styling, no hover animations, no row-level visual treatment beyond a pointer cursor.
 
-### Where it lives
-- New route: `/hrms/pms/mpi` (sub-tab under existing PMS Dashboard)
-- New nav entry "MPI" inside the PMS tab strip alongside Objectives, 360° Feedback
+## Approach
 
-### Scope of Phase 1 build (Tracking phase — no incentives wired to payroll yet)
+### 1. Central detail-view infrastructure (new)
 
-**1. Database (new tables, all RLS-protected, audit-trailed)**
-- `mpi_scorecard_templates` — department-specific weightage configs (Operations, Compliance, Management, HR, Sales, Tech). Locked weights, only Super Admin can edit.
-- `mpi_kpi_definitions` — KPI catalog per template (name, category, formula_type, weight, data_source: auto/manual)
-- `mpi_monthly_scores` — per-employee monthly score rows (kpi_id, raw_value, normalized_score, weighted_score, period)
-- `mpi_score_overrides` — manual adjustments with reviewer + reason + dual approval
-- `mpi_critical_violations` — wrong-beneficiary / AML / SOP-bypass log → caps grade at B
-- `mpi_pip_records` — 30-day PIP tracking
-- `mpi_promotion_eligibility` — auto-computed from 3/6-month grade trend
-- `mpi_audit_log` — every score edit tracked
+Create one reusable system that any list/table can plug into instead of building one-off dialogs per page.
 
-**2. Auto-calculation engine (edge function `compute-mpi-scores`)**
-Pulls from existing tables:
-- Orders completed / volume → `sales_orders` + `purchase_orders`
-- Error rate / appeals → `terminal_appeals` + reversal tables
-- Attendance / punctuality → `attendance` (Asia/Kolkata)
-- SOP violations → `mpi_critical_violations` + existing escalation logs
-- Response time → terminal chat / action timing tables
-Runs monthly (cron) + on-demand recompute button.
+- `src/components/transaction-detail/TransactionDetailProvider.tsx` — context provider mounted once in `App.tsx`. Exposes `openTransaction({ type, id })`. Holds the single dialog instance so any row anywhere can trigger it.
+- `src/components/transaction-detail/TransactionDetailDialog.tsx` — single shared `Dialog` (reuses existing `ui/dialog`). Renders a header (type + reference number + status badge), a read-only field grid, and a footer with `Open in <Module>` button.
+- `src/components/transaction-detail/registry.ts` — maps a `TransactionType` to:
+  - `fetcher(id)` → react-query loader hitting the right table/view
+  - `render(record)` → read-only field layout
+  - `deepLink(record)` → route + required permission key
+  - `permissionKey` → the same key used today by `usePermissions` to gate the source module
 
-**3. UI sub-tabs inside MPI module**
-1. **KPI Dashboard** — org-wide heatmap, grade distribution, top/bottom performers
-2. **Monthly Scorecards** — per-employee drill-down, category breakdown, trend chart
-3. **Incentive Calculator** — read-only preview (Grade → bonus %), no payroll write in Phase 1
-4. **Warning Tracker** — flagged employees (Grade C/D, repeat violations)
-5. **PIP Tracker** — active 30-day plans with weekly review checkpoints
-6. **Promotion Eligibility** — auto list based on grade trend matrix
-7. **Compliance Violations** — critical error log with grade-cap enforcement
-8. **Leaderboard** — top performers by department
-9. **Scorecard Templates** (Super Admin only) — manage weightages per department
+- `src/components/transaction-detail/useTransactionDetail.ts` — thin hook returning `openTransaction`.
 
-**4. Scoring logic**
-- Weighted sum → 100-point scale → Grade band (S/A+/A/B/C/D)
-- Critical violation override → cap at B + red flag
-- Per-department template (Operations 35/25/20/10/10 split, Managers different, HR different, etc.)
+Supported `TransactionType`s (one adapter file each under `transaction-detail/adapters/`):
 
-**5. Anti-manipulation controls**
-- All auto-calc metrics read-only; manual overrides require maker-checker (creator ≠ approver)
-- Weight locking: only Super Admin can edit `mpi_scorecard_templates`; changes audit-logged
-- Every score row writes to `mpi_audit_log`
+```text
+purchase_order, sales_order, expense, income, wallet_transaction,
+payment_split (purchase + sales), bank_transaction (BAMS),
+spot_trade, product_conversion, p2p_order (terminal),
+ad_action_log, payroll_entry, loan, expense_claim, task
+```
 
-### Out of scope (deferred to Phase 2/3)
-- Auto-debit incentives to payroll (Phase 3)
-- Bell-curve normalization
-- 360° integration into MPI score (uses existing `hr_feedback_360` as read-only signal only)
-- Self-review / employee-facing portal
+Each adapter is small (~40 LOC) and self-contained, so rollout per module is a single file add + table wiring.
 
-### Permissions
-- `hr_mpi_view` — view dashboards (HR + Managers)
-- `hr_mpi_manage` — create/edit scores, run PIP (HR Lead, Ops Manager)
-- `hr_mpi_admin` — edit templates, weightages (Super Admin only)
-- Employees see only their own scorecard via existing self-service area
+### 2. Permission gating
 
-### Tech specifics
-- Frontend: React Query for all reads (30s polling opt-in), Recharts for trend/distribution
-- Backend: All scoring math in `compute-mpi-scores` edge function (deterministic, idempotent per period)
-- Period key: `YYYY-MM` in Asia/Kolkata
-- AlertDialog for destructive actions (per project memory)
+- Detail dialog itself is always viewable to any authenticated user (read-only summary of a transaction they could already see in the list they clicked from — no privilege escalation).
+- The `Open in <Module>` button calls `usePermissions().can(adapter.permissionKey, 'view')`. If false, the button renders disabled with tooltip "You don't have access to this module" — never navigates. This matches the existing role hierarchy and granular module permissions already enforced elsewhere.
 
-### Confirmation needed before I start
-This is a sizeable build (~7 new DB tables, 1 edge function, 9 sub-tab UIs). Want me to:
-- **(A)** Build the full Phase-1 scope above in one go, or
-- **(B)** Ship in two passes: first DB + core scorecard + dashboard, then PIP/promotion/leaderboard/admin tooling in a follow-up?
+### 3. Row wiring (no visual changes)
+
+Add a tiny `ClickableRow` wrapper in `src/components/transaction-detail/ClickableRow.tsx`:
+
+```tsx
+<TableRow onClick={() => open({type, id})} className="cursor-pointer">
+```
+
+- No hover background change, no scale, no animation — only `cursor-pointer`.
+- Clicks on interactive children (buttons, links, inputs, checkboxes) are stopped via a single `onClickCapture` guard inside the wrapper, so existing row actions keep working.
+
+### 4. Rollout (entire ERP)
+
+Sweep these pages/components and replace `<TableRow>` with `<ClickableRow type=... id=...>` (or add `onClick` where rows are custom divs). No other visual edits.
+
+```text
+PnL          src/pages/ProfitLoss.tsx (trades, expense/income)
+Purchase     src/pages/Purchase.tsx + list components
+Sales        Sales orders list, split payments
+Accounting   src/pages/Accounting.tsx ledger rows
+BAMS         src/pages/BAMS.tsx bank transactions, beneficiaries-as-tx where applicable
+Wallet/Stock src/pages/StockManagement.tsx wallet_transactions table
+Spot Trade   spot trade + conversion tables
+Terminal     P2P orders list, ad action log, small payments
+ERP Entry    src/pages/ErpEntryManager.tsx feed rows
+Tasks        src/pages/Tasks.tsx rows (open task detail)
+HR           Payroll entries, loans, expense claims, attendance punches
+```
+
+For lists that already have an "Open" / row-edit action (e.g. Purchase orders), the row click opens the new read-only detail dialog; the existing edit button is preserved and unchanged.
+
+### 5. Default UI guarantees
+
+- No row hover animation, no transform, no shadow change.
+- No new badges, columns, or layout reflow.
+- Cursor changes to pointer only on rows that are now clickable — this is the single intentional affordance.
+- Dialog uses existing `Dialog` primitives so dark/light theming is automatic.
+
+### 6. Technical details
+
+- All adapter queries use `@tanstack/react-query` keyed by `['tx-detail', type, id]`, `staleTime: 30s`, no polling — matches project memory (no global refetch).
+- All currency rendering reuses `formatCurrency` / `format-smart-decimal` helpers already in the project.
+- Wallet transaction adapter follows the ledger truth source (`wallet_transactions` + `wallet_asset_balances`) — no recomputation.
+- Payment splits adapter reads `purchase_order_payment_splits` / `sales_order_payment_splits` exclusively.
+- Deep links use existing routes; nothing new added to the router.
+
+### 7. Out of scope
+
+- No edits from the detail dialog.
+- No new database tables, columns, RPCs, or migrations.
+- No changes to how transactions are computed, valued, or aggregated.
+- No changes to PnL formulas or any business logic.
+
+## Deliverables
+
+1. New folder `src/components/transaction-detail/` with provider, dialog, registry, `ClickableRow`, and one adapter per supported type.
+2. `App.tsx` wraps children in `<TransactionDetailProvider>`.
+3. Module-by-module sweep wiring rows to `ClickableRow` — visual output unchanged except pointer cursor on clickable rows.
+4. Permission-gated `Open in <Module>` deep links in the dialog footer.

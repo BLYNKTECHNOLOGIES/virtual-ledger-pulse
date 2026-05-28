@@ -21,11 +21,68 @@ interface PaymentSplit {
   amount: string;
 }
 
+interface ExistingPaymentSplit {
+  bank_account_id: string | null;
+  amount: number | string | null;
+}
+
+interface PurchaseOrderItem {
+  id: string;
+  quantity?: number | string | null;
+  unit_price?: number | string | null;
+  warehouse_id?: string | null;
+  product_id?: string | null;
+  products?: { code?: string | null } | null;
+}
+
+interface PurchaseOrder {
+  id: string;
+  order_number?: string | null;
+  supplier_name?: string | null;
+  contact_number?: string | null;
+  total_amount?: number | string | null;
+  order_date?: string | null;
+  description?: string | null;
+  assigned_to?: string | null;
+  tds_applied?: boolean | null;
+  tds_amount?: number | string | null;
+  net_payable_amount?: number | string | null;
+  pan_number?: string | null;
+  quantity?: number | string | null;
+  price_per_unit?: number | string | null;
+  wallet_id?: string | null;
+  wallet?: { id?: string | null } | null;
+  bank_account_id?: string | null;
+  product_id?: string | null;
+  status?: string | null;
+  is_off_market?: boolean | null;
+  purchase_order_items?: PurchaseOrderItem[] | null;
+}
+
+interface ReconcilePurchaseOrderResult {
+  success?: boolean;
+  error?: string;
+}
+
 interface EditPurchaseOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: any;
+  order: PurchaseOrder | null;
 }
+
+const DECIMAL_INPUT_PATTERN = /^\d*(?:\.\d*)?$/;
+
+const parseDecimalInput = (value: unknown) => {
+  const normalized = String(value ?? '').replace(/,/g, '').trim();
+  if (!normalized || normalized === '.') return 0;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const toDecimalInput = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return '';
+  return String(value);
+};
 
 export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurchaseOrderDialogProps) {
   const { toast } = useToast();
@@ -50,6 +107,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   const [isMultiplePayments, setIsMultiplePayments] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ bank_account_id: '', amount: '' }]);
+  const [quantityInput, setQuantityInput] = useState('');
+  const [pricePerUnitInput, setPricePerUnitInput] = useState('');
 
   // Fetch employees for assignment
   const { data: employees } = useQuery({
@@ -131,14 +190,15 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   useEffect(() => {
     if (order) {
       const firstItem = order.purchase_order_items?.[0];
-      const quantity = firstItem?.quantity || order.quantity || 0;
-      const pricePerUnit = firstItem?.unit_price || order.price_per_unit || (order.total_amount / quantity) || 0;
+      const quantity = parseDecimalInput(firstItem?.quantity ?? order.quantity ?? 0);
+      const totalFromOrder = parseDecimalInput(order.total_amount ?? 0);
+      const pricePerUnit = parseDecimalInput(firstItem?.unit_price ?? order.price_per_unit ?? (quantity > 0 ? totalFromOrder / quantity : 0));
       const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || existingWalletCredit || '';
       const productId = firstItem?.product_id || '';
 
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
-        const tdsRate = order.tds_amount / order.total_amount;
+        const tdsRate = totalFromOrder > 0 ? parseDecimalInput(order.tds_amount) / totalFromOrder : 0;
         if (Math.abs(tdsRate - 0.01) < 0.001) {
           tdsOption = 'TDS_1_PERCENT';
         } else if (Math.abs(tdsRate - 0.20) < 0.001) {
@@ -150,7 +210,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         order_number: order.order_number || '',
         supplier_name: order.supplier_name || '',
         contact_number: order.contact_number || '',
-        total_amount: order.total_amount || 0,
+        total_amount: totalFromOrder,
         order_date: order.order_date || '',
         description: order.description || '',
         assigned_to: order.assigned_to || '',
@@ -162,6 +222,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         bank_account_id: order.bank_account_id || '',
         product_id: productId,
       });
+      setQuantityInput(toDecimalInput(quantity));
+      setPricePerUnitInput(toDecimalInput(pricePerUnit));
     }
   }, [order, existingWalletCredit]);
 
@@ -170,7 +232,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     if (existingSplits && existingSplits.length > 0) {
       const isMulti = existingSplits.length > 1;
       setIsMultiplePayments(isMulti);
-      setPaymentSplits(existingSplits.map((s: any) => ({
+      setPaymentSplits((existingSplits as ExistingPaymentSplit[]).map((s) => ({
         bank_account_id: s.bank_account_id || '',
         amount: String(s.amount || ''),
       })));
@@ -195,7 +257,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
   // Calculate amounts based on TDS option
   // Use formData.total_amount (preserves original value, only recalculated when user changes qty/price)
-  const totalAmount = formData.total_amount;
+  const totalAmount = parseDecimalInput(quantityInput) * parseDecimalInput(pricePerUnitInput);
   const tdsRate = formData.tds_option === "TDS_1_PERCENT" ? 0.01 : formData.tds_option === "TDS_20_PERCENT" ? 0.20 : 0;
   const tdsAmount = totalAmount * tdsRate;
   const netPayableAmount = totalAmount - tdsAmount;
@@ -239,16 +301,16 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       // For completed orders, reconcile all dependent records (bank, wallet, fees)
       if (isCompleted) {
-        const oldNetPayable = order.tds_applied && order.net_payable_amount
+        const oldNetPayable = parseDecimalInput(order.tds_applied && order.net_payable_amount
           ? order.net_payable_amount
-          : order.total_amount;
+          : order.total_amount);
 
-        const oldQuantity = order.purchase_order_items?.[0]?.quantity || order.quantity || 0;
+        const oldQuantity = parseDecimalInput(order.purchase_order_items?.[0]?.quantity ?? order.quantity ?? 0);
         const oldWalletId = order.wallet_id || order.wallet?.id || order.purchase_order_items?.[0]?.warehouse_id || null;
 
         // Get wallet fee percentage
         let feePercentage = 0;
-        let isOffMarket = order.is_off_market || false;
+        const isOffMarket = order.is_off_market || false;
         if (data.warehouse_id) {
           const { data: walletData } = await supabase
             .from('wallets')
@@ -298,7 +360,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           throw new Error(`Failed to reconcile: ${reconcileError.message}`);
         }
 
-        const result = reconcileResult as any;
+        const result = reconcileResult as ReconcilePurchaseOrderResult | null;
         if (result && !result.success) {
           throw new Error(result.error || 'Reconciliation failed');
         }
@@ -355,7 +417,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       // When TDS details change, update all dependent records
       const oldTdsApplied = !!order.tds_applied;
       const oldPanNumber = order.pan_number || '';
-      const oldTdsAmount = order.tds_amount || 0;
+      const oldTdsAmount = parseDecimalInput(order.tds_amount);
       const tdsChanged = (tdsApplied !== oldTdsApplied) || 
                           (data.pan_number !== oldPanNumber) || 
                           (Math.abs(tdsAmount - oldTdsAmount) > 0.01);
@@ -473,7 +535,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       queryClient.invalidateQueries({ queryKey: ['activity_timeline'] });
       onOpenChange(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Error", description: error.message || "Failed to update purchase order", variant: "destructive" });
     }
   });
@@ -518,18 +580,37 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       }
     }
 
-    updatePurchaseOrderMutation.mutate(formData);
+    const quantity = parseDecimalInput(quantityInput);
+    const pricePerUnit = parseDecimalInput(pricePerUnitInput);
+
+    if (quantity <= 0 || pricePerUnit <= 0) {
+      toast({ title: "Error", description: "Quantity and price per unit must be greater than 0", variant: "destructive" });
+      return;
+    }
+
+    updatePurchaseOrderMutation.mutate({
+      ...formData,
+      quantity,
+      price_per_unit: pricePerUnit,
+      total_amount: quantity * pricePerUnit,
+    });
   };
 
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
-    setFormData(prev => {
-      const updated = { ...prev, [field]: value };
-      // Auto-recalculate total_amount only when user explicitly changes quantity or price_per_unit
-      if (field === 'quantity' || field === 'price_per_unit') {
-        updated.total_amount = updated.quantity * updated.price_per_unit;
-      }
-      return updated;
-    });
+  const handleInputChange = (field: keyof typeof formData, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDecimalInputChange = (field: 'quantity' | 'price_per_unit', value: string) => {
+    const normalizedValue = value.replace(/,/g, '').trim();
+    if (!DECIMAL_INPUT_PATTERN.test(normalizedValue)) return;
+
+    if (field === 'quantity') setQuantityInput(normalizedValue);
+    else setPricePerUnitInput(normalizedValue);
+
+    setFormData(prev => ({
+      ...prev,
+      [field]: parseDecimalInput(normalizedValue),
+    }));
   };
 
   if (!order) return null;
@@ -630,24 +711,22 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             <div>
               <Label>Quantity *</Label>
               <Input
-                type="number"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={quantityInput}
+                onChange={(e) => handleDecimalInputChange('quantity', e.target.value)}
                 required
-                min="0"
-                step="any"
               />
             </div>
 
             <div>
               <Label>Price Per Unit *</Label>
               <Input
-                type="number"
-                value={formData.price_per_unit}
-                onChange={(e) => handleInputChange('price_per_unit', parseFloat(e.target.value) || 0)}
+                type="text"
+                inputMode="decimal"
+                value={pricePerUnitInput}
+                onChange={(e) => handleDecimalInputChange('price_per_unit', e.target.value)}
                 required
-                min="0"
-                step="any"
               />
             </div>
 

@@ -635,7 +635,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                 onChange={(e) => handleInputChange('quantity', parseFloat(e.target.value) || 0)}
                 required
                 min="0"
-                step="0.01"
+                step="any"
               />
             </div>
 
@@ -647,7 +647,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
                 onChange={(e) => handleInputChange('price_per_unit', parseFloat(e.target.value) || 0)}
                 required
                 min="0"
-                step="0.01"
+                step="any"
               />
             </div>
 

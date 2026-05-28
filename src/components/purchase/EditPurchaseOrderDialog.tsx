@@ -266,7 +266,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
         // Get wallet fee percentage
         let feePercentage = 0;
-        let isOffMarket = order.is_off_market || false;
+        const isOffMarket = order.is_off_market || false;
         if (data.warehouse_id) {
           const { data: walletData } = await supabase
             .from('wallets')

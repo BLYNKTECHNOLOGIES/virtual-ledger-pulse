@@ -232,7 +232,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     if (existingSplits && existingSplits.length > 0) {
       const isMulti = existingSplits.length > 1;
       setIsMultiplePayments(isMulti);
-      setPaymentSplits(existingSplits.map((s: any) => ({
+      setPaymentSplits((existingSplits as ExistingPaymentSplit[]).map((s) => ({
         bank_account_id: s.bank_account_id || '',
         amount: String(s.amount || ''),
       })));
@@ -301,11 +301,11 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
 
       // For completed orders, reconcile all dependent records (bank, wallet, fees)
       if (isCompleted) {
-        const oldNetPayable = order.tds_applied && order.net_payable_amount
+        const oldNetPayable = parseDecimalInput(order.tds_applied && order.net_payable_amount
           ? order.net_payable_amount
-          : order.total_amount;
+          : order.total_amount);
 
-        const oldQuantity = order.purchase_order_items?.[0]?.quantity || order.quantity || 0;
+        const oldQuantity = parseDecimalInput(order.purchase_order_items?.[0]?.quantity ?? order.quantity ?? 0);
         const oldWalletId = order.wallet_id || order.wallet?.id || order.purchase_order_items?.[0]?.warehouse_id || null;
 
         // Get wallet fee percentage
@@ -360,7 +360,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
           throw new Error(`Failed to reconcile: ${reconcileError.message}`);
         }
 
-        const result = reconcileResult as any;
+        const result = reconcileResult as ReconcilePurchaseOrderResult | null;
         if (result && !result.success) {
           throw new Error(result.error || 'Reconciliation failed');
         }
@@ -417,7 +417,7 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       // When TDS details change, update all dependent records
       const oldTdsApplied = !!order.tds_applied;
       const oldPanNumber = order.pan_number || '';
-      const oldTdsAmount = order.tds_amount || 0;
+      const oldTdsAmount = parseDecimalInput(order.tds_amount);
       const tdsChanged = (tdsApplied !== oldTdsApplied) || 
                           (data.pan_number !== oldPanNumber) || 
                           (Math.abs(tdsAmount - oldTdsAmount) > 0.01);

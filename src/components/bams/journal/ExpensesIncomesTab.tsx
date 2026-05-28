@@ -1,6 +1,7 @@
   import { useState } from "react";
   import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { openTransaction } from "@/components/transaction-detail";
 import { TransactionForm } from "./components/TransactionForm";
 import { TransactionSummary } from "./components/TransactionSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -224,7 +225,12 @@ export function ExpensesIncomesTab() {
               {recentTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (target.closest('button, a, input, [role="button"], [data-no-row-click]')) return;
+                    openTransaction({ type: 'bank_transaction', id: transaction.id });
+                  }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-muted rounded-full">

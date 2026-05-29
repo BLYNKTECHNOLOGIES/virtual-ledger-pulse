@@ -38,6 +38,9 @@ export default function StockManagement() {
     }
   }, [searchParams]);
 
+  useDeepLinkHighlight(['txId']);
+
+
   return (
     <PermissionGate
       permissions={["stock_view"]}

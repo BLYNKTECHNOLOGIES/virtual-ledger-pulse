@@ -164,7 +164,8 @@ export function PendingConversionsTable() {
                             </Button>
                           </div>
                         </TableCell>
-                      </TableRow>
+                      </ClickableRow>
+
                     );
                   })}
                 </TableBody>

@@ -225,6 +225,7 @@ export function ExpensesIncomesTab() {
               {recentTransactions.map((transaction) => (
                 <div
                   key={transaction.id}
+                  id={`tx-row-${transaction.id}`}
                   className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={(e) => {
                     const target = e.target as HTMLElement;

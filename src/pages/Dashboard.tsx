@@ -20,6 +20,7 @@ import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
 import { MyTasksWidget } from "@/components/dashboard/widgets/MyTasksWidget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { openTransaction } from "@/components/transaction-detail";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';

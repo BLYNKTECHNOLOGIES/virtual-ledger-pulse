@@ -39,6 +39,10 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
   const isStale = Date.now() - row.occurred_at > STALE_MS;
   const time = new Date(row.occurred_at);
 
+  // Rows that map to a committed/persisted transaction can open a read-only detail view.
+  const detailTxId: string | null = row.source === "conversion" ? (row.raw?.id || null) : null;
+  const canViewDetail = !!detailTxId;
+
   return (
     <div
       tabIndex={0}
@@ -52,7 +56,14 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
         <Icon className={`h-4 w-4 ${meta.tone}`} />
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div
+        className={`min-w-0 flex-1 ${canViewDetail ? "cursor-pointer" : ""}`}
+        onClick={(e) => {
+          if (!canViewDetail || !detailTxId) return;
+          e.stopPropagation();
+          openTransaction({ type: "product_conversion", id: detailTxId });
+        }}
+      >
         <div className="flex items-center gap-2 text-sm font-medium">
           <span className="truncate">{row.label}</span>
           {isStale && (
@@ -69,6 +80,8 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
           <span>{time.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</span>
         </div>
       </div>
+
+
 
       <div className="hidden text-right md:block">
         <div className="text-xs font-medium">{time.toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</div>

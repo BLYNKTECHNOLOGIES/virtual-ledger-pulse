@@ -953,6 +953,7 @@ export function StockTransactionsTab() {
                     return (
                     <tr
                       key={`${entry.type}-${entry.id}-${index}`}
+                      id={txId ? `tx-row-${txId}` : undefined}
                       className={`border-b hover:bg-gray-50${txType && txId ? ' cursor-pointer' : ''}`}
                       onClick={(e) => {
                         if (!txType || !txId) return;

@@ -21,6 +21,7 @@ import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
+import { useDeepLinkHighlight } from "@/components/transaction-detail";
 
 
 export default function Purchase() {
@@ -36,6 +37,8 @@ export default function Purchase() {
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [filterAssetType, setFilterAssetType] = useState<string>("");
+  useDeepLinkHighlight(['orderId']);
+
 
   const handleRefreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });

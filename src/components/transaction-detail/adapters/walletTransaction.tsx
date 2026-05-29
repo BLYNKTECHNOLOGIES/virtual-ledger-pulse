@@ -60,7 +60,7 @@ export const walletTransactionAdapter: TransactionAdapter = {
         { label: 'Description', value: data.description || '—', span: 2 },
         { label: 'Transaction ID', value: <MonoValue>{data.id}</MonoValue>, span: 2 },
       ],
-      deepLink: { route: `/stock?txId=${data.id}`, label: 'Open in Stock', permission: 'stock_view' },
+      deepLink: { route: `/stock?tab=transactions&txId=${data.id}`, label: 'Open in Stock', permission: 'stock_view' },
     };
   },
 };

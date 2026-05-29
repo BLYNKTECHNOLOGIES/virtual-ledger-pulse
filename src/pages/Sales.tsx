@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ClickableRow } from "@/components/transaction-detail";
+import { ClickableRow, useDeepLinkHighlight } from "@/components/transaction-detail";
 import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -164,6 +164,8 @@ export default function Sales() {
 
   // All orders displayed in completed tab now
   const completedOrders = salesOrders || [];
+  useDeepLinkHighlight(['orderId'], !isLoading);
+
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {

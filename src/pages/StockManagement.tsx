@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useDeepLinkHighlight } from "@/components/transaction-detail";
 
 // Roles allowed to view the immutable Ledger Integrity diagnostics tab.
 // Aligned with the role-hierarchy memory: Super Admin / Admin / COO / Auditor.
@@ -36,6 +37,9 @@ export default function StockManagement() {
       setActiveTab(tab);
     }
   }, [searchParams]);
+
+  useDeepLinkHighlight(['txId']);
+
 
   return (
     <PermissionGate

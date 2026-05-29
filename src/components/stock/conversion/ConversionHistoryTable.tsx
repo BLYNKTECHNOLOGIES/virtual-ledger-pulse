@@ -164,7 +164,8 @@ export function ConversionHistoryTable() {
                         <span className="block text-[10px] text-red-500 mt-0.5">{c.rejection_reason}</span>
                       )}
                     </TableCell>
-                  </TableRow>
+                  </ClickableRow>
+
                 ))}
               </TableBody>
             </Table>

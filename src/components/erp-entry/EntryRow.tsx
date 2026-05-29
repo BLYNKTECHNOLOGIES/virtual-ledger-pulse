@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ErpEntryRow, ErpEntrySource } from "@/hooks/useErpEntryFeed";
+import { openTransaction } from "@/components/transaction-detail";
 
 const ICONS: Record<ErpEntrySource, { Icon: any; tone: string; bg: string }> = {
   deposit: { Icon: ArrowDownToLine, tone: "text-emerald-600", bg: "bg-emerald-100" },

@@ -164,6 +164,8 @@ export default function Sales() {
 
   // All orders displayed in completed tab now
   const completedOrders = salesOrders || [];
+  useDeepLinkHighlight(['orderId'], !isLoading);
+
 
   const deleteSalesOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {

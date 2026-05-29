@@ -21,6 +21,7 @@ import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
+import { useDeepLinkHighlight } from "@/components/transaction-detail";
 
 
 export default function Purchase() {

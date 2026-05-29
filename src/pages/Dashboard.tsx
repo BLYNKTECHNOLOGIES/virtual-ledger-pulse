@@ -573,7 +573,15 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-6 space-y-4 overflow-y-auto max-h-[500px]">
               {recentActivity?.slice(0, 8).map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200">
+                <div
+                  key={activity.id}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
+                    openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
+                  }}
+                  className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border-2 border-border hover:shadow-md transition-all duration-200 cursor-pointer"
+                >
+
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-emerald-100' : 'bg-muted'}`}>
                       {activity.type === 'sale' ? <ArrowUpIcon className="h-4 w-4 text-emerald-600" /> : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}

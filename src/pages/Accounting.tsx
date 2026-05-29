@@ -12,9 +12,12 @@ import { ReportsTab } from "@/components/accounting/ReportsTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { useDeepLinkHighlight } from "@/components/transaction-detail";
 
 export default function Accounting() {
   const navigate = useNavigate();
+  useDeepLinkHighlight(['orderId', 'txId']);
+
   
   return (
     <PermissionGate

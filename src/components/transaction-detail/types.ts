@@ -2,7 +2,8 @@ export type TransactionType =
   | 'purchase_order'
   | 'sales_order'
   | 'bank_transaction'
-  | 'wallet_transaction';
+  | 'wallet_transaction'
+  | 'product_conversion';
 
 import type { ReactNode } from 'react';
 

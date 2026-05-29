@@ -31,7 +31,13 @@ export function ClickableRow({ txType, txId, onClick, className, children, ...re
   );
 
   return (
-    <TableRow {...rest} onClick={handleClick} className={cn(txId ? 'cursor-pointer' : undefined, className)}>
+    <TableRow
+      {...rest}
+      id={txId ? `tx-row-${txId}` : undefined}
+      data-tx-id={txId || undefined}
+      onClick={handleClick}
+      className={cn(txId ? 'cursor-pointer' : undefined, className)}
+    >
       {children}
     </TableRow>
   );

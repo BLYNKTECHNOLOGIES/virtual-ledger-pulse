@@ -11,6 +11,7 @@ import { useConversionHistory, ConversionFilters } from "@/hooks/useProductConve
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { ClickableRow } from "@/components/transaction-detail";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_APPROVAL: "bg-amber-100 text-amber-800",
@@ -112,7 +113,7 @@ export function ConversionHistoryTable() {
               </TableHeader>
               <TableBody>
                 {conversions.map((c) => (
-                  <TableRow key={c.id}>
+                  <ClickableRow key={c.id} txType="product_conversion" txId={c.id}>
                     <TableCell className="font-mono text-xs">{c.reference_no}</TableCell>
                     <TableCell className="text-xs">{format(new Date(c.created_at), 'dd MMM yyyy HH:mm')}</TableCell>
                     <TableCell className="text-xs">{c.wallets?.wallet_name || '—'}</TableCell>
@@ -163,7 +164,8 @@ export function ConversionHistoryTable() {
                         <span className="block text-[10px] text-red-500 mt-0.5">{c.rejection_reason}</span>
                       )}
                     </TableCell>
-                  </TableRow>
+                  </ClickableRow>
+
                 ))}
               </TableBody>
             </Table>

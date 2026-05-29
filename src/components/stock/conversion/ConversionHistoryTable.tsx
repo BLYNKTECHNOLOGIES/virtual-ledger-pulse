@@ -113,7 +113,7 @@ export function ConversionHistoryTable() {
               </TableHeader>
               <TableBody>
                 {conversions.map((c) => (
-                  <TableRow key={c.id}>
+                  <ClickableRow key={c.id} txType="product_conversion" txId={c.id}>
                     <TableCell className="font-mono text-xs">{c.reference_no}</TableCell>
                     <TableCell className="text-xs">{format(new Date(c.created_at), 'dd MMM yyyy HH:mm')}</TableCell>
                     <TableCell className="text-xs">{c.wallets?.wallet_name || '—'}</TableCell>

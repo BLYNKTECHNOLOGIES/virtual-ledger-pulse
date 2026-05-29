@@ -14,9 +14,12 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useDeepLinkHighlight } from "@/components/transaction-detail";
 
 export default function BAMS() {
   const navigate = useNavigate();
+  useDeepLinkHighlight(['txId']);
+
   
   return (
     <PermissionGate 

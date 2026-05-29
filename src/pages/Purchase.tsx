@@ -37,6 +37,8 @@ export default function Purchase() {
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
   const [filterDateTo, setFilterDateTo] = useState<Date>();
   const [filterAssetType, setFilterAssetType] = useState<string>("");
+  useDeepLinkHighlight(['orderId']);
+
 
   const handleRefreshData = () => {
     queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });

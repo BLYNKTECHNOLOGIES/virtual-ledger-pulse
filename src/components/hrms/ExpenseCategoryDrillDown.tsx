@@ -41,6 +41,7 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
             created_by_user:users!created_by(username, first_name, last_name)
           `)
           .eq('transaction_type', 'EXPENSE')
+          .not('category', 'eq', 'Manual Baseline Reset')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr);
 

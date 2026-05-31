@@ -53,7 +53,7 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
           q = q.eq('category', category);
         }
 
-        return q.order('transaction_date', { ascending: false });
+        return q.order('transaction_date', { ascending: false }).order('id', { ascending: true });
       };
 
       return await fetchAllPaginated<any>(buildQuery);

@@ -19,6 +19,7 @@ import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/comp
 import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 
@@ -159,14 +160,17 @@ export function StatisticsTab() {
         return createdDate >= periodStart && createdDate <= periodEnd;
       }) || [];
 
-      // Fetch operating expenses
-      const { data: expenses } = await supabase
-        .from('bank_transactions')
-        .select('id, amount, category, description, transaction_date')
-        .eq('transaction_type', 'EXPENSE')
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
-        .gte('transaction_date', startStr)
-        .lte('transaction_date', endStr);
+      // Fetch operating expenses (paginated to avoid the silent 1000-row cap,
+      // which previously made category totals and drill-downs disagree)
+      const expenses = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('bank_transactions')
+          .select('id, amount, category, description, transaction_date')
+          .eq('transaction_type', 'EXPENSE')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr)
+      );
 
       // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
       const { data: usdtFees } = await supabase

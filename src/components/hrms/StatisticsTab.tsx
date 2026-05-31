@@ -170,6 +170,7 @@ export function StatisticsTab() {
           .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset")')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr)
+          .order('id', { ascending: true })
       );
 
       // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)

@@ -19,6 +19,7 @@ import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/comp
 import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 

@@ -1367,8 +1367,8 @@ export function StatisticsTab() {
       <ExpenseCategoryDrillDown
         category={selectedExpenseCategory}
         onClose={() => setSelectedExpenseCategory(null)}
-        startDate={dateRange?.from}
-        endDate={dateRange?.to}
+        startDate={getDateRange().startDate}
+        endDate={getDateRange().endDate}
         formatCurrency={formatCurrency}
       />
     </div>

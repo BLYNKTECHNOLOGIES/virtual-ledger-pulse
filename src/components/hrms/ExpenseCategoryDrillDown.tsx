@@ -24,26 +24,37 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
     queryKey: ['expense-category-drilldown', category, startStr, endStr],
     queryFn: async () => {
       if (!category) return [];
-      const { data, error } = await supabase
-        .from('bank_transactions')
-        .select(`
-          id, amount, description, transaction_date, reference_number, category, created_at,
-          bank_accounts!bank_account_id(account_name, bank_name),
-          created_by_user:users!created_by(username, first_name, last_name)
-        `)
-        .eq('transaction_type', 'EXPENSE')
-        .gte('transaction_date', startStr)
-        .lte('transaction_date', endStr)
-        .order('transaction_date', { ascending: false });
 
-      if (error) throw error;
-      if (category === 'Payout Gateway Fee') {
-        return (data || []).filter((row: any) =>
-          row.category === PAYOUT_GATEWAY_FEE_CATEGORY ||
-          String(row.description || '').toLowerCase().includes('payout gateway fee')
-        );
-      }
-      return (data || []).filter((row: any) => row.category === category);
+      // IMPORTANT: filter by category at the database level. Previously this
+      // fetched every EXPENSE row in the period and filtered client-side, which
+      // silently hit PostgREST's 1000-row cap and dropped older transactions
+      // (e.g. Settlement reversals) — showing "No transactions" despite a
+      // non-zero category total. Server-side filtering keeps the result small
+      // and complete.
+      const buildQuery = () => {
+        let q = supabase
+          .from('bank_transactions')
+          .select(`
+            id, amount, description, transaction_date, reference_number, category, created_at,
+            bank_accounts!bank_account_id(account_name, bank_name),
+            created_by_user:users!created_by(username, first_name, last_name)
+          `)
+          .eq('transaction_type', 'EXPENSE')
+          .gte('transaction_date', startStr)
+          .lte('transaction_date', endStr);
+
+        if (category === 'Payout Gateway Fee') {
+          q = q.or(
+            `category.eq.${PAYOUT_GATEWAY_FEE_CATEGORY},description.ilike.%payout gateway fee%`
+          );
+        } else {
+          q = q.eq('category', category);
+        }
+
+        return q.order('transaction_date', { ascending: false });
+      };
+
+      return await fetchAllPaginated<any>(buildQuery);
     },
     enabled: !!category,
   });

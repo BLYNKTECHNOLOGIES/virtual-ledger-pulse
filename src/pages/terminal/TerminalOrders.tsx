@@ -371,9 +371,41 @@ function TerminalOrdersContent() {
       }
     }
 
+    // Finally merge the LIVE recent-history feed (polled every 15s). This is the
+    // authoritative, up-to-the-minute source for orders that just reached a terminal
+    // state (completed/cancelled/appeal) but are NOT yet in the locally-synced DB
+    // (binance_order_history is only refreshed by the dashboard background sync).
+    // Without this, freshly finalized orders don't reflect on the Orders page until
+    // that 5-minute sync runs. Merging here surfaces them within ~15s.
+    if (Array.isArray(recentHistory)) {
+      for (const o of recentHistory as any[]) {
+        const orderNumber = normalizeOrderNumber(o?.orderNumber);
+        if (!orderNumber || orderMap.has(orderNumber)) continue;
+
+        orderMap.set(orderNumber, {
+          orderNumber,
+          advNo: o.advNo,
+          tradeType: o.tradeType,
+          asset: o.asset || 'USDT',
+          fiat: o.fiat || o.fiatUnit || 'INR',
+          amount: o.amount,
+          totalPrice: o.totalPrice,
+          unitPrice: o.unitPrice,
+          commission: o.commission,
+          orderStatus: o.orderStatus,
+          createTime: o.createTime,
+          payMethodName: o.payMethodName,
+          counterPartNickName: o.counterPartNickName,
+          buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
+          sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
+          additionalKycVerify: o.additionalKycVerify ?? 0,
+        });
+      }
+    }
+
     // Sort by createTime descending
     return Array.from(orderMap.values()).sort((a, b) => (b.createTime || 0) - (a.createTime || 0));
-  }, [activeOrdersData, historyOrders]);
+  }, [activeOrdersData, historyOrders, recentHistory]);
 
   // Build a map of order history statuses for enrichment
   const historyStatusMap = useMemo(() => {

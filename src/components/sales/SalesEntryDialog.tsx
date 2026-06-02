@@ -52,6 +52,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [isNewClient, setIsNewClient] = useState(false);
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
+  // Synchronous guard to prevent rapid double-submits creating duplicate orders.
+  // React state / mutation.isPending update asynchronously, leaving a window where
+  // multiple clicks each fire a fresh insert (the off-market RPC adds extra delay).
+  const isSubmittingRef = useRef(false);
 
   const [formData, setFormData] = useState(() => {
     const lastDefaults = getLastOrderDefaults('sales');

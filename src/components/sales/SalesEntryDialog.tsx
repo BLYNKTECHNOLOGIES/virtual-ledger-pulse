@@ -497,6 +497,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         description: error?.message || "Failed to create sales order. Please check your inputs and try again.", 
         variant: "destructive" 
       });
+    },
+    // Release the submit guard whether the order succeeded or failed.
+    onSettled: () => {
+      isSubmittingRef.current = false;
     }
   });
 

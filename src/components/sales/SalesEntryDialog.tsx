@@ -506,6 +506,12 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Hard stop against rapid double-submits: this flag flips synchronously,
+    // before any async work (off-market RPC / mutation) starts. Without it,
+    // multiple quick clicks each created a separate duplicate order.
+    if (isSubmittingRef.current || createSalesOrderMutation.isPending) {
+      return;
+    }
     // Collect all validation errors
     const errors: string[] = [];
     

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -52,6 +52,10 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
   const [isNewClient, setIsNewClient] = useState(false);
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [paymentSplits, setPaymentSplits] = useState<PaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
+  // Synchronous guard to prevent rapid double-submits creating duplicate orders.
+  // React state / mutation.isPending update asynchronously, leaving a window where
+  // multiple clicks each fire a fresh insert (the off-market RPC adds extra delay).
+  const isSubmittingRef = useRef(false);
 
   const [formData, setFormData] = useState(() => {
     const lastDefaults = getLastOrderDefaults('sales');
@@ -493,11 +497,21 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         description: error?.message || "Failed to create sales order. Please check your inputs and try again.", 
         variant: "destructive" 
       });
+    },
+    // Release the submit guard whether the order succeeded or failed.
+    onSettled: () => {
+      isSubmittingRef.current = false;
     }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Hard stop against rapid double-submits: this flag flips synchronously,
+    // before any async work (off-market RPC / mutation) starts. Without it,
+    // multiple quick clicks each created a separate duplicate order.
+    if (isSubmittingRef.current || createSalesOrderMutation.isPending) {
+      return;
+    }
     // Collect all validation errors
     const errors: string[] = [];
     
@@ -545,9 +559,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       });
       return;
     }
-    
-    
-    
+    // Engage the guard now — kept until the mutation settles (onSettled).
+    isSubmittingRef.current = true;
+
     // For off-market orders, generate the actual order number at submission (consuming the sequence)
     const submitOrder = async () => {
       let orderNumber = formData.order_number;
@@ -556,6 +570,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         try {
           const { data: offMarketNumber, error } = await supabase.rpc('generate_off_market_sales_order_number');
           if (error || !offMarketNumber) {
+            isSubmittingRef.current = false;
             toast({
               title: "Error",
               description: "Failed to generate off-market order number",
@@ -565,6 +580,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           }
           orderNumber = offMarketNumber;
         } catch (err) {
+          isSubmittingRef.current = false;
           console.error('Failed to generate off-market order number:', err);
           toast({
             title: "Error",

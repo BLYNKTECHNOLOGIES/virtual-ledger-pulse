@@ -559,9 +559,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
       });
       return;
     }
-    
-    
-    
+    // Engage the guard now — kept until the mutation settles (onSettled).
+    isSubmittingRef.current = true;
+
     // For off-market orders, generate the actual order number at submission (consuming the sequence)
     const submitOrder = async () => {
       let orderNumber = formData.order_number;
@@ -570,6 +570,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
         try {
           const { data: offMarketNumber, error } = await supabase.rpc('generate_off_market_sales_order_number');
           if (error || !offMarketNumber) {
+            isSubmittingRef.current = false;
             toast({
               title: "Error",
               description: "Failed to generate off-market order number",
@@ -579,6 +580,7 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           }
           orderNumber = offMarketNumber;
         } catch (err) {
+          isSubmittingRef.current = false;
           console.error('Failed to generate off-market order number:', err);
           toast({
             title: "Error",

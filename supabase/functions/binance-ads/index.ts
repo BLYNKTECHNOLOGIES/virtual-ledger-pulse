@@ -18,6 +18,44 @@ function unwrapOrderDetail(result: any) {
   return result?.data?.data || result?.data || result;
 }
 
+function uniqueTruthyStrings(values: unknown[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const text = value === null || value === undefined ? "" : String(value).trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    out.push(text);
+  }
+  return out;
+}
+
+function extractChatReadUserCandidates(orderDetail: any, payload: any): string[] {
+  return uniqueTruthyStrings([
+    payload?.userId,
+    payload?.userNo,
+    payload?.takerUserNo,
+    payload?.counterpartyUserNo,
+    orderDetail?.takerUserNo,
+    orderDetail?.makerUserNo,
+    orderDetail?.buyerUserNo,
+    orderDetail?.sellerUserNo,
+    orderDetail?.counterpartyUserNo,
+    orderDetail?.buyer?.userNo,
+    orderDetail?.seller?.userNo,
+    orderDetail?.buyerVo?.userNo,
+    orderDetail?.sellerVo?.userNo,
+    orderDetail?.buyerUser?.userNo,
+    orderDetail?.sellerUser?.userNo,
+  ]);
+}
+
+function isSuccessfulBinancePayload(payload: any, responseStatus: number): boolean {
+  if (responseStatus < 200 || responseStatus >= 300) return false;
+  const code = payload?.code;
+  return code === undefined || code === null || code === "000000" || code === 200 || code === "200" || payload?.success === true;
+}
+
 function normalizeUserRisk(user: any) {
   if (!user || typeof user !== "object") return null;
   return {

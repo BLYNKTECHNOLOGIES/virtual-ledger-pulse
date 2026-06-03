@@ -1397,7 +1397,8 @@ serve(async (req) => {
         // POST /sapi/v1/c2c/chat/markOrderMessagesAsRead
         // Binance requires a userId even though active-order rows don't expose it.
         // Resolve candidate user numbers from order detail, then try the read endpoint.
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
+        const directUrl = `https://api.binance.com/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
+        const proxyUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
         const orderNo = String(payload.orderNo || payload.orderNumber || "").trim();
         if (!orderNo) throw new Error("orderNo is required");
 
@@ -1419,11 +1420,17 @@ serve(async (req) => {
 
         const attempts: any[] = [];
         for (const userId of candidates) {
-          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ orderNo, userId }) });
+          let response = await fetch(directUrl, { method: "POST", headers: directApiKeyHeaders, body: JSON.stringify({ orderNo, userId }) });
           const text = await response.text();
           let attempt: any;
           try { attempt = JSON.parse(text); } catch { attempt = { raw: text, status: response.status }; }
-          attempts.push({ userId: maskIdentifier(userId), status: response.status, code: attempt?.code, message: attempt?.message || attempt?.msg || attempt?.error });
+          attempts.push({ transport: "direct", userId: maskIdentifier(userId), status: response.status, code: attempt?.code, message: attempt?.message || attempt?.msg || attempt?.error });
+          if (!isSuccessfulBinancePayload(attempt, response.status)) {
+            response = await fetch(proxyUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ orderNo, userId }) });
+            const proxyText = await response.text();
+            try { attempt = JSON.parse(proxyText); } catch { attempt = { raw: proxyText, status: response.status }; }
+            attempts.push({ transport: "proxy", userId: maskIdentifier(userId), status: response.status, code: attempt?.code, message: attempt?.message || attempt?.msg || attempt?.error });
+          }
           if (isSuccessfulBinancePayload(attempt, response.status)) {
             result = { ...attempt, _markRead: { usedUserId: maskIdentifier(userId), attempts } };
             break;

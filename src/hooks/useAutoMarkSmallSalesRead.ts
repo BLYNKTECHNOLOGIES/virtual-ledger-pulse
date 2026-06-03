@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds, useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { isOrderChatRead, markOrderChatRead } from '@/lib/chat-read-state';
 
+const MARK_READ_RETRY_INTERVAL_MS = 15_000;
+
 /**
  * Background automation: continuously marks the chat of ACTIVE small SELL orders
  * as read on Binance, so that big-buyer conversations stand out as unread.
@@ -41,6 +43,7 @@ export function useAutoMarkSmallSalesRead() {
 
   // Track orders currently being marked to avoid duplicate in-flight calls.
   const inFlightRef = useRef<Set<string>>(new Set());
+  const lastAttemptRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const autoEnabled = (config as any)?.auto_mark_chat_read === true;
@@ -66,14 +69,16 @@ export function useAutoMarkSmallSalesRead() {
       const totalPrice = parseFloat(o.totalPrice || o.total_price || '0');
       if (!(totalPrice >= min && totalPrice <= max)) continue;
 
-      // Only if there are unread messages
-      const unread = Number(o.chatUnreadCount || 0);
-      if (unread <= 0) continue;
+      // Binance can return chatUnreadCount=0 while the mobile app still shows
+      // an unread badge, so do not trust it as a hard gate. Throttle instead.
+      const lastAttemptAt = lastAttemptRef.current.get(orderNumber) || 0;
+      if (Date.now() - lastAttemptAt < MARK_READ_RETRY_INTERVAL_MS) continue;
 
-      // Skip if already marked locally or currently in-flight
-      if (isOrderChatRead(orderNumber) || inFlightRef.current.has(orderNumber)) continue;
+      // Skip if currently in-flight; local read state only controls ERP badges.
+      if (inFlightRef.current.has(orderNumber)) continue;
 
       inFlightRef.current.add(orderNumber);
+      lastAttemptRef.current.set(orderNumber, Date.now());
       callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber })
         .then(() => {
           markOrderChatRead(orderNumber);

@@ -86,7 +86,10 @@ function isActiveAppealCase(c: TerminalAppealCase) {
 
 function isActiveListAppealCandidate(rawStatus: unknown) {
   const raw = String(rawStatus ?? '').trim().toUpperCase();
-  return raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
+  // Binance C2C appeal/complaint orders carry numeric status 5 (verified against
+  // live getUserOrderDetail: complaintStatus/canCancelComplaintOrder set). 8 kept
+  // as a defensive fallback for older API responses.
+  return raw === '5' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT');
 }
 
 function appealSyncStatus(rawStatus: unknown) {
@@ -105,7 +108,8 @@ function extractBinanceOrderList(resp: any) {
 
 function normalizeDetailFinalStatus(rawStatus: unknown) {
   const raw = String(rawStatus ?? '').trim().toUpperCase();
-  if (!raw || raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT')) return null;
+  // 5 = APPEAL, 8 = appeal fallback → never treat appeal codes as final.
+  if (!raw || raw === '5' || raw === '7' || raw === '8' || raw.includes('APPEAL') || raw.includes('DISPUTE') || raw.includes('COMPLAINT')) return null;
   return normaliseBinanceStatus(rawStatus as any);
 }
 

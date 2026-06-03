@@ -588,6 +588,12 @@ serve(async (req) => {
       "clientType": "web",
     };
 
+    const directApiKeyHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-MBX-APIKEY": BINANCE_API_KEY,
+      "clientType": "web",
+    };
+
     let result: any;
 
     switch (action) {

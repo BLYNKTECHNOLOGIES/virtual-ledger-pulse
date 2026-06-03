@@ -12967,6 +12967,7 @@ export type Database = {
       }
       small_sales_config: {
         Row: {
+          auto_mark_chat_read: boolean
           currency: string
           id: string
           is_enabled: boolean
@@ -12976,6 +12977,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          auto_mark_chat_read?: boolean
           currency?: string
           id?: string
           is_enabled?: boolean
@@ -12985,6 +12987,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          auto_mark_chat_read?: boolean
           currency?: string
           id?: string
           is_enabled?: boolean

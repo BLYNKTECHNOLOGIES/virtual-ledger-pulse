@@ -26,8 +26,8 @@ async function fetchOrderDetail(orderNumber: string): Promise<{ status: string |
         // Binance numeric: 7 from detail can remain stale for system-cancelled C2C orders; history is authoritative for appeal finality.
         const statusMap: Record<number, string> = {
           0: 'PENDING', 1: 'TRADING', 2: 'BUYER_PAYED',
-          3: 'DISTRIBUTING', 4: 'COMPLETED', 5: 'CANCELLED',
-          6: 'CANCELLED_BY_SYSTEM', 7: 'CANCELLED_BY_SYSTEM', 8: 'IN_APPEAL',
+          3: 'DISTRIBUTING', 4: 'COMPLETED', 5: 'IN_APPEAL',
+          6: 'CANCELLED', 7: 'CANCELLED_BY_SYSTEM', 8: 'IN_APPEAL',
         };
         status = statusMap[numStatus] ?? String(rawStatus);
       } else {

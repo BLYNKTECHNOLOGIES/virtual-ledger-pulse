@@ -300,7 +300,7 @@ export default function TerminalAppeals() {
     setIsSyncing(true);
     try {
       const pages = [1, 2, 3, 4, 5];
-      const pageResults = await Promise.all(pages.map((page) => callBinanceAds('listActiveOrders', { page, rows: 100, orderStatusList: [8] }).catch(() => [])));
+      const pageResults = await Promise.all(pages.map((page) => callBinanceAds('listActiveOrders', { page, rows: 100, orderStatusList: [5, 8] }).catch(() => [])));
       const list = pageResults.flatMap(extractBinanceOrderList);
       const appealOrders = Array.from(new Map(list.filter((o: any) => isActiveListAppealCandidate(o.orderStatus ?? o.order_status)).map((o: any) => [String(o.orderNumber || o.orderNo), o])).values());
       const { data: historyEvidenceRows } = await supabase

@@ -327,18 +327,18 @@ function TerminalOrdersContent() {
 
     // Active orders first (they have richer data like chatUnreadCount)
     // Filter out truly finalized status codes that Binance may still return in listOrders
-    // Status codes: 1=PENDING, 2=TRADING, 3=BUYER_PAYED, 4=BUYER_PAYED(confirmed),
-    //               5=COMPLETED, 6=CANCELLED, 7=CANCELLED(timeout), 8=APPEAL
-    // Only 5 (COMPLETED) and 6/7 (CANCELLED) are truly finalized.
-    // Status 3/4 (BUYER_PAYED) are ACTIVE states — buyer paid, awaiting release.
-    // Status 8 (APPEAL) should remain visible.
-    const FINALIZED_CODES = new Set(['5', '6', '7']);
+    // Binance C2C numeric status codes (verified against live API):
+    //   1=TRADING/PENDING, 2=BUYER_PAYED, 4=COMPLETED, 5=APPEAL,
+    //   6=CANCELLED, 7=CANCELLED_BY_SYSTEM
+    // Only 4 (COMPLETED) and 6/7 (CANCELLED) are truly finalized.
+    // Status 1/2 (active) and 5 (APPEAL) must remain visible in the terminal.
+    const FINALIZED_CODES = new Set(['4', '6', '7']);
     const d = (activeOrdersData as any)?.data ?? activeOrdersData;
     const activeList = Array.isArray(d) ? d : [];
     for (const o of activeList) {
       const orderNumber = normalizeOrderNumber(o?.orderNumber);
       if (!orderNumber) continue;
-      // Skip only truly finalized statuses (Completed=5, Cancelled=6/7)
+      // Skip only truly finalized statuses (Completed=4, Cancelled=6/7); keep appeals (5)
       if (FINALIZED_CODES.has(String(o.orderStatus))) continue;
       // Keep a string-typed orderNumber on the object to avoid Map/key mismatches later
       orderMap.set(orderNumber, { ...o, orderNumber, _isActiveOrder: true });

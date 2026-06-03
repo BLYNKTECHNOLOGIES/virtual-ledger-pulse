@@ -16,8 +16,10 @@ const MARK_READ_RETRY_INTERVAL_MS = 15_000;
  *   small_sales_config [min_amount, max_amount] range.
  * - Gated behind the dedicated `auto_mark_chat_read` settings toggle.
  *
- * Marking is done via the existing `markOrderMessagesRead` action, which resolves
- * the Binance userId and calls POST /sapi/v1/c2c/chat/markOrderMessagesAsRead.
+ * Marking is done via the existing `markOrderMessagesRead` action. The Binance
+ * proxy supports userId=0 as "current merchant for this order", which is required
+ * because active-order rows only expose alphanumeric userNo values that the
+ * mark-read endpoint rejects as userId.
  * We also mirror the read
  * state locally (chat-read-state) so the terminal inbox reflects it instantly.
  */
@@ -79,7 +81,7 @@ export function useAutoMarkSmallSalesRead() {
 
       inFlightRef.current.add(orderNumber);
       lastAttemptRef.current.set(orderNumber, Date.now());
-      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber })
+      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber, userId: 0 })
         .then(() => {
           markOrderChatRead(orderNumber);
         })

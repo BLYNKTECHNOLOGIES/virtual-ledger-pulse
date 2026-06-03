@@ -30,14 +30,36 @@ function uniqueTruthyStrings(values: unknown[]): string[] {
   return out;
 }
 
-function extractChatReadUserCandidates(orderDetail: any, payload: any): string[] {
+function isNumericChatReadUserId(value: string): boolean {
+  return /^\d+$/.test(value);
+}
+
+function extractChatReadUserCandidates(orderDetail: any, payload: any, chatMessages: any[] = []): string[] {
+  const chatUserCandidates = chatMessages.flatMap((message) => [
+    message?.userId,
+    message?.userNo,
+    message?.fromUserId,
+    message?.fromUserNo,
+    message?.senderUserId,
+    message?.senderUserNo,
+    message?.senderId,
+    message?.receiverUserId,
+    message?.receiverUserNo,
+  ]);
+
   return uniqueTruthyStrings([
     payload?.userId,
     payload?.userNo,
     payload?.takerUserNo,
     payload?.counterpartyUserNo,
+    payload?.merchantNo,
+    payload?.buyerUserId,
+    payload?.sellerUserId,
     orderDetail?.takerUserNo,
     orderDetail?.makerUserNo,
+    orderDetail?.merchantNo,
+    orderDetail?.buyerUserId,
+    orderDetail?.sellerUserId,
     orderDetail?.buyerUserNo,
     orderDetail?.sellerUserNo,
     orderDetail?.counterpartyUserNo,
@@ -47,6 +69,7 @@ function extractChatReadUserCandidates(orderDetail: any, payload: any): string[]
     orderDetail?.sellerVo?.userNo,
     orderDetail?.buyerUser?.userNo,
     orderDetail?.sellerUser?.userNo,
+    ...chatUserCandidates,
   ]);
 }
 
@@ -1395,15 +1418,18 @@ serve(async (req) => {
 
       case "markOrderMessagesRead": {
         // POST /sapi/v1/c2c/chat/markOrderMessagesAsRead
-        // Binance requires a userId even though active-order rows don't expose it.
-        // Resolve candidate user numbers from order detail, then try the read endpoint.
+        // Binance requires a numeric userId. Active-order/detail rows often only expose
+        // alphanumeric userNo values (e.g. takerUserNo), which Binance rejects here.
+        // The whitelisted proxy accepts userId=0 for "current merchant + orderNo" and
+        // marks that order's unread messages read; keep numeric explicit IDs first.
         const directUrl = `https://api.binance.com/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
         const proxyUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
         const orderNo = String(payload.orderNo || payload.orderNumber || "").trim();
         if (!orderNo) throw new Error("orderNo is required");
 
+        const hasProvidedReadCandidate = [payload.userId, payload.userNo, payload.takerUserNo, payload.counterpartyUserNo].some((value) => value !== undefined && value !== null && String(value).trim() !== "");
         let detail: any = null;
-        if (!payload.userId && !payload.userNo && !payload.takerUserNo && !payload.counterpartyUserNo) {
+        if (!hasProvidedReadCandidate) {
           const detailUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
           const detailResponse = await fetchWithRetry(detailUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ adOrderNo: orderNo, orderNo }) });
           const detailText = await detailResponse.text();
@@ -1412,7 +1438,8 @@ serve(async (req) => {
           detail = unwrapOrderDetail(detailResult);
         }
 
-        const candidates = extractChatReadUserCandidates(detail, payload);
+        const candidates = extractChatReadUserCandidates(detail, payload).filter(isNumericChatReadUserId);
+        if (!candidates.includes("0")) candidates.push("0");
         if (candidates.length === 0) {
           result = { code: "MISSING_USER_ID", message: "Binance mark-read requires userId and no user candidate was available for this order.", status: 400 };
           break;

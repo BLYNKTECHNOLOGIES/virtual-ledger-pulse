@@ -1387,13 +1387,41 @@ serve(async (req) => {
 
       case "markOrderMessagesRead": {
         // POST /sapi/v1/c2c/chat/markOrderMessagesAsRead
+        // Binance requires a userId even though active-order rows don't expose it.
+        // Resolve candidate user numbers from order detail, then try the read endpoint.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/markOrderMessagesAsRead`;
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
-          orderNo: payload.orderNo,
-          userId: payload.userId,
-        }) });
-        const text = await response.text();
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const orderNo = String(payload.orderNo || payload.orderNumber || "").trim();
+        if (!orderNo) throw new Error("orderNo is required");
+
+        let detail: any = null;
+        if (!payload.userId && !payload.userNo && !payload.takerUserNo && !payload.counterpartyUserNo) {
+          const detailUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+          const detailResponse = await fetchWithRetry(detailUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ adOrderNo: orderNo, orderNo }) });
+          const detailText = await detailResponse.text();
+          let detailResult: any;
+          try { detailResult = JSON.parse(detailText); } catch { detailResult = { raw: detailText, status: detailResponse.status }; }
+          detail = unwrapOrderDetail(detailResult);
+        }
+
+        const candidates = extractChatReadUserCandidates(detail, payload);
+        if (candidates.length === 0) {
+          result = { code: "MISSING_USER_ID", message: "Binance mark-read requires userId and no user candidate was available for this order.", status: 400 };
+          break;
+        }
+
+        const attempts: any[] = [];
+        for (const userId of candidates) {
+          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ orderNo, userId }) });
+          const text = await response.text();
+          let attempt: any;
+          try { attempt = JSON.parse(text); } catch { attempt = { raw: text, status: response.status }; }
+          attempts.push({ userId: maskIdentifier(userId), status: response.status, code: attempt?.code, message: attempt?.message || attempt?.msg || attempt?.error });
+          if (isSuccessfulBinancePayload(attempt, response.status)) {
+            result = { ...attempt, _markRead: { usedUserId: maskIdentifier(userId), attempts } };
+            break;
+          }
+        }
+        if (!result) result = { code: "MARK_READ_FAILED", message: attempts[attempts.length - 1]?.message || "Binance mark-read failed for all user candidates.", status: 400, attempts };
         break;
       }
 

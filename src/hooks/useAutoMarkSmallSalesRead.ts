@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds, useBinanceActiveOrders } from '@/hooks/useBinanceActions';
-import { isOrderChatRead, markOrderChatRead } from '@/lib/chat-read-state';
+import { markOrderChatRead } from '@/lib/chat-read-state';
 
 const MARK_READ_RETRY_INTERVAL_MS = 15_000;
 

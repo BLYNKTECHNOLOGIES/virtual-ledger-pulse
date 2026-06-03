@@ -52,8 +52,10 @@ function extractChatReadUserCandidates(orderDetail: any, payload: any): string[]
 
 function isSuccessfulBinancePayload(payload: any, responseStatus: number): boolean {
   if (responseStatus < 200 || responseStatus >= 300) return false;
+  if (payload === null || payload === undefined) return true;
+  if (payload?.success === false || payload?.error) return false;
   const code = payload?.code;
-  return code === undefined || code === null || code === "000000" || code === 200 || code === "200" || payload?.success === true;
+  return code === "000000" || code === 200 || code === "200" || payload?.success === true || (code === undefined && Object.keys(payload || {}).length === 0);
 }
 
 function normalizeUserRisk(user: any) {

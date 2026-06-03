@@ -36,7 +36,7 @@ export interface SmallPaymentCase {
 }
 
 const FINAL_ORDER_STATUS_PARTS = ['COMPLETED', 'CANCEL', 'EXPIRED'];
-const FINAL_ORDER_STATUS_CODES = new Set(['5', '6', '7']);
+const FINAL_ORDER_STATUS_CODES = new Set(['4', '6', '7']); // 4=COMPLETED, 6/7=CANCELLED; 5=APPEAL is NOT final
 
 function isFinalOrderStatus(status?: string | null) {
   const raw = String(status || '').trim();

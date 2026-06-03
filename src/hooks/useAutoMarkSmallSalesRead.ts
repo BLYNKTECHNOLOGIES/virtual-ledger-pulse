@@ -14,11 +14,11 @@ const MARK_READ_RETRY_INTERVAL_MS = 15_000;
  * - Only SELL orders (we never touch buy-side chats).
  * - Only orders whose total fiat price falls inside the configured
  *   small_sales_config [min_amount, max_amount] range.
- * - Only orders that currently have unread messages.
  * - Gated behind the dedicated `auto_mark_chat_read` settings toggle.
  *
- * Marking is done via the existing `markOrderMessagesRead` action which proxies
- * to POST /sapi/v1/c2c/chat/markOrderMessagesAsRead. We also mirror the read
+ * Marking is done via the existing `markOrderMessagesRead` action, which resolves
+ * the Binance userId and calls POST /sapi/v1/c2c/chat/markOrderMessagesAsRead.
+ * We also mirror the read
  * state locally (chat-read-state) so the terminal inbox reflects it instantly.
  */
 export function useAutoMarkSmallSalesRead() {

@@ -156,6 +156,33 @@ export function SmallSalesConfig() {
         </CardContent>
       </Card>
 
+      {/* Auto-mark small sell chats as read */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Settings className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Auto-mark Small Sell Chats as Read</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{config?.auto_mark_chat_read ? 'Enabled' : 'Disabled'}</span>
+              <Switch
+                checked={config?.auto_mark_chat_read ?? false}
+                onCheckedChange={(v) => updateConfig.mutate({ auto_mark_chat_read: v })}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            When enabled, the terminal continuously marks the Binance chat of active SELL orders within the small-sales range as read,
+            so big-buyer conversations stay visibly unread and easy to spot. Buy-side and big-order chats are never touched.
+          </p>
+        </CardContent>
+      </Card>
+
+
+
       {/* Preview Impact */}
       <Card>
         <CardHeader className="pb-3">

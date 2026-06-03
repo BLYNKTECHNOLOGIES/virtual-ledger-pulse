@@ -165,9 +165,9 @@ export function SmallSalesConfig() {
               <CardTitle className="text-base">Auto-mark Small Sell Chats as Read</CardTitle>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{config?.auto_mark_chat_read ? 'Enabled' : 'Disabled'}</span>
+              <span className="text-sm text-muted-foreground">{(config as any)?.auto_mark_chat_read ? 'Enabled' : 'Disabled'}</span>
               <Switch
-                checked={config?.auto_mark_chat_read ?? false}
+                checked={(config as any)?.auto_mark_chat_read ?? false}
                 onCheckedChange={(v) => updateConfig.mutate({ auto_mark_chat_read: v })}
               />
             </div>

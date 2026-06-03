@@ -70,7 +70,7 @@ export function SmallSalesConfig() {
       if (!config?.id) return;
       const { error } = await supabase
         .from('small_sales_config')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...updates, updated_at: new Date().toISOString() } as any)
         .eq('id', config.id);
       if (error) throw error;
     },

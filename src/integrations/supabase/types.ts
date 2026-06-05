@@ -13711,21 +13711,21 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           activity_type: string
           created_at?: string
           id?: string
           metadata?: Json | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           activity_type?: string
           created_at?: string
           id?: string
           metadata?: Json | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -14176,7 +14176,7 @@ export type Database = {
         Row: {
           broadcast_type: string
           created_at: string
-          created_by: string
+          created_by: string | null
           expires_at: string | null
           id: string
           is_active: boolean
@@ -14186,7 +14186,7 @@ export type Database = {
         Insert: {
           broadcast_type?: string
           created_at?: string
-          created_by: string
+          created_by?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
@@ -14196,7 +14196,7 @@ export type Database = {
         Update: {
           broadcast_type?: string
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
@@ -14631,8 +14631,8 @@ export type Database = {
       terminal_order_escalations: {
         Row: {
           created_at: string
-          escalated_by: string
-          escalated_to: string
+          escalated_by: string | null
+          escalated_to: string | null
           id: string
           order_number: string
           priority: string
@@ -14644,8 +14644,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          escalated_by: string
-          escalated_to: string
+          escalated_by?: string | null
+          escalated_to?: string | null
           id?: string
           order_number: string
           priority?: string
@@ -14657,8 +14657,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          escalated_by?: string
-          escalated_to?: string
+          escalated_by?: string | null
+          escalated_to?: string | null
           id?: string
           order_number?: string
           priority?: string
@@ -15006,9 +15006,9 @@ export type Database = {
           handover_orders: Json
           id: string
           incoming_notes: string | null
-          incoming_user_id: string
+          incoming_user_id: string | null
           outgoing_notes: string | null
-          outgoing_user_id: string
+          outgoing_user_id: string | null
           status: string
         }
         Insert: {
@@ -15017,9 +15017,9 @@ export type Database = {
           handover_orders?: Json
           id?: string
           incoming_notes?: string | null
-          incoming_user_id: string
+          incoming_user_id?: string | null
           outgoing_notes?: string | null
-          outgoing_user_id: string
+          outgoing_user_id?: string | null
           status?: string
         }
         Update: {
@@ -15028,9 +15028,9 @@ export type Database = {
           handover_orders?: Json
           id?: string
           incoming_notes?: string | null
-          incoming_user_id?: string
+          incoming_user_id?: string | null
           outgoing_notes?: string | null
-          outgoing_user_id?: string
+          outgoing_user_id?: string | null
           status?: string
         }
         Relationships: []

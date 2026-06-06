@@ -129,7 +129,8 @@ export default function Purchase() {
               )
             ),
             wallet:wallets!wallet_id(wallet_name),
-            created_by_user:users!created_by(username, first_name, last_name)
+            created_by_user:users!created_by(username, first_name, last_name),
+            terminal_sync:terminal_purchase_sync!terminal_sync_id(binance_order_number)
           `)
           .order('created_at', { ascending: false })
           .range(from, from + PAGE - 1);

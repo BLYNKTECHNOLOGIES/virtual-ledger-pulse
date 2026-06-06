@@ -227,6 +227,7 @@ export default function Purchase() {
 
     const csvHeaders = [
       'Order Number',
+      'Binance Order Number',
       'Supplier Name',
       'Contact Number',
       'State',

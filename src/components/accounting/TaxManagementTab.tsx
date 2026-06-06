@@ -398,7 +398,7 @@ export function TaxManagementTab() {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg">TDS by Company</CardTitle>
             {canPay && (
-              <ViewOnlyWrapper hasPermission={hasPermission('accounting_edit')}>
+              <ViewOnlyWrapper isViewOnly={!hasPermission('accounting_edit')}>
                 <Button onClick={() => setShowPaymentDialog(true)}>
                   <Building className="h-4 w-4 mr-2" />
                   Pay {inr(selectedTotal)} ({selectedIds.length})

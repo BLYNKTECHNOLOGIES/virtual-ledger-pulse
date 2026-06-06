@@ -13613,6 +13613,110 @@ export type Database = {
         }
         Relationships: []
       }
+      tds_payment_allocations: {
+        Row: {
+          allocated_tds_amount: number
+          bank_account_id: string | null
+          binance_order_number: string | null
+          created_at: string
+          deduction_date: string | null
+          financial_year: string | null
+          firm_name: string | null
+          id: string
+          order_number: string | null
+          paid_amount: number
+          paid_at: string | null
+          paid_by: string | null
+          pan_number: string | null
+          payment_bank_account_id: string | null
+          payment_batch_id: string | null
+          payment_status: string
+          purchase_order_id: string
+          subsidiary_id: string | null
+          supplier_name: string | null
+          tds_certificate_number: string | null
+          tds_rate: number | null
+          updated_at: string
+        }
+        Insert: {
+          allocated_tds_amount?: number
+          bank_account_id?: string | null
+          binance_order_number?: string | null
+          created_at?: string
+          deduction_date?: string | null
+          financial_year?: string | null
+          firm_name?: string | null
+          id?: string
+          order_number?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          paid_by?: string | null
+          pan_number?: string | null
+          payment_bank_account_id?: string | null
+          payment_batch_id?: string | null
+          payment_status?: string
+          purchase_order_id: string
+          subsidiary_id?: string | null
+          supplier_name?: string | null
+          tds_certificate_number?: string | null
+          tds_rate?: number | null
+          updated_at?: string
+        }
+        Update: {
+          allocated_tds_amount?: number
+          bank_account_id?: string | null
+          binance_order_number?: string | null
+          created_at?: string
+          deduction_date?: string | null
+          financial_year?: string | null
+          firm_name?: string | null
+          id?: string
+          order_number?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          paid_by?: string | null
+          pan_number?: string | null
+          payment_bank_account_id?: string | null
+          payment_batch_id?: string | null
+          payment_status?: string
+          purchase_order_id?: string
+          subsidiary_id?: string | null
+          supplier_name?: string | null
+          tds_certificate_number?: string | null
+          tds_rate?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tds_payment_allocations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_payment_allocations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_payment_allocations_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_payment_allocations_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tds_records: {
         Row: {
           created_at: string
@@ -17240,6 +17344,7 @@ export type Database = {
           scope: string
         }[]
       }
+      indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {
             Args: {
@@ -17394,6 +17499,7 @@ export type Database = {
         }
         Returns: Json
       }
+      rebuild_tds_allocations: { Args: { p_po_id: string }; Returns: undefined }
       recalculate_purchase_order_effective_usdt: {
         Args: { p_order_id: string; p_reason?: string }
         Returns: Json

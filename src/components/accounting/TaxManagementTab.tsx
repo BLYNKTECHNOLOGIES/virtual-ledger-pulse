@@ -1,5 +1,4 @@
-
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,266 +15,183 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
-import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
 
-interface TDSRecord {
+interface AllocationRow {
   id: string;
-  pan_number: string;
-  tds_amount: number;
-  total_amount: number;
-  net_payable_amount: number;
-  deduction_date: string;
-  financial_year: string;
+  purchase_order_id: string;
+  pan_number: string | null;
+  supplier_name: string | null;
+  order_number: string | null;
+  binance_order_number: string | null;
+  bank_account_id: string | null;
+  subsidiary_id: string | null;
+  firm_name: string | null;
+  paid_amount: number;
+  allocated_tds_amount: number;
+  tds_rate: number | null;
+  deduction_date: string | null;
+  financial_year: string | null;
   payment_status: string;
-  tds_certificate_number: string | null;
   payment_batch_id: string | null;
-  paid_at: string | null;
-  paid_by: string | null;
-  payment_bank_account_id: string | null;
-  payment_reference: string | null;
-  purchase_orders?: {
-    order_number: string;
-    supplier_name: string;
-  };
-  paid_by_user?: {
-    username: string;
-    first_name: string | null;
-    last_name: string | null;
-  };
-  payment_bank_account?: {
-    account_name: string;
-    bank_name: string;
-  };
+  bank?: { account_name: string | null; bank_name: string | null } | null;
 }
 
-// Generate quarter options for past 2 years
+const ALL_TAB = "__all__";
+
 function generateQuarterOptions() {
   const options: { value: string; label: string }[] = [];
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
-  
-  // Determine current FY
   const currentFYStart = currentMonth >= 4 ? currentYear : currentYear - 1;
-  
-  // Generate quarters for current FY and previous FY
+
   for (let fyStart = currentFYStart; fyStart >= currentFYStart - 1; fyStart--) {
     const fyEnd = fyStart + 1;
     const fyLabel = `FY ${fyStart}-${fyEnd.toString().slice(-2)}`;
-    
     options.push({ value: `Q4-${fyStart}`, label: `Q4 ${fyLabel} (Jan-Mar ${fyEnd})` });
     options.push({ value: `Q3-${fyStart}`, label: `Q3 ${fyLabel} (Oct-Dec ${fyStart})` });
     options.push({ value: `Q2-${fyStart}`, label: `Q2 ${fyLabel} (Jul-Sep ${fyStart})` });
     options.push({ value: `Q1-${fyStart}`, label: `Q1 ${fyLabel} (Apr-Jun ${fyStart})` });
   }
-  
   return options;
 }
 
-// Get date range for a quarter
 function getQuarterDateRange(quarterKey: string): { start: string; end: string } {
   const [quarter, fyStartStr] = quarterKey.split('-');
   const fyStart = parseInt(fyStartStr);
-  
   switch (quarter) {
-    case 'Q1':
-      return { start: `${fyStart}-04-01`, end: `${fyStart}-06-30` };
-    case 'Q2':
-      return { start: `${fyStart}-07-01`, end: `${fyStart}-09-30` };
-    case 'Q3':
-      return { start: `${fyStart}-10-01`, end: `${fyStart}-12-31` };
-    case 'Q4':
-      return { start: `${fyStart + 1}-01-01`, end: `${fyStart + 1}-03-31` };
-    default:
-      return { start: '', end: '' };
+    case 'Q1': return { start: `${fyStart}-04-01`, end: `${fyStart}-06-30` };
+    case 'Q2': return { start: `${fyStart}-07-01`, end: `${fyStart}-09-30` };
+    case 'Q3': return { start: `${fyStart}-10-01`, end: `${fyStart}-12-31` };
+    case 'Q4': return { start: `${fyStart + 1}-01-01`, end: `${fyStart + 1}-03-31` };
+    default: return { start: '', end: '' };
   }
 }
 
-// Get current quarter
 function getCurrentQuarter(): string {
   const currentDate = new Date();
   const month = currentDate.getMonth() + 1;
   const year = currentDate.getFullYear();
-  
   if (month >= 4 && month <= 6) return `Q1-${year}`;
   if (month >= 7 && month <= 9) return `Q2-${year}`;
   if (month >= 10 && month <= 12) return `Q3-${year}`;
   return `Q4-${year - 1}`;
 }
 
+const inr = (n: number) => `₹${(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
 export function TaxManagementTab() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const queryClient = useQueryClient();
-  
+
   const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter());
-  const [selectedRecords, setSelectedRecords] = useState<string[]>([]);
+  const [activeCompany, setActiveCompany] = useState<string>(ALL_TAB);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBankAccountId, setPaymentBankAccountId] = useState("");
   const [includePaidInExport, setIncludePaidInExport] = useState(false);
-  
+
   const quarterOptions = useMemo(() => generateQuarterOptions(), []);
   const dateRange = useMemo(() => getQuarterDateRange(selectedQuarter), [selectedQuarter]);
 
-  // Fetch TDS records for selected quarter with payment details
-  const { data: tdsRecords, isLoading } = useQuery({
-    queryKey: ['tds_records_quarter', selectedQuarter],
+  // Reset selection when switching tabs / quarters
+  useEffect(() => { setSelectedIds([]); }, [activeCompany, selectedQuarter]);
+
+  // Fetch per-transaction TDS allocations for the quarter
+  const { data: allocations, isLoading } = useQuery({
+    queryKey: ['tds_allocations_quarter', selectedQuarter],
     queryFn: async () => {
       const { start, end } = dateRange;
-      
       const { data, error } = await supabase
-        .from('tds_records')
-        .select(`
-          *,
-          purchase_orders!inner(
-            order_number,
-            supplier_name
-          ),
-          paid_by_user:users!paid_by(
-            username,
-            first_name,
-            last_name
-          ),
-          payment_bank_account:bank_accounts!payment_bank_account_id(
-            account_name,
-            bank_name
-          )
-        `)
+        .from('tds_payment_allocations')
+        .select(`*, bank:bank_accounts!bank_account_id(account_name, bank_name)`)
         .gte('deduction_date', start)
         .lte('deduction_date', end)
         .order('deduction_date', { ascending: false });
-      
       if (error) throw error;
-      return data as TDSRecord[];
+      return (data || []) as unknown as AllocationRow[];
     },
     enabled: !!dateRange.start,
   });
 
-  // Fetch bank accounts (excluding dormant)
+  // Bank accounts (active, non-dormant, non-adjustment) with company link
   const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts_active'],
+    queryKey: ['bank_accounts_active_with_firm'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('id, account_name, bank_name, balance')
+        .select('id, account_name, bank_name, balance, subsidiary_id')
         .eq('status', 'ACTIVE')
-        .is('dormant_at', null) // Exclude dormant accounts
+        .is('dormant_at', null)
         .order('account_name');
       if (error) throw error;
-      return filterNonAdjustmentBanks(data || []);
+      return filterNonAdjustmentBanks(data || []) as any[];
     },
   });
 
-  // Aggregate TDS by PAN for display
-  const aggregatedByPan = useMemo(() => {
-    if (!tdsRecords) return [];
-    
-    const panMap = new Map<string, {
-      pan_number: string;
-      supplier_name: string;
-      total_tds: number;
-      paid_tds: number;
-      unpaid_tds: number;
-      records: TDSRecord[];
-      unpaid_record_ids: string[];
-      paid_record_ids: string[];
-      // Payment details from the most recent paid record
-      last_paid_at: string | null;
-      last_paid_by_username: string | null;
-      last_payment_bank: string | null;
-      last_payment_batch_id: string | null;
-    }>();
-    
-    tdsRecords.forEach(record => {
-      const existing = panMap.get(record.pan_number) || {
-        pan_number: record.pan_number,
-        supplier_name: record.purchase_orders?.supplier_name || 'Unknown',
-        total_tds: 0,
-        paid_tds: 0,
-        unpaid_tds: 0,
-        records: [],
-        unpaid_record_ids: [],
-        paid_record_ids: [],
-        last_paid_at: null,
-        last_paid_by_username: null,
-        last_payment_bank: null,
-        last_payment_batch_id: null,
-      };
-      
-      existing.total_tds += record.tds_amount;
-      existing.records.push(record);
-      
-      if (record.payment_status === 'PAID') {
-        existing.paid_tds += record.tds_amount;
-        existing.paid_record_ids.push(record.id);
-        
-        // Track most recent payment details
-        if (!existing.last_paid_at || (record.paid_at && record.paid_at > existing.last_paid_at)) {
-          existing.last_paid_at = record.paid_at;
-          existing.last_paid_by_username = record.paid_by_user?.first_name 
-            || record.paid_by_user?.username 
-            || null;
-          existing.last_payment_bank = record.payment_bank_account 
-            ? `${record.payment_bank_account.account_name} - ${record.payment_bank_account.bank_name}`
-            : null;
-          existing.last_payment_batch_id = record.payment_batch_id;
-        }
-      } else {
-        existing.unpaid_tds += record.tds_amount;
-        existing.unpaid_record_ids.push(record.id);
-      }
-      
-      panMap.set(record.pan_number, existing);
+  // Distinct companies present in the quarter
+  const companies = useMemo(() => {
+    const map = new Map<string, { firm_name: string; subsidiary_id: string | null }>();
+    (allocations || []).forEach(a => {
+      const key = a.subsidiary_id || `name:${a.firm_name || 'Unassigned'}`;
+      if (!map.has(key)) map.set(key, { firm_name: a.firm_name || 'Unassigned', subsidiary_id: a.subsidiary_id });
     });
-    
-    return Array.from(panMap.values());
-  }, [tdsRecords]);
+    return Array.from(map.entries()).map(([key, v]) => ({ key, ...v }))
+      .sort((a, b) => a.firm_name.localeCompare(b.firm_name));
+  }, [allocations]);
 
-  // Filter for unpaid only
-  const unpaidPanEntries = useMemo(() => 
-    aggregatedByPan.filter(entry => entry.unpaid_tds > 0),
-    [aggregatedByPan]
+  // Rows for the active tab
+  const visibleRows = useMemo(() => {
+    if (!allocations) return [];
+    if (activeCompany === ALL_TAB) return allocations;
+    return allocations.filter(a => (a.subsidiary_id || `name:${a.firm_name || 'Unassigned'}`) === activeCompany);
+  }, [allocations, activeCompany]);
+
+  const totals = useMemo(() => {
+    const rows = allocations || [];
+    return {
+      totalTds: rows.reduce((s, r) => s + Number(r.allocated_tds_amount || 0), 0),
+      paidTds: rows.filter(r => r.payment_status === 'PAID').reduce((s, r) => s + Number(r.allocated_tds_amount || 0), 0),
+      unpaidTds: rows.filter(r => r.payment_status !== 'PAID').reduce((s, r) => s + Number(r.allocated_tds_amount || 0), 0),
+    };
+  }, [allocations]);
+
+  const activeCompanyInfo = useMemo(
+    () => companies.find(c => c.key === activeCompany) || null,
+    [companies, activeCompany]
   );
 
-  // Filter for paid only (fully paid PANs)
-  const paidPanEntries = useMemo(() => 
-    aggregatedByPan.filter(entry => entry.paid_tds > 0),
-    [aggregatedByPan]
+  // Bank accounts belonging to the active company (for per-company payment)
+  const companyBankAccounts = useMemo(() => {
+    if (!bankAccounts) return [];
+    if (!activeCompanyInfo?.subsidiary_id) return bankAccounts;
+    return bankAccounts.filter(b => b.subsidiary_id === activeCompanyInfo.subsidiary_id);
+  }, [bankAccounts, activeCompanyInfo]);
+
+  const selectableUnpaid = useMemo(
+    () => visibleRows.filter(r => r.payment_status !== 'PAID'),
+    [visibleRows]
   );
 
-  // Calculate totals
-  const totals = useMemo(() => ({
-    totalTds: aggregatedByPan.reduce((sum, e) => sum + e.total_tds, 0),
-    paidTds: aggregatedByPan.reduce((sum, e) => sum + e.paid_tds, 0),
-    unpaidTds: aggregatedByPan.reduce((sum, e) => sum + e.unpaid_tds, 0),
-  }), [aggregatedByPan]);
+  const selectedTotal = useMemo(
+    () => visibleRows.filter(r => selectedIds.includes(r.id)).reduce((s, r) => s + Number(r.allocated_tds_amount || 0), 0),
+    [visibleRows, selectedIds]
+  );
 
-  // Selected total
-  const selectedTotal = useMemo(() => {
-    return unpaidPanEntries
-      .filter(entry => selectedRecords.includes(entry.pan_number))
-      .reduce((sum, entry) => sum + entry.unpaid_tds, 0);
-  }, [selectedRecords, unpaidPanEntries]);
-
-  // Bulk payment mutation
   const bulkPaymentMutation = useMutation({
     mutationFn: async () => {
       if (!paymentBankAccountId) throw new Error("Please select a bank account");
-      if (selectedRecords.length === 0) throw new Error("No records selected");
+      if (selectedIds.length === 0) throw new Error("No records selected");
 
       const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
-      
-      // Get all unpaid record IDs for selected PANs
-      const recordIds = unpaidPanEntries
-        .filter(entry => selectedRecords.includes(entry.pan_number))
-        .flatMap(entry => entry.unpaid_record_ids);
+      const firmLabel = activeCompanyInfo?.firm_name || 'TDS';
 
-      // 1. Update all TDS records to PAID
       const { error: updateError } = await supabase
-        .from('tds_records')
+        .from('tds_payment_allocations')
         .update({
           payment_status: 'PAID',
           paid_at: new Date().toISOString(),
@@ -283,206 +199,209 @@ export function TaxManagementTab() {
           payment_bank_account_id: paymentBankAccountId,
           payment_batch_id: batchId,
         })
-        .in('id', recordIds);
-
+        .in('id', selectedIds);
       if (updateError) throw updateError;
 
-      // 2. Create SINGLE expense entry for the entire bulk payment
       const quarterLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
-      
       const { error: expenseError } = await supabase
         .from('bank_transactions')
         .insert({
           bank_account_id: paymentBankAccountId,
           transaction_type: 'EXPENSE',
           amount: selectedTotal,
-          description: `Bulk TDS payment - ${quarterLabel} (${selectedRecords.length} PANs)`,
+          description: `TDS payment - ${firmLabel} - ${quarterLabel} (${selectedIds.length} entries)`,
           transaction_date: new Date().toISOString().split('T')[0],
           category: 'TDS',
           reference_number: batchId,
           created_by: user?.id,
         });
-
       if (expenseError) throw expenseError;
 
-      return { batchId, amount: selectedTotal, count: selectedRecords.length };
+      return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel };
     },
     onSuccess: (result) => {
       toast({
         title: "TDS Payment Recorded",
-        description: `₹${result.amount.toLocaleString('en-IN')} deducted from bank for ${result.count} PANs`,
+        description: `${inr(result.amount)} paid for ${result.firm} (${result.count} entries)`,
       });
-      setSelectedRecords([]);
+      setSelectedIds([]);
       setPaymentBankAccountId("");
       setShowPaymentDialog(false);
-      queryClient.invalidateQueries({ queryKey: ['tds_records_quarter'] });
+      queryClient.invalidateQueries({ queryKey: ['tds_allocations_quarter'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
       queryClient.invalidateQueries({ queryKey: ['bank_transactions_only'] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to process TDS payment",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to process TDS payment", variant: "destructive" });
     },
   });
 
-  // Export function
-  const handleExport = (format: 'csv' | 'xlsx') => {
-    const dataToExport = includePaidInExport ? aggregatedByPan : unpaidPanEntries;
-    
-    if (dataToExport.length === 0) {
-      toast({
-        title: "No Data",
-        description: "No TDS records to export for the selected quarter",
-        variant: "destructive",
-      });
+  const handleExport = (fmt: 'csv' | 'xlsx') => {
+    const source = activeCompany === ALL_TAB ? (allocations || []) : visibleRows;
+    const dataRows = includePaidInExport ? source : source.filter(r => r.payment_status !== 'PAID');
+    if (dataRows.length === 0) {
+      toast({ title: "No Data", description: "No TDS records to export", variant: "destructive" });
       return;
     }
-
-    const quarterLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
     const [quarter, fyStart] = selectedQuarter.split('-');
     const fyLabel = `FY${fyStart}-${(parseInt(fyStart) + 1).toString().slice(-2)}`;
 
-    const exportData = dataToExport.map(entry => ({
-      'Client Name': entry.supplier_name,
-      'PAN': entry.pan_number,
+    const exportData = dataRows.map(r => ({
+      'Company': r.firm_name || 'Unassigned',
+      'Client / Supplier': r.supplier_name || '',
+      'PAN': r.pan_number || '',
+      'Order Number': r.order_number || '',
+      'Binance Order Number': r.binance_order_number || '',
+      'Paid From Bank': r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '',
+      'Payment Amount': Number(r.paid_amount || 0),
+      'TDS Amount': Number(r.allocated_tds_amount || 0),
       'Quarter': `${quarter} (${fyLabel})`,
-      'Total TDS Amount': entry.total_tds,
-      'Payment Status': entry.unpaid_tds > 0 ? 'Unpaid' : 'Paid',
-      'Unpaid Amount': entry.unpaid_tds,
-      'Paid Amount': entry.paid_tds,
+      'Status': r.payment_status === 'PAID' ? 'Paid' : 'Unpaid',
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'TDS Records');
-
-    const fileName = `TDS_${selectedQuarter}_${includePaidInExport ? 'All' : 'Unpaid'}.${format}`;
-    
-    if (format === 'csv') {
-      XLSX.writeFile(wb, fileName, { bookType: 'csv' });
-    } else {
-      XLSX.writeFile(wb, fileName, { bookType: 'xlsx' });
-    }
-
-    toast({
-      title: "Export Complete",
-      description: `Exported ${exportData.length} records to ${fileName}`,
-    });
+    XLSX.utils.book_append_sheet(wb, ws, 'TDS Allocations');
+    const fileName = `TDS_${selectedQuarter}_${includePaidInExport ? 'All' : 'Unpaid'}.${fmt}`;
+    XLSX.writeFile(wb, fileName, { bookType: fmt });
+    toast({ title: "Export Complete", description: `Exported ${exportData.length} rows to ${fileName}` });
   };
 
-  // Handle selection
-  const handleSelectAll = () => {
-    if (selectedRecords.length === unpaidPanEntries.length) {
-      setSelectedRecords([]);
-    } else {
-      setSelectedRecords(unpaidPanEntries.map(e => e.pan_number));
-    }
+  const toggleSelectAll = () => {
+    const unpaidIds = selectableUnpaid.map(r => r.id);
+    const allSelected = unpaidIds.length > 0 && unpaidIds.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : unpaidIds);
   };
 
-  const handleSelectPan = (pan: string) => {
-    setSelectedRecords(prev =>
-      prev.includes(pan) ? prev.filter(p => p !== pan) : [...prev, pan]
-    );
+  const toggleRow = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
   };
+
+  const renderTable = () => (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-10">
+              <Checkbox
+                checked={selectableUnpaid.length > 0 && selectableUnpaid.every(r => selectedIds.includes(r.id))}
+                onCheckedChange={toggleSelectAll}
+                disabled={selectableUnpaid.length === 0}
+              />
+            </TableHead>
+            <TableHead>Company</TableHead>
+            <TableHead>Supplier</TableHead>
+            <TableHead>PAN</TableHead>
+            <TableHead>Order #</TableHead>
+            <TableHead>Binance Order #</TableHead>
+            <TableHead>Paid From Bank</TableHead>
+            <TableHead className="text-right">Payment Amt</TableHead>
+            <TableHead className="text-right">TDS Amt</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visibleRows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                No TDS records for this selection
+              </TableCell>
+            </TableRow>
+          ) : visibleRows.map(r => (
+            <TableRow key={r.id}>
+              <TableCell>
+                <Checkbox
+                  checked={selectedIds.includes(r.id)}
+                  onCheckedChange={() => toggleRow(r.id)}
+                  disabled={r.payment_status === 'PAID'}
+                />
+              </TableCell>
+              <TableCell className="text-xs">{r.firm_name || 'Unassigned'}</TableCell>
+              <TableCell className="font-medium">{r.supplier_name || '-'}</TableCell>
+              <TableCell className="font-mono text-xs">{r.pan_number || '-'}</TableCell>
+              <TableCell className="font-mono text-xs">{r.order_number || '-'}</TableCell>
+              <TableCell className="font-mono text-xs">{r.binance_order_number || '-'}</TableCell>
+              <TableCell className="text-xs">
+                {r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '-'}
+              </TableCell>
+              <TableCell className="text-right tabular-nums">{inr(Number(r.paid_amount))}</TableCell>
+              <TableCell className="text-right tabular-nums font-medium text-orange-600">
+                {inr(Number(r.allocated_tds_amount))}
+              </TableCell>
+              <TableCell>
+                {r.payment_status === 'PAID' ? (
+                  <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>
+                ) : (
+                  <Badge variant="destructive">Unpaid</Badge>
+                )}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
+  const canPay = activeCompany !== ALL_TAB && selectedIds.length > 0;
 
   return (
     <div className="space-y-6">
-      {/* Header with Quarter Selection */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div>
-            <Label className="text-sm text-muted-foreground">Select Quarter</Label>
-            <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {quarterOptions.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div>
+          <Label className="text-sm text-muted-foreground">Select Quarter</Label>
+          <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
+            <SelectTrigger className="w-[280px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {quarterOptions.map(opt => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 mr-4">
-            <Checkbox
-              id="includePaid"
-              checked={includePaidInExport}
-              onCheckedChange={(checked) => setIncludePaidInExport(!!checked)}
-            />
+          <div className="flex items-center gap-2 mr-2">
+            <Checkbox id="includePaid" checked={includePaidInExport} onCheckedChange={(c) => setIncludePaidInExport(!!c)} />
             <Label htmlFor="includePaid" className="text-sm">Include paid in export</Label>
           </div>
           <Button variant="outline" onClick={() => handleExport('csv')}>
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
+            <Download className="h-4 w-4 mr-2" />Export CSV
           </Button>
           <Button variant="outline" onClick={() => handleExport('xlsx')}>
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Export Excel
+            <FileSpreadsheet className="h-4 w-4 mr-2" />Export Excel
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Calculator className="h-4 w-4" />
-              <span className="text-sm">Total TDS Deducted</span>
-            </div>
-            <p className="text-2xl font-bold">₹{totals.totalTds.toLocaleString('en-IN')}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Receipt className="h-4 w-4" />
-              <span className="text-sm">Unpaid TDS</span>
-            </div>
-            <p className="text-2xl font-bold text-destructive">₹{totals.unpaidTds.toLocaleString('en-IN')}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm">Paid TDS</span>
-            </div>
-            <p className="text-2xl font-bold text-green-600">₹{totals.paidTds.toLocaleString('en-IN')}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <IndianRupee className="h-4 w-4" />
-              <span className="text-sm">Unique PANs</span>
-            </div>
-            <p className="text-2xl font-bold">{aggregatedByPan.length}</p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1"><Calculator className="h-4 w-4" /><span className="text-sm">Total TDS Deducted</span></div>
+          <p className="text-2xl font-bold">{inr(totals.totalTds)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="pt-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1"><Receipt className="h-4 w-4" /><span className="text-sm">Unpaid TDS</span></div>
+          <p className="text-2xl font-bold text-destructive">{inr(totals.unpaidTds)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="pt-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1"><CheckCircle className="h-4 w-4" /><span className="text-sm">Paid TDS</span></div>
+          <p className="text-2xl font-bold text-green-600">{inr(totals.paidTds)}</p>
+        </CardContent></Card>
+        <Card><CardContent className="pt-6">
+          <div className="flex items-center gap-2 text-muted-foreground mb-1"><IndianRupee className="h-4 w-4" /><span className="text-sm">TDS Transactions</span></div>
+          <p className="text-2xl font-bold">{allocations?.length || 0}</p>
+        </CardContent></Card>
       </div>
 
-      {/* TDS Records Table */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              TDS Records - {quarterOptions.find(q => q.value === selectedQuarter)?.label}
-            </CardTitle>
-            {selectedRecords.length > 0 && (
-              <ViewOnlyWrapper isViewOnly={!hasPermission('accounting_manage')}>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg">TDS by Company</CardTitle>
+            {canPay && (
+              <ViewOnlyWrapper isViewOnly={!hasPermission('accounting_edit')}>
                 <Button onClick={() => setShowPaymentDialog(true)}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Mark Selected as Paid (₹{selectedTotal.toLocaleString('en-IN')})
+                  <Building className="h-4 w-4 mr-2" />
+                  Pay {inr(selectedTotal)} ({selectedIds.length})
                 </Button>
               </ViewOnlyWrapper>
             )}
@@ -490,242 +409,65 @@ export function TaxManagementTab() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading TDS records...</div>
-          ) : unpaidPanEntries.length === 0 && aggregatedByPan.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No TDS records found for this quarter
-            </div>
+            <div className="animate-pulse py-8 text-center text-muted-foreground">Loading TDS records...</div>
           ) : (
-            <Tabs defaultValue="unpaid">
-              <TabsList className="mb-4">
-                <TabsTrigger value="unpaid">
-                  Unpaid ({unpaidPanEntries.length})
-                </TabsTrigger>
-                <TabsTrigger value="paid">
-                  Paid ({paidPanEntries.filter(e => e.paid_tds > 0).length})
-                </TabsTrigger>
-                <TabsTrigger value="all">
-                  All Records ({aggregatedByPan.length})
-                </TabsTrigger>
+            <Tabs value={activeCompany} onValueChange={setActiveCompany}>
+              <TabsList className="flex flex-wrap h-auto">
+                <TabsTrigger value={ALL_TAB}>All</TabsTrigger>
+                {companies.map(c => (
+                  <TabsTrigger key={c.key} value={c.key}>{c.firm_name}</TabsTrigger>
+                ))}
               </TabsList>
-
-              <TabsContent value="unpaid">
-                {unpaidPanEntries.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    All TDS for this quarter has been paid
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">
-                          <Checkbox
-                            checked={selectedRecords.length === unpaidPanEntries.length && unpaidPanEntries.length > 0}
-                            onCheckedChange={handleSelectAll}
-                          />
-                        </TableHead>
-                        <TableHead>Client Name</TableHead>
-                        <TableHead>PAN</TableHead>
-                        <TableHead className="text-right">TDS Amount</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {unpaidPanEntries.map((entry) => (
-                        <TableRow key={entry.pan_number}>
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedRecords.includes(entry.pan_number)}
-                              onCheckedChange={() => handleSelectPan(entry.pan_number)}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">{entry.supplier_name}</TableCell>
-                          <TableCell>{entry.pan_number}</TableCell>
-                          <TableCell className="text-right font-semibold text-destructive">
-                            ₹{entry.unpaid_tds.toLocaleString('en-IN')}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="destructive">Unpaid</Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+              <TabsContent value={activeCompany} className="mt-4">
+                {activeCompany === ALL_TAB && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Select a company tab to record a TDS payment for that company.
+                  </p>
                 )}
-              </TabsContent>
-
-              <TabsContent value="paid">
-                {paidPanEntries.filter(e => e.paid_tds > 0).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No paid TDS records for this quarter
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Client Name</TableHead>
-                        <TableHead>PAN</TableHead>
-                        <TableHead className="text-right">TDS Paid</TableHead>
-                        <TableHead>Paid By</TableHead>
-                        <TableHead>Paid Date & Time</TableHead>
-                        <TableHead>Bank Account</TableHead>
-                        <TableHead>Batch ID</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paidPanEntries.filter(e => e.paid_tds > 0).map((entry) => (
-                        <TableRow key={entry.pan_number}>
-                          <TableCell className="font-medium">{entry.supplier_name}</TableCell>
-                          <TableCell>{entry.pan_number}</TableCell>
-                          <TableCell className="text-right font-semibold text-green-600">
-                            ₹{entry.paid_tds.toLocaleString('en-IN')}
-                          </TableCell>
-                          <TableCell>
-                            {entry.last_paid_by_username ? (
-                              <Badge variant="outline">{entry.last_paid_by_username}</Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {entry.last_paid_at ? (
-                              <div className="text-sm">
-                                <div>{format(new Date(entry.last_paid_at), "MMM dd, yyyy")}</div>
-                                <div className="text-muted-foreground text-xs">
-                                  {format(new Date(entry.last_paid_at), "HH:mm:ss")}
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {entry.last_payment_bank ? (
-                              <span className="text-sm">{entry.last_payment_bank}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {entry.last_payment_batch_id ? (
-                              <Badge variant="secondary" className="text-xs font-mono">
-                                {entry.last_payment_batch_id}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </TabsContent>
-
-              <TabsContent value="all">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client Name</TableHead>
-                      <TableHead>PAN</TableHead>
-                      <TableHead className="text-right">Total TDS</TableHead>
-                      <TableHead className="text-right">Paid</TableHead>
-                      <TableHead className="text-right">Unpaid</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {aggregatedByPan.map((entry) => (
-                      <TableRow key={entry.pan_number}>
-                        <TableCell className="font-medium">{entry.supplier_name}</TableCell>
-                        <TableCell>{entry.pan_number}</TableCell>
-                        <TableCell className="text-right">₹{entry.total_tds.toLocaleString('en-IN')}</TableCell>
-                        <TableCell className="text-right text-green-600">
-                          ₹{entry.paid_tds.toLocaleString('en-IN')}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          ₹{entry.unpaid_tds.toLocaleString('en-IN')}
-                        </TableCell>
-                        <TableCell>
-                          {entry.unpaid_tds === 0 ? (
-                            <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>
-                          ) : entry.paid_tds > 0 ? (
-                            <Badge variant="secondary">Partial</Badge>
-                          ) : (
-                            <Badge variant="destructive">Unpaid</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {renderTable()}
               </TabsContent>
             </Tabs>
           )}
         </CardContent>
       </Card>
 
-      {/* Bulk Payment Dialog */}
+      {/* Payment dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5" />
-              Bulk TDS Payment
-            </DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Building className="h-5 w-5" />Record TDS Payment</DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4 py-4">
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Quarter:</span>
-                <span className="font-medium">
-                  {quarterOptions.find(q => q.value === selectedQuarter)?.label}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Selected PANs:</span>
-                <span className="font-medium">{selectedRecords.length}</span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span className="font-medium">Total Amount:</span>
-                <span className="font-bold text-destructive">₹{selectedTotal.toLocaleString('en-IN')}</span>
-              </div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Company:</span><span className="font-medium">{activeCompanyInfo?.firm_name || '-'}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Quarter:</span><span className="font-medium">{quarterOptions.find(q => q.value === selectedQuarter)?.label}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Selected entries:</span><span className="font-medium">{selectedIds.length}</span></div>
+              <div className="flex justify-between text-lg"><span className="font-medium">Total Amount:</span><span className="font-bold text-destructive">{inr(selectedTotal)}</span></div>
             </div>
-
             <div>
-              <Label>Deduct from Bank Account *</Label>
+              <Label>Deduct from {activeCompanyInfo?.firm_name || 'Company'} Bank Account *</Label>
               <Select value={paymentBankAccountId} onValueChange={setPaymentBankAccountId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select bank account" />
-                </SelectTrigger>
+                <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bank account" /></SelectTrigger>
                 <SelectContent>
-                  {bankAccounts?.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.account_name} - {account.bank_name}
-                      <span className="text-muted-foreground ml-2">
-                        (₹{parseFloat(account.balance.toString()).toLocaleString('en-IN')})
-                      </span>
+                  {companyBankAccounts.map(acc => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.account_name} - {acc.bank_name}
+                      <span className="text-muted-foreground ml-2">(₹{parseFloat(acc.balance.toString()).toLocaleString('en-IN')})</span>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {companyBankAccounts.length === 0 && (
+                <p className="text-xs text-destructive mt-1">No active bank account found for this company.</p>
+              )}
             </div>
-
             <div className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <strong>Note:</strong> This will create a single expense entry for the total TDS amount 
-              and mark all selected PAN records as paid.
+              <strong>Note:</strong> This creates a single expense entry on the selected company bank and marks the selected TDS entries as paid for {activeCompanyInfo?.firm_name || 'this company'}.
             </div>
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => bulkPaymentMutation.mutate()}
-              disabled={!paymentBankAccountId || bulkPaymentMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
+            <Button onClick={() => bulkPaymentMutation.mutate()} disabled={!paymentBankAccountId || bulkPaymentMutation.isPending}>
               {bulkPaymentMutation.isPending ? "Processing..." : "Confirm Payment"}
             </Button>
           </DialogFooter>

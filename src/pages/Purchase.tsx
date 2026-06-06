@@ -356,10 +356,14 @@ export default function Purchase() {
         order.created_at ? format(new Date(order.created_at), 'MMM dd, yyyy HH:mm') : ''
       ];
 
+      // Always emit exactly ONE row per order. For split payments, consolidate
+      // every payment source into pipe-separated values within the same row
+      // instead of duplicating the entire order row per split.
       if (hasSplits) {
-        paymentSources.forEach(src => {
-          csvData.push(buildBaseRow(src.bank_name, src.account_name, String(src.amount), 'Yes'));
-        });
+        const bankNames = paymentSources.map(s => s.bank_name || '').join(' | ');
+        const accountNames = paymentSources.map(s => s.account_name || '').join(' | ');
+        const amounts = paymentSources.map(s => String(s.amount)).join(' | ');
+        csvData.push(buildBaseRow(bankNames, accountNames, amounts, 'Yes'));
       } else {
         const single = paymentSources[0];
         csvData.push(buildBaseRow(

@@ -312,8 +312,11 @@ export default function Purchase() {
       const paymentSources = (splits && splits.length > 0) ? splits : (bankTxns || []);
       const hasSplits = paymentSources.length > 1;
 
+      const binanceOrderNumber = (order as any).terminal_sync?.binance_order_number || '';
+
       const buildBaseRow = (bankName: string, accountName: string, paidAmount: string, isSplit: string) => [
         order.order_number || '',
+        binanceOrderNumber,
         order.supplier_name || '',
         order.contact_number || '',
         order.client_state || '',

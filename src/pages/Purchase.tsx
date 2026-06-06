@@ -129,7 +129,8 @@ export default function Purchase() {
               )
             ),
             wallet:wallets!wallet_id(wallet_name),
-            created_by_user:users!created_by(username, first_name, last_name)
+            created_by_user:users!created_by(username, first_name, last_name),
+            terminal_sync:terminal_purchase_sync!terminal_sync_id(binance_order_number)
           `)
           .order('created_at', { ascending: false })
           .range(from, from + PAGE - 1);
@@ -226,6 +227,7 @@ export default function Purchase() {
 
     const csvHeaders = [
       'Order Number',
+      'Binance Order Number',
       'Supplier Name',
       'Contact Number',
       'State',
@@ -310,8 +312,11 @@ export default function Purchase() {
       const paymentSources = (splits && splits.length > 0) ? splits : (bankTxns || []);
       const hasSplits = paymentSources.length > 1;
 
+      const binanceOrderNumber = (order as any).terminal_sync?.binance_order_number || '';
+
       const buildBaseRow = (bankName: string, accountName: string, paidAmount: string, isSplit: string) => [
         order.order_number || '',
+        binanceOrderNumber,
         order.supplier_name || '',
         order.contact_number || '',
         order.client_state || '',

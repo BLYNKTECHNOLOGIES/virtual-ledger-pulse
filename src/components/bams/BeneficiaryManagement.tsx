@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useActiveBankAccounts } from "@/hooks/useActiveBankAccounts";
 import { captureSellerPaymentDetails } from "@/hooks/useSellerPaymentCapture";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

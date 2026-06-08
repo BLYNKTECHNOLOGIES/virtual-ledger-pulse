@@ -132,31 +132,30 @@ export function BeneficiaryManagement() {
     return () => { cancelled = true; };
   }, [queryClient]);
 
-  // Fetch all beneficiary records
+  // Fetch all beneficiary records (paginated — bypass 1000-row PostgREST cap)
   const { data: beneficiaries, isLoading } = useQuery({
     queryKey: ["beneficiary_records"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("beneficiary_records" as any)
-        .select("*")
-        .order("last_seen_at", { ascending: false });
-      if (error) throw error;
-      // Filter out UPI-style accounts (contain '@') — only bank transfer/IMPS records belong here
-      return (data as unknown as BeneficiaryRecord[]).filter(
-        (r) => !r.account_number?.includes('@')
+      const data = await fetchAllPaginated<BeneficiaryRecord>(() =>
+        supabase
+          .from("beneficiary_records" as any)
+          .select("*")
+          .order("last_seen_at", { ascending: false })
       );
+      // Filter out UPI-style accounts (contain '@') — only bank transfer/IMPS records belong here
+      return data.filter((r) => !r.account_number?.includes('@'));
     },
   });
 
-  // Fetch all bank additions
+  // Fetch all bank additions (paginated — there can be >1000 rows, which the
+  // default PostgREST limit would silently truncate, causing the UI to show a
+  // beneficiary as "not added" while the DB row exists → "Already added" errors)
   const { data: bankAdditions } = useQuery({
     queryKey: ["beneficiary_bank_additions"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("beneficiary_bank_additions" as any)
-        .select("*");
-      if (error) throw error;
-      return data as unknown as BankAddition[];
+      return await fetchAllPaginated<BankAddition>(() =>
+        supabase.from("beneficiary_bank_additions" as any).select("*")
+      );
     },
   });
 

@@ -111,20 +111,30 @@ export function useBinanceAdsList(filters: AdFilters) {
       const fetchAds = async (pageFilters: AdFilters) => {
         if (!filters.fetchAll) return fetchPage(pageFilters);
 
-        const pageSize = pageFilters.rows || 50;
-        const first = await fetchPage({ ...pageFilters, page: 1, rows: pageSize });
-        const list = first?.data || first?.list || [];
-        const totalCount = Number(first?.total || list.length);
-        const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+        const requestedSize = pageFilters.rows || 50;
+        const first = await fetchPage({ ...pageFilters, page: 1, rows: requestedSize });
+        const firstList: any[] = first?.data || first?.list || [];
+        const totalCount = Number(first?.total || firstList.length);
 
-        if (totalPages === 1) return { data: list, total: totalCount || list.length };
+        // IMPORTANT: Binance's listWithPagination caps page size (≈20) regardless of the
+        // requested `rows`. Never compute page count from the requested size — derive the
+        // effective page size from the actual response and keep fetching until we've
+        // collected every ad reported by `total`, otherwise ads silently go missing.
+        const effectiveSize = firstList.length || requestedSize;
+        const allAds: any[] = [...firstList];
 
-        const rest = await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_, index) =>
-            fetchPage({ ...pageFilters, page: index + 2, rows: pageSize })
-          )
-        );
-        const allAds = [list, ...rest.map((result: any) => result?.data || result?.list || [])].flat();
+        if (firstList.length > 0 && effectiveSize > 0) {
+          let page = 2;
+          while (allAds.length < totalCount && page <= 100) {
+            const result = await fetchPage({ ...pageFilters, page, rows: requestedSize });
+            const list: any[] = result?.data || result?.list || [];
+            if (list.length === 0) break;
+            allAds.push(...list);
+            if (list.length < effectiveSize) break;
+            page++;
+          }
+        }
+
         return { data: allAds, total: totalCount || allAds.length };
       };
 

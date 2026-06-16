@@ -415,12 +415,13 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(formatINR(item.rate), colR.price - 1, rowY, { align: "right" });
 
       if (hasGst) {
-        if (gst.type === "IGST") {
+        if (isCgstSgst) {
+          const half = taxableValue * (gst.rate / 200);
+          doc.text(formatINR(half), colR.cgst - 1, rowY, { align: "right" });
+          doc.text(formatINR(half), colR.sgst - 1, rowY, { align: "right" });
+        } else {
           const igst = taxableValue * (gst.rate / 100);
           doc.text(formatINR(igst), colR.igst - 1, rowY, { align: "right" });
-        } else {
-          const half = taxableValue * (gst.rate / 200);
-          doc.text(formatINR(half * 2), colR.igst - 1, rowY, { align: "right" });
         }
       }
 

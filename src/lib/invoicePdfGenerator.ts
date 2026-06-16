@@ -709,6 +709,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       "Processing timelines may vary depending upon authority verification.",
       "This invoice is generated for accounting and record-keeping purposes.",
       "Disputes subject to Bhopal jurisdiction.",
+      "This invoice represents service charges for intermediation and facilitation services. GST is applied only on the service fees (if applicable).",
     ];
     terms.forEach((term) => {
       const lines = doc.splitTextToSize(`• ${term}`, contentW);

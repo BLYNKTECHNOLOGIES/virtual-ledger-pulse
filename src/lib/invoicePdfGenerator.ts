@@ -16,7 +16,7 @@ function formatINR(val: number): string {
 }
 
 export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOptions): jsPDF {
-  const { company, gst, signatory, note, templateId } = options;
+  const { company, gst: gstOption, signatory, note, templateId } = options;
   const t = getTemplate(templateId || "classic_green");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = 210;
@@ -33,6 +33,19 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     if (index > 0) doc.addPage();
 
     const isFinancial = invoice.category === "financial_intermediation" || invoice.category === "pure_agent";
+
+    // Per-invoice GST settings: pure_agent rows carry their own GST type/rate/enabled,
+    // so each invoice can be IGST, CGST/SGST, or No-GST independently.
+    const firstItemWithGst = invoice.items.find((it) => it.gstEnabled !== undefined);
+    const gst: GSTConfig = firstItemWithGst
+      ? {
+          enabled: !!firstItemWithGst.gstEnabled,
+          rate: firstItemWithGst.gstRate ?? gstOption.rate,
+          type: firstItemWithGst.gstType ?? gstOption.type,
+          inclusive: gstOption.inclusive,
+        }
+      : gstOption;
+
     let y = 10;
 
     // ── Top accent bar ──
@@ -512,11 +525,27 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(formatINR(totalServiceMargin), refValX, y);
       y += 5;
 
-      doc.setFont("helvetica", "normal");
-      doc.text(`GST (${gst.rate}%):`, refLabelX, y);
-      doc.setFont("helvetica", "bold");
-      doc.text(formatINR(totalGstOnMargin), refValX, y);
-      y += 8;
+      if (gst.enabled && gst.rate > 0) {
+        if (gst.type === "IGST") {
+          doc.setFont("helvetica", "normal");
+          doc.text(`IGST (${gst.rate}%):`, refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatINR(totalGstOnMargin), refValX, y);
+          y += 5;
+        } else {
+          doc.setFont("helvetica", "normal");
+          doc.text(`CGST (${gst.rate / 2}%):`, refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatINR(totalGstOnMargin / 2), refValX, y);
+          y += 5;
+          doc.setFont("helvetica", "normal");
+          doc.text(`SGST (${gst.rate / 2}%):`, refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatINR(totalGstOnMargin / 2), refValX, y);
+          y += 5;
+        }
+      }
+      y += 3;
     }
 
     // ── Transaction Reference (USDT Sales) ──

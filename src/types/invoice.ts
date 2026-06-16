@@ -41,6 +41,10 @@ export interface OrderRecord {
   marginPercentage?: number;
   /** Platform name (e.g., Binance) - for USDT sales */
   platform?: string;
+  /** Per-record GST settings (used by pure_agent where each row can differ) */
+  gstEnabled?: boolean;
+  gstRate?: number;
+  gstType?: "IGST" | "CGST_SGST";
 }
 
 export interface InvoiceGroup {

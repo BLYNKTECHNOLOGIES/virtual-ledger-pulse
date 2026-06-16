@@ -95,6 +95,72 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         marginType,
         marginPercentage: marginType === "percentage" ? marginPercentage : undefined,
       });
+    } else if (category === "pure_agent") {
+      // Pure Agent columns: Invoice Number, Buyer Name, Buyer Address, Buyer GSTIN, Buyer Contact, Date,
+      //          Particulars, HSN/SAC, Transaction Value, UTR Reference, Margin Type, Margin Percentage,
+      //          Margin Amount, GST Direction, GST Rate, GST Type
+      const invoiceNumber = cols[0]?.trim() || "";
+      const buyerName = cols[1]?.trim() || "";
+      const buyerAddress = cols[2]?.trim() || "";
+      const buyerGstin = cols[3]?.trim() || "";
+      const buyerContact = cols[4]?.trim() || "";
+      const date = cols[5]?.trim() || "";
+      const particulars = cols[6]?.trim() || "Pure Agent Service";
+      const hsnSac = cols[7]?.trim() || "";
+      const transactionValue = parseFloat(cols[8]?.trim()) || 0;
+      const utrReference = cols[9]?.trim() || "";
+      const marginTypeRaw = (cols[10]?.trim() || "percentage").toLowerCase();
+      const marginType = marginTypeRaw === "absolute" ? "absolute" as const : "percentage" as const;
+      const marginPercentage = parseFloat(cols[11]?.trim()) || 0;
+      const marginAmountRaw = parseFloat(cols[12]?.trim()) || 0;
+      const gstDirectionRaw = (cols[13]?.trim() || "forward").toLowerCase();
+      const gstDirection = gstDirectionRaw === "reverse" ? "reverse" as const : "forward" as const;
+      const gstRate = parseFloat(cols[14]?.trim()) || 18;
+      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase();
+      const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+
+      if (!gstDetected) {
+        detectedGst = { enabled: true, rate: gstRate, type: gstType, inclusive: false };
+        gstDetected = true;
+      }
+
+      let serviceMargin: number;
+      if (marginType === "percentage") {
+        serviceMargin = transactionValue * (marginPercentage / 100);
+      } else {
+        serviceMargin = marginAmountRaw;
+      }
+
+      if (transactionValue > 0 && serviceMargin > transactionValue) {
+        serviceMargin = transactionValue;
+      }
+
+      let taxableValue = serviceMargin;
+      if (gstDirection === "reverse" && gstRate > 0) {
+        taxableValue = serviceMargin / (1 + gstRate / 100);
+      }
+
+      if (!invoiceNumber || serviceMargin <= 0) continue;
+
+      records.push({
+        invoiceNumber,
+        description: particulars,
+        hsnSac,
+        quantity: 1,
+        rate: taxableValue,
+        amount: taxableValue,
+        buyerName,
+        buyerAddress,
+        buyerGstin,
+        buyerContact,
+        date,
+        unit: "Service",
+        transactionValue,
+        serviceMargin: taxableValue,
+        utrReference,
+        marginType,
+        marginPercentage: marginType === "percentage" ? marginPercentage : undefined,
+      });
     } else if (category === "usdt_sales") {
       // USDT Sales columns: Invoice Number, Description, Quantity (USDT), Rate (INR per USDT), Amount (INR),
       //                     Buyer Name, Buyer Address, Buyer Contact, Date, UTR No., Platform
@@ -208,6 +274,19 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
       ["FI-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
+  }
+
+  if (category === "pure_agent") {
+    const headers = [
+      "Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date",
+      "Particulars", "HSN/SAC", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage",
+      "Margin Amount", "GST Direction", "GST Rate", "GST Type"
+    ];
+    const rows = [
+      ["PA-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "Reimbursement of Govt. Fee & Service Charges", "998599", "80000", "UTIB12345678", "percentage", "3", "", "forward", "18", "IGST"],
+      ["PA-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "Agency / Facilitation Charges", "997159", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
+    ];
+    return headers.join(",") + "\n" + rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(",")).join("\n") + "\n";
   }
 
   if (category === "usdt_sales") {

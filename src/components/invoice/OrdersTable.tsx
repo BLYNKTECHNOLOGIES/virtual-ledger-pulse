@@ -6,7 +6,7 @@ interface OrdersTableProps {
 }
 
 export default function OrdersTable({ records, category = "it_services" }: OrdersTableProps) {
-  const isFinancial = category === "financial_intermediation";
+  const isFinancial = category === "financial_intermediation" || category === "pure_agent";
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">

@@ -32,7 +32,7 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
   invoices.forEach((invoice, index) => {
     if (index > 0) doc.addPage();
 
-    const isFinancial = invoice.category === "financial_intermediation";
+    const isFinancial = invoice.category === "financial_intermediation" || invoice.category === "pure_agent";
     let y = 10;
 
     // ── Top accent bar ──

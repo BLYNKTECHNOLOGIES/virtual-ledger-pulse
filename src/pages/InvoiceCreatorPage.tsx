@@ -100,7 +100,7 @@ const InvoiceCreatorPage = () => {
           company,
           gst,
           signatory,
-          note: category === "financial_intermediation" ? fiNote : undefined,
+          note: (category === "financial_intermediation" || category === "pure_agent") ? fiNote : undefined,
           templateId,
         });
         doc.save(`invoices_${grouped.length}_orders.pdf`);
@@ -119,16 +119,18 @@ const InvoiceCreatorPage = () => {
     a.href = url;
     a.download = category === "financial_intermediation"
       ? "fi_invoice_template.csv"
-      : category === "usdt_sales"
-        ? "usdt_sales_template.csv"
-        : "invoice_template.csv";
+      : category === "pure_agent"
+        ? "pure_agent_invoice_template.csv"
+        : category === "usdt_sales"
+          ? "usdt_sales_template.csv"
+          : "invoice_template.csv";
     a.click();
     URL.revokeObjectURL(url);
   }, [category]);
 
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
   const invoiceCount = new Set(records.map(r => r.invoiceNumber)).size;
-  const isFinancial = category === "financial_intermediation";
+  const isFinancial = category === "financial_intermediation" || category === "pure_agent";
   const isUsdtSales = category === "usdt_sales";
 
   return (

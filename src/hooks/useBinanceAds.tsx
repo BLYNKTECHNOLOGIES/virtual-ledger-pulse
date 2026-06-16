@@ -108,35 +108,11 @@ export function useBinanceAdsList(filters: AdFilters) {
     queryKey: ['binance-ads', filters],
     queryFn: async () => {
       const fetchPage = (pageFilters: AdFilters) => callBinanceAds('listAds', pageFilters);
-      const fetchAds = async (pageFilters: AdFilters) => {
-        if (!filters.fetchAll) return fetchPage(pageFilters);
-
-        const requestedSize = pageFilters.rows || 50;
-        const first = await fetchPage({ ...pageFilters, page: 1, rows: requestedSize });
-        const firstList: any[] = first?.data || first?.list || [];
-        const totalCount = Number(first?.total || firstList.length);
-
-        // IMPORTANT: Binance's listWithPagination caps page size (≈20) regardless of the
-        // requested `rows`. Never compute page count from the requested size — derive the
-        // effective page size from the actual response and keep fetching until we've
-        // collected every ad reported by `total`, otherwise ads silently go missing.
-        const effectiveSize = firstList.length || requestedSize;
-        const allAds: any[] = [...firstList];
-
-        if (firstList.length > 0 && effectiveSize > 0) {
-          let page = 2;
-          while (allAds.length < totalCount && page <= 100) {
-            const result = await fetchPage({ ...pageFilters, page, rows: requestedSize });
-            const list: any[] = result?.data || result?.list || [];
-            if (list.length === 0) break;
-            allAds.push(...list);
-            if (list.length < effectiveSize) break;
-            page++;
-          }
-        }
-
-        return { data: allAds, total: totalCount || allAds.length };
-      };
+      // Pagination is handled server-side inside the edge function when `fetchAll` is set.
+      // The edge function walks every page of Binance's listWithPagination (which caps each
+      // page at ~20 ads) BEFORE enriching, so no ads are dropped due to rate limits. The client
+      // simply forwards the request and uses the fully-collected result.
+      const fetchAds = async (pageFilters: AdFilters) => fetchPage(pageFilters);
 
       if (isPrivateFilter) {
         // Private ads are returned by the API under advStatus=1, then enriched to 2 by edge fn.

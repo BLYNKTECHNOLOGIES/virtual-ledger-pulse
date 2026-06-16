@@ -622,36 +622,79 @@ serve(async (req) => {
     switch (action) {
       // ==================== ADS ====================
       case "listAds": {
-        const body: Record<string, any> = {
-          page: payload.page || 1,
-          rows: payload.rows || 20,
+        const requestedRows = Number(payload.rows) || 20;
+        const buildBody = (page: number): Record<string, any> => {
+          const body: Record<string, any> = { page, rows: requestedRows };
+          if (payload.asset) body.asset = payload.asset;
+          if (payload.tradeType) body.tradeType = payload.tradeType;
+          // Binance only recognizes advStatus 1 (online) and 3 (offline).
+          // Status 2 (private) is our custom enrichment; map it back to 1 for the API call.
+          if (payload.advStatus !== undefined && payload.advStatus !== null) {
+            body.advStatus = payload.advStatus === 2 ? 1 : payload.advStatus;
+          }
+          if (payload.startDate) body.startDate = payload.startDate;
+          if (payload.endDate) body.endDate = payload.endDate;
+          if (payload.fiatUnit) body.fiatUnit = payload.fiatUnit;
+          return body;
         };
-        if (payload.asset) body.asset = payload.asset;
-        if (payload.tradeType) body.tradeType = payload.tradeType;
-        // Binance only recognizes advStatus 1 (online) and 3 (offline).
-        // Status 2 (private) is our custom enrichment; map it back to 1 for the API call.
-        if (payload.advStatus !== undefined && payload.advStatus !== null) {
-          body.advStatus = payload.advStatus === 2 ? 1 : payload.advStatus;
-        }
-        if (payload.startDate) body.startDate = payload.startDate;
-        if (payload.endDate) body.endDate = payload.endDate;
-        if (payload.fiatUnit) body.fiatUnit = payload.fiatUnit;
 
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/listWithPagination`;
-        console.log("listAds URL:", url);
-        const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
-        const text = await response.text();
-        console.log("listAds response status:", response.status, "body:", text.substring(0, 500));
-        try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        const fetchListPage = async (page: number): Promise<any> => {
+          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(buildBody(page)) });
+          const text = await response.text();
+          console.log(`listAds page ${page} status: ${response.status} body: ${text.substring(0, 300)}`);
+          try { return JSON.parse(text); } catch { return { raw: text, status: response.status }; }
+        };
+
+        // IMPORTANT: Binance's listWithPagination caps each page at ~20 ads regardless of the
+        // requested `rows`. When fetchAll is requested we MUST paginate server-side using the
+        // lightweight list endpoint until every ad reported by `total` is collected, BEFORE doing
+        // the heavy per-ad enrichment. Paginating client-side after enrichment caused later pages
+        // to be rate-limited and silently dropped, so ads went missing from the UI.
+        if (payload.fetchAll) {
+          const first = await fetchListPage(1);
+          const firstList: any[] = Array.isArray(first?.data) ? first.data : [];
+          const totalCount = Number(first?.total ?? firstList.length);
+          const effectiveSize = firstList.length || requestedRows;
+          const allAds: any[] = [...firstList];
+
+          if (firstList.length > 0 && effectiveSize > 0) {
+            let page = 2;
+            // Keep fetching while we still expect more ads. Continue when a page is "full"
+            // (== effectiveSize) even if `total` is missing/under-reported, so nothing is lost.
+            while (page <= 100) {
+              if (totalCount && allAds.length >= totalCount) break;
+              const r = await fetchListPage(page);
+              const list: any[] = Array.isArray(r?.data) ? r.data : [];
+              if (list.length === 0) break;
+              allAds.push(...list);
+              if (list.length < effectiveSize) break;
+              page++;
+            }
+          }
+
+          result = {
+            code: first?.code ?? "000000",
+            message: first?.message ?? "success",
+            success: true,
+            total: totalCount || allAds.length,
+            data: allAds,
+          };
+        } else {
+          console.log("listAds URL:", url);
+          result = await fetchListPage(payload.page || 1);
+        }
 
         // Enrich ads that have advStatus=1 with visibility info from getDetailByNo
         // Binance marks "Private" ads as advStatus=1 + advVisibleRet.userSetVisible=1
-        // The listWithPagination API does NOT include advVisibleRet, so we fetch detail for each
+        // The listWithPagination API does NOT include advVisibleRet, so we fetch detail for each.
+        // Enrichment failures NEVER drop an ad — the ad stays in the list, only the private flag/
+        // commission detail is skipped. Run in small concurrency batches to avoid rate limits.
         if (result?.data && Array.isArray(result.data)) {
           const onlineAds = result.data.filter((ad: any) => ad.advStatus === 1);
           if (onlineAds.length > 0) {
             console.log(`Enriching ${onlineAds.length} online ads with visibility data...`);
-            const detailPromises = onlineAds.map((ad: any) =>
+            const enrichOne = (ad: any) =>
               fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${ad.advNo}`, {
                 method: "POST", headers: proxyHeaders,
               })
@@ -670,9 +713,11 @@ serve(async (req) => {
                 })
                 .catch(err => {
                   console.warn(`Failed to get detail for ${ad.advNo}:`, err.message);
-                })
-            );
-            await Promise.all(detailPromises);
+                });
+            const BATCH = 8;
+            for (let i = 0; i < onlineAds.length; i += BATCH) {
+              await Promise.all(onlineAds.slice(i, i + BATCH).map(enrichOne));
+            }
           }
           if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
             try {

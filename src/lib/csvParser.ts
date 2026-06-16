@@ -169,6 +169,9 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         utrReference,
         marginType,
         marginPercentage: marginType === "percentage" ? marginPercentage : undefined,
+        gstEnabled,
+        gstRate,
+        gstType,
       });
     } else if (category === "usdt_sales") {
       // USDT Sales columns: Invoice Number, Description, Quantity (USDT), Rate (INR per USDT), Amount (INR),

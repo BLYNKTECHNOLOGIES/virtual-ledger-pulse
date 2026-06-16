@@ -212,10 +212,27 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     };
 
     const hasHsn = invoice.items.some((it) => (it.hsnSac || "").trim() !== "");
+    const isCgstSgst = hasGst && gst.type === "CGST_SGST";
 
-    let columnWidths = hasGst
-      ? { hash: 8, sac: hasHsn ? 18 : 0, qty: 12, unit: 12, price: 24, igst: 26, amount: 30 }
-      : { hash: 8, sac: hasHsn ? 20 : 0, qty: 12, unit: 12, price: 24, igst: 0, amount: 30 };
+    let columnWidths = {
+      hash: 8,
+      sac: hasHsn ? (hasGst ? 18 : 20) : 0,
+      qty: 12,
+      unit: 12,
+      price: 24,
+      igst: 0,
+      cgst: 0,
+      sgst: 0,
+      amount: 30,
+    };
+    if (hasGst) {
+      if (isCgstSgst) {
+        columnWidths.cgst = 22;
+        columnWidths.sgst = 22;
+      } else {
+        columnWidths.igst = 26;
+      }
+    }
 
     columnWidths.price = measuredWidth([
       "Price/unit",
@@ -223,11 +240,25 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     ], 22, 30);
 
     if (hasGst) {
-      columnWidths.igst = measuredWidth([
-        gst.type === "IGST" ? "IGST" : "CGST/SGST",
-        ...gstValuesForWidth.map((value) => formatINR(value)),
-        formatINR(gstPreview),
-      ], 24, 34);
+      if (isCgstSgst) {
+        const halfVals = gstValuesForWidth.map((value) => formatINR(value / 2));
+        columnWidths.cgst = measuredWidth([
+          `CGST(${gst.rate / 2}%)`,
+          ...halfVals,
+          formatINR(gstPreview / 2),
+        ], 20, 30);
+        columnWidths.sgst = measuredWidth([
+          `SGST(${gst.rate / 2}%)`,
+          ...halfVals,
+          formatINR(gstPreview / 2),
+        ], 20, 30);
+      } else {
+        columnWidths.igst = measuredWidth([
+          "IGST",
+          ...gstValuesForWidth.map((value) => formatINR(value)),
+          formatINR(gstPreview),
+        ], 24, 34);
+      }
     }
 
     columnWidths.amount = measuredWidth([
@@ -243,13 +274,15 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       - columnWidths.unit
       - columnWidths.price
       - columnWidths.igst
+      - columnWidths.cgst
+      - columnWidths.sgst
       - columnWidths.amount;
 
     let nameWidth = getNameWidth();
     const minimumNameWidth = 52;
     if (nameWidth < minimumNameWidth) {
       let deficit = minimumNameWidth - nameWidth;
-      const shrink = (key: "amount" | "igst" | "price", minWidth: number) => {
+      const shrink = (key: "amount" | "igst" | "cgst" | "sgst" | "price", minWidth: number) => {
         if (deficit <= 0) return;
         const available = columnWidths[key] - minWidth;
         if (available <= 0) return;
@@ -259,19 +292,28 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       };
 
       shrink("amount", 28);
-      if (hasGst) shrink("igst", 22);
+      if (isCgstSgst) {
+        shrink("cgst", 18);
+        shrink("sgst", 18);
+      } else if (hasGst) {
+        shrink("igst", 22);
+      }
       shrink("price", 20);
       nameWidth = getNameWidth();
     }
 
+    const priceX = marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty + columnWidths.unit;
+    const gstX = priceX + columnWidths.price;
     const colX = {
       hash: marginL,
       name: marginL + columnWidths.hash,
       sac: marginL + columnWidths.hash + nameWidth,
       qty: marginL + columnWidths.hash + nameWidth + columnWidths.sac,
       unit: marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty,
-      price: marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty + columnWidths.unit,
-      igst: marginL + columnWidths.hash + nameWidth + columnWidths.sac + columnWidths.qty + columnWidths.unit + columnWidths.price,
+      price: priceX,
+      igst: gstX,
+      cgst: gstX,
+      sgst: gstX + columnWidths.cgst,
       amount: rightEdge - columnWidths.amount,
     };
 
@@ -281,8 +323,10 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       sac: colX.qty,
       qty: colX.unit,
       unit: colX.price,
-      price: hasGst ? colX.igst : colX.amount,
+      price: hasGst ? gstX : colX.amount,
       igst: colX.amount,
+      cgst: colX.sgst,
+      sgst: colX.amount,
       amount: rightEdge,
     };
 

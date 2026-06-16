@@ -115,12 +115,21 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const marginAmountRaw = parseFloat(cols[12]?.trim()) || 0;
       const gstDirectionRaw = (cols[13]?.trim() || "forward").toLowerCase();
       const gstDirection = gstDirectionRaw === "reverse" ? "reverse" as const : "forward" as const;
-      const gstRate = parseFloat(cols[14]?.trim()) || 18;
-      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase();
-      const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase().replace(/[\s+]/g, "_");
+      // No-GST when type is NONE/NO_GST/NA or rate is 0/blank
+      const isNoGst =
+        gstTypeRaw === "NONE" ||
+        gstTypeRaw === "NO_GST" ||
+        gstTypeRaw === "NOGST" ||
+        gstTypeRaw === "NA" ||
+        gstTypeRaw === "N_A";
+      const gstRateParsed = parseFloat(cols[14]?.trim());
+      const gstRate = isNoGst ? 0 : (isNaN(gstRateParsed) ? 18 : gstRateParsed);
+      const gstType = gstTypeRaw === "CGST_SGST" || gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+      const gstEnabled = !isNoGst && gstRate > 0;
 
       if (!gstDetected) {
-        detectedGst = { enabled: true, rate: gstRate, type: gstType, inclusive: false };
+        detectedGst = { enabled: gstEnabled, rate: gstRate, type: gstType, inclusive: false };
         gstDetected = true;
       }
 
@@ -136,7 +145,7 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       }
 
       let taxableValue = serviceMargin;
-      if (gstDirection === "reverse" && gstRate > 0) {
+      if (gstEnabled && gstDirection === "reverse" && gstRate > 0) {
         taxableValue = serviceMargin / (1 + gstRate / 100);
       }
 

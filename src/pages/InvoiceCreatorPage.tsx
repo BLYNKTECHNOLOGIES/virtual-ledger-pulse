@@ -100,7 +100,7 @@ const InvoiceCreatorPage = () => {
           company,
           gst,
           signatory,
-          note: category === "financial_intermediation" ? fiNote : undefined,
+          note: (category === "financial_intermediation" || category === "pure_agent") ? fiNote : undefined,
           templateId,
         });
         doc.save(`invoices_${grouped.length}_orders.pdf`);

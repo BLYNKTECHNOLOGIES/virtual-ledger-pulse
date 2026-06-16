@@ -125,7 +125,7 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         gstTypeRaw === "N_A";
       const gstRateParsed = parseFloat(cols[14]?.trim());
       const gstRate = isNoGst ? 0 : (isNaN(gstRateParsed) ? 18 : gstRateParsed);
-      const gstType = gstTypeRaw === "CGST_SGST" || gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+      const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
       const gstEnabled = !isNoGst && gstRate > 0;
 
       if (!gstDetected) {

@@ -130,7 +130,7 @@ const InvoiceCreatorPage = () => {
 
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0);
   const invoiceCount = new Set(records.map(r => r.invoiceNumber)).size;
-  const isFinancial = category === "financial_intermediation";
+  const isFinancial = category === "financial_intermediation" || category === "pure_agent";
   const isUsdtSales = category === "usdt_sales";
 
   return (

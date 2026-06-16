@@ -353,7 +353,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     doc.text("Unit", colX.unit + columnWidths.unit / 2, headerY, { align: "center" });
     doc.text("Price/unit", colR.price - 1, headerY, { align: "right" });
     if (hasGst) {
-      doc.text(gst.type === "IGST" ? "IGST" : "CGST/SGST", colX.igst + columnWidths.igst / 2, headerY, { align: "center" });
+      if (isCgstSgst) {
+        doc.text("CGST", colX.cgst + columnWidths.cgst / 2, headerY, { align: "center" });
+        doc.text("SGST", colX.sgst + columnWidths.sgst / 2, headerY, { align: "center" });
+      } else {
+        doc.text("IGST", colX.igst + columnWidths.igst / 2, headerY, { align: "center" });
+      }
     }
     doc.text("Amount", colR.amount - 1, headerY, { align: "right" });
 

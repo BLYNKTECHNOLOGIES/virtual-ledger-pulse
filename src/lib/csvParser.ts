@@ -115,12 +115,21 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const marginAmountRaw = parseFloat(cols[12]?.trim()) || 0;
       const gstDirectionRaw = (cols[13]?.trim() || "forward").toLowerCase();
       const gstDirection = gstDirectionRaw === "reverse" ? "reverse" as const : "forward" as const;
-      const gstRate = parseFloat(cols[14]?.trim()) || 18;
-      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase();
+      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase().replace(/[\s+]/g, "_");
+      // No-GST when type is NONE/NO_GST/NA or rate is 0/blank
+      const isNoGst =
+        gstTypeRaw === "NONE" ||
+        gstTypeRaw === "NO_GST" ||
+        gstTypeRaw === "NOGST" ||
+        gstTypeRaw === "NA" ||
+        gstTypeRaw === "N_A";
+      const gstRateParsed = parseFloat(cols[14]?.trim());
+      const gstRate = isNoGst ? 0 : (isNaN(gstRateParsed) ? 18 : gstRateParsed);
       const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+      const gstEnabled = !isNoGst && gstRate > 0;
 
       if (!gstDetected) {
-        detectedGst = { enabled: true, rate: gstRate, type: gstType, inclusive: false };
+        detectedGst = { enabled: gstEnabled, rate: gstRate, type: gstType, inclusive: false };
         gstDetected = true;
       }
 
@@ -136,7 +145,7 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       }
 
       let taxableValue = serviceMargin;
-      if (gstDirection === "reverse" && gstRate > 0) {
+      if (gstEnabled && gstDirection === "reverse" && gstRate > 0) {
         taxableValue = serviceMargin / (1 + gstRate / 100);
       }
 
@@ -282,9 +291,11 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
       "Particulars", "HSN/SAC", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage",
       "Margin Amount", "GST Direction", "GST Rate", "GST Type"
     ];
+    // GST Type accepts: IGST | CGST_SGST | NONE (No GST). Use rate 0 / type NONE for No-GST invoices.
     const rows = [
       ["PA-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "Reimbursement of Govt. Fee & Service Charges", "998599", "80000", "UTIB12345678", "percentage", "3", "", "forward", "18", "IGST"],
-      ["PA-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "Agency / Facilitation Charges", "997159", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
+      ["PA-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "Agency / Facilitation Charges", "997159", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "CGST_SGST"],
+      ["PA-003", "Rohit Sharma", "789 Lake Road Pune", "27KLMNO9012P3Z1", "9988776655", "28/02/2026", "Pure Agent Reimbursement (No GST)", "998599", "60000", "ICIC11223344", "percentage", "2", "", "forward", "0", "NONE"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(",")).join("\n") + "\n";
   }

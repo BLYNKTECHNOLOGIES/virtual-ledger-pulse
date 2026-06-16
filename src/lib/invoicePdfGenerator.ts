@@ -33,6 +33,19 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     if (index > 0) doc.addPage();
 
     const isFinancial = invoice.category === "financial_intermediation" || invoice.category === "pure_agent";
+
+    // Per-invoice GST settings: pure_agent rows carry their own GST type/rate/enabled,
+    // so each invoice can be IGST, CGST/SGST, or No-GST independently.
+    const firstItemWithGst = invoice.items.find((it) => it.gstEnabled !== undefined);
+    const gst: GSTConfig = firstItemWithGst
+      ? {
+          enabled: !!firstItemWithGst.gstEnabled,
+          rate: firstItemWithGst.gstRate ?? gstOption.rate,
+          type: firstItemWithGst.gstType ?? gstOption.type,
+          inclusive: gstOption.inclusive,
+        }
+      : gstOption;
+
     let y = 10;
 
     // ── Top accent bar ──

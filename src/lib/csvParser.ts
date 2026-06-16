@@ -115,17 +115,21 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const marginAmountRaw = parseFloat(cols[12]?.trim()) || 0;
       const gstDirectionRaw = (cols[13]?.trim() || "forward").toLowerCase();
       const gstDirection = gstDirectionRaw === "reverse" ? "reverse" as const : "forward" as const;
-      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase().replace(/[\s+]/g, "_");
+      // Normalize aggressively: strip all non-alphanumerics so values like
+      // "CGST/SGST", "CGST SGST", "CGST+SGST", "9% CGST + 9% SGST" all match.
+      const gstTypeRaw = (cols[15]?.trim() || "IGST").toUpperCase();
+      const gstTypeNorm = gstTypeRaw.replace(/[^A-Z]/g, "");
       // No-GST when type is NONE/NO_GST/NA or rate is 0/blank
       const isNoGst =
-        gstTypeRaw === "NONE" ||
-        gstTypeRaw === "NO_GST" ||
-        gstTypeRaw === "NOGST" ||
-        gstTypeRaw === "NA" ||
-        gstTypeRaw === "N_A";
+        gstTypeNorm === "NONE" ||
+        gstTypeNorm === "NOGST" ||
+        gstTypeNorm === "NA" ||
+        gstTypeNorm === "" && false;
       const gstRateParsed = parseFloat(cols[14]?.trim());
       const gstRate = isNoGst ? 0 : (isNaN(gstRateParsed) ? 18 : gstRateParsed);
-      const gstType = gstTypeRaw === "CGST_SGST" ? "CGST_SGST" as const : "IGST" as const;
+      // CGST/SGST when the value mentions CGST or SGST (intra-state split). Otherwise IGST.
+      const isCgstSgst = gstTypeNorm.includes("CGST") || gstTypeNorm.includes("SGST");
+      const gstType = isCgstSgst ? "CGST_SGST" as const : "IGST" as const;
       const gstEnabled = !isNoGst && gstRate > 0;
 
       if (!gstDetected) {

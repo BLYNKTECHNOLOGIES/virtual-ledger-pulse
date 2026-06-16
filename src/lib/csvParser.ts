@@ -276,6 +276,19 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }
 
+  if (category === "pure_agent") {
+    const headers = [
+      "Invoice Number", "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date",
+      "Particulars", "HSN/SAC", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage",
+      "Margin Amount", "GST Direction", "GST Rate", "GST Type"
+    ];
+    const rows = [
+      ["PA-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "Reimbursement of Govt. Fee & Service Charges", "998599", "80000", "UTIB12345678", "percentage", "3", "", "forward", "18", "IGST"],
+      ["PA-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "Agency / Facilitation Charges", "997159", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
+    ];
+    return headers.join(",") + "\n" + rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(",")).join("\n") + "\n";
+  }
+
   if (category === "usdt_sales") {
     const headers = [
       "Invoice Number", "Description", "Quantity (USDT)", "Rate (INR per USDT)", "Amount (INR)",

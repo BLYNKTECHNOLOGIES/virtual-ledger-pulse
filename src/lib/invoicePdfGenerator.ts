@@ -525,11 +525,27 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       doc.text(formatINR(totalServiceMargin), refValX, y);
       y += 5;
 
-      doc.setFont("helvetica", "normal");
-      doc.text(`GST (${gst.rate}%):`, refLabelX, y);
-      doc.setFont("helvetica", "bold");
-      doc.text(formatINR(totalGstOnMargin), refValX, y);
-      y += 8;
+      if (gst.enabled && gst.rate > 0) {
+        if (gst.type === "IGST") {
+          doc.setFont("helvetica", "normal");
+          doc.text(`IGST (${gst.rate}%):`, refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatINR(totalGstOnMargin), refValX, y);
+          y += 5;
+        } else {
+          doc.setFont("helvetica", "normal");
+          doc.text(`CGST (${gst.rate / 2}%):`, refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatINR(totalGstOnMargin / 2), refValX, y);
+          y += 5;
+          doc.setFont("helvetica", "normal");
+          doc.text(`SGST (${gst.rate / 2}%):`, refLabelX, y);
+          doc.setFont("helvetica", "bold");
+          doc.text(formatINR(totalGstOnMargin / 2), refValX, y);
+          y += 5;
+        }
+      }
+      y += 3;
     }
 
     // ── Transaction Reference (USDT Sales) ──

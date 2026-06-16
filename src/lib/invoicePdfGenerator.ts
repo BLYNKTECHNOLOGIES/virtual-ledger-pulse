@@ -16,7 +16,7 @@ function formatINR(val: number): string {
 }
 
 export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOptions): jsPDF {
-  const { company, gst, signatory, note, templateId } = options;
+  const { company, gst: gstOption, signatory, note, templateId } = options;
   const t = getTemplate(templateId || "classic_green");
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = 210;

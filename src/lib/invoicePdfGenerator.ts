@@ -457,7 +457,12 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
     setColor(t.colors.bodyText);
     doc.text("Total", marginL + 1, y + 5);
     if (hasGst) {
-      doc.text(formatINR(igstAmt + cgstAmt + sgstAmt), colR.igst - 1, y + 5, { align: "right" });
+      if (isCgstSgst) {
+        doc.text(formatINR(cgstAmt), colR.cgst - 1, y + 5, { align: "right" });
+        doc.text(formatINR(sgstAmt), colR.sgst - 1, y + 5, { align: "right" });
+      } else {
+        doc.text(formatINR(igstAmt), colR.igst - 1, y + 5, { align: "right" });
+      }
     }
     doc.text(formatINR(totalWithTax), colR.amount - 1, y + 5, { align: "right" });
     y += 8;

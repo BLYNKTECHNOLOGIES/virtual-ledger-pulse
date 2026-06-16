@@ -123,8 +123,7 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const isNoGst =
         gstTypeNorm === "NONE" ||
         gstTypeNorm === "NOGST" ||
-        gstTypeNorm === "NA" ||
-        gstTypeNorm === "" && false;
+        gstTypeNorm === "NA";
       const gstRateParsed = parseFloat(cols[14]?.trim());
       const gstRate = isNoGst ? 0 : (isNaN(gstRateParsed) ? 18 : gstRateParsed);
       // CGST/SGST when the value mentions CGST or SGST (intra-state split). Otherwise IGST.

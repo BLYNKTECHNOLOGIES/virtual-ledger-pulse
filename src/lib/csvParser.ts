@@ -291,9 +291,11 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
       "Particulars", "HSN/SAC", "Transaction Value", "UTR Reference", "Margin Type", "Margin Percentage",
       "Margin Amount", "GST Direction", "GST Rate", "GST Type"
     ];
+    // GST Type accepts: IGST | CGST_SGST | NONE (No GST). Use rate 0 / type NONE for No-GST invoices.
     const rows = [
       ["PA-001", "Vishal Raina", "123 Main Street Mumbai", "27ABCDE1234F1Z5", "9876543210", "26/02/2026", "Reimbursement of Govt. Fee & Service Charges", "998599", "80000", "UTIB12345678", "percentage", "3", "", "forward", "18", "IGST"],
-      ["PA-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "Agency / Facilitation Charges", "997159", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "IGST"],
+      ["PA-002", "Kiran B U", "456 Park Avenue Bangalore", "29FGHIJ5678K2Z3", "9123456780", "27/02/2026", "Agency / Facilitation Charges", "997159", "150000", "HDFC98765432", "absolute", "", "4500", "reverse", "18", "CGST_SGST"],
+      ["PA-003", "Rohit Sharma", "789 Lake Road Pune", "27KLMNO9012P3Z1", "9988776655", "28/02/2026", "Pure Agent Reimbursement (No GST)", "998599", "60000", "ICIC11223344", "percentage", "2", "", "forward", "0", "NONE"],
     ];
     return headers.join(",") + "\n" + rows.map(r => r.map(c => /[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c).join(",")).join("\n") + "\n";
   }

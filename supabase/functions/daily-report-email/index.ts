@@ -244,6 +244,16 @@ async function buildReport(supabase: any, date: string) {
       },
       options: { plugins: { legend: { display: false }, title: { display: true, text: "Hourly Activity (IST)" } } },
     }),
+    expensesByCategory: Object.keys(expenseByCategory).length
+      ? quickChart({
+          type: "bar",
+          data: {
+            labels: Object.keys(expenseByCategory),
+            datasets: [{ label: "Expense (INR)", data: Object.values(expenseByCategory).map((v) => Math.round(v)), backgroundColor: AMBER }],
+          },
+          options: { indexAxis: "y", plugins: { legend: { display: false }, title: { display: true, text: "Expenses by Category (INR)" } } },
+        })
+      : "",
   };
 
   return {

@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const RECIPIENT = "Shubham.singh@blynkex.com";
+const RECIPIENTS = ["Shubham.singh@blynkex.com", "abhisheksingh@blynkex.com"];
 
 // Copper / amber palette
 const COPPER = "#B87333";

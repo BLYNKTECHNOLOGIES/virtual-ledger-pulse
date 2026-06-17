@@ -28,14 +28,16 @@ interface DailyReportProps {
   sales?: { totalQty: string; totalValue: string; orderCount: number; totalOrders: number; avgTicket: string; byAsset: AssetRow[] }
   purchases?: { totalQty: string; totalValue: string; orderCount: number; totalOrders: number; avgTicket: string; byAsset: AssetRow[] }
   wallet?: { balances: { asset: string; balance: string }[]; feesByType: { type: string; amount: string }[]; totalFees: string }
+  expenses?: { totalExpenses: string; count: number; byCategory: { category: string; amount: string }[]; list: { category: string; description: string; amount: string }[] }
   stats?: { busiestHour: string; totalOrders: number; completedOrders: number; topClients: { name: string; value: string }[]; salesChangePct: string; purchaseChangePct: string }
-  charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string }
+  charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
+
 }
 
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, stats, charts }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, stats, charts }: DailyReportProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>
@@ -128,6 +130,49 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, stats, chart
             </Section>
           )}
 
+          {/* Expenses */}
+          {expenses && (
+            <Section style={card}>
+              <Text style={sectionTitle}>Expenses</Text>
+              <Row label="Total Expenses" value={`₹${expenses.totalExpenses}`} />
+              <Row label="Entries" value={`${expenses.count}`} />
+              {expenses.byCategory.length > 0 && (
+                <>
+                  <Text style={subTitle}>By Category</Text>
+                  <table style={tbl}>
+                    <thead><tr><th style={th}>Category</th><th style={thR}>Amount (₹)</th></tr></thead>
+                    <tbody>
+                      {expenses.byCategory.map((c, i) => (
+                        <tr key={i}><td style={td}>{c.category}</td><td style={tdR}>{c.amount}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              {expenses.list.length > 0 && (
+                <>
+                  <Text style={subTitle}>Expense List</Text>
+                  <table style={tbl}>
+                    <thead><tr><th style={th}>Category</th><th style={th}>Description</th><th style={thR}>Amount (₹)</th></tr></thead>
+                    <tbody>
+                      {expenses.list.map((e, i) => (
+                        <tr key={i}>
+                          <td style={td}>{e.category}</td>
+                          <td style={td}>{e.description}</td>
+                          <td style={tdR}>{e.amount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              {expenses.list.length === 0 && <Text style={text}>No expenses recorded for this day.</Text>}
+            </Section>
+          )}
+
+          {charts?.expensesByCategory && <Img src={charts.expensesByCategory} alt="Expenses by Category" style={chartImg} />}
+
+
           {/* Statistics */}
           {stats && (
             <Section style={card}>
@@ -200,8 +245,9 @@ export const template = {
     sales: { totalQty: '5,000.0000', totalValue: '4,62,500.00', orderCount: 12, totalOrders: 14, avgTicket: '38,541.67', byAsset: [{ asset: 'USDT', qty: '5,000.0000', value: '4,62,500.00', count: 12 }] },
     purchases: { totalQty: '4,800.0000', totalValue: '4,37,760.00', orderCount: 9, totalOrders: 10, avgTicket: '48,640.00', byAsset: [{ asset: 'USDT', qty: '4,800.0000', value: '4,37,760.00', count: 9 }] },
     wallet: { balances: [{ asset: 'USDT', balance: '12,340.5000' }, { asset: 'TRX', balance: '500.0000' }], feesByType: [{ type: 'PLATFORM FEE', amount: '100.0000' }], totalFees: '120.0000' },
+    expenses: { totalExpenses: '8,500.00', count: 3, byCategory: [{ category: 'Office > Rent', amount: '6,000.00' }, { category: 'Utilities', amount: '2,500.00' }], list: [{ category: 'Office > Rent', description: 'June office rent', amount: '6,000.00' }, { category: 'Utilities', description: 'Electricity bill', amount: '2,500.00' }] },
     stats: { busiestHour: '14:00 - 15:00 IST', totalOrders: 24, completedOrders: 21, topClients: [{ name: 'Rahul', value: '1,20,000.00' }], salesChangePct: '8.5', purchaseChangePct: '5.1' },
-    charts: { salesVsPurchase: '', pnl: '', volumeByAsset: '', hourly: '' },
+    charts: { salesVsPurchase: '', pnl: '', volumeByAsset: '', hourly: '', expensesByCategory: '' },
   },
 } satisfies TemplateEntry
 

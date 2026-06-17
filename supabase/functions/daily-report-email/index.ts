@@ -142,6 +142,31 @@ async function buildReport(supabase: any, date: string) {
     feesByType[f.reference_type] = (feesByType[f.reference_type] || 0) + amt;
   }
 
+  // ----- Expenses (bank_transactions of type EXPENSE for the day) -----
+  const EXCLUDED_EXP_CATS = [
+    "Purchase", "Sales", "Stock Purchase", "Stock Sale", "Trade", "Trading",
+    "Settlement", "Payment Gateway Settlement", "OPENING_BALANCE", "ADJUSTMENT",
+  ];
+  const { data: expenseRows } = await supabase
+    .from("bank_transactions")
+    .select("amount, category, description, reference_number, transaction_date, is_reversed")
+    .eq("transaction_type", "EXPENSE")
+    .eq("transaction_date", date);
+  const expenseList: { category: string; description: string; amount: number }[] = [];
+  const expenseByCategory: Record<string, number> = {};
+  let totalExpenses = 0;
+  for (const e of expenseRows || []) {
+    if (e.is_reversed) continue;
+    const cat = e.category || "Uncategorized";
+    const topCat = String(cat).split(" > ")[0];
+    if (EXCLUDED_EXP_CATS.includes(topCat)) continue;
+    const amt = Number(e.amount) || 0;
+    totalExpenses += amt;
+    expenseByCategory[cat] = (expenseByCategory[cat] || 0) + amt;
+    expenseList.push({ category: cat, description: e.description || "", amount: amt });
+  }
+  expenseList.sort((a, b) => b.amount - a.amount);
+
   // ----- P&L (same formula as snapshot-daily-profit) -----
   const netPurchaseQty = totalPurchaseQty - totalFees;
   let effectivePurchaseRate = 0;
@@ -219,6 +244,16 @@ async function buildReport(supabase: any, date: string) {
       },
       options: { plugins: { legend: { display: false }, title: { display: true, text: "Hourly Activity (IST)" } } },
     }),
+    expensesByCategory: Object.keys(expenseByCategory).length
+      ? quickChart({
+          type: "bar",
+          data: {
+            labels: Object.keys(expenseByCategory),
+            datasets: [{ label: "Expense (INR)", data: Object.values(expenseByCategory).map((v) => Math.round(v)), backgroundColor: AMBER }],
+          },
+          options: { indexAxis: "y", plugins: { legend: { display: false }, title: { display: true, text: "Expenses by Category (INR)" } } },
+        })
+      : "",
   };
 
   return {
@@ -252,6 +287,12 @@ async function buildReport(supabase: any, date: string) {
       balances: Object.entries(balByAsset).filter(([, b]) => Math.abs(b) > 0.000001).map(([asset, b]) => ({ asset, balance: fmtNum(b, 4) })),
       feesByType: Object.entries(feesByType).map(([type, amt]) => ({ type: type.replace(/_/g, " "), amount: fmtNum(amt, 4) })),
       totalFees: fmtNum(totalFees, 4),
+    },
+    expenses: {
+      totalExpenses: fmtNum(totalExpenses),
+      count: expenseList.length,
+      byCategory: Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([category, amount]) => ({ category, amount: fmtNum(amount) })),
+      list: expenseList.slice(0, 50).map((e) => ({ category: e.category, description: e.description, amount: fmtNum(e.amount) })),
     },
     stats: {
       busiestHour: `${busiestHour}:00 - ${busiestHour + 1}:00 IST`,

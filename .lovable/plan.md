@@ -1,61 +1,72 @@
-# TDS Segregation by Payment Bank & Company
+# Daily Business Report Email (9 AM IST)
 
-## Goal
-Today TDS is stored as **one row per purchase order** (`tds_records`, 1:1 with `purchase_orders`) and shown **aggregated by PAN only**. This mixes companies together and hides that a single order's payment was split across banks belonging to different group companies.
+Send Shubham.singh@blynkex.com a detailed report every morning at 9:00 AM IST covering the **full previous day** (midnight–midnight, Asia/Kolkata). The email includes P&L, sales, purchases, wallet balances & fees, and key statistics, with copper/amber-themed charts embedded as images.
 
-You want:
-1. TDS broken down **per payment transaction** (the ₹50k example → a ₹10k line and a ₹40k line) instead of one lump per order.
-2. Each line to reference the **Binance order number** of the source purchase order.
-3. Segregation by **company** — Shubham Singh, Vertex Shift, Asec, Blynk — derived from the bank that made each payment.
-4. **Payment/filing tracked per company**, since each company files its own TDS return.
-5. Applied to **both** the Accounting → Tax Management tab and the Compliance → Taxation tab.
+## What the report contains
 
-## How the data connects (verified)
-- Payment splits live in `purchase_order_payment_splits` (order → bank_account_id → amount). This is the payment source of truth.
-- `bank_accounts.subsidiary_id` → `subsidiaries.firm_name` gives the company. All 4 firms are mapped; **0 split banks are unmapped**.
-- Binance order number = `purchase_orders.terminal_sync_id` → `terminal_purchase_sync.binance_order_number` (equals `order_number` for synced orders).
-- 1,549 TDS orders total: 1,182 have payment splits; **367 have no splits but all have a single `bank_account_id`** (fallback = whole TDS to that one bank/company).
+1. **P&L Summary** — Gross profit, net profit, avg sales rate, effective purchase rate, NPM (per-USDT margin), total fees. Reuses the proven logic already in `snapshot-daily-profit` (effective-USDT fields, fee handling).
+2. **Sales breakdown** — Total qty, total value, order count, average ticket, split by asset.
+3. **Purchases breakdown** — Total qty, total value, order count, average ticket, split by asset.
+4. **Wallet balances & fees** — End-of-day asset balances (USDT, TRX, BTC, etc.) and platform/transfer/order fee totals.
+5. **Statistics** — Order counts, completed vs total, busiest hour, top counterparties/assets by volume, day-over-day comparison vs the prior day.
+6. **Charts (copper/amber theme, embedded as PNG images)**
+   - Sales vs Purchases value (bar)
+   - P&L breakdown (gross → fees → net)
+   - Volume by asset (bar)
+   - Hourly activity (line)
 
-## Allocation rule (no double counting)
-TDS is 1% of the order amount, so per-transaction TDS = the order's `tds_rate` applied to each split's paid amount:
-- ₹10k split → ₹100, ₹40k split → ₹400, summing to the order's ₹500. Same PAN and same order number on both lines.
-- The sum of allocations for an order is **forced to equal the order's stored `tds_amount`**; any rounding remainder (within the 0.01 tolerance) is absorbed into the largest split so totals reconcile exactly and nothing is double-counted.
-- No-split orders → one allocation = full order TDS on the order's primary bank/company.
+Charts render as static images (email clients can't run JS) using a chart-image service; styled in copper/amber tones to match the report.
 
-## Plan
+## How it works
 
-### 1. New table `tds_payment_allocations` (per transaction)
-One row per (purchase order × payment bank split):
-- order link, `pan_number`, `supplier_name`, `binance_order_number`
-- `bank_account_id`, `subsidiary_id` (company), `firm_name` snapshot
-- `paid_amount` (the split amount), `allocated_tds_amount`, `tds_rate`, `deduction_date`, `financial_year`
-- payment/filing fields: `payment_status`, `paid_at`, `paid_by`, `payment_bank_account_id`, `payment_batch_id`, `tds_certificate_number`
-- Standard grants + RLS for `authenticated`/`service_role`; updated_at trigger.
+```text
+pg_cron (daily 03:30 UTC = 09:00 IST)
+        │  HTTP POST
+        ▼
+edge fn: daily-report-email
+   ├─ compute previous IST day window
+   ├─ aggregate sales / purchases / P&L / wallet / fees / stats
+   ├─ build copper-themed chart image URLs
+   ├─ render HTML report
+   └─ invoke send-transactional-email
+                 │
+                 ▼
+        Lovable Emails → Shubham.singh@blynkex.com
+```
 
-### 2. DB function + triggers to keep it correct
-- `rebuild_tds_allocations(po_id)`: deletes & regenerates allocation rows for one order from its splits (or single bank fallback), applying the allocation rule above and carrying over existing paid/filed status by bank where possible so payment history is not lost.
-- Triggers on `purchase_order_payment_splits` (insert/update/delete) and on `purchase_orders` (when `tds_applied`/`tds_amount`/`tds_rate`/bank changes) call the rebuild. Skips CANCELLED orders.
-- One-time **backfill** for all existing non-cancelled TDS orders, migrating current `tds_records` paid/filed status onto the matching company allocation.
+## Technical implementation
 
-### 3. Accounting → Tax Management tab (`TaxManagementTab.tsx`)
-- Keep the quarter selector + summary cards (totals recomputed from allocations).
-- Replace the PAN table with **company tabs** (All / Shubham Singh / Vertex Shift / Asec / Blynk), each a flat list of rows: PAN, supplier, Order #, **Binance Order #**, paying bank, paid amount, allocated TDS, status.
-- **Mark-as-paid is per company**: select rows within a company tab, choose that company's bank, record paid → updates allocation rows + creates a single `bank_transactions` EXPENSE on the paying bank (one batch id). Prevents cross-company payment.
-- Export gains Company, Bank, Order #, Binance Order # columns; one row per allocation.
+### 1. New email template
+- `supabase/functions/_shared/transactional-email-templates/daily-business-report.tsx` — React Email component rendering all sections (summary cards, data tables, embedded chart `<Img>` tags). White body background, copper/amber accents.
+- Register `'daily-business-report'` in `_shared/transactional-email-templates/registry.ts`.
 
-### 4. Compliance → Taxation tab (`TaxationComplianceTab.tsx`)
-- Switch its source to `tds_payment_allocations`, add company tabs + Binance order number column, and make certificate filing per company/allocation.
+### 2. New edge function `daily-report-email`
+- `supabase/functions/daily-report-email/index.ts` (service role; `verify_jwt = false`).
+- Accepts optional `{ date }` for manual/backfill testing; defaults to previous IST day.
+- Date window: build `dayStart`/`dayEnd` in IST and query by `order_date` (IST date) consistent with existing snapshot logic and the project's IST date convention.
+- Data sources (matching project's truth sources):
+  - Sales: `sales_orders` (status COMPLETED, effective_usdt fields)
+  - Purchases: `purchase_orders` (effective_usdt fields)
+  - Fees: `wallet_transactions` / `wallet_fee_deductions`
+  - Balances: `wallet_asset_balances`
+  - P&L: same formula as `snapshot-daily-profit` (Net = Gross − fees), respecting adjustment-bucket exclusions.
+  - Uses `fetchAllPaginated`-style paging for >1000 rows.
+- Builds chart image URLs (copper palette, e.g. `#B87333`, `#C77B3B`, `#8C5A2B`) via QuickChart-style image endpoint.
+- Calls `send-transactional-email` with `templateName: 'daily-business-report'`, `recipientEmail: 'Shubham.singh@blynkex.com'`, an `idempotencyKey` of `daily-report-<ISTdate>`, and all aggregated `templateData`.
 
-## Data anomalies handled
-- **Split sum ≠ order total** (tolerance): allocations forced to reconcile to stored `tds_amount`; remainder to largest split.
-- **No-split TDS orders (367)**: fallback to single `bank_account_id`.
-- **Edits to splits/TDS after payment**: rebuild preserves already-paid/filed status per bank; flags an allocation if a paid order's splits change so it can't silently drift.
-- **Unmapped bank company**: shown under an "Unassigned" tab (currently none, but guarded).
-- **Cancelled / off-market orders**: excluded, matching existing behavior.
-- **Adjustment buckets**: excluded via existing `filterNonAdjustmentBanks`.
-- **No double counting**: per-order allocations always sum to the order's TDS; reports keep reading the order-level TDS so group totals are unchanged.
+### 3. Schedule (pg_cron)
+- Insert a `cron.schedule` job `daily-report-email-9am-ist` at `30 3 * * *` (09:00 IST) that POSTs to the function URL with the project anon key header. Inserted via the Supabase insert tool (contains project-specific URL/key), not a migration.
 
-## Technical notes
-- New table + function/triggers via one migration (with GRANT + RLS); backfill via data migration.
-- Frontend reads allocations with `fetchAllPaginated` where row counts exceed 1000.
-- `tds_records` is retained for backward compatibility during transition; allocations become the display/payment source.
+### 4. Deploy
+- Deploy `daily-report-email` and `send-transactional-email` (template/registry change).
+
+## Verification
+- Manually invoke `daily-report-email` with a known past date and confirm the email arrives with correct figures and rendered charts.
+- Cross-check totals against the Statistics/Accounting pages for that date.
+- Confirm `email_send_log` shows `sent` for the report.
+
+## Notes / constraints
+- All financial figures come from the existing ledger truth sources; no manual/dummy data.
+- Adjustment buckets and 'Manual Baseline Reset' are excluded from aggregations (per project rules).
+- Email is app/transactional (single recipient, event-driven) — compliant with Lovable Emails.
+- Recipient is hardcoded to Shubham.singh@blynkex.com; easy to extend later.

@@ -130,6 +130,49 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, st
             </Section>
           )}
 
+          {/* Expenses */}
+          {expenses && (
+            <Section style={card}>
+              <Text style={sectionTitle}>Expenses</Text>
+              <Row label="Total Expenses" value={`₹${expenses.totalExpenses}`} />
+              <Row label="Entries" value={`${expenses.count}`} />
+              {expenses.byCategory.length > 0 && (
+                <>
+                  <Text style={subTitle}>By Category</Text>
+                  <table style={tbl}>
+                    <thead><tr><th style={th}>Category</th><th style={thR}>Amount (₹)</th></tr></thead>
+                    <tbody>
+                      {expenses.byCategory.map((c, i) => (
+                        <tr key={i}><td style={td}>{c.category}</td><td style={tdR}>{c.amount}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              {expenses.list.length > 0 && (
+                <>
+                  <Text style={subTitle}>Expense List</Text>
+                  <table style={tbl}>
+                    <thead><tr><th style={th}>Category</th><th style={th}>Description</th><th style={thR}>Amount (₹)</th></tr></thead>
+                    <tbody>
+                      {expenses.list.map((e, i) => (
+                        <tr key={i}>
+                          <td style={td}>{e.category}</td>
+                          <td style={td}>{e.description}</td>
+                          <td style={tdR}>{e.amount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+              {expenses.list.length === 0 && <Text style={text}>No expenses recorded for this day.</Text>}
+            </Section>
+          )}
+
+          {charts?.expensesByCategory && <Img src={charts.expensesByCategory} alt="Expenses by Category" style={chartImg} />}
+
+
           {/* Statistics */}
           {stats && (
             <Section style={card}>

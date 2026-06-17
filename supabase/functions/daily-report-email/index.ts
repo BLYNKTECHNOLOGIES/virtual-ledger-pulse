@@ -6,7 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const RECIPIENT = "Shubham.singh@blynkex.com";
+const RECIPIENTS = ["Shubham.singh@blynkex.com", "abhisheksingh@blynkex.com"];
 
 // Copper / amber palette
 const COPPER = "#B87333";
@@ -318,22 +318,27 @@ serve(async (req) => {
     try { body = await req.json(); } catch { /* no body */ }
 
     const date: string = body.date || previousIstDate();
-    const recipient: string = body.recipient || RECIPIENT;
+    const recipients: string[] = body.recipients || RECIPIENTS;
 
     const report = await buildReport(supabase, date);
 
-    const { error: invokeError } = await supabase.functions.invoke("send-transactional-email", {
-      body: {
-        templateName: "daily-business-report",
-        recipientEmail: recipient,
-        idempotencyKey: `daily-report-${date}-${recipient}`,
-        templateData: report,
-      },
-    });
+    const results: { recipient: string; success: boolean; error?: string }[] = [];
+    for (const recipient of recipients) {
+      const { error: invokeError } = await supabase.functions.invoke("send-transactional-email", {
+        body: {
+          templateName: "daily-business-report",
+          recipientEmail: recipient,
+          idempotencyKey: `daily-report-${date}-${recipient}`,
+          templateData: report,
+        },
+      });
+      results.push({ recipient, success: !invokeError, error: invokeError?.message });
+      if (invokeError) console.error(`daily-report-email send error for ${recipient}:`, invokeError);
+    }
 
-    if (invokeError) throw invokeError;
+    const allOk = results.every((r) => r.success);
 
-    return new Response(JSON.stringify({ success: true, date, recipient }), {
+    return new Response(JSON.stringify({ success: allOk, date, recipients: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

@@ -15,12 +15,20 @@ interface KYCBankInfoProps {
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   aadhaar: 'Aadhaar Card',
+  pan: 'PAN Card',
   usdt_usage_proof: 'USDT Usage Proof',
   trade_history_screenshot: 'Trade History Screenshot',
   vkyc_video: 'vKYC Video',
+  bank_statement: 'Bank Statement',
+  source_of_fund: 'Source of Fund',
+  other: 'Other Document',
 };
 
 const DOC_TYPE_ORDER = ['aadhaar', 'usdt_usage_proof', 'trade_history_screenshot', 'vkyc_video'];
+
+const formatDocLabel = (type: string) =>
+  DOC_TYPE_LABELS[type] ||
+  type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
   const [uploadOpen, setUploadOpen] = useState(false);

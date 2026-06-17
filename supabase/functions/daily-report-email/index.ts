@@ -288,6 +288,12 @@ async function buildReport(supabase: any, date: string) {
       feesByType: Object.entries(feesByType).map(([type, amt]) => ({ type: type.replace(/_/g, " "), amount: fmtNum(amt, 4) })),
       totalFees: fmtNum(totalFees, 4),
     },
+    expenses: {
+      totalExpenses: fmtNum(totalExpenses),
+      count: expenseList.length,
+      byCategory: Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([category, amount]) => ({ category, amount: fmtNum(amount) })),
+      list: expenseList.slice(0, 50).map((e) => ({ category: e.category, description: e.description, amount: fmtNum(e.amount) })),
+    },
     stats: {
       busiestHour: `${busiestHour}:00 - ${busiestHour + 1}:00 IST`,
       totalOrders: salesRaw.length + purchasesRaw.length,

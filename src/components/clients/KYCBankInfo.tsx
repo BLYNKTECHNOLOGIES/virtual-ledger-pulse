@@ -15,12 +15,20 @@ interface KYCBankInfoProps {
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   aadhaar: 'Aadhaar Card',
+  pan: 'PAN Card',
   usdt_usage_proof: 'USDT Usage Proof',
   trade_history_screenshot: 'Trade History Screenshot',
   vkyc_video: 'vKYC Video',
+  bank_statement: 'Bank Statement',
+  source_of_fund: 'Source of Fund',
+  other: 'Other Document',
 };
 
 const DOC_TYPE_ORDER = ['aadhaar', 'usdt_usage_proof', 'trade_history_screenshot', 'vkyc_video'];
+
+const formatDocLabel = (type: string) =>
+  DOC_TYPE_LABELS[type] ||
+  type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -140,14 +148,14 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
         {hasNewKycDocs && (
           <div className="space-y-3">
             <label className="text-sm font-medium text-muted-foreground">KYC Documents</label>
-            {DOC_TYPE_ORDER.map(type => {
+            {[...DOC_TYPE_ORDER, ...Object.keys(docsByType).filter(t => !DOC_TYPE_ORDER.includes(t))].map(type => {
               const docs = docsByType[type];
               if (!docs || docs.length === 0) return null;
               return (
                 <div key={type} className="space-y-1">
                   <div className="flex items-center gap-2">
                     {getStatusIcon(true)}
-                    <span className="text-sm font-medium">{DOC_TYPE_LABELS[type] || type}</span>
+                    <span className="text-sm font-medium">{formatDocLabel(type)}</span>
                     <Badge variant="outline" className="text-xs">{docs.length} file{docs.length > 1 ? 's' : ''}</Badge>
                   </div>
                   <div className="flex flex-wrap gap-2 ml-6">
@@ -166,7 +174,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                 </div>
               );
             })}
-            {/* Show missing document types */}
+            {/* Show missing core document types */}
             {DOC_TYPE_ORDER.filter(t => !docsByType[t]).map(type => (
               <div key={type} className="flex items-center gap-2">
                 {type === 'aadhaar' ? (

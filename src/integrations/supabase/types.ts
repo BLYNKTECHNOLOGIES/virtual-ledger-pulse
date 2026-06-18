@@ -3368,6 +3368,39 @@ export type Database = {
           },
         ]
       }
+      erp_password_otps: {
+        Row: {
+          attempts: number
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          otp_hash: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          otp_hash: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_hash?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       erp_product_conversions: {
         Row: {
           actual_execution_rate: number | null

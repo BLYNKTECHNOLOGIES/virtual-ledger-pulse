@@ -199,7 +199,7 @@ export function useUsers() {
       console.error('Error creating user:', error);
       toast({
         title: "Error", 
-        description: error.message || "Failed to create user",
+        description: friendlyUserError(error),
         variant: "destructive",
       });
       return { success: false, error };

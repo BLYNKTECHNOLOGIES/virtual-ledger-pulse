@@ -9,6 +9,7 @@ import { AlertCircle, UserPlus, Check } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 interface CustomerAutocompleteProps {
   value: string;

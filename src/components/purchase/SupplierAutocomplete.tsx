@@ -47,13 +47,12 @@ export function SupplierAutocomplete({
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
+      // Use paginated fetch — there are >1000 clients and PostgREST caps
+      // a single request at 1000 rows, which silently dropped clients
+      // (e.g. names late in the alphabet) from the search results.
+      return await fetchAllPaginated<any>(() =>
+        supabase.from('clients').select('*').order('name')
+      );
     },
   });
 

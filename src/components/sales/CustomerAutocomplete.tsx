@@ -9,6 +9,7 @@ import { AlertCircle, UserPlus, Check } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { ClientOrderPreview } from "@/components/clients/ClientOrderPreview";
 import { matchesWordPrefix } from "@/lib/utils";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 interface CustomerAutocompleteProps {
   value: string;
@@ -42,15 +43,14 @@ export function CustomerAutocomplete({
   const debouncedValue = useDebounce(value, 300);
 
   const { data: clients } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients-all-search'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
+      // Use paginated fetch — there are >1000 clients and PostgREST caps
+      // a single request at 1000 rows, which silently dropped clients
+      // (e.g. names late in the alphabet) from the search results.
+      return await fetchAllPaginated<any>(() =>
+        supabase.from('clients').select('*').order('name')
+      );
     },
   });
 

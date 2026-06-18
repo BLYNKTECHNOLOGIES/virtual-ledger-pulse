@@ -228,10 +228,27 @@ export function LoginPage() {
                 'Sign In'
               )}
             </Button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
           </form>
           
         </CardContent>
       </Card>
+
+      <ForgotPasswordDialog
+        open={showForgotPassword}
+        onOpenChange={setShowForgotPassword}
+        defaultEmail={email.includes('@') ? email.trim().toLowerCase() : ''}
+      />
+
 
       <ForcedPasswordResetDialog
         open={showForcedReset}

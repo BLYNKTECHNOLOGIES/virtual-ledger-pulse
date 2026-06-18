@@ -322,7 +322,7 @@ export function useUsers() {
       console.error('Error updating user:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update user",
+        description: friendlyUserError(error),
         variant: "destructive",
       });
       return { success: false, error };

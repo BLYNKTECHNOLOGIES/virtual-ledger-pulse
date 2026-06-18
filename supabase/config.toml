@@ -69,6 +69,10 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.admin-reset-password]
     verify_jwt = false
+  [functions.send-erp-password-otp]
+    verify_jwt = false
+  [functions.verify-erp-password-otp]
+    verify_jwt = false
   [functions.send-task-email]
     verify_jwt = false
   [functions.auto-absent-marking]

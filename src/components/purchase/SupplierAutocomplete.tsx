@@ -45,7 +45,7 @@ export function SupplierAutocomplete({
   const debouncedValue = useDebounce(value, 300);
 
   const { data: clients } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients-all-search'],
     queryFn: async () => {
       // Use paginated fetch — there are >1000 clients and PostgREST caps
       // a single request at 1000 rows, which silently dropped clients

@@ -11,6 +11,22 @@ function isValidStatus(status: any): status is ValidStatus {
   return ["ACTIVE", "INACTIVE", "SUSPENDED"].includes(status);
 }
 
+// Translate database unique-constraint violations into friendly messages.
+function friendlyUserError(error: any): string {
+  const raw = `${error?.message || ''} ${error?.details || ''}`.toLowerCase();
+  if (raw.includes('users_unique_email_ci') || (raw.includes('email') && raw.includes('duplicate'))) {
+    return 'This email is already assigned to another user. Each email can only belong to one user.';
+  }
+  if (raw.includes('users_unique_phone_normalized') || (raw.includes('phone') && raw.includes('duplicate'))) {
+    return 'This phone number is already assigned to another user. Each phone number can only belong to one user.';
+  }
+  if (raw.includes('duplicate') && raw.includes('username')) {
+    return 'This username is already taken. Please choose a different one.';
+  }
+  return error?.message || 'Failed to save user';
+}
+
+
 export function useUsers() {
   const [users, setUsers] = useState<DatabaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -199,7 +215,7 @@ export function useUsers() {
       console.error('Error creating user:', error);
       toast({
         title: "Error", 
-        description: error.message || "Failed to create user",
+        description: friendlyUserError(error),
         variant: "destructive",
       });
       return { success: false, error };
@@ -306,7 +322,7 @@ export function useUsers() {
       console.error('Error updating user:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update user",
+        description: friendlyUserError(error),
         variant: "destructive",
       });
       return { success: false, error };

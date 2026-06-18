@@ -173,8 +173,15 @@ Deno.serve(async (req) => {
       console.error("public.users insert failed:", userInsertError);
       // Cleanup auth user
       await adminClient.auth.admin.deleteUser(newUserId);
-      return new Response(JSON.stringify({ error: `User record error: ${userInsertError.message}` }), {
-        status: 500,
+      const raw = `${userInsertError.message} ${(userInsertError as any).details ?? ""}`.toLowerCase();
+      let friendly = `User record error: ${userInsertError.message}`;
+      if (raw.includes("users_unique_phone_normalized")) {
+        friendly = "This phone number is already assigned to another user.";
+      } else if (raw.includes("users_unique_email_ci")) {
+        friendly = "This email is already assigned to another user.";
+      }
+      return new Response(JSON.stringify({ error: friendly }), {
+        status: 409,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }

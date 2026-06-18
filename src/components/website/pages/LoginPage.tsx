@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
+import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,7 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [showForcedReset, setShowForcedReset] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
 
   const writeCompatibilitySession = (authenticatedUser: {

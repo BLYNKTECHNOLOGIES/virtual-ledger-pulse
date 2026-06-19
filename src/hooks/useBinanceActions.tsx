@@ -11,12 +11,15 @@ import { withActiveAccount } from '@/lib/activeExchangeAccount';
 // which is what users perceive as "ERP not loading / can't click anything".
 const BINANCE_CALL_TIMEOUT_MS = 25_000;
 
-export async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
+export async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BINANCE_CALL_TIMEOUT_MS);
   try {
+    const body: Record<string, any> = { action, ...payload };
+    // Explicit per-call account override (combined "All accounts" fan-out / row-scoped actions).
+    if (accountId) body.exchange_account_id = accountId;
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: withActiveAccount({ action, ...payload }),
+      body: withActiveAccount(body),
       // @ts-ignore — supabase-js forwards AbortSignal to fetch
       signal: controller.signal,
     });

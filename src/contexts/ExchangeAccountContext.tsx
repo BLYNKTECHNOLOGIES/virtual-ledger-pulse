@@ -140,6 +140,21 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     setActiveExchangeAccountId(activeAccountId);
   }, [activeAccountId]);
 
+  useEffect(() => {
+    setVisibleExchangeAccountIds(visibleAccounts.map((a) => a.id));
+  }, [visibleAccounts]);
+
+  const isAllAccounts = activeAccountId === ALL_ACCOUNTS;
+
+  // Accounts the current view should query: a single id, or all visible ids in ALL mode.
+  const accountsToQuery = useMemo(() => {
+    if (isAllAccounts) {
+      const ids = visibleAccounts.map((a) => a.id);
+      return ids.length > 0 ? ids : [PRIMARY_ID];
+    }
+    return [activeAccountId];
+  }, [isAllAccounts, visibleAccounts, activeAccountId]);
+
   const setActiveAccountId = useCallback(
     (id: string) => {
       if (!canSwitch) return; // single-account users can't switch

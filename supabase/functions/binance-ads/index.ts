@@ -991,14 +991,47 @@ serve(async (req) => {
         // POST /sapi/v1/c2c/orderMatch/getUserOrderDetail
         // Proxy supports adOrderNo in current production; include orderNo as a safe alias.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
-        const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify({
+        const detailBody = {
           adOrderNo: payload.orderNumber,
           orderNo: payload.orderNumber,
-        }) });
+        };
+        const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(detailBody) });
         const text = await response.text();
         console.log("getOrderDetail response:", response.status, text.substring(0, 5000));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
-        const detail = unwrapOrderDetail(result);
+        let detail = unwrapOrderDetail(result);
+        let detailAccountId = EXCHANGE_ACCOUNT_ID;
+
+        // If historical rows are mapped to the wrong Binance account, Binance returns
+        // 83998 "operation is illegal". Try the other configured accounts and persist
+        // the account that can actually read the order.
+        if (payload.orderNumber && result?.code === 83998) {
+          const accounts = await listActiveAccounts();
+          for (const candidate of accounts) {
+            if (candidate.id === EXCHANGE_ACCOUNT_ID) continue;
+            try {
+              const alt = await resolveAccount(candidate.id);
+              const altUrl = `${alt.proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+              const altResponse = await fetchWithRetry(altUrl, {
+                method: "POST",
+                headers: proxyHeadersFor(alt),
+                body: JSON.stringify(detailBody),
+              });
+              const altText = await altResponse.text();
+              console.log("getOrderDetail fallback response:", candidate.account_name, altResponse.status, altText.substring(0, 5000));
+              let altResult: any;
+              try { altResult = JSON.parse(altText); } catch { altResult = { raw: altText, status: altResponse.status }; }
+              if (altResponse.ok && altResult?.code === "000000") {
+                result = { ...altResult, _resolvedExchangeAccountId: alt.id, _resolvedExchangeAccountName: alt.accountName };
+                detail = unwrapOrderDetail(altResult);
+                detailAccountId = alt.id;
+                break;
+              }
+            } catch (fallbackErr) {
+              console.warn("getOrderDetail account fallback failed:", candidate.account_name, fallbackErr);
+            }
+          }
+        }
         if (payload.orderNumber && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -1022,13 +1055,14 @@ serve(async (req) => {
                   order_detail_raw: detail,
                   counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, existing.trade_type),
                   counterparty_risk_captured_at: new Date().toISOString(),
+                  exchange_account_id: detailAccountId,
                   ...cancelUpdate,
                 })
                 .eq("order_number", String(payload.orderNumber));
               if (cancelReason) {
                 await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));
               }
-              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber), EXCHANGE_ACCOUNT_ID);
+              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber), detailAccountId);
             }
           } catch (persistErr) {
             console.warn("getOrderDetail risk snapshot persist failed:", persistErr);

@@ -465,14 +465,32 @@ export default function UserManagement() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Search className="h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search users..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm"
-                    />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Search className="h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-sm"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Filter className="h-4 w-4 text-gray-400" />
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter by role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Roles</SelectItem>
+                          {userRoleOptions.map((roleName) => (
+                            <SelectItem key={roleName} value={roleName}>
+                              {roleName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -493,7 +493,7 @@ serve(async (req) => {
           const withdrawals = await proxyGet("/sapi/v1/capital/withdraw/history", wdParams);
           if (Array.isArray(withdrawals)) {
             const rows = withdrawals.map((w: any) => ({
-              id: `wd-${w.id}`,
+              id: `wd-${ID_PFX}${w.id}`,
               movement_type: "withdrawal",
               asset: w.coin || "",
               amount: parseFloat(w.amount || "0"),
@@ -531,7 +531,7 @@ serve(async (req) => {
             if (Array.isArray(trRows) && trRows.length > 0) {
               const direction = tType === "FUNDING_MAIN" ? "Funding → Spot" : "Spot → Funding";
               const rows = trRows.map((t: any) => ({
-                id: `tr-${t.tranId}`,
+                id: `tr-${ID_PFX}${t.tranId}`,
                 movement_type: "transfer",
                 asset: t.asset || "",
                 amount: parseFloat(t.amount || "0"),
@@ -606,7 +606,7 @@ serve(async (req) => {
               const orderId = p.orderId || p.transactionId || String(p.transactionTime);
 
               return {
-                id: `pay-${orderId}`,
+                id: `pay-${ID_PFX}${orderId}`,
                 movement_type: movementType,
                 asset: p.currency || p.asset || "USDT",
                 amount: absAmount,

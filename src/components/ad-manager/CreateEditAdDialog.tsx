@@ -184,7 +184,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   // ─── Available balance from surplus across all ads ────────────
   const availableBalance = useMemo(() => {
-    const allAds: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
+    const allAds: BinanceAd[] = sellAdsData?.data || [];
     // Find ads with same asset to get surplusAmount context
     // The surplusAmount on the editing ad itself shows remaining balance
     if (editingAd) {

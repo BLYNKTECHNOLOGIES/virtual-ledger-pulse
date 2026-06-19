@@ -934,7 +934,7 @@ serve(async (req) => {
         throw new Error(`Unknown action: ${action}`);
     }
 
-    return new Response(JSON.stringify({ success: true, data: result }), {
+    return new Response(JSON.stringify({ success: true, data: result, _resolvedExchangeAccountId: EXCHANGE_ACCOUNT_ID }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

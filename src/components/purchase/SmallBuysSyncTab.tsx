@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
 import { SmallBuysApprovalDialog } from './SmallBuysApprovalDialog';
 import { getCurrentUserId } from '@/lib/system-action-logger';
+import { ExchangeAccountBadge } from '@/components/shared/ExchangeAccountBadge';
 
 export function SmallBuysSyncTab() {
   const { toast } = useToast();

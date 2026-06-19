@@ -270,7 +270,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           <div className="flex gap-2 pt-2">
             <Button
               onClick={() => transferMutation.mutate()}
-              disabled={transferMutation.isPending}
+              disabled={transferMutation.isPending || isUnmapped}
               className="flex-1"
             >
               {transferMutation.isPending ? "Processing..." : "Confirm Transfer"}

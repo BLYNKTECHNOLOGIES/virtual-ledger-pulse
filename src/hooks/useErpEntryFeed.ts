@@ -188,6 +188,7 @@ export function useErpEntryFeed() {
           direction: "in",
           label: `Small Buys batch · ${r.order_count} orders · ${fmtAmount(qty, asset)}`,
           sublabel: [
+            r.wallet_name,
             r.sync_batch_id,
             r.time_window_start && r.time_window_end
               ? `${new Date(r.time_window_start).toLocaleString()} → ${new Date(r.time_window_end).toLocaleString()}`

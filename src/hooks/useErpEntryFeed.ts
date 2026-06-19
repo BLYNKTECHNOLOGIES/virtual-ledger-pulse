@@ -23,6 +23,7 @@ export interface ErpEntryRow {
   label: string; // primary line
   sublabel: string; // secondary line
   reasonHint: string; // tooltip explanation
+  exchangeAccountId?: string | null; // Binance account this entry belongs to
   raw: any; // original record passed to dialog
 }
 

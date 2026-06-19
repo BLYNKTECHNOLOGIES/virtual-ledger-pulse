@@ -375,7 +375,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
   );
 }
 
-function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
+function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const cancelOrder = useCancelOrder();
   const [step, setStep] = useState<0 | 1 | 2>(0); // 0=closed, 1=first confirm, 2=final confirm
   const [reasonCode, setReasonCode] = useState<'4' | '5' | ''>('');

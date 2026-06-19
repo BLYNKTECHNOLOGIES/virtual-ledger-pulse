@@ -18,6 +18,7 @@ import { syncCompletedSellOrders } from "@/hooks/useTerminalSalesSync";
 import { getSmallSalesConfig } from "@/hooks/useSmallSalesSync";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   synced_pending_approval: { label: "Pending Approval", variant: "default" },

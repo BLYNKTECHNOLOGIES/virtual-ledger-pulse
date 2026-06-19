@@ -12,6 +12,7 @@ export interface ErpActionQueueItem {
   tx_id: string | null;
   network: string | null;
   wallet_id: string | null;
+  exchange_account_id: string | null;
   movement_time: number;
   status: string;
   action_type: string | null;

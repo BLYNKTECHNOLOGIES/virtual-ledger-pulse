@@ -468,6 +468,7 @@ serve(async (req) => {
               raw_data: d,
               movement_time: d.insertTime || 0,
               synced_at: new Date().toISOString(),
+              exchange_account_id: EXCHANGE_ACCOUNT_ID,
             }));
             if (rows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
@@ -501,6 +502,7 @@ serve(async (req) => {
               raw_data: w,
               movement_time: new Date(w.applyTime || 0).getTime(),
               synced_at: new Date().toISOString(),
+              exchange_account_id: EXCHANGE_ACCOUNT_ID,
             }));
             if (rows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });

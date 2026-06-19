@@ -248,9 +248,13 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       // Force manual mapping if we couldn't resolve a real name
       const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');
 
+      const orderAccountId = (order as any).exchange_account_id || null;
+      const link = resolveLink(orderAccountId);
+
       toInsert.push({
         binance_order_number: order.order_number,
         sync_status: syncStatus,
+        exchange_account_id: orderAccountId || link.exchange_account_id || null,
         order_data: {
           order_number: order.order_number,
           asset: ((order.seller_payment_details as any)?._raw_detail?.asset || order.asset || 'USDT').toUpperCase(),
@@ -264,9 +268,9 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
           verified_name: verifiedName,
           create_time: order.create_time,
           pay_method: order.pay_method_name,
-          wallet_id: activeLink.wallet_id,
-          wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
-          fee_treatment: activeLink.fee_treatment,
+          wallet_id: link.wallet_id,
+          wallet_name: walletNameById.get(link.wallet_id) || 'Terminal Wallet',
+          fee_treatment: link.fee_treatment,
         },
         client_id: clientId,
         counterparty_name: counterpartyName,

@@ -513,10 +513,16 @@ export function PendingRegistrationsTab() {
             </Button>
             <Button
               onClick={handleApprove}
-              disabled={approveMutation.isPending || !selectedRoleId}
+              disabled={
+                approveMutation.isPending ||
+                !selectedRoleId ||
+                !selectedDepartmentId ||
+                !selectedPositionId
+              }
             >
-              {approveMutation.isPending ? "Approving..." : "Approve & Create User"}
+              {approveMutation.isPending ? "Approving..." : "Approve & Activate User"}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

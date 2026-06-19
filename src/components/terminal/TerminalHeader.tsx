@@ -1,11 +1,13 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Coffee, LogOut, Shield } from 'lucide-react';
+import { Coffee, LogOut, Shield, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TerminalNotificationBell } from './TerminalNotificationBell';
 import { Separator } from '@/components/ui/separator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdRestTimer } from '@/hooks/useAdRestTimer';
+import { useNavigate } from 'react-router-dom';
+import { ExchangeAccountSwitcher } from '@/components/exchange/ExchangeAccountSwitcher';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -18,8 +20,9 @@ import {
 import { Badge } from '@/components/ui/badge';
 
 export function TerminalHeader() {
-  const { username, email, firstName, lastName, avatarUrl, terminalRoles, isLoading } = useTerminalAuth();
+  const { username, email, firstName, lastName, avatarUrl, terminalRoles, isLoading, isTerminalAdmin } = useTerminalAuth();
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const { isResting, isBinanceBreakDetected } = useAdRestTimer();
 
   const displayName = firstName && lastName
@@ -52,7 +55,9 @@ export function TerminalHeader() {
             Break On
           </Badge>
         )}
+        <ExchangeAccountSwitcher />
         <TerminalNotificationBell />
+
 
         {!isLoading && email && (
           <DropdownMenu>
@@ -84,6 +89,12 @@ export function TerminalHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {isTerminalAdmin && (
+                <DropdownMenuItem onClick={() => navigate('/settings/exchange-accounts')} className="cursor-pointer">
+                  <Layers className="h-3.5 w-3.5 mr-2" />
+                  Binance Accounts
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="h-3.5 w-3.5 mr-2" />
                 Logout

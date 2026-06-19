@@ -242,6 +242,7 @@ export function useErpEntryFeed() {
           label: `Conversion · ${r.side} ${fmtAmount(qty, asset)}`,
           sublabel: [r.reference_no, r.wallets?.wallet_name].filter(Boolean).join(" · "),
           reasonHint: "Spot-trade conversion awaiting approval.",
+          exchangeAccountId: r.exchange_account_id || null,
           raw: r,
         });
       }

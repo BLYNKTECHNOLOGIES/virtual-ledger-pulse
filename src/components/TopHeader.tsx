@@ -1,4 +1,4 @@
-import { Settings, RotateCcw, Globe, Edit3, X, Search, GripVertical, LayoutDashboard } from "lucide-react";
+import { Settings, RotateCcw, Globe, Edit3, X, Search, GripVertical, LayoutDashboard, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";

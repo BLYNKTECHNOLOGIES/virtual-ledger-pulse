@@ -36,6 +36,23 @@ function extractBuyerNameFromDetail(detail: any): string | null {
   return direct ? String(direct).trim() : null;
 }
 
+async function resolveTerminalWalletMapping(supabase: any, accountId: string | null) {
+  if (!accountId) return null;
+  const { data: link } = await supabase
+    .from("terminal_wallet_links")
+    .select("wallet_id, fee_treatment, wallets:wallet_id(wallet_name)")
+    .eq("platform_source", "terminal")
+    .eq("status", "active")
+    .eq("exchange_account_id", accountId)
+    .maybeSingle();
+  if (!link?.wallet_id) return null;
+  return {
+    wallet_id: link.wallet_id,
+    wallet_name: link.wallets?.wallet_name || "Terminal Wallet",
+    fee_treatment: link.fee_treatment,
+  };
+}
+
 function uniqueTruthyStrings(values: unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];

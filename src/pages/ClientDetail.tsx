@@ -11,6 +11,7 @@ import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnaly
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
 import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
+import { ClientExchangeBadge } from "@/components/clients/ClientExchangeBadge";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();

@@ -9,6 +9,8 @@ export const ALL_ACCOUNTS = "ALL";
 const PRIMARY_ID = "00000000-0000-0000-0000-000000000001";
 
 let activeId: string = PRIMARY_ID;
+// Accounts the current user can see/use. Used to fan-out in "All accounts" mode.
+let visibleIds: string[] = [PRIMARY_ID];
 
 export function setActiveExchangeAccountId(id: string) {
   activeId = id || PRIMARY_ID;
@@ -16,6 +18,24 @@ export function setActiveExchangeAccountId(id: string) {
 
 export function getActiveExchangeAccountId(): string {
   return activeId;
+}
+
+export function setVisibleExchangeAccountIds(ids: string[]) {
+  visibleIds = ids && ids.length > 0 ? ids : [PRIMARY_ID];
+}
+
+/**
+ * The list of account ids the current view should query.
+ * - Single account selected → just that account.
+ * - "All accounts" (ALL) → every visible account (for live fan-out / merge).
+ */
+export function getAccountsToQuery(): string[] {
+  if (activeId === ALL_ACCOUNTS) return visibleIds.length > 0 ? visibleIds : [PRIMARY_ID];
+  return [activeId];
+}
+
+export function isAllAccountsActive(): boolean {
+  return activeId === ALL_ACCOUNTS;
 }
 
 /** Merge the active account id into an edge-function body (skipped for "All"). */

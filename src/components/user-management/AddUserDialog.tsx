@@ -36,6 +36,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     first_name: "",
     last_name: "",
     phone: "",
+    badge_id: "",
     password: "",
     confirmPassword: "",
     department_id: "",

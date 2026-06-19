@@ -18,6 +18,7 @@ import { syncCompletedBuyOrders } from "@/hooks/useTerminalPurchaseSync";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useSyncOrderHistory } from "@/hooks/useBinanceOrderSync";
+import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   synced_pending_approval: { label: "Pending Approval", variant: "default" },
@@ -440,11 +441,14 @@ export function TerminalSyncTab() {
                     </TableCell>
                     <TableCell className="text-xs">
                       {isMaskedName ? (
-                        <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                          Awaiting Verified Name
-                        </Badge>
+                        <div className="flex flex-col items-start gap-0.5">
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                            Awaiting Verified Name
+                          </Badge>
+                          <ExchangeAccountBadge accountId={record.exchange_account_id} />
+                        </div>
                       ) : (
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col items-start gap-0.5">
                           <span>{sellerDisplay}</span>
                           {(() => {
                             // Prefer the unmasked nickname (terminal stores real nickname here for ASEC + Blynk)
@@ -454,6 +458,7 @@ export function TerminalSyncTab() {
                               <span className="font-mono text-[10px] text-muted-foreground">@{nick}</span>
                             ) : null;
                           })()}
+                          <ExchangeAccountBadge accountId={record.exchange_account_id} />
                         </div>
                       )}
                     </TableCell>

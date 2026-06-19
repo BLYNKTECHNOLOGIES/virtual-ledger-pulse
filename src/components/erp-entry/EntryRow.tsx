@@ -12,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ErpEntryRow, ErpEntrySource } from "@/hooks/useErpEntryFeed";
 import { openTransaction } from "@/components/transaction-detail";
+import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const ICONS: Record<ErpEntrySource, { Icon: any; tone: string; bg: string }> = {
   deposit: { Icon: ArrowDownToLine, tone: "text-emerald-600", bg: "bg-emerald-100" },
@@ -66,6 +67,7 @@ export function EntryRow({ row, isFocused, onOpen, onReject, onFocus }: Props) {
       >
         <div className="flex items-center gap-2 text-sm font-medium">
           <span className="truncate">{row.label}</span>
+          <ExchangeAccountBadge accountId={row.exchangeAccountId} />
           {isStale && (
             <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
               <span className="h-1.5 w-1.5 rounded-full bg-destructive" />

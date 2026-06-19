@@ -11,6 +11,7 @@ import { TradingPatternAnalysis } from "@/components/clients/TradingPatternAnaly
 import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
 import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
+import { ClientExchangeBadge } from "@/components/clients/ClientExchangeBadge";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();
@@ -82,7 +83,10 @@ export default function ClientDetail() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-3xl font-bold">Client Details</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-3xl font-bold">Client Details</h1>
+          <ClientExchangeBadge clientId={clientId} clientName={client?.name} />
+        </div>
         <p className="text-muted-foreground mt-1">Comprehensive view of client information and trading activity</p>
       </div>
 

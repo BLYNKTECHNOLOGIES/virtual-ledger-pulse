@@ -82,7 +82,7 @@ serve(async (req) => {
 
     let proxyAlive = false;
     try {
-      const pingRes = await fetch(`${BINANCE_PROXY_URL}/api/v3/ping`, {
+      const pingRes = await fetch(`${BINANCE_PROXY_URL}/api/api/v3/ping`, {
         headers: { "x-proxy-token": BINANCE_PROXY_TOKEN || "" },
       });
       proxyAlive = pingRes.ok;
@@ -92,7 +92,7 @@ serve(async (req) => {
     }
 
     try {
-      const timeRes = await fetch(`${BINANCE_PROXY_URL}/api/v3/time`, {
+      const timeRes = await fetch(`${BINANCE_PROXY_URL}/api/api/v3/time`, {
         headers: { "x-proxy-token": BINANCE_PROXY_TOKEN || "" },
       });
       results.server_time_ok = timeRes.ok;

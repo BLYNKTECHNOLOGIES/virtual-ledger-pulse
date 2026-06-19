@@ -89,6 +89,12 @@ export function TerminalHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              {isTerminalAdmin && (
+                <DropdownMenuItem onClick={() => navigate('/settings/exchange-accounts')} className="cursor-pointer">
+                  <Layers className="h-3.5 w-3.5 mr-2" />
+                  Binance Accounts
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                 <LogOut className="h-3.5 w-3.5 mr-2" />
                 Logout

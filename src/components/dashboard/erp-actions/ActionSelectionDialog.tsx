@@ -6,6 +6,7 @@ import { ErpActionQueueItem, useProcessQueueItem } from "@/hooks/useErpActionQue
 import { PurchaseEntryWrapper } from "./PurchaseEntryWrapper";
 import { SalesEntryWrapper } from "./SalesEntryWrapper";
 import { WalletTransferWrapper } from "./WalletTransferWrapper";
+import { AccountBadge } from "@/components/exchange/AccountBadge";
 
 interface ActionSelectionDialogProps {
   item: ErpActionQueueItem | null;

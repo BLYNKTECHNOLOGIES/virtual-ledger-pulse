@@ -292,6 +292,16 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
             />
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="badge_id">Badge ID</Label>
+            <Input
+              id="badge_id"
+              value={formData.badge_id}
+              onChange={(e) => setFormData(prev => ({ ...prev, badge_id: e.target.value }))}
+              placeholder="Enter badge ID"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="department">Department</Label>

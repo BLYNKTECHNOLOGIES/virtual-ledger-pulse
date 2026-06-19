@@ -418,9 +418,13 @@ export function TerminalSyncTab() {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
                 const verifiedName = od?.verified_name;
-                const sellerDisplay = verifiedName || (record.counterparty_name && record.counterparty_name !== 'Unknown' ? record.counterparty_name : null);
-                const isPendingVerifiedName = !verifiedName && PENDING_SYNC_STATUSES.includes(record.sync_status);
-                const isMaskedName = !verifiedName && (isPendingVerifiedName || record.counterparty_name?.includes('***'));
+                const rawCounterparty = (record.counterparty_name || '').toString().trim();
+                const hasRealCounterparty = !!rawCounterparty && rawCounterparty !== 'Unknown' && !rawCounterparty.includes('*');
+                const sellerDisplay = verifiedName || (hasRealCounterparty ? rawCounterparty : null);
+                // A name is usable for approval if we have a Binance verified name OR a real (non-masked) counterparty name.
+                const hasUsableName = !!verifiedName || hasRealCounterparty;
+                const isPendingVerifiedName = !hasUsableName && PENDING_SYNC_STATUSES.includes(record.sync_status);
+                const isMaskedName = !hasUsableName && (isPendingVerifiedName || record.counterparty_name?.includes('***'));
                 const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
 
                 return (

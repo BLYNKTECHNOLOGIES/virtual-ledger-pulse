@@ -42,8 +42,9 @@ export function ActionSelectionDialog({ item, open, onOpenChange }: ActionSelect
       <Dialog open={open && !subDialog} onOpenChange={(o) => !o && handleClose()}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
               {isDeposit ? "Deposit" : "Withdrawal"} Entry — {item.amount} {item.asset}
+              <AccountBadge accountId={item.exchange_account_id} onlyWhenCombined={false} />
             </DialogTitle>
             <DialogDescription>
               Choose how to record this {item.movement_type} in ERP

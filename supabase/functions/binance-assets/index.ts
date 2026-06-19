@@ -459,7 +459,7 @@ serve(async (req) => {
           const deposits = await proxyGet("/sapi/v1/capital/deposit/hisrec", depParams);
           if (Array.isArray(deposits)) {
             const rows = deposits.map((d: any) => ({
-              id: `dep-${d.id || d.txId || d.insertTime}`,
+              id: `dep-${ID_PFX}${d.id || d.txId || d.insertTime}`,
               movement_type: "deposit",
               asset: d.coin || "",
               amount: parseFloat(d.amount || "0"),

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withActiveAccount } from '@/lib/activeExchangeAccount';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useToast } from '@/hooks/use-toast';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { clearAdBreakDetected, markAdBreakDetected } from '@/hooks/useAdRestTimer';
@@ -104,9 +105,10 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {})
 export function useBinanceAdsList(filters: AdFilters) {
   const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
   const isPrivateFilter = filters.advStatus === BINANCE_AD_STATUS.PRIVATE;
+  const { activeAccountId } = useExchangeAccount();
 
   return useQuery({
-    queryKey: ['binance-ads', filters],
+    queryKey: ['binance-ads', activeAccountId, filters],
     queryFn: async () => {
       const fetchPage = (pageFilters: AdFilters) => callBinanceAds('listAds', pageFilters);
       // Pagination is handled server-side inside the edge function when `fetchAll` is set.

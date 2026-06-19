@@ -39,6 +39,8 @@ interface Props {
   asset?: string;
   fiatUnit?: string;
   advNo?: string;
+  /** Account this order belongs to (combined "All accounts" mode). */
+  exchangeAccountId?: string;
 }
 
 export function OrderActions({
@@ -51,6 +53,7 @@ export function OrderActions({
   asset,
   fiatUnit,
   advNo,
+  exchangeAccountId,
 }: Props) {
   const opStatus = mapToOperationalStatus(orderStatus, tradeType);
 

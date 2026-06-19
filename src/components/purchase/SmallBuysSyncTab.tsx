@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { syncSmallBuys } from '@/hooks/useSmallBuysSync';
 import { SmallBuysApprovalDialog } from './SmallBuysApprovalDialog';
 import { getCurrentUserId } from '@/lib/system-action-logger';
+import { ExchangeAccountBadge } from '@/components/shared/ExchangeAccountBadge';
 
 export function SmallBuysSyncTab() {
   const { toast } = useToast();
@@ -167,6 +168,7 @@ export function SmallBuysSyncTab() {
                           {Number(record.total_quantity).toFixed(4)} {record.asset_code}
                         </span>
                         {getStatusBadge(record.sync_status)}
+                        <ExchangeAccountBadge accountId={(record as any).exchange_account_id} />
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {record.order_count} orders • ₹{Number(record.total_amount).toLocaleString('en-IN')} •

@@ -730,7 +730,7 @@ serve(async (req) => {
             try {
               const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
               const snapshotResults = await Promise.allSettled(
-                result.data.map((ad: any) => persistAdStateSnapshot(supabase, ad, payload.snapshotSource || "ad_list", payload.ruleId || null))
+                result.data.map((ad: any) => persistAdStateSnapshot(supabase, ad, payload.snapshotSource || "ad_list", payload.ruleId || null, EXCHANGE_ACCOUNT_ID))
               );
               const persistedCount = snapshotResults.filter((r) => r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value?.persisted).length;
               console.log(`[ad-state-snapshot] listAds persisted ${persistedCount}/${result.data.length}`);
@@ -752,8 +752,8 @@ serve(async (req) => {
         if (payload.adsNo && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo));
-            const snapshotResult = await persistAdStateSnapshot(supabase, detail, payload.snapshotSource || "ad_detail", payload.ruleId || null);
+            await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo), EXCHANGE_ACCOUNT_ID);
+            const snapshotResult = await persistAdStateSnapshot(supabase, detail, payload.snapshotSource || "ad_detail", payload.ruleId || null, EXCHANGE_ACCOUNT_ID);
             console.log("[ad-state-snapshot] getAdDetail", JSON.stringify(snapshotResult));
           } catch (persistErr) {
             console.warn("getAdDetail snapshot persist failed:", persistErr);
@@ -1617,7 +1617,7 @@ serve(async (req) => {
         if (result?.code === "000000" && fetched.userData && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail");
+            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail", EXCHANGE_ACCOUNT_ID);
           } catch (persistErr) {
             console.warn("merchant state snapshot persist failed:", persistErr);
           }
@@ -1631,7 +1631,7 @@ serve(async (req) => {
         if (result?.code === "000000" && fetched.userData && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail_refresh");
+            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail_refresh", EXCHANGE_ACCOUNT_ID);
             result.normalized = {
               businessStatus: Number(fetched.userData.businessStatus),
               businessStatusLabel: getBusinessStatusLabel(fetched.userData.businessStatus),

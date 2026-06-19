@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { withActiveAccount } from "@/lib/activeExchangeAccount";
+import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
 import { toast } from "sonner";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 

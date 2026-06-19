@@ -45,6 +45,7 @@ interface PendingRegistration {
   username: string;
   email: string;
   phone: string | null;
+  badge_id: string | null;
   status: string;
   submitted_at: string;
 }
@@ -60,10 +61,15 @@ export function PendingRegistrationsTab() {
   const [approvalDialog, setApprovalDialog] = useState<PendingRegistration | null>(null);
   const [rejectionDialog, setRejectionDialog] = useState<PendingRegistration | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [selectedPositionId, setSelectedPositionId] = useState<string>("");
   const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const queryClient = useQueryClient();
+
+  const isSuperAdmin = hasRole("super admin");
+
 
   // Fetch pending registrations
   const { data: registrations = [], isLoading, refetch } = useQuery({
@@ -97,18 +103,55 @@ export function PendingRegistrationsTab() {
     },
   });
 
+  // Fetch departments
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments-for-approval"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, name, icon")
+        .eq("is_active", true)
+        .order("hierarchy_level", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; name: string; icon: string | null }[];
+    },
+  });
+
+  // Fetch positions for the selected department
+  const { data: positions = [] } = useQuery({
+    queryKey: ["positions-for-approval", selectedDepartmentId],
+    queryFn: async () => {
+      if (!selectedDepartmentId) return [];
+      const { data, error } = await supabase
+        .from("positions")
+        .select("id, title")
+        .eq("department_id", selectedDepartmentId)
+        .eq("is_active", true)
+        .order("hierarchy_level", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; title: string }[];
+    },
+    enabled: !!selectedDepartmentId,
+  });
+
   // Approve mutation
   const approveMutation = useMutation({
     mutationFn: async ({
       registrationId,
       roleId,
+      departmentId,
+      positionId,
     }: {
       registrationId: string;
       roleId: string;
+      departmentId: string;
+      positionId: string;
     }) => {
       const { data, error } = await supabase.rpc("approve_registration", {
         p_registration_id: registrationId,
         p_role_id: roleId,
+        p_department_id: departmentId,
+        p_position_id: positionId,
         // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
         // Passing a non-uuid breaks the RPC call.
         p_approved_by: isUuid(user?.id) ? user.id : null,
@@ -120,12 +163,14 @@ export function PendingRegistrationsTab() {
     onSuccess: () => {
       toast({
         title: "Registration Approved",
-        description: "The user has been created and can now log in.",
+        description: "The user has been activated and can now log in.",
       });
       queryClient.invalidateQueries({ queryKey: ["pending-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setApprovalDialog(null);
       setSelectedRoleId("");
+      setSelectedDepartmentId("");
+      setSelectedPositionId("");
     },
     onError: (error: any) => {
       toast({
@@ -136,6 +181,7 @@ export function PendingRegistrationsTab() {
     },
   });
 
+
   // Reject mutation
   const rejectMutation = useMutation({
     mutationFn: async ({
@@ -145,15 +191,29 @@ export function PendingRegistrationsTab() {
       registrationId: string;
       reason: string;
     }) => {
-      const { data, error } = await supabase.rpc("reject_registration", {
-        p_registration_id: registrationId,
-        // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
-        // Passing a non-uuid breaks the RPC call.
-        p_rejected_by: isUuid(user?.id) ? user.id : null,
-        p_reason: reason || null,
+      const { data, error } = await supabase.functions.invoke("reject-erp-registration", {
+        body: {
+          registrationId,
+          reason: reason || null,
+        },
       });
 
-      if (error) throw error;
+      const payloadError = (data as { error?: unknown })?.error;
+      if (error || payloadError) {
+        let message = "Failed to reject registration";
+        if (typeof payloadError === "string") message = payloadError;
+        else if (error?.message) message = error.message;
+        try {
+          const ctx = (error as { context?: Response })?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (typeof body?.error === "string") message = body.error;
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
       return data;
     },
     onSuccess: () => {
@@ -183,10 +243,11 @@ export function PendingRegistrationsTab() {
   );
 
   const handleApprove = () => {
-    if (!approvalDialog || !selectedRoleId) {
+    if (!approvalDialog) return;
+    if (!selectedRoleId || !selectedDepartmentId || !selectedPositionId) {
       toast({
-        title: "Role Required",
-        description: "Please select a role before approving",
+        title: "Missing Information",
+        description: "Please select a role, department, and position before approving",
         variant: "destructive",
       });
       return;
@@ -195,8 +256,11 @@ export function PendingRegistrationsTab() {
     approveMutation.mutate({
       registrationId: approvalDialog.id,
       roleId: selectedRoleId,
+      departmentId: selectedDepartmentId,
+      positionId: selectedPositionId,
     });
   };
+
 
   const handleReject = () => {
     if (!rejectionDialog) return;
@@ -207,8 +271,21 @@ export function PendingRegistrationsTab() {
     });
   };
 
+  if (!isSuperAdmin) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          <UserPlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="font-medium text-foreground">Restricted</p>
+          <p className="text-sm">Only a Super Admin can review pending registrations.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -278,6 +355,13 @@ export function PendingRegistrationsTab() {
                         <strong>Phone:</strong> {registration.phone}
                       </p>
                     )}
+                    {registration.badge_id && (
+                      <p className="flex items-center gap-2">
+                        <User className="h-3 w-3" />
+                        <strong>Badge ID:</strong> {registration.badge_id}
+                      </p>
+                    )}
+
                     <p className="text-xs">
                       Requested{" "}
                       {formatDistanceToNow(new Date(registration.submitted_at), {
@@ -313,12 +397,22 @@ export function PendingRegistrationsTab() {
       )}
 
       {/* Approval Dialog */}
-      <Dialog open={!!approvalDialog} onOpenChange={() => setApprovalDialog(null)}>
-        <DialogContent>
+      <Dialog
+        open={!!approvalDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            setApprovalDialog(null);
+            setSelectedRoleId("");
+            setSelectedDepartmentId("");
+            setSelectedPositionId("");
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Approve Registration</DialogTitle>
             <DialogDescription>
-              Assign a role and approve this user's registration request.
+              Assign a role, department, and position to approve this user's registration request.
             </DialogDescription>
           </DialogHeader>
 
@@ -335,6 +429,11 @@ export function PendingRegistrationsTab() {
                 <p>
                   <strong>Email:</strong> {approvalDialog.email}
                 </p>
+                {approvalDialog.badge_id && (
+                  <p>
+                    <strong>Badge ID:</strong> {approvalDialog.badge_id}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -357,8 +456,52 @@ export function PendingRegistrationsTab() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department *</Label>
+                  <Select
+                    value={selectedDepartmentId}
+                    onValueChange={(value) => {
+                      setSelectedDepartmentId(value);
+                      setSelectedPositionId("");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.icon} {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position *</Label>
+                  <Select
+                    value={selectedPositionId}
+                    onValueChange={setSelectedPositionId}
+                    disabled={!selectedDepartmentId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {positions.map((pos) => (
+                        <SelectItem key={pos.id} value={pos.id}>
+                          {pos.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           )}
+
 
           <DialogFooter>
             <Button
@@ -370,10 +513,16 @@ export function PendingRegistrationsTab() {
             </Button>
             <Button
               onClick={handleApprove}
-              disabled={approveMutation.isPending || !selectedRoleId}
+              disabled={
+                approveMutation.isPending ||
+                !selectedRoleId ||
+                !selectedDepartmentId ||
+                !selectedPositionId
+              }
             >
-              {approveMutation.isPending ? "Approving..." : "Approve & Create User"}
+              {approveMutation.isPending ? "Approving..." : "Approve & Activate User"}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

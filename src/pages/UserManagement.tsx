@@ -36,6 +36,7 @@ import { PermissionChangeLog } from "@/components/user-management/PermissionChan
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
 import { PasswordResetRequestsTab } from "@/components/user-management/PasswordResetRequestsTab";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -106,6 +107,8 @@ export default function UserManagement() {
   const [resetPasswordUser, setResetPasswordUser] = useState<DatabaseUser | null>(null);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super admin");
 
   // Scroll to top when component mounts or tab changes
   useEffect(() => {
@@ -409,11 +412,13 @@ export default function UserManagement() {
     </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="pending" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Pending Approvals
-            </TabsTrigger>
+          <TabsList className={`grid w-full ${isSuperAdmin ? "grid-cols-7" : "grid-cols-6"}`}>
+            {isSuperAdmin && (
+              <TabsTrigger value="pending" className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Pending Approvals
+              </TabsTrigger>
+            )}
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               All Users
@@ -440,12 +445,13 @@ export default function UserManagement() {
             </TabsTrigger>
           </TabsList>
 
-          {/* Pending Registrations Tab */}
-          <TabsContent value="pending" className="space-y-4">
-            <PermissionGate permissions={['user_management_manage']}>
+          {/* Pending Registrations Tab — Super Admin only */}
+          {isSuperAdmin && (
+            <TabsContent value="pending" className="space-y-4">
               <PendingRegistrationsTab />
-            </PermissionGate>
-          </TabsContent>
+            </TabsContent>
+          )}
+
 
           {/* All Users Tab */}
           <TabsContent value="users" className="space-y-4">

@@ -10921,6 +10921,7 @@ export type Database = {
       }
       pending_registrations: {
         Row: {
+          badge_id: string | null
           email: string
           first_name: string | null
           id: string
@@ -10932,9 +10933,11 @@ export type Database = {
           reviewed_by: string | null
           status: string
           submitted_at: string
+          user_id: string | null
           username: string
         }
         Insert: {
+          badge_id?: string | null
           email: string
           first_name?: string | null
           id?: string
@@ -10946,9 +10949,11 @@ export type Database = {
           reviewed_by?: string | null
           status?: string
           submitted_at?: string
+          user_id?: string | null
           username: string
         }
         Update: {
+          badge_id?: string | null
           email?: string
           first_name?: string | null
           id?: string
@@ -10960,6 +10965,7 @@ export type Database = {
           reviewed_by?: string | null
           status?: string
           submitted_at?: string
+          user_id?: string | null
           username?: string
         }
         Relationships: []
@@ -15857,6 +15863,7 @@ export type Database = {
           badge_id: string | null
           created_at: string | null
           created_by: string | null
+          department_id: string | null
           email: string
           email_verified: boolean | null
           failed_login_attempts: number | null
@@ -15869,6 +15876,7 @@ export type Database = {
           last_name: string | null
           password_hash: string
           phone: string | null
+          position_id: string | null
           role_id: string | null
           status: string
           updated_at: string | null
@@ -15880,6 +15888,7 @@ export type Database = {
           badge_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          department_id?: string | null
           email: string
           email_verified?: boolean | null
           failed_login_attempts?: number | null
@@ -15892,6 +15901,7 @@ export type Database = {
           last_name?: string | null
           password_hash: string
           phone?: string | null
+          position_id?: string | null
           role_id?: string | null
           status?: string
           updated_at?: string | null
@@ -15903,6 +15913,7 @@ export type Database = {
           badge_id?: string | null
           created_at?: string | null
           created_by?: string | null
+          department_id?: string | null
           email?: string
           email_verified?: boolean | null
           failed_login_attempts?: number | null
@@ -15915,6 +15926,7 @@ export type Database = {
           last_name?: string | null
           password_hash?: string
           phone?: string | null
+          position_id?: string | null
           role_id?: string | null
           status?: string
           updated_at?: string | null
@@ -15926,6 +15938,20 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
             referencedColumns: ["id"]
           },
           {
@@ -16448,6 +16474,8 @@ export type Database = {
       approve_registration: {
         Args: {
           p_approved_by?: string
+          p_department_id?: string
+          p_position_id?: string
           p_registration_id: string
           p_role_id: string
         }

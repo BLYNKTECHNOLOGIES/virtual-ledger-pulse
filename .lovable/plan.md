@@ -1,59 +1,50 @@
+# Self-Registration → Super-Admin Approval
+
 ## Goal
+On the ERP staff login page, add a **Register** option that opens the full user form (first name, last name, username, email, phone, badge ID, password, confirm password). Submissions go to the existing **Pending Approvals** queue, which becomes **Super Admin only**. At approval the Super Admin assigns **Role + Department + Position** (the registrant never sets these).
 
-Add a "Forgot password?" option to the **ERP Staff Login** (`LoginPage.tsx`) only — not the Terminal. A user enters their registered email, receives a 6-digit OTP at the email stored in `public.users`, then enters the OTP plus a new password to reset it.
+## What already exists (reused, not rebuilt)
+- `pending_registrations` table + `PendingRegistrationsTab` (approve/reject UI)
+- `approve_registration` / `reject_registration` RPCs
+- `create-erp-user` edge function and password-hashing conventions
 
-## Flow
+## Changes
 
-```text
-Login page → "Forgot password?" link
-   ↓
-Step 1: Enter email  → send-erp-password-otp (edge fn)
-        - verify email exists in public.users & status ACTIVE
-        - generate 6-digit OTP, store hashed + 10-min expiry
-        - email OTP via existing app-email infra
-   ↓
-Step 2: Enter OTP + new password → verify-erp-password-otp (edge fn)
-        - validate OTP (match, not expired, attempt-limited)
-        - reset password via Supabase admin auth (service role)
-        - mark OTP used
-   ↓
-Success → return to login, sign in with new password
-```
+### 1. Database migration
+- Add to `pending_registrations`: `badge_id text`, `department_id uuid`, `position_id uuid` (all nullable). `badge_id` is filled by the registrant; `department_id`/`position_id` are written at approval.
+- Update `approve_registration` RPC to accept `p_department_id uuid` and `p_position_id uuid` in addition to the existing `p_role_id`. On approval it sets the created user's `badge_id` (from the registration), `department_id`, and `position_id`, keeping the current role assignment behavior. Keep `search_path = public, extensions` so hashing helpers resolve.
+- Re-confirm GRANTs on `pending_registrations` (anon needs INSERT only via the edge function/service role — the public form will go through an edge function, so no broad anon grant is added).
 
-## Backend
+### 2. Edge function: `register-erp-user` (public, `verify_jwt = false`)
+- Accepts: first_name, last_name, username, email, phone, badge_id, password.
+- Validates input with zod (required fields, password length ≥ 6, email format).
+- **Uniqueness guard** (reuses the email/phone safety rules already added for user creation): rejects if the email or normalized phone already exists in `public.users` OR in non-rejected `pending_registrations`. Returns a friendly error.
+- Hashes the password with `extensions.crypt(...)` (service role), inserts a `pending_registrations` row with `status = 'PENDING'`.
+- Returns success/failure; never exposes the hash.
 
-**New table `public.erp_password_otps`** (migration):
-- `id uuid pk`, `user_id uuid`, `email text`, `otp_hash text`, `expires_at timestamptz`, `attempts int default 0`, `used boolean default false`, `created_at timestamptz default now()`.
-- RLS enabled with **no anon/authenticated policies** — only the service role (edge functions) touches it. GRANT `ALL` to `service_role` only. This keeps OTPs unreadable from the client.
+### 3. Login page — Register option
+- `src/components/website/pages/LoginPage.tsx`: add a **"Register"** link/button under the Sign In form that opens a new `RegisterUserDialog`.
 
-**New email template** `supabase/functions/_shared/transactional-email-templates/erp-password-otp.tsx` (React Email), registered in `registry.ts`, styled to match the app. Sends the 6-digit code with expiry note.
+### 4. New component: `RegisterUserDialog`
+- Form fields: First Name, Last Name, Username*, Email*, Phone, Badge ID, Password*, Confirm Password*.
+- No department/position fields (assigned later by Super Admin).
+- Client-side validation (required, password match, length); calls `register-erp-user` via `supabase.functions.invoke`.
+- On success shows a "Registration submitted — pending Super Admin approval" confirmation and closes.
 
-**New edge function `send-erp-password-otp`** (public, no JWT):
-- Looks up email in `public.users` (case-insensitive); requires `status = ACTIVE`.
-- Always returns a generic success message (no account enumeration), but only emails when a real active user exists.
-- Generates OTP, stores SHA-256 hash + 10-min expiry, invalidates prior unused OTPs for that user, sends via `send-transactional-email` with template `erp-password-otp`.
+### 5. Pending Approvals — Super Admin only + dept/position at approval
+- `src/pages/UserManagement.tsx`: gate the **Pending Approvals** tab (trigger + content) to `hasRole('super admin')` only, hiding it from all other roles.
+- `src/components/user-management/PendingRegistrationsTab.tsx`:
+  - Guard render with a Super-Admin check (defense in depth) — non-super-admins see an access message.
+  - Show **Badge ID** on each pending card and in the approval dialog.
+  - In the approval dialog add **Department** and **Position** selects (Position filtered by chosen Department, same pattern as `AddUserDialog`), alongside the existing **Role** select. All three required to approve.
+  - Pass `p_department_id` / `p_position_id` into the updated `approve_registration` RPC call.
 
-**New edge function `verify-erp-password-otp`** (public, no JWT):
-- Validates email + OTP against the newest unused, non-expired row; increments `attempts`, locks after 5 tries.
-- On success: resets the password using the service-role admin client (reusing the proven logic from `admin-reset-password` — direct `updateUserById`, with the email-fallback/create-user path for legacy users), then marks OTP `used` and best-effort syncs the legacy hash RPC.
-- Enforces min 8-char password.
+## Technical notes
+- Super Admin detection uses existing `hasRole('super admin')` from `useAuth`.
+- Phone normalization/uniqueness mirrors the rules already applied in `create-erp-user` and `useUsers` to stay consistent.
+- No Binance scope involved.
 
-`config.toml` will mark both new functions `verify_jwt = false`.
-
-## Frontend
-
-**New component** `src/components/auth/ForgotPasswordDialog.tsx`:
-- Two-step dialog (email → OTP + new/confirm password) with show/hide password, resend OTP, inline errors, success toast.
-- Calls the two edge functions via `supabase.functions.invoke`.
-
-**Edit `src/components/website/pages/LoginPage.tsx`**:
-- Add a "Forgot password?" link under the password field that opens `ForgotPasswordDialog`.
-
-No Terminal files are touched.
-
-## Notes / constraints
-
-- Reuses the existing app-email (transactional) infrastructure already set up for daily reports — no new email provider or secret needed.
-- OTPs are hashed at rest, single-use, expiring, and attempt-limited; the table is service-role-only.
-- Generic responses prevent email enumeration.
-- After reset, `force_password_change` is left untouched (the user is choosing their own password).
+## Verification
+- Submit a registration from the login page → row appears in Pending Approvals for a Super Admin only.
+- Non-super-admin cannot see the tab.
+- Approve with role+department+position → user created with those values and can log in; duplicate email/phone is blocked at registration.

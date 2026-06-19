@@ -85,6 +85,12 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = true
   [functions.daily-report-email]
     verify_jwt = false
+  [functions.register-erp-user]
+    verify_jwt = false
+  [functions.reject-erp-registration]
+    verify_jwt = false
+
+
 
 [inbucket]
   enabled = true

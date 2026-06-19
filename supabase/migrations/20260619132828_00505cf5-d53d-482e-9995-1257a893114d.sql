@@ -1,0 +1,2 @@
+UPDATE terminal_exchange_accounts SET account_name = 'ASEC Binance', color = '#2563EB' WHERE id = '00000000-0000-0000-0000-000000000001';
+UPDATE terminal_exchange_accounts SET account_name = 'Blynk Binance', color = '#F0B90B' WHERE id = '00000000-0000-0000-0000-000000000002';

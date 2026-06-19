@@ -76,7 +76,7 @@ export function OrderActions({
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
 
       {needsVerification && opStatus === 'Pending Payment' && (
-        <VerifyOrderAction orderNumber={orderNumber} />
+        <VerifyOrderAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
       {tradeType === 'SELL' && additionalKycVerify === 2 && opStatus === 'Pending Payment' && (
@@ -87,11 +87,11 @@ export function OrderActions({
       )}
 
       {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
-        <MarkAsPaidAction orderNumber={orderNumber} />
+        <MarkAsPaidAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
-        <ReleaseCoinAction orderNumber={orderNumber} />
+        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
       {/* Quick Receive — only on eligible BUY orders awaiting seller release */}
@@ -103,12 +103,13 @@ export function OrderActions({
           asset={asset}
           fiatUnit={fiatUnit}
           advNo={advNo}
+          exchangeAccountId={exchangeAccountId}
           source="orders"
         />
       )}
 
       {tradeType === 'BUY' && ['Pending Payment', 'Releasing'].includes(opStatus) && (
-        <CancelOrderAction orderNumber={orderNumber} />
+        <CancelOrderAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
     </div>
   );

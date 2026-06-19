@@ -41,6 +41,8 @@ export interface QuickReceiveDialogProps {
   asset?: string;
   fiatUnit?: string;
   advNo?: string;
+  /** Account this order belongs to (combined "All accounts" mode). */
+  exchangeAccountId?: string;
   source: 'orders' | 'payer';
   /** Called after a successful release */
   onSuccess?: () => void;
@@ -68,6 +70,7 @@ export function QuickReceiveDialog({
   asset,
   fiatUnit,
   advNo,
+  exchangeAccountId,
   source,
   onSuccess,
   variant = 'block',
@@ -99,7 +102,7 @@ export function QuickReceiveDialog({
 
   const handleSendCode = () => {
     if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
-    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS' }, {
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS', exchangeAccountId }, {
       onSuccess: () => {
         toast.success(`${selectedAuth.label} sent by Binance`);
         setSendCooldown(60);
@@ -117,7 +120,7 @@ export function QuickReceiveDialog({
     if (requireMarkPaidFirst) {
       try {
         const preparedScreenshot = await prepareAutoScreenshot(orderNumber);
-        await markPaid.mutateAsync({ orderNumber });
+        await markPaid.mutateAsync({ orderNumber, exchangeAccountId });
         await deliverPreparedAutoScreenshot(preparedScreenshot);
       } catch (err) {
         firedRef.current = false;
@@ -127,6 +130,7 @@ export function QuickReceiveDialog({
 
     const params: Record<string, any> = {
       orderNumber,
+      exchangeAccountId,
       confirmPaidType: 'quick',
     };
     if (authMethod === 'YUBIKEY') {

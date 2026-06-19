@@ -104,6 +104,7 @@ export function BulkHybridAdjustDialog({ open, onOpenChange, ads, onComplete }: 
         const isFloating = ad.priceType === 2;
         const updatePayload: Record<string, any> = {
           advNo: ad.advNo,
+          exchange_account_id: ad._exchangeAccountId,
           asset: ad.asset,
           fiatUnit: ad.fiatUnit,
           tradeType: ad.tradeType,

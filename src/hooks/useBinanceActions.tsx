@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { withActiveAccount } from '@/lib/activeExchangeAccount';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 
 // ---- Generic Binance API caller ----
 // Hard client-side timeout: if the upstream Binance proxy hangs (we have seen
@@ -11,12 +12,15 @@ import { withActiveAccount } from '@/lib/activeExchangeAccount';
 // which is what users perceive as "ERP not loading / can't click anything".
 const BINANCE_CALL_TIMEOUT_MS = 25_000;
 
-export async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
+export async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), BINANCE_CALL_TIMEOUT_MS);
   try {
+    const body: Record<string, any> = { action, ...payload };
+    // Explicit per-call account override (combined "All accounts" fan-out / row-scoped actions).
+    if (accountId) body.exchange_account_id = accountId;
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: withActiveAccount({ action, ...payload }),
+      body: withActiveAccount(body),
       // @ts-ignore — supabase-js forwards AbortSignal to fetch
       signal: controller.signal,
     });
@@ -39,8 +43,8 @@ export async function callBinanceAds(action: string, payload: Record<string, any
 export function useMarkOrderAsPaid() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderNumber, payId }: { orderNumber: string; payId?: number }) => {
-      return callBinanceAds('markOrderAsPaid', { orderNumber, payId });
+    mutationFn: async ({ orderNumber, payId, exchangeAccountId }: { orderNumber: string; payId?: number; exchangeAccountId?: string }) => {
+      return callBinanceAds('markOrderAsPaid', { orderNumber, payId }, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Order marked as paid');
@@ -67,8 +71,10 @@ export function useReleaseCoin() {
       mobileVerifyCode?: string;
       yubikeyVerifyCode?: string;
       payId?: number;
+      exchangeAccountId?: string;
     }) => {
-      return callBinanceAds('releaseCoin', params);
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('releaseCoin', rest, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Crypto released successfully');
@@ -117,8 +123,10 @@ export function useCheckIfCanRelease() {
       mobileVerifyCode?: string;
       yubikeyVerifyCode?: string;
       payId?: number;
+      exchangeAccountId?: string;
     }) => {
-      return callBinanceAds('checkIfCanRelease', params);
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('checkIfCanRelease', rest, exchangeAccountId);
     },
   });
 }
@@ -133,8 +141,9 @@ export function useCheckIfCanRelease() {
  */
 export function useSendReleaseVerifyCode() {
   return useMutation({
-    mutationFn: async (params: { orderNumber: string; authType: 'EMAIL' | 'SMS' }) => {
-      return callBinanceAds('sendVerifyCode', params);
+    mutationFn: async (params: { orderNumber: string; authType: 'EMAIL' | 'SMS'; exchangeAccountId?: string }) => {
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('sendVerifyCode', rest, exchangeAccountId);
     },
   });
 }
@@ -147,8 +156,10 @@ export function useCancelOrder() {
       orderNumber: string;
       orderCancelReasonCode?: number;
       orderCancelAdditionalInfo?: string;
+      exchangeAccountId?: string;
     }) => {
-      return callBinanceAds('cancelOrder', params);
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('cancelOrder', rest, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Order cancelled');
@@ -174,8 +185,8 @@ export function useCheckCancelAllowed() {
 export function useConfirmOrderVerified() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderNumber }: { orderNumber: string }) => {
-      return callBinanceAds('confirmOrderVerified', { orderNumber });
+    mutationFn: async ({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) => {
+      return callBinanceAds('confirmOrderVerified', { orderNumber }, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Order verified — payment details shared with buyer');
@@ -198,9 +209,31 @@ export function useBinanceActiveOrders(filters?: {
   endDate?: string;
   orderStatusList?: Array<number | string>;
 }) {
+  const { accountsToQuery } = useExchangeAccount();
   return useQuery({
-    queryKey: ['binance-active-orders', filters],
-    queryFn: () => callBinanceAds('listActiveOrders', { ...filters, rows: 50 }),
+    queryKey: ['binance-active-orders', accountsToQuery.join(','), filters],
+    queryFn: async () => {
+      // Single account → raw result (unchanged shape). Multiple → fan-out + merge,
+      // tagging each order with the account it belongs to so the UI can badge it
+      // and row-level actions route to the correct account automatically.
+      if (accountsToQuery.length === 1) {
+        return callBinanceAds('listActiveOrders', { ...filters, rows: 50 }, accountsToQuery[0]);
+      }
+      const settled = await Promise.allSettled(
+        accountsToQuery.map((id) =>
+          callBinanceAds('listActiveOrders', { ...filters, rows: 50 }, id).then((r) => ({ r, id })),
+        ),
+      );
+      const merged: any[] = [];
+      for (const res of settled) {
+        if (res.status !== 'fulfilled') continue;
+        const { r, id } = res.value;
+        const d = (r as any)?.data ?? r;
+        const list = Array.isArray(d) ? d : [];
+        for (const o of list) merged.push({ ...o, _exchangeAccountId: id });
+      }
+      return { data: merged };
+    },
     staleTime: 2 * 1000,
     refetchInterval: 5 * 1000, // Poll every 5s for snappy order reflection
     refetchIntervalInBackground: true,
@@ -297,13 +330,19 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
 /** Two-phase order history: Phase 1 fetches latest 50 orders instantly,
  *  Phase 2 lazily loads the rest in the background. Consumers see a single merged array. */
 export function useBinanceOrderHistory() {
+  const { accountsToQuery } = useExchangeAccount();
+  const accountKey = accountsToQuery.join(',');
+  const SELECT_COLS =
+    'order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data, exchange_account_id';
+
   // Phase 1: Fast initial load – latest 50 orders only
   const phase1 = useQuery({
-    queryKey: ['binance-order-history-fast'],
+    queryKey: ['binance-order-history-fast', accountKey],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('binance_order_history')
-        .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
+        .select(SELECT_COLS)
+        .in('exchange_account_id', accountsToQuery)
         .order('create_time', { ascending: false })
         .limit(50);
 
@@ -319,7 +358,7 @@ export function useBinanceOrderHistory() {
 
   // Phase 2: Full background load – all remaining orders (deferred)
   const phase2 = useQuery({
-    queryKey: ['binance-order-history-bulk'],
+    queryKey: ['binance-order-history-bulk', accountKey],
     queryFn: async () => {
       const batchSize = 1000;
       const allOrders: any[] = [];
@@ -329,7 +368,8 @@ export function useBinanceOrderHistory() {
       while (hasMore) {
         const { data, error } = await supabase
           .from('binance_order_history')
-          .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
+          .select(SELECT_COLS)
+          .in('exchange_account_id', accountsToQuery)
           .order('create_time', { ascending: false })
           .range(offset, offset + batchSize - 1);
 
@@ -393,6 +433,7 @@ function mapOrderRow(row: any) {
     counterPartNickName: row.counter_part_nick_name,
     verifiedName: row.verified_name,
     additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
+    _exchangeAccountId: row.exchange_account_id ?? null,
   };
 }
 
@@ -548,8 +589,8 @@ export function useMarkMessagesRead() {
 export function useSendBinanceChatMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderNo, message }: { orderNo: string; message: string }) => {
-      return callBinanceAds('sendChatMessage', { orderNo, content: message, contentType: 'TEXT' });
+    mutationFn: async ({ orderNo, message, exchangeAccountId }: { orderNo: string; message: string; exchangeAccountId?: string }) => {
+      return callBinanceAds('sendChatMessage', { orderNo, content: message, contentType: 'TEXT' }, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['binance-chat-messages', variables.orderNo] });
@@ -579,16 +620,18 @@ export function useMerchantOffline() {
 // ==================== USER SUMMARY ====================
 
 export function useUserOrderSummary() {
+  const { activeAccountId } = useExchangeAccount();
   return useQuery({
-    queryKey: ['binance-user-order-summary'],
+    queryKey: ['binance-user-order-summary', activeAccountId],
     queryFn: () => callBinanceAds('getUserOrderSummary'),
     staleTime: 60 * 1000,
   });
 }
 
 export function useBinanceUserDetail() {
+  const { activeAccountId } = useExchangeAccount();
   return useQuery({
-    queryKey: ['binance-user-detail'],
+    queryKey: ['binance-user-detail', activeAccountId],
     queryFn: () => callBinanceAds('getUserDetail'),
     staleTime: 5 * 60 * 1000,
   });

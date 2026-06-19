@@ -17,6 +17,10 @@ import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog
 import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { MerchantStateCard } from '@/components/ad-manager/MerchantStateCard';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 function isBlockAd(ad: BinanceAd) {
   return String(ad.classify || '').toLowerCase() === 'block';
@@ -25,10 +29,14 @@ function isBlockAd(ad: BinanceAd) {
 export default function AdManager() {
   const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
+  const { isAllAccounts, visibleAccounts, activeAccountId, colorFor, nameFor } = useExchangeAccount();
   const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 50, fetchAll: true });
   const [activeTab, setActiveTab] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);
+  // When creating in combined mode we must know which account the ad belongs to.
+  const [createAccountId, setCreateAccountId] = useState<string | null>(null);
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   // Bulk selection state
   const [selectedAdvNos, setSelectedAdvNos] = useState<Set<string>>(new Set());
@@ -51,8 +59,8 @@ export default function AdManager() {
   const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
   const updateStatus = useUpdateAdStatus();
 
-  const ads: BinanceAd[] = data?.data || data?.list || [];
-  const restAds: BinanceAd[] = restAdsData?.data || restAdsData?.list || [];
+  const ads: BinanceAd[] = data?.data || [];
+  const restAds: BinanceAd[] = restAdsData?.data || [];
   const displayAds = useMemo(() => activeTab === 'block' ? ads.filter(isBlockAd) : ads.filter(ad => !isBlockAd(ad)), [ads, activeTab]);
   const total = displayAds.length;
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);
@@ -61,14 +69,37 @@ export default function AdManager() {
   const selectedAds = useMemo(() => displayAds.filter(ad => selectedAdvNos.has(ad.advNo)), [displayAds, selectedAdvNos]);
 
   const handleEdit = (ad: BinanceAd) => { setEditingAd(ad); setDialogOpen(true); };
-  const handleCreate = () => { setEditingAd(null); setDialogOpen(true); };
+  const handleCreate = () => {
+    setEditingAd(null);
+    // In combined mode we don't know which account to post to — ask first.
+    if (isAllAccounts && visibleAccounts.length > 1) {
+      setCreateAccountId(null);
+      setAccountPickerOpen(true);
+      return;
+    }
+    setCreateAccountId(null);
+    setDialogOpen(true);
+  };
+
+  const startCreateForAccount = (accountId: string) => {
+    setCreateAccountId(accountId);
+    setAccountPickerOpen(false);
+    setDialogOpen(true);
+  };
+
+  // advNo → owning account, so single-row actions route correctly in combined mode.
+  const accountForAdv = useMemo(() => {
+    const m = new Map<string, string | undefined>();
+    for (const ad of ads) m.set(ad.advNo, ad._exchangeAccountId);
+    return m;
+  }, [ads]);
 
   const handleToggleStatus = (advNo: string, currentStatus: number) => {
     const isCurrentlyPrivate = currentStatus === BINANCE_AD_STATUS.PRIVATE;
     const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE || isCurrentlyPrivate
       ? BINANCE_AD_STATUS.OFFLINE 
       : BINANCE_AD_STATUS.ONLINE;
-    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate });
+    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, exchangeAccountId: accountForAdv.get(advNo) });
   };
 
   const handleBulkComplete = () => { setSelectedAdvNos(new Set()); refetch(); };
@@ -180,7 +211,35 @@ export default function AdManager() {
         </TabsContent>
       </Tabs>
 
-      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} />
+      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} createAccountId={createAccountId} />
+
+      {/* Combined-mode: pick which account a new ad belongs to */}
+      <AlertDialog open={accountPickerOpen} onOpenChange={setAccountPickerOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create ad on which account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're viewing all accounts. Choose the Binance account this new ad should be created on.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2 py-2">
+            {visibleAccounts.map((acc) => (
+              <Button
+                key={acc.id}
+                variant="outline"
+                className="justify-start gap-2"
+                onClick={() => startCreateForAccount(acc.id)}
+              >
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorFor(acc.id) }} />
+                {nameFor(acc.id)}
+              </Button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <BulkEditLimitsDialog open={bulkLimitsOpen} onOpenChange={setBulkLimitsOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />

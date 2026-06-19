@@ -1,71 +1,97 @@
-# Adding a Second Binance ID to ERP + Terminal
+# Combined "Both Accounts" Mode for the Terminal
 
-Goal: run two Binance accounts fully in parallel across Assets/Wallet, P2P Ads/Orders/Terminal, and the automation engines, with both a global admin account-switcher and per-operator account binding. All existing data is tagged to the original ID ("Account 1").
+## Goal
+The exchange-account switcher already offers three states: **Blynk Binance**, **ASEC Binance**, and **All accounts ("Both")**. Today "Both" silently falls back to the default account. This plan makes:
+- **Single account selected** → every view (ads, orders, stats, assets, merchant status) scoped to that one account.
+- **Both selected** → the same views show **live-merged** data from both accounts, with each row tagged by a colored account badge. Totals/statistics are combined.
 
-## Phase 0 — AWS / Binance key (do this first, no code)
+Approach (per your choices): **live merge per account** (client-side fan-out), **colored account badge per row**, write actions auto-route to the owning account, **Create Ad** prompts for the target account when in Both mode.
 
-Recommendation: **reuse your existing AWS proxy.** Your proxy is a stateless signing relay — each request already carries `x-api-key` / `x-api-secret` headers, so it is account-agnostic. Binance allows multiple API keys whitelisted to the same static IP.
+---
 
-Steps you perform on AWS/Binance:
-1. On the **new** Binance merchant account, create an API key (Enable Reading + C2C/P2P + Spot as your current key has).
-2. Whitelist the **same AWS elastic/static IP** your proxy uses on that new key.
-3. Confirm the existing `BINANCE_PROXY_URL` and `BINANCE_PROXY_TOKEN` stay unchanged — both accounts share the one proxy.
+## How it works
 
-No proxy redeploy or second EC2 instance is needed. (A second proxy is only worth it later if you want IP/risk isolation — we keep the design open to that via per-account secret keys.)
+### 1. Fan-out helper (core of the change)
+Add a reusable helper in `useExchangeAccount` context: `accountsToQuery` = `[activeAccountId]` for a single account, or all `visibleAccounts` ids when `activeAccountId === ALL_ACCOUNTS`.
 
-## Phase 1 — Credential storage (Supabase secrets, not DB)
+For live (edge-function) reads, when in Both mode we call the existing `binance-ads` / `binance-assets` function **once per account in parallel** (each call stamped with that account's `exchange_account_id`), then merge the responses, tagging each row with `_exchangeAccountId` so the UI can render the badge. No edge-function rewrite needed — the per-account call path already works correctly.
 
-Per the security rules we never store API keys in tables. We key secrets by account suffix:
-- Account 1 (existing): `BINANCE_API_KEY`, `BINANCE_API_SECRET` (unchanged).
-- Account 2 (new): `BINANCE_API_KEY_2`, `BINANCE_API_SECRET_2` (added via the secret tool).
-- Shared: `BINANCE_PROXY_URL`, `BINANCE_PROXY_TOKEN`.
+### 2. Read hooks updated to be account-aware
+- `useBinanceAdsList` (`listAds`), `useBinanceActiveOrders` (`listActiveOrders`), `useBinanceOrderHistory` live path, `useBinanceBalances` (`getBalances`), `useBinanceUserDetail` (merchant status):
+  - Single mode: one call with the active account (unchanged behavior, now with account in the React-Query key).
+  - Both mode: parallel calls across `visibleAccounts`, merged. Each item tagged `_exchangeAccountId`.
+  - **Fix stale cache:** add `activeAccountId` to every one of these query keys (currently missing on active-orders, balances, user-detail, order-history) so switching accounts refetches instead of serving the previous account's data.
 
-The `terminal_exchange_accounts` row carries a `credential_key` text (e.g. `default`, `acct2`) that maps to the secret suffix. Edge functions resolve the suffix → `Deno.env.get`. This keeps adding a 3rd account later to "insert a row + add two secrets".
+### 3. DB-backed reads scoped correctly
+`binance_order_history` already stores `exchange_account_id`, but client reads don't filter it (cross-account leak today).
+- `useBinanceOrderHistory` (DB read), `useCachedOrderHistory`, and `TerminalDashboard` stats:
+  - Single mode: filter `exchange_account_id = activeAccountId`.
+  - Both mode: filter `exchange_account_id IN (visibleAccounts)` (combined totals). Stats aggregate across both; a per-account breakdown line is shown.
 
-## Phase 2 — Database (migration)
+### 4. Source-account badge
+A small `AccountBadge` component renders a colored dot + short name (yellow = Blynk, blue = ASEC) using `colorFor`/`nameFor` from context. Shown:
+- As a cell/chip on each row in Ads Manager, Active Orders, Order History tables (only in Both mode, to avoid clutter in single mode).
+- In merchant/user-status widgets, one badge per account when Both.
+- Dashboard/Analytics stat cards show the combined number plus a tiny per-account split.
 
-1. Extend `terminal_exchange_accounts`: add `credential_key text`, `is_default boolean`, `color text` (UI tag), `display_order int`. Seed two rows — Account 1 (`credential_key='default'`, `is_default=true`) and Account 2 (`credential_key='acct2'`). Add GRANTs.
-2. Add `exchange_account_id uuid` (FK → `terminal_exchange_accounts`) to every synced/account-scoped table, the full list verified before migration. Core set:
-   `binance_order_history`, `p2p_order_records`, `p2p_order_chats`, `binance_order_chat_messages`, `wallet_transactions`, `wallet_asset_balances`, `wallet_asset_positions`, `asset_movement_history`, `asset_movement_sync_metadata`, `binance_sync_metadata`, `binance_ad_state_snapshots`, `binance_merchant_state_snapshots`, `binance_commission_rate_snapshots`, `ad_pricing_rules`, `ad_pricing_engine_state`, `ad_payment_methods`, `small_buys_sync`, `small_sales_sync`, `terminal_order_assignments`, `terminal_purchase_sync`, `terminal_sales_sync`, plus the auto-pay/auto-reply log + state tables.
-3. **Backfill**: set `exchange_account_id` = Account 1 on every existing row (done with the insert tool, not migration, since it's data). Then set the column `NOT NULL DEFAULT <Account 1 id>` so legacy/un-migrated code keeps working.
-4. `terminal_user_exchange_mappings` already exists — used for per-operator binding (Phase 5).
-5. Unique constraints that currently key on order/ad numbers get `exchange_account_id` added so the same order number can't collide across accounts.
+### 5. Write actions route to the owning account automatically
+Existing ads/orders carry `_exchangeAccountId` from the merged fetch. All row-level actions pass that id explicitly so they hit the correct Binance account regardless of the active selection — **no prompt**:
+- `markOrderAsPaid`, `releaseCoin`, `cancelOrder`, `sendChatMessage`, edit ad / update ad status, applyAdRiskGuard.
+- Implementation: thread the row's `_exchangeAccountId` into `useBinanceActions` calls (passed as explicit `exchange_account_id` in the body, which overrides the active-account default).
 
-## Phase 3 — Shared credential resolver
+### 6. Create Ad prompts for account in Both mode
+- Single mode: Create Ad uses the active account (unchanged).
+- Both mode: opening Create Ad first shows a small account picker (Blynk / ASEC); the chosen account id is sent with the create request.
 
-Add `supabase/functions/_shared/binance-account.ts`:
-- `resolveAccount(req | accountId)` → looks up `terminal_exchange_accounts`, returns `{ id, credentialKey, proxyUrl, proxyToken, apiKey, apiSecret }` by reading the suffixed secrets.
-- Defaults to Account 1 when no account is passed (backward compatible).
+---
 
-## Phase 4 — Edge function refactor (account-aware)
+## Technical details (file-by-file)
 
-Each Binance function accepts an `exchange_account_id` (body param / query) and uses the resolver instead of reading globals directly:
-- `verify-binance-keys` — verify a specific account; UI "Test connection" per account.
-- `binance-assets`, `binance-ads`, `enrich-order-names`, `payer-auto-screenshot` — scope reads/writes and stamp `exchange_account_id` on every inserted row.
-- `auto-price-engine`, `auto-pay-engine`, `auto-reply-engine` — loop over **all active accounts** (or run per-account) so automation runs independently per ID. Engine state/logs are keyed per account so one account's circuit-breaker/cooldown never affects the other.
-Cron jobs stay; engines iterate active accounts internally.
+**`src/contexts/ExchangeAccountContext.tsx`**
+- Export `accountsToQuery: string[]` (single id, or all visible ids when ALL).
+- Keep `withAccount` as-is for single calls.
 
-## Phase 5 — UI
+**`src/lib/activeExchangeAccount.ts`**
+- Add `getAccountsToQuery()` mirror for non-hook callers (`callBinanceAds`).
 
-1. **Admin global switcher**: an account selector in the top bar (React context + persisted preference). Scopes ERP views (assets, orders, ads, reports) to the selected ID, with an "All accounts" combined/aggregated view where it makes sense. All Binance `functions.invoke` calls pass the active `exchange_account_id`.
-2. **Per-operator binding (terminal)**: operators are mapped to one account via `terminal_user_exchange_mappings`; the terminal auto-filters orders/assignments to their bound account. Admins can manage these mappings and override with the global switcher.
-3. **Account badges**: every order/ad/asset row shows a colored account tag so the two IDs are visually distinct in shared lists.
-4. **Settings → Exchange Accounts** screen: list accounts, per-account connection test, active toggle, color/label edit.
+**New `src/hooks/useMultiAccountQuery.ts` (helper)**
+- `fetchMerged(action, body, accountIds)` → `Promise.all` of per-account `callBinanceAds`/`callBinanceAssets`, each stamped with `exchange_account_id`, returns concatenated rows tagged `_exchangeAccountId`. Handles partial failure (one account erroring doesn't blank the whole view; surfaces a per-account warning).
 
-## Phase 6 — Verification
+**`src/hooks/useBinanceAds.tsx`**
+- `useBinanceAdsList`: branch on ALL → `fetchMerged('listAds', ...)`. Add `activeAccountId` to query key (already present) and tag rows.
 
-- Per-account `verify-binance-keys` returns success for both IDs through the proxy.
-- Sync one cycle on Account 2; confirm new rows carry Account 2's `exchange_account_id` and existing rows remain Account 1.
-- Confirm automation engines run independently (separate state/logs) and an operator bound to Account 2 only sees Account 2 data.
+**`src/hooks/useBinanceActions.tsx`**
+- `useBinanceActiveOrders`: branch on ALL → merge across accounts; add `activeAccountId` to query key.
+- Order/ad mutation actions accept an explicit `exchangeAccountId` arg and include it in the body.
 
-## Rollout order
-Phase 0 (you, on AWS) → confirm new key works through proxy → Phase 1/2 → 3/4 → 5 → 6. Phases 2–4 are backward compatible (default = Account 1) so the live single-account flow keeps working throughout.
+**`src/hooks/useBinanceOrders.tsx` + `useBinanceOrderSync.tsx`**
+- Live `getOrderHistory`: ALL → merge. DB reads (`binance_order_history`): add account filter (single = eq, ALL = in).
 
-## Open items I'll confirm during build
-- Exact final table list for the discriminator (verified against the live schema before writing the migration).
-- Whether "All accounts" aggregation applies to financial/P&L reporting or only operational lists.
+**`src/hooks/useBinanceAssets.tsx`**
+- `useBinanceBalances`: ALL → fetch per account and merge balances (grouped/summed per asset with per-account breakdown). Add account to query key.
 
-## Technical notes
-- Credentials never enter the DB; only a `credential_key` suffix that maps to Supabase secrets does.
-- `NOT NULL DEFAULT Account 1` on `exchange_account_id` guarantees no orphaned/untagged rows and zero downtime for legacy code paths.
-- Adding a future 3rd account = insert one `terminal_exchange_accounts` row + add `BINANCE_API_KEY_3/_SECRET_3` secrets; no code change.
+**`src/components/exchange/AccountBadge.tsx` (new)**
+- Colored dot + name, driven by `colorFor`/`nameFor`.
+
+**Tables/pages** (`AdManager.tsx`, `TerminalOrders.tsx`, `TerminalDashboard.tsx`, `TerminalAnalytics.tsx`, `TerminalAssets.tsx`, merchant-status widget):
+- Render `AccountBadge` per row/stat in Both mode; pass `row._exchangeAccountId` into action handlers.
+
+**Create Ad flow** (`AdManager.tsx` / create-ad dialog):
+- In Both mode, show account picker before submit; pass chosen id.
+
+**No database migration required** — `binance_order_history.exchange_account_id` already exists; user→account mappings already populated. No edge-function changes required (per-account calls already work).
+
+---
+
+## Out of scope / limitations (Binance API)
+- `spot_trade_history` has no `exchange_account_id` column, so spot history can't be split by account without a schema + sync change; it will remain combined. Flag if you want this scoped later.
+- Automation engines (auto-price/pay/reply) currently run primary-only; this plan does not change their account scope (separate effort).
+
+---
+
+## Verification
+- Switch to **Blynk** → ads/orders/stats show only Blynk (verified via different `advNo` sets already confirmed live).
+- Switch to **ASEC** → only ASEC.
+- Switch to **Both** → union of both, each row badged correctly; stat cards = combined totals with per-account split.
+- Mark-paid / release / chat / ad-edit on a Both-mode row hits the correct account (verified against edge-function logs).
+- Create Ad in Both mode prompts for account; in single mode it doesn't.

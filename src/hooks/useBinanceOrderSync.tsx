@@ -7,6 +7,7 @@ import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from './useTerminalSalesSync';
 import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
 import { hasActiveBinanceComplaint } from '@/lib/orderStatusMapper';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 24 * 60 * 60 * 1000; // 24 hours — re-fetch recent orders for status updates (was 3h, widened to catch out-of-order Binance updates)
@@ -22,8 +23,9 @@ type CachedOrderHistoryRange = {
 
 // ---- DB Read: Get cached orders, optionally scoped to a selected analytics period ----
 export function useCachedOrderHistory(range: CachedOrderHistoryRange = {}) {
+  const { accountsToQuery } = useExchangeAccount();
   return useQuery({
-    queryKey: ['cached-order-history', range.startTimestamp || null, range.endTimestamp || null],
+    queryKey: ['cached-order-history', accountsToQuery.join(','), range.startTimestamp || null, range.endTimestamp || null],
     queryFn: async () => {
       const cutoff = range.startTimestamp || Date.now() - DATA_RETENTION_MS;
       const allRows: any[] = [];
@@ -33,7 +35,8 @@ export function useCachedOrderHistory(range: CachedOrderHistoryRange = {}) {
       while (true) {
         let query = supabase
           .from('binance_order_history')
-          .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint')
+          .select('order_number,adv_no,trade_type,asset,fiat_unit,order_status,amount,total_price,unit_price,commission,counter_part_nick_name,create_time,pay_method_name,complaint_status,has_active_complaint,exchange_account_id')
+          .in('exchange_account_id', accountsToQuery)
           .gte('create_time', cutoff)
           .order('create_time', { ascending: false });
 

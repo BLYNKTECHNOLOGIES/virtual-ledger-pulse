@@ -18,6 +18,8 @@ interface CreateEditAdDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingAd?: BinanceAd | null;
+  /** Account to create the ad on (combined "All accounts" mode). */
+  createAccountId?: string | null;
 }
 
 const PAYMENT_TIME_OPTIONS = [
@@ -46,7 +48,7 @@ const changedString = (current: unknown, next: unknown) => String(current ?? '')
 // Priority assets shown first in the dropdown
 const PRIORITY_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC', 'FDUSD'];
 
-export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEditAdDialogProps) {
+export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccountId }: CreateEditAdDialogProps) {
   const { toast } = useToast();
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
@@ -184,7 +186,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   // ─── Available balance from surplus across all ads ────────────
   const availableBalance = useMemo(() => {
-    const allAds: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
+    const allAds: BinanceAd[] = sellAdsData?.data || [];
     // Find ads with same asset to get surplusAmount context
     // The surplusAmount on the editing ad itself shows remaining balance
     if (editingAd) {
@@ -195,7 +197,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
-    const ads: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
+    const ads: BinanceAd[] = sellAdsData?.data || [];
     const methodMap = new Map<string, any>();
     for (const ad of ads) {
       if (Array.isArray(ad.tradeMethods)) {
@@ -359,6 +361,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
       if (changedString(editingAd!.remarks, form.remarks)) adData.remarks = form.remarks;
     }
     
+
+    // Route to the correct Binance account: edits use the ad's own account,
+    // creates use the account chosen in combined mode (falls back to active).
+    const routedAccountId = isEditing ? editingAd?._exchangeAccountId : (createAccountId || undefined);
+    if (routedAccountId) adData.exchange_account_id = routedAccountId;
 
     if (isEditing) {
       updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });

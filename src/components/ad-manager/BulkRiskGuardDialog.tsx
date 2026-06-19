@@ -47,11 +47,25 @@ export function BulkRiskGuardDialog({ open, onOpenChange, ads, onComplete }: Pro
   if (payTimeLimit !== '') riskPayload.payTimeLimit = Number(payTimeLimit);
 
   const submit = () => {
-    applyRiskGuard.mutate({
-      advNos: ads.map((ad) => ad.advNo),
-      profileName: 'Manual Risk Guard',
-      riskPayload,
-    }, { onSuccess: () => onComplete() });
+    // Group ads by their owning account so combined-mode batches route correctly.
+    const byAccount = new Map<string | undefined, string[]>();
+    for (const ad of ads) {
+      const key = ad._exchangeAccountId;
+      byAccount.set(key, [...(byAccount.get(key) || []), ad.advNo]);
+    }
+    const groups = Array.from(byAccount.entries());
+    let remaining = groups.length;
+    if (remaining === 0) { onComplete(); return; }
+    for (const [accountId, advNos] of groups) {
+      applyRiskGuard.mutate({
+        advNos,
+        profileName: 'Manual Risk Guard',
+        riskPayload,
+        exchangeAccountId: accountId,
+      }, {
+        onSuccess: () => { remaining -= 1; if (remaining === 0) onComplete(); },
+      });
+    }
   };
 
   return (

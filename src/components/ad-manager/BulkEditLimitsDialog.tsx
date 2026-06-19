@@ -65,6 +65,7 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
         await new Promise<void>((resolve, reject) => {
           updateAd.mutate({
             advNo: ad.advNo,
+            exchange_account_id: ad._exchangeAccountId,
             asset: ad.asset,
             fiatUnit: ad.fiatUnit,
             tradeType: ad.tradeType,

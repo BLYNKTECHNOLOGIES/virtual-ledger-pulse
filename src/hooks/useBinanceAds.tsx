@@ -79,6 +79,8 @@ export interface BinanceAd {
   payTimeLimit?: number;
   onlineNow?: boolean;
   tags?: string[];
+  /** Which exchange account this ad belongs to (set by the merged fetch). */
+  _exchangeAccountId?: string;
 }
 
 export interface AdFilters {
@@ -93,9 +95,12 @@ export interface AdFilters {
   fetchAll?: boolean;
 }
 
-async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
+async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
+  const body: Record<string, any> = { action, ...payload };
+  // Explicit per-call account override (used for the combined "All accounts" fan-out).
+  if (accountId) body.exchange_account_id = accountId;
   const { data, error } = await supabase.functions.invoke('binance-ads', {
-    body: withActiveAccount({ action, ...payload }),
+    body: withActiveAccount(body),
   });
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'API call failed');
@@ -105,45 +110,51 @@ async function callBinanceAds(action: string, payload: Record<string, any> = {})
 export function useBinanceAdsList(filters: AdFilters) {
   const isAllStatuses = filters.advStatus === undefined || filters.advStatus === null;
   const isPrivateFilter = filters.advStatus === BINANCE_AD_STATUS.PRIVATE;
-  const { activeAccountId } = useExchangeAccount();
+  const { accountsToQuery } = useExchangeAccount();
 
   return useQuery({
-    queryKey: ['binance-ads', activeAccountId, filters],
+    queryKey: ['binance-ads', accountsToQuery.join(','), filters],
     queryFn: async () => {
-      const fetchPage = (pageFilters: AdFilters) => callBinanceAds('listAds', pageFilters);
-      // Pagination is handled server-side inside the edge function when `fetchAll` is set.
-      // The edge function walks every page of Binance's listWithPagination (which caps each
-      // page at ~20 ads) BEFORE enriching, so no ads are dropped due to rate limits. The client
-      // simply forwards the request and uses the fully-collected result.
-      const fetchAds = async (pageFilters: AdFilters) => fetchPage(pageFilters);
+      // Fetch the ad list for ONE account, returning { data, total } in the
+      // same shape the UI already expects. `accountId` is stamped onto every
+      // outgoing request so combined mode hits each Binance account correctly.
+      const fetchForAccount = async (accountId: string): Promise<{ data: any[]; total: number }> => {
+        const fetchAds = (pageFilters: AdFilters) => callBinanceAds('listAds', pageFilters, accountId);
 
-      if (isPrivateFilter) {
-        // Private ads are returned by the API under advStatus=1, then enriched to 2 by edge fn.
-        // So we fetch advStatus=1 and filter for only the private ones.
-        const result = await fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.ONLINE });
-        const list = result?.data || result?.list || [];
-        const privateAds = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.PRIVATE || ad._isPrivate);
-        return { data: privateAds, total: privateAds.length };
-      }
-      if (!isAllStatuses) {
-        // For Active tab (status 1), fetch and filter out private ads
-        const result = await fetchAds(filters);
-        if (filters.advStatus === BINANCE_AD_STATUS.ONLINE) {
+        if (isPrivateFilter) {
+          // Private ads are returned by the API under advStatus=1, then enriched to 2 by edge fn.
+          const result = await fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.ONLINE });
           const list = result?.data || result?.list || [];
-          const onlineOnly = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.ONLINE && !ad._isPrivate);
-          return { data: onlineOnly, total: onlineOnly.length };
+          const privateAds = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.PRIVATE || ad._isPrivate);
+          return { data: privateAds, total: privateAds.length };
         }
-        return result;
-      }
-      // Fetch online/private (advStatus=1, enriched by edge fn) and offline (3) in parallel
-      const [onlineAndPrivate, offline] = await Promise.all([
-        fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.ONLINE }),
-        fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.OFFLINE }),
-      ]);
-      const mergeList = (r: any) => r?.data || r?.list || [];
-      const allAds = [...mergeList(onlineAndPrivate), ...mergeList(offline)];
-      const totalCount = (onlineAndPrivate?.total || 0) + (offline?.total || 0);
-      return { data: allAds, total: totalCount || allAds.length };
+        if (!isAllStatuses) {
+          const result = await fetchAds(filters);
+          if (filters.advStatus === BINANCE_AD_STATUS.ONLINE) {
+            const list = result?.data || result?.list || [];
+            const onlineOnly = list.filter((ad: any) => ad.advStatus === BINANCE_AD_STATUS.ONLINE && !ad._isPrivate);
+            return { data: onlineOnly, total: onlineOnly.length };
+          }
+          return { data: result?.data || result?.list || [], total: result?.total || 0 };
+        }
+        // Fetch online/private (advStatus=1, enriched by edge fn) and offline (3) in parallel
+        const [onlineAndPrivate, offline] = await Promise.all([
+          fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.ONLINE }),
+          fetchAds({ ...filters, advStatus: BINANCE_AD_STATUS.OFFLINE }),
+        ]);
+        const mergeList = (r: any) => r?.data || r?.list || [];
+        const allAds = [...mergeList(onlineAndPrivate), ...mergeList(offline)];
+        const totalCount = (onlineAndPrivate?.total || 0) + (offline?.total || 0);
+        return { data: allAds, total: totalCount || allAds.length };
+      };
+
+      // Single account → identical to previous behavior. Multiple → fan-out + merge.
+      const results = await Promise.all(accountsToQuery.map(fetchForAccount));
+      const allAds = results.flatMap((r, i) =>
+        (r.data || []).map((ad: any) => ({ ...ad, _exchangeAccountId: accountsToQuery[i] })),
+      );
+      const total = results.reduce((sum, r) => sum + (r.total || 0), 0);
+      return { data: allAds, total: total || allAds.length };
     },
     staleTime: 30 * 1000,
     refetchOnWindowFocus: false,
@@ -205,7 +216,12 @@ export function usePostAd() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (adData: Record<string, any>) => callBinanceAds('postAd', { adData }),
+    mutationFn: (adData: Record<string, any>) => {
+      // Route to the ad's own account when provided (combined "All accounts" mode);
+      // otherwise the active-account default applies.
+      const { exchange_account_id, ...rest } = adData;
+      return callBinanceAds('postAd', { adData: rest }, exchange_account_id);
+    },
     onSuccess: (_data, adData) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Posted', description: 'Your ad has been posted successfully.' });
@@ -225,7 +241,10 @@ export function useUpdateAd() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (adData: Record<string, any>) => callBinanceAds('updateAd', { adData }),
+    mutationFn: (adData: Record<string, any>) => {
+      const { exchange_account_id, ...rest } = adData;
+      return callBinanceAds('updateAd', { adData: rest }, exchange_account_id);
+    },
     onSuccess: (_data, adData) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Updated', description: 'Your ad has been updated successfully.' });
@@ -246,8 +265,8 @@ export function useUpdateAdStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, advStatus, fromPrivate }: { advNos: string[]; advStatus: number; fromPrivate?: boolean }) =>
-      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }),
+    mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string }) =>
+      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }, exchangeAccountId),
     onSuccess: (_data, vars) => {
       clearAdBreakDetected();
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
@@ -275,8 +294,8 @@ export function useApplyAdRiskGuard() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, profileName, riskPayload }: { advNos: string[]; profileName: string; riskPayload: Record<string, any> }) =>
-      callBinanceAds('applyAdRiskGuard', { advNos, profileName, riskPayload }),
+    mutationFn: ({ advNos, profileName, riskPayload, exchangeAccountId }: { advNos: string[]; profileName: string; riskPayload: Record<string, any>; exchangeAccountId?: string }) =>
+      callBinanceAds('applyAdRiskGuard', { advNos, profileName, riskPayload }, exchangeAccountId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Risk Guard Applied', description: 'Selected ads were updated through Binance.' });

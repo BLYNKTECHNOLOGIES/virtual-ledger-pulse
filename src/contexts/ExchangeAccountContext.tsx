@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { setActiveExchangeAccountId } from "@/lib/activeExchangeAccount";
+import { setActiveExchangeAccountId, setVisibleExchangeAccountIds } from "@/lib/activeExchangeAccount";
 
 export interface ExchangeAccount {
   id: string;
@@ -29,6 +29,13 @@ interface ExchangeAccountContextValue {
   activeAccountId: string;
   /** Resolved account object for the active id (null when ALL). */
   activeAccount: ExchangeAccount | null;
+  /** True when the combined "All accounts" view is active. */
+  isAllAccounts: boolean;
+  /**
+   * Account ids the current view should query:
+   * a single id normally, or every visible id in combined ("All") mode.
+   */
+  accountsToQuery: string[];
   /** Whether the user is allowed to switch accounts (>1 account assigned). */
   canSwitch: boolean;
   /** Whether the current user is locked to a single account. */
@@ -133,6 +140,21 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     setActiveExchangeAccountId(activeAccountId);
   }, [activeAccountId]);
 
+  useEffect(() => {
+    setVisibleExchangeAccountIds(visibleAccounts.map((a) => a.id));
+  }, [visibleAccounts]);
+
+  const isAllAccounts = activeAccountId === ALL_ACCOUNTS;
+
+  // Accounts the current view should query: a single id, or all visible ids in ALL mode.
+  const accountsToQuery = useMemo(() => {
+    if (isAllAccounts) {
+      const ids = visibleAccounts.map((a) => a.id);
+      return ids.length > 0 ? ids : [PRIMARY_ID];
+    }
+    return [activeAccountId];
+  }, [isAllAccounts, visibleAccounts, activeAccountId]);
+
   const setActiveAccountId = useCallback(
     (id: string) => {
       if (!canSwitch) return; // single-account users can't switch
@@ -174,6 +196,8 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     loading,
     activeAccountId,
     activeAccount,
+    isAllAccounts,
+    accountsToQuery,
     canSwitch,
     boundAccountId,
     setActiveAccountId,

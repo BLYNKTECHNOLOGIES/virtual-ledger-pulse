@@ -39,6 +39,8 @@ interface Props {
   asset?: string;
   fiatUnit?: string;
   advNo?: string;
+  /** Account this order belongs to (combined "All accounts" mode). */
+  exchangeAccountId?: string;
 }
 
 export function OrderActions({
@@ -51,6 +53,7 @@ export function OrderActions({
   asset,
   fiatUnit,
   advNo,
+  exchangeAccountId,
 }: Props) {
   const opStatus = mapToOperationalStatus(orderStatus, tradeType);
 
@@ -73,7 +76,7 @@ export function OrderActions({
       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Actions</p>
 
       {needsVerification && opStatus === 'Pending Payment' && (
-        <VerifyOrderAction orderNumber={orderNumber} />
+        <VerifyOrderAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
       {tradeType === 'SELL' && additionalKycVerify === 2 && opStatus === 'Pending Payment' && (
@@ -84,11 +87,11 @@ export function OrderActions({
       )}
 
       {opStatus === 'Pending Payment' && tradeType === 'BUY' && (
-        <MarkAsPaidAction orderNumber={orderNumber} />
+        <MarkAsPaidAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
-        <ReleaseCoinAction orderNumber={orderNumber} />
+        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
 
       {/* Quick Receive — only on eligible BUY orders awaiting seller release */}
@@ -100,18 +103,19 @@ export function OrderActions({
           asset={asset}
           fiatUnit={fiatUnit}
           advNo={advNo}
+          exchangeAccountId={exchangeAccountId}
           source="orders"
         />
       )}
 
       {tradeType === 'BUY' && ['Pending Payment', 'Releasing'].includes(opStatus) && (
-        <CancelOrderAction orderNumber={orderNumber} />
+        <CancelOrderAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
       )}
     </div>
   );
 }
 
-function VerifyOrderAction({ orderNumber }: { orderNumber: string }) {
+function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const verifyOrder = useConfirmOrderVerified();
 
   return (
@@ -140,7 +144,7 @@ function VerifyOrderAction({ orderNumber }: { orderNumber: string }) {
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             className="bg-trade-buy hover:bg-trade-buy/90"
-            onClick={() => verifyOrder.mutate({ orderNumber })}
+            onClick={() => verifyOrder.mutate({ orderNumber, exchangeAccountId })}
           >
             Confirm & Verify
           </AlertDialogAction>
@@ -150,12 +154,12 @@ function VerifyOrderAction({ orderNumber }: { orderNumber: string }) {
   );
 }
 
-function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
+function MarkAsPaidAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const markPaid = useMarkOrderAsPaid();
 
   const handleConfirmPaid = async () => {
     const preparedScreenshot = await prepareAutoScreenshot(orderNumber);
-    await markPaid.mutateAsync({ orderNumber });
+    await markPaid.mutateAsync({ orderNumber, exchangeAccountId });
     await deliverPreparedAutoScreenshot(preparedScreenshot);
   };
 
@@ -198,7 +202,7 @@ const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; p
   { value: 'SMS', label: 'SMS OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter SMS verification code', fieldName: 'mobileVerifyCode' },
 ];
 
-function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
+function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const releaseCoin = useReleaseCoin();
   const sendVerifyCode = useSendReleaseVerifyCode();
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
@@ -226,7 +230,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
 
   const handleSendCode = () => {
     if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
-    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS' }, {
+    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS', exchangeAccountId }, {
       onSuccess: () => {
         toast.success(`${selectedAuth.label} sent by Binance`);
         setSendCooldown(60);
@@ -242,7 +246,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
     // API doc #29 expects authType + method-specific verification fields.
     // For YubiKey release on this endpoint, sending generic `code` causes
     // "Unsupported authentication type"; send only yubikeyVerifyCode.
-    const params: Record<string, any> = { orderNumber };
+    const params: Record<string, any> = { orderNumber, exchangeAccountId };
     if (authMethod === 'YUBIKEY') {
       params.authType = 'FIDO2';
       params.yubikeyVerifyCode = finalCode;
@@ -371,7 +375,7 @@ function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
   );
 }
 
-function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
+function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const cancelOrder = useCancelOrder();
   const [step, setStep] = useState<0 | 1 | 2>(0); // 0=closed, 1=first confirm, 2=final confirm
   const [reasonCode, setReasonCode] = useState<'4' | '5' | ''>('');
@@ -445,7 +449,7 @@ function CancelOrderAction({ orderNumber }: { orderNumber: string }) {
             <AlertDialogCancel onClick={handleReset}>No, Keep Order</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => { cancelOrder.mutate({ orderNumber, orderCancelReasonCode: Number(reasonCode), orderCancelAdditionalInfo: additionalInfo || undefined }); handleReset(); }}
+              onClick={() => { cancelOrder.mutate({ orderNumber, orderCancelReasonCode: Number(reasonCode), orderCancelAdditionalInfo: additionalInfo || undefined, exchangeAccountId }); handleReset(); }}
             >
               Confirm Cancel Order
             </AlertDialogAction>

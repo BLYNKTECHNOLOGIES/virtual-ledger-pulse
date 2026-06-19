@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { withActiveAccount } from "@/lib/activeExchangeAccount";
+import { useExchangeAccount } from "@/contexts/ExchangeAccountContext";
 import { toast } from "sonner";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 
@@ -50,18 +51,54 @@ export const COIN_COLORS: Record<string, string> = {
 };
 
 export function useBinanceBalances() {
+  const { accountsToQuery } = useExchangeAccount();
+  const EXCLUDED_ASSETS = ["HOME"];
+
+  const fetchForAccount = async (accountId: string): Promise<AssetBalance[]> => {
+    const { data, error } = await supabase.functions.invoke("binance-assets", {
+      body: withActiveAccount({ action: "getBalances", exchange_account_id: accountId }),
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
+    return (data.data.balances as AssetBalance[]).filter((b) => !EXCLUDED_ASSETS.includes(b.asset));
+  };
+
   return useQuery({
-    queryKey: ["binance_asset_balances"],
+    queryKey: ["binance_asset_balances", accountsToQuery.join(",")],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: withActiveAccount({ action: "getBalances" }),
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
-      const EXCLUDED_ASSETS = ["HOME"];
-      return (data.data.balances as AssetBalance[]).filter(
-        (b) => !EXCLUDED_ASSETS.includes(b.asset)
+      // Single account → as-is. Multiple → sum per asset across accounts and
+      // attach a per-account breakdown for tooltips/expanders.
+      if (accountsToQuery.length === 1) {
+        return fetchForAccount(accountsToQuery[0]);
+      }
+      const settled = await Promise.allSettled(
+        accountsToQuery.map((id) => fetchForAccount(id).then((rows) => ({ id, rows }))),
       );
+      const byAsset = new Map<string, AssetBalance & { _accounts?: { accountId: string; total_balance: number }[] }>();
+      for (const res of settled) {
+        if (res.status !== "fulfilled") continue;
+        const { id, rows } = res.value;
+        for (const b of rows) {
+          const existing = byAsset.get(b.asset);
+          if (!existing) {
+            byAsset.set(b.asset, {
+              ...b,
+              _accounts: [{ accountId: id, total_balance: b.total_balance }],
+            });
+          } else {
+            existing.funding_free += b.funding_free;
+            existing.funding_locked += b.funding_locked;
+            existing.funding_freeze += b.funding_freeze;
+            existing.spot_free += b.spot_free;
+            existing.spot_locked += b.spot_locked;
+            existing.total_free += b.total_free;
+            existing.total_locked += b.total_locked;
+            existing.total_balance += b.total_balance;
+            existing._accounts = [...(existing._accounts || []), { accountId: id, total_balance: b.total_balance }];
+          }
+        }
+      }
+      return Array.from(byAsset.values());
     },
     refetchInterval: 30000,
     staleTime: 10000,

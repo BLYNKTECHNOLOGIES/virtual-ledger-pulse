@@ -140,8 +140,9 @@ export function useCheckIfCanRelease() {
  */
 export function useSendReleaseVerifyCode() {
   return useMutation({
-    mutationFn: async (params: { orderNumber: string; authType: 'EMAIL' | 'SMS' }) => {
-      return callBinanceAds('sendVerifyCode', params);
+    mutationFn: async (params: { orderNumber: string; authType: 'EMAIL' | 'SMS'; exchangeAccountId?: string }) => {
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('sendVerifyCode', rest, exchangeAccountId);
     },
   });
 }
@@ -154,8 +155,10 @@ export function useCancelOrder() {
       orderNumber: string;
       orderCancelReasonCode?: number;
       orderCancelAdditionalInfo?: string;
+      exchangeAccountId?: string;
     }) => {
-      return callBinanceAds('cancelOrder', params);
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('cancelOrder', rest, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Order cancelled');
@@ -181,8 +184,8 @@ export function useCheckCancelAllowed() {
 export function useConfirmOrderVerified() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderNumber }: { orderNumber: string }) => {
-      return callBinanceAds('confirmOrderVerified', { orderNumber });
+    mutationFn: async ({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) => {
+      return callBinanceAds('confirmOrderVerified', { orderNumber }, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Order verified — payment details shared with buyer');

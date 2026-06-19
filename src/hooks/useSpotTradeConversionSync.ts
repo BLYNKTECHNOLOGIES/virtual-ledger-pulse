@@ -36,7 +36,7 @@ export function useUnsyncedSpotTrades() {
       const cutoffDate = "2026-02-11T18:30:00Z";
       const { data: rawTrades, error: tradeErr } = await supabase
         .from("spot_trade_history")
-        .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, source, status, is_buyer, created_at, binance_order_id")
+        .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, source, status, is_buyer, created_at, binance_order_id, exchange_account_id")
         .eq("status", "FILLED")
         .gte("created_at", cutoffDate)
         .order("trade_time", { ascending: false });

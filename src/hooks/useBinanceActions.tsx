@@ -209,9 +209,31 @@ export function useBinanceActiveOrders(filters?: {
   endDate?: string;
   orderStatusList?: Array<number | string>;
 }) {
+  const { accountsToQuery } = useExchangeAccount();
   return useQuery({
-    queryKey: ['binance-active-orders', filters],
-    queryFn: () => callBinanceAds('listActiveOrders', { ...filters, rows: 50 }),
+    queryKey: ['binance-active-orders', accountsToQuery.join(','), filters],
+    queryFn: async () => {
+      // Single account → raw result (unchanged shape). Multiple → fan-out + merge,
+      // tagging each order with the account it belongs to so the UI can badge it
+      // and row-level actions route to the correct account automatically.
+      if (accountsToQuery.length === 1) {
+        return callBinanceAds('listActiveOrders', { ...filters, rows: 50 }, accountsToQuery[0]);
+      }
+      const settled = await Promise.allSettled(
+        accountsToQuery.map((id) =>
+          callBinanceAds('listActiveOrders', { ...filters, rows: 50 }, id).then((r) => ({ r, id })),
+        ),
+      );
+      const merged: any[] = [];
+      for (const res of settled) {
+        if (res.status !== 'fulfilled') continue;
+        const { r, id } = res.value;
+        const d = (r as any)?.data ?? r;
+        const list = Array.isArray(d) ? d : [];
+        for (const o of list) merged.push({ ...o, _exchangeAccountId: id });
+      }
+      return { data: merged };
+    },
     staleTime: 2 * 1000,
     refetchInterval: 5 * 1000, // Poll every 5s for snappy order reflection
     refetchIntervalInBackground: true,

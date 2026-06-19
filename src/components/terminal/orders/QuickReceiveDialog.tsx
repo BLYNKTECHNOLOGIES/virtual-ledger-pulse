@@ -70,6 +70,7 @@ export function QuickReceiveDialog({
   asset,
   fiatUnit,
   advNo,
+  exchangeAccountId,
   source,
   onSuccess,
   variant = 'block',

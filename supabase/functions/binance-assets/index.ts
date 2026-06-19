@@ -614,6 +614,7 @@ serve(async (req) => {
                 raw_data: p,
                 movement_time: p.transactionTime || 0,
                 synced_at: new Date().toISOString(),
+                exchange_account_id: EXCHANGE_ACCOUNT_ID,
               };
             });
 
@@ -628,7 +629,8 @@ serve(async (req) => {
 
         // Update sync metadata
         await sb.from("asset_movement_sync_metadata").upsert({
-          id: "default",
+          id: movementMetaId,
+          exchange_account_id: EXCHANGE_ACCOUNT_ID,
           last_sync_at: new Date().toISOString(),
           last_deposit_time: 0,
           last_withdraw_time: 0,

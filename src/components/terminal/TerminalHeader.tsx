@@ -55,7 +55,9 @@ export function TerminalHeader() {
             Break On
           </Badge>
         )}
+        <ExchangeAccountSwitcher />
         <TerminalNotificationBell />
+
 
         {!isLoading && email && (
           <DropdownMenu>

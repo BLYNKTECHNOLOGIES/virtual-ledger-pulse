@@ -1,10 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key, Settings2, Terminal } from "lucide-react";
+import { Search, Edit, Trash2, UserPlus, UserCheck, Shield, Users, Settings, Key, Settings2, Terminal, Filter } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -88,6 +95,7 @@ const formatPermissionDisplay = (perm: string): string => {
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
   const [roles, setRoles] = useState<Role[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);
@@ -104,13 +112,26 @@ export default function UserManagement() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Filter users - show all users
-  const filteredUsers = users.filter((user: DatabaseUser) =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Compute unique roles from loaded users for the filter dropdown
+  const userRoleOptions = useMemo(() => {
+    const roleSet = new Set<string>();
+    users.forEach((u) => {
+      if (u.role?.name) roleSet.add(u.role.name);
+    });
+    return Array.from(roleSet).sort((a, b) => a.localeCompare(b));
+  }, [users]);
+
+  // Filter users by search term and selected role
+  const filteredUsers = users.filter((user: DatabaseUser) => {
+    const matchesSearch =
+      !searchTerm ||
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesRole = selectedRole === "all" || user.role?.name === selectedRole;
+    return matchesSearch && matchesRole;
+  });
 
   const fetchRoles = async () => {
     try {
@@ -444,14 +465,32 @@ export default function UserManagement() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Search className="h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Search users..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="max-w-sm"
-                    />
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+                    <div className="flex items-center space-x-2 flex-1">
+                      <Search className="h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search users..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="max-w-sm"
+                      />
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Filter className="h-4 w-4 text-gray-400" />
+                      <Select value={selectedRole} onValueChange={setSelectedRole}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Filter by role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Roles</SelectItem>
+                          {userRoleOptions.map((roleName) => (
+                            <SelectItem key={roleName} value={roleName}>
+                              {roleName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

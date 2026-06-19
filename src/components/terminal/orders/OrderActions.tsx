@@ -115,7 +115,7 @@ export function OrderActions({
   );
 }
 
-function VerifyOrderAction({ orderNumber }: { orderNumber: string }) {
+function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const verifyOrder = useConfirmOrderVerified();
 
   return (

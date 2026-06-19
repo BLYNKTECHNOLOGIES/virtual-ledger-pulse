@@ -514,7 +514,7 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                   <span className="text-xs whitespace-nowrap">Split Payment</span>
                 </div>
               </div>
-              <Select value={formData.credit_wallet_id} onValueChange={(value) => handleInputChange('credit_wallet_id', value)}>
+              <Select value={formData.credit_wallet_id} onValueChange={(value) => handleInputChange('credit_wallet_id', value)} disabled={!!item.wallet_id}>
                 <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
                 <SelectContent className="bg-popover z-50 border border-border shadow-lg">
                   {wallets?.map((wallet) => (
@@ -524,6 +524,9 @@ export function PurchaseEntryWrapper({ item, open, onOpenChange, onSuccess }: Pu
                   ))}
                 </SelectContent>
               </Select>
+              {!!item.wallet_id && (
+                <p className="text-[11px] text-muted-foreground">Locked to the wallet mapped to this movement's Binance account.</p>
+              )}
             </div>
 
             <div className="space-y-1.5">

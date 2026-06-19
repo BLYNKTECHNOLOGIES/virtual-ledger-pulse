@@ -1,97 +1,70 @@
-# Combined "Both Accounts" Mode for the Terminal
+# Per-Account Wallet Segregation for ERP Auto-Entries
 
 ## Goal
-The exchange-account switcher already offers three states: **Blynk Binance**, **ASEC Binance**, and **All accounts ("Both")**. Today "Both" silently falls back to the default account. This plan makes:
-- **Single account selected** → every view (ads, orders, stats, assets, merchant status) scoped to that one account.
-- **Both selected** → the same views show **live-merged** data from both accounts, with each row tagged by a colored account badge. Totals/statistics are combined.
+Today every auto-synced order, deposit, withdrawal and transfer is forced onto the **BINANCE BLYNK** wallet, because the sync code picks one active `terminal_wallet_links` row with **no account filter**. We will make every entry resolve its wallet from the Binance account it actually came from:
 
-Approach (per your choices): **live merge per account** (client-side fan-out), **colored account badge per row**, write actions auto-route to the owning account, **Create Ad** prompts for the target account when in Both mode.
+- **ASEC Binance** account (`00..001`) → **BINANCE ASEC** wallet
+- **Blynk Binance** account (`00..002`) → **BINANCE BLYNK** wallet
 
----
-
-## How it works
-
-### 1. Fan-out helper (core of the change)
-Add a reusable helper in `useExchangeAccount` context: `accountsToQuery` = `[activeAccountId]` for a single account, or all `visibleAccounts` ids when `activeAccountId === ALL_ACCOUNTS`.
-
-For live (edge-function) reads, when in Both mode we call the existing `binance-ads` / `binance-assets` function **once per account in parallel** (each call stamped with that account's `exchange_account_id`), then merge the responses, tagging each row with `_exchangeAccountId` so the UI can render the badge. No edge-function rewrite needed — the per-account call path already works correctly.
-
-### 2. Read hooks updated to be account-aware
-- `useBinanceAdsList` (`listAds`), `useBinanceActiveOrders` (`listActiveOrders`), `useBinanceOrderHistory` live path, `useBinanceBalances` (`getBalances`), `useBinanceUserDetail` (merchant status):
-  - Single mode: one call with the active account (unchanged behavior, now with account in the React-Query key).
-  - Both mode: parallel calls across `visibleAccounts`, merged. Each item tagged `_exchangeAccountId`.
-  - **Fix stale cache:** add `activeAccountId` to every one of these query keys (currently missing on active-orders, balances, user-detail, order-history) so switching accounts refetches instead of serving the previous account's data.
-
-### 3. DB-backed reads scoped correctly
-`binance_order_history` already stores `exchange_account_id`, but client reads don't filter it (cross-account leak today).
-- `useBinanceOrderHistory` (DB read), `useCachedOrderHistory`, and `TerminalDashboard` stats:
-  - Single mode: filter `exchange_account_id = activeAccountId`.
-  - Both mode: filter `exchange_account_id IN (visibleAccounts)` (combined totals). Stats aggregate across both; a per-account breakdown line is shown.
-
-### 4. Source-account badge
-A small `AccountBadge` component renders a colored dot + short name (yellow = Blynk, blue = ASEC) using `colorFor`/`nameFor` from context. Shown:
-- As a cell/chip on each row in Ads Manager, Active Orders, Order History tables (only in Both mode, to avoid clutter in single mode).
-- In merchant/user-status widgets, one badge per account when Both.
-- Dashboard/Analytics stat cards show the combined number plus a tiny per-account split.
-
-### 5. Write actions route to the owning account automatically
-Existing ads/orders carry `_exchangeAccountId` from the merged fetch. All row-level actions pass that id explicitly so they hit the correct Binance account regardless of the active selection — **no prompt**:
-- `markOrderAsPaid`, `releaseCoin`, `cancelOrder`, `sendChatMessage`, edit ad / update ad status, applyAdRiskGuard.
-- Implementation: thread the row's `_exchangeAccountId` into `useBinanceActions` calls (passed as explicit `exchange_account_id` in the body, which overrides the active-account default).
-
-### 6. Create Ad prompts for account in Both mode
-- Single mode: Create Ad uses the active account (unchanged).
-- Both mode: opening Create Ad first shows a small account picker (Blynk / ASEC); the chosen account id is sent with the create request.
+## Root Cause (verified)
+- `binance-assets` edge fn (`syncAssetMovements`, `checkNewMovements`) reads the first `status='active' AND platform_source='terminal'` link and stamps that `wallet_id` on **all** `erp_action_queue` rows — ignoring each movement's `exchange_account_id`.
+- `useTerminalPurchaseSync` / `useTerminalSalesSync` do the same when copying completed orders.
+- `erp_action_queue` has **no `exchange_account_id` column** (so the account is lost the moment a movement is queued).
+- `asset_movement_history` IDs (`dep-`, `wd-`, `tr-`, `pay-`) are **not account-prefixed** → two accounts can collide and overwrite each other.
+- `WalletTransferWrapper` even hardcodes a `"Binance Blynk"` fallback name.
 
 ---
 
-## Technical details (file-by-file)
+## Part 1 — Schema (single migration)
+1. **`terminal_wallet_links.exchange_account_id`** — new nullable `uuid` FK → `terminal_exchange_accounts(id)`. This becomes the canonical account→wallet map.
+2. **`erp_action_queue.exchange_account_id`** — new nullable `uuid` FK → `terminal_exchange_accounts(id)`, so queued movements keep their account.
+3. Seed/Update wallet links:
+   - ASEC account `00..001` → `BINANCE ASEC` wallet (`06830c8f…`)
+   - Blynk account `00..002` → `BINANCE BLYNK` wallet (`6d9114f1…`)
+   (Keep one as default for fallback safety.)
 
-**`src/contexts/ExchangeAccountContext.tsx`**
-- Export `accountsToQuery: string[]` (single id, or all visible ids when ALL).
-- Keep `withAccount` as-is for single calls.
+## Part 2 — Edge function `binance-assets`
+- **Account-prefix movement IDs** going forward: `dep-{acct}-{id}`, `wd-…`, `tr-…`, `pay-…` to remove cross-account collisions (old rows handled in Part 5 backfill).
+- Build an **account→wallet lookup** from `terminal_wallet_links` filtered by `exchange_account_id`.
+- In `syncAssetMovements` and `checkNewMovements`: stamp each `erp_action_queue` row with both the movement's `exchange_account_id` **and** the matching `wallet_id` (carry `exchange_account_id` forward from `asset_movement_history`).
+- If an account has **no** wallet link: queue the item but leave `wallet_id` null and surface a clear "wallet not mapped for this account" state instead of silently using Blynk.
 
-**`src/lib/activeExchangeAccount.ts`**
-- Add `getAccountsToQuery()` mirror for non-hook callers (`callBinanceAds`).
+## Part 3 — Order sync hooks
+- `useTerminalPurchaseSync` / `useTerminalSalesSync`: resolve `wallet_id` from `terminal_wallet_links` filtered by the order's `exchange_account_id` (already present on `terminal_purchase_sync` / `terminal_sales_sync` / `binance_order_history`).
+- `small_buys_sync` / `small_sales_sync`: resolve wallet by `exchange_account_id` at approval (these tables already carry `exchange_account_id`).
 
-**New `src/hooks/useMultiAccountQuery.ts` (helper)**
-- `fetchMerged(action, body, accountIds)` → `Promise.all` of per-account `callBinanceAds`/`callBinanceAssets`, each stamped with `exchange_account_id`, returns concatenated rows tagged `_exchangeAccountId`. Handles partial failure (one account erroring doesn't blank the whole view; surfaces a per-account warning).
+## Part 4 — Approval dialogs (frontend)
+- `ActionSelectionDialog`, `WalletTransferWrapper`, `PurchaseEntryWrapper`, `SalesEntryWrapper`, terminal & small approval dialogs: default the Binance wallet from the account-correct `item.wallet_id`.
+- **Lock the Binance-side wallet** (read-only, shown with its `AccountBadge`) per your choice — operator cannot change it; only the counter-wallet in a transfer remains selectable.
+- Remove the hardcoded `"Binance Blynk"` fallback; show the actual mapped wallet, or a visible warning if unmapped.
 
-**`src/hooks/useBinanceAds.tsx`**
-- `useBinanceAdsList`: branch on ALL → `fetchMerged('listAds', ...)`. Add `activeAccountId` to query key (already present) and tag rows.
+## Part 5 — Historical re-mapping (careful, not a blind relabel)
+You chose to correct history. Because all legacy rows are stamped account `00..001` + BINANCE BLYNK, we will:
+1. **Investigate first**: classify existing `asset_movement_history` / `erp_action_queue` / order-sync / `wallet_transactions` rows by their true source account using raw Binance payload signals (credential/account markers in `raw_data`, order numbers, tx ids).
+2. For rows whose true account differs from their current wallet, perform a **reverse + rebook** against `wallet_transactions` / `wallet_asset_balances` (never edit balances directly — respect ledger-truth and WAC rules) so balances stay consistent.
+3. Run as an auditable backfill migration/script with a dry-run summary you approve before it writes.
+4. Items that cannot be confidently classified are listed for manual review rather than guessed.
 
-**`src/hooks/useBinanceActions.tsx`**
-- `useBinanceActiveOrders`: branch on ALL → merge across accounts; add `activeAccountId` to query key.
-- Order/ad mutation actions accept an explicit `exchangeAccountId` arg and include it in the body.
+> Note: this is the highest-risk step. I'll produce the classification report and dry-run counts for your sign-off before applying any balance-moving changes.
 
-**`src/hooks/useBinanceOrders.tsx` + `useBinanceOrderSync.tsx`**
-- Live `getOrderHistory`: ALL → merge. DB reads (`binance_order_history`): add account filter (single = eq, ALL = in).
-
-**`src/hooks/useBinanceAssets.tsx`**
-- `useBinanceBalances`: ALL → fetch per account and merge balances (grouped/summed per asset with per-account breakdown). Add account to query key.
-
-**`src/components/exchange/AccountBadge.tsx` (new)**
-- Colored dot + name, driven by `colorFor`/`nameFor`.
-
-**Tables/pages** (`AdManager.tsx`, `TerminalOrders.tsx`, `TerminalDashboard.tsx`, `TerminalAnalytics.tsx`, `TerminalAssets.tsx`, merchant-status widget):
-- Render `AccountBadge` per row/stat in Both mode; pass `row._exchangeAccountId` into action handlers.
-
-**Create Ad flow** (`AdManager.tsx` / create-ad dialog):
-- In Both mode, show account picker before submit; pass chosen id.
-
-**No database migration required** — `binance_order_history.exchange_account_id` already exists; user→account mappings already populated. No edge-function changes required (per-account calls already work).
-
----
-
-## Out of scope / limitations (Binance API)
-- `spot_trade_history` has no `exchange_account_id` column, so spot history can't be split by account without a schema + sync change; it will remain combined. Flag if you want this scoped later.
-- Automation engines (auto-price/pay/reply) currently run primary-only; this plan does not change their account scope (separate effort).
+## Part 6 — Account↔account transfer auto-detection
+- Detect a withdrawal from one Binance account paired with a deposit into the other (match asset + amount within a time window, opposite accounts) and present it as a **single wallet-to-wallet transfer** between the two ERP wallets, preventing double counting.
+- If auto-detection is not confident, fall back to the normal manual flow (each leg as its own queue item) — per your instruction.
 
 ---
 
-## Verification
-- Switch to **Blynk** → ads/orders/stats show only Blynk (verified via different `advNo` sets already confirmed live).
-- Switch to **ASEC** → only ASEC.
-- Switch to **Both** → union of both, each row badged correctly; stat cards = combined totals with per-account split.
-- Mark-paid / release / chat / ad-edit on a Both-mode row hits the correct account (verified against edge-function logs).
-- Create Ad in Both mode prompts for account; in single mode it doesn't.
+## Anomalies explicitly handled
+1. Movement with missing `exchange_account_id` (legacy) → fallback wallet + flag.
+2. Account with no wallet link → queued but unmapped, visible warning (no silent Blynk default).
+3. Cross-account duplicate Binance IDs → account-prefixed IDs.
+4. `erp_action_queue` losing the account → new column carries it.
+5. Manual override risk → Binance-side wallet locked to mapping.
+6. Inter-account transfers double-counted → auto-detect + manual fallback.
+7. Historical balance integrity → reverse+rebook, not relabel; dry-run first.
+8. Combined ("Both") terminal view → unaffected, since syncs run per account and stamp the real account id.
+9. P2P / Binance Pay dedup → preserved, now per-account.
+
+## Technical notes
+- Tables touched: `terminal_wallet_links` (+col), `erp_action_queue` (+col), and a data backfill over `asset_movement_history`, `wallet_transactions`, `wallet_asset_balances`, order-sync tables.
+- Code touched: `supabase/functions/binance-assets/index.ts`, `src/hooks/useTerminalPurchaseSync.ts`, `src/hooks/useTerminalSalesSync.ts`, `src/hooks/useErpEntryFeed.ts`, `src/components/dashboard/erp-actions/*` (ActionSelection, WalletTransfer, PurchaseEntry, SalesEntry wrappers), small buys/sales approval dialogs.
+- No Binance API scope issues: all data already originates from existing Binance endpoints; we only change wallet routing of already-synced data.

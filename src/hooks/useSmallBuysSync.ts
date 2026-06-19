@@ -140,25 +140,37 @@ export async function syncSmallBuys(options: SmallBuysSyncOptions): Promise<Smal
   }
 
 
-  // Get active terminal wallet link
-  const { data: activeLink } = await supabase
+  // Get all active terminal wallet links, mapped per exchange account
+  const { data: allLinks } = await supabase
     .from('terminal_wallet_links')
-    .select('id, wallet_id, fee_treatment')
+    .select('id, wallet_id, fee_treatment, exchange_account_id')
     .eq('status', 'active')
-    .eq('platform_source', 'terminal')
-    .limit(1)
-    .maybeSingle();
+    .eq('platform_source', 'terminal');
 
-  const { data: walletInfo } = activeLink?.wallet_id
-    ? await supabase.from('wallets').select('wallet_name').eq('id', activeLink.wallet_id).single()
-    : { data: null };
+  const linkByAccount = new Map<string, any>();
+  let fallbackLink: any = null;
+  for (const l of (allLinks || [])) {
+    if (l.exchange_account_id) linkByAccount.set(l.exchange_account_id, l);
+    else if (!fallbackLink) fallbackLink = l;
+  }
+  if (!fallbackLink && allLinks && allLinks.length > 0) fallbackLink = allLinks[0];
+  const resolveLink = (accId: string | null | undefined) =>
+    (accId && linkByAccount.get(accId)) || fallbackLink || null;
 
-  // Group by asset
+  const { data: walletRows } = await supabase
+    .from('wallets')
+    .select('id, wallet_name')
+    .in('id', (allLinks || []).map((l) => l.wallet_id));
+  const walletNameById = new Map<string, string>((walletRows || []).map((w: any) => [w.id, w.wallet_name]));
+
+  // Group by asset AND exchange account so each batch maps to one wallet
   const assetGroups = new Map<string, typeof newOrders>();
   for (const order of newOrders) {
     const asset = order.asset || 'USDT';
-    if (!assetGroups.has(asset)) assetGroups.set(asset, []);
-    assetGroups.get(asset)!.push(order);
+    const accId = order.exchange_account_id || 'none';
+    const key = `${asset}::${accId}`;
+    if (!assetGroups.has(key)) assetGroups.set(key, []);
+    assetGroups.get(key)!.push(order);
   }
 
   const batchId = `SB-${Date.now()}`;
@@ -166,7 +178,10 @@ export async function syncSmallBuys(options: SmallBuysSyncOptions): Promise<Smal
 
   let entriesCreated = 0;
 
-  for (const [asset, group] of assetGroups) {
+  for (const [groupKey, group] of assetGroups) {
+    const [asset, accIdRaw] = groupKey.split('::');
+    const accId = accIdRaw === 'none' ? null : accIdRaw;
+    const link = resolveLink(accId);
     const totalQty = group.reduce((s, o) => s + parseFloat(o.amount || '0'), 0);
     const totalAmount = group.reduce((s, o) => s + parseFloat(o.total_price || '0'), 0);
     const totalFee = group.reduce((s, o) => s + parseFloat(o.commission || '0'), 0);
@@ -189,8 +204,9 @@ export async function syncSmallBuys(options: SmallBuysSyncOptions): Promise<Smal
         total_amount: totalAmount,
         avg_price: avgPrice,
         total_fee: totalFee,
-        wallet_id: activeLink?.wallet_id || null,
-        wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
+        exchange_account_id: accId || link?.exchange_account_id || null,
+        wallet_id: link?.wallet_id || null,
+        wallet_name: (link?.wallet_id ? walletNameById.get(link.wallet_id) : null) || 'Terminal Wallet',
         sync_status: 'pending_approval',
         order_numbers: group.map(o => o.order_number),
         time_window_start: windowStart,

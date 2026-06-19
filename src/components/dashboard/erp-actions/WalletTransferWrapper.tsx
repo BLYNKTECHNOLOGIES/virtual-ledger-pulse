@@ -60,7 +60,8 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   };
 
   const mappedWallet = wallets?.find((w) => w.id === item.wallet_id);
-  const mappedWalletName = mappedWallet?.wallet_name || "Binance Blynk";
+  const isUnmapped = !item.wallet_id || !mappedWallet;
+  const mappedWalletName = mappedWallet?.wallet_name || "⚠ Wallet not mapped for this account";
 
   const fromWalletId = isDeposit ? selectedWalletId : item.wallet_id;
   const toWalletId = isDeposit ? item.wallet_id : selectedWalletId;
@@ -248,6 +249,15 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
             </div>
           )}
 
+          {isUnmapped && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                No ERP wallet is mapped to this movement's Binance account. Configure it in Stock Management → Wallet Linking before recording this transfer.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {hasInsufficientBalance && (
             <Alert variant="destructive" className="py-2">
               <AlertTriangle className="h-4 w-4" />
@@ -260,7 +270,7 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
           <div className="flex gap-2 pt-2">
             <Button
               onClick={() => transferMutation.mutate()}
-              disabled={transferMutation.isPending}
+              disabled={transferMutation.isPending || isUnmapped}
               className="flex-1"
             >
               {transferMutation.isPending ? "Processing..." : "Confirm Transfer"}

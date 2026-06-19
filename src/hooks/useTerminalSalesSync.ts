@@ -63,25 +63,33 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
   let duplicates = 0;
 
   try {
-    // 1. Get the active terminal wallet link
-    const { data: activeLink } = await supabase
+    // 1. Get all active terminal wallet links, mapped per exchange account
+    const { data: allLinks } = await supabase
       .from('terminal_wallet_links')
-      .select('id, wallet_id, fee_treatment')
+      .select('id, wallet_id, fee_treatment, exchange_account_id')
       .eq('status', 'active')
-      .eq('platform_source', 'terminal')
-      .limit(1)
-      .maybeSingle();
+      .eq('platform_source', 'terminal');
 
-    if (!activeLink) {
+    if (!allLinks || allLinks.length === 0) {
       return { synced: 0, duplicates: 0 };
     }
 
-    // Get wallet name
-    const { data: walletInfo } = await supabase
+    const linkByAccount = new Map<string, typeof allLinks[number]>();
+    let fallbackLink: typeof allLinks[number] | null = null;
+    for (const l of allLinks) {
+      if (l.exchange_account_id) linkByAccount.set(l.exchange_account_id, l);
+      else if (!fallbackLink) fallbackLink = l;
+    }
+    if (!fallbackLink) fallbackLink = allLinks[0];
+    const resolveLink = (accId: string | null | undefined) =>
+      (accId && linkByAccount.get(accId)) || fallbackLink!;
+
+    // Wallet name lookup for all linked wallets
+    const { data: walletRows } = await supabase
       .from('wallets')
-      .select('wallet_name')
-      .eq('id', activeLink.wallet_id)
-      .single();
+      .select('id, wallet_name')
+      .in('id', allLinks.map((l) => l.wallet_id));
+    const walletNameById = new Map<string, string>((walletRows || []).map((w) => [w.id, w.wallet_name]));
 
     // 2. Get completed SELL orders from binance_order_history — last 7 days to catch cross-day orders
     // (orders created yesterday but completed/appeal-resolved today)
@@ -240,9 +248,13 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       // Force manual mapping if we couldn't resolve a real name
       const syncStatus = (counterpartyName === 'Unknown') ? 'client_mapping_pending' : (clientId ? 'synced_pending_approval' : 'client_mapping_pending');
 
+      const orderAccountId = (order as any).exchange_account_id || null;
+      const link = resolveLink(orderAccountId);
+
       toInsert.push({
         binance_order_number: order.order_number,
         sync_status: syncStatus,
+        exchange_account_id: orderAccountId || link.exchange_account_id || null,
         order_data: {
           order_number: order.order_number,
           asset: ((order.seller_payment_details as any)?._raw_detail?.asset || order.asset || 'USDT').toUpperCase(),
@@ -256,9 +268,9 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
           verified_name: verifiedName,
           create_time: order.create_time,
           pay_method: order.pay_method_name,
-          wallet_id: activeLink.wallet_id,
-          wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
-          fee_treatment: activeLink.fee_treatment,
+          wallet_id: link.wallet_id,
+          wallet_name: walletNameById.get(link.wallet_id) || 'Terminal Wallet',
+          fee_treatment: link.fee_treatment,
         },
         client_id: clientId,
         counterparty_name: counterpartyName,

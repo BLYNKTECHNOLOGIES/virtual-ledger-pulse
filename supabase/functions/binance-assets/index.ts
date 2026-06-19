@@ -85,6 +85,10 @@ serve(async (req) => {
 
     const acct = await resolveAccount(accountIdFromPayload(payload));
     const EXCHANGE_ACCOUNT_ID = acct.id;
+    // Account-prefix for movement IDs. Keep the primary ("default") account's IDs
+    // unprefixed for backward compatibility; prefix additional accounts to avoid
+    // cross-account ID collisions in asset_movement_history / erp_action_queue.
+    const ID_PFX = acct.credentialKey === "default" ? "" : `${acct.credentialKey}-`;
     const BINANCE_PROXY_URL = acct.proxyUrl;
     const BINANCE_API_KEY = acct.apiKey;
     const BINANCE_API_SECRET = acct.apiSecret;
@@ -455,7 +459,7 @@ serve(async (req) => {
           const deposits = await proxyGet("/sapi/v1/capital/deposit/hisrec", depParams);
           if (Array.isArray(deposits)) {
             const rows = deposits.map((d: any) => ({
-              id: `dep-${d.id || d.txId || d.insertTime}`,
+              id: `dep-${ID_PFX}${d.id || d.txId || d.insertTime}`,
               movement_type: "deposit",
               asset: d.coin || "",
               amount: parseFloat(d.amount || "0"),
@@ -489,7 +493,7 @@ serve(async (req) => {
           const withdrawals = await proxyGet("/sapi/v1/capital/withdraw/history", wdParams);
           if (Array.isArray(withdrawals)) {
             const rows = withdrawals.map((w: any) => ({
-              id: `wd-${w.id}`,
+              id: `wd-${ID_PFX}${w.id}`,
               movement_type: "withdrawal",
               asset: w.coin || "",
               amount: parseFloat(w.amount || "0"),
@@ -527,7 +531,7 @@ serve(async (req) => {
             if (Array.isArray(trRows) && trRows.length > 0) {
               const direction = tType === "FUNDING_MAIN" ? "Funding → Spot" : "Spot → Funding";
               const rows = trRows.map((t: any) => ({
-                id: `tr-${t.tranId}`,
+                id: `tr-${ID_PFX}${t.tranId}`,
                 movement_type: "transfer",
                 asset: t.asset || "",
                 amount: parseFloat(t.amount || "0"),
@@ -602,7 +606,7 @@ serve(async (req) => {
               const orderId = p.orderId || p.transactionId || String(p.transactionTime);
 
               return {
-                id: `pay-${orderId}`,
+                id: `pay-${ID_PFX}${orderId}`,
                 movement_type: movementType,
                 asset: p.currency || p.asset || "USDT",
                 amount: absAmount,
@@ -638,16 +642,23 @@ serve(async (req) => {
           last_transfer_time: 0,
         }, { onConflict: "id" });
 
-        // Auto-queue new movements
-        const { data: activeLink2 } = await sb
+        // Auto-queue new movements — resolve wallet per movement's OWN account
+        const { data: allLinks2 } = await sb
           .from("terminal_wallet_links")
-          .select("wallet_id")
+          .select("wallet_id, exchange_account_id")
           .eq("status", "active")
-          .eq("platform_source", "terminal")
-          .limit(1)
-          .maybeSingle();
+          .eq("platform_source", "terminal");
 
-        const mappedWalletId2 = activeLink2?.wallet_id || null;
+        // Map exchange_account_id -> wallet_id. Keep a fallback (account-less link)
+        // only for legacy rows that have no exchange_account_id.
+        const walletByAccount2 = new Map<string, string>();
+        let fallbackWallet2: string | null = null;
+        for (const l of (allLinks2 || [])) {
+          if (l.exchange_account_id) walletByAccount2.set(l.exchange_account_id, l.wallet_id);
+          else if (!fallbackWallet2) fallbackWallet2 = l.wallet_id;
+        }
+        const resolveWallet2 = (accId: string | null) =>
+          (accId && walletByAccount2.get(accId)) || fallbackWallet2 || null;
 
         const { data: existingQ } = await sb.from("erp_action_queue").select("movement_id");
         const existingQIds = new Set((existingQ || []).map((q: any) => q.movement_id));
@@ -675,7 +686,8 @@ serve(async (req) => {
             amount: m.amount,
             tx_id: m.tx_id || null,
             network: m.network || null,
-            wallet_id: mappedWalletId2,
+            exchange_account_id: m.exchange_account_id || null,
+            wallet_id: resolveWallet2(m.exchange_account_id),
             movement_time: m.movement_time,
             status: "PENDING",
             raw_data: m.raw_data || m,
@@ -697,15 +709,20 @@ serve(async (req) => {
         const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-        const { data: activeLink } = await sb
+        const { data: allLinks } = await sb
           .from("terminal_wallet_links")
-          .select("wallet_id")
+          .select("wallet_id, exchange_account_id")
           .eq("status", "active")
-          .eq("platform_source", "terminal")
-          .limit(1)
-          .maybeSingle();
+          .eq("platform_source", "terminal");
 
-        const mappedWalletId = activeLink?.wallet_id || null;
+        const walletByAccount = new Map<string, string>();
+        let fallbackWallet: string | null = null;
+        for (const l of (allLinks || [])) {
+          if (l.exchange_account_id) walletByAccount.set(l.exchange_account_id, l.wallet_id);
+          else if (!fallbackWallet) fallbackWallet = l.wallet_id;
+        }
+        const resolveWallet = (accId: string | null) =>
+          (accId && walletByAccount.get(accId)) || fallbackWallet || null;
 
         const { data: lastQueuedItem } = await sb
           .from("erp_action_queue")
@@ -765,7 +782,8 @@ serve(async (req) => {
           amount: m.amount,
           tx_id: m.tx_id || null,
           network: m.network || null,
-          wallet_id: mappedWalletId,
+          exchange_account_id: m.exchange_account_id || null,
+          wallet_id: resolveWallet(m.exchange_account_id),
           movement_time: m.movement_time,
           status: "PENDING",
           raw_data: m.raw_data || m,

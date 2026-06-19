@@ -9,6 +9,7 @@ import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
+import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,6 +20,7 @@ export function LoginPage() {
   const [success, setSuccess] = useState('');
   const [showForcedReset, setShowForcedReset] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const navigate = useNavigate();
 
   const writeCompatibilitySession = (authenticatedUser: {

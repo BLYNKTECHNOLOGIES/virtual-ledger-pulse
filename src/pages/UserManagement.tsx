@@ -95,6 +95,7 @@ const formatPermissionDisplay = (perm: string): string => {
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedRole, setSelectedRole] = useState<string>("all");
   const [roles, setRoles] = useState<Role[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(true);

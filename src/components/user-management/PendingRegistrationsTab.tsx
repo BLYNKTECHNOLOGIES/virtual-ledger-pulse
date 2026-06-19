@@ -191,15 +191,29 @@ export function PendingRegistrationsTab() {
       registrationId: string;
       reason: string;
     }) => {
-      const { data, error } = await supabase.rpc("reject_registration", {
-        p_registration_id: registrationId,
-        // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
-        // Passing a non-uuid breaks the RPC call.
-        p_rejected_by: isUuid(user?.id) ? user.id : null,
-        p_reason: reason || null,
+      const { data, error } = await supabase.functions.invoke("reject-erp-registration", {
+        body: {
+          registrationId,
+          reason: reason || null,
+        },
       });
 
-      if (error) throw error;
+      const payloadError = (data as { error?: unknown })?.error;
+      if (error || payloadError) {
+        let message = "Failed to reject registration";
+        if (typeof payloadError === "string") message = payloadError;
+        else if (error?.message) message = error.message;
+        try {
+          const ctx = (error as { context?: Response })?.context;
+          if (ctx && typeof ctx.json === "function") {
+            const body = await ctx.json();
+            if (typeof body?.error === "string") message = body.error;
+          }
+        } catch {
+          /* ignore */
+        }
+        throw new Error(message);
+      }
       return data;
     },
     onSuccess: () => {

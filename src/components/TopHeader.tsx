@@ -16,7 +16,7 @@ import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
-import { ExchangeAccountSwitcher } from "@/components/exchange/ExchangeAccountSwitcher";
+
 
 export function TopHeader() {
   const { user, isAdmin } = useAuth();

@@ -51,8 +51,8 @@ export default function AdManager() {
   const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
   const updateStatus = useUpdateAdStatus();
 
-  const ads: BinanceAd[] = data?.data || data?.list || [];
-  const restAds: BinanceAd[] = restAdsData?.data || restAdsData?.list || [];
+  const ads: BinanceAd[] = data?.data || [];
+  const restAds: BinanceAd[] = restAdsData?.data || [];
   const displayAds = useMemo(() => activeTab === 'block' ? ads.filter(isBlockAd) : ads.filter(ad => !isBlockAd(ad)), [ads, activeTab]);
   const total = displayAds.length;
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);

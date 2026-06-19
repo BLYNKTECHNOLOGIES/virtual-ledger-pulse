@@ -29,6 +29,13 @@ interface ExchangeAccountContextValue {
   activeAccountId: string;
   /** Resolved account object for the active id (null when ALL). */
   activeAccount: ExchangeAccount | null;
+  /** True when the combined "All accounts" view is active. */
+  isAllAccounts: boolean;
+  /**
+   * Account ids the current view should query:
+   * a single id normally, or every visible id in combined ("All") mode.
+   */
+  accountsToQuery: string[];
   /** Whether the user is allowed to switch accounts (>1 account assigned). */
   canSwitch: boolean;
   /** Whether the current user is locked to a single account. */

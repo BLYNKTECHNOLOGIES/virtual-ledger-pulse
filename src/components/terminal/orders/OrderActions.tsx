@@ -154,12 +154,12 @@ function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
   );
 }
 
-function MarkAsPaidAction({ orderNumber }: { orderNumber: string }) {
+function MarkAsPaidAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const markPaid = useMarkOrderAsPaid();
 
   const handleConfirmPaid = async () => {
     const preparedScreenshot = await prepareAutoScreenshot(orderNumber);
-    await markPaid.mutateAsync({ orderNumber });
+    await markPaid.mutateAsync({ orderNumber, exchangeAccountId });
     await deliverPreparedAutoScreenshot(preparedScreenshot);
   };
 

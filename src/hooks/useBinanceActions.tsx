@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
+import { withActiveAccount } from '@/lib/activeExchangeAccount';
 
 // ---- Generic Binance API caller ----
 // Hard client-side timeout: if the upstream Binance proxy hangs (we have seen
@@ -15,7 +16,7 @@ export async function callBinanceAds(action: string, payload: Record<string, any
   const timer = setTimeout(() => controller.abort(), BINANCE_CALL_TIMEOUT_MS);
   try {
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: { action, ...payload },
+      body: withActiveAccount({ action, ...payload }),
       // @ts-ignore — supabase-js forwards AbortSignal to fetch
       signal: controller.signal,
     });

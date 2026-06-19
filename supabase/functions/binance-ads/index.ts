@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveAccount, accountIdFromPayload } from "../_shared/binance-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -216,7 +217,7 @@ function sanitizeAdUpdatePayload(input: Record<string, any> = {}) {
   return { accepted, skipped, isPriceOnly };
 }
 
-async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail") {
+async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail", accountId?: string) {
   const businessStatus = Number(data?.businessStatus);
   if (!Number.isFinite(businessStatus)) return;
   const { error } = await supabase.from("binance_merchant_state_snapshots").insert({
@@ -232,6 +233,7 @@ async function persistMerchantStateSnapshot(supabase: any, data: any, source = "
     over_complained: data.overComplained == null ? null : Number(data.overComplained),
     source,
     raw_data: data,
+    ...(accountId ? { exchange_account_id: accountId } : {}),
   });
   if (error) throw error;
 }
@@ -258,13 +260,14 @@ function normalizeAdStatePayload(ad: any) {
   };
 }
 
-async function persistAdStateSnapshot(supabase: any, ad: any, source = "ad_detail", ruleId?: string | null) {
+async function persistAdStateSnapshot(supabase: any, ad: any, source = "ad_detail", ruleId?: string | null, accountId?: string) {
   const normalized = normalizeAdStatePayload(ad);
   if (!normalized) return { persisted: false, reason: "missing_adv_no" };
   const { error } = await supabase.from("binance_ad_state_snapshots").insert({
     ...normalized,
     rule_id: ruleId || null,
     snapshot_source: source,
+    ...(accountId ? { exchange_account_id: accountId } : {}),
   });
   if (error) throw error;
   return {
@@ -383,9 +386,10 @@ function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId:
   });
 }
 
-async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string) {
-  const snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
+async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string, accountId?: string) {
+  let snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
   if (snapshots.length === 0) return;
+  if (accountId) snapshots = snapshots.map((s: any) => ({ ...s, exchange_account_id: accountId }));
 
   // Non-blocking, idempotent upsert keyed on the existing unique index
   // (source_type, source_id, COALESCE(pay_method_identifier,''), COALESCE(pay_id,'')).
@@ -589,19 +593,23 @@ serve(async (req) => {
   }
 
   try {
-    const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
-    const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-    const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
-    const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    const { action, ...payload } = await req.json();
+    console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
+
+    // Resolve which Binance account this request targets (defaults to primary).
+    const acct = await resolveAccount(accountIdFromPayload(payload));
+    const EXCHANGE_ACCOUNT_ID = acct.id;
+    const BINANCE_PROXY_URL = acct.proxyUrl;
+    const BINANCE_API_KEY = acct.apiKey;
+    const BINANCE_API_SECRET = acct.apiSecret;
+    const BINANCE_PROXY_TOKEN = acct.proxyToken;
 
     if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
       throw new Error("Missing Binance configuration secrets");
     }
-
-    const { action, ...payload } = await req.json();
-    console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",
@@ -723,7 +731,7 @@ serve(async (req) => {
             try {
               const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
               const snapshotResults = await Promise.allSettled(
-                result.data.map((ad: any) => persistAdStateSnapshot(supabase, ad, payload.snapshotSource || "ad_list", payload.ruleId || null))
+                result.data.map((ad: any) => persistAdStateSnapshot(supabase, ad, payload.snapshotSource || "ad_list", payload.ruleId || null, EXCHANGE_ACCOUNT_ID))
               );
               const persistedCount = snapshotResults.filter((r) => r.status === "fulfilled" && (r as PromiseFulfilledResult<any>).value?.persisted).length;
               console.log(`[ad-state-snapshot] listAds persisted ${persistedCount}/${result.data.length}`);
@@ -745,8 +753,8 @@ serve(async (req) => {
         if (payload.adsNo && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo));
-            const snapshotResult = await persistAdStateSnapshot(supabase, detail, payload.snapshotSource || "ad_detail", payload.ruleId || null);
+            await persistCommissionRateSnapshots(supabase, detail, "ad_detail", String(payload.adsNo), EXCHANGE_ACCOUNT_ID);
+            const snapshotResult = await persistAdStateSnapshot(supabase, detail, payload.snapshotSource || "ad_detail", payload.ruleId || null, EXCHANGE_ACCOUNT_ID);
             console.log("[ad-state-snapshot] getAdDetail", JSON.stringify(snapshotResult));
           } catch (persistErr) {
             console.warn("getAdDetail snapshot persist failed:", persistErr);
@@ -969,7 +977,7 @@ serve(async (req) => {
             const orders = Array.isArray(result?.data?.data) ? result.data.data : Array.isArray(result?.data) ? result.data : [];
             for (const order of orders) {
               const orderNo = String(order?.orderNumber || order?.orderNo || "");
-              if (orderNo) await persistCommissionRateSnapshots(supabase, order, "active_order_list", orderNo);
+              if (orderNo) await persistCommissionRateSnapshots(supabase, order, "active_order_list", orderNo, EXCHANGE_ACCOUNT_ID);
             }
           } catch (persistErr) {
             console.warn("listActiveOrders commission snapshot persist failed:", persistErr);
@@ -1019,7 +1027,7 @@ serve(async (req) => {
               if (cancelReason) {
                 await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));
               }
-              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber));
+              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber), EXCHANGE_ACCOUNT_ID);
             }
           } catch (persistErr) {
             console.warn("getOrderDetail risk snapshot persist failed:", persistErr);
@@ -1610,7 +1618,7 @@ serve(async (req) => {
         if (result?.code === "000000" && fetched.userData && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail");
+            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail", EXCHANGE_ACCOUNT_ID);
           } catch (persistErr) {
             console.warn("merchant state snapshot persist failed:", persistErr);
           }
@@ -1624,7 +1632,7 @@ serve(async (req) => {
         if (result?.code === "000000" && fetched.userData && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail_refresh");
+            await persistMerchantStateSnapshot(supabase, fetched.userData, "baseDetail_refresh", EXCHANGE_ACCOUNT_ID);
             result.normalized = {
               businessStatus: Number(fetched.userData.businessStatus),
               businessStatusLabel: getBusinessStatusLabel(fetched.userData.businessStatus),

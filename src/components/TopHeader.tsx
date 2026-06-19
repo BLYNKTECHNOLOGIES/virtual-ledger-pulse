@@ -1,4 +1,4 @@
-import { Settings, RotateCcw, Globe, Edit3, X, Search, GripVertical, LayoutDashboard } from "lucide-react";
+import { Settings, RotateCcw, Globe, Edit3, X, Search, GripVertical, LayoutDashboard, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -16,9 +16,10 @@ import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { ExchangeAccountSwitcher } from "@/components/exchange/ExchangeAccountSwitcher";
 
 export function TopHeader() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { isDragMode, setIsDragMode, isDashboardRearrangeMode, setIsDashboardRearrangeMode } = useSidebarEdit();
   const location = useLocation();
@@ -123,7 +124,9 @@ export function TopHeader() {
         </form>
         
         <div className="flex items-center gap-2">
+          <ExchangeAccountSwitcher />
           <NotificationDropdown />
+
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -177,6 +180,14 @@ export function TopHeader() {
                 <Globe className="mr-2 h-4 w-4" />
                 View Website
               </DropdownMenuItem>
+
+              {isAdmin && (
+                <DropdownMenuItem onClick={() => navigate('/settings/exchange-accounts')} className="cursor-pointer">
+                  <Layers className="mr-2 h-4 w-4" />
+                  Binance Accounts
+                </DropdownMenuItem>
+              )}
+
               
               <DropdownMenuItem onClick={handleReload} className="cursor-pointer">
                 <RotateCcw className="mr-2 h-4 w-4" />

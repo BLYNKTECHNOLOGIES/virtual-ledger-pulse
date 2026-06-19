@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withActiveAccount } from "@/lib/activeExchangeAccount";
 import { toast } from "sonner";
 import { logAdAction, AdActionTypes } from "@/hooks/useAdActionLog";
 
@@ -53,7 +54,7 @@ export function useBinanceBalances() {
     queryKey: ["binance_asset_balances"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "getBalances" },
+        body: withActiveAccount({ action: "getBalances" }),
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
@@ -72,7 +73,7 @@ export function useBinanceTickerPrices() {
     queryKey: ["binance_ticker_prices"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "getTickerPrice" },
+        body: withActiveAccount({ action: "getTickerPrice" }),
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch prices");
@@ -113,10 +114,10 @@ export function useExecuteTrade() {
 
       // 2. Execute via edge function (auto-transfers from funding if needed)
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: {
+        body: withActiveAccount({
           action: "executeTradeWithTransfer",
           ...params,
-        },
+        }),
       });
 
       if (error) {

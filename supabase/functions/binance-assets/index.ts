@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { resolveAccount, accountIdFromPayload } from "../_shared/binance-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,17 +80,19 @@ serve(async (req) => {
   }
 
   try {
-    const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
-    const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-    const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
-    const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
+    const { action, ...payload } = await req.json();
+    console.info(`binance-assets: action=${action}`);
+
+    const acct = await resolveAccount(accountIdFromPayload(payload));
+    const EXCHANGE_ACCOUNT_ID = acct.id;
+    const BINANCE_PROXY_URL = acct.proxyUrl;
+    const BINANCE_API_KEY = acct.apiKey;
+    const BINANCE_API_SECRET = acct.apiSecret;
+    const BINANCE_PROXY_TOKEN = acct.proxyToken;
 
     if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
       throw new Error("Missing Binance configuration secrets");
     }
-
-    const { action, ...payload } = await req.json();
-    console.info(`binance-assets: action=${action}`);
 
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",
@@ -413,10 +416,14 @@ serve(async (req) => {
         const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+        // Per-account sync cursor: keep "default" for the primary account
+        // (backward compatible) and use the account id for additional accounts.
+        const movementMetaId = acct.credentialKey === "default" ? "default" : acct.id;
+
         const { data: syncMeta } = await sb
           .from("asset_movement_sync_metadata")
           .select("*")
-          .eq("id", "default")
+          .eq("id", movementMetaId)
           .maybeSingle();
 
         const lastSync = syncMeta?.last_sync_at ? new Date(syncMeta.last_sync_at).getTime() : 0;
@@ -461,6 +468,7 @@ serve(async (req) => {
               raw_data: d,
               movement_time: d.insertTime || 0,
               synced_at: new Date().toISOString(),
+              exchange_account_id: EXCHANGE_ACCOUNT_ID,
             }));
             if (rows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
@@ -494,6 +502,7 @@ serve(async (req) => {
               raw_data: w,
               movement_time: new Date(w.applyTime || 0).getTime(),
               synced_at: new Date().toISOString(),
+              exchange_account_id: EXCHANGE_ACCOUNT_ID,
             }));
             if (rows.length > 0) {
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
@@ -531,6 +540,7 @@ serve(async (req) => {
                 raw_data: t,
                 movement_time: t.timestamp || 0,
                 synced_at: new Date().toISOString(),
+                exchange_account_id: EXCHANGE_ACCOUNT_ID,
               }));
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
               if (error) console.error(`Transfer upsert error (${tType}):`, error.message);
@@ -548,6 +558,7 @@ serve(async (req) => {
             .from("asset_movement_history")
             .select("movement_time")
             .like("id", "pay-%")
+            .eq("exchange_account_id", EXCHANGE_ACCOUNT_ID)
             .order("movement_time", { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -604,6 +615,7 @@ serve(async (req) => {
                 raw_data: p,
                 movement_time: p.transactionTime || 0,
                 synced_at: new Date().toISOString(),
+                exchange_account_id: EXCHANGE_ACCOUNT_ID,
               };
             });
 
@@ -618,7 +630,8 @@ serve(async (req) => {
 
         // Update sync metadata
         await sb.from("asset_movement_sync_metadata").upsert({
-          id: "default",
+          id: movementMetaId,
+          exchange_account_id: EXCHANGE_ACCOUNT_ID,
           last_sync_at: new Date().toISOString(),
           last_deposit_time: 0,
           last_withdraw_time: 0,

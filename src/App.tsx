@@ -129,6 +129,7 @@ import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
+import ExchangeAccountsSettings from './pages/ExchangeAccountsSettings';
 
 const router = createBrowserRouter([
   // Login — the only public route
@@ -148,6 +149,18 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Dashboard />
+            </Layout>
+          </AuthCheck>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/settings/exchange-accounts",
+    element: (
+      <QueryProvider>
+          <AuthCheck>
+            <Layout>
+              <ExchangeAccountsSettings />
             </Layout>
           </AuthCheck>
       </QueryProvider>

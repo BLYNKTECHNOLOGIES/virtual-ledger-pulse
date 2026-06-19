@@ -5,6 +5,7 @@ import { SidebarEditProvider } from "@/contexts/SidebarEditContext";
 import { PinUnlockProvider } from "@/contexts/PinUnlockContext";
 
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ExchangeAccountProvider } from "@/contexts/ExchangeAccountContext";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";
@@ -18,6 +19,7 @@ export function Layout({ children }: LayoutProps) {
     <PinUnlockProvider>
       <SidebarEditProvider>
         <NotificationProvider>
+          <ExchangeAccountProvider>
             <SidebarProvider>
               <div className="flex w-full min-h-screen bg-slate-50">
                 {/* Desktop sidebar - hidden on mobile */}
@@ -38,6 +40,7 @@ export function Layout({ children }: LayoutProps) {
                 </SidebarInset>
               </div>
             </SidebarProvider>
+          </ExchangeAccountProvider>
           </NotificationProvider>
       </SidebarEditProvider>
     </PinUnlockProvider>

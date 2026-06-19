@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { setActiveExchangeAccountId } from "@/lib/activeExchangeAccount";
 
 export interface ExchangeAccount {
   id: string;

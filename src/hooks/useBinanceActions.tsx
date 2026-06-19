@@ -70,8 +70,10 @@ export function useReleaseCoin() {
       mobileVerifyCode?: string;
       yubikeyVerifyCode?: string;
       payId?: number;
+      exchangeAccountId?: string;
     }) => {
-      return callBinanceAds('releaseCoin', params);
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('releaseCoin', rest, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Crypto released successfully');

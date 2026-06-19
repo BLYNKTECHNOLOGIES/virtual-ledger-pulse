@@ -19,6 +19,23 @@ function unwrapOrderDetail(result: any) {
   return result?.data?.data || result?.data || result;
 }
 
+function extractSellerNameFromDetail(detail: any): string | null {
+  const direct = detail?.sellerRealName || detail?.sellerName || detail?.sellerNickName || null;
+  if (direct) return String(direct).trim();
+  const methods = Array.isArray(detail?.payMethods) ? detail.payMethods : Array.isArray(detail?.tradeMethods) ? detail.tradeMethods : [];
+  for (const method of methods) {
+    const fields = Array.isArray(method?.fields) ? method.fields : [];
+    const payee = fields.find((field: any) => String(field?.fieldContentType || '').toLowerCase() === 'payee' && String(field?.fieldValue || '').trim());
+    if (payee) return String(payee.fieldValue).trim();
+  }
+  return null;
+}
+
+function extractBuyerNameFromDetail(detail: any): string | null {
+  const direct = detail?.buyerRealName || detail?.buyerName || detail?.buyerNickName || null;
+  return direct ? String(direct).trim() : null;
+}
+
 function uniqueTruthyStrings(values: unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];

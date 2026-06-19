@@ -29,6 +29,18 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 
 const PENDING_SYNC_STATUSES = ['synced_pending_approval', 'client_mapping_pending'];
 
+function extractSellerNameFromDetail(detail: any): string | null {
+  const direct = detail?.sellerRealName || detail?.sellerName || detail?.sellerNickName || null;
+  if (direct) return String(direct).trim();
+  const methods = Array.isArray(detail?.payMethods) ? detail.payMethods : Array.isArray(detail?.tradeMethods) ? detail.tradeMethods : [];
+  for (const method of methods) {
+    const fields = Array.isArray(method?.fields) ? method.fields : [];
+    const payee = fields.find((field: any) => String(field?.fieldContentType || '').toLowerCase() === 'payee' && String(field?.fieldValue || '').trim());
+    if (payee) return String(payee.fieldValue).trim();
+  }
+  return null;
+}
+
 export function TerminalSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -139,7 +151,7 @@ export function TerminalSyncTab() {
           const apiResult = data?.data;
           const detail = apiResult?.data || apiResult;
           resolvedExchangeAccountId = apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null;
-          sellerName = detail?.sellerRealName || detail?.sellerName || null;
+          sellerName = extractSellerNameFromDetail(detail);
 
           if (sellerName) {
             await supabase

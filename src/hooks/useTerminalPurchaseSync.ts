@@ -7,6 +7,18 @@ import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNic
  * Fetch order detail from Binance API.
  * Returns { status, sellerRealName } or null on failure.
  */
+function extractSellerNameFromDetail(detail: any): string | null {
+  const direct = detail?.sellerRealName || detail?.sellerName || detail?.sellerNickName || null;
+  if (direct) return String(direct).trim();
+  const methods = Array.isArray(detail?.payMethods) ? detail.payMethods : Array.isArray(detail?.tradeMethods) ? detail.tradeMethods : [];
+  for (const method of methods) {
+    const fields = Array.isArray(method?.fields) ? method.fields : [];
+    const payee = fields.find((field: any) => String(field?.fieldContentType || '').toLowerCase() === 'payee' && String(field?.fieldValue || '').trim());
+    if (payee) return String(payee.fieldValue).trim();
+  }
+  return null;
+}
+
 async function fetchOrderDetail(orderNumber: string, exchangeAccountId?: string | null): Promise<{ status: string | null; sellerName: string | null }> {
   try {
     const { data, error } = await supabase.functions.invoke('binance-ads', {
@@ -35,7 +47,7 @@ async function fetchOrderDetail(orderNumber: string, exchangeAccountId?: string 
       }
     }
 
-    const sellerName = detail.sellerRealName || detail.sellerName || detail.sellerNickName || null;
+    const sellerName = extractSellerNameFromDetail(detail);
     return { status, sellerName };
   } catch {
     return { status: null, sellerName: null };

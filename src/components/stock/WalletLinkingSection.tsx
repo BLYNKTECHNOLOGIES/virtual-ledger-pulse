@@ -172,6 +172,7 @@ export function WalletLinkingSection() {
   });
 
   return (
+    <div className="space-y-3">
     <Card className="border border-dashed border-muted-foreground/20 bg-muted/20">
       <CardHeader className="py-2 px-4">
         <div className="flex items-center justify-between">

@@ -642,16 +642,23 @@ serve(async (req) => {
           last_transfer_time: 0,
         }, { onConflict: "id" });
 
-        // Auto-queue new movements
-        const { data: activeLink2 } = await sb
+        // Auto-queue new movements — resolve wallet per movement's OWN account
+        const { data: allLinks2 } = await sb
           .from("terminal_wallet_links")
-          .select("wallet_id")
+          .select("wallet_id, exchange_account_id")
           .eq("status", "active")
-          .eq("platform_source", "terminal")
-          .limit(1)
-          .maybeSingle();
+          .eq("platform_source", "terminal");
 
-        const mappedWalletId2 = activeLink2?.wallet_id || null;
+        // Map exchange_account_id -> wallet_id. Keep a fallback (account-less link)
+        // only for legacy rows that have no exchange_account_id.
+        const walletByAccount2 = new Map<string, string>();
+        let fallbackWallet2: string | null = null;
+        for (const l of (allLinks2 || [])) {
+          if (l.exchange_account_id) walletByAccount2.set(l.exchange_account_id, l.wallet_id);
+          else if (!fallbackWallet2) fallbackWallet2 = l.wallet_id;
+        }
+        const resolveWallet2 = (accId: string | null) =>
+          (accId && walletByAccount2.get(accId)) || fallbackWallet2 || null;
 
         const { data: existingQ } = await sb.from("erp_action_queue").select("movement_id");
         const existingQIds = new Set((existingQ || []).map((q: any) => q.movement_id));
@@ -679,7 +686,8 @@ serve(async (req) => {
             amount: m.amount,
             tx_id: m.tx_id || null,
             network: m.network || null,
-            wallet_id: mappedWalletId2,
+            exchange_account_id: m.exchange_account_id || null,
+            wallet_id: resolveWallet2(m.exchange_account_id),
             movement_time: m.movement_time,
             status: "PENDING",
             raw_data: m.raw_data || m,

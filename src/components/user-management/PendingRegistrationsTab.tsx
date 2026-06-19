@@ -271,8 +271,21 @@ export function PendingRegistrationsTab() {
     });
   };
 
+  if (!isSuperAdmin) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center text-muted-foreground">
+          <UserPlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="font-medium text-foreground">Restricted</p>
+          <p className="text-sm">Only a Super Admin can review pending registrations.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
+
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">

@@ -589,8 +589,8 @@ export function useMarkMessagesRead() {
 export function useSendBinanceChatMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderNo, message }: { orderNo: string; message: string }) => {
-      return callBinanceAds('sendChatMessage', { orderNo, content: message, contentType: 'TEXT' });
+    mutationFn: async ({ orderNo, message, exchangeAccountId }: { orderNo: string; message: string; exchangeAccountId?: string }) => {
+      return callBinanceAds('sendChatMessage', { orderNo, content: message, contentType: 'TEXT' }, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['binance-chat-messages', variables.orderNo] });

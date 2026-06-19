@@ -69,6 +69,7 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
         await new Promise<void>((resolve, reject) => {
           updateAd.mutate({
             advNo: ad.advNo,
+            exchange_account_id: ad._exchangeAccountId,
             asset: ad.asset,
             fiatUnit: ad.fiatUnit,
             tradeType: ad.tradeType,

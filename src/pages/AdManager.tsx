@@ -29,10 +29,14 @@ function isBlockAd(ad: BinanceAd) {
 export default function AdManager() {
   const location = useLocation();
   const isTerminalContext = location.pathname.startsWith('/terminal');
+  const { isAllAccounts, visibleAccounts, activeAccountId, colorFor, nameFor } = useExchangeAccount();
   const [filters, setFilters] = useState<AdFilters>({ page: 1, rows: 50, fetchAll: true });
   const [activeTab, setActiveTab] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingAd, setEditingAd] = useState<BinanceAd | null>(null);
+  // When creating in combined mode we must know which account the ad belongs to.
+  const [createAccountId, setCreateAccountId] = useState<string | null>(null);
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false);
 
   // Bulk selection state
   const [selectedAdvNos, setSelectedAdvNos] = useState<Set<string>>(new Set());

@@ -10,6 +10,7 @@ import { Link2, Unlink, Loader2, Wallet, Settings2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AccountOwnershipVerification } from "./AccountOwnershipVerification";
 
 interface TerminalWalletLink {
   id: string;
@@ -172,6 +173,7 @@ export function WalletLinkingSection() {
   });
 
   return (
+    <div className="space-y-3">
     <Card className="border border-dashed border-muted-foreground/20 bg-muted/20">
       <CardHeader className="py-2 px-4">
         <div className="flex items-center justify-between">
@@ -316,5 +318,7 @@ export function WalletLinkingSection() {
         </DialogContent>
       </Dialog>
     </Card>
+    <AccountOwnershipVerification />
+    </div>
   );
 }

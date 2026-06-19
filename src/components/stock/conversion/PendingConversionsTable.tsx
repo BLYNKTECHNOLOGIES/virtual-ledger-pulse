@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ClickableRow } from "@/components/transaction-detail";
+import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 export function PendingConversionsTable() {
   const { data: conversions = [], isLoading } = usePendingConversions();

@@ -1059,6 +1059,9 @@ serve(async (req) => {
               .maybeSingle();
             if (existing) {
               const cancelReason = extractCancelReason(detail);
+              const verifiedName = existing.trade_type === "BUY"
+                ? extractSellerNameFromDetail(detail)
+                : extractBuyerNameFromDetail(detail);
               const cancelUpdate = cancelReason ? {
                 cancel_reason_code: cancelReason.code,
                 cancel_reason_label: cancelReason.label,
@@ -1072,10 +1075,25 @@ serve(async (req) => {
                   order_detail_raw: detail,
                   counterparty_risk_snapshot: normalizeOrderRiskSnapshot(detail, existing.trade_type),
                   counterparty_risk_captured_at: new Date().toISOString(),
+                  ...(verifiedName ? { verified_name: verifiedName } : {}),
                   exchange_account_id: detailAccountId,
                   ...cancelUpdate,
                 })
                 .eq("order_number", String(payload.orderNumber));
+              if (verifiedName && existing.trade_type === "BUY") {
+                await supabase.from("terminal_purchase_sync").update({
+                  counterparty_name: verifiedName,
+                  exchange_account_id: detailAccountId,
+                  order_data: { ...detail, verified_name: verifiedName },
+                }).eq("binance_order_number", String(payload.orderNumber));
+              }
+              if (verifiedName && existing.trade_type === "SELL") {
+                await supabase.from("terminal_sales_sync").update({
+                  counterparty_name: verifiedName,
+                  exchange_account_id: detailAccountId,
+                  order_data: { ...detail, verified_name: verifiedName },
+                }).eq("binance_order_number", String(payload.orderNumber));
+              }
               if (cancelReason) {
                 await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));
               }

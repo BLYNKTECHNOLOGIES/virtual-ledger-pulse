@@ -136,7 +136,6 @@ export function TopHeader() {
               <Layers className="h-5 w-5" />
             </Button>
           )}
-          <ExchangeAccountSwitcher />
           <NotificationDropdown />
 
           

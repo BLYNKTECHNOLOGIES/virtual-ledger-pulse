@@ -103,18 +103,55 @@ export function PendingRegistrationsTab() {
     },
   });
 
+  // Fetch departments
+  const { data: departments = [] } = useQuery({
+    queryKey: ["departments-for-approval"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("departments")
+        .select("id, name, icon")
+        .eq("is_active", true)
+        .order("hierarchy_level", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; name: string; icon: string | null }[];
+    },
+  });
+
+  // Fetch positions for the selected department
+  const { data: positions = [] } = useQuery({
+    queryKey: ["positions-for-approval", selectedDepartmentId],
+    queryFn: async () => {
+      if (!selectedDepartmentId) return [];
+      const { data, error } = await supabase
+        .from("positions")
+        .select("id, title")
+        .eq("department_id", selectedDepartmentId)
+        .eq("is_active", true)
+        .order("hierarchy_level", { ascending: true });
+      if (error) throw error;
+      return data as { id: string; title: string }[];
+    },
+    enabled: !!selectedDepartmentId,
+  });
+
   // Approve mutation
   const approveMutation = useMutation({
     mutationFn: async ({
       registrationId,
       roleId,
+      departmentId,
+      positionId,
     }: {
       registrationId: string;
       roleId: string;
+      departmentId: string;
+      positionId: string;
     }) => {
       const { data, error } = await supabase.rpc("approve_registration", {
         p_registration_id: registrationId,
         p_role_id: roleId,
+        p_department_id: departmentId,
+        p_position_id: positionId,
         // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
         // Passing a non-uuid breaks the RPC call.
         p_approved_by: isUuid(user?.id) ? user.id : null,
@@ -126,12 +163,14 @@ export function PendingRegistrationsTab() {
     onSuccess: () => {
       toast({
         title: "Registration Approved",
-        description: "The user has been created and can now log in.",
+        description: "The user has been activated and can now log in.",
       });
       queryClient.invalidateQueries({ queryKey: ["pending-registrations"] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setApprovalDialog(null);
       setSelectedRoleId("");
+      setSelectedDepartmentId("");
+      setSelectedPositionId("");
     },
     onError: (error: any) => {
       toast({
@@ -141,6 +180,7 @@ export function PendingRegistrationsTab() {
       });
     },
   });
+
 
   // Reject mutation
   const rejectMutation = useMutation({

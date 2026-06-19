@@ -558,6 +558,7 @@ serve(async (req) => {
             .from("asset_movement_history")
             .select("movement_time")
             .like("id", "pay-%")
+            .eq("exchange_account_id", EXCHANGE_ACCOUNT_ID)
             .order("movement_time", { ascending: false })
             .limit(1)
             .maybeSingle();

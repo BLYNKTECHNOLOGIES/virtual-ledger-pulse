@@ -156,7 +156,8 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
         first_name: formData.first_name.trim() || undefined,
         last_name: formData.last_name.trim() || undefined,
         phone: formData.phone.trim() || undefined,
-        password: formData.password
+        password: formData.password,
+        badge_id: formData.badge_id.trim() || undefined
       });
 
       if (result.success) {

@@ -317,5 +317,7 @@ export function WalletLinkingSection() {
         </DialogContent>
       </Dialog>
     </Card>
+    <AccountOwnershipVerification />
+    </div>
   );
 }

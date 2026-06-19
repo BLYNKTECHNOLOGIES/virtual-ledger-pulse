@@ -106,6 +106,8 @@ export default function UserManagement() {
   const [resetPasswordUser, setResetPasswordUser] = useState<DatabaseUser | null>(null);
   const { users, isLoading, fetchUsers, createUser, deleteUser, updateUser } = useUsers();
   const { permissions, isLoading: isLoadingPermissions, hasPermission } = usePermissions();
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole("super admin");
 
   // Scroll to top when component mounts or tab changes
   useEffect(() => {

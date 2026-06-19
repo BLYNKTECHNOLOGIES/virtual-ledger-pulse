@@ -45,13 +45,34 @@ serve(async (req) => {
       });
     }
 
-    const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
-    const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-    const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
-    const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
+    // Which exchange account to verify? (defaults to the primary account)
+    let requestedAccountId: string | null = null;
+    try {
+      const body = await req.json();
+      requestedAccountId = body?.exchange_account_id ?? body?.exchangeAccountId ?? null;
+    } catch {
+      requestedAccountId = null;
+    }
+
+    let acct;
+    try {
+      acct = await resolveAccount(requestedAccountId);
+    } catch (e) {
+      return new Response(
+        JSON.stringify({ error: (e as Error).message, api_key_configured: false }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const BINANCE_PROXY_URL = acct.proxyUrl;
+    const BINANCE_API_KEY = acct.apiKey;
+    const BINANCE_API_SECRET = acct.apiSecret;
+    const BINANCE_PROXY_TOKEN = acct.proxyToken;
 
     // Return only boolean configuration flags — never any portion of the secret values.
     const results: Record<string, any> = {
+      exchange_account_id: acct.id,
+      account_name: acct.accountName,
       proxy_url_configured: !!BINANCE_PROXY_URL,
       api_key_configured: !!BINANCE_API_KEY,
       api_secret_configured: !!BINANCE_API_SECRET,

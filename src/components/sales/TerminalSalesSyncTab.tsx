@@ -453,7 +453,7 @@ export function TerminalSalesSyncTab() {
                     <TableCell className="text-xs font-mono">{record.binance_order_number?.slice(-10)}</TableCell>
                     <TableCell className="text-xs">
                       {buyerDisplay ? (
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col items-start gap-0.5">
                           <span>{buyerDisplay}</span>
                           {(() => {
                             // Prefer the unmasked nickname (terminal stores real nickname here for ASEC + Blynk)
@@ -462,11 +462,15 @@ export function TerminalSalesSyncTab() {
                               <span className="font-mono text-[10px] text-muted-foreground">@{nick}</span>
                             ) : null;
                           })()}
+                          <ExchangeAccountBadge accountId={record.exchange_account_id} />
                         </div>
                       ) : (
-                        <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
-                          Name Pending
-                        </Badge>
+                        <div className="flex flex-col items-start gap-0.5">
+                          <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                            Name Pending
+                          </Badge>
+                          <ExchangeAccountBadge accountId={record.exchange_account_id} />
+                        </div>
                       )}
                     </TableCell>
                     <TableCell className="text-xs font-medium">₹{Number(od?.total_price || 0).toLocaleString('en-IN')}</TableCell>

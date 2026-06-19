@@ -124,6 +124,18 @@ export function TopHeader() {
         </form>
         
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/settings/exchange-accounts')}
+              className="p-2 border-2 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-gray-200"
+              aria-label="Binance Accounts"
+              title="Binance Accounts"
+            >
+              <Layers className="h-5 w-5" />
+            </Button>
+          )}
           <ExchangeAccountSwitcher />
           <NotificationDropdown />
 

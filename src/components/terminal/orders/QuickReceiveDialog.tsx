@@ -120,7 +120,7 @@ export function QuickReceiveDialog({
     if (requireMarkPaidFirst) {
       try {
         const preparedScreenshot = await prepareAutoScreenshot(orderNumber);
-        await markPaid.mutateAsync({ orderNumber });
+        await markPaid.mutateAsync({ orderNumber, exchangeAccountId });
         await deliverPreparedAutoScreenshot(preparedScreenshot);
       } catch (err) {
         firedRef.current = false;

@@ -195,7 +195,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd }: CreateEdit
 
   // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
-    const ads: BinanceAd[] = sellAdsData?.data || sellAdsData?.list || [];
+    const ads: BinanceAd[] = sellAdsData?.data || [];
     const methodMap = new Map<string, any>();
     for (const ad of ads) {
       if (Array.isArray(ad.tradeMethods)) {

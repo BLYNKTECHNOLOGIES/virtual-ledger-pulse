@@ -130,6 +130,7 @@ export function QuickReceiveDialog({
 
     const params: Record<string, any> = {
       orderNumber,
+      exchangeAccountId,
       confirmPaidType: 'quick',
     };
     if (authMethod === 'YUBIKEY') {

@@ -137,23 +137,28 @@ export async function syncSpotTradesToConversions(): Promise<{ inserted: number 
   const userId = getCurrentUserId();
   if (!userId) throw new Error("User session not found");
 
-  // Get the API-linked wallet from terminal_wallet_links
-  const { data: activeLink } = await supabase
+  // Map each exchange account to its API-linked wallet (per-account routing).
+  const { data: walletLinks } = await supabase
     .from("terminal_wallet_links")
-    .select("wallet_id")
+    .select("wallet_id, exchange_account_id")
     .eq("status", "active")
-    .eq("platform_source", "terminal")
-    .limit(1)
-    .maybeSingle();
+    .eq("platform_source", "terminal");
 
-  const walletId = activeLink?.wallet_id;
-  if (!walletId) throw new Error("No API-linked wallet found. Please link a wallet in Stock > Wallets.");
+  const walletByAccount = new Map<string, string>();
+  let fallbackWalletId: string | null = null;
+  for (const l of (walletLinks || []) as any[]) {
+    if (l.exchange_account_id) walletByAccount.set(l.exchange_account_id, l.wallet_id);
+    if (!fallbackWalletId) fallbackWalletId = l.wallet_id;
+  }
+  if (!fallbackWalletId) throw new Error("No API-linked wallet found. Please link a wallet in Stock > Wallets.");
+  const resolveWallet = (accountId: string | null | undefined) =>
+    (accountId && walletByAccount.get(accountId)) || fallbackWalletId!;
 
   // Fetch unsynced trades
   const cutoffDate = "2026-02-11T18:30:00Z";
   const { data: rawTrades, error: tradeErr } = await supabase
     .from("spot_trade_history")
-    .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, source, status, is_buyer, created_at, binance_order_id")
+    .select("id, symbol, side, quantity, executed_price, quote_quantity, commission, commission_asset, trade_time, source, status, is_buyer, created_at, binance_order_id, exchange_account_id")
     .eq("status", "FILLED")
     .gte("created_at", cutoffDate)
     .order("trade_time", { ascending: false });

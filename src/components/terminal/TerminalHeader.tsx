@@ -55,6 +55,18 @@ export function TerminalHeader() {
             Break On
           </Badge>
         )}
+        {isTerminalAdmin && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/settings/exchange-accounts')}
+            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent"
+            aria-label="Binance Accounts"
+            title="Binance Accounts"
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
+        )}
         <ExchangeAccountSwitcher />
         <TerminalNotificationBell />
 

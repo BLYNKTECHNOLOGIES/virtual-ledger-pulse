@@ -153,8 +153,8 @@ export function TerminalSalesSyncTab() {
               .from('terminal_sales_sync')
               .update({
                 counterparty_name: buyerName,
-                exchange_account_id: resolvedExchangeAccountId,
-                order_data: { ...od, verified_name: buyerName, ...(walletMapping || {}) },
+              exchange_account_id: resolvedExchangeAccountId,
+              order_data: { ...od, verified_name: buyerName, ...(walletMapping || {}) },
               })
               .eq('id', record.id);
             enriched++;

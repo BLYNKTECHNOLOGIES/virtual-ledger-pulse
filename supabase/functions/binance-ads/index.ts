@@ -1098,22 +1098,24 @@ serve(async (req) => {
                 })
                 .eq("order_number", String(payload.orderNumber));
               if (verifiedName && existing.trade_type === "BUY") {
+                const walletMapping = await resolveTerminalWalletMapping(supabase, detailAccountId);
                 const { data: syncRows } = await supabase.from("terminal_purchase_sync").select("id, order_data").eq("binance_order_number", String(payload.orderNumber));
                 for (const syncRow of syncRows || []) {
                   await supabase.from("terminal_purchase_sync").update({
                     counterparty_name: verifiedName,
                     exchange_account_id: detailAccountId,
-                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName },
+                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName, ...(walletMapping || {}) },
                   }).eq("id", syncRow.id);
                 }
               }
               if (verifiedName && existing.trade_type === "SELL") {
+                const walletMapping = await resolveTerminalWalletMapping(supabase, detailAccountId);
                 const { data: syncRows } = await supabase.from("terminal_sales_sync").select("id, order_data").eq("binance_order_number", String(payload.orderNumber));
                 for (const syncRow of syncRows || []) {
                   await supabase.from("terminal_sales_sync").update({
                     counterparty_name: verifiedName,
                     exchange_account_id: detailAccountId,
-                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName },
+                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName, ...(walletMapping || {}) },
                   }).eq("id", syncRow.id);
                 }
               }

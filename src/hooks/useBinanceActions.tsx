@@ -122,8 +122,10 @@ export function useCheckIfCanRelease() {
       mobileVerifyCode?: string;
       yubikeyVerifyCode?: string;
       payId?: number;
+      exchangeAccountId?: string;
     }) => {
-      return callBinanceAds('checkIfCanRelease', params);
+      const { exchangeAccountId, ...rest } = params;
+      return callBinanceAds('checkIfCanRelease', rest, exchangeAccountId);
     },
   });
 }

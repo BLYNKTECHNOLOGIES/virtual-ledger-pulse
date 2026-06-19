@@ -36,6 +36,7 @@ import { PermissionChangeLog } from "@/components/user-management/PermissionChan
 import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTab";
 import { PasswordResetRequestsTab } from "@/components/user-management/PasswordResetRequestsTab";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";

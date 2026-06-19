@@ -620,16 +620,18 @@ export function useMerchantOffline() {
 // ==================== USER SUMMARY ====================
 
 export function useUserOrderSummary() {
+  const { activeAccountId } = useExchangeAccount();
   return useQuery({
-    queryKey: ['binance-user-order-summary'],
+    queryKey: ['binance-user-order-summary', activeAccountId],
     queryFn: () => callBinanceAds('getUserOrderSummary'),
     staleTime: 60 * 1000,
   });
 }
 
 export function useBinanceUserDetail() {
+  const { activeAccountId } = useExchangeAccount();
   return useQuery({
-    queryKey: ['binance-user-detail'],
+    queryKey: ['binance-user-detail', activeAccountId],
     queryFn: () => callBinanceAds('getUserDetail'),
     staleTime: 5 * 60 * 1000,
   });

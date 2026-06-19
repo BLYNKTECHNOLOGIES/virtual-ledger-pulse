@@ -241,9 +241,22 @@ export function LoginPage() {
               </button>
             </div>
           </form>
-          
+
+          <div className="mt-4 pt-4 border-t text-center text-sm text-gray-600">
+            New here?{' '}
+            <button
+              type="button"
+              onClick={() => setShowRegister(true)}
+              className="font-medium text-blue-600 hover:text-blue-700 hover:underline"
+            >
+              Register
+            </button>
+          </div>
         </CardContent>
       </Card>
+
+      <RegisterUserDialog open={showRegister} onOpenChange={setShowRegister} />
+
 
       <ForgotPasswordDialog
         open={showForgotPassword}

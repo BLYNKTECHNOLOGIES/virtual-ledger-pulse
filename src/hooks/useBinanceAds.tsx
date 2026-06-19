@@ -216,7 +216,12 @@ export function usePostAd() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (adData: Record<string, any>) => callBinanceAds('postAd', { adData }),
+    mutationFn: (adData: Record<string, any>) => {
+      // Route to the ad's own account when provided (combined "All accounts" mode);
+      // otherwise the active-account default applies.
+      const { exchange_account_id, ...rest } = adData;
+      return callBinanceAds('postAd', { adData: rest }, exchange_account_id);
+    },
     onSuccess: (_data, adData) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Posted', description: 'Your ad has been posted successfully.' });

@@ -137,6 +137,8 @@ Deno.serve(async (req) => {
 
     if (userInsertError) {
       console.error("public.users insert failed:", userInsertError);
+      // Remove the auto-created employee row (FK ON DELETE RESTRICT) then the auth user
+      await adminClient.from("employees").delete().eq("user_id", newUserId);
       await adminClient.auth.admin.deleteUser(newUserId);
       const raw = `${userInsertError.message} ${(userInsertError as { details?: string }).details ?? ""}`.toLowerCase();
       let friendly = "Could not complete registration. Please try again.";
@@ -145,6 +147,7 @@ Deno.serve(async (req) => {
       else if (raw.includes("username")) friendly = "This username is already taken.";
       return jsonResponse({ error: friendly }, 409);
     }
+
 
     // ── Create the pending registration record (approval queue) ──
     const { error: regError } = await adminClient.from("pending_registrations").insert({

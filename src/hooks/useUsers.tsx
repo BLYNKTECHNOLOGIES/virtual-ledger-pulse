@@ -160,6 +160,19 @@ export function useUsers() {
           .eq('id', newUserId);
       }
 
+      // Set badge_id if provided
+      if (newUserId && userData.badge_id?.trim()) {
+        const { error: badgeError } = await supabase
+          .from('users')
+          .update({ badge_id: userData.badge_id.trim() })
+          .eq('id', newUserId);
+
+        if (badgeError) {
+          console.warn('Badge ID assignment failed:', badgeError);
+          throw badgeError;
+        }
+      }
+
       // If a role_id was specified, assign the role
       if (userData.role_id && newUserId) {
         const { error: roleError } = await supabase

@@ -19,6 +19,7 @@ export interface SpotTradeForSync {
   is_buyer: boolean | null;
   created_at: string;
   binance_order_id?: string | null;
+  exchange_account_id?: string | null;
   fill_ids?: string[];
   already_synced?: boolean;
 }

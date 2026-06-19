@@ -803,6 +803,90 @@ serve(async (req) => {
         break;
       }
 
+      // ===== VERIFY ORDER OWNERSHIP (authoritative per-account re-stamp) =====
+      // Pulls this account's REAL P2P order history from Binance and stamps the
+      // matching binance_order_history rows with this account's id. Run once per
+      // configured account; whichever account's API returns an order truly owns it.
+      // Supports dryRun (report only) and paginated cursoring via { page, maxPages }.
+      case "verifyOrderOwnership": {
+        const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
+        const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+        const startTimestamp = payload.startTimestamp ? Number(payload.startTimestamp) : (Date.now() - 365 * 24 * 60 * 60 * 1000);
+        const endTimestamp = payload.endTimestamp ? Number(payload.endTimestamp) : Date.now();
+        const maxPages = Math.min(Number(payload.maxPages || 20), 60);
+        const rows = 100;
+        const dryRun = payload.dryRun === true;
+
+        const collected: string[] = [];
+        let page = Number(payload.page || 1);
+        let hasMore = true;
+        let pagesFetched = 0;
+        while (hasMore && pagesFetched < maxPages) {
+          const data = await proxyGet("/sapi/v1/c2c/orderMatch/listUserOrderHistory", {
+            page: String(page),
+            rows: String(rows),
+            startTimestamp: String(startTimestamp),
+            endTimestamp: String(endTimestamp),
+          });
+          const list = Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.data?.data)
+            ? data.data.data
+            : [];
+          for (const o of list) {
+            const on = String(o.orderNumber || o.orderNo || o.adOrderNo || "");
+            if (on) collected.push(on);
+          }
+          pagesFetched++;
+          hasMore = list.length >= rows;
+          page++;
+        }
+
+        const uniqueOrders = Array.from(new Set(collected));
+        let updated = 0;
+        let alreadyCorrect = 0;
+        let reassignedFromOther = 0;
+        let notInDb = 0;
+
+        for (let i = 0; i < uniqueOrders.length; i += 200) {
+          const batch = uniqueOrders.slice(i, i + 200);
+          const { data: existing } = await sb
+            .from("binance_order_history")
+            .select("order_number, exchange_account_id")
+            .in("order_number", batch);
+          const found = new Set((existing || []).map((r: any) => String(r.order_number)));
+          notInDb += batch.filter((on) => !found.has(on)).length;
+          const toReassign = (existing || []).filter((r: any) => r.exchange_account_id !== EXCHANGE_ACCOUNT_ID);
+          alreadyCorrect += (existing || []).length - toReassign.length;
+          reassignedFromOther += toReassign.length;
+          if (!dryRun && toReassign.length > 0) {
+            const ids = toReassign.map((r: any) => String(r.order_number));
+            const { error } = await sb
+              .from("binance_order_history")
+              .update({ exchange_account_id: EXCHANGE_ACCOUNT_ID })
+              .in("order_number", ids);
+            if (error) console.error("verifyOrderOwnership update error:", error.message);
+            else updated += ids.length;
+          }
+        }
+
+        result = {
+          account: EXCHANGE_ACCOUNT_ID,
+          dryRun,
+          pagesFetched,
+          ordersFetchedFromBinance: uniqueOrders.length,
+          alreadyCorrect,
+          reassignedFromOther,
+          updated,
+          notInDb,
+          nextPage: hasMore ? page : null,
+        };
+        break;
+      }
+
+
       // ===== DIAGNOSTIC: Probe all USDT locations (filtered) =====
       case "diagnoseUsdtLocations": {
         const out: any = {};

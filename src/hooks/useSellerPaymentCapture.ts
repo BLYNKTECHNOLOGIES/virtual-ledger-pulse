@@ -160,10 +160,10 @@ function extractSellerPaymentDetails(detail: any): SellerPaymentInfo | null {
 /**
  * Fetch order detail from Binance for a single order.
  */
-async function fetchOrderDetailForPayment(orderNumber: string): Promise<any | null> {
+async function fetchOrderDetailForPayment(orderNumber: string, exchangeAccountId?: string | null): Promise<any | null> {
   try {
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: { action: 'getOrderDetail', orderNumber },
+      body: { action: 'getOrderDetail', orderNumber, exchange_account_id: exchangeAccountId },
     });
     if (error) return null;
     const detail = data?.data?.data || data?.data || data;
@@ -186,7 +186,7 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
   // Find BUY orders in active states that don't have seller_payment_details yet
   const { data: activeOrders, error } = await supabase
     .from('binance_order_history')
-    .select('order_number, order_status, seller_payment_details, counter_part_nick_name, verified_name')
+    .select('order_number, order_status, seller_payment_details, counter_part_nick_name, verified_name, exchange_account_id')
     .eq('trade_type', 'BUY')
     .in('order_status', ACTIVE_STATUSES)
     .is('seller_payment_details', null)
@@ -201,7 +201,7 @@ export async function captureSellerPaymentDetails(): Promise<{ captured: number;
   for (const order of activeOrders) {
     checked++;
     try {
-      const detail = await fetchOrderDetailForPayment(order.order_number);
+      const detail = await fetchOrderDetailForPayment(order.order_number, (order as any).exchange_account_id || null);
       if (!detail) {
         console.warn(`[PaymentCapture] No detail returned for ${order.order_number}`);
         continue;

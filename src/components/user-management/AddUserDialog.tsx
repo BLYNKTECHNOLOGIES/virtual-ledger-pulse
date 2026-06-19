@@ -20,6 +20,7 @@ interface AddUserDialogProps {
     last_name?: string;
     phone?: string;
     password: string;
+    badge_id?: string;
   }) => Promise<{ success: boolean }>;
 }
 

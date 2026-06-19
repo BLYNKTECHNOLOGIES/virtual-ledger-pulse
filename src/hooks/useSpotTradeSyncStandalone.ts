@@ -1,33 +1,37 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 
+const PRIMARY_ACCOUNT_ID = "00000000-0000-0000-0000-000000000001";
+
 /**
- * Standalone function to sync spot trades from Binance API into spot_trade_history.
- * Can be called outside React component context (e.g., from universal sync).
+ * Sync spot trades for a SINGLE exchange account, using that account's own cursor,
+ * and stamp every imported row with its exchange_account_id.
  */
-export async function syncSpotTradesFromBinance(): Promise<{ synced: number }> {
+async function syncSpotTradesForAccount(accountId: string): Promise<number> {
   const { data: latestTrade } = await supabase
     .from("spot_trade_history")
     .select("trade_time")
+    .eq("exchange_account_id", accountId)
     .not("binance_trade_id", "is", null)
     .order("trade_time", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   const startTime = latestTrade?.trade_time
     ? Number(latestTrade.trade_time) + 1
     : undefined;
 
   const { data, error } = await supabase.functions.invoke("binance-assets", {
-    body: { action: "getMyTrades", startTime },
+    body: { action: "getMyTrades", startTime, exchange_account_id: accountId },
   });
 
   if (error || !data?.success) {
     throw new Error(error?.message || data?.error || "Spot trade sync failed");
   }
 
+  const resolvedAccountId: string = data._resolvedExchangeAccountId || accountId;
   const trades = data.data as any[];
-  if (!trades?.length) return { synced: 0 };
+  if (!trades?.length) return 0;
 
   const rows = trades.map((t: any) => ({
     binance_trade_id: String(t.id),
@@ -45,14 +49,16 @@ export async function syncSpotTradesFromBinance(): Promise<{ synced: number }> {
     status: "FILLED" as const,
     execution_method: "SPOT" as const,
     source: "binance_app" as const,
+    exchange_account_id: resolvedAccountId,
   }));
 
-  // Enrich terminal trades with commission data
+  // Enrich terminal trades (same account) with commission data
   const orderIds = [...new Set(rows.map((r) => r.binance_order_id))];
   const { data: terminalTrades } = await supabase
     .from("spot_trade_history")
     .select("binance_order_id, binance_trade_id")
     .eq("source", "terminal")
+    .eq("exchange_account_id", resolvedAccountId)
     .in("binance_order_id", orderIds);
 
   const terminalOrderIds = new Set(
@@ -92,8 +98,36 @@ export async function syncSpotTradesFromBinance(): Promise<{ synced: number }> {
       });
   }
 
-  return { synced: rows.length };
+  return rows.length;
 }
+
+/**
+ * Standalone function to sync spot trades from Binance API into spot_trade_history.
+ * Iterates over EVERY active exchange account (ASEC, Blynk, ...) with per-account
+ * cursors so no account starves the others.
+ * Can be called outside React component context (e.g., from universal sync).
+ */
+export async function syncSpotTradesFromBinance(): Promise<{ synced: number }> {
+  const { data: accounts } = await supabase
+    .from("terminal_exchange_accounts")
+    .select("id")
+    .eq("is_active", true);
+
+  const accountIds = (accounts || []).map((a: any) => a.id);
+  if (accountIds.length === 0) accountIds.push(PRIMARY_ACCOUNT_ID);
+
+  let synced = 0;
+  for (const accountId of accountIds) {
+    try {
+      synced += await syncSpotTradesForAccount(accountId);
+    } catch (e) {
+      console.warn(`Spot trade sync error for account ${accountId}:`, e);
+    }
+  }
+
+  return { synced };
+}
+
 
 /**
  * Standalone function to sync unsynced spot trades into erp_product_conversions.

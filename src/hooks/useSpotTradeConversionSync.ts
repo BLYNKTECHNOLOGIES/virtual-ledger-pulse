@@ -145,6 +145,22 @@ export function useSyncSpotTradesToConversions() {
         throw new Error("No new trades to sync");
       }
 
+      // Resolve wallet per exchange account so each conversion lands in its own wallet
+      const { data: allLinks } = await supabase
+        .from('terminal_wallet_links')
+        .select('wallet_id, exchange_account_id')
+        .eq('status', 'active')
+        .eq('platform_source', 'terminal');
+
+      const walletByAccount = new Map<string, string>();
+      let fallbackWallet: string | null = walletId || null;
+      for (const l of (allLinks || [])) {
+        if (l.exchange_account_id && l.wallet_id) walletByAccount.set(l.exchange_account_id, l.wallet_id);
+        else if (!fallbackWallet && l.wallet_id) fallbackWallet = l.wallet_id;
+      }
+      const resolveWallet = (accId: string | null | undefined) =>
+        (accId && walletByAccount.get(accId)) || fallbackWallet || walletId;
+
       const rows = unsyncedTrades.map((t) => {
         // Extract asset code from symbol (e.g., BTCUSDT -> BTC)
         const assetCode = t.symbol.replace("USDT", "");
@@ -167,7 +183,7 @@ export function useSyncSpotTradesToConversions() {
         const netUsdtChange = side === "SELL" ? grossUsd - (commissionAsset === "USDT" ? commission : 0) : grossUsd;
 
         return {
-          wallet_id: walletId,
+          wallet_id: resolveWallet(t.exchange_account_id),
           exchange_account_id: t.exchange_account_id || null,
           side,
           asset_code: assetCode,

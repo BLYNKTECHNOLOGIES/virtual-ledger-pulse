@@ -456,8 +456,9 @@ export function TerminalSalesSyncTab() {
                         <div className="flex flex-col gap-0.5">
                           <span>{buyerDisplay}</span>
                           {(() => {
-                            const nick = (od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
-                            return nick && !nick.includes('*') ? (
+                            // Prefer the unmasked nickname (terminal stores real nickname here for ASEC + Blynk)
+                            const nick = (od?.counterparty_nickname_unmasked || od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
+                            return nick && !nick.includes('*') && nick !== buyerDisplay ? (
                               <span className="font-mono text-[10px] text-muted-foreground">@{nick}</span>
                             ) : null;
                           })()}

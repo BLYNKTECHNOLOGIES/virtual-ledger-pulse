@@ -144,7 +144,7 @@ function VerifyOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
             className="bg-trade-buy hover:bg-trade-buy/90"
-            onClick={() => verifyOrder.mutate({ orderNumber })}
+            onClick={() => verifyOrder.mutate({ orderNumber, exchangeAccountId })}
           >
             Confirm & Verify
           </AlertDialogAction>

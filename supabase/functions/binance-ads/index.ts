@@ -977,7 +977,7 @@ serve(async (req) => {
             const orders = Array.isArray(result?.data?.data) ? result.data.data : Array.isArray(result?.data) ? result.data : [];
             for (const order of orders) {
               const orderNo = String(order?.orderNumber || order?.orderNo || "");
-              if (orderNo) await persistCommissionRateSnapshots(supabase, order, "active_order_list", orderNo);
+              if (orderNo) await persistCommissionRateSnapshots(supabase, order, "active_order_list", orderNo, EXCHANGE_ACCOUNT_ID);
             }
           } catch (persistErr) {
             console.warn("listActiveOrders commission snapshot persist failed:", persistErr);
@@ -1027,7 +1027,7 @@ serve(async (req) => {
               if (cancelReason) {
                 await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));
               }
-              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber));
+              await persistCommissionRateSnapshots(supabase, detail, "order_detail", String(payload.orderNumber), EXCHANGE_ACCOUNT_ID);
             }
           } catch (persistErr) {
             console.warn("getOrderDetail risk snapshot persist failed:", persistErr);

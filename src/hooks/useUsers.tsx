@@ -123,6 +123,7 @@ export function useUsers() {
     phone?: string;
     password: string;
     role_id?: string;
+    badge_id?: string;
   }) => {
     try {
       // Check if user is authenticated

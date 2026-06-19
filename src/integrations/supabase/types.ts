@@ -134,6 +134,7 @@ export type Database = {
           binance_pay_id: number | null
           created_at: string
           created_by_user_id: string | null
+          exchange_account_id: string
           id: string
           payment_method_id: string
         }
@@ -142,6 +143,7 @@ export type Database = {
           binance_pay_id?: number | null
           created_at?: string
           created_by_user_id?: string | null
+          exchange_account_id?: string
           id?: string
           payment_method_id: string
         }
@@ -150,6 +152,7 @@ export type Database = {
           binance_pay_id?: number | null
           created_at?: string
           created_by_user_id?: string | null
+          exchange_account_id?: string
           id?: string
           payment_method_id?: string
         }
@@ -159,6 +162,13 @@ export type Database = {
             columns: ["payment_method_id"]
             isOneToOne: false
             referencedRelation: "payment_methods_master"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_ad_payment_methods_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -218,6 +228,7 @@ export type Database = {
           circuit_status: string
           consecutive_failures: number
           cooldown_minutes: number
+          exchange_account_id: string
           failure_threshold: number
           id: string
           last_failure_at: string | null
@@ -233,6 +244,7 @@ export type Database = {
           circuit_status?: string
           consecutive_failures?: number
           cooldown_minutes?: number
+          exchange_account_id?: string
           failure_threshold?: number
           id?: string
           last_failure_at?: string | null
@@ -248,6 +260,7 @@ export type Database = {
           circuit_status?: string
           consecutive_failures?: number
           cooldown_minutes?: number
+          exchange_account_id?: string
           failure_threshold?: number
           id?: string
           last_failure_at?: string | null
@@ -259,7 +272,15 @@ export type Database = {
           opened_at?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_ad_pricing_engine_state_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ad_pricing_logs: {
         Row: {
@@ -345,6 +366,7 @@ export type Database = {
           consecutive_deviations: number | null
           consecutive_errors: number | null
           created_at: string | null
+          exchange_account_id: string
           fallback_merchants: string[] | null
           fiat: string
           id: string
@@ -390,6 +412,7 @@ export type Database = {
           consecutive_deviations?: number | null
           consecutive_errors?: number | null
           created_at?: string | null
+          exchange_account_id?: string
           fallback_merchants?: string[] | null
           fiat?: string
           id?: string
@@ -435,6 +458,7 @@ export type Database = {
           consecutive_deviations?: number | null
           consecutive_errors?: number | null
           created_at?: string | null
+          exchange_account_id?: string
           fallback_merchants?: string[] | null
           fiat?: string
           id?: string
@@ -468,7 +492,15 @@ export type Database = {
           trade_type?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_ad_pricing_rules_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ad_rest_timer: {
         Row: {
@@ -553,6 +585,7 @@ export type Database = {
           address: string | null
           amount: number
           asset: string
+          exchange_account_id: string
           fee: number | null
           id: string
           movement_time: number
@@ -568,6 +601,7 @@ export type Database = {
           address?: string | null
           amount?: number
           asset: string
+          exchange_account_id?: string
           fee?: number | null
           id: string
           movement_time?: number
@@ -583,6 +617,7 @@ export type Database = {
           address?: string | null
           amount?: number
           asset?: string
+          exchange_account_id?: string
           fee?: number | null
           id?: string
           movement_time?: number
@@ -594,10 +629,19 @@ export type Database = {
           transfer_direction?: string | null
           tx_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_asset_movement_history_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       asset_movement_sync_metadata: {
         Row: {
+          exchange_account_id: string
           id: string
           last_deposit_time: number | null
           last_sync_at: string | null
@@ -605,6 +649,7 @@ export type Database = {
           last_withdraw_time: number | null
         }
         Insert: {
+          exchange_account_id?: string
           id?: string
           last_deposit_time?: number | null
           last_sync_at?: string | null
@@ -612,13 +657,22 @@ export type Database = {
           last_withdraw_time?: number | null
         }
         Update: {
+          exchange_account_id?: string
           id?: string
           last_deposit_time?: number | null
           last_sync_at?: string | null
           last_transfer_time?: number | null
           last_withdraw_time?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_asset_movement_sync_metadata_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       asset_value_history: {
         Row: {
@@ -1344,6 +1398,7 @@ export type Database = {
           adv_visible_ret: Json | null
           asset: string | null
           captured_at: string
+          exchange_account_id: string
           id: string
           init_amount: number | null
           max_single_trans_amount: number | null
@@ -1363,6 +1418,7 @@ export type Database = {
           adv_visible_ret?: Json | null
           asset?: string | null
           captured_at?: string
+          exchange_account_id?: string
           id?: string
           init_amount?: number | null
           max_single_trans_amount?: number | null
@@ -1382,6 +1438,7 @@ export type Database = {
           adv_visible_ret?: Json | null
           asset?: string | null
           captured_at?: string
+          exchange_account_id?: string
           id?: string
           init_amount?: number | null
           max_single_trans_amount?: number | null
@@ -1403,6 +1460,13 @@ export type Database = {
             referencedRelation: "ad_pricing_rules"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_binance_ad_state_snapshots_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       binance_commission_rate_snapshots: {
@@ -1414,6 +1478,7 @@ export type Database = {
           captured_at: string
           commission_asset: string | null
           effective_commission_rate: number | null
+          exchange_account_id: string
           fiat_unit: string | null
           id: string
           maker_commission_rate: number | null
@@ -1437,6 +1502,7 @@ export type Database = {
           captured_at?: string
           commission_asset?: string | null
           effective_commission_rate?: number | null
+          exchange_account_id?: string
           fiat_unit?: string | null
           id?: string
           maker_commission_rate?: number | null
@@ -1460,6 +1526,7 @@ export type Database = {
           captured_at?: string
           commission_asset?: string | null
           effective_commission_rate?: number | null
+          exchange_account_id?: string
           fiat_unit?: string | null
           id?: string
           maker_commission_rate?: number | null
@@ -1475,7 +1542,15 @@ export type Database = {
           trade_type?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_binance_commission_rate_snapshots_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       binance_merchant_state_snapshots: {
         Row: {
@@ -1484,6 +1559,7 @@ export type Database = {
           business_status_label: string
           checked_at: string
           country_code: string | null
+          exchange_account_id: string
           id: string
           kyc_passed: boolean | null
           kyc_type: number | null
@@ -1500,6 +1576,7 @@ export type Database = {
           business_status_label: string
           checked_at?: string
           country_code?: string | null
+          exchange_account_id?: string
           id?: string
           kyc_passed?: boolean | null
           kyc_type?: number | null
@@ -1516,6 +1593,7 @@ export type Database = {
           business_status_label?: string
           checked_at?: string
           country_code?: string | null
+          exchange_account_id?: string
           id?: string
           kyc_passed?: boolean | null
           kyc_type?: number | null
@@ -1526,7 +1604,15 @@ export type Database = {
           source?: string
           user_kyc_status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_binance_merchant_state_snapshots_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       binance_order_chat_messages: {
         Row: {
@@ -1538,6 +1624,7 @@ export type Database = {
           chat_message_type: string | null
           content_type: string | null
           dedupe_key: string
+          exchange_account_id: string
           id: string
           image_url: string | null
           is_compliance_relevant: boolean
@@ -1562,6 +1649,7 @@ export type Database = {
           chat_message_type?: string | null
           content_type?: string | null
           dedupe_key: string
+          exchange_account_id?: string
           id?: string
           image_url?: string | null
           is_compliance_relevant?: boolean
@@ -1586,6 +1674,7 @@ export type Database = {
           chat_message_type?: string | null
           content_type?: string | null
           dedupe_key?: string
+          exchange_account_id?: string
           id?: string
           image_url?: string | null
           is_compliance_relevant?: boolean
@@ -1601,7 +1690,15 @@ export type Database = {
           thumbnail_url?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_binance_order_chat_messages_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       binance_order_history: {
         Row: {
@@ -1619,6 +1716,7 @@ export type Database = {
           counterparty_risk_captured_at: string | null
           counterparty_risk_snapshot: Json | null
           create_time: number
+          exchange_account_id: string
           fiat_unit: string | null
           has_active_complaint: boolean | null
           order_detail_raw: Json | null
@@ -1648,6 +1746,7 @@ export type Database = {
           counterparty_risk_captured_at?: string | null
           counterparty_risk_snapshot?: Json | null
           create_time: number
+          exchange_account_id?: string
           fiat_unit?: string | null
           has_active_complaint?: boolean | null
           order_detail_raw?: Json | null
@@ -1677,6 +1776,7 @@ export type Database = {
           counterparty_risk_captured_at?: string | null
           counterparty_risk_snapshot?: Json | null
           create_time?: number
+          exchange_account_id?: string
           fiat_unit?: string | null
           has_active_complaint?: boolean | null
           order_detail_raw?: Json | null
@@ -1691,28 +1791,47 @@ export type Database = {
           unit_price?: string | null
           verified_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_binance_order_history_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       binance_sync_metadata: {
         Row: {
+          exchange_account_id: string
           id: string
           last_sync_at: string | null
           last_sync_duration_ms: number | null
           last_sync_order_count: number | null
         }
         Insert: {
+          exchange_account_id?: string
           id?: string
           last_sync_at?: string | null
           last_sync_duration_ms?: number | null
           last_sync_order_count?: number | null
         }
         Update: {
+          exchange_account_id?: string
           id?: string
           last_sync_at?: string | null
           last_sync_duration_ms?: number | null
           last_sync_order_count?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_binance_sync_metadata_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       blocked_phone_numbers: {
         Row: {
@@ -9800,6 +9919,7 @@ export type Database = {
           auto_paid: number
           candidates: number
           errors: number
+          exchange_account_id: string
           finished_at: string | null
           id: string
           skipped: number
@@ -9815,6 +9935,7 @@ export type Database = {
           auto_paid?: number
           candidates?: number
           errors?: number
+          exchange_account_id?: string
           finished_at?: string | null
           id?: string
           skipped?: number
@@ -9830,6 +9951,7 @@ export type Database = {
           auto_paid?: number
           candidates?: number
           errors?: number
+          exchange_account_id?: string
           finished_at?: string | null
           id?: string
           skipped?: number
@@ -9839,7 +9961,15 @@ export type Database = {
           total_orders?: number
           warnings?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_p2p_auto_pay_engine_runs_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       p2p_auto_pay_log: {
         Row: {
@@ -9848,6 +9978,7 @@ export type Database = {
           confirm_pay_end_time: string | null
           decision_reason: string | null
           error_message: string | null
+          exchange_account_id: string
           executed_at: string
           id: string
           mark_paid_order_status: string | null
@@ -9865,6 +9996,7 @@ export type Database = {
           confirm_pay_end_time?: string | null
           decision_reason?: string | null
           error_message?: string | null
+          exchange_account_id?: string
           executed_at?: string
           id?: string
           mark_paid_order_status?: string | null
@@ -9882,6 +10014,7 @@ export type Database = {
           confirm_pay_end_time?: string | null
           decision_reason?: string | null
           error_message?: string | null
+          exchange_account_id?: string
           executed_at?: string
           id?: string
           mark_paid_order_status?: string | null
@@ -9893,10 +10026,19 @@ export type Database = {
           source?: string | null
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_p2p_auto_pay_log_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       p2p_auto_pay_settings: {
         Row: {
+          exchange_account_id: string
           id: string
           is_active: boolean
           minutes_before_expiry: number
@@ -9904,6 +10046,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          exchange_account_id?: string
           id?: string
           is_active?: boolean
           minutes_before_expiry?: number
@@ -9911,17 +10054,27 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          exchange_account_id?: string
           id?: string
           is_active?: boolean
           minutes_before_expiry?: number
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_p2p_auto_pay_settings_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       p2p_auto_reply_log: {
         Row: {
           error_message: string | null
+          exchange_account_id: string
           executed_at: string
           id: string
           message_sent: string
@@ -9932,6 +10085,7 @@ export type Database = {
         }
         Insert: {
           error_message?: string | null
+          exchange_account_id?: string
           executed_at?: string
           id?: string
           message_sent: string
@@ -9942,6 +10096,7 @@ export type Database = {
         }
         Update: {
           error_message?: string | null
+          exchange_account_id?: string
           executed_at?: string
           id?: string
           message_sent?: string
@@ -9951,6 +10106,13 @@ export type Database = {
           trigger_event?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_p2p_auto_reply_log_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "p2p_auto_reply_log_rule_id_fkey"
             columns: ["rule_id"]
@@ -9998,6 +10160,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           delay_seconds: number
+          exchange_account_id: string
           id: string
           is_active: boolean
           message_template: string
@@ -10012,6 +10175,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delay_seconds?: number
+          exchange_account_id?: string
           id?: string
           is_active?: boolean
           message_template: string
@@ -10026,6 +10190,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           delay_seconds?: number
+          exchange_account_id?: string
           id?: string
           is_active?: boolean
           message_template?: string
@@ -10035,7 +10200,15 @@ export type Database = {
           trigger_event?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_p2p_auto_reply_rules_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       p2p_chat_media: {
         Row: {
@@ -10194,6 +10367,7 @@ export type Database = {
         Row: {
           counterparty_id: string | null
           created_at: string
+          exchange_account_id: string
           id: string
           is_quick_reply: boolean
           message_text: string | null
@@ -10205,6 +10379,7 @@ export type Database = {
         Insert: {
           counterparty_id?: string | null
           created_at?: string
+          exchange_account_id?: string
           id?: string
           is_quick_reply?: boolean
           message_text?: string | null
@@ -10216,6 +10391,7 @@ export type Database = {
         Update: {
           counterparty_id?: string | null
           created_at?: string
+          exchange_account_id?: string
           id?: string
           is_quick_reply?: boolean
           message_text?: string | null
@@ -10225,6 +10401,13 @@ export type Database = {
           sent_by_user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_p2p_order_chats_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "p2p_order_chats_counterparty_id_fkey"
             columns: ["counterparty_id"]
@@ -10260,6 +10443,7 @@ export type Database = {
           counterparty_id: string | null
           counterparty_nickname: string
           created_at: string
+          exchange_account_id: string
           fiat_unit: string
           id: string
           is_repeat_client: boolean
@@ -10291,6 +10475,7 @@ export type Database = {
           counterparty_id?: string | null
           counterparty_nickname: string
           created_at?: string
+          exchange_account_id?: string
           fiat_unit?: string
           id?: string
           is_repeat_client?: boolean
@@ -10322,6 +10507,7 @@ export type Database = {
           counterparty_id?: string | null
           counterparty_nickname?: string
           created_at?: string
+          exchange_account_id?: string
           fiat_unit?: string
           id?: string
           is_repeat_client?: boolean
@@ -10336,6 +10522,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_p2p_order_records_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "p2p_order_records_counterparty_id_fkey"
             columns: ["counterparty_id"]
@@ -12903,6 +13096,7 @@ export type Database = {
         Row: {
           asset_code: string
           avg_price: number
+          exchange_account_id: string
           id: string
           order_count: number
           order_numbers: string[] | null
@@ -12925,6 +13119,7 @@ export type Database = {
         Insert: {
           asset_code?: string
           avg_price?: number
+          exchange_account_id?: string
           id?: string
           order_count?: number
           order_numbers?: string[] | null
@@ -12947,6 +13142,7 @@ export type Database = {
         Update: {
           asset_code?: string
           avg_price?: number
+          exchange_account_id?: string
           id?: string
           order_count?: number
           order_numbers?: string[] | null
@@ -12966,7 +13162,15 @@ export type Database = {
           wallet_id?: string | null
           wallet_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_small_buys_sync_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       small_buys_sync_log: {
         Row: {
@@ -13073,6 +13277,7 @@ export type Database = {
         Row: {
           asset_code: string
           avg_price: number
+          exchange_account_id: string
           id: string
           order_count: number
           order_numbers: string[]
@@ -13095,6 +13300,7 @@ export type Database = {
         Insert: {
           asset_code: string
           avg_price?: number
+          exchange_account_id?: string
           id?: string
           order_count?: number
           order_numbers?: string[]
@@ -13117,6 +13323,7 @@ export type Database = {
         Update: {
           asset_code?: string
           avg_price?: number
+          exchange_account_id?: string
           id?: string
           order_count?: number
           order_numbers?: string[]
@@ -13136,7 +13343,15 @@ export type Database = {
           wallet_id?: string | null
           wallet_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_small_sales_sync_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       small_sales_sync_log: {
         Row: {
@@ -14400,28 +14615,40 @@ export type Database = {
         Row: {
           account_identifier: string
           account_name: string
+          color: string | null
           created_at: string
+          credential_key: string | null
+          display_order: number
           exchange_platform: string
           id: string
           is_active: boolean
+          is_default: boolean
           updated_at: string
         }
         Insert: {
           account_identifier: string
           account_name: string
+          color?: string | null
           created_at?: string
+          credential_key?: string | null
+          display_order?: number
           exchange_platform?: string
           id?: string
           is_active?: boolean
+          is_default?: boolean
           updated_at?: string
         }
         Update: {
           account_identifier?: string
           account_name?: string
+          color?: string | null
           created_at?: string
+          credential_key?: string | null
+          display_order?: number
           exchange_platform?: string
           id?: string
           is_active?: boolean
+          is_default?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -14742,6 +14969,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_terminal_order_assignments_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "terminal_order_assignments_assigned_by_fkey"
             columns: ["assigned_by"]
             isOneToOne: false
@@ -15010,6 +15244,7 @@ export type Database = {
           client_id: string | null
           counterparty_name: string
           created_at: string
+          exchange_account_id: string
           id: string
           order_data: Json
           pan_number: string | null
@@ -15027,6 +15262,7 @@ export type Database = {
           client_id?: string | null
           counterparty_name: string
           created_at?: string
+          exchange_account_id?: string
           id?: string
           order_data?: Json
           pan_number?: string | null
@@ -15044,6 +15280,7 @@ export type Database = {
           client_id?: string | null
           counterparty_name?: string
           created_at?: string
+          exchange_account_id?: string
           id?: string
           order_data?: Json
           pan_number?: string | null
@@ -15057,6 +15294,13 @@ export type Database = {
           synced_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_terminal_purchase_sync_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "terminal_purchase_sync_client_id_fkey"
             columns: ["client_id"]
@@ -15079,6 +15323,7 @@ export type Database = {
           client_id: string | null
           contact_number: string | null
           counterparty_name: string | null
+          exchange_account_id: string
           id: string
           order_data: Json | null
           rejection_reason: string | null
@@ -15096,6 +15341,7 @@ export type Database = {
           client_id?: string | null
           contact_number?: string | null
           counterparty_name?: string | null
+          exchange_account_id?: string
           id?: string
           order_data?: Json | null
           rejection_reason?: string | null
@@ -15113,6 +15359,7 @@ export type Database = {
           client_id?: string | null
           contact_number?: string | null
           counterparty_name?: string | null
+          exchange_account_id?: string
           id?: string
           order_data?: Json | null
           rejection_reason?: string | null
@@ -15126,6 +15373,13 @@ export type Database = {
           synced_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_terminal_sales_sync_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "terminal_sales_sync_client_id_fkey"
             columns: ["client_id"]
@@ -15967,6 +16221,7 @@ export type Database = {
         Row: {
           asset_code: string
           balance: number
+          exchange_account_id: string
           id: string
           total_received: number
           total_sent: number
@@ -15976,6 +16231,7 @@ export type Database = {
         Insert: {
           asset_code?: string
           balance?: number
+          exchange_account_id?: string
           id?: string
           total_received?: number
           total_sent?: number
@@ -15985,6 +16241,7 @@ export type Database = {
         Update: {
           asset_code?: string
           balance?: number
+          exchange_account_id?: string
           id?: string
           total_received?: number
           total_sent?: number
@@ -15992,6 +16249,13 @@ export type Database = {
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_wallet_asset_balances_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wallet_asset_balances_wallet_id_fkey"
             columns: ["wallet_id"]
@@ -16006,6 +16270,7 @@ export type Database = {
           asset_code: string
           avg_cost_usdt: number
           cost_pool_usdt: number
+          exchange_account_id: string
           id: string
           qty_on_hand: number
           updated_at: string
@@ -16015,6 +16280,7 @@ export type Database = {
           asset_code: string
           avg_cost_usdt?: number
           cost_pool_usdt?: number
+          exchange_account_id?: string
           id?: string
           qty_on_hand?: number
           updated_at?: string
@@ -16024,12 +16290,20 @@ export type Database = {
           asset_code?: string
           avg_cost_usdt?: number
           cost_pool_usdt?: number
+          exchange_account_id?: string
           id?: string
           qty_on_hand?: number
           updated_at?: string
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_wallet_asset_positions_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wallet_asset_positions_wallet_id_fkey"
             columns: ["wallet_id"]
@@ -16159,6 +16433,7 @@ export type Database = {
           description: string | null
           effective_usdt_qty: number | null
           effective_usdt_rate: number | null
+          exchange_account_id: string
           id: string
           is_reversed: boolean
           market_rate_usdt: number | null
@@ -16183,6 +16458,7 @@ export type Database = {
           description?: string | null
           effective_usdt_qty?: number | null
           effective_usdt_rate?: number | null
+          exchange_account_id?: string
           id?: string
           is_reversed?: boolean
           market_rate_usdt?: number | null
@@ -16207,6 +16483,7 @@ export type Database = {
           description?: string | null
           effective_usdt_qty?: number | null
           effective_usdt_rate?: number | null
+          exchange_account_id?: string
           id?: string
           is_reversed?: boolean
           market_rate_usdt?: number | null
@@ -16222,6 +16499,13 @@ export type Database = {
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_wallet_transactions_exch_acct"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "wallet_transactions_created_by_fkey"
             columns: ["created_by"]

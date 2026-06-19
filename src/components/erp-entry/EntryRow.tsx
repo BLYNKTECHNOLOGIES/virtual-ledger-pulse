@@ -12,6 +12,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ErpEntryRow, ErpEntrySource } from "@/hooks/useErpEntryFeed";
 import { openTransaction } from "@/components/transaction-detail";
+import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const ICONS: Record<ErpEntrySource, { Icon: any; tone: string; bg: string }> = {
   deposit: { Icon: ArrowDownToLine, tone: "text-emerald-600", bg: "bg-emerald-100" },

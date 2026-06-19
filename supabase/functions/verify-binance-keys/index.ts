@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { resolveAccount } from "../_shared/binance-account.ts";
+import { proxyHeadersFor, resolveAccount } from "../_shared/binance-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,10 +80,12 @@ serve(async (req) => {
       proxy_token_configured: !!BINANCE_PROXY_TOKEN,
     };
 
+    const proxyHeaders = proxyHeadersFor(acct);
     let proxyAlive = false;
     try {
       const pingRes = await fetch(`${BINANCE_PROXY_URL}/api/api/v3/ping`, {
-        headers: { "x-proxy-token": BINANCE_PROXY_TOKEN || "" },
+        method: "GET",
+        headers: proxyHeaders,
       });
       proxyAlive = pingRes.ok;
       results.proxy_ping = proxyAlive ? "OK" : `Failed (${pingRes.status})`;
@@ -93,7 +95,8 @@ serve(async (req) => {
 
     try {
       const timeRes = await fetch(`${BINANCE_PROXY_URL}/api/api/v3/time`, {
-        headers: { "x-proxy-token": BINANCE_PROXY_TOKEN || "" },
+        method: "GET",
+        headers: proxyHeaders,
       });
       results.server_time_ok = timeRes.ok;
     } catch (e) {
@@ -102,15 +105,12 @@ serve(async (req) => {
 
     try {
       const accRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/capital/config/getall`, {
-        headers: {
-          "Content-Type": "application/json",
-          "x-proxy-token": BINANCE_PROXY_TOKEN || "",
-          "x-api-key": BINANCE_API_KEY || "",
-          "x-api-secret": BINANCE_API_SECRET || "",
-        },
+        headers: proxyHeaders,
       });
       if (accRes.ok) {
         const parsed = await accRes.json();
+        results.proxy_ping = "OK";
+        results.server_time_ok = true;
         results.api_key_valid = true;
         results.assets_found = Array.isArray(parsed) ? parsed.length : 0;
       } else {

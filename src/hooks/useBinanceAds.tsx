@@ -94,7 +94,7 @@ export interface AdFilters {
 
 async function callBinanceAds(action: string, payload: Record<string, any> = {}) {
   const { data, error } = await supabase.functions.invoke('binance-ads', {
-    body: { action, ...payload },
+    body: withActiveAccount({ action, ...payload }),
   });
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'API call failed');

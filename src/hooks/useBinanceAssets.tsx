@@ -54,7 +54,7 @@ export function useBinanceBalances() {
     queryKey: ["binance_asset_balances"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "getBalances" },
+        body: withActiveAccount({ action: "getBalances" }),
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
@@ -73,7 +73,7 @@ export function useBinanceTickerPrices() {
     queryKey: ["binance_ticker_prices"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: { action: "getTickerPrice" },
+        body: withActiveAccount({ action: "getTickerPrice" }),
       });
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to fetch prices");

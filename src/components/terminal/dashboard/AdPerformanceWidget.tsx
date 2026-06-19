@@ -5,7 +5,7 @@ import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBina
 
 export function AdPerformanceWidget() {
   const { data: allAdsData, isLoading } = useBinanceAdsList({ page: 1, rows: 50 });
-  const ads: BinanceAd[] = allAdsData?.data || allAdsData?.list || [];
+  const ads: BinanceAd[] = allAdsData?.data || [];
 
   const buyAds = ads.filter(a => a.tradeType === 'BUY');
   const sellAds = ads.filter(a => a.tradeType === 'SELL');

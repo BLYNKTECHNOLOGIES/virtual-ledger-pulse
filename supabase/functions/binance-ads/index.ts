@@ -217,7 +217,7 @@ function sanitizeAdUpdatePayload(input: Record<string, any> = {}) {
   return { accepted, skipped, isPriceOnly };
 }
 
-async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail") {
+async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail", accountId?: string) {
   const businessStatus = Number(data?.businessStatus);
   if (!Number.isFinite(businessStatus)) return;
   const { error } = await supabase.from("binance_merchant_state_snapshots").insert({
@@ -233,6 +233,7 @@ async function persistMerchantStateSnapshot(supabase: any, data: any, source = "
     over_complained: data.overComplained == null ? null : Number(data.overComplained),
     source,
     raw_data: data,
+    ...(accountId ? { exchange_account_id: accountId } : {}),
   });
   if (error) throw error;
 }
@@ -259,13 +260,14 @@ function normalizeAdStatePayload(ad: any) {
   };
 }
 
-async function persistAdStateSnapshot(supabase: any, ad: any, source = "ad_detail", ruleId?: string | null) {
+async function persistAdStateSnapshot(supabase: any, ad: any, source = "ad_detail", ruleId?: string | null, accountId?: string) {
   const normalized = normalizeAdStatePayload(ad);
   if (!normalized) return { persisted: false, reason: "missing_adv_no" };
   const { error } = await supabase.from("binance_ad_state_snapshots").insert({
     ...normalized,
     rule_id: ruleId || null,
     snapshot_source: source,
+    ...(accountId ? { exchange_account_id: accountId } : {}),
   });
   if (error) throw error;
   return {

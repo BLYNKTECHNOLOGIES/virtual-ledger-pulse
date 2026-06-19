@@ -243,10 +243,11 @@ export function PendingRegistrationsTab() {
   );
 
   const handleApprove = () => {
-    if (!approvalDialog || !selectedRoleId) {
+    if (!approvalDialog) return;
+    if (!selectedRoleId || !selectedDepartmentId || !selectedPositionId) {
       toast({
-        title: "Role Required",
-        description: "Please select a role before approving",
+        title: "Missing Information",
+        description: "Please select a role, department, and position before approving",
         variant: "destructive",
       });
       return;
@@ -255,8 +256,11 @@ export function PendingRegistrationsTab() {
     approveMutation.mutate({
       registrationId: approvalDialog.id,
       roleId: selectedRoleId,
+      departmentId: selectedDepartmentId,
+      positionId: selectedPositionId,
     });
   };
+
 
   const handleReject = () => {
     if (!rejectionDialog) return;

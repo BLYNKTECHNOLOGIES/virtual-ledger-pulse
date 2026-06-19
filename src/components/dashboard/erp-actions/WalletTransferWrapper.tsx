@@ -249,6 +249,15 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
             </div>
           )}
 
+          {isUnmapped && (
+            <Alert variant="destructive" className="py-2">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                No ERP wallet is mapped to this movement's Binance account. Configure it in Stock Management → Wallet Linking before recording this transfer.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {hasInsufficientBalance && (
             <Alert variant="destructive" className="py-2">
               <AlertTriangle className="h-4 w-4" />

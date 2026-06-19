@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { withActiveAccount } from '@/lib/activeExchangeAccount';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 
 // ---- Generic Binance API caller ----
 // Hard client-side timeout: if the upstream Binance proxy hangs (we have seen

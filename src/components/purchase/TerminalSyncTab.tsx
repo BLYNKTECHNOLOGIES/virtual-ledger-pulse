@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -163,6 +163,37 @@ export function TerminalSyncTab() {
     }
     return enriched;
   }
+
+  // Auto-trigger name enrichment on load when pending rows are missing verified names
+  const autoEnrichDone = useRef(false);
+  const isEnrichingRef = useRef(false);
+  useEffect(() => {
+    if (autoEnrichDone.current || isEnrichingRef.current) return;
+    const hasMissingNames = syncRecords.some((r: any) => {
+      const od = r?.order_data as any;
+      return (
+        PENDING_SYNC_STATUSES.includes(r?.sync_status) && !od?.verified_name
+      );
+    });
+    if (!hasMissingNames) return;
+    autoEnrichDone.current = true;
+    isEnrichingRef.current = true;
+    (async () => {
+      try {
+        const enriched = await enrichMissingNames();
+        if (enriched > 0) {
+          queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+          queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
+        }
+      } catch (e) {
+        console.warn('[TerminalSync] Auto-enrichment failed:', e);
+      } finally {
+        isEnrichingRef.current = false;
+      }
+    })();
+  }, [syncRecords, queryClient]);
+
+
 
   // Manual sync trigger — includes name enrichment
   const syncMutation = useMutation({

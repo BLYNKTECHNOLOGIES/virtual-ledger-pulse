@@ -42,8 +42,8 @@ export async function callBinanceAds(action: string, payload: Record<string, any
 export function useMarkOrderAsPaid() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ orderNumber, payId }: { orderNumber: string; payId?: number }) => {
-      return callBinanceAds('markOrderAsPaid', { orderNumber, payId });
+    mutationFn: async ({ orderNumber, payId, exchangeAccountId }: { orderNumber: string; payId?: number; exchangeAccountId?: string }) => {
+      return callBinanceAds('markOrderAsPaid', { orderNumber, payId }, exchangeAccountId);
     },
     onSuccess: (_data, variables) => {
       toast.success('Order marked as paid');

@@ -540,6 +540,7 @@ serve(async (req) => {
                 raw_data: t,
                 movement_time: t.timestamp || 0,
                 synced_at: new Date().toISOString(),
+                exchange_account_id: EXCHANGE_ACCOUNT_ID,
               }));
               const { error } = await sb.from("asset_movement_history").upsert(rows, { onConflict: "id" });
               if (error) console.error(`Transfer upsert error (${tType}):`, error.message);

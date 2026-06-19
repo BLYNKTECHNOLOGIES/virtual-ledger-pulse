@@ -165,9 +165,11 @@ Deno.serve(async (req) => {
     if (regError) {
       console.error("pending_registrations insert failed:", regError);
       await adminClient.from("users").delete().eq("id", newUserId);
+      await adminClient.from("employees").delete().eq("user_id", newUserId);
       await adminClient.auth.admin.deleteUser(newUserId);
       return jsonResponse({ error: "Could not submit registration. Please try again." }, 500);
     }
+
 
     console.log("Registration submitted:", { userId: newUserId, username, email: normalizedEmail });
 

@@ -130,6 +130,7 @@ export function TerminalSyncTab() {
           .maybeSingle();
 
         let sellerName = dbOrder?.verified_name || null;
+        let resolvedExchangeAccountId = record.exchange_account_id || null;
 
         if (!sellerName) {
           const { data } = await supabase.functions.invoke('binance-ads', {
@@ -137,7 +138,7 @@ export function TerminalSyncTab() {
           });
           const apiResult = data?.data;
           const detail = apiResult?.data || apiResult;
-          const resolvedExchangeAccountId = apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null;
+          resolvedExchangeAccountId = apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null;
           sellerName = detail?.sellerRealName || detail?.sellerName || null;
 
           if (sellerName) {
@@ -154,7 +155,7 @@ export function TerminalSyncTab() {
             .from('terminal_purchase_sync')
             .update({
               counterparty_name: sellerName,
-                exchange_account_id: apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null,
+              exchange_account_id: resolvedExchangeAccountId,
               order_data: { ...od, verified_name: sellerName },
             })
             .eq('id', record.id);

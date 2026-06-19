@@ -20,15 +20,18 @@ const STORAGE_KEY = "active_exchange_account_id";
 const PRIMARY_ID = "00000000-0000-0000-0000-000000000001";
 
 interface ExchangeAccountContextValue {
+  /** Full account list (all configured accounts) — used by admin settings. */
   accounts: ExchangeAccount[];
+  /** Accounts the current user is allowed to see/use. */
+  visibleAccounts: ExchangeAccount[];
   loading: boolean;
   /** The active account id, or ALL_ACCOUNTS for the combined admin view. */
   activeAccountId: string;
   /** Resolved account object for the active id (null when ALL). */
   activeAccount: ExchangeAccount | null;
-  /** Whether the user is allowed to switch accounts (admins/super admins). */
+  /** Whether the user is allowed to switch accounts (>1 account assigned). */
   canSwitch: boolean;
-  /** Whether the current user is bound to a single account (operator). */
+  /** Whether the current user is locked to a single account. */
   boundAccountId: string | null;
   setActiveAccountId: (id: string) => void;
   /** Inject the active account into an edge-function body (skips when ALL). */
@@ -42,11 +45,12 @@ const ExchangeAccountContext = createContext<ExchangeAccountContextValue | undef
 
 export function ExchangeAccountProvider({ children }: { children: React.ReactNode }) {
   const { user, hasRole } = useAuth();
-  const canSwitch = hasRole("admin") || hasRole("super admin");
+  const roleCanSwitch = hasRole("admin") || hasRole("super admin");
 
   const [accounts, setAccounts] = useState<ExchangeAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [boundAccountId, setBoundAccountId] = useState<string | null>(null);
+  // Account ids explicitly assigned to this user (empty = no explicit mapping).
+  const [mappedAccountIds, setMappedAccountIds] = useState<string[]>([]);
   const [activeAccountId, setActiveAccountIdState] = useState<string>(
     () => localStorage.getItem(STORAGE_KEY) || PRIMARY_ID,
   );
@@ -59,50 +63,84 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     setAccounts((data as ExchangeAccount[]) || []);
   }, []);
 
-  const fetchBinding = useCallback(async () => {
+  const fetchMappings = useCallback(async () => {
     if (!user?.id) {
-      setBoundAccountId(null);
+      setMappedAccountIds([]);
       return;
     }
     const { data } = await supabase
       .from("terminal_user_exchange_mappings")
       .select("exchange_account_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    setBoundAccountId((data?.exchange_account_id as string) || null);
+      .eq("user_id", user.id);
+    setMappedAccountIds(((data as { exchange_account_id: string }[]) || []).map((m) => m.exchange_account_id));
   }, [user?.id]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    await Promise.all([fetchAccounts(), fetchBinding()]);
+    await Promise.all([fetchAccounts(), fetchMappings()]);
     setLoading(false);
-  }, [fetchAccounts, fetchBinding]);
+  }, [fetchAccounts, fetchMappings]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
-  // Operators (non-switchers) bound to an account are forced onto it.
+  const hasMappings = mappedAccountIds.length > 0;
+
+  // The accounts this user may see. When explicit mappings exist, they govern
+  // visibility for everyone (including admins). With no mappings, admins see
+  // all accounts and regular users fall back to the primary/default account.
+  const visibleAccounts = useMemo(() => {
+    if (hasMappings) {
+      return accounts.filter((a) => mappedAccountIds.includes(a.id));
+    }
+    if (roleCanSwitch) return accounts;
+    // Non-admin with no mapping → default account only.
+    const def = accounts.find((a) => a.is_default) || accounts[0];
+    return def ? [def] : [];
+  }, [accounts, mappedAccountIds, hasMappings, roleCanSwitch]);
+
+  // Switching is allowed only when the user has access to more than one account.
+  const canSwitch = visibleAccounts.length > 1;
+
+  // When locked to a single account, that account id is enforced.
+  const boundAccountId = useMemo(
+    () => (!canSwitch ? visibleAccounts[0]?.id ?? null : null),
+    [canSwitch, visibleAccounts],
+  );
+
+  // Force the active id onto the bound account for single-account users.
   useEffect(() => {
-    if (!canSwitch && boundAccountId) {
+    if (!canSwitch && boundAccountId && activeAccountId !== boundAccountId) {
       setActiveAccountIdState(boundAccountId);
     }
-  }, [canSwitch, boundAccountId]);
+  }, [canSwitch, boundAccountId, activeAccountId]);
+
+  // If the active id is no longer visible to a switcher, snap to a valid one.
+  useEffect(() => {
+    if (
+      canSwitch &&
+      activeAccountId !== ALL_ACCOUNTS &&
+      visibleAccounts.length > 0 &&
+      !visibleAccounts.some((a) => a.id === activeAccountId)
+    ) {
+      setActiveAccountIdState(visibleAccounts[0].id);
+    }
+  }, [canSwitch, visibleAccounts, activeAccountId]);
 
   // Keep the module-level mirror in sync for non-hook edge-function callers.
   useEffect(() => {
     setActiveExchangeAccountId(activeAccountId);
   }, [activeAccountId]);
 
-
   const setActiveAccountId = useCallback(
     (id: string) => {
-      if (!canSwitch && boundAccountId) return; // operators can't switch
+      if (!canSwitch) return; // single-account users can't switch
+      if (id !== ALL_ACCOUNTS && !visibleAccounts.some((a) => a.id === id)) return;
       setActiveAccountIdState(id);
       localStorage.setItem(STORAGE_KEY, id);
     },
-    [canSwitch, boundAccountId],
+    [canSwitch, visibleAccounts],
   );
 
   const activeAccount = useMemo(
@@ -132,6 +170,7 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
 
   const value: ExchangeAccountContextValue = {
     accounts,
+    visibleAccounts,
     loading,
     activeAccountId,
     activeAccount,

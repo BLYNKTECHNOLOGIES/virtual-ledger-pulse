@@ -386,9 +386,10 @@ function buildCommissionRateSnapshots(detail: any, sourceType: string, sourceId:
   });
 }
 
-async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string) {
-  const snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
+async function persistCommissionRateSnapshots(supabase: any, detail: any, sourceType: string, sourceId: string, accountId?: string) {
+  let snapshots = buildCommissionRateSnapshots(detail, sourceType, sourceId);
   if (snapshots.length === 0) return;
+  if (accountId) snapshots = snapshots.map((s: any) => ({ ...s, exchange_account_id: accountId }));
 
   // Non-blocking, idempotent upsert keyed on the existing unique index
   // (source_type, source_id, COALESCE(pay_method_identifier,''), COALESCE(pay_id,'')).

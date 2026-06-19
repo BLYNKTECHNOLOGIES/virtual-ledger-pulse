@@ -211,7 +211,35 @@ export default function AdManager() {
         </TabsContent>
       </Tabs>
 
-      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} />
+      <CreateEditAdDialog open={dialogOpen} onOpenChange={setDialogOpen} editingAd={editingAd} createAccountId={createAccountId} />
+
+      {/* Combined-mode: pick which account a new ad belongs to */}
+      <AlertDialog open={accountPickerOpen} onOpenChange={setAccountPickerOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create ad on which account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You're viewing all accounts. Choose the Binance account this new ad should be created on.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-2 py-2">
+            {visibleAccounts.map((acc) => (
+              <Button
+                key={acc.id}
+                variant="outline"
+                className="justify-start gap-2"
+                onClick={() => startCreateForAccount(acc.id)}
+              >
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: colorFor(acc.id) }} />
+                {nameFor(acc.id)}
+              </Button>
+            ))}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <BulkEditLimitsDialog open={bulkLimitsOpen} onOpenChange={setBulkLimitsOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />

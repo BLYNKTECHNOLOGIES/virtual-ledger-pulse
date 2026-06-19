@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ClickableRow } from "@/components/transaction-detail";
+import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_APPROVAL: "bg-amber-100 text-amber-800",
@@ -94,6 +95,7 @@ export function ConversionHistoryTable() {
                 <TableRow>
                   <TableHead>Ref No</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead>Wallet</TableHead>
                   <TableHead>Side</TableHead>
                   <TableHead>Asset</TableHead>
@@ -116,6 +118,7 @@ export function ConversionHistoryTable() {
                   <ClickableRow key={c.id} txType="product_conversion" txId={c.id}>
                     <TableCell className="font-mono text-xs">{c.reference_no}</TableCell>
                     <TableCell className="text-xs">{format(new Date(c.created_at), 'dd MMM yyyy HH:mm')}</TableCell>
+                    <TableCell><ExchangeAccountBadge accountId={(c as any).exchange_account_id} /></TableCell>
                     <TableCell className="text-xs">{c.wallets?.wallet_name || '—'}</TableCell>
                     <TableCell>
                       <Badge variant={c.side === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">

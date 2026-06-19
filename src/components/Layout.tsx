@@ -5,6 +5,7 @@ import { SidebarEditProvider } from "@/contexts/SidebarEditContext";
 import { PinUnlockProvider } from "@/contexts/PinUnlockContext";
 
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ExchangeAccountProvider } from "@/contexts/ExchangeAccountContext";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";

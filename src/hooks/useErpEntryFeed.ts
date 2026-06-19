@@ -109,6 +109,7 @@ export function useErpEntryFeed() {
           label: `${isDeposit ? "Deposit" : "Withdrawal"} · ${fmtAmount(amount, r.asset)}`,
           sublabel: [r.network, r.tx_id ? `${r.tx_id.slice(0, 8)}…` : null].filter(Boolean).join(" · ") || "Binance movement",
           reasonHint: `Binance ${r.movement_type} not yet recorded in ERP. Choose Purchase / Sales / Wallet Transfer.`,
+          exchangeAccountId: r.exchange_account_id || null,
           raw: r,
         });
       }
@@ -138,6 +139,7 @@ export function useErpEntryFeed() {
             r.sync_status === "client_mapping_pending"
               ? "Counterparty not matched to a client. Review and assign."
               : "Completed Binance BUY order awaiting purchase entry.",
+          exchangeAccountId: r.exchange_account_id || null,
           raw: r,
         });
       }
@@ -167,6 +169,7 @@ export function useErpEntryFeed() {
             r.sync_status === "client_mapping_pending"
               ? "Counterparty not matched to a client. Review and assign."
               : "Completed Binance SELL order awaiting sales entry.",
+          exchangeAccountId: r.exchange_account_id || null,
           raw: r,
         });
       }
@@ -191,6 +194,7 @@ export function useErpEntryFeed() {
               : null,
           ].filter(Boolean).join(" · "),
           reasonHint: "Small-amount BUY orders grouped on operator-triggered Sync Small Buys.",
+          exchangeAccountId: r.exchange_account_id || null,
           raw: r,
         });
       }
@@ -215,6 +219,7 @@ export function useErpEntryFeed() {
               : null,
           ].filter(Boolean).join(" · "),
           reasonHint: "Small-amount SELL orders grouped on operator-triggered Sync Small Sales.",
+          exchangeAccountId: r.exchange_account_id || null,
           raw: r,
         });
       }

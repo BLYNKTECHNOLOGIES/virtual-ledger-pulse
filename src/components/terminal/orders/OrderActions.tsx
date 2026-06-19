@@ -202,7 +202,7 @@ const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; p
   { value: 'SMS', label: 'SMS OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter SMS verification code', fieldName: 'mobileVerifyCode' },
 ];
 
-function ReleaseCoinAction({ orderNumber }: { orderNumber: string }) {
+function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const releaseCoin = useReleaseCoin();
   const sendVerifyCode = useSendReleaseVerifyCode();
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');

@@ -167,6 +167,7 @@ export function SmallBuysSyncTab() {
                           {Number(record.total_quantity).toFixed(4)} {record.asset_code}
                         </span>
                         {getStatusBadge(record.sync_status)}
+                        <ExchangeAccountBadge accountId={(record as any).exchange_account_id} />
                       </div>
                       <div className="text-sm text-muted-foreground">
                         {record.order_count} orders • ₹{Number(record.total_amount).toLocaleString('en-IN')} •

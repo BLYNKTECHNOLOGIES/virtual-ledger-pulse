@@ -69,14 +69,37 @@ export default function AdManager() {
   const selectedAds = useMemo(() => displayAds.filter(ad => selectedAdvNos.has(ad.advNo)), [displayAds, selectedAdvNos]);
 
   const handleEdit = (ad: BinanceAd) => { setEditingAd(ad); setDialogOpen(true); };
-  const handleCreate = () => { setEditingAd(null); setDialogOpen(true); };
+  const handleCreate = () => {
+    setEditingAd(null);
+    // In combined mode we don't know which account to post to — ask first.
+    if (isAllAccounts && visibleAccounts.length > 1) {
+      setCreateAccountId(null);
+      setAccountPickerOpen(true);
+      return;
+    }
+    setCreateAccountId(null);
+    setDialogOpen(true);
+  };
+
+  const startCreateForAccount = (accountId: string) => {
+    setCreateAccountId(accountId);
+    setAccountPickerOpen(false);
+    setDialogOpen(true);
+  };
+
+  // advNo → owning account, so single-row actions route correctly in combined mode.
+  const accountForAdv = useMemo(() => {
+    const m = new Map<string, string | undefined>();
+    for (const ad of ads) m.set(ad.advNo, ad._exchangeAccountId);
+    return m;
+  }, [ads]);
 
   const handleToggleStatus = (advNo: string, currentStatus: number) => {
     const isCurrentlyPrivate = currentStatus === BINANCE_AD_STATUS.PRIVATE;
     const newStatus = currentStatus === BINANCE_AD_STATUS.ONLINE || isCurrentlyPrivate
       ? BINANCE_AD_STATUS.OFFLINE 
       : BINANCE_AD_STATUS.ONLINE;
-    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate });
+    updateStatus.mutate({ advNos: [advNo], advStatus: newStatus, fromPrivate: isCurrentlyPrivate, exchangeAccountId: accountForAdv.get(advNo) });
   };
 
   const handleBulkComplete = () => { setSelectedAdvNos(new Set()); refetch(); };

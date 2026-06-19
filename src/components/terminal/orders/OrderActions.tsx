@@ -449,7 +449,7 @@ function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: st
             <AlertDialogCancel onClick={handleReset}>No, Keep Order</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
-              onClick={() => { cancelOrder.mutate({ orderNumber, orderCancelReasonCode: Number(reasonCode), orderCancelAdditionalInfo: additionalInfo || undefined }); handleReset(); }}
+              onClick={() => { cancelOrder.mutate({ orderNumber, orderCancelReasonCode: Number(reasonCode), orderCancelAdditionalInfo: additionalInfo || undefined, exchangeAccountId }); handleReset(); }}
             >
               Confirm Cancel Order
             </AlertDialogAction>

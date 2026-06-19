@@ -45,6 +45,7 @@ interface PendingRegistration {
   username: string;
   email: string;
   phone: string | null;
+  badge_id: string | null;
   status: string;
   submitted_at: string;
 }
@@ -60,10 +61,15 @@ export function PendingRegistrationsTab() {
   const [approvalDialog, setApprovalDialog] = useState<PendingRegistration | null>(null);
   const [rejectionDialog, setRejectionDialog] = useState<PendingRegistration | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
+  const [selectedPositionId, setSelectedPositionId] = useState<string>("");
   const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const queryClient = useQueryClient();
+
+  const isSuperAdmin = hasRole("super admin");
+
 
   // Fetch pending registrations
   const { data: registrations = [], isLoading, refetch } = useQuery({

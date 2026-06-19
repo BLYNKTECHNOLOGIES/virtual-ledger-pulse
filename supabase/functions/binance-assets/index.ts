@@ -85,6 +85,10 @@ serve(async (req) => {
 
     const acct = await resolveAccount(accountIdFromPayload(payload));
     const EXCHANGE_ACCOUNT_ID = acct.id;
+    // Account-prefix for movement IDs. Keep the primary ("default") account's IDs
+    // unprefixed for backward compatibility; prefix additional accounts to avoid
+    // cross-account ID collisions in asset_movement_history / erp_action_queue.
+    const ID_PFX = acct.credentialKey === "default" ? "" : `${acct.credentialKey}-`;
     const BINANCE_PROXY_URL = acct.proxyUrl;
     const BINANCE_API_KEY = acct.apiKey;
     const BINANCE_API_SECRET = acct.apiSecret;

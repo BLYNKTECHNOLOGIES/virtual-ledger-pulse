@@ -18,6 +18,8 @@ interface CreateEditAdDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingAd?: BinanceAd | null;
+  /** Account to create the ad on (combined "All accounts" mode). */
+  createAccountId?: string | null;
 }
 
 const PAYMENT_TIME_OPTIONS = [

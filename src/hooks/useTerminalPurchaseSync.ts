@@ -85,25 +85,33 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   let synced = 0;
   let duplicates = 0;
 
-  // 1. Get the active terminal wallet link
-  const { data: activeLink } = await supabase
+  // 1. Get all active terminal wallet links, mapped per exchange account
+  const { data: allLinks } = await supabase
     .from('terminal_wallet_links')
-    .select('id, wallet_id, fee_treatment')
+    .select('id, wallet_id, fee_treatment, exchange_account_id')
     .eq('status', 'active')
-    .eq('platform_source', 'terminal')
-    .limit(1)
-    .maybeSingle();
+    .eq('platform_source', 'terminal');
 
-  if (!activeLink) {
+  if (!allLinks || allLinks.length === 0) {
     throw new Error('No active terminal wallet link found. Please configure one in Stock Management → Wallet Linking.');
   }
 
-  // Get wallet name
-  const { data: walletInfo } = await supabase
+  const linkByAccount = new Map<string, typeof allLinks[number]>();
+  let fallbackLink: typeof allLinks[number] | null = null;
+  for (const l of allLinks) {
+    if (l.exchange_account_id) linkByAccount.set(l.exchange_account_id, l);
+    else if (!fallbackLink) fallbackLink = l;
+  }
+  if (!fallbackLink) fallbackLink = allLinks[0];
+  const resolveLink = (accId: string | null | undefined) =>
+    (accId && linkByAccount.get(accId)) || fallbackLink!;
+
+  // Wallet name lookup for all linked wallets
+  const { data: walletRows } = await supabase
     .from('wallets')
-    .select('wallet_name')
-    .eq('id', activeLink.wallet_id)
-    .single();
+    .select('id, wallet_name')
+    .in('id', allLinks.map((l) => l.wallet_id));
+  const walletNameById = new Map<string, string>((walletRows || []).map((w) => [w.id, w.wallet_name]));
 
   // 2. Look back 7 days to catch cross-day and appeal-resolved orders
   const LOOKBACK_DAYS = 7;

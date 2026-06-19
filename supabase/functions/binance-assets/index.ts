@@ -416,10 +416,14 @@ serve(async (req) => {
         const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
+        // Per-account sync cursor: keep "default" for the primary account
+        // (backward compatible) and use the account id for additional accounts.
+        const movementMetaId = acct.credentialKey === "default" ? "default" : acct.id;
+
         const { data: syncMeta } = await sb
           .from("asset_movement_sync_metadata")
           .select("*")
-          .eq("id", "default")
+          .eq("id", movementMetaId)
           .maybeSingle();
 
         const lastSync = syncMeta?.last_sync_at ? new Date(syncMeta.last_sync_at).getTime() : 0;

@@ -1081,18 +1081,24 @@ serve(async (req) => {
                 })
                 .eq("order_number", String(payload.orderNumber));
               if (verifiedName && existing.trade_type === "BUY") {
-                await supabase.from("terminal_purchase_sync").update({
-                  counterparty_name: verifiedName,
-                  exchange_account_id: detailAccountId,
-                  order_data: { ...detail, verified_name: verifiedName },
-                }).eq("binance_order_number", String(payload.orderNumber));
+                const { data: syncRows } = await supabase.from("terminal_purchase_sync").select("id, order_data").eq("binance_order_number", String(payload.orderNumber));
+                for (const syncRow of syncRows || []) {
+                  await supabase.from("terminal_purchase_sync").update({
+                    counterparty_name: verifiedName,
+                    exchange_account_id: detailAccountId,
+                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName },
+                  }).eq("id", syncRow.id);
+                }
               }
               if (verifiedName && existing.trade_type === "SELL") {
-                await supabase.from("terminal_sales_sync").update({
-                  counterparty_name: verifiedName,
-                  exchange_account_id: detailAccountId,
-                  order_data: { ...detail, verified_name: verifiedName },
-                }).eq("binance_order_number", String(payload.orderNumber));
+                const { data: syncRows } = await supabase.from("terminal_sales_sync").select("id, order_data").eq("binance_order_number", String(payload.orderNumber));
+                for (const syncRow of syncRows || []) {
+                  await supabase.from("terminal_sales_sync").update({
+                    counterparty_name: verifiedName,
+                    exchange_account_id: detailAccountId,
+                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName },
+                  }).eq("id", syncRow.id);
+                }
               }
               if (cancelReason) {
                 await supabase.from("p2p_order_records").update(cancelUpdate).eq("binance_order_number", String(payload.orderNumber));

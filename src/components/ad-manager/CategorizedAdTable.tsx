@@ -359,7 +359,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, isTogglingStat
                         aria-label={`Select ad ${ad.advNo}`}
                       />
                     </TableCell>
-                    <TableCell className="font-mono text-xs">{ad.advNo?.slice(-8) || '—'}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      <div className="flex items-center gap-2">
+                        <span>{ad.advNo?.slice(-8) || '—'}</span>
+                        <AccountBadge accountId={ad._exchangeAccountId} showName={false} />
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex flex-col items-start gap-1">
                         <Badge variant={ad.tradeType === 'BUY' ? 'default' : 'secondary'} className={ad.tradeType === 'BUY' ? 'bg-trade-buy text-white' : 'bg-trade-sell text-white'}>

@@ -248,7 +248,8 @@ export async function syncSpotTradesToConversions(): Promise<{ inserted: number 
     const netUsdtChange = side === "SELL" ? grossUsd - (commissionAsset === "USDT" ? commission : 0) : grossUsd;
 
     return {
-      wallet_id: walletId,
+      wallet_id: resolveWallet(t.exchange_account_id),
+      exchange_account_id: t.exchange_account_id || null,
       side,
       asset_code: assetCode,
       quantity: qty,

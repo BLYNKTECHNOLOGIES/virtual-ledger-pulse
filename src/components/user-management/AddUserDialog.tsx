@@ -20,6 +20,7 @@ interface AddUserDialogProps {
     last_name?: string;
     phone?: string;
     password: string;
+    badge_id?: string;
   }) => Promise<{ success: boolean }>;
 }
 
@@ -35,6 +36,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
     first_name: "",
     last_name: "",
     phone: "",
+    badge_id: "",
     password: "",
     confirmPassword: "",
     department_id: "",
@@ -154,7 +156,8 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
         first_name: formData.first_name.trim() || undefined,
         last_name: formData.last_name.trim() || undefined,
         phone: formData.phone.trim() || undefined,
-        password: formData.password
+        password: formData.password,
+        badge_id: formData.badge_id.trim() || undefined
       });
 
       if (result.success) {
@@ -174,6 +177,7 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
           first_name: "",
           last_name: "",
           phone: "",
+          badge_id: "",
           password: "",
           confirmPassword: "",
           department_id: "",
@@ -285,6 +289,16 @@ export function AddUserDialog({ onAddUser }: AddUserDialogProps) {
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               placeholder="Enter phone number"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="badge_id">Badge ID</Label>
+            <Input
+              id="badge_id"
+              value={formData.badge_id}
+              onChange={(e) => setFormData(prev => ({ ...prev, badge_id: e.target.value }))}
+              placeholder="Enter badge ID"
             />
           </div>
 

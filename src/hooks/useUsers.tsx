@@ -20,6 +20,9 @@ function friendlyUserError(error: any): string {
   if (raw.includes('users_unique_phone_normalized') || (raw.includes('phone') && raw.includes('duplicate'))) {
     return 'This phone number is already assigned to another user. Each phone number can only belong to one user.';
   }
+  if (raw.includes('users_badge_id_key') || (raw.includes('badge_id') && raw.includes('duplicate'))) {
+    return 'This badge ID is already assigned to another user. Each badge ID can only belong to one user.';
+  }
   if (raw.includes('duplicate') && raw.includes('username')) {
     return 'This username is already taken. Please choose a different one.';
   }
@@ -120,6 +123,7 @@ export function useUsers() {
     phone?: string;
     password: string;
     role_id?: string;
+    badge_id?: string;
   }) => {
     try {
       // Check if user is authenticated
@@ -154,6 +158,19 @@ export function useUsers() {
           .from('users')
           .update({ created_by: user.id })
           .eq('id', newUserId);
+      }
+
+      // Set badge_id if provided
+      if (newUserId && userData.badge_id?.trim()) {
+        const { error: badgeError } = await supabase
+          .from('users')
+          .update({ badge_id: userData.badge_id.trim() })
+          .eq('id', newUserId);
+
+        if (badgeError) {
+          console.warn('Badge ID assignment failed:', badgeError);
+          throw badgeError;
+        }
       }
 
       // If a role_id was specified, assign the role

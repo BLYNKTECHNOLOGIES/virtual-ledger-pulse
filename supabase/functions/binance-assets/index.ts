@@ -709,15 +709,20 @@ serve(async (req) => {
         const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-        const { data: activeLink } = await sb
+        const { data: allLinks } = await sb
           .from("terminal_wallet_links")
-          .select("wallet_id")
+          .select("wallet_id, exchange_account_id")
           .eq("status", "active")
-          .eq("platform_source", "terminal")
-          .limit(1)
-          .maybeSingle();
+          .eq("platform_source", "terminal");
 
-        const mappedWalletId = activeLink?.wallet_id || null;
+        const walletByAccount = new Map<string, string>();
+        let fallbackWallet: string | null = null;
+        for (const l of (allLinks || [])) {
+          if (l.exchange_account_id) walletByAccount.set(l.exchange_account_id, l.wallet_id);
+          else if (!fallbackWallet) fallbackWallet = l.wallet_id;
+        }
+        const resolveWallet = (accId: string | null) =>
+          (accId && walletByAccount.get(accId)) || fallbackWallet || null;
 
         const { data: lastQueuedItem } = await sb
           .from("erp_action_queue")

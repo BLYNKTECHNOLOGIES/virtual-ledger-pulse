@@ -77,11 +77,14 @@ Deno.serve(async (req) => {
 
     // ── Clean up the created account so the email/phone free up ──
     if (registration.user_id) {
+      // Remove the auto-created employee row first (FK is ON DELETE RESTRICT)
+      await adminClient.from("employees").delete().eq("user_id", registration.user_id);
       await adminClient.from("users").delete().eq("id", registration.user_id);
       await adminClient.auth.admin.deleteUser(registration.user_id).catch((e) =>
         console.error("auth delete failed (non-fatal):", e)
       );
     }
+
 
     const { error: updateError } = await adminClient
       .from("pending_registrations")

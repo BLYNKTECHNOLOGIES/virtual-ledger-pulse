@@ -168,6 +168,7 @@ export function useSyncSpotTradesToConversions() {
 
         return {
           wallet_id: walletId,
+          exchange_account_id: t.exchange_account_id || null,
           side,
           asset_code: assetCode,
           quantity: qty,

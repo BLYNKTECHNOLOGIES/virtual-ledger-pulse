@@ -100,6 +100,7 @@ export function PendingConversionsTable() {
                   <TableRow>
                     <TableHead>Ref No</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Account</TableHead>
                     <TableHead>Wallet</TableHead>
                     <TableHead>Side</TableHead>
                     <TableHead>Asset</TableHead>

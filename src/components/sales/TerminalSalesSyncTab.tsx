@@ -432,8 +432,11 @@ export function TerminalSalesSyncTab() {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
                 const verifiedName = od?.verified_name;
-                const buyerDisplay = verifiedName || null;
-                const isPendingVerifiedName = !verifiedName && PENDING_STATUSES.includes(record.sync_status);
+                const rawCounterparty = (od?.counterparty_nickname || record.counterparty_name || '').toString().trim();
+                const hasRealCounterparty = !!rawCounterparty && rawCounterparty !== 'Unknown' && !rawCounterparty.includes('*');
+                const buyerDisplay = verifiedName || (hasRealCounterparty ? rawCounterparty : null);
+                const hasUsableName = !!verifiedName || hasRealCounterparty;
+                const isPendingVerifiedName = !hasUsableName && PENDING_STATUSES.includes(record.sync_status);
                 const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
 
                 return (

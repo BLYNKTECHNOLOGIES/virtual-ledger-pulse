@@ -7,6 +7,7 @@ import { syncCompletedBuyOrders } from './useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from './useTerminalSalesSync';
 import { captureSellerPaymentDetails } from './useSellerPaymentCapture';
 import { hasActiveBinanceComplaint } from '@/lib/orderStatusMapper';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 
 const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 24 * 60 * 60 * 1000; // 24 hours — re-fetch recent orders for status updates (was 3h, widened to catch out-of-order Binance updates)

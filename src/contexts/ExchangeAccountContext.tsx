@@ -90,6 +90,12 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     }
   }, [canSwitch, boundAccountId]);
 
+  // Keep the module-level mirror in sync for non-hook edge-function callers.
+  useEffect(() => {
+    setActiveExchangeAccountId(activeAccountId);
+  }, [activeAccountId]);
+
+
   const setActiveAccountId = useCallback(
     (id: string) => {
       if (!canSwitch && boundAccountId) return; // operators can't switch

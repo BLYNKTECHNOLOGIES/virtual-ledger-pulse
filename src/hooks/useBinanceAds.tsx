@@ -294,8 +294,8 @@ export function useApplyAdRiskGuard() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, profileName, riskPayload }: { advNos: string[]; profileName: string; riskPayload: Record<string, any> }) =>
-      callBinanceAds('applyAdRiskGuard', { advNos, profileName, riskPayload }),
+    mutationFn: ({ advNos, profileName, riskPayload, exchangeAccountId }: { advNos: string[]; profileName: string; riskPayload: Record<string, any>; exchangeAccountId?: string }) =>
+      callBinanceAds('applyAdRiskGuard', { advNos, profileName, riskPayload }, exchangeAccountId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Risk Guard Applied', description: 'Selected ads were updated through Binance.' });

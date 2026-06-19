@@ -112,13 +112,26 @@ export default function UserManagement() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Filter users - show all users
-  const filteredUsers = users.filter((user: DatabaseUser) =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Compute unique roles from loaded users for the filter dropdown
+  const userRoleOptions = useMemo(() => {
+    const roleSet = new Set<string>();
+    users.forEach((u) => {
+      if (u.role?.name) roleSet.add(u.role.name);
+    });
+    return Array.from(roleSet).sort((a, b) => a.localeCompare(b));
+  }, [users]);
+
+  // Filter users by search term and selected role
+  const filteredUsers = users.filter((user: DatabaseUser) => {
+    const matchesSearch =
+      !searchTerm ||
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesRole = selectedRole === "all" || user.role?.name === selectedRole;
+    return matchesSearch && matchesRole;
+  });
 
   const fetchRoles = async () => {
     try {

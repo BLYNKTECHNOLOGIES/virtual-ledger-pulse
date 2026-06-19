@@ -476,7 +476,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             </div>
             <div>
               <Label>Wallet *</Label>
-              <Select value={formData.wallet_id} onValueChange={(value) => handleInputChange('wallet_id', value)}>
+              <Select value={formData.wallet_id} onValueChange={(value) => handleInputChange('wallet_id', value)} disabled={!!item.wallet_id}>
                 <SelectTrigger><SelectValue placeholder="Select wallet" /></SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-[100]">
                   {wallets?.map((wallet) => (
@@ -486,6 +486,9 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
                   ))}
                 </SelectContent>
               </Select>
+              {!!item.wallet_id && (
+                <p className="text-[11px] text-muted-foreground">Locked to the wallet mapped to this movement's Binance account.</p>
+              )}
             </div>
           </div>
 

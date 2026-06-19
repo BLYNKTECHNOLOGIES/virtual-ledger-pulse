@@ -17,7 +17,7 @@ import { ALL_ACCOUNTS, useExchangeAccount } from "@/contexts/ExchangeAccountCont
  */
 export function ExchangeAccountSwitcher() {
   const {
-    accounts,
+    visibleAccounts,
     activeAccountId,
     activeAccount,
     canSwitch,
@@ -25,11 +25,12 @@ export function ExchangeAccountSwitcher() {
     setActiveAccountId,
   } = useExchangeAccount();
 
+  const accounts = visibleAccounts;
   const activeColor = activeAccount?.color || "#64748B";
   const activeLabel =
     activeAccountId === ALL_ACCOUNTS ? "All accounts" : activeAccount?.account_name || "Account";
 
-  // Operator bound to one account → static badge, no dropdown.
+  // User locked to a single account → static badge, no dropdown.
   if (!canSwitch && boundAccountId) {
     return (
       <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 border-gray-200 bg-gray-50">
@@ -40,6 +41,7 @@ export function ExchangeAccountSwitcher() {
   }
 
   if (accounts.length <= 1) return null;
+
 
   return (
     <DropdownMenu>

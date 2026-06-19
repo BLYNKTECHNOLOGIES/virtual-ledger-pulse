@@ -60,7 +60,8 @@ export function WalletTransferWrapper({ item, open, onOpenChange, onSuccess }: W
   };
 
   const mappedWallet = wallets?.find((w) => w.id === item.wallet_id);
-  const mappedWalletName = mappedWallet?.wallet_name || "Binance Blynk";
+  const isUnmapped = !item.wallet_id || !mappedWallet;
+  const mappedWalletName = mappedWallet?.wallet_name || "⚠ Wallet not mapped for this account";
 
   const fromWalletId = isDeposit ? selectedWalletId : item.wallet_id;
   const toWalletId = isDeposit ? item.wallet_id : selectedWalletId;

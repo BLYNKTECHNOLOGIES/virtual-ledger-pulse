@@ -41,6 +41,8 @@ export interface QuickReceiveDialogProps {
   asset?: string;
   fiatUnit?: string;
   advNo?: string;
+  /** Account this order belongs to (combined "All accounts" mode). */
+  exchangeAccountId?: string;
   source: 'orders' | 'payer';
   /** Called after a successful release */
   onSuccess?: () => void;

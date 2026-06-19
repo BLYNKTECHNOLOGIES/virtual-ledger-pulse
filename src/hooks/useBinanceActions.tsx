@@ -330,13 +330,19 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null) {
 /** Two-phase order history: Phase 1 fetches latest 50 orders instantly,
  *  Phase 2 lazily loads the rest in the background. Consumers see a single merged array. */
 export function useBinanceOrderHistory() {
+  const { accountsToQuery } = useExchangeAccount();
+  const accountKey = accountsToQuery.join(',');
+  const SELECT_COLS =
+    'order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data, exchange_account_id';
+
   // Phase 1: Fast initial load – latest 50 orders only
   const phase1 = useQuery({
-    queryKey: ['binance-order-history-fast'],
+    queryKey: ['binance-order-history-fast', accountKey],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('binance_order_history')
-        .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
+        .select(SELECT_COLS)
+        .in('exchange_account_id', accountsToQuery)
         .order('create_time', { ascending: false })
         .limit(50);
 
@@ -352,7 +358,7 @@ export function useBinanceOrderHistory() {
 
   // Phase 2: Full background load – all remaining orders (deferred)
   const phase2 = useQuery({
-    queryKey: ['binance-order-history-bulk'],
+    queryKey: ['binance-order-history-bulk', accountKey],
     queryFn: async () => {
       const batchSize = 1000;
       const allOrders: any[] = [];
@@ -362,7 +368,8 @@ export function useBinanceOrderHistory() {
       while (hasMore) {
         const { data, error } = await supabase
           .from('binance_order_history')
-          .select('order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data')
+          .select(SELECT_COLS)
+          .in('exchange_account_id', accountsToQuery)
           .order('create_time', { ascending: false })
           .range(offset, offset + batchSize - 1);
 
@@ -426,6 +433,7 @@ function mapOrderRow(row: any) {
     counterPartNickName: row.counter_part_nick_name,
     verifiedName: row.verified_name,
     additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
+    _exchangeAccountId: row.exchange_account_id ?? null,
   };
 }
 

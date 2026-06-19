@@ -127,6 +127,7 @@ export function TerminalSalesSyncTab() {
           });
           const apiResult = data?.data;
           const detail = apiResult?.data || apiResult;
+          const resolvedExchangeAccountId = apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null;
           const buyerName = detail?.buyerRealName || detail?.buyerName || null;
           if (buyerName) {
             const od = record.order_data as any;
@@ -134,6 +135,7 @@ export function TerminalSalesSyncTab() {
               .from('terminal_sales_sync')
               .update({
                 counterparty_name: buyerName,
+                exchange_account_id: resolvedExchangeAccountId,
                 order_data: { ...od, verified_name: buyerName },
               })
               .eq('id', record.id);
@@ -175,6 +177,7 @@ export function TerminalSalesSyncTab() {
         });
         const apiResult = data?.data;
         const detail = apiResult?.data || apiResult;
+          const resolvedExchangeAccountId = apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null;
         const buyerName = detail?.buyerRealName || detail?.buyerName || null;
         if (buyerName) {
           const od = record.order_data as any;
@@ -182,6 +185,7 @@ export function TerminalSalesSyncTab() {
             .from('terminal_sales_sync')
             .update({
               counterparty_name: buyerName,
+                exchange_account_id: resolvedExchangeAccountId,
               order_data: { ...od, verified_name: buyerName },
             })
             .eq('id', record.id);

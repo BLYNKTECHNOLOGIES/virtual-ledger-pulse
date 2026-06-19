@@ -137,12 +137,13 @@ export function TerminalSyncTab() {
           });
           const apiResult = data?.data;
           const detail = apiResult?.data || apiResult;
+          const resolvedExchangeAccountId = apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null;
           sellerName = detail?.sellerRealName || detail?.sellerName || null;
 
           if (sellerName) {
             await supabase
               .from('binance_order_history')
-              .update({ verified_name: sellerName })
+              .update({ verified_name: sellerName, exchange_account_id: resolvedExchangeAccountId })
               .eq('order_number', orderNumber);
           }
         }
@@ -153,6 +154,7 @@ export function TerminalSyncTab() {
             .from('terminal_purchase_sync')
             .update({
               counterparty_name: sellerName,
+                exchange_account_id: apiResult?._resolvedExchangeAccountId || record.exchange_account_id || null,
               order_data: { ...od, verified_name: sellerName },
             })
             .eq('id', record.id);

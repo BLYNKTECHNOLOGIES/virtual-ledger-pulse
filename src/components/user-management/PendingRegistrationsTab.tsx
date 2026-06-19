@@ -397,12 +397,22 @@ export function PendingRegistrationsTab() {
       )}
 
       {/* Approval Dialog */}
-      <Dialog open={!!approvalDialog} onOpenChange={() => setApprovalDialog(null)}>
-        <DialogContent>
+      <Dialog
+        open={!!approvalDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            setApprovalDialog(null);
+            setSelectedRoleId("");
+            setSelectedDepartmentId("");
+            setSelectedPositionId("");
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Approve Registration</DialogTitle>
             <DialogDescription>
-              Assign a role and approve this user's registration request.
+              Assign a role, department, and position to approve this user's registration request.
             </DialogDescription>
           </DialogHeader>
 
@@ -419,6 +429,11 @@ export function PendingRegistrationsTab() {
                 <p>
                   <strong>Email:</strong> {approvalDialog.email}
                 </p>
+                {approvalDialog.badge_id && (
+                  <p>
+                    <strong>Badge ID:</strong> {approvalDialog.badge_id}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -441,8 +456,52 @@ export function PendingRegistrationsTab() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="department">Department *</Label>
+                  <Select
+                    value={selectedDepartmentId}
+                    onValueChange={(value) => {
+                      setSelectedDepartmentId(value);
+                      setSelectedPositionId("");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.id}>
+                          {dept.icon} {dept.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">Position *</Label>
+                  <Select
+                    value={selectedPositionId}
+                    onValueChange={setSelectedPositionId}
+                    disabled={!selectedDepartmentId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select position" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {positions.map((pos) => (
+                        <SelectItem key={pos.id} value={pos.id}>
+                          {pos.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
             </div>
           )}
+
 
           <DialogFooter>
             <Button

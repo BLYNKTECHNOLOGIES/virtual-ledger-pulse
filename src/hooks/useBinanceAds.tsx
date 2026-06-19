@@ -79,6 +79,8 @@ export interface BinanceAd {
   payTimeLimit?: number;
   onlineNow?: boolean;
   tags?: string[];
+  /** Which exchange account this ad belongs to (set by the merged fetch). */
+  _exchangeAccountId?: string;
 }
 
 export interface AdFilters {

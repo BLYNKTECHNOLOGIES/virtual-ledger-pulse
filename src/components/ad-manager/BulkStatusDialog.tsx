@@ -42,7 +42,7 @@ export function BulkStatusDialog({ open, onOpenChange, ads, targetStatus, onComp
       const ad = ads[i];
       try {
         await new Promise<void>((resolve, reject) => {
-          updateStatus.mutate({ advNos: [ad.advNo], advStatus: targetStatus }, {
+          updateStatus.mutate({ advNos: [ad.advNo], advStatus: targetStatus, exchangeAccountId: ad._exchangeAccountId }, {
             onSuccess: () => resolve(),
             onError: (e) => reject(e),
           });

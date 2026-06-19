@@ -3546,6 +3546,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           created_by_name: string | null
+          exchange_account_id: string | null
           execution_rate_usdt: number | null
           expected_usdt_value: number | null
           fee_amount: number | null
@@ -3594,6 +3595,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
+          exchange_account_id?: string | null
           execution_rate_usdt?: number | null
           expected_usdt_value?: number | null
           fee_amount?: number | null
@@ -3642,6 +3644,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           created_by_name?: string | null
+          exchange_account_id?: string | null
           execution_rate_usdt?: number | null
           expected_usdt_value?: number | null
           fee_amount?: number | null
@@ -13407,6 +13410,7 @@ export type Database = {
           commission_asset: string | null
           created_at: string
           error_message: string | null
+          exchange_account_id: string | null
           executed_by: string | null
           executed_price: number | null
           execution_method: string
@@ -13430,6 +13434,7 @@ export type Database = {
           commission_asset?: string | null
           created_at?: string
           error_message?: string | null
+          exchange_account_id?: string | null
           executed_by?: string | null
           executed_price?: number | null
           execution_method?: string
@@ -13453,6 +13458,7 @@ export type Database = {
           commission_asset?: string | null
           created_at?: string
           error_message?: string | null
+          exchange_account_id?: string | null
           executed_by?: string | null
           executed_price?: number | null
           execution_method?: string

@@ -265,8 +265,8 @@ export function useUpdateAdStatus() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: ({ advNos, advStatus, fromPrivate }: { advNos: string[]; advStatus: number; fromPrivate?: boolean }) =>
-      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }),
+    mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string }) =>
+      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }, exchangeAccountId),
     onSuccess: (_data, vars) => {
       clearAdBreakDetected();
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });

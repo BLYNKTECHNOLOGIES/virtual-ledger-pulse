@@ -246,7 +246,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
     // API doc #29 expects authType + method-specific verification fields.
     // For YubiKey release on this endpoint, sending generic `code` causes
     // "Unsupported authentication type"; send only yubikeyVerifyCode.
-    const params: Record<string, any> = { orderNumber };
+    const params: Record<string, any> = { orderNumber, exchangeAccountId };
     if (authMethod === 'YUBIKEY') {
       params.authType = 'FIDO2';
       params.yubikeyVerifyCode = finalCode;

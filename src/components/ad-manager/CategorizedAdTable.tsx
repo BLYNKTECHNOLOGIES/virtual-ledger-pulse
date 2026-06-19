@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck } from 'lucide-react';
 import { BinanceAd, getAdStatusLabel, getAdStatusVariant, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
+import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';

@@ -196,6 +196,8 @@ export function ExchangeAccountProvider({ children }: { children: React.ReactNod
     loading,
     activeAccountId,
     activeAccount,
+    isAllAccounts,
+    accountsToQuery,
     canSwitch,
     boundAccountId,
     setActiveAccountId,

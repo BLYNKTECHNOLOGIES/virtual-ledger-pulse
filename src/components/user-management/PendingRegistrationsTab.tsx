@@ -355,6 +355,13 @@ export function PendingRegistrationsTab() {
                         <strong>Phone:</strong> {registration.phone}
                       </p>
                     )}
+                    {registration.badge_id && (
+                      <p className="flex items-center gap-2">
+                        <User className="h-3 w-3" />
+                        <strong>Badge ID:</strong> {registration.badge_id}
+                      </p>
+                    )}
+
                     <p className="text-xs">
                       Requested{" "}
                       {formatDistanceToNow(new Date(registration.submitted_at), {

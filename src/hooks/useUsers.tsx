@@ -20,6 +20,9 @@ function friendlyUserError(error: any): string {
   if (raw.includes('users_unique_phone_normalized') || (raw.includes('phone') && raw.includes('duplicate'))) {
     return 'This phone number is already assigned to another user. Each phone number can only belong to one user.';
   }
+  if (raw.includes('users_badge_id_key') || (raw.includes('badge_id') && raw.includes('duplicate'))) {
+    return 'This badge ID is already assigned to another user. Each badge ID can only belong to one user.';
+  }
   if (raw.includes('duplicate') && raw.includes('username')) {
     return 'This username is already taken. Please choose a different one.';
   }

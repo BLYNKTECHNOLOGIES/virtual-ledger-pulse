@@ -17,6 +17,10 @@ import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog
 import { RestTimerBanner } from '@/components/ad-manager/RestTimerBanner';
 import { MerchantStateCard } from '@/components/ad-manager/MerchantStateCard';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 function isBlockAd(ad: BinanceAd) {
   return String(ad.classify || '').toLowerCase() === 'block';

@@ -241,7 +241,10 @@ export function useUpdateAd() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: (adData: Record<string, any>) => callBinanceAds('updateAd', { adData }),
+    mutationFn: (adData: Record<string, any>) => {
+      const { exchange_account_id, ...rest } = adData;
+      return callBinanceAds('updateAd', { adData: rest }, exchange_account_id);
+    },
     onSuccess: (_data, adData) => {
       queryClient.invalidateQueries({ queryKey: ['binance-ads'] });
       toast({ title: 'Ad Updated', description: 'Your ad has been updated successfully.' });

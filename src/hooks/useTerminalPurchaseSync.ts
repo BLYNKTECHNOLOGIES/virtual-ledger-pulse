@@ -336,9 +336,14 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     // This prevents wrong-asset entries when the DB cache has stale/default values
     const resolvedAsset = (raw.asset || order.asset || 'USDT').toUpperCase();
 
+    // Resolve wallet from the order's OWN exchange account
+    const orderAccountId = (order as any).exchange_account_id || null;
+    const link = resolveLink(orderAccountId);
+
     toInsert.push({
       binance_order_number: order.order_number,
       sync_status: syncStatus,
+      exchange_account_id: orderAccountId || link.exchange_account_id || null,
       order_data: {
         order_number: order.order_number,
         asset: resolvedAsset,
@@ -352,9 +357,9 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
         verified_name: verifiedName,
         create_time: order.create_time,
         pay_method: payMethod,
-        wallet_id: activeLink.wallet_id,
-        wallet_name: walletInfo?.wallet_name || 'Terminal Wallet',
-        fee_treatment: activeLink.fee_treatment,
+        wallet_id: link.wallet_id,
+        wallet_name: walletNameById.get(link.wallet_id) || 'Terminal Wallet',
+        fee_treatment: link.fee_treatment,
         seller_payment_details: order.seller_payment_details || null,
       },
       client_id: clientId,

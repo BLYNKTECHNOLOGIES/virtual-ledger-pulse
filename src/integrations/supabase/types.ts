@@ -3232,6 +3232,7 @@ export type Database = {
           asset: string
           created_at: string
           erp_reference_id: string | null
+          exchange_account_id: string | null
           id: string
           movement_id: string
           movement_time: number
@@ -3251,6 +3252,7 @@ export type Database = {
           asset: string
           created_at?: string
           erp_reference_id?: string | null
+          exchange_account_id?: string | null
           id?: string
           movement_id: string
           movement_time?: number
@@ -3270,6 +3272,7 @@ export type Database = {
           asset?: string
           created_at?: string
           erp_reference_id?: string | null
+          exchange_account_id?: string | null
           id?: string
           movement_id?: string
           movement_time?: number
@@ -3284,6 +3287,13 @@ export type Database = {
           wallet_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "erp_action_queue_exchange_account_id_fkey"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "erp_action_queue_wallet_id_fkey"
             columns: ["wallet_id"]
@@ -15840,6 +15850,7 @@ export type Database = {
         Row: {
           api_identifier: string
           created_at: string
+          exchange_account_id: string | null
           fee_treatment: string
           id: string
           platform_source: string
@@ -15851,6 +15862,7 @@ export type Database = {
         Insert: {
           api_identifier?: string
           created_at?: string
+          exchange_account_id?: string | null
           fee_treatment?: string
           id?: string
           platform_source?: string
@@ -15862,6 +15874,7 @@ export type Database = {
         Update: {
           api_identifier?: string
           created_at?: string
+          exchange_account_id?: string | null
           fee_treatment?: string
           id?: string
           platform_source?: string
@@ -15871,6 +15884,13 @@ export type Database = {
           wallet_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "terminal_wallet_links_exchange_account_id_fkey"
+            columns: ["exchange_account_id"]
+            isOneToOne: false
+            referencedRelation: "terminal_exchange_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "terminal_wallet_links_wallet_id_fkey"
             columns: ["wallet_id"]

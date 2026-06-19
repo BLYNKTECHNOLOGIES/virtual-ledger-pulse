@@ -114,10 +114,10 @@ export function useExecuteTrade() {
 
       // 2. Execute via edge function (auto-transfers from funding if needed)
       const { data, error } = await supabase.functions.invoke("binance-assets", {
-        body: {
+        body: withActiveAccount({
           action: "executeTradeWithTransfer",
           ...params,
-        },
+        }),
       });
 
       if (error) {

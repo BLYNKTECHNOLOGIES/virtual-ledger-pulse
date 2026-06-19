@@ -7,10 +7,10 @@ import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNic
  * Fetch order detail from Binance API.
  * Returns { status, sellerRealName } or null on failure.
  */
-async function fetchOrderDetail(orderNumber: string): Promise<{ status: string | null; sellerName: string | null }> {
+async function fetchOrderDetail(orderNumber: string, exchangeAccountId?: string | null): Promise<{ status: string | null; sellerName: string | null }> {
   try {
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: { action: 'getOrderDetail', orderNumber },
+      body: { action: 'getOrderDetail', orderNumber, exchange_account_id: exchangeAccountId },
     });
     if (error) return { status: null, sellerName: null };
     const apiResult = data?.data;
@@ -128,7 +128,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   const resolvedAppealOrders: any[] = [];
   for (const order of (appealBuys || [])) {
     try {
-      const { status, sellerName } = await fetchOrderDetail(order.order_number);
+      const { status, sellerName } = await fetchOrderDetail(order.order_number, (order as any).exchange_account_id || null);
 
       if (status === 'COMPLETED') {
         const updatePayload: any = { order_status: 'COMPLETED' };
@@ -273,7 +273,7 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
       let verifiedName = order.verified_name || null;
       if (!verifiedName || verifiedName === order.counter_part_nick_name) {
         try {
-          const { sellerName } = await fetchOrderDetail(order.order_number);
+          const { sellerName } = await fetchOrderDetail(order.order_number, (order as any).exchange_account_id || null);
           if (sellerName) {
             verifiedName = sellerName;
             await supabase

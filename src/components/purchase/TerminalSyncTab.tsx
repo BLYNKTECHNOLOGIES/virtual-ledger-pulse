@@ -110,7 +110,7 @@ export function TerminalSyncTab() {
   async function enrichMissingNames() {
     const { data: freshRecords } = await supabase
       .from('terminal_purchase_sync')
-      .select('id, binance_order_number, order_data, sync_status, counterparty_name')
+      .select('id, binance_order_number, exchange_account_id, order_data, sync_status, counterparty_name')
       .in('sync_status', ['synced_pending_approval', 'client_mapping_pending']);
 
     const pendingRecords = (freshRecords || []).filter((r: any) => {
@@ -133,7 +133,7 @@ export function TerminalSyncTab() {
 
         if (!sellerName) {
           const { data } = await supabase.functions.invoke('binance-ads', {
-            body: { action: 'getOrderDetail', orderNumber },
+            body: { action: 'getOrderDetail', orderNumber, exchange_account_id: record.exchange_account_id },
           });
           const apiResult = data?.data;
           const detail = apiResult?.data || apiResult;
@@ -385,8 +385,9 @@ export function TerminalSyncTab() {
                 const od = record.order_data as any;
                 const statusCfg = STATUS_CONFIG[record.sync_status] || { label: record.sync_status, variant: "secondary" as const };
                 const verifiedName = od?.verified_name;
-                const sellerDisplay = verifiedName || record.counterparty_name;
-                const isMaskedName = !verifiedName && (record.counterparty_name?.includes('***'));
+                const sellerDisplay = verifiedName || (record.counterparty_name && record.counterparty_name !== 'Unknown' ? record.counterparty_name : null);
+                const isPendingVerifiedName = !verifiedName && PENDING_SYNC_STATUSES.includes(record.sync_status);
+                const isMaskedName = !verifiedName && (isPendingVerifiedName || record.counterparty_name?.includes('***'));
                 const reviewerName = record.reviewed_by ? (userMap[record.reviewed_by] || record.reviewed_by.slice(0, 8) + '...') : null;
 
                 return (

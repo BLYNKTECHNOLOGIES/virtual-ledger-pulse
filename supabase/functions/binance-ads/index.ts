@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { resolveAccount, accountIdFromPayload } from "../_shared/binance-account.ts";
+import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -600,7 +600,8 @@ serve(async (req) => {
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
     // Resolve which Binance account this request targets (defaults to primary).
-    const acct = await resolveAccount(accountIdFromPayload(payload));
+    const requestedAccountId = accountIdFromPayload(payload);
+    const acct = await resolveAccount(requestedAccountId);
     const EXCHANGE_ACCOUNT_ID = acct.id;
     const BINANCE_PROXY_URL = acct.proxyUrl;
     const BINANCE_API_KEY = acct.apiKey;

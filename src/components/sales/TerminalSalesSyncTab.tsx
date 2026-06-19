@@ -123,7 +123,7 @@ export function TerminalSalesSyncTab() {
         if (!orderNumber) continue;
         try {
           const { data } = await supabase.functions.invoke('binance-ads', {
-            body: { action: 'getOrderDetail', orderNumber },
+            body: { action: 'getOrderDetail', orderNumber, exchange_account_id: record.exchange_account_id },
           });
           const apiResult = data?.data;
           const detail = apiResult?.data || apiResult;
@@ -171,7 +171,7 @@ export function TerminalSalesSyncTab() {
       if (!orderNumber) continue;
       try {
         const { data } = await supabase.functions.invoke('binance-ads', {
-          body: { action: 'getOrderDetail', orderNumber },
+            body: { action: 'getOrderDetail', orderNumber, exchange_account_id: record.exchange_account_id },
         });
         const apiResult = data?.data;
         const detail = apiResult?.data || apiResult;

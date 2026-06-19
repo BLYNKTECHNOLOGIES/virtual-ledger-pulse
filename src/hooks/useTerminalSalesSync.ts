@@ -7,10 +7,10 @@ import { fetchVerifiedNameMap, resolveClientId, captureVerifiedName, sanitizeNic
  * Fetch verified buyer name from Binance order detail API.
  * Returns the real name or null if unavailable.
  */
-async function fetchVerifiedBuyerName(orderNumber: string): Promise<string | null> {
+async function fetchVerifiedBuyerName(orderNumber: string, exchangeAccountId?: string | null): Promise<string | null> {
   try {
     const { data, error } = await supabase.functions.invoke('binance-ads', {
-      body: { action: 'getOrderDetail', orderNumber },
+      body: { action: 'getOrderDetail', orderNumber, exchange_account_id: exchangeAccountId },
     });
     if (error) return null;
     // The response structure: data.data.buyerRealName or data.data.sellerRealName
@@ -205,7 +205,7 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       // Enrich: fetch verified buyer name from order detail API
       let verifiedName = order.verified_name || null;
       if (!verifiedName || verifiedName === order.counter_part_nick_name) {
-        const fetched = await fetchVerifiedBuyerName(order.order_number);
+        const fetched = await fetchVerifiedBuyerName(order.order_number, (order as any).exchange_account_id || null);
         if (fetched) {
           verifiedName = fetched;
           // Persist verified name back to binance_order_history (parity with purchase sync)

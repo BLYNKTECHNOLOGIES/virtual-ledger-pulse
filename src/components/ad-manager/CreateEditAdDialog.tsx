@@ -362,6 +362,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     }
     
 
+    // Route to the correct Binance account: edits use the ad's own account,
+    // creates use the account chosen in combined mode (falls back to active).
+    const routedAccountId = isEditing ? editingAd?._exchangeAccountId : (createAccountId || undefined);
+    if (routedAccountId) adData.exchange_account_id = routedAccountId;
+
     if (isEditing) {
       updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
     } else {

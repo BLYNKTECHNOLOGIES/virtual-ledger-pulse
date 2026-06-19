@@ -180,12 +180,13 @@ export function TerminalSyncTab() {
 
         if (sellerName) {
           const od = record.order_data as any;
+          const walletMapping = await resolveTerminalWalletMapping(resolvedExchangeAccountId);
           await supabase
             .from('terminal_purchase_sync')
             .update({
               counterparty_name: sellerName,
               exchange_account_id: resolvedExchangeAccountId,
-              order_data: { ...od, verified_name: sellerName },
+              order_data: { ...od, verified_name: sellerName, ...(walletMapping || {}) },
             })
             .eq('id', record.id);
           enriched++;

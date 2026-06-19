@@ -148,12 +148,13 @@ export function TerminalSalesSyncTab() {
           const buyerName = detail?.buyerRealName || detail?.buyerName || null;
           if (buyerName) {
             const od = record.order_data as any;
+            const walletMapping = await resolveTerminalWalletMapping(resolvedExchangeAccountId);
             await supabase
               .from('terminal_sales_sync')
               .update({
                 counterparty_name: buyerName,
                 exchange_account_id: resolvedExchangeAccountId,
-                order_data: { ...od, verified_name: buyerName },
+                order_data: { ...od, verified_name: buyerName, ...(walletMapping || {}) },
               })
               .eq('id', record.id);
             enriched++;
@@ -198,12 +199,13 @@ export function TerminalSalesSyncTab() {
         const buyerName = detail?.buyerRealName || detail?.buyerName || null;
         if (buyerName) {
           const od = record.order_data as any;
+          const walletMapping = await resolveTerminalWalletMapping(resolvedExchangeAccountId);
           await supabase
             .from('terminal_sales_sync')
             .update({
               counterparty_name: buyerName,
                 exchange_account_id: resolvedExchangeAccountId,
-              order_data: { ...od, verified_name: buyerName },
+                order_data: { ...od, verified_name: buyerName, ...(walletMapping || {}) },
             })
             .eq('id', record.id);
           enriched++;

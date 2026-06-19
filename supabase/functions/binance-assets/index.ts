@@ -79,17 +79,19 @@ serve(async (req) => {
   }
 
   try {
-    const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
-    const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-    const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
-    const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
+    const { action, ...payload } = await req.json();
+    console.info(`binance-assets: action=${action}`);
+
+    const acct = await resolveAccount(accountIdFromPayload(payload));
+    const EXCHANGE_ACCOUNT_ID = acct.id;
+    const BINANCE_PROXY_URL = acct.proxyUrl;
+    const BINANCE_API_KEY = acct.apiKey;
+    const BINANCE_API_SECRET = acct.apiSecret;
+    const BINANCE_PROXY_TOKEN = acct.proxyToken;
 
     if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
       throw new Error("Missing Binance configuration secrets");
     }
-
-    const { action, ...payload } = await req.json();
-    console.info(`binance-assets: action=${action}`);
 
     const proxyHeaders: Record<string, string> = {
       "Content-Type": "application/json",

@@ -29,6 +29,23 @@ const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secon
 
 const PENDING_STATUSES = ['synced_pending_approval', 'client_mapping_pending'];
 
+async function resolveTerminalWalletMapping(accountId: string | null) {
+  if (!accountId) return null;
+  const { data: link } = await supabase
+    .from('terminal_wallet_links')
+    .select('wallet_id, fee_treatment, wallets:wallet_id(wallet_name)')
+    .eq('platform_source', 'terminal')
+    .eq('status', 'active')
+    .eq('exchange_account_id', accountId)
+    .maybeSingle();
+  if (!link?.wallet_id) return null;
+  return {
+    wallet_id: link.wallet_id,
+    wallet_name: (link.wallets as any)?.wallet_name || 'Terminal Wallet',
+    fee_treatment: link.fee_treatment,
+  };
+}
+
 export function TerminalSalesSyncTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -131,12 +148,13 @@ export function TerminalSalesSyncTab() {
           const buyerName = detail?.buyerRealName || detail?.buyerName || null;
           if (buyerName) {
             const od = record.order_data as any;
+            const walletMapping = await resolveTerminalWalletMapping(resolvedExchangeAccountId);
             await supabase
               .from('terminal_sales_sync')
               .update({
                 counterparty_name: buyerName,
-                exchange_account_id: resolvedExchangeAccountId,
-                order_data: { ...od, verified_name: buyerName },
+              exchange_account_id: resolvedExchangeAccountId,
+              order_data: { ...od, verified_name: buyerName, ...(walletMapping || {}) },
               })
               .eq('id', record.id);
             enriched++;
@@ -181,12 +199,13 @@ export function TerminalSalesSyncTab() {
         const buyerName = detail?.buyerRealName || detail?.buyerName || null;
         if (buyerName) {
           const od = record.order_data as any;
+          const walletMapping = await resolveTerminalWalletMapping(resolvedExchangeAccountId);
           await supabase
             .from('terminal_sales_sync')
             .update({
               counterparty_name: buyerName,
                 exchange_account_id: resolvedExchangeAccountId,
-              order_data: { ...od, verified_name: buyerName },
+                order_data: { ...od, verified_name: buyerName, ...(walletMapping || {}) },
             })
             .eq('id', record.id);
           enriched++;

@@ -36,6 +36,23 @@ function extractBuyerNameFromDetail(detail: any): string | null {
   return direct ? String(direct).trim() : null;
 }
 
+async function resolveTerminalWalletMapping(supabase: any, accountId: string | null) {
+  if (!accountId) return null;
+  const { data: link } = await supabase
+    .from("terminal_wallet_links")
+    .select("wallet_id, fee_treatment, wallets:wallet_id(wallet_name)")
+    .eq("platform_source", "terminal")
+    .eq("status", "active")
+    .eq("exchange_account_id", accountId)
+    .maybeSingle();
+  if (!link?.wallet_id) return null;
+  return {
+    wallet_id: link.wallet_id,
+    wallet_name: link.wallets?.wallet_name || "Terminal Wallet",
+    fee_treatment: link.fee_treatment,
+  };
+}
+
 function uniqueTruthyStrings(values: unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -1081,22 +1098,24 @@ serve(async (req) => {
                 })
                 .eq("order_number", String(payload.orderNumber));
               if (verifiedName && existing.trade_type === "BUY") {
+                const walletMapping = await resolveTerminalWalletMapping(supabase, detailAccountId);
                 const { data: syncRows } = await supabase.from("terminal_purchase_sync").select("id, order_data").eq("binance_order_number", String(payload.orderNumber));
                 for (const syncRow of syncRows || []) {
                   await supabase.from("terminal_purchase_sync").update({
                     counterparty_name: verifiedName,
                     exchange_account_id: detailAccountId,
-                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName },
+                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName, ...(walletMapping || {}) },
                   }).eq("id", syncRow.id);
                 }
               }
               if (verifiedName && existing.trade_type === "SELL") {
+                const walletMapping = await resolveTerminalWalletMapping(supabase, detailAccountId);
                 const { data: syncRows } = await supabase.from("terminal_sales_sync").select("id, order_data").eq("binance_order_number", String(payload.orderNumber));
                 for (const syncRow of syncRows || []) {
                   await supabase.from("terminal_sales_sync").update({
                     counterparty_name: verifiedName,
                     exchange_account_id: detailAccountId,
-                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName },
+                    order_data: { ...(syncRow.order_data || {}), verified_name: verifiedName, ...(walletMapping || {}) },
                   }).eq("id", syncRow.id);
                 }
               }

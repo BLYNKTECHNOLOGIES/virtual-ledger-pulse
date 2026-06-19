@@ -16,6 +16,7 @@ import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { ExchangeAccountSwitcher } from "@/components/exchange/ExchangeAccountSwitcher";
 
 export function TopHeader() {
   const { user } = useAuth();
@@ -123,7 +124,9 @@ export function TopHeader() {
         </form>
         
         <div className="flex items-center gap-2">
+          <ExchangeAccountSwitcher />
           <NotificationDropdown />
+
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

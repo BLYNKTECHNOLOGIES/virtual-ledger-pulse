@@ -19,6 +19,7 @@ export function Layout({ children }: LayoutProps) {
     <PinUnlockProvider>
       <SidebarEditProvider>
         <NotificationProvider>
+          <ExchangeAccountProvider>
             <SidebarProvider>
               <div className="flex w-full min-h-screen bg-slate-50">
                 {/* Desktop sidebar - hidden on mobile */}
@@ -39,6 +40,7 @@ export function Layout({ children }: LayoutProps) {
                 </SidebarInset>
               </div>
             </SidebarProvider>
+          </ExchangeAccountProvider>
           </NotificationProvider>
       </SidebarEditProvider>
     </PinUnlockProvider>

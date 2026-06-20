@@ -173,6 +173,52 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
+          {/* Shift-wise breakdown */}
+          {shifts && shifts.length > 0 && (
+            <Section style={card}>
+              <Text style={sectionTitle}>Shift-wise Breakdown (Terminal Shifts)</Text>
+              {shifts.map((s, i) => (
+                <Section key={i} style={{ marginBottom: i < shifts.length - 1 ? '14px' : '0' }}>
+                  <Text style={{ fontSize: '13px', fontWeight: 700, color: '#8C5A2B', margin: '0 0 2px' }}>{s.label}</Text>
+                  <Text style={{ fontSize: '11px', color: '#9C8A78', margin: '0 0 6px' }}>{s.window}</Text>
+                  <table style={tbl}>
+                    <thead>
+                      <tr>
+                        <th style={th}>Metric</th>
+                        <th style={thR}>Purchase</th>
+                        <th style={thR}>Sales</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={td}>Volume (USDT-eq)</td>
+                        <td style={tdR}>{s.purchaseQty}</td>
+                        <td style={tdR}>{s.salesQty}</td>
+                      </tr>
+                      <tr>
+                        <td style={td}>Value (INR)</td>
+                        <td style={tdR}>₹{s.purchaseValue}</td>
+                        <td style={tdR}>₹{s.salesValue}</td>
+                      </tr>
+                      <tr>
+                        <td style={td}>Avg Rate (INR)</td>
+                        <td style={tdR}>₹{s.avgPurchaseRate}</td>
+                        <td style={tdR}>₹{s.avgSalesRate}</td>
+                      </tr>
+                      <tr>
+                        <td style={td}>Completed Orders</td>
+                        <td style={tdR}>{s.purchaseCount}</td>
+                        <td style={tdR}>{s.salesCount}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </Section>
+              ))}
+            </Section>
+          )}
+
+
+
           {charts?.salesVsPurchase && <Img src={charts.salesVsPurchase} alt="Sales vs Purchases" style={chartImg} />}
           {charts?.volumeByAsset && <Img src={charts.volumeByAsset} alt="Volume by Asset" style={chartImg} />}
 

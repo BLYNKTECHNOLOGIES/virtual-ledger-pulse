@@ -66,6 +66,28 @@ function normalizePlatform(raw?: string | null): string {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Map a wallet name (e.g. "BINANCE BLYNK", "KUCOIN ") to a clean platform label.
+// This is the source of truth for attributing manual / unspecified orders to the
+// exchange wallet that was actually used for them.
+function walletPlatformLabel(name?: string | null): string {
+  const u = String(name || "").trim().toUpperCase().replace(/\s+/g, " ");
+  if (!u) return "Unspecified";
+  const MAP: Record<string, string> = {
+    "BINANCE BLYNK": "Binance (Blynk)",
+    "BINANCE ASEC": "Binance (ASEC)",
+    "BINANCE AS": "Binance (AS)",
+    "BINANCE SS": "Binance (SS)",
+    "BYBIT BLYNK": "Bybit (Blynk)",
+    "BYBIT AS": "Bybit (AS)",
+    "COIN EX BLYNK": "CoinEx (Blynk)",
+    "KUCOIN": "KuCoin",
+    "BITGET": "Bitget",
+    "CREDIT STOCK": "Credit Stock",
+  };
+  if (MAP[u]) return MAP[u];
+  return u.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 
 async function fetchAll(supabase: any, table: string, columns: string, date: string) {
   const pageSize = 1000;

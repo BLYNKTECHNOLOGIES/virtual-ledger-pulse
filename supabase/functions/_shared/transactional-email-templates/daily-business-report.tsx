@@ -30,6 +30,7 @@ interface DailyReportProps {
   wallet?: { balances: { asset: string; balance: string }[]; feesByType: { type: string; amount: string }[]; totalFees: string }
   expenses?: { totalExpenses: string; count: number; byCategory: { category: string; amount: string }[]; list: { category: string; description: string; amount: string }[] }
   shifts?: { key: string; label: string; window: string; purchaseQty: string; purchaseValue: string; purchaseCount: number; avgPurchaseRate: string; salesQty: string; salesValue: string; salesCount: number; avgSalesRate: string }[]
+  platformRates?: { platform: string; avgBuyRate: string; buyCount: number; avgSellRate: string; sellCount: number }[]
   stats?: { busiestHour: string; totalOrders: number; completedOrders: number; topClients: { name: string; value: string }[]; salesChangePct: string; purchaseChangePct: string }
 
   assetValue?: {

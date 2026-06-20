@@ -276,7 +276,65 @@ async function buildReport(supabase: any, date: string) {
     purchaseByAsset[asset].count += 1;
   }
 
-  // ----- Shift-wise breakdown (Morning / Evening / Night, IST terminal shifts) -----
+  // ----- Platform-wise average rates -----
+  // Sales carry a real `platform` field. Purchases don't, so we derive the
+  // platform from the terminal sync's exchange account where available,
+  // falling back to the order source (manual / terminal).
+  const EXCH_LABEL: Record<string, string> = {
+    "00000000-0000-0000-0000-000000000001": "Binance (Blynk)",
+    "00000000-0000-0000-0000-000000000002": "Binance (ASEC)",
+  };
+  const purIds = purchasesCompleted.map((o: any) => o.id);
+  const purPlatformMap = new Map<string, string>();
+  if (purIds.length) {
+    const syncRows = await fetchAllRows(() =>
+      supabase.from("terminal_purchase_sync").select("purchase_order_id, exchange_account_id").in("purchase_order_id", purIds));
+    for (const r of syncRows) {
+      if (r.purchase_order_id && r.exchange_account_id && EXCH_LABEL[r.exchange_account_id]) {
+        purPlatformMap.set(r.purchase_order_id, EXCH_LABEL[r.exchange_account_id]);
+      }
+    }
+  }
+  const purchasePlatformOf = (o: any): string => {
+    const mapped = purPlatformMap.get(o.id);
+    if (mapped) return mapped;
+    const src = String(o.source || "").toLowerCase();
+    if (src.startsWith("terminal")) return "Terminal";
+    if (src === "manual") return "Manual";
+    return "Unspecified";
+  };
+
+  type PlatBucket = { buyQty: number; buyVal: number; buyCount: number; sellQty: number; sellVal: number; sellCount: number };
+  const platAgg: Record<string, PlatBucket> = {};
+  const ensurePlat = (name: string): PlatBucket => {
+    if (!platAgg[name]) platAgg[name] = { buyQty: 0, buyVal: 0, buyCount: 0, sellQty: 0, sellVal: 0, sellCount: 0 };
+    return platAgg[name];
+  };
+  for (const o of salesCompleted) {
+    const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+    const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+    const value = Number(o.total_amount) || qty * rate;
+    const b = ensurePlat(normalizePlatform(o.platform));
+    b.sellQty += qty; b.sellVal += value; b.sellCount += 1;
+  }
+  for (const o of purchasesCompleted) {
+    const qty = Number(o.effective_usdt_qty) || 0;
+    const value = Number(o.total_amount) || 0;
+    const b = ensurePlat(purchasePlatformOf(o));
+    b.buyQty += qty; b.buyVal += value; b.buyCount += 1;
+  }
+  const platformRates = Object.entries(platAgg)
+    .map(([platform, a]) => ({
+      platform,
+      avgBuyRate: a.buyQty > 0 ? fmtNum(a.buyVal / a.buyQty, 4) : "—",
+      buyCount: a.buyCount,
+      avgSellRate: a.sellQty > 0 ? fmtNum(a.sellVal / a.sellQty, 4) : "—",
+      sellCount: a.sellCount,
+      _vol: a.buyVal + a.sellVal,
+    }))
+    .sort((a, b) => b._vol - a._vol)
+    .map(({ _vol, ...rest }) => rest);
+
   type ShiftBucket = { purQty: number; purVal: number; purCount: number; salQty: number; salVal: number; salCount: number };
   const shiftAgg: Record<ShiftKey, ShiftBucket> = {
     morning: { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },

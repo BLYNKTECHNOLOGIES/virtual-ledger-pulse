@@ -477,7 +477,9 @@ async function buildReport(supabase: any, date: string) {
       byCategory: Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([category, amount]) => ({ category, amount: fmtNum(amount) })),
       list: expenseList.slice(0, 50).map((e) => ({ category: e.category, description: e.description, amount: fmtNum(e.amount) })),
     },
+    shifts: shiftBreakdown,
     stats: {
+
       busiestHour: `${busiestHour}:00 - ${busiestHour + 1}:00 IST`,
       totalOrders: salesRaw.length + purchasesRaw.length,
       completedOrders: salesCompleted.length + purchasesCompleted.length,

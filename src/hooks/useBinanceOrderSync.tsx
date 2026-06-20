@@ -76,10 +76,16 @@ export function useSyncMetadata() {
 }
 
 // ---- Core fetch logic (shared between incremental & full) ----
+// IMPORTANT: every order is fetched from a SPECIFIC exchange account's API.
+// We pass `accountId` explicitly so the edge function uses that account's
+// credentials, and we stamp every resulting row with that same account id.
+// This is the single source of truth for which Binance account an order
+// belongs to — downstream (purchase/sales sync, conversions) inherit it.
 async function fetchOrdersFromBinance(
   startTimestamp: number,
   endTimestamp: number,
-  maxWindows: number = 30
+  maxWindows: number = 30,
+  accountId?: string,
 ): Promise<any[]> {
   let windowEnd = endTimestamp;
   const allOrders: any[] = [];
@@ -99,13 +105,15 @@ async function fetchOrdersFromBinance(
         page,
         startTimestamp,
         endTimestamp: windowEnd,
-      });
+      }, accountId);
       const orders = result?.data || result || [];
       if (!Array.isArray(orders) || orders.length === 0) break;
 
       for (const o of orders) {
         if (!seenOrderNumbers.has(o.orderNumber)) {
           seenOrderNumbers.add(o.orderNumber);
+          // Tag with the account whose API actually returned this order.
+          if (accountId) o.__exchange_account_id = accountId;
           allOrders.push(o);
         }
         if (o.createTime && o.createTime < oldestInWindow) {
@@ -126,13 +134,13 @@ async function fetchOrdersFromBinance(
   return allOrders;
 }
 
-async function upsertOrdersToDB(orders: any[]) {
+async function upsertOrdersToDB(orders: any[], accountId?: string) {
   const BATCH_SIZE = 200;
   for (let i = 0; i < orders.length; i += BATCH_SIZE) {
-    const batch = orders.slice(i, i + BATCH_SIZE).map(orderToDbRow);
+    const batch = orders.slice(i, i + BATCH_SIZE).map((o) => orderToDbRow(o, accountId));
     const { error } = await supabase
       .from('binance_order_history')
-      .upsert(batch, { onConflict: 'order_number' });
+      .upsert(batch as any, { onConflict: 'order_number' });
     if (error) {
       console.error(`[Sync] Batch ${Math.floor(i / BATCH_SIZE)} failed:`, error);
       throw error;
@@ -151,76 +159,99 @@ async function updateSyncMetadata(count: number, duration: number) {
     }, { onConflict: 'id' });
 }
 
-async function getNewestOrderTimestamp(): Promise<number | null> {
-  const { data } = await supabase
+async function getNewestOrderTimestamp(accountId?: string): Promise<number | null> {
+  let query = supabase
     .from('binance_order_history')
     .select('create_time')
     .order('create_time', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
+  if (accountId) query = query.eq('exchange_account_id', accountId);
+  const { data } = await query.maybeSingle();
   return data?.create_time || null;
 }
 
-async function getDBOrderCount(): Promise<number> {
-  const { count } = await supabase
+async function getDBOrderCount(accountId?: string): Promise<number> {
+  let query = supabase
     .from('binance_order_history')
     .select('*', { count: 'exact', head: true });
+  if (accountId) query = query.eq('exchange_account_id', accountId);
+  const { count } = await query;
   return count || 0;
 }
 
+// Resolve every active exchange account so the sync can fetch each account's
+// orders with its own credentials and stamp them correctly.
+async function getActiveAccountIds(): Promise<string[]> {
+  const { data } = await supabase
+    .from('terminal_exchange_accounts')
+    .select('id')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
+  const ids = (data || []).map((a: any) => a.id).filter(Boolean);
+  return ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000001'];
+}
+
 // ---- Incremental sync: only new orders + status refresh on recent ----
+// Runs per active exchange account so every order is fetched with the correct
+// credentials AND stamped with the account it actually belongs to.
 export async function syncOrderHistoryFromBinance({
   fullSync = false,
   forceGapFill = false,
 }: { fullSync?: boolean; forceGapFill?: boolean } = {}) {
       const startTime = Date.now();
       const cutoff = Date.now() - DATA_RETENTION_MS;
-      const dbCount = await getDBOrderCount();
-      const newestTs = await getNewestOrderTimestamp();
+      const accountIds = await getActiveAccountIds();
 
-      // Decide sync strategy
-      const needsFullSync = fullSync || dbCount === 0 || !newestTs;
+      let grandTotal = 0;
+      let anyFull = false;
 
-      if (needsFullSync) {
-        const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365);
-        await upsertOrdersToDB(allOrders);
-        const duration = Date.now() - startTime;
-        await updateSyncMetadata(allOrders.length, duration);
-        return { count: allOrders.length, duration, type: 'full' as const };
-      }
+      for (const accountId of accountIds) {
+        const dbCount = await getDBOrderCount(accountId);
+        const newestTs = await getNewestOrderTimestamp(accountId);
 
-      // INCREMENTAL: fetch from (newest - overlap) to now
-      // The overlap ensures we catch status changes on recent orders
-      const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
+        // Decide sync strategy (per account)
+        const needsFullSync = fullSync || dbCount === 0 || !newestTs;
 
-      const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5);
-
-      if (newOrders.length > 0) {
-        await upsertOrdersToDB(newOrders);
-      }
-
-      // GAP-FILL: every ~24h, run a deep scan over the last 7 days to catch
-      // out-of-order Binance updates (e.g. delayed completions, post-appeal status changes)
-      // that fell outside the trailing incremental window.
-      let gapFillCount = 0;
-      try {
-        const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(GAP_FILL_KEY) : null;
-        const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
-        if (forceGapFill || Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
-          const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
-          const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60);
-          if (gapOrders.length > 0) {
-            await upsertOrdersToDB(gapOrders);
-          }
-          gapFillCount = gapOrders.length;
-          if (typeof localStorage !== 'undefined') localStorage.setItem(GAP_FILL_KEY, String(Date.now()));
-          console.log(`[Sync] Gap-fill complete: scanned 7d, upserted ${gapFillCount} orders`);
+        if (needsFullSync) {
+          anyFull = true;
+          const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365, accountId);
+          await upsertOrdersToDB(allOrders, accountId);
+          grandTotal += allOrders.length;
+          continue;
         }
-      } catch (err) {
-        console.warn('[Sync] Gap-fill pass failed (non-fatal):', err);
+
+        // INCREMENTAL: fetch from (newest - overlap) to now
+        // The overlap ensures we catch status changes on recent orders
+        const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
+        const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5, accountId);
+        if (newOrders.length > 0) {
+          await upsertOrdersToDB(newOrders, accountId);
+        }
+        grandTotal += newOrders.length;
+
+        // GAP-FILL: every ~24h, run a deep scan over the last 7 days to catch
+        // out-of-order Binance updates (e.g. delayed completions, post-appeal status changes)
+        // that fell outside the trailing incremental window.
+        try {
+          const gapKey = `${GAP_FILL_KEY}:${accountId}`;
+          const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(gapKey) : null;
+          const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
+          if (forceGapFill || Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
+            const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
+            const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60, accountId);
+            if (gapOrders.length > 0) {
+              await upsertOrdersToDB(gapOrders, accountId);
+            }
+            grandTotal += gapOrders.length;
+            if (typeof localStorage !== 'undefined') localStorage.setItem(gapKey, String(Date.now()));
+            console.log(`[Sync] Gap-fill complete for ${accountId}: upserted ${gapOrders.length} orders`);
+          }
+        } catch (err) {
+          console.warn('[Sync] Gap-fill pass failed (non-fatal):', err);
+        }
       }
 
-      // Also clean up orders older than 30 days
+      // Clean up orders older than the retention window (across all accounts)
       const { error: cleanupError } = await supabase
         .from('binance_order_history')
         .delete()
@@ -228,9 +259,8 @@ export async function syncOrderHistoryFromBinance({
       if (cleanupError) console.warn('[Sync] Cleanup failed:', cleanupError);
 
       const duration = Date.now() - startTime;
-      const totalCount = newOrders.length + gapFillCount;
-      await updateSyncMetadata(totalCount, duration);
-      return { count: totalCount, duration, type: 'incremental' as const };
+      await updateSyncMetadata(grandTotal, duration);
+      return { count: grandTotal, duration, type: (anyFull ? 'full' : 'incremental') as 'full' | 'incremental' };
 }
 
 export function useSyncOrderHistory() {
@@ -342,7 +372,7 @@ function mapOrderStatus(raw: any): string {
 }
 
 // ---- Mapping helpers ----
-function orderToDbRow(o: any) {
+function orderToDbRow(o: any, accountId?: string) {
   const amount = String(o.amount ?? o.quantity ?? '0');
   const totalPrice = String(o.totalPrice ?? o.total_price ?? o.fiatAmount ?? '0');
   const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : '0';
@@ -354,7 +384,10 @@ function orderToDbRow(o: any) {
     : null;
   const hasActiveComplaint = hasActiveBinanceComplaint(o);
 
-  return {
+  // Resolve the owning account: explicit arg → tag set during fetch → existing on payload.
+  const resolvedAccountId = accountId || o.__exchange_account_id || undefined;
+
+  const row: Record<string, any> = {
     order_number: o.orderNumber || '',
     adv_no: o.advNo || '',
     trade_type: o.tradeType || '',
@@ -373,6 +406,9 @@ function orderToDbRow(o: any) {
     raw_data: o,
     synced_at: new Date().toISOString(),
   };
+  // Only set the account when known, so upserts never wipe an existing value with null.
+  if (resolvedAccountId) row.exchange_account_id = resolvedAccountId;
+  return row;
 }
 
 function dbRowToOrder(row: any) {

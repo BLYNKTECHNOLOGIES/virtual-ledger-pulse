@@ -263,7 +263,51 @@ async function buildReport(supabase: any, date: string) {
     purchaseByAsset[asset].count += 1;
   }
 
+  // ----- Shift-wise breakdown (Morning / Evening / Night, IST terminal shifts) -----
+  type ShiftBucket = { purQty: number; purVal: number; purCount: number; salQty: number; salVal: number; salCount: number };
+  const shiftAgg: Record<ShiftKey, ShiftBucket> = {
+    morning: { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
+    evening: { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
+    night:   { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
+  };
+  for (const o of salesCompleted) {
+    if (!o.created_at) continue;
+    const k = shiftOf(istHour(o.created_at));
+    const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+    const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+    const value = Number(o.total_amount) || qty * rate;
+    shiftAgg[k].salQty += qty;
+    shiftAgg[k].salVal += value;
+    shiftAgg[k].salCount += 1;
+  }
+  for (const o of purchasesCompleted) {
+    if (!o.created_at) continue;
+    const k = shiftOf(istHour(o.created_at));
+    const qty = Number(o.effective_usdt_qty) || 0;
+    const value = Number(o.total_amount) || 0;
+    shiftAgg[k].purQty += qty;
+    shiftAgg[k].purVal += value;
+    shiftAgg[k].purCount += 1;
+  }
+  const shiftBreakdown = (["morning", "evening", "night"] as ShiftKey[]).map((k) => {
+    const a = shiftAgg[k];
+    return {
+      key: k,
+      label: SHIFT_META[k].label,
+      window: SHIFT_META[k].window,
+      purchaseQty: fmtNum(a.purQty, 4),
+      purchaseValue: fmtNum(a.purVal),
+      purchaseCount: a.purCount,
+      avgPurchaseRate: fmtNum(a.purQty > 0 ? a.purVal / a.purQty : 0, 4),
+      salesQty: fmtNum(a.salQty, 4),
+      salesValue: fmtNum(a.salVal),
+      salesCount: a.salCount,
+      avgSalesRate: fmtNum(a.salQty > 0 ? a.salVal / a.salQty : 0, 4),
+    };
+  });
+
   // ----- Fees -----
+
   const dayStart = date + "T00:00:00";
   const dayEnd = date + "T23:59:59";
   const { data: feeRows } = await supabase

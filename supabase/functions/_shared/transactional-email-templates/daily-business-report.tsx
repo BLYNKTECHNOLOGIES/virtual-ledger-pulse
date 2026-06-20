@@ -30,6 +30,13 @@ interface DailyReportProps {
   wallet?: { balances: { asset: string; balance: string }[]; feesByType: { type: string; amount: string }[]; totalFees: string }
   expenses?: { totalExpenses: string; count: number; byCategory: { category: string; amount: string }[]; list: { category: string; description: string; amount: string }[] }
   stats?: { busiestHour: string; totalOrders: number; completedOrders: number; topClients: { name: string; value: string }[]; salesChangePct: string; purchaseChangePct: string }
+  assetValue?: {
+    total: string; totalPositive: boolean;
+    totalBank: string; totalGateway: string; stockVal: string; totalUnpaidTds: string;
+    bankCount: number; pendingCount: number; tdsCount: number;
+    assetStocks: { asset: string; units: string; avgCost: string; value: string }[];
+    gatewayGroups: { name: string; total: string; count: number }[];
+  }
   charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
 
 }

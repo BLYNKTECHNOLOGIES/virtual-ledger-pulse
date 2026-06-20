@@ -393,6 +393,13 @@ export const template = {
       { key: 'evening', label: 'Evening Shift', window: '17:00 – 01:00 IST', purchaseQty: '1,800.0000', purchaseValue: '1,64,160.00', purchaseCount: 3, avgPurchaseRate: '91.2000', salesQty: '1,900.0000', salesValue: '1,75,750.00', salesCount: 5, avgSalesRate: '92.5000' },
       { key: 'night', label: 'Night Shift', window: '01:00 – 09:00 IST', purchaseQty: '1,000.0000', purchaseValue: '91,200.00', purchaseCount: 2, avgPurchaseRate: '91.2000', salesQty: '1,000.0000', salesValue: '92,500.00', salesCount: 2, avgSalesRate: '92.5000' },
     ],
+    platformRates: [
+      { platform: 'Binance (Blynk)', avgBuyRate: '91.2000', buyCount: 7, avgSellRate: '92.5000', sellCount: 9 },
+      { platform: 'Binance (ASEC)', avgBuyRate: '91.0500', buyCount: 2, avgSellRate: '92.4000', sellCount: 2 },
+      { platform: 'KuCoin', avgBuyRate: '—', buyCount: 0, avgSellRate: '92.6000', sellCount: 1 },
+    ],
+
+
 
     wallet: { balances: [{ asset: 'USDT', balance: '12,340.5000' }, { asset: 'TRX', balance: '500.0000' }], feesByType: [{ type: 'PLATFORM FEE', amount: '100.0000' }], totalFees: '120.0000' },
     expenses: { totalExpenses: '8,500.00', count: 3, byCategory: [{ category: 'Office > Rent', amount: '6,000.00' }, { category: 'Utilities', amount: '2,500.00' }], list: [{ category: 'Office > Rent', description: 'June office rent', amount: '6,000.00' }, { category: 'Utilities', description: 'Electricity bill', amount: '2,500.00' }] },

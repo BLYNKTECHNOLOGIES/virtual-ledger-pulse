@@ -39,6 +39,21 @@ function istHour(ts: string): number {
   return new Date(istMs).getUTCHours();
 }
 
+// Terminal shift windows (IST, non-overlapping, derived from hr_shifts start times):
+//   Morning 09:00–17:00, Evening 17:00–01:00, Night 01:00–09:00
+type ShiftKey = "morning" | "evening" | "night";
+function shiftOf(hour: number): ShiftKey {
+  if (hour >= 9 && hour < 17) return "morning";
+  if (hour >= 1 && hour < 9) return "night";
+  return "evening"; // hours 17–23 and 00
+}
+const SHIFT_META: Record<ShiftKey, { label: string; window: string }> = {
+  morning: { label: "Morning Shift", window: "09:00 – 17:00 IST" },
+  evening: { label: "Evening Shift", window: "17:00 – 01:00 IST" },
+  night: { label: "Night Shift", window: "01:00 – 09:00 IST" },
+};
+
+
 async function fetchAll(supabase: any, table: string, columns: string, date: string) {
   const pageSize = 1000;
   let from = 0;

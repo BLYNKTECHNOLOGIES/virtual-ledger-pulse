@@ -39,6 +39,21 @@ function istHour(ts: string): number {
   return new Date(istMs).getUTCHours();
 }
 
+// Terminal shift windows (IST, non-overlapping, derived from hr_shifts start times):
+//   Morning 09:00–17:00, Evening 17:00–01:00, Night 01:00–09:00
+type ShiftKey = "morning" | "evening" | "night";
+function shiftOf(hour: number): ShiftKey {
+  if (hour >= 9 && hour < 17) return "morning";
+  if (hour >= 1 && hour < 9) return "night";
+  return "evening"; // hours 17–23 and 00
+}
+const SHIFT_META: Record<ShiftKey, { label: string; window: string }> = {
+  morning: { label: "Morning Shift", window: "09:00 – 17:00 IST" },
+  evening: { label: "Evening Shift", window: "17:00 – 01:00 IST" },
+  night: { label: "Night Shift", window: "01:00 – 09:00 IST" },
+};
+
+
 async function fetchAll(supabase: any, table: string, columns: string, date: string) {
   const pageSize = 1000;
   let from = 0;
@@ -248,7 +263,51 @@ async function buildReport(supabase: any, date: string) {
     purchaseByAsset[asset].count += 1;
   }
 
+  // ----- Shift-wise breakdown (Morning / Evening / Night, IST terminal shifts) -----
+  type ShiftBucket = { purQty: number; purVal: number; purCount: number; salQty: number; salVal: number; salCount: number };
+  const shiftAgg: Record<ShiftKey, ShiftBucket> = {
+    morning: { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
+    evening: { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
+    night:   { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },
+  };
+  for (const o of salesCompleted) {
+    if (!o.created_at) continue;
+    const k = shiftOf(istHour(o.created_at));
+    const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
+    const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
+    const value = Number(o.total_amount) || qty * rate;
+    shiftAgg[k].salQty += qty;
+    shiftAgg[k].salVal += value;
+    shiftAgg[k].salCount += 1;
+  }
+  for (const o of purchasesCompleted) {
+    if (!o.created_at) continue;
+    const k = shiftOf(istHour(o.created_at));
+    const qty = Number(o.effective_usdt_qty) || 0;
+    const value = Number(o.total_amount) || 0;
+    shiftAgg[k].purQty += qty;
+    shiftAgg[k].purVal += value;
+    shiftAgg[k].purCount += 1;
+  }
+  const shiftBreakdown = (["morning", "evening", "night"] as ShiftKey[]).map((k) => {
+    const a = shiftAgg[k];
+    return {
+      key: k,
+      label: SHIFT_META[k].label,
+      window: SHIFT_META[k].window,
+      purchaseQty: fmtNum(a.purQty, 4),
+      purchaseValue: fmtNum(a.purVal),
+      purchaseCount: a.purCount,
+      avgPurchaseRate: fmtNum(a.purQty > 0 ? a.purVal / a.purQty : 0, 4),
+      salesQty: fmtNum(a.salQty, 4),
+      salesValue: fmtNum(a.salVal),
+      salesCount: a.salCount,
+      avgSalesRate: fmtNum(a.salQty > 0 ? a.salVal / a.salQty : 0, 4),
+    };
+  });
+
   // ----- Fees -----
+
   const dayStart = date + "T00:00:00";
   const dayEnd = date + "T23:59:59";
   const { data: feeRows } = await supabase
@@ -418,7 +477,9 @@ async function buildReport(supabase: any, date: string) {
       byCategory: Object.entries(expenseByCategory).sort((a, b) => b[1] - a[1]).map(([category, amount]) => ({ category, amount: fmtNum(amount) })),
       list: expenseList.slice(0, 50).map((e) => ({ category: e.category, description: e.description, amount: fmtNum(e.amount) })),
     },
+    shifts: shiftBreakdown,
     stats: {
+
       busiestHour: `${busiestHour}:00 - ${busiestHour + 1}:00 IST`,
       totalOrders: salesRaw.length + purchasesRaw.length,
       completedOrders: salesCompleted.length + purchasesCompleted.length,

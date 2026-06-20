@@ -384,7 +384,10 @@ function orderToDbRow(o: any, accountId?: string) {
     : null;
   const hasActiveComplaint = hasActiveBinanceComplaint(o);
 
-  return {
+  // Resolve the owning account: explicit arg → tag set during fetch → existing on payload.
+  const resolvedAccountId = accountId || o.__exchange_account_id || undefined;
+
+  const row: Record<string, any> = {
     order_number: o.orderNumber || '',
     adv_no: o.advNo || '',
     trade_type: o.tradeType || '',
@@ -403,6 +406,9 @@ function orderToDbRow(o: any, accountId?: string) {
     raw_data: o,
     synced_at: new Date().toISOString(),
   };
+  // Only set the account when known, so upserts never wipe an existing value with null.
+  if (resolvedAccountId) row.exchange_account_id = resolvedAccountId;
+  return row;
 }
 
 function dbRowToOrder(row: any) {

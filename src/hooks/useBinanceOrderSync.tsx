@@ -140,7 +140,7 @@ async function upsertOrdersToDB(orders: any[], accountId?: string) {
     const batch = orders.slice(i, i + BATCH_SIZE).map((o) => orderToDbRow(o, accountId));
     const { error } = await supabase
       .from('binance_order_history')
-      .upsert(batch, { onConflict: 'order_number' });
+      .upsert(batch as any, { onConflict: 'order_number' });
     if (error) {
       console.error(`[Sync] Batch ${Math.floor(i / BATCH_SIZE)} failed:`, error);
       throw error;

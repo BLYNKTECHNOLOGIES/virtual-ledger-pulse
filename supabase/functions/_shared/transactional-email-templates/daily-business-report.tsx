@@ -30,6 +30,7 @@ interface DailyReportProps {
   wallet?: { balances: { asset: string; balance: string }[]; feesByType: { type: string; amount: string }[]; totalFees: string }
   expenses?: { totalExpenses: string; count: number; byCategory: { category: string; amount: string }[]; list: { category: string; description: string; amount: string }[] }
   shifts?: { key: string; label: string; window: string; purchaseQty: string; purchaseValue: string; purchaseCount: number; avgPurchaseRate: string; salesQty: string; salesValue: string; salesCount: number; avgSalesRate: string }[]
+  platformRates?: { platform: string; avgBuyRate: string; buyCount: number; avgSellRate: string; sellCount: number }[]
   stats?: { busiestHour: string; totalOrders: number; completedOrders: number; topClients: { name: string; value: string }[]; salesChangePct: string; purchaseChangePct: string }
 
   assetValue?: {
@@ -46,7 +47,7 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, stats, assetValue, charts }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts }: DailyReportProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>
@@ -217,6 +218,35 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
+          {/* Platform-wise average rates */}
+          {platformRates && platformRates.length > 0 && (
+            <Section style={card}>
+              <Text style={sectionTitle}>Average Rates by Platform</Text>
+              <table style={tbl}>
+                <thead>
+                  <tr>
+                    <th style={th}>Platform</th>
+                    <th style={thR}>Avg Buy (INR)</th>
+                    <th style={thR}>Avg Sell (INR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {platformRates.map((p, i) => (
+                    <tr key={i}>
+                      <td style={td}>{p.platform}</td>
+                      <td style={tdR}>{p.avgBuyRate === '—' ? '—' : `₹${p.avgBuyRate}`}<span style={{ color: '#9C8A78', fontSize: '10px' }}>{p.buyCount ? ` (${p.buyCount})` : ''}</span></td>
+                      <td style={tdR}>{p.avgSellRate === '—' ? '—' : `₹${p.avgSellRate}`}<span style={{ color: '#9C8A78', fontSize: '10px' }}>{p.sellCount ? ` (${p.sellCount})` : ''}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Text style={{ fontSize: '10px', color: '#9C8A78', margin: '6px 0 0' }}>Order counts shown in parentheses.</Text>
+            </Section>
+          )}
+
+
+
+
 
 
           {charts?.salesVsPurchase && <Img src={charts.salesVsPurchase} alt="Sales vs Purchases" style={chartImg} />}
@@ -363,6 +393,13 @@ export const template = {
       { key: 'evening', label: 'Evening Shift', window: '17:00 – 01:00 IST', purchaseQty: '1,800.0000', purchaseValue: '1,64,160.00', purchaseCount: 3, avgPurchaseRate: '91.2000', salesQty: '1,900.0000', salesValue: '1,75,750.00', salesCount: 5, avgSalesRate: '92.5000' },
       { key: 'night', label: 'Night Shift', window: '01:00 – 09:00 IST', purchaseQty: '1,000.0000', purchaseValue: '91,200.00', purchaseCount: 2, avgPurchaseRate: '91.2000', salesQty: '1,000.0000', salesValue: '92,500.00', salesCount: 2, avgSalesRate: '92.5000' },
     ],
+    platformRates: [
+      { platform: 'Binance (Blynk)', avgBuyRate: '91.2000', buyCount: 7, avgSellRate: '92.5000', sellCount: 9 },
+      { platform: 'Binance (ASEC)', avgBuyRate: '91.0500', buyCount: 2, avgSellRate: '92.4000', sellCount: 2 },
+      { platform: 'KuCoin', avgBuyRate: '—', buyCount: 0, avgSellRate: '92.6000', sellCount: 1 },
+    ],
+
+
 
     wallet: { balances: [{ asset: 'USDT', balance: '12,340.5000' }, { asset: 'TRX', balance: '500.0000' }], feesByType: [{ type: 'PLATFORM FEE', amount: '100.0000' }], totalFees: '120.0000' },
     expenses: { totalExpenses: '8,500.00', count: 3, byCategory: [{ category: 'Office > Rent', amount: '6,000.00' }, { category: 'Utilities', amount: '2,500.00' }], list: [{ category: 'Office > Rent', description: 'June office rent', amount: '6,000.00' }, { category: 'Utilities', description: 'Electricity bill', amount: '2,500.00' }] },

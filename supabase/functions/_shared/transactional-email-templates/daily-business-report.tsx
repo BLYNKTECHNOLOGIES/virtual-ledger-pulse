@@ -313,6 +313,16 @@ export const template = {
     wallet: { balances: [{ asset: 'USDT', balance: '12,340.5000' }, { asset: 'TRX', balance: '500.0000' }], feesByType: [{ type: 'PLATFORM FEE', amount: '100.0000' }], totalFees: '120.0000' },
     expenses: { totalExpenses: '8,500.00', count: 3, byCategory: [{ category: 'Office > Rent', amount: '6,000.00' }, { category: 'Utilities', amount: '2,500.00' }], list: [{ category: 'Office > Rent', description: 'June office rent', amount: '6,000.00' }, { category: 'Utilities', description: 'Electricity bill', amount: '2,500.00' }] },
     stats: { busiestHour: '14:00 - 15:00 IST', totalOrders: 24, completedOrders: 21, topClients: [{ name: 'Rahul', value: '1,20,000.00' }], salesChangePct: '8.5', purchaseChangePct: '5.1' },
+    assetValue: {
+      total: '85,40,000.00', totalPositive: true,
+      totalBank: '42,10,000.00', totalGateway: '3,50,000.00', stockVal: '41,20,000.00', totalUnpaidTds: '1,40,000.00',
+      bankCount: 6, pendingCount: 12, tdsCount: 8,
+      assetStocks: [
+        { asset: 'USDT', units: '40,000.0000', avgCost: '91.5000', value: '36,60,000.00' },
+        { asset: 'BTC', units: '0.0500', avgCost: '90,00,000.0000', value: '4,50,000.00' },
+      ],
+      gatewayGroups: [{ name: 'Razorpay', total: '3,50,000.00', count: 12 }],
+    },
     charts: { salesVsPurchase: '', pnl: '', volumeByAsset: '', hourly: '', expensesByCategory: '' },
   },
 } satisfies TemplateEntry

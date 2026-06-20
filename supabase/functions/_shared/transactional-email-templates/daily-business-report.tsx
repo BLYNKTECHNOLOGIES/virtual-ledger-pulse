@@ -29,7 +29,9 @@ interface DailyReportProps {
   purchases?: { totalQty: string; totalValue: string; orderCount: number; totalOrders: number; avgTicket: string; byAsset: AssetRow[] }
   wallet?: { balances: { asset: string; balance: string }[]; feesByType: { type: string; amount: string }[]; totalFees: string }
   expenses?: { totalExpenses: string; count: number; byCategory: { category: string; amount: string }[]; list: { category: string; description: string; amount: string }[] }
+  shifts?: { key: string; label: string; window: string; purchaseQty: string; purchaseValue: string; purchaseCount: number; avgPurchaseRate: string; salesQty: string; salesValue: string; salesCount: number; avgSalesRate: string }[]
   stats?: { busiestHour: string; totalOrders: number; completedOrders: number; topClients: { name: string; value: string }[]; salesChangePct: string; purchaseChangePct: string }
+
   assetValue?: {
     total: string; totalPositive: boolean;
     totalBank: string; totalGateway: string; stockVal: string; totalUnpaidTds: string;

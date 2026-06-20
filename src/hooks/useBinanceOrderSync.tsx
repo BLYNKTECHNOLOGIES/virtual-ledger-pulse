@@ -372,7 +372,7 @@ function mapOrderStatus(raw: any): string {
 }
 
 // ---- Mapping helpers ----
-function orderToDbRow(o: any) {
+function orderToDbRow(o: any, accountId?: string) {
   const amount = String(o.amount ?? o.quantity ?? '0');
   const totalPrice = String(o.totalPrice ?? o.total_price ?? o.fiatAmount ?? '0');
   const computedUnitPrice = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : '0';

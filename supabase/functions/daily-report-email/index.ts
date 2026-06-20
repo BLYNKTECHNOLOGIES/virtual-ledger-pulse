@@ -335,6 +335,7 @@ async function buildReport(supabase: any, date: string) {
     .sort((a, b) => b._vol - a._vol)
     .map(({ _vol, ...rest }) => rest);
 
+  // ----- Shift-wise breakdown (Morning / Evening / Night, IST terminal shifts) -----
   type ShiftBucket = { purQty: number; purVal: number; purCount: number; salQty: number; salVal: number; salCount: number };
   const shiftAgg: Record<ShiftKey, ShiftBucket> = {
     morning: { purQty: 0, purVal: 0, purCount: 0, salQty: 0, salVal: 0, salCount: 0 },

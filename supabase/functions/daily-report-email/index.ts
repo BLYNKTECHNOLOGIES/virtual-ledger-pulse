@@ -66,6 +66,28 @@ function normalizePlatform(raw?: string | null): string {
   return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Map a wallet name (e.g. "BINANCE BLYNK", "KUCOIN ") to a clean platform label.
+// This is the source of truth for attributing manual / unspecified orders to the
+// exchange wallet that was actually used for them.
+function walletPlatformLabel(name?: string | null): string {
+  const u = String(name || "").trim().toUpperCase().replace(/\s+/g, " ");
+  if (!u) return "Unspecified";
+  const MAP: Record<string, string> = {
+    "BINANCE BLYNK": "Binance (Blynk)",
+    "BINANCE ASEC": "Binance (ASEC)",
+    "BINANCE AS": "Binance (AS)",
+    "BINANCE SS": "Binance (SS)",
+    "BYBIT BLYNK": "Bybit (Blynk)",
+    "BYBIT AS": "Bybit (AS)",
+    "COIN EX BLYNK": "CoinEx (Blynk)",
+    "KUCOIN": "KuCoin",
+    "BITGET": "Bitget",
+    "CREDIT STOCK": "Credit Stock",
+  };
+  if (MAP[u]) return MAP[u];
+  return u.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 
 async function fetchAll(supabase: any, table: string, columns: string, date: string) {
   const pageSize = 1000;
@@ -225,8 +247,8 @@ async function buildReport(supabase: any, date: string) {
 
   // Sales + purchases for the day and the previous day (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
-    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform", date),
-    fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source", date),
+    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", date),
+    fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", date),
     fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevDate),
     fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevDate),
   ]);
@@ -277,13 +299,24 @@ async function buildReport(supabase: any, date: string) {
   }
 
   // ----- Platform-wise average rates -----
-  // Sales carry a real `platform` field. Purchases don't, so we derive the
-  // platform from the terminal sync's exchange account where available,
-  // falling back to the order source (manual / terminal).
+  // The wallet used on the order is the source of truth for platform attribution.
+  // Resolve every order to its wallet's exchange label (so "manual" entries are
+  // correctly attributed to KuCoin / Binance Blynk / etc. instead of "Manual").
+  // Where a wallet isn't set, fall back to the order's platform string, then to
+  // the terminal purchase-sync exchange account, then the order source.
   const EXCH_LABEL: Record<string, string> = {
     "00000000-0000-0000-0000-000000000001": "Binance (Blynk)",
     "00000000-0000-0000-0000-000000000002": "Binance (ASEC)",
   };
+
+  // wallet_id -> clean platform label
+  const { data: walletRows } = await supabase.from("wallets").select("id, wallet_name");
+  const walletLabelMap = new Map<string, string>();
+  for (const w of walletRows || []) {
+    walletLabelMap.set(w.id, walletPlatformLabel(w.wallet_name));
+  }
+
+  // Terminal purchase-sync fallback for purchases without a wallet.
   const purIds = purchasesCompleted.map((o: any) => o.id);
   const purPlatformMap = new Map<string, string>();
   if (purIds.length) {
@@ -295,12 +328,18 @@ async function buildReport(supabase: any, date: string) {
       }
     }
   }
+
+  const salesPlatformOf = (o: any): string => {
+    if (o.wallet_id && walletLabelMap.has(o.wallet_id)) return walletLabelMap.get(o.wallet_id)!;
+    if (o.platform) return normalizePlatform(o.platform);
+    return "Unspecified";
+  };
   const purchasePlatformOf = (o: any): string => {
+    if (o.wallet_id && walletLabelMap.has(o.wallet_id)) return walletLabelMap.get(o.wallet_id)!;
     const mapped = purPlatformMap.get(o.id);
     if (mapped) return mapped;
     const src = String(o.source || "").toLowerCase();
     if (src.startsWith("terminal")) return "Terminal";
-    if (src === "manual") return "Manual";
     return "Unspecified";
   };
 
@@ -314,7 +353,7 @@ async function buildReport(supabase: any, date: string) {
     const qty = Number(o.effective_usdt_qty || o.quantity) || 0;
     const rate = Number(o.effective_usdt_rate || o.price_per_unit) || 0;
     const value = Number(o.total_amount) || qty * rate;
-    const b = ensurePlat(normalizePlatform(o.platform));
+    const b = ensurePlat(salesPlatformOf(o));
     b.sellQty += qty; b.sellVal += value; b.sellCount += 1;
   }
   for (const o of purchasesCompleted) {

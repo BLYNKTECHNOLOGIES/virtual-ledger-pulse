@@ -358,6 +358,12 @@ export const template = {
     pnl: { grossProfit: '12,500.00', netProfit: '11,200.00', avgSalesRate: '92.5000', effectivePurchaseRate: '91.2000', npm: '1.3000', totalFees: '120.0000', netProfitPositive: true },
     sales: { totalQty: '5,000.0000', totalValue: '4,62,500.00', orderCount: 12, totalOrders: 14, avgTicket: '38,541.67', byAsset: [{ asset: 'USDT', qty: '5,000.0000', value: '4,62,500.00', count: 12 }] },
     purchases: { totalQty: '4,800.0000', totalValue: '4,37,760.00', orderCount: 9, totalOrders: 10, avgTicket: '48,640.00', byAsset: [{ asset: 'USDT', qty: '4,800.0000', value: '4,37,760.00', count: 9 }] },
+    shifts: [
+      { key: 'morning', label: 'Morning Shift', window: '09:00 – 17:00 IST', purchaseQty: '2,000.0000', purchaseValue: '1,82,400.00', purchaseCount: 4, avgPurchaseRate: '91.2000', salesQty: '2,100.0000', salesValue: '1,94,250.00', salesCount: 5, avgSalesRate: '92.5000' },
+      { key: 'evening', label: 'Evening Shift', window: '17:00 – 01:00 IST', purchaseQty: '1,800.0000', purchaseValue: '1,64,160.00', purchaseCount: 3, avgPurchaseRate: '91.2000', salesQty: '1,900.0000', salesValue: '1,75,750.00', salesCount: 5, avgSalesRate: '92.5000' },
+      { key: 'night', label: 'Night Shift', window: '01:00 – 09:00 IST', purchaseQty: '1,000.0000', purchaseValue: '91,200.00', purchaseCount: 2, avgPurchaseRate: '91.2000', salesQty: '1,000.0000', salesValue: '92,500.00', salesCount: 2, avgSalesRate: '92.5000' },
+    ],
+
     wallet: { balances: [{ asset: 'USDT', balance: '12,340.5000' }, { asset: 'TRX', balance: '500.0000' }], feesByType: [{ type: 'PLATFORM FEE', amount: '100.0000' }], totalFees: '120.0000' },
     expenses: { totalExpenses: '8,500.00', count: 3, byCategory: [{ category: 'Office > Rent', amount: '6,000.00' }, { category: 'Utilities', amount: '2,500.00' }], list: [{ category: 'Office > Rent', description: 'June office rent', amount: '6,000.00' }, { category: 'Utilities', description: 'Electricity bill', amount: '2,500.00' }] },
     stats: { busiestHour: '14:00 - 15:00 IST', totalOrders: 24, completedOrders: 21, topClients: [{ name: 'Rahul', value: '1,20,000.00' }], salesChangePct: '8.5', purchaseChangePct: '5.1' },

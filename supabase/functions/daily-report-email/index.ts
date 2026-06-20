@@ -550,6 +550,7 @@ async function buildReport(supabase: any, date: string) {
       list: expenseList.slice(0, 50).map((e) => ({ category: e.category, description: e.description, amount: fmtNum(e.amount) })),
     },
     shifts: shiftBreakdown,
+    platformRates,
     stats: {
 
       busiestHour: `${busiestHour}:00 - ${busiestHour + 1}:00 IST`,

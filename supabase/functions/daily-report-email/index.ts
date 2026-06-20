@@ -66,10 +66,134 @@ function quickChart(config: Record<string, unknown>): string {
   return `https://quickchart.io/chart?bkg=white&w=560&h=300&c=${json}`;
 }
 
+// ---------- Total Asset Value (mirrors the Financials tab widget exactly) ----------
+
+// Audit/contra buckets excluded from all financial aggregations
+const ADJ_BANK_NAMES = ["balance adjustment account"];
+const ADJ_WALLET_NAMES = ["balance adjustment wallet"];
+const isAdjBank = (n?: string | null) => !!n && ADJ_BANK_NAMES.includes(String(n).trim().toLowerCase());
+const isAdjWallet = (n?: string | null) => !!n && ADJ_WALLET_NAMES.includes(String(n).trim().toLowerCase());
+
+// Generic paginated fetch (>1000 rows safe)
+async function fetchAllRows(builder: () => any): Promise<any[]> {
+  const pageSize = 1000;
+  let from = 0;
+  const out: any[] = [];
+  while (true) {
+    const { data, error } = await builder().range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    out.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return out;
+}
+
+async function buildAssetValue(supabase: any) {
+  // 1. Bank balances (Active + Dormant), excluding adjustment bucket
+  const { data: banks } = await supabase
+    .from("bank_accounts")
+    .select("account_name, bank_name, balance, status")
+    .in("status", ["ACTIVE", "DORMANT"])
+    .order("account_name");
+  const bankDetails = (banks || [])
+    .filter((b: any) => !isAdjBank(b.account_name))
+    .map((b: any) => ({ account_name: b.account_name, bank_name: b.bank_name, balance: Number(b.balance || 0) }));
+  const totalBank = bankDetails.reduce((s: number, a: any) => s + a.balance, 0);
+
+  // 2. POS / Gateway — pending settlements grouped by gateway
+  const pendingSettlements = await fetchAllRows(() =>
+    supabase.from("pending_settlements").select("settlement_amount, payment_method_id").eq("status", "PENDING"));
+  const pmIds = [...new Set(pendingSettlements.map((p: any) => p.payment_method_id).filter(Boolean))];
+  const pmNameMap = new Map<string, string>();
+  if (pmIds.length) {
+    const { data: pms } = await supabase.from("sales_payment_methods").select("id, type, nickname").in("id", pmIds);
+    (pms || []).forEach((pm: any) => pmNameMap.set(pm.id, pm.nickname || pm.type || "Unknown"));
+  }
+  const gwMap = new Map<string, { total: number; count: number }>();
+  pendingSettlements.forEach((p: any) => {
+    const name = p.payment_method_id ? (pmNameMap.get(p.payment_method_id) || "Unknown Gateway") : "Unassigned";
+    const e = gwMap.get(name) || { total: 0, count: 0 };
+    e.total += Number(p.settlement_amount || 0);
+    e.count += 1;
+    gwMap.set(name, e);
+  });
+  const gatewayGroups = Array.from(gwMap.entries())
+    .map(([gateway_name, v]) => ({ gateway_name, total: v.total, count: v.count }))
+    .sort((a, b) => b.total - a.total);
+  const totalGateway = gatewayGroups.reduce((s, g) => s + g.total, 0);
+
+  // 3. Stock valuation — multi-asset
+  // 3a. USDT from ledger (wallet_asset_balances) falling back to wallets.current_balance
+  const [{ data: wallets }, usdtRows] = await Promise.all([
+    supabase.from("wallets").select("id, wallet_name, current_balance").eq("is_active", true),
+    fetchAllRows(() => supabase.from("wallet_asset_balances").select("wallet_id, balance").eq("asset_code", "USDT")),
+  ]);
+  const usdtMap = new Map(usdtRows.map((r: any) => [r.wallet_id, Number(r.balance || 0)]));
+  const totalUsdtUnits = (wallets || [])
+    .filter((w: any) => !isAdjWallet(w.wallet_name))
+    .reduce((s: number, w: any) => s + (usdtMap.has(w.id) ? Number(usdtMap.get(w.id)) : Number(w.current_balance || 0)), 0);
+
+  // 3b. Non-USDT asset balances
+  const assetBalances = await fetchAllRows(() =>
+    supabase.from("wallet_asset_balances").select("asset_code, balance").neq("asset_code", "USDT"));
+  const nonUsdtMap = new Map<string, number>();
+  assetBalances.forEach((ab: any) => {
+    nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + Number(ab.balance || 0));
+  });
+
+  // 3c. Avg cost per product from completed POs
+  const purchaseOrders = await fetchAllRows(() =>
+    supabase.from("purchase_orders").select(`*, purchase_order_items(quantity, total_price, products(code))`).eq("status", "COMPLETED"));
+  const costCalc = new Map<string, { qty: number; cost: number }>();
+  purchaseOrders.forEach((po: any) => {
+    (po.purchase_order_items || []).forEach((item: any) => {
+      const code = item.products?.code;
+      if (!code) return;
+      const e = costCalc.get(code) || { qty: 0, cost: 0 };
+      e.qty += Number(item.quantity || 0);
+      e.cost += Number(item.total_price || 0);
+      costCalc.set(code, e);
+    });
+  });
+  const getAvgCost = (code: string) => {
+    const c = costCalc.get(code);
+    return c && c.qty > 0 ? c.cost / c.qty : 0;
+  };
+
+  const assetStocks: { asset_code: string; total_units: number; avg_cost: number; total_value: number }[] = [];
+  const usdtAvg = getAvgCost("USDT");
+  if (totalUsdtUnits > 0 || usdtAvg > 0) {
+    assetStocks.push({ asset_code: "USDT", total_units: totalUsdtUnits, avg_cost: usdtAvg, total_value: totalUsdtUnits * usdtAvg });
+  }
+  nonUsdtMap.forEach((units, code) => {
+    const avg = getAvgCost(code);
+    if (units > 0) assetStocks.push({ asset_code: code, total_units: units, avg_cost: avg, total_value: units * avg });
+  });
+  assetStocks.sort((a, b) => b.total_value - a.total_value);
+  const stockVal = assetStocks.reduce((s, a) => s + a.total_value, 0);
+
+  // 4. Unpaid TDS liability
+  const unpaidTds = await fetchAllRows(() =>
+    supabase.from("tds_records").select("tds_amount").or("payment_status.is.null,payment_status.neq.PAID"));
+  const totalUnpaidTds = unpaidTds.reduce((s: number, r: any) => s + Number(r.tds_amount || 0), 0);
+
+  const total = totalBank + totalGateway + stockVal - totalUnpaidTds;
+  return {
+    total, totalBank, totalGateway, stockVal, totalUnpaidTds,
+    bankCount: bankDetails.length, gatewayGroups, assetStocks,
+    tdsCount: unpaidTds.length, pendingCount: pendingSettlements.length,
+  };
+}
+
 // ---------- aggregation ----------
 
 async function buildReport(supabase: any, date: string) {
   const prevDate = shiftDate(date, -1);
+
+  // Total Asset Value snapshot (current, mirrors the Financials tab widget)
+  const av = await buildAssetValue(supabase);
 
   // Sales + purchases for the day and the previous day (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
@@ -301,6 +425,24 @@ async function buildReport(supabase: any, date: string) {
       topClients: topClients.map(([name, val]) => ({ name, value: fmtNum(val) })),
       salesChangePct: prevSalesVal > 0 ? fmtNum(((totalSalesValue - prevSalesVal) / prevSalesVal) * 100, 1) : "N/A",
       purchaseChangePct: prevPurchaseVal > 0 ? fmtNum(((totalPurchaseValue - prevPurchaseVal) / prevPurchaseVal) * 100, 1) : "N/A",
+    },
+    assetValue: {
+      total: fmtNum(av.total),
+      totalPositive: av.total >= 0,
+      totalBank: fmtNum(av.totalBank),
+      totalGateway: fmtNum(av.totalGateway),
+      stockVal: fmtNum(av.stockVal),
+      totalUnpaidTds: fmtNum(av.totalUnpaidTds),
+      bankCount: av.bankCount,
+      pendingCount: av.pendingCount,
+      tdsCount: av.tdsCount,
+      assetStocks: av.assetStocks.map((a) => ({
+        asset: a.asset_code,
+        units: fmtNum(a.total_units, 4),
+        avgCost: fmtNum(a.avg_cost, 4),
+        value: fmtNum(a.total_value),
+      })),
+      gatewayGroups: av.gatewayGroups.map((g) => ({ name: g.gateway_name, total: fmtNum(g.total), count: g.count })),
     },
     charts,
   };

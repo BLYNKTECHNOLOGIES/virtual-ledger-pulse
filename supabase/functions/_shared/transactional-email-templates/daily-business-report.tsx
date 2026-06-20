@@ -30,6 +30,13 @@ interface DailyReportProps {
   wallet?: { balances: { asset: string; balance: string }[]; feesByType: { type: string; amount: string }[]; totalFees: string }
   expenses?: { totalExpenses: string; count: number; byCategory: { category: string; amount: string }[]; list: { category: string; description: string; amount: string }[] }
   stats?: { busiestHour: string; totalOrders: number; completedOrders: number; topClients: { name: string; value: string }[]; salesChangePct: string; purchaseChangePct: string }
+  assetValue?: {
+    total: string; totalPositive: boolean;
+    totalBank: string; totalGateway: string; stockVal: string; totalUnpaidTds: string;
+    bankCount: number; pendingCount: number; tdsCount: number;
+    assetStocks: { asset: string; units: string; avgCost: string; value: string }[];
+    gatewayGroups: { name: string; total: string; count: number }[];
+  }
   charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
 
 }
@@ -37,7 +44,7 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, stats, charts }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, stats, assetValue, charts }: DailyReportProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>
@@ -67,6 +74,65 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, st
               </div>
             </Section>
           )}
+
+          {/* Total Asset Value (from Financials tab) */}
+          {assetValue && (
+            <Section>
+              <div style={{ ...kpiCard, display: 'block', width: 'auto', borderColor: '#4F46E5', backgroundColor: '#eef0ff', margin: '8px 0' }}>
+                <Text style={kpiLabel}>Total Asset Value (Current)</Text>
+                <Text style={{ ...kpiValue, color: assetValue.totalPositive ? '#4F46E5' : '#C62828' }}>₹{assetValue.total}</Text>
+                <Text style={{ fontSize: '11px', color: '#6b6f8a', margin: '4px 0 0' }}>Banks + POS + Stock − Unpaid TDS</Text>
+              </div>
+
+              <Section style={card}>
+                <Text style={sectionTitle}>Total Asset Value — Breakdown</Text>
+                <Row label={`Bank Balances (${assetValue.bankCount})`} value={`₹${assetValue.totalBank}`} />
+                <Row label={`POS / Gateway (${assetValue.pendingCount} pending)`} value={`₹${assetValue.totalGateway}`} />
+                <Row label="Stock Valuation (Multi-Asset)" value={`₹${assetValue.stockVal}`} />
+                <Row label={`Unpaid TDS (${assetValue.tdsCount})`} value={`- ₹${assetValue.totalUnpaidTds}`} />
+                <Hr style={divider} />
+                <Row label="Net Total Asset Value" value={`₹${assetValue.total}`} />
+
+                {assetValue.assetStocks.length > 0 && (
+                  <>
+                    <Text style={subTitle}>Stock by Asset</Text>
+                    <table style={tbl}>
+                      <thead><tr><th style={th}>Asset</th><th style={thR}>Units</th><th style={thR}>Avg Cost (₹)</th><th style={thR}>Value (₹)</th></tr></thead>
+                      <tbody>
+                        {assetValue.assetStocks.map((a, i) => (
+                          <tr key={i}>
+                            <td style={td}>{a.asset}</td>
+                            <td style={tdR}>{a.units}</td>
+                            <td style={tdR}>{a.avgCost}</td>
+                            <td style={tdR}>{a.value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {assetValue.gatewayGroups.length > 0 && (
+                  <>
+                    <Text style={subTitle}>POS / Gateway Detail</Text>
+                    <table style={tbl}>
+                      <thead><tr><th style={th}>Gateway</th><th style={thR}>Txns</th><th style={thR}>Amount (₹)</th></tr></thead>
+                      <tbody>
+                        {assetValue.gatewayGroups.map((g, i) => (
+                          <tr key={i}>
+                            <td style={td}>{g.name}</td>
+                            <td style={tdR}>{g.count}</td>
+                            <td style={tdR}>{g.total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+              </Section>
+            </Section>
+          )}
+
 
           {/* P&L summary */}
           {pnl && (
@@ -247,6 +313,16 @@ export const template = {
     wallet: { balances: [{ asset: 'USDT', balance: '12,340.5000' }, { asset: 'TRX', balance: '500.0000' }], feesByType: [{ type: 'PLATFORM FEE', amount: '100.0000' }], totalFees: '120.0000' },
     expenses: { totalExpenses: '8,500.00', count: 3, byCategory: [{ category: 'Office > Rent', amount: '6,000.00' }, { category: 'Utilities', amount: '2,500.00' }], list: [{ category: 'Office > Rent', description: 'June office rent', amount: '6,000.00' }, { category: 'Utilities', description: 'Electricity bill', amount: '2,500.00' }] },
     stats: { busiestHour: '14:00 - 15:00 IST', totalOrders: 24, completedOrders: 21, topClients: [{ name: 'Rahul', value: '1,20,000.00' }], salesChangePct: '8.5', purchaseChangePct: '5.1' },
+    assetValue: {
+      total: '85,40,000.00', totalPositive: true,
+      totalBank: '42,10,000.00', totalGateway: '3,50,000.00', stockVal: '41,20,000.00', totalUnpaidTds: '1,40,000.00',
+      bankCount: 6, pendingCount: 12, tdsCount: 8,
+      assetStocks: [
+        { asset: 'USDT', units: '40,000.0000', avgCost: '91.5000', value: '36,60,000.00' },
+        { asset: 'BTC', units: '0.0500', avgCost: '90,00,000.0000', value: '4,50,000.00' },
+      ],
+      gatewayGroups: [{ name: 'Razorpay', total: '3,50,000.00', count: 12 }],
+    },
     charts: { salesVsPurchase: '', pnl: '', volumeByAsset: '', hourly: '', expensesByCategory: '' },
   },
 } satisfies TemplateEntry

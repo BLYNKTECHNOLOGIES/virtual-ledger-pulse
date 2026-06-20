@@ -426,6 +426,24 @@ async function buildReport(supabase: any, date: string) {
       salesChangePct: prevSalesVal > 0 ? fmtNum(((totalSalesValue - prevSalesVal) / prevSalesVal) * 100, 1) : "N/A",
       purchaseChangePct: prevPurchaseVal > 0 ? fmtNum(((totalPurchaseValue - prevPurchaseVal) / prevPurchaseVal) * 100, 1) : "N/A",
     },
+    assetValue: {
+      total: fmtNum(av.total),
+      totalPositive: av.total >= 0,
+      totalBank: fmtNum(av.totalBank),
+      totalGateway: fmtNum(av.totalGateway),
+      stockVal: fmtNum(av.stockVal),
+      totalUnpaidTds: fmtNum(av.totalUnpaidTds),
+      bankCount: av.bankCount,
+      pendingCount: av.pendingCount,
+      tdsCount: av.tdsCount,
+      assetStocks: av.assetStocks.map((a) => ({
+        asset: a.asset_code,
+        units: fmtNum(a.total_units, 4),
+        avgCost: fmtNum(a.avg_cost, 4),
+        value: fmtNum(a.total_value),
+      })),
+      gatewayGroups: av.gatewayGroups.map((g) => ({ name: g.gateway_name, total: fmtNum(g.total), count: g.count })),
+    },
     charts,
   };
 }

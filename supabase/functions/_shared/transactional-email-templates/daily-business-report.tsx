@@ -218,6 +218,35 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
+          {/* Platform-wise average rates */}
+          {platformRates && platformRates.length > 0 && (
+            <Section style={card}>
+              <Text style={sectionTitle}>Average Rates by Platform</Text>
+              <table style={tbl}>
+                <thead>
+                  <tr>
+                    <th style={th}>Platform</th>
+                    <th style={thR}>Avg Buy (INR)</th>
+                    <th style={thR}>Avg Sell (INR)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {platformRates.map((p, i) => (
+                    <tr key={i}>
+                      <td style={td}>{p.platform}</td>
+                      <td style={tdR}>{p.avgBuyRate === '—' ? '—' : `₹${p.avgBuyRate}`}<span style={{ color: '#9C8A78', fontSize: '10px' }}>{p.buyCount ? ` (${p.buyCount})` : ''}</span></td>
+                      <td style={tdR}>{p.avgSellRate === '—' ? '—' : `₹${p.avgSellRate}`}<span style={{ color: '#9C8A78', fontSize: '10px' }}>{p.sellCount ? ` (${p.sellCount})` : ''}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <Text style={{ fontSize: '10px', color: '#9C8A78', margin: '6px 0 0' }}>Order counts shown in parentheses.</Text>
+            </Section>
+          )}
+
+
+
+
 
 
           {charts?.salesVsPurchase && <Img src={charts.salesVsPurchase} alt="Sales vs Purchases" style={chartImg} />}

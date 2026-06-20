@@ -76,10 +76,16 @@ export function useSyncMetadata() {
 }
 
 // ---- Core fetch logic (shared between incremental & full) ----
+// IMPORTANT: every order is fetched from a SPECIFIC exchange account's API.
+// We pass `accountId` explicitly so the edge function uses that account's
+// credentials, and we stamp every resulting row with that same account id.
+// This is the single source of truth for which Binance account an order
+// belongs to — downstream (purchase/sales sync, conversions) inherit it.
 async function fetchOrdersFromBinance(
   startTimestamp: number,
   endTimestamp: number,
-  maxWindows: number = 30
+  maxWindows: number = 30,
+  accountId?: string,
 ): Promise<any[]> {
   let windowEnd = endTimestamp;
   const allOrders: any[] = [];
@@ -99,13 +105,15 @@ async function fetchOrdersFromBinance(
         page,
         startTimestamp,
         endTimestamp: windowEnd,
-      });
+      }, accountId);
       const orders = result?.data || result || [];
       if (!Array.isArray(orders) || orders.length === 0) break;
 
       for (const o of orders) {
         if (!seenOrderNumbers.has(o.orderNumber)) {
           seenOrderNumbers.add(o.orderNumber);
+          // Tag with the account whose API actually returned this order.
+          if (accountId) o.__exchange_account_id = accountId;
           allOrders.push(o);
         }
         if (o.createTime && o.createTime < oldestInWindow) {
@@ -126,10 +134,10 @@ async function fetchOrdersFromBinance(
   return allOrders;
 }
 
-async function upsertOrdersToDB(orders: any[]) {
+async function upsertOrdersToDB(orders: any[], accountId?: string) {
   const BATCH_SIZE = 200;
   for (let i = 0; i < orders.length; i += BATCH_SIZE) {
-    const batch = orders.slice(i, i + BATCH_SIZE).map(orderToDbRow);
+    const batch = orders.slice(i, i + BATCH_SIZE).map((o) => orderToDbRow(o, accountId));
     const { error } = await supabase
       .from('binance_order_history')
       .upsert(batch, { onConflict: 'order_number' });
@@ -151,21 +159,36 @@ async function updateSyncMetadata(count: number, duration: number) {
     }, { onConflict: 'id' });
 }
 
-async function getNewestOrderTimestamp(): Promise<number | null> {
-  const { data } = await supabase
+async function getNewestOrderTimestamp(accountId?: string): Promise<number | null> {
+  let query = supabase
     .from('binance_order_history')
     .select('create_time')
     .order('create_time', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
+  if (accountId) query = query.eq('exchange_account_id', accountId);
+  const { data } = await query.maybeSingle();
   return data?.create_time || null;
 }
 
-async function getDBOrderCount(): Promise<number> {
-  const { count } = await supabase
+async function getDBOrderCount(accountId?: string): Promise<number> {
+  let query = supabase
     .from('binance_order_history')
     .select('*', { count: 'exact', head: true });
+  if (accountId) query = query.eq('exchange_account_id', accountId);
+  const { count } = await query;
   return count || 0;
+}
+
+// Resolve every active exchange account so the sync can fetch each account's
+// orders with its own credentials and stamp them correctly.
+async function getActiveAccountIds(): Promise<string[]> {
+  const { data } = await supabase
+    .from('terminal_exchange_accounts')
+    .select('id')
+    .eq('is_active', true)
+    .order('display_order', { ascending: true });
+  const ids = (data || []).map((a: any) => a.id).filter(Boolean);
+  return ids.length > 0 ? ids : ['00000000-0000-0000-0000-000000000001'];
 }
 
 // ---- Incremental sync: only new orders + status refresh on recent ----

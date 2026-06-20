@@ -53,6 +53,19 @@ const SHIFT_META: Record<ShiftKey, { label: string; window: string }> = {
   night: { label: "Night Shift", window: "01:00 – 09:00 IST" },
 };
 
+// Normalize messy platform strings into clean, consistent labels.
+function normalizePlatform(raw?: string | null): string {
+  const s = String(raw || "").trim();
+  if (!s) return "Unspecified";
+  const u = s.toUpperCase();
+  if (u === "BINANCE") return "Binance";
+  if (u === "BINANCE BLYNK") return "Binance (Blynk)";
+  if (u === "BINANCE ASEC") return "Binance (ASEC)";
+  if (u === "KUCOIN") return "KuCoin";
+  if (u === "BITGET") return "Bitget";
+  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 
 async function fetchAll(supabase: any, table: string, columns: string, date: string) {
   const pageSize = 1000;

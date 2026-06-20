@@ -192,58 +192,66 @@ async function getActiveAccountIds(): Promise<string[]> {
 }
 
 // ---- Incremental sync: only new orders + status refresh on recent ----
+// Runs per active exchange account so every order is fetched with the correct
+// credentials AND stamped with the account it actually belongs to.
 export async function syncOrderHistoryFromBinance({
   fullSync = false,
   forceGapFill = false,
 }: { fullSync?: boolean; forceGapFill?: boolean } = {}) {
       const startTime = Date.now();
       const cutoff = Date.now() - DATA_RETENTION_MS;
-      const dbCount = await getDBOrderCount();
-      const newestTs = await getNewestOrderTimestamp();
+      const accountIds = await getActiveAccountIds();
 
-      // Decide sync strategy
-      const needsFullSync = fullSync || dbCount === 0 || !newestTs;
+      let grandTotal = 0;
+      let anyFull = false;
 
-      if (needsFullSync) {
-        const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365);
-        await upsertOrdersToDB(allOrders);
-        const duration = Date.now() - startTime;
-        await updateSyncMetadata(allOrders.length, duration);
-        return { count: allOrders.length, duration, type: 'full' as const };
-      }
+      for (const accountId of accountIds) {
+        const dbCount = await getDBOrderCount(accountId);
+        const newestTs = await getNewestOrderTimestamp(accountId);
 
-      // INCREMENTAL: fetch from (newest - overlap) to now
-      // The overlap ensures we catch status changes on recent orders
-      const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
+        // Decide sync strategy (per account)
+        const needsFullSync = fullSync || dbCount === 0 || !newestTs;
 
-      const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5);
-
-      if (newOrders.length > 0) {
-        await upsertOrdersToDB(newOrders);
-      }
-
-      // GAP-FILL: every ~24h, run a deep scan over the last 7 days to catch
-      // out-of-order Binance updates (e.g. delayed completions, post-appeal status changes)
-      // that fell outside the trailing incremental window.
-      let gapFillCount = 0;
-      try {
-        const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(GAP_FILL_KEY) : null;
-        const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
-        if (forceGapFill || Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
-          const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
-          const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60);
-          if (gapOrders.length > 0) {
-            await upsertOrdersToDB(gapOrders);
-          }
-          gapFillCount = gapOrders.length;
-          if (typeof localStorage !== 'undefined') localStorage.setItem(GAP_FILL_KEY, String(Date.now()));
-          console.log(`[Sync] Gap-fill complete: scanned 7d, upserted ${gapFillCount} orders`);
+        if (needsFullSync) {
+          anyFull = true;
+          const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365, accountId);
+          await upsertOrdersToDB(allOrders, accountId);
+          grandTotal += allOrders.length;
+          continue;
         }
-      } catch (err) {
-        console.warn('[Sync] Gap-fill pass failed (non-fatal):', err);
+
+        // INCREMENTAL: fetch from (newest - overlap) to now
+        // The overlap ensures we catch status changes on recent orders
+        const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
+        const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5, accountId);
+        if (newOrders.length > 0) {
+          await upsertOrdersToDB(newOrders, accountId);
+        }
+        grandTotal += newOrders.length;
+
+        // GAP-FILL: every ~24h, run a deep scan over the last 7 days to catch
+        // out-of-order Binance updates (e.g. delayed completions, post-appeal status changes)
+        // that fell outside the trailing incremental window.
+        try {
+          const gapKey = `${GAP_FILL_KEY}:${accountId}`;
+          const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(gapKey) : null;
+          const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
+          if (forceGapFill || Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
+            const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
+            const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60, accountId);
+            if (gapOrders.length > 0) {
+              await upsertOrdersToDB(gapOrders, accountId);
+            }
+            grandTotal += gapOrders.length;
+            if (typeof localStorage !== 'undefined') localStorage.setItem(gapKey, String(Date.now()));
+            console.log(`[Sync] Gap-fill complete for ${accountId}: upserted ${gapOrders.length} orders`);
+          }
+        } catch (err) {
+          console.warn('[Sync] Gap-fill pass failed (non-fatal):', err);
+        }
       }
 
-      // Also clean up orders older than 30 days
+      // Clean up orders older than the retention window (across all accounts)
       const { error: cleanupError } = await supabase
         .from('binance_order_history')
         .delete()
@@ -251,9 +259,8 @@ export async function syncOrderHistoryFromBinance({
       if (cleanupError) console.warn('[Sync] Cleanup failed:', cleanupError);
 
       const duration = Date.now() - startTime;
-      const totalCount = newOrders.length + gapFillCount;
-      await updateSyncMetadata(totalCount, duration);
-      return { count: totalCount, duration, type: 'incremental' as const };
+      await updateSyncMetadata(grandTotal, duration);
+      return { count: grandTotal, duration, type: (anyFull ? 'full' : 'incremental') as 'full' | 'incremental' };
 }
 
 export function useSyncOrderHistory() {

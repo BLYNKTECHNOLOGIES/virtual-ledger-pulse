@@ -192,6 +192,9 @@ async function buildAssetValue(supabase: any) {
 async function buildReport(supabase: any, date: string) {
   const prevDate = shiftDate(date, -1);
 
+  // Total Asset Value snapshot (current, mirrors the Financials tab widget)
+  const av = await buildAssetValue(supabase);
+
   // Sales + purchases for the day and the previous day (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
     fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate", date),

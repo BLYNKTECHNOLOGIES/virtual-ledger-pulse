@@ -735,6 +735,7 @@ function TerminalOrdersContent() {
     const allRecords = enriched.map(o => {
       const record = binanceToOrderRecord(o);
       record.order_status = o._resolvedStatus;
+      (record as any).exchange_account_id = o._exchangeAccountId ?? null;
       return record;
     });
 

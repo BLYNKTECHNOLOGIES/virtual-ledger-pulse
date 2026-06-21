@@ -1082,6 +1082,7 @@ function TerminalOrdersContent() {
                                 <Copy className="h-3 w-3" />
                               </button>
                             </div>
+                            <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
                             {order.additional_kyc_verify === 1 && isActive && (
                               <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-500 bg-amber-500/5 gap-0.5">
                                 <ShieldAlert className="h-2.5 w-2.5" />

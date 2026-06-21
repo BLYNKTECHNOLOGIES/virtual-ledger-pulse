@@ -401,6 +401,7 @@ function TerminalOrdersContent() {
           buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
           sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
           additionalKycVerify: o.additionalKycVerify ?? 0,
+          _exchangeAccountId: o._exchangeAccountId ?? null,
         });
       }
     }

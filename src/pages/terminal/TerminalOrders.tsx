@@ -14,6 +14,7 @@ import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
+import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';

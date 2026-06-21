@@ -14,6 +14,7 @@ import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '
 import { useSyncOrders, P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadge';
+import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
@@ -367,6 +368,7 @@ function TerminalOrdersContent() {
           buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
           sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
           additionalKycVerify: o.additionalKycVerify ?? 0,
+          _exchangeAccountId: o._exchangeAccountId ?? null,
         });
       }
     }
@@ -399,6 +401,7 @@ function TerminalOrdersContent() {
           buyerNickname: o.tradeType === 'SELL' ? o.counterPartNickName : undefined,
           sellerNickname: o.tradeType === 'BUY' ? o.counterPartNickName : undefined,
           additionalKycVerify: o.additionalKycVerify ?? 0,
+          _exchangeAccountId: o._exchangeAccountId ?? null,
         });
       }
     }
@@ -735,6 +738,7 @@ function TerminalOrdersContent() {
     const allRecords = enriched.map(o => {
       const record = binanceToOrderRecord(o);
       record.order_status = o._resolvedStatus;
+      (record as any).exchange_account_id = o._exchangeAccountId ?? null;
       return record;
     });
 
@@ -1080,6 +1084,7 @@ function TerminalOrdersContent() {
                                 <Copy className="h-3 w-3" />
                               </button>
                             </div>
+                            <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
                             {order.additional_kyc_verify === 1 && isActive && (
                               <Badge variant="outline" className="text-[9px] w-fit border-amber-500/30 text-amber-500 bg-amber-500/5 gap-0.5">
                                 <ShieldAlert className="h-2.5 w-2.5" />

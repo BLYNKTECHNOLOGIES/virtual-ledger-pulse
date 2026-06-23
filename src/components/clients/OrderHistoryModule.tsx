@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { History, Search, Download, Filter, Eye, ShoppingCart, ShoppingBag, Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useParams } from "react-router-dom";
 import { useState } from "react";
 
@@ -189,17 +190,16 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select(`
-          *,
-          wallet:wallets!wallet_id(wallet_name)
-        `)
-        .eq('client_id', activeClientId)
-        .neq('status', 'CANCELLED')
-        .order('order_date', { ascending: false });
-      
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select(`
+            *,
+            wallet:wallets!wallet_id(wallet_name)
+          `)
+          .eq('client_id', activeClientId)
+          .neq('status', 'CANCELLED')
+          .order('order_date', { ascending: false }));
       return data || [];
     },
     enabled: !!activeClientId && !!client,
@@ -211,20 +211,19 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          wallet:wallets!wallet_id(wallet_name),
-          purchase_order_items (
-            warehouse_id
-          )
-        `)
-        .eq('supplier_name', client.name)
-        .neq('status', 'CANCELLED')
-        .order('order_date', { ascending: false });
-      
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_orders')
+          .select(`
+            *,
+            wallet:wallets!wallet_id(wallet_name),
+            purchase_order_items (
+              warehouse_id
+            )
+          `)
+          .eq('supplier_name', client.name)
+          .neq('status', 'CANCELLED')
+          .order('order_date', { ascending: false }));
       return data || [];
     },
     enabled: !!activeClientId && !!client,

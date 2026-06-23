@@ -177,7 +177,7 @@ export function TotalAssetValueWidget() {
   const total = data?.total || 0;
 
   const fmt = (amount: number) =>
-    `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    `${amount < 0 ? '-' : ''}₹${Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   const fmtUnits = (units: number) =>
     units.toLocaleString(undefined, { maximumFractionDigits: 4 });

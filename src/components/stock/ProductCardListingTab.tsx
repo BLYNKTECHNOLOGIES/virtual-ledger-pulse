@@ -80,12 +80,19 @@ export function ProductCardListingTab() {
   const combinedProducts = allProducts?.map(product => {
     const stockInfo = productsWithStock?.find(p => p.product_code === product.code);
 
+    // Per-unit INR value: market value for non-stablecoins, avg cost otherwise.
+    const unitValueINR = getUnitValueINR(product.code, stockInfo?.average_cost || 0);
+
     const filteredWalletStocks = (stockInfo?.wallet_stocks || [])
       .filter(w => !isAdjustmentWallet(w.wallet_name))
-      .map(w => ({
-        ...w,
-        balance: Math.abs(w.balance) < 1e-10 ? 0 : w.balance,
-      }));
+      .map(w => {
+        const balance = Math.abs(w.balance) < 1e-10 ? 0 : w.balance;
+        return {
+          ...w,
+          balance,
+          value: balance * unitValueINR,
+        };
+      });
 
     // Recompute totals from filtered wallets so adjustment wallet
     // doesn't inflate stock / holdings value shown on the card.

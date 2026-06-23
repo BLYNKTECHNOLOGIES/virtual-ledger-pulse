@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Percent, TrendingUp, DollarSign, Wallet, ArrowUpIcon, ArrowDownIcon, Coins, ArrowRightLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format } from "date-fns";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
 
@@ -49,20 +50,21 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   const { data: feeData, isLoading } = useQuery({
     queryKey: ['wallet_fee_deductions', startDate, endDate],
     queryFn: async () => {
-      const { data: deductions, error } = await supabase
-        .from('wallet_fee_deductions')
-        .select(`
-          *,
-          wallets:wallet_id (
-            wallet_name
-          )
-        `)
-        .gte('created_at', format(startDate, 'yyyy-MM-dd'))
-        .lte('created_at', format(endDate, 'yyyy-MM-dd') + 'T23:59:59')
-        .order('created_at', { ascending: false });
+      const deductions = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('wallet_fee_deductions')
+          .select(`
+            *,
+            wallets:wallet_id (
+              wallet_name
+            )
+          `)
+          .gte('created_at', format(startDate, 'yyyy-MM-dd'))
+          .lte('created_at', format(endDate, 'yyyy-MM-dd') + 'T23:59:59')
+          .order('created_at', { ascending: false }));
 
-      if (error) throw error;
       return deductions || [];
+
     },
   });
 
@@ -394,7 +396,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(feesByWallet).map(([wallet, data]) => (
+              {Object.entries(feesByWallet).map(([wallet, data]: [string, { feesINR: number; feesUSDT: number; count: number }]) => (
                 <div key={wallet} className="flex items-center justify-between p-4 border rounded-lg bg-muted/30">
                   <div>
                     <p className="font-medium">{wallet}</p>

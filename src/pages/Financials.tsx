@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -70,30 +71,34 @@ export default function Financials() {
   const { data: financialData, isLoading } = useQuery({
     queryKey: ['financial_data', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
-      // Get revenue data from sales orders
-      const { data: salesData } = await supabase
-        .from('sales_orders')
-        .select('total_amount, order_date, created_at')
-        .gte('order_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('order_date', format(endDate, 'yyyy-MM-dd'))
-        .order('order_date', { ascending: true });
+      // Get revenue data from sales orders (paginated — ranges can exceed 1000 rows)
+      const salesData = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('total_amount, order_date, created_at')
+          .gte('order_date', format(startDate, 'yyyy-MM-dd'))
+          .lte('order_date', format(endDate, 'yyyy-MM-dd'))
+          .order('order_date', { ascending: true }));
 
       // Get purchase orders for reference (COGS, not expenses)
-      const { data: purchaseData } = await supabase
-        .from('purchase_orders')
-        .select('total_amount, order_date, created_at')
-        .gte('order_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('order_date', format(endDate, 'yyyy-MM-dd'))
-        .order('order_date', { ascending: true });
+      const purchaseData = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_orders')
+          .select('total_amount, order_date, created_at')
+          .gte('order_date', format(startDate, 'yyyy-MM-dd'))
+          .lte('order_date', format(endDate, 'yyyy-MM-dd'))
+          .order('order_date', { ascending: true }));
 
       // Get OPERATING expenses from bank_transactions (excluding Purchase/Sales which are COGS/Revenue)
-      const { data: operatingExpenses } = await supabase
-        .from('bank_transactions')
-        .select('amount, transaction_date, category')
-        .eq('transaction_type', 'EXPENSE')
-        .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
-        .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('transaction_date', format(endDate, 'yyyy-MM-dd'));
+      const operatingExpenses = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('bank_transactions')
+          .select('amount, transaction_date, category')
+          .eq('transaction_type', 'EXPENSE')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+          .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
+          .lte('transaction_date', format(endDate, 'yyyy-MM-dd')));
+
 
       // Get bank balances (exclude audit/adjustment buckets)
       const { data: bankDataRaw } = await supabase

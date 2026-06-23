@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 // Default supported assets (P2P coins + stables)
 export const DEFAULT_ASSET_CODES = [

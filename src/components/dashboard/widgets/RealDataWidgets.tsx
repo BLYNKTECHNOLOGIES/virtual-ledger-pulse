@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -294,13 +295,14 @@ export function RevenueChartWidget() {
         days.push({ label: format(d, 'EEE'), date: format(d, 'yyyy-MM-dd') });
       }
 
-      const { data: orders, error } = await supabase
-        .from('sales_orders')
-        .select('order_date, total_amount')
-        .gte('order_date', days[0].date)
-        .lte('order_date', days[days.length - 1].date);
+      const orders = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('order_date, total_amount')
+          .gte('order_date', days[0].date)
+          .lte('order_date', days[days.length - 1].date));
 
-      if (error) throw error;
+
 
       const dayMap: Record<string, { revenue: number; count: number }> = {};
       days.forEach((d) => {

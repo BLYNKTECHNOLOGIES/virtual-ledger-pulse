@@ -2250,6 +2250,7 @@ export function ClientOnboardingApprovals() {
                         onChange={(e) => {
                           const files = Array.from(e.target.files || []);
                           if (files.length > 0) {
+                            files.forEach((f) => { void prefetchKycUpload(f); });
                             setAadhaarFiles(prev => [...prev, ...files]);
                           }
                           if (aadhaarInputRef.current) aadhaarInputRef.current.value = '';

@@ -41,6 +41,7 @@ interface DailyReportProps {
     gatewayGroups: { name: string; total: string; count: number }[];
   }
   charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
+  kyc?: { newClients: number; approvedToday: number; pendingTotal: number }
 
 }
 

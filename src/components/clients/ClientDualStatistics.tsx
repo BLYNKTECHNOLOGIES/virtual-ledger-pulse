@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { TrendingUp, TrendingDown, ArrowRightLeft, Calendar, ShoppingCart, ShoppingBag } from "lucide-react";
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
@@ -53,8 +54,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         query = query.lte('order_date', dateRange.to.toISOString().split('T')[0]);
       }
       
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => query);
       return data || [];
     },
     enabled: !!clientId && !!client,
@@ -81,8 +81,7 @@ export function ClientDualStatistics({ clientId }: ClientDualStatisticsProps) {
         query = query.lte('order_date', dateRange.to.toISOString().split('T')[0]);
       }
       
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => query);
       return data || [];
     },
     enabled: !!clientId && !!client,

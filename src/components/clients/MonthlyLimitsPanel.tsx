@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, Shield, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useParams } from "react-router-dom";
 import { RequestLimitIncreaseDialog } from "./RequestLimitIncreaseDialog";
 import { CosmosSettingsDialog } from "./CosmosSettingsDialog";
@@ -46,13 +47,12 @@ export function MonthlyLimitsPanel({ clientId }: MonthlyLimitsPanelProps) {
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select('*')
-        .eq('client_id', activeClientId)
-        .order('order_date', { ascending: true });
-      
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('*')
+          .eq('client_id', activeClientId)
+          .order('order_date', { ascending: true }));
       return data || [];
     },
     enabled: !!activeClientId && !!client,

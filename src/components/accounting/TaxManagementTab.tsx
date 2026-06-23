@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Calculator, Download, FileSpreadsheet, Receipt, CheckCircle, IndianRupee, Building } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";

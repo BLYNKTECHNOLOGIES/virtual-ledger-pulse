@@ -922,25 +922,27 @@ export function ClientOnboardingApprovals() {
       // Save KYC documents
       if (kycDocuments) {
         const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile, additionalDocs: addDocs } = kycDocuments;
+
+        // Kick off video compression up-front so it runs concurrently with the
+        // other document uploads instead of blocking them.
+        const compressedVideoPromise: Promise<File> | null = vFile
+          ? compressVideo(vFile).catch((err) => {
+              console.warn('Video compression failed, uploading original:', err);
+              return vFile;
+            })
+          : null;
+
         const allDocs: { file: File; type: string; folder: string }[] = [];
         for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
         if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
         if (tFile) allDocs.push({ file: tFile, type: 'trade_history_screenshot', folder: 'trade-history' });
-        if (vFile) {
-          // Compress video before upload
-          let compressedVideo: File = vFile;
-          try {
-            compressedVideo = await compressVideo(vFile);
-          } catch (err) {
-            console.warn('Video compression failed, uploading original:', err);
-          }
-          allDocs.push({ file: compressedVideo, type: 'vkyc_video', folder: 'vkyc' });
-        }
         if (addDocs && addDocs.length > 0) {
           for (const f of addDocs) allDocs.push({ file: f, type: 'other', folder: 'additional' });
         }
 
-        if (allDocs.length > 0) {
+        const hasAnyDoc = allDocs.length > 0 || !!compressedVideoPromise;
+
+        if (hasAnyDoc) {
           let docClientId = existingClientId;
           if (!docClientId) {
             const { data: cr } = await supabase
@@ -953,30 +955,42 @@ export function ClientOnboardingApprovals() {
           }
 
           if (docClientId) {
-            for (const doc of allDocs) {
-              const filePath = `${docClientId}/${doc.folder}/${Date.now()}_${doc.file.name}`;
-              const { error: upErr } = await supabase.storage
-                .from('kyc-documents')
-                .upload(filePath, doc.file);
-              if (!upErr) {
+            // Append the compressed video to the upload list once ready.
+            if (compressedVideoPromise) {
+              const compressedVideo = await compressedVideoPromise;
+              allDocs.push({ file: compressedVideo, type: 'vkyc_video', folder: 'vkyc' });
+            }
+
+            // Upload every document in parallel, then batch-insert the metadata.
+            const uploadResults = await Promise.all(
+              allDocs.map(async (doc) => {
+                const filePath = `${docClientId}/${doc.folder}/${Date.now()}_${doc.file.name}`;
+                const { error: upErr } = await supabase.storage
+                  .from('kyc-documents')
+                  .upload(filePath, doc.file);
+                if (upErr) {
+                  console.error(`Failed to upload ${doc.type} document:`, upErr);
+                  return null;
+                }
                 const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
-                const fileUrl = urlD?.publicUrl || '';
-                await supabase.from('client_kyc_documents').insert({
+                return {
                   client_id: docClientId,
                   document_type: doc.type,
-                  file_url: fileUrl,
+                  file_url: urlD?.publicUrl || '',
                   file_name: doc.file.name,
                   file_size: doc.file.size,
                   mime_type: doc.file.type || null,
-                });
-              } else {
-                console.error(`Failed to upload ${doc.type} document:`, upErr);
-              }
+                };
+              })
+            );
+
+            const docRows = uploadResults.filter((r): r is NonNullable<typeof r> => r !== null);
+            if (docRows.length > 0) {
+              await supabase.from('client_kyc_documents').insert(docRows);
             }
 
             // Update aadhar_front_url on clients for backward compat
             if (aFiles.length > 0) {
-              const firstPath = `${docClientId}/aadhaar/${Date.now()}_compat`;
               const { data: firstDoc } = await supabase
                 .from('client_kyc_documents')
                 .select('file_url')

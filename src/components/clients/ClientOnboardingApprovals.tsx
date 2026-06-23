@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { compressVideo } from '@/utils/videoCompressor';
 import { prefetchKycUpload, resolveKycUpload } from '@/lib/kyc-background-upload';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';

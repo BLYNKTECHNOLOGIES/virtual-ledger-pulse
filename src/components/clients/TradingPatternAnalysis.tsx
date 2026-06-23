@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BarChart, TrendingUp, AlertTriangle, Activity } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -40,14 +41,13 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
-        .from('sales_orders')
-        .select('*')
-        .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
-        .neq('status', 'CANCELLED')
-        .order('order_date', { ascending: false });
-      
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('*')
+          .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
+          .neq('status', 'CANCELLED')
+          .order('order_date', { ascending: false }));
       return data || [];
     },
     enabled: !!activeClientId && !!client,
@@ -59,14 +59,13 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
     queryFn: async () => {
       if (!activeClientId || !client) return [];
       
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select('*')
-        .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
-        .neq('status', 'CANCELLED')
-        .order('order_date', { ascending: false });
-      
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_orders')
+          .select('*')
+          .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
+          .neq('status', 'CANCELLED')
+          .order('order_date', { ascending: false }));
       return data || [];
     },
     enabled: !!activeClientId && !!client,

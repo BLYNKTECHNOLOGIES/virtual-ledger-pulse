@@ -163,6 +163,14 @@ export async function compressVideo(
       };
 
       onProgress?.({ stage: 'loading', percent: 50 });
+      // Play faster than real-time so a multi-minute KYC video doesn't take
+      // multiple minutes to compress. Frames are captured per requestAnimationFrame,
+      // so a higher playbackRate finishes the recording proportionally sooner.
+      try {
+        video.playbackRate = 4;
+      } catch {
+        // Some browsers clamp/refuse high rates — fall back to real-time.
+      }
       video.play().catch(() => resolve(file));
     };
 

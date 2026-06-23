@@ -85,11 +85,13 @@ export async function compressVideo(
         recorder = new MediaRecorder(stream, {
           mimeType,
           videoBitsPerSecond: targetBitrate,
+          audioBitsPerSecond: 128_000, // 128 kbps — keeps vKYC speech clear
         });
       } catch {
         // Fallback without codec specification
         recorder = new MediaRecorder(stream, {
           videoBitsPerSecond: targetBitrate,
+          audioBitsPerSecond: 128_000,
         });
       }
 

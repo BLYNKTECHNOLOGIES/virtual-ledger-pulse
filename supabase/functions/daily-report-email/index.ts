@@ -676,6 +676,7 @@ async function buildReport(supabase: any, date: string) {
       gatewayGroups: av.gatewayGroups.map((g) => ({ name: g.gateway_name, total: fmtNum(g.total), count: g.count })),
     },
     charts,
+    kyc,
   };
 }
 

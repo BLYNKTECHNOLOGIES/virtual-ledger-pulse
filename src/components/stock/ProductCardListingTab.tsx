@@ -25,6 +25,19 @@ export function ProductCardListingTab() {
   
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
   const { data: binanceBalances } = useBinanceBalances();
+  const { data: marketRates } = useCoinMarketRates();
+  const { data: usdtRate } = useUSDTRate();
+
+  // INR value per unit for a given asset:
+  // - Stablecoins (USDT/USDC): keep weighted-average cost
+  // - Other coins: actual market value = coinUSDTprice × USDT→INR rate
+  const usdtInr = usdtRate?.rate || 0;
+  const getUnitValueINR = (code: string, avgCost: number): number => {
+    if (isStableCoin(code)) return avgCost;
+    const marketUsdt = marketRates?.[code.toUpperCase()];
+    if (marketUsdt && usdtInr > 0) return marketUsdt * usdtInr;
+    return avgCost; // fallback when market/INR rate unavailable
+  };
 
   // Get the active terminal wallet link to know which wallet is API-mapped
   const { data: activeWalletLink } = useQuery({

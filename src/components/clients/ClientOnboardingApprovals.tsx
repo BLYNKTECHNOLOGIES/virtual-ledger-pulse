@@ -894,13 +894,11 @@ export function ClientOnboardingApprovals() {
           if (incomeClientId) {
             let fundUrl: string | null = null;
             if (fundFile) {
-              const filePath = `source-of-funds/${incomeClientId}/${Date.now()}_${fundFile.name}`;
-              const { error: uploadErr } = await supabase.storage
-                .from('kyc-documents')
-                .upload(filePath, fundFile);
-              if (!uploadErr) {
-                const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
-                fundUrl = urlD?.publicUrl || null;
+              try {
+                const res = await resolveKycUpload(fundFile);
+                fundUrl = res.url || null;
+              } catch (uploadErr) {
+                console.error('Failed to upload source-of-fund file:', uploadErr);
               }
             }
 

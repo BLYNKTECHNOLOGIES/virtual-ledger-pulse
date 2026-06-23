@@ -87,8 +87,8 @@ export function StockTransactionsTab() {
         query = query.eq('transaction_type', filterType);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => query);
+
 
 
       // stock_transactions doesn't store wallet_id/created_by reliably; infer via sales_orders.order_number (= reference_number)

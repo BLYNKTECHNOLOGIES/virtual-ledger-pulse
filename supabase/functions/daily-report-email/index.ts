@@ -39,6 +39,61 @@ function istHour(ts: string): number {
   return new Date(istMs).getUTCHours();
 }
 
+// Convert a UTC timestamptz string to its IST calendar date (YYYY-MM-DD)
+function istDateStr(ts?: string | null): string | null {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  const istMs = d.getTime() + 5.5 * 60 * 60 * 1000;
+  return new Date(istMs).toISOString().split("T")[0];
+}
+
+// ---------- KYC / Buyer-client onboarding summary (low-priority bottom section) ----------
+// `client_onboarding_approvals` is the buyer-side KYC approval ledger (every row is
+// created from a sales order, i.e. a client BUYING crypto from us). Sellers go through
+// purchase orders and never create rows here, so this table is buyer-only by design.
+async function buildKyc(supabase: any, date: string) {
+  const rows = await fetchAllRows(() =>
+    supabase
+      .from("client_onboarding_approvals")
+      .select("resolved_client_id, client_phone, client_name, created_at, reviewed_at, approval_status"));
+
+  // Stable buyer identity: resolved client id -> phone -> lowercased name
+  const clientKey = (r: any): string => {
+    if (r.resolved_client_id) return `id:${r.resolved_client_id}`;
+    const phone = String(r.client_phone || "").trim();
+    if (phone) return `ph:${phone}`;
+    return `nm:${String(r.client_name || "").trim().toLowerCase()}`;
+  };
+
+  // First-ever appearance (IST date) per client
+  const firstSeen = new Map<string, string>();
+  for (const r of rows) {
+    const d = istDateStr(r.created_at);
+    if (!d) continue;
+    const k = clientKey(r);
+    const prev = firstSeen.get(k);
+    if (!prev || d < prev) firstSeen.set(k, d);
+  }
+  let newClients = 0;
+  for (const d of firstSeen.values()) if (d === date) newClients += 1;
+
+  // Distinct buyer clients approved on the report date
+  const approvedSet = new Set<string>();
+  // Distinct buyer clients still pending approval (current state)
+  const pendingSet = new Set<string>();
+  for (const r of rows) {
+    if (r.approval_status === "APPROVED" && istDateStr(r.reviewed_at) === date) approvedSet.add(clientKey(r));
+    if (r.approval_status === "PENDING") pendingSet.add(clientKey(r));
+  }
+
+  return {
+    newClients,
+    approvedToday: approvedSet.size,
+    pendingTotal: pendingSet.size,
+  };
+}
+
 // Terminal shift windows (IST, non-overlapping, derived from hr_shifts start times):
 //   Morning 09:00–17:00, Evening 17:00–01:00, Night 01:00–09:00
 type ShiftKey = "morning" | "evening" | "night";

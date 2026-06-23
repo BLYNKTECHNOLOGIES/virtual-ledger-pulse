@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useParams } from "react-router-dom";
 
 interface ClientValueScoreProps {
@@ -40,24 +41,26 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
       const allOrders: any[] = [];
       
       // Fetch sales orders (buyer activity) - exclude cancelled
-      const { data: salesData } = await supabase
-        .from('sales_orders')
-        .select('id, order_number, order_date, total_amount, status')
-        .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
-        .neq('status', 'CANCELLED')
-        .order('order_date', { ascending: false });
+      const salesData = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('id, order_number, order_date, total_amount, status')
+          .or(`client_name.ilike."%${client.name}%",client_phone.eq."${client.phone || 'NONE'}"`)
+          .neq('status', 'CANCELLED')
+          .order('order_date', { ascending: false }));
       
       if (salesData) {
         allOrders.push(...salesData.map(o => ({ ...o, order_type: 'SALES' })));
       }
       
       // Fetch purchase orders (seller activity) - exclude cancelled
-      const { data: purchaseData } = await supabase
-        .from('purchase_orders')
-        .select('id, order_number, order_date, total_amount, status')
-        .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
-        .neq('status', 'CANCELLED')
-        .order('order_date', { ascending: false });
+      const purchaseData = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_orders')
+          .select('id, order_number, order_date, total_amount, status')
+          .or(`supplier_name.ilike."%${client.name}%",contact_number.eq."${client.phone || 'NONE'}"`)
+          .neq('status', 'CANCELLED')
+          .order('order_date', { ascending: false }));
       
       if (purchaseData) {
         allOrders.push(...purchaseData.map(o => ({ ...o, order_type: 'PURCHASE' })));

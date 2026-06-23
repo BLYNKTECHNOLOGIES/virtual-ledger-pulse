@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Calculator, Download, FileSpreadsheet, Receipt, CheckCircle, IndianRupee, Building } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -106,14 +107,15 @@ export function TaxManagementTab() {
     queryKey: ['tds_allocations_quarter', selectedQuarter],
     queryFn: async () => {
       const { start, end } = dateRange;
-      const { data, error } = await supabase
-        .from('tds_payment_allocations')
-        .select(`*, bank:bank_accounts!bank_account_id(account_name, bank_name)`)
-        .gte('deduction_date', start)
-        .lte('deduction_date', end)
-        .order('deduction_date', { ascending: false });
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('tds_payment_allocations')
+          .select(`*, bank:bank_accounts!bank_account_id(account_name, bank_name)`)
+          .gte('deduction_date', start)
+          .lte('deduction_date', end)
+          .order('deduction_date', { ascending: false }));
       return (data || []) as unknown as AllocationRow[];
+
     },
     enabled: !!dateRange.start,
   });

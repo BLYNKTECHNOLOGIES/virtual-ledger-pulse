@@ -13,6 +13,7 @@ import { useAssetCodes } from "@/hooks/useAssetCodes";
 import { Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
@@ -86,8 +87,8 @@ export function StockTransactionsTab() {
         query = query.eq('transaction_type', filterType);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => query);
+
 
 
       // stock_transactions doesn't store wallet_id/created_by reliably; infer via sales_orders.order_number (= reference_number)
@@ -169,23 +170,23 @@ export function StockTransactionsTab() {
   const { data: purchaseEntries } = useQuery({
     queryKey: ['purchase_stock_entries'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_order_items')
-        .select(`
-          *,
-          purchase_orders(
-            order_number, 
-            supplier_name, 
-            order_date, 
-            created_by,
-            created_by_user:users!created_by(id, username, first_name, last_name, email, phone, avatar_url)
-          ),
-          products(name, code, unit_of_measurement)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_order_items')
+          .select(`
+            *,
+            purchase_orders(
+              order_number, 
+              supplier_name, 
+              order_date, 
+              created_by,
+              created_by_user:users!created_by(id, username, first_name, last_name, email, phone, avatar_url)
+            ),
+            products(name, code, unit_of_measurement)
+          `)
+          .order('created_at', { ascending: false }));
       return data;
+
     },
   });
 

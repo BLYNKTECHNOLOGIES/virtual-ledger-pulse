@@ -20,6 +20,7 @@ import { InteractiveHeatmap } from "@/components/dashboard/InteractiveHeatmap";
 import { MyTasksWidget } from "@/components/dashboard/widgets/MyTasksWidget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { openTransaction } from "@/components/transaction-detail";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -245,41 +246,43 @@ export default function Dashboard() {
       const prevStart = new Date(prevEnd.getTime() - periodMs);
 
       const [
-        { data: salesData },
-        { data: purchaseData },
-        { data: prevSalesData },
-        { data: prevPurchaseData },
-        { data: clientsData },
-        { data: totalClientsData },
+        salesData,
+        purchaseData,
+        prevSalesData,
+        prevPurchaseData,
+        { count: verifiedClientsCount },
+        { count: totalClientsCount },
         { data: bankData },
         { data: productsData },
         { data: walletAssetBalances },
       ] = await Promise.all([
-        supabase.from('sales_orders').select('total_amount, created_at')
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount, created_at')
           .gte('created_at', startOfDay(startDate).toISOString())
-          .lte('created_at', endOfDay(endDate).toISOString()),
-        supabase.from('purchase_orders').select('total_amount, created_at')
+          .lte('created_at', endOfDay(endDate).toISOString())),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('total_amount, created_at')
           .gte('created_at', startOfDay(startDate).toISOString())
-          .lte('created_at', endOfDay(endDate).toISOString()),
-        supabase.from('sales_orders').select('total_amount')
+          .lte('created_at', endOfDay(endDate).toISOString())),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount')
           .gte('created_at', prevStart.toISOString())
-          .lte('created_at', prevEnd.toISOString()),
-        supabase.from('purchase_orders').select('total_amount')
+          .lte('created_at', prevEnd.toISOString())),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('total_amount')
           .gte('created_at', prevStart.toISOString())
-          .lte('created_at', prevEnd.toISOString()),
-        supabase.from('clients').select('id').eq('kyc_status', 'VERIFIED'),
-        supabase.from('clients').select('id'),
+          .lte('created_at', prevEnd.toISOString())),
+        supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED'),
+        supabase.from('clients').select('id', { count: 'exact', head: true }),
         supabase.from('bank_accounts').select('account_name, balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null),
         supabase.from('products').select('code, cost_price'),
         supabase.from('wallet_asset_balances').select('asset_code, balance'),
       ]);
 
+
       const totalSalesOrders = salesData?.length || 0;
       const totalSales = salesData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
       const totalPurchases = purchaseData?.length || 0;
       const totalSpending = purchaseData?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
-      const verifiedClients = clientsData?.length || 0;
-      const totalClients = totalClientsData?.length || 0;
+      const verifiedClients = verifiedClientsCount || 0;
+      const totalClients = totalClientsCount || 0;
+
 
       // Previous period metrics
       const prevTotalSalesOrders = prevSalesData?.length || 0;

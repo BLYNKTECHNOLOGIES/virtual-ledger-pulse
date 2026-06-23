@@ -11,6 +11,7 @@ import { UserPlus, RefreshCw, AlertTriangle, CheckCircle, X, RotateCcw, Copy, Cl
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { PaymentMethodSelectionDialog } from "./PaymentMethodSelectionDialog";
 import { UserPayingStatusDialog } from "./UserPayingStatusDialog";
 import { fetchActiveWalletsWithLedgerUsdtBalance, fetchWalletLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
@@ -69,9 +70,9 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('*').order('name');
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => supabase.from('clients').select('*').order('name'));
       return data;
+
     },
   });
 

@@ -75,33 +75,38 @@ export function StatisticsTab() {
       const prevStartStr = format(prevPeriodStart, 'yyyy-MM-dd');
       const prevEndStr = format(prevPeriodEnd, 'yyyy-MM-dd');
 
-      // Fetch sales orders with client info
-      const { data: salesOrders } = await supabase
-        .from('sales_orders')
-        .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit, client_name')
-        .gte('order_date', startStr)
-        .lte('order_date', endStr);
+      // Fetch sales orders with client info (paginated — date ranges can exceed 1000 rows)
+      const salesOrders = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit, client_name')
+          .gte('order_date', startStr)
+          .lte('order_date', endStr));
 
       // Fetch previous period sales
-      const { data: prevSalesOrders } = await supabase
-        .from('sales_orders')
-        .select('id, total_amount')
-        .gte('order_date', prevStartStr)
-        .lte('order_date', prevEndStr);
+      const prevSalesOrders = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('sales_orders')
+          .select('id, total_amount')
+          .gte('order_date', prevStartStr)
+          .lte('order_date', prevEndStr));
 
       // Fetch purchase orders
-      const { data: purchaseOrders } = await supabase
-        .from('purchase_orders')
-        .select('id, total_amount, order_date, status, supplier_name, created_by')
-        .gte('order_date', startStr)
-        .lte('order_date', endStr);
+      const purchaseOrders = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_orders')
+          .select('id, total_amount, order_date, status, supplier_name, created_by')
+          .gte('order_date', startStr)
+          .lte('order_date', endStr));
 
       // (purchase_order_items no longer needed — profit comes from daily_gross_profit_history)
 
       // Fetch ALL clients to track new additions
-      const { data: allClients } = await supabase
-        .from('clients')
-        .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator');
+      const allClients = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('clients')
+          .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator'));
+
 
       // Clients created in this period (new clients) - use normalized timestamps
       const newClientsInPeriod = allClients?.filter(c => {
@@ -149,10 +154,12 @@ export function StatisticsTab() {
         email: e.email
       })) || [];
 
-      // Fetch client onboarding approvals
-      const { data: onboardingApprovals } = await supabase
-        .from('client_onboarding_approvals')
-        .select('id, approval_status, created_at, reviewed_at, client_name, order_amount');
+      // Fetch client onboarding approvals (paginated — exceeds 1000 rows)
+      const onboardingApprovals = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('client_onboarding_approvals')
+          .select('id, approval_status, created_at, reviewed_at, client_name, order_amount'));
+
 
       // Onboarding in period
       const onboardingInPeriod = onboardingApprovals?.filter(a => {

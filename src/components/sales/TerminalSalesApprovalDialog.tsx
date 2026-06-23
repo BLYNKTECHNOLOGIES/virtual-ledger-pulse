@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Lock, Loader2, UserPlus, CheckCircle2, AlertCircle, ChevronDown, Search, Users, Plus, Minus } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useToast } from "@/hooks/use-toast";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
 
@@ -85,9 +86,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   const { data: allClients = [] } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('*').order('name');
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => supabase.from('clients').select('*').order('name'));
       return data || [];
+
     },
   });
 

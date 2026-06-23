@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle2, Loader2, Phone, MapPin, Save } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { toast } from "sonner";
 import { getCurrentUserId } from "@/lib/system-action-logger";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
@@ -86,11 +87,13 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
           .ilike('order_data->>counterparty_nickname', `${prefix}%`);
 
         // Also update linked sales_orders
-        const { data: syncRecords } = await supabase
-          .from('terminal_sales_sync')
-          .select('sales_order_id')
-          .ilike('order_data->>counterparty_nickname', `${prefix}%`)
-          .not('sales_order_id', 'is', null);
+        const syncRecords = await fetchAllPaginated<any>(() =>
+          supabase
+            .from('terminal_sales_sync')
+            .select('sales_order_id')
+            .ilike('order_data->>counterparty_nickname', `${prefix}%`)
+            .not('sales_order_id', 'is', null));
+
 
         if (syncRecords && syncRecords.length > 0) {
           const soUpdates: any = {};

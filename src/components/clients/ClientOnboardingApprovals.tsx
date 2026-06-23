@@ -2363,6 +2363,9 @@ export function ClientOnboardingApprovals() {
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             if (!file) return;
+                            // Compress + upload the vKYC video in the background so
+                            // approval doesn't have to wait for the slow re-encode.
+                            void prefetchKycUpload(file, { compress: true });
                             setVkycVideoFile(file);
                             if (vkycVideoInputRef.current) vkycVideoInputRef.current.value = '';
                           }}

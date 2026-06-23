@@ -2071,6 +2071,7 @@ export function ClientOnboardingApprovals() {
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={(e) => {
                               const file = e.target.files?.[0] || null;
+                              if (file) void prefetchKycUpload(file);
                               const updated = [...bankEntries];
                               updated[index] = { 
                                 ...updated[index], 

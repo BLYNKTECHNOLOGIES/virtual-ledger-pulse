@@ -170,23 +170,23 @@ export function StockTransactionsTab() {
   const { data: purchaseEntries } = useQuery({
     queryKey: ['purchase_stock_entries'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_order_items')
-        .select(`
-          *,
-          purchase_orders(
-            order_number, 
-            supplier_name, 
-            order_date, 
-            created_by,
-            created_by_user:users!created_by(id, username, first_name, last_name, email, phone, avatar_url)
-          ),
-          products(name, code, unit_of_measurement)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_order_items')
+          .select(`
+            *,
+            purchase_orders(
+              order_number, 
+              supplier_name, 
+              order_date, 
+              created_by,
+              created_by_user:users!created_by(id, username, first_name, last_name, email, phone, avatar_url)
+            ),
+            products(name, code, unit_of_measurement)
+          `)
+          .order('created_at', { ascending: false }));
       return data;
+
     },
   });
 

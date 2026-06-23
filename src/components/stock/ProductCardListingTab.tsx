@@ -13,6 +13,8 @@ import { AddProductDialog } from "./AddProductDialog";
 import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
+import { useCoinMarketRates, isStableCoin } from "@/hooks/useCoinMarketRates";
+import { useUSDTRate } from "@/hooks/useUSDTRate";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
@@ -23,6 +25,19 @@ export function ProductCardListingTab() {
   
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
   const { data: binanceBalances } = useBinanceBalances();
+  const { data: marketRates } = useCoinMarketRates();
+  const { data: usdtRate } = useUSDTRate();
+
+  // INR value per unit for a given asset:
+  // - Stablecoins (USDT/USDC): keep weighted-average cost
+  // - Other coins: actual market value = coinUSDTprice × USDT→INR rate
+  const usdtInr = usdtRate?.rate || 0;
+  const getUnitValueINR = (code: string, avgCost: number): number => {
+    if (isStableCoin(code)) return avgCost;
+    const marketUsdt = marketRates?.[code.toUpperCase()];
+    if (marketUsdt && usdtInr > 0) return marketUsdt * usdtInr;
+    return avgCost; // fallback when market/INR rate unavailable
+  };
 
   // Get the active terminal wallet link to know which wallet is API-mapped
   const { data: activeWalletLink } = useQuery({
@@ -65,12 +80,19 @@ export function ProductCardListingTab() {
   const combinedProducts = allProducts?.map(product => {
     const stockInfo = productsWithStock?.find(p => p.product_code === product.code);
 
+    // Per-unit INR value: market value for non-stablecoins, avg cost otherwise.
+    const unitValueINR = getUnitValueINR(product.code, stockInfo?.average_cost || 0);
+
     const filteredWalletStocks = (stockInfo?.wallet_stocks || [])
       .filter(w => !isAdjustmentWallet(w.wallet_name))
-      .map(w => ({
-        ...w,
-        balance: Math.abs(w.balance) < 1e-10 ? 0 : w.balance,
-      }));
+      .map(w => {
+        const balance = Math.abs(w.balance) < 1e-10 ? 0 : w.balance;
+        return {
+          ...w,
+          balance,
+          value: balance * unitValueINR,
+        };
+      });
 
     // Recompute totals from filtered wallets so adjustment wallet
     // doesn't inflate stock / holdings value shown on the card.

@@ -87,11 +87,13 @@ export function CounterpartyContactInput({ counterpartyNickname }: Props) {
           .ilike('order_data->>counterparty_nickname', `${prefix}%`);
 
         // Also update linked sales_orders
-        const { data: syncRecords } = await supabase
-          .from('terminal_sales_sync')
-          .select('sales_order_id')
-          .ilike('order_data->>counterparty_nickname', `${prefix}%`)
-          .not('sales_order_id', 'is', null);
+        const syncRecords = await fetchAllPaginated<any>(() =>
+          supabase
+            .from('terminal_sales_sync')
+            .select('sales_order_id')
+            .ilike('order_data->>counterparty_nickname', `${prefix}%`)
+            .not('sales_order_id', 'is', null));
+
 
         if (syncRecords && syncRecords.length > 0) {
           const soUpdates: any = {};

@@ -110,8 +110,13 @@ export default function Sales() {
   });
 
   // Fetch sales orders from database
+  const hasActiveFilters = Boolean(
+    searchTerm || filterPaymentStatus || filterDateFrom || filterDateTo || filterAssetType
+  );
+
   const { data: salesOrders, isLoading } = useQuery({
     queryKey: ['sales_orders', searchTerm, filterPaymentStatus, filterDateFrom, filterDateTo, filterAssetType],
+    staleTime: 60_000,
     queryFn: async () => {
       let query = supabase
         .from('sales_orders')
@@ -141,7 +146,17 @@ export default function Sales() {
         query = query.lte('order_date', format(filterDateTo, 'yyyy-MM-dd'));
       }
 
-      const data = await fetchAllPaginated<Record<string, unknown>>(() => query);
+      // Performance: without an active filter, only load the most recent 500 orders
+      // in a single request instead of paginating the entire history (thousands of rows).
+      // Use date filters / search to reach older orders.
+      let data: Record<string, unknown>[];
+      if (hasActiveFilters) {
+        data = await fetchAllPaginated<Record<string, unknown>>(() => query);
+      } else {
+        const { data: recent, error } = await query.range(0, 499);
+        if (error) throw error;
+        data = recent || [];
+      }
       
       // Sort: description-only matches go to bottom
       if (searchTerm && data) {
@@ -161,6 +176,7 @@ export default function Sales() {
       return filteredData;
     },
   });
+
 
   // All orders displayed in completed tab now
   const completedOrders = salesOrders || [];

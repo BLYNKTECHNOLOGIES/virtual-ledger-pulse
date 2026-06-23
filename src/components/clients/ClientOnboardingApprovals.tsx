@@ -2408,7 +2408,10 @@ export function ClientOnboardingApprovals() {
                       accept="image/*,.pdf,.doc,.docx"
                       onChange={(e) => {
                         const newFiles = Array.from(e.target.files || []);
-                        if (newFiles.length > 0) setAdditionalDocs(prev => [...prev, ...newFiles]);
+                        if (newFiles.length > 0) {
+                          newFiles.forEach((f) => { void prefetchKycUpload(f); });
+                          setAdditionalDocs(prev => [...prev, ...newFiles]);
+                        }
                         if (additionalDocsInputRef.current) additionalDocsInputRef.current.value = '';
                       }}
                     />

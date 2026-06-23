@@ -11,7 +11,7 @@ export interface CompressionProgress {
 export async function compressVideo(
   file: File,
   onProgress?: (progress: CompressionProgress) => void,
-  targetBitrate: number = 1_500_000 // 1.5 Mbps default
+  targetBitrate: number = 2_500_000 // 2.5 Mbps — keeps faces/text/audio clearly recognizable
 ): Promise<File> {
   // If file is already small (under 20MB), skip compression
   if (file.size <= 20 * 1024 * 1024) {
@@ -85,11 +85,13 @@ export async function compressVideo(
         recorder = new MediaRecorder(stream, {
           mimeType,
           videoBitsPerSecond: targetBitrate,
+          audioBitsPerSecond: 128_000, // 128 kbps — keeps vKYC speech clear
         });
       } catch {
         // Fallback without codec specification
         recorder = new MediaRecorder(stream, {
           videoBitsPerSecond: targetBitrate,
+          audioBitsPerSecond: 128_000,
         });
       }
 
@@ -163,14 +165,10 @@ export async function compressVideo(
       };
 
       onProgress?.({ stage: 'loading', percent: 50 });
-      // Play faster than real-time so a multi-minute KYC video doesn't take
-      // multiple minutes to compress. Frames are captured per requestAnimationFrame,
-      // so a higher playbackRate finishes the recording proportionally sooner.
-      try {
-        video.playbackRate = 4;
-      } catch {
-        // Some browsers clamp/refuse high rates — fall back to real-time.
-      }
+      // Keep real-time playback (playbackRate = 1). Speeding the video up would
+      // also speed up the captured audio, making vKYC speech high-pitched and
+      // unrecognizable. We rely on a balanced bitrate + 720p cap for size, and
+      // run this concurrently with other uploads so it no longer blocks them.
       video.play().catch(() => resolve(file));
     };
 

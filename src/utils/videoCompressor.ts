@@ -163,14 +163,10 @@ export async function compressVideo(
       };
 
       onProgress?.({ stage: 'loading', percent: 50 });
-      // Play faster than real-time so a multi-minute KYC video doesn't take
-      // multiple minutes to compress. Frames are captured per requestAnimationFrame,
-      // so a higher playbackRate finishes the recording proportionally sooner.
-      try {
-        video.playbackRate = 4;
-      } catch {
-        // Some browsers clamp/refuse high rates — fall back to real-time.
-      }
+      // Keep real-time playback (playbackRate = 1). Speeding the video up would
+      // also speed up the captured audio, making vKYC speech high-pitched and
+      // unrecognizable. We rely on a balanced bitrate + 720p cap for size, and
+      // run this concurrently with other uploads so it no longer blocks them.
       video.play().catch(() => resolve(file));
     };
 

@@ -56,36 +56,39 @@ async function buildKyc(supabase: any, date: string) {
   const rows = await fetchAllRows(() =>
     supabase
       .from("client_onboarding_approvals")
-      .select("resolved_client_id, client_phone, client_name, created_at, reviewed_at, approval_status"));
+      .select("client_phone, client_name, reviewed_at, approval_status"));
 
-  // Stable buyer identity: resolved client id -> phone -> lowercased name
-  const clientKey = (r: any): string => {
-    if (r.resolved_client_id) return `id:${r.resolved_client_id}`;
-    const phone = String(r.client_phone || "").trim();
-    if (phone) return `ph:${phone}`;
-    return `nm:${String(r.client_name || "").trim().toLowerCase()}`;
-  };
+  // ---- Pending & Approved: dedup by lowercased trimmed client name, EXACTLY
+  // matching the ERP "Client Onboarding Approvals" screen (which groups pending
+  // rows by client name). This keeps the email number identical to the ERP UI.
+  const nameKey = (r: any): string => String(r.client_name || "").trim().toLowerCase();
 
-  // First-ever appearance (IST date) per client
-  const firstSeen = new Map<string, string>();
+  const approvedSet = new Set<string>();   // distinct buyer clients approved on report date
+  const pendingSet = new Set<string>();     // distinct buyer clients currently pending
   for (const r of rows) {
-    const d = istDateStr(r.created_at);
+    const k = nameKey(r);
+    if (!k) continue;
+    if (r.approval_status === "APPROVED" && istDateStr(r.reviewed_at) === date) approvedSet.add(k);
+    if (r.approval_status === "PENDING") pendingSet.add(k);
+  }
+
+  // ---- New Buyer Clients: clients who bought from us (sales orders = buyer side)
+  // for the VERY FIRST TIME on the report date. A client who has any earlier sales
+  // order — or who was already pending/approved from a previous day — is NOT new.
+  // Source of truth is sales_orders (buyers), not the approval ledger.
+  const salesRows = await fetchAllRows(() =>
+    supabase.from("sales_orders").select("client_name, created_at"));
+  const firstSale = new Map<string, string>();
+  for (const s of salesRows) {
+    const k = String(s.client_name || "").trim().toLowerCase();
+    if (!k) continue;
+    const d = istDateStr(s.created_at);
     if (!d) continue;
-    const k = clientKey(r);
-    const prev = firstSeen.get(k);
-    if (!prev || d < prev) firstSeen.set(k, d);
+    const prev = firstSale.get(k);
+    if (!prev || d < prev) firstSale.set(k, d);
   }
   let newClients = 0;
-  for (const d of firstSeen.values()) if (d === date) newClients += 1;
-
-  // Distinct buyer clients approved on the report date
-  const approvedSet = new Set<string>();
-  // Distinct buyer clients still pending approval (current state)
-  const pendingSet = new Set<string>();
-  for (const r of rows) {
-    if (r.approval_status === "APPROVED" && istDateStr(r.reviewed_at) === date) approvedSet.add(clientKey(r));
-    if (r.approval_status === "PENDING") pendingSet.add(clientKey(r));
-  }
+  for (const d of firstSale.values()) if (d === date) newClients += 1;
 
   return {
     newClients,
@@ -93,6 +96,7 @@ async function buildKyc(supabase: any, date: string) {
     pendingTotal: pendingSet.size,
   };
 }
+
 
 // Terminal shift windows (IST, non-overlapping, derived from hr_shifts start times):
 //   Morning 09:00–17:00, Evening 17:00–01:00, Night 01:00–09:00

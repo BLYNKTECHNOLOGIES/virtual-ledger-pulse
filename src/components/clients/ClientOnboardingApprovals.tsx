@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { prefetchKycUpload, resolveKycUpload } from '@/lib/kyc-background-upload';
+import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -314,24 +315,29 @@ export function ClientOnboardingApprovals() {
   const { data: approvals, isLoading } = useQuery({
     queryKey: ['client_onboarding_approvals'],
     queryFn: async () => {
-      const { data: allPending, error: pendingError } = await supabase
-        .from('client_onboarding_approvals')
-        .select('*')
-        .eq('approval_status', 'PENDING')
-        .order('created_at', { ascending: false });
+      // IMPORTANT: PostgREST caps every request at 1000 rows. The pending
+      // approval ledger has well over 1000 rows, so a single .select() was
+      // silently truncating the list and under-counting distinct clients
+      // (showing e.g. 398 instead of the true total). Paginate to get ALL rows.
+      const allPending = await fetchAllPaginated<ClientOnboardingApproval>(() =>
+        supabase
+          .from('client_onboarding_approvals')
+          .select('*')
+          .eq('approval_status', 'PENDING')
+          .order('created_at', { ascending: false })
+      );
 
-      if (pendingError) throw pendingError;
+      const history = await fetchAllPaginated<ClientOnboardingApproval>(() =>
+        supabase
+          .from('client_onboarding_approvals')
+          .select('*')
+          .neq('approval_status', 'PENDING')
+          .order('created_at', { ascending: false })
+      );
 
-      const { data: history, error: historyError } = await supabase
-        .from('client_onboarding_approvals')
-        .select('*')
-        .neq('approval_status', 'PENDING')
-        .order('created_at', { ascending: false });
-
-      if (historyError) throw historyError;
-
-      return [...(allPending || []), ...(history || [])] as ClientOnboardingApproval[];
+      return [...allPending, ...history] as ClientOnboardingApproval[];
     }
+
   });
 
   // 4-state identity resolution per pending approval — uses persisted

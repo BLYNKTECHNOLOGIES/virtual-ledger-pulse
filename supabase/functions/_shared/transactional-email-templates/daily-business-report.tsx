@@ -345,11 +345,12 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             <Section style={{ ...card, backgroundColor: '#faf7f2', borderColor: '#e6dccb' }}>
               <Text style={sectionTitle}>Buyer Client KYC — Onboarding Summary</Text>
               <Text style={{ fontSize: '11px', color: '#9C8A78', margin: '0 0 8px' }}>
-                Buyer-side only. A "new client" is a buyer appearing for KYC approval for the very first time on this day.
+                Buyer-side only (clients who bought from us). "New" = client whose first-ever purchase from us was on this day. "Approved" / "Pending" mirror the ERP Client Onboarding Approvals screen (deduplicated by client name).
               </Text>
-              <Row label="New Buyer Clients (first-time KYC)" value={`${kyc.newClients}`} />
+              <Row label="New Buyer Clients (first purchase today)" value={`${kyc.newClients}`} />
               <Row label="Buyer Clients Approved Today" value={`${kyc.approvedToday}`} />
               <Row label="Buyer Clients Pending Approval" value={`${kyc.pendingTotal}`} />
+
             </Section>
           )}
 

@@ -2201,7 +2201,11 @@ export function ClientOnboardingApprovals() {
                         ref={sourceOfFundInputRef}
                         className="hidden"
                         accept=".pdf,.jpg,.jpeg,.png"
-                        onChange={(e) => setSourceOfFundFile(e.target.files?.[0] || null)}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          if (file) void prefetchKycUpload(file);
+                          setSourceOfFundFile(file);
+                        }}
                       />
                       <Button
                         type="button"

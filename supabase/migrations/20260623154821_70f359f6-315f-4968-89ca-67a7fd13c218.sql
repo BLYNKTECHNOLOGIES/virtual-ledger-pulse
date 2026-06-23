@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_sales_orders_created_at_desc ON public.sales_orders USING btree (created_at DESC);

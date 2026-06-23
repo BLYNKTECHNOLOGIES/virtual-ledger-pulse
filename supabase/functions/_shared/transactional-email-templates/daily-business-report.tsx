@@ -340,6 +340,21 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
 
           {charts?.hourly && <Img src={charts.hourly} alt="Hourly Activity" style={chartImg} />}
 
+          {/* Low-priority: Buyer-client KYC onboarding summary (shown last, by design) */}
+          {kyc && (
+            <Section style={{ ...card, backgroundColor: '#faf7f2', borderColor: '#e6dccb' }}>
+              <Text style={sectionTitle}>Buyer Client KYC — Onboarding Summary</Text>
+              <Text style={{ fontSize: '11px', color: '#9C8A78', margin: '0 0 8px' }}>
+                Buyer-side only. A "new client" is a buyer appearing for KYC approval for the very first time on this day.
+              </Text>
+              <Row label="New Buyer Clients (first-time KYC)" value={`${kyc.newClients}`} />
+              <Row label="Buyer Clients Approved Today" value={`${kyc.approvedToday}`} />
+              <Row label="Buyer Clients Pending Approval" value={`${kyc.pendingTotal}`} />
+            </Section>
+          )}
+
+
+
           <Hr style={divider} />
           <Text style={footer}>
             Automated daily report from {SITE_NAME} ERP. All figures are derived from the

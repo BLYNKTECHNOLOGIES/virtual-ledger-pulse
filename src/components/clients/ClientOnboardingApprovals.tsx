@@ -809,41 +809,43 @@ export function ClientOnboardingApprovals() {
         }
 
         if (targetClientId) {
-          // Upload statement files and insert bank detail records
-          for (const entry of entries) {
-            let statementUrl: string | null = null;
-            
-            if (entry.statementFile) {
-              const filePath = `bank-statements/${targetClientId}/${Date.now()}_${entry.statementFile.name}`;
-              const { error: uploadError } = await supabase.storage
-                .from('kyc-documents')
-                .upload(filePath, entry.statementFile);
-              
-              if (!uploadError) {
-                const { data: urlData } = supabase.storage
+          // Upload statement files in parallel, then insert bank detail records.
+          await Promise.all(
+            entries.map(async (entry) => {
+              let statementUrl: string | null = null;
+
+              if (entry.statementFile) {
+                const filePath = `bank-statements/${targetClientId}/${Date.now()}_${entry.statementFile.name}`;
+                const { error: uploadError } = await supabase.storage
                   .from('kyc-documents')
-                  .getPublicUrl(filePath);
-                statementUrl = urlData?.publicUrl || null;
-              } else {
-                console.error('Failed to upload bank statement:', uploadError);
+                  .upload(filePath, entry.statementFile);
+
+                if (!uploadError) {
+                  const { data: urlData } = supabase.storage
+                    .from('kyc-documents')
+                    .getPublicUrl(filePath);
+                  statementUrl = urlData?.publicUrl || null;
+                } else {
+                  console.error('Failed to upload bank statement:', uploadError);
+                }
               }
-            }
 
-            const { error: bankInsertError } = await supabase
-              .from('client_bank_details')
-              .insert({
-                client_id: targetClientId,
-                bank_name: entry.bankName.trim(),
-                last_four_digits: entry.lastFourDigits.trim(),
-                statement_url: statementUrl,
-                statement_period_from: entry.statementPeriodFrom ? entry.statementPeriodFrom.toISOString().split('T')[0] : null,
-                statement_period_to: entry.statementPeriodTo ? entry.statementPeriodTo.toISOString().split('T')[0] : null,
-              });
+              const { error: bankInsertError } = await supabase
+                .from('client_bank_details')
+                .insert({
+                  client_id: targetClientId,
+                  bank_name: entry.bankName.trim(),
+                  last_four_digits: entry.lastFourDigits.trim(),
+                  statement_url: statementUrl,
+                  statement_period_from: entry.statementPeriodFrom ? entry.statementPeriodFrom.toISOString().split('T')[0] : null,
+                  statement_period_to: entry.statementPeriodTo ? entry.statementPeriodTo.toISOString().split('T')[0] : null,
+                });
 
-            if (bankInsertError) {
-              console.error('Failed to insert bank detail:', bankInsertError);
-            }
-          }
+              if (bankInsertError) {
+                console.error('Failed to insert bank detail:', bankInsertError);
+              }
+            })
+          );
 
           // Update linked_bank_accounts JSON on clients table for backward compatibility
           const bankAccountsJson = entries.map(e => ({

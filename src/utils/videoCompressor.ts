@@ -11,7 +11,7 @@ export interface CompressionProgress {
 export async function compressVideo(
   file: File,
   onProgress?: (progress: CompressionProgress) => void,
-  targetBitrate: number = 1_500_000 // 1.5 Mbps default
+  targetBitrate: number = 2_500_000 // 2.5 Mbps — keeps faces/text/audio clearly recognizable
 ): Promise<File> {
   // If file is already small (under 20MB), skip compression
   if (file.size <= 20 * 1024 * 1024) {

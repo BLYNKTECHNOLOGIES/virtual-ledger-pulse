@@ -810,23 +810,18 @@ export function ClientOnboardingApprovals() {
         }
 
         if (targetClientId) {
-          // Upload statement files in parallel, then insert bank detail records.
+          // Statement files were already uploaded in the background as soon as the
+          // reviewer attached them — just resolve those results (or upload inline
+          // as a fallback) and insert the bank detail records.
           await Promise.all(
             entries.map(async (entry) => {
               let statementUrl: string | null = null;
 
               if (entry.statementFile) {
-                const filePath = `bank-statements/${targetClientId}/${Date.now()}_${entry.statementFile.name}`;
-                const { error: uploadError } = await supabase.storage
-                  .from('kyc-documents')
-                  .upload(filePath, entry.statementFile);
-
-                if (!uploadError) {
-                  const { data: urlData } = supabase.storage
-                    .from('kyc-documents')
-                    .getPublicUrl(filePath);
-                  statementUrl = urlData?.publicUrl || null;
-                } else {
+                try {
+                  const res = await resolveKycUpload(entry.statementFile);
+                  statementUrl = res.url || null;
+                } catch (uploadError) {
                   console.error('Failed to upload bank statement:', uploadError);
                 }
               }

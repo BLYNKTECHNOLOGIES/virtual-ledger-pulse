@@ -11,12 +11,12 @@ export function useAssetCodes() {
   return useQuery({
     queryKey: ['distinct_asset_codes'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('wallet_transactions')
-        .select('asset_code')
-        .order('asset_code');
-      
-      if (error) throw error;
+      const data = await fetchAllPaginated<{ asset_code: string }>(() =>
+        supabase
+          .from('wallet_transactions')
+          .select('asset_code')
+          .order('asset_code'));
+
       
       // Get unique asset codes from DB
       const dbCodes = [...new Set(data?.map(d => d.asset_code) || [])];

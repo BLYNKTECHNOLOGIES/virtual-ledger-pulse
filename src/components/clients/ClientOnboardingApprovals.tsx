@@ -919,26 +919,20 @@ export function ClientOnboardingApprovals() {
       if (kycDocuments) {
         const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile, additionalDocs: addDocs } = kycDocuments;
 
-        // Kick off video compression up-front so it runs concurrently with the
-        // other document uploads instead of blocking them.
-        const compressedVideoPromise: Promise<File> | null = vFile
-          ? compressVideo(vFile).catch((err) => {
-              console.warn('Video compression failed, uploading original:', err);
-              return vFile;
-            })
-          : null;
-
-        const allDocs: { file: File; type: string; folder: string }[] = [];
-        for (const f of aFiles) allDocs.push({ file: f, type: 'aadhaar', folder: 'aadhaar' });
-        if (uFile) allDocs.push({ file: uFile, type: 'usdt_usage_proof', folder: 'usdt-proof' });
-        if (tFile) allDocs.push({ file: tFile, type: 'trade_history_screenshot', folder: 'trade-history' });
+        // All of these files were already uploaded in the background the moment
+        // the reviewer attached them (the vKYC video is compressed + uploaded in
+        // the background too). Here we just resolve those in-flight/finished
+        // uploads — no slow re-encode or sequential upload on the approval click.
+        const docTasks: { file: File; type: string; compress?: boolean }[] = [];
+        for (const f of aFiles) docTasks.push({ file: f, type: 'aadhaar' });
+        if (uFile) docTasks.push({ file: uFile, type: 'usdt_usage_proof' });
+        if (tFile) docTasks.push({ file: tFile, type: 'trade_history_screenshot' });
+        if (vFile) docTasks.push({ file: vFile, type: 'vkyc_video', compress: true });
         if (addDocs && addDocs.length > 0) {
-          for (const f of addDocs) allDocs.push({ file: f, type: 'other', folder: 'additional' });
+          for (const f of addDocs) docTasks.push({ file: f, type: 'other' });
         }
 
-        const hasAnyDoc = allDocs.length > 0 || !!compressedVideoPromise;
-
-        if (hasAnyDoc) {
+        if (docTasks.length > 0) {
           let docClientId = existingClientId;
           if (!docClientId) {
             const { data: cr } = await supabase
@@ -951,32 +945,23 @@ export function ClientOnboardingApprovals() {
           }
 
           if (docClientId) {
-            // Append the compressed video to the upload list once ready.
-            if (compressedVideoPromise) {
-              const compressedVideo = await compressedVideoPromise;
-              allDocs.push({ file: compressedVideo, type: 'vkyc_video', folder: 'vkyc' });
-            }
-
-            // Upload every document in parallel, then batch-insert the metadata.
+            // Resolve all background uploads in parallel, then batch-insert metadata.
             const uploadResults = await Promise.all(
-              allDocs.map(async (doc) => {
-                const filePath = `${docClientId}/${doc.folder}/${Date.now()}_${doc.file.name}`;
-                const { error: upErr } = await supabase.storage
-                  .from('kyc-documents')
-                  .upload(filePath, doc.file);
-                if (upErr) {
+              docTasks.map(async (doc) => {
+                try {
+                  const res = await resolveKycUpload(doc.file, { compress: doc.compress });
+                  return {
+                    client_id: docClientId,
+                    document_type: doc.type,
+                    file_url: res.url || '',
+                    file_name: res.fileName,
+                    file_size: res.fileSize,
+                    mime_type: res.mimeType,
+                  };
+                } catch (upErr) {
                   console.error(`Failed to upload ${doc.type} document:`, upErr);
                   return null;
                 }
-                const { data: urlD } = supabase.storage.from('kyc-documents').getPublicUrl(filePath);
-                return {
-                  client_id: docClientId,
-                  document_type: doc.type,
-                  file_url: urlD?.publicUrl || '',
-                  file_name: doc.file.name,
-                  file_size: doc.file.size,
-                  mime_type: doc.file.type || null,
-                };
               })
             );
 

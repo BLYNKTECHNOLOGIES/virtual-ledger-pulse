@@ -49,12 +49,13 @@ export function TaxationComplianceTab() {
   const { data: allocations } = useQuery({
     queryKey: ['tds_allocations_compliance'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tds_payment_allocations')
-        .select(`*, bank:bank_accounts!bank_account_id(account_name, bank_name)`)
-        .order('deduction_date', { ascending: false });
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('tds_payment_allocations')
+          .select(`*, bank:bank_accounts!bank_account_id(account_name, bank_name)`)
+          .order('deduction_date', { ascending: false }));
       return (data || []) as unknown as AllocationRow[];
+
     },
   });
 

@@ -2327,7 +2327,9 @@ export function ClientOnboardingApprovals() {
                           className="hidden"
                           accept="image/*,.pdf"
                           onChange={(e) => {
-                            setTradeHistoryFile(e.target.files?.[0] || null);
+                            const file = e.target.files?.[0] || null;
+                            if (file) void prefetchKycUpload(file);
+                            setTradeHistoryFile(file);
                             if (tradeHistoryInputRef.current) tradeHistoryInputRef.current.value = '';
                           }}
                         />

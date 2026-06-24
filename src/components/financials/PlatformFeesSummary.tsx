@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format } from "date-fns";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface PlatformFeesSummaryProps {
   startDate: Date;

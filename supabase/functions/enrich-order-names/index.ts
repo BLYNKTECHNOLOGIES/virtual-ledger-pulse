@@ -233,6 +233,14 @@ serve(async (req) => {
 
     for (const order of orders) {
       try {
+        // Use the credentials of the exchange account this order belongs to.
+        const proxyHeaders = await headersForAccount(order.exchange_account_id ?? null);
+        if (!proxyHeaders) {
+          // Credentials for this account aren't configured — skip without
+          // marking no-detail so it can be retried once secrets are set.
+          failed++;
+          continue;
+        }
         // Fetch order detail from Binance
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
         const response = await fetchWithRetry(url, {

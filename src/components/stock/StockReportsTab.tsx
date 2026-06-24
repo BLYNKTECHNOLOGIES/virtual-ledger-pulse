@@ -421,8 +421,15 @@ export function StockReportsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMovements?.map((row: any) => (
-                    <tr key={row.id} className="border-b hover:bg-gray-50">
+                  {filteredMovements?.map((row: any) => {
+                    const clickable = !!(row._txType && row._txId);
+                    return (
+                    <tr
+                      key={row.id}
+                      className={cn("border-b hover:bg-gray-50", clickable && "cursor-pointer")}
+                      onClick={() => clickable && openTransaction({ type: row._txType, id: row._txId })}
+                      title={clickable ? "Click to view full details" : undefined}
+                    >
                       <td className="py-3 px-4">{format(new Date(row.transaction_date), 'dd/MM/yyyy')}</td>
                       <td className="py-3 px-4">
                         <div>

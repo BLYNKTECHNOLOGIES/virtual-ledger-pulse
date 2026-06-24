@@ -249,7 +249,9 @@ export function ClientOrderPreview({
             {data.recentOrders.map((order, idx) => (
               <div 
                 key={idx} 
-                className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1.5"
+                className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1.5 cursor-pointer hover:bg-muted transition-colors"
+                onClick={() => order.id && openTransaction({ type: order.type === 'buy' ? 'sales_order' : 'purchase_order', id: order.id })}
+                title="Click to view full order details"
               >
                 <div className="flex items-center gap-2">
                   {order.type === 'buy' ? (

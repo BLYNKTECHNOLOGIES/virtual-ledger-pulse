@@ -205,7 +205,7 @@ serve(async (req) => {
 
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
-      .select("order_number, trade_type, verified_name, counter_part_nick_name, counterparty_risk_snapshot, order_detail_raw")
+      .select("order_number, trade_type, verified_name, counter_part_nick_name, counterparty_risk_snapshot, order_detail_raw, exchange_account_id")
       .eq("order_status", "COMPLETED")
       .gte("create_time", windowStart)
       .or("verified_name.is.null,counterparty_risk_snapshot.is.null,order_detail_raw.is.null")

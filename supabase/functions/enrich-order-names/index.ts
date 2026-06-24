@@ -131,7 +131,23 @@ async function fetchWithRetry(
   throw lastError;
 }
 
+// Mark an order whose detail Binance won't return (or returns only an error
+// envelope), so it stops being re-selected every run and does not starve
+// recoverable rows. Called only when no usable detail exists anywhere.
+async function markNoDetail(supabase: any, orderNumber: string) {
+  try {
+    await supabase
+      .from("binance_order_history")
+      .update({
+        order_detail_raw: { _enrich_no_detail: true, _attempted_at: new Date().toISOString() },
+      })
+      .eq("order_number", orderNumber);
+  } catch (_e) { /* best effort */ }
+}
+
+
 serve(async (req) => {
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -160,17 +176,31 @@ serve(async (req) => {
       "x-api-secret": BINANCE_API_SECRET,
     };
 
-    // Fetch orders from last 30 days that are completed but missing verified name or risk snapshot
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Optional overrides via request body (for manual full backfills).
+    let windowDays = 30;
+    let batchLimit = 30;
+    try {
+      if (req.method === "POST") {
+        const body = await req.clone().json().catch(() => ({}));
+        if (Number.isFinite(body?.windowDays)) windowDays = Math.max(1, Math.min(3650, Number(body.windowDays)));
+        if (Number.isFinite(body?.limit)) batchLimit = Math.max(1, Math.min(100, Number(body.limit)));
+      }
+    } catch { /* ignore body parse errors */ }
+
+    // Fetch completed orders that are missing verified name, risk snapshot, OR order detail.
+    // Orders without order_detail_raw still carry a MASKED counterparty nickname ("P2P***"),
+    // so fetching the detail lets us recover the real unmasked nickname below.
+    const windowStart = Date.now() - windowDays * 24 * 60 * 60 * 1000;
 
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
-      .select("order_number, trade_type, verified_name, counterparty_risk_snapshot")
+      .select("order_number, trade_type, verified_name, counter_part_nick_name, counterparty_risk_snapshot, order_detail_raw")
       .eq("order_status", "COMPLETED")
-      .gte("create_time", thirtyDaysAgo)
-      .or("verified_name.is.null,counterparty_risk_snapshot.is.null")
+      .gte("create_time", windowStart)
+      .or("verified_name.is.null,counterparty_risk_snapshot.is.null,order_detail_raw.is.null")
       .order("create_time", { ascending: false })
-      .limit(20); // Process max 20 per run to stay within timeout
+      .limit(batchLimit);
+
 
     if (fetchErr) {
       console.error("DB fetch error:", fetchErr);
@@ -200,30 +230,73 @@ serve(async (req) => {
           body: JSON.stringify({ adOrderNo: order.order_number }),
         });
 
+        // A previously stored, real (non-sentinel) detail we can fall back to
+        // when the live API no longer returns this (old/cancelled) order.
+        const storedDetail =
+          order.order_detail_raw && typeof order.order_detail_raw === "object" &&
+          !(order.order_detail_raw as any)._enrich_no_detail
+            ? order.order_detail_raw
+            : null;
+
         const text = await response.text();
         let result: any;
         try {
           result = JSON.parse(text);
         } catch {
           console.warn(`Failed to parse response for ${order.order_number}`);
-          failed++;
-          continue;
+          result = null;
         }
 
-        const detail = result?.data?.data || result?.data || result;
-        if (!detail || detail.error) {
-          console.warn(`No detail for ${order.order_number}:`, JSON.stringify(result).substring(0, 500));
-          failed++;
-          continue;
+        let detail = result?.data?.data || result?.data || result;
+        // A real order detail carries identity/trade fields. Binance error
+        // envelopes (e.g. { code, msg } when the order belongs to another
+        // exchange account the primary key can't read) must NOT be treated
+        // as valid detail.
+        const hasUsableDetail = (d: any) =>
+          d && typeof d === "object" &&
+          (d.sellerName || d.buyerName || d.sellerNickname || d.buyerNickname ||
+           d.sellerNickName || d.buyerNickName || d.orderNumber || d.tradeType);
+
+        if (!hasUsableDetail(detail) || detail.error) {
+          if (hasUsableDetail(storedDetail)) {
+            // Recover from already-stored detail instead of giving up.
+            detail = storedDetail;
+          } else {
+            console.warn(`No usable detail for ${order.order_number}:`, JSON.stringify(detail).substring(0, 200));
+            // Mark as attempted so this un-fetchable order is not re-selected
+            // forever and does not starve recoverable rows in later runs.
+            await markNoDetail(supabase, order.order_number);
+            failed++;
+            continue;
+          }
         }
+
+
+
+
 
         // For BUY orders, counterparty is seller; for SELL orders, counterparty is buyer
         let verifiedName: string | null = null;
+        let counterpartyNickname: string | null = null;
         if (order.trade_type === "BUY") {
           verifiedName = detail.sellerRealName || detail.sellerName || null;
+          counterpartyNickname = detail.sellerNickname || detail.sellerNickName || null;
         } else {
           verifiedName = detail.buyerRealName || detail.buyerName || null;
+          counterpartyNickname = detail.buyerNickname || detail.buyerNickName || null;
         }
+
+        // Only accept a clean, unmasked nickname (no '*', not 'Unknown').
+        const cleanNick =
+          typeof counterpartyNickname === "string" &&
+          counterpartyNickname.trim() &&
+          !counterpartyNickname.includes("*") &&
+          counterpartyNickname.trim().toLowerCase() !== "unknown"
+            ? counterpartyNickname.trim()
+            : null;
+
+        const existingNick = typeof order.counter_part_nick_name === "string" ? order.counter_part_nick_name : "";
+        const nickNeedsFix = !existingNick || existingNick.includes("*") || existingNick !== cleanNick;
 
         const updatePayload: Record<string, unknown> = {
           order_detail_raw: detail,
@@ -231,14 +304,23 @@ serve(async (req) => {
           counterparty_risk_captured_at: new Date().toISOString(),
         };
         if (verifiedName && !order.verified_name) updatePayload.verified_name = verifiedName;
+        if (cleanNick && nickNeedsFix) updatePayload.counter_part_nick_name = cleanNick;
 
-        if (verifiedName || !order.counterparty_risk_snapshot) {
+        if (verifiedName || cleanNick || !order.counterparty_risk_snapshot) {
           const { error: updateErr } = await supabase
             .from("binance_order_history")
             .update(updatePayload)
             .eq("order_number", order.order_number);
 
           if (!updateErr) {
+            // Promote the unmasked nickname into p2p_order_records, which is what the
+            // client onboarding/approval screens read identity from.
+            if (cleanNick) {
+              await supabase
+                .from("p2p_order_records")
+                .update({ counterparty_nickname: cleanNick })
+                .eq("binance_order_number", order.order_number);
+            }
             await persistCommissionRateSnapshots(supabase, detail, "order_detail", order.order_number);
             enriched++;
           } else {
@@ -246,9 +328,10 @@ serve(async (req) => {
             failed++;
           }
         } else {
-          console.warn(`No name found for ${order.order_number} (${order.trade_type}), detail keys:`, Object.keys(detail));
+          console.warn(`No name/nickname found for ${order.order_number} (${order.trade_type}), detail keys:`, Object.keys(detail));
           failed++;
         }
+
 
         // Rate limit: 200ms delay between API calls
         await new Promise((r) => setTimeout(r, 200));

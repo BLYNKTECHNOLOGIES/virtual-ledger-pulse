@@ -524,6 +524,35 @@ export function SellerOnboardingApprovals() {
     seller.client_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const allVisibleSelected = !!filteredSellers?.length && filteredSellers.every(s => selectedIds.has(s.id));
+  const someVisibleSelected = !!filteredSellers?.some(s => selectedIds.has(s.id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filteredSellers?.forEach(s => next.delete(s.id));
+      } else {
+        filteredSellers?.forEach(s => next.add(s.id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (sellerId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(sellerId)) next.delete(sellerId);
+      else next.add(sellerId);
+      return next;
+    });
+  };
+
+  const handleBulkApproveConfirm = () => {
+    setShowBulkConfirm(false);
+    bulkApproveMutation.mutate(Array.from(selectedIds));
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':

@@ -29,7 +29,6 @@ import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 
 export default function TerminalDashboard() {
-  const { data: cachedOrders = [], isLoading: dbLoading, refetch: refetchDb } = useCachedOrderHistory();
   const { isSyncing, metadata } = useAutoSyncOrders();
   const syncMutation = useSyncOrderHistory();
   const { data: syncMeta } = useSyncMetadata();
@@ -43,6 +42,11 @@ export default function TerminalDashboard() {
     (f: TimeFilter) => setPref('filter', serializeTimeFilter(f)),
     [setPref]
   );
+
+  // Scope the DB read to the selected window so we only load the rows we
+  // actually display, instead of fetching a full year of orders on every visit.
+  const filterBounds = useMemo(() => getTimestampsForFilter(filter), [filter]);
+  const { data: cachedOrders = [], isLoading: dbLoading, refetch: refetchDb } = useCachedOrderHistory(filterBounds);
 
   const [universalSyncing, setUniversalSyncing] = useState(false);
 

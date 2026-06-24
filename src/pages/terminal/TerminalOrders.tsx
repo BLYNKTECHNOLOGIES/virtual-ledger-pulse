@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -108,6 +109,8 @@ function TerminalOrdersContent() {
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkHandledRef = useRef(false);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
@@ -827,6 +830,25 @@ function TerminalOrdersContent() {
   }, [visibleCount, displayOrders.length]);
 
   const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
+
+  // Deep-link: when arriving with ?order=<orderNumber> (e.g. from the dashboard
+  // Operational Alerts), auto-open that order's workspace once it's loaded.
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    const target = searchParams.get('order');
+    if (!target || !displayOrders.length) return;
+    const match = displayOrders.find(
+      o => String(o.binance_order_number) === target || String((o as any).orderNumber) === target,
+    );
+    if (match) {
+      deepLinkHandledRef.current = true;
+      setSelectedOrder(match);
+      // Strip the param so navigating back to the list doesn't re-open it.
+      searchParams.delete('order');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, displayOrders, setSearchParams]);
+
 
   const { data: releaseMonitorLogs = [] } = useQuery({
     queryKey: ['terminal-release-monitor-latest'],

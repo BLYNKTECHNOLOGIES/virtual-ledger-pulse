@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -9,11 +10,21 @@ interface Props {
   isLoading: boolean;
 }
 
+type Severity = 'warning' | 'error' | 'info' | 'success';
+
+interface AlertItem {
+  icon: typeof AlertTriangle;
+  label: string;
+  detailLabel: string;
+  orderNumbers: string[];
+  severity: Severity;
+}
+
 export function OperationalAlerts({ orders, isLoading }: Props) {
-  const alerts = useMemo(() => {
+  const alerts = useMemo<AlertItem[]>(() => {
     if (!orders.length) return [];
 
-    const items: { icon: typeof AlertTriangle; label: string; detail: string; severity: 'warning' | 'error' | 'info' | 'success' }[] = [];
+    const items: AlertItem[] = [];
     const STALE_MS = 24 * 60 * 60 * 1000;
     const now = Date.now();
 
@@ -25,7 +36,8 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
       items.push({
         icon: ShieldAlert,
         label: `${appealOrders.length} Active Appeal${appealOrders.length > 1 ? 's' : ''}`,
-        detail: `Order${appealOrders.length > 1 ? 's' : ''}: ${appealOrders.slice(0, 2).map(o => o.orderNumber.slice(-6)).join(', ')}`,
+        detailLabel: `Order${appealOrders.length > 1 ? 's' : ''}:`,
+        orderNumbers: appealOrders.map(o => o.orderNumber).filter(Boolean),
         severity: 'error',
       });
     }
@@ -38,7 +50,8 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
       items.push({
         icon: ShieldAlert,
         label: `${releaseOrders.length} Awaiting Release`,
-        detail: `Coin release pending: ${releaseOrders.slice(0, 3).map(o => o.orderNumber.slice(-6)).join(', ')}`,
+        detailLabel: 'Coin release pending:',
+        orderNumbers: releaseOrders.map(o => o.orderNumber).filter(Boolean),
         severity: 'warning',
       });
     }
@@ -52,7 +65,8 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
       items.push({
         icon: Clock,
         label: `${pendingOrders.length} Order${pendingOrders.length > 1 ? 's' : ''} Awaiting Payment`,
-        detail: pendingOrders.length > 3 ? 'Multiple orders need operator attention' : `Order${pendingOrders.length > 1 ? 's' : ''}: ${pendingOrders.slice(0, 3).map(o => o.orderNumber.slice(-6)).join(', ')}`,
+        detailLabel: `Order${pendingOrders.length > 1 ? 's' : ''}:`,
+        orderNumbers: pendingOrders.map(o => o.orderNumber).filter(Boolean),
         severity: pendingOrders.length > 3 ? 'warning' : 'info',
       });
     }
@@ -61,7 +75,8 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
       items.push({
         icon: CheckCircle2,
         label: 'All Clear',
-        detail: 'No active alerts — operations running normally',
+        detailLabel: 'No active alerts — operations running normally',
+        orderNumbers: [],
         severity: 'success',
       });
     }
@@ -69,14 +84,14 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
     return items;
   }, [orders]);
 
-  const severityStyles = {
+  const severityStyles: Record<Severity, string> = {
     error: 'border-l-destructive bg-destructive/5',
     warning: 'border-l-trade-pending bg-trade-pending/5',
     info: 'border-l-primary bg-primary/5',
     success: 'border-l-trade-buy bg-trade-buy/5',
   };
 
-  const iconStyles = {
+  const iconStyles: Record<Severity, string> = {
     error: 'text-destructive',
     warning: 'text-trade-pending',
     info: 'text-primary',
@@ -104,9 +119,25 @@ export function OperationalAlerts({ orders, isLoading }: Props) {
                 className={`flex items-start gap-3 p-3 rounded-md border-l-2 ${severityStyles[a.severity]}`}
               >
                 <a.icon className={`h-4 w-4 mt-0.5 shrink-0 ${iconStyles[a.severity]}`} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-foreground">{a.label}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{a.detail}</p>
+                  {a.orderNumbers.length > 0 ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-muted-foreground">{a.detailLabel}</span>
+                      {a.orderNumbers.map(num => (
+                        <Link
+                          key={num}
+                          to={`/terminal/orders?order=${encodeURIComponent(num)}`}
+                          className="text-[11px] font-medium text-primary hover:underline tabular-nums"
+                          title={`Open order ${num}`}
+                        >
+                          {num}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{a.detailLabel}</p>
+                  )}
                 </div>
               </div>
             ))}

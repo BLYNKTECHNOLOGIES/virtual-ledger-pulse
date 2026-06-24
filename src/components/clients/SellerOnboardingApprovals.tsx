@@ -837,6 +837,26 @@ export function SellerOnboardingApprovals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Approve Confirmation */}
+      <AlertDialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bulk Approve Sellers</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to approve <strong>{selectedIds.size}</strong> selected seller{selectedIds.size === 1 ? '' : 's'}.
+              Each will be marked as verified and approved on the seller side. Known-client duplicates will be merged automatically. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-green-600 hover:bg-green-700" onClick={handleBulkApproveConfirm}>
+              Approve {selectedIds.size} Seller{selectedIds.size === 1 ? '' : 's'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }

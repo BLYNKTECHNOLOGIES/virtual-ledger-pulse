@@ -295,6 +295,13 @@ export function TerminalOrgChart() {
       setManagers(mgrs);
       setTree(trueRoots);
       setOrphanNodes(orphans);
+
+      // All users for the supervisor picker, sorted by hierarchy then name
+      const usersList = Array.from(nodesMap.values())
+        .map(n => ({ userId: n.userId, displayName: n.displayName, roleName: n.roleName, hierarchyLevel: n.hierarchyLevel }))
+        .sort((a, b) => (a.hierarchyLevel ?? 99) - (b.hierarchyLevel ?? 99) || a.displayName.localeCompare(b.displayName));
+      setAllUsers(usersList);
+      setSupervisorsByUser(supervisorMap);
     } catch (err) {
       console.error("Error building org chart:", err);
     } finally {

@@ -1062,7 +1062,11 @@ function TerminalOrdersContent() {
                       : getStatusStyle(opStatus);
                     const unread = unreadMap.get(order.binance_order_number) || 0;
                     const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
-                    const releaseAlert = releaseMonitorByOrder.get(order.binance_order_number);
+                    // Only surface release/complaint alerts on still-active orders.
+                    // The monitor log persists after an order settles, so without
+                    // this guard a Completed/Cancelled order keeps showing a stale
+                    // "Seller Release Overdue" badge.
+                    const releaseAlert = isActive ? releaseMonitorByOrder.get(order.binance_order_number) : undefined;
 
                     return (
                       <TableRow

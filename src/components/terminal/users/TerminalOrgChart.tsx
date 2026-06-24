@@ -323,6 +323,78 @@ export function TerminalOrgChart() {
     });
   }, []);
 
+  const openLinkDialog = useCallback((node: OrgNode) => {
+    setLinkTarget(node);
+    setLinkSelected(new Set(supervisorsByUser.get(node.userId) || []));
+    setLinkSearch("");
+  }, [supervisorsByUser]);
+
+  // Prevent picking the user themselves or any of their descendants as a supervisor (would create a cycle)
+  const descendantIds = useMemo(() => {
+    if (!linkTarget) return new Set<string>();
+    const ids = new Set<string>();
+    const walk = (n: OrgNode) => {
+      ids.add(n.userId);
+      n.children.forEach(walk);
+    };
+    walk(linkTarget);
+    return ids;
+  }, [linkTarget]);
+
+  const candidateUsers = useMemo(() => {
+    const q = linkSearch.trim().toLowerCase();
+    return allUsers.filter(u =>
+      !descendantIds.has(u.userId) &&
+      (!q || u.displayName.toLowerCase().includes(q) || u.roleName.toLowerCase().includes(q))
+    );
+  }, [allUsers, descendantIds, linkSearch]);
+
+  const toggleLinkSelection = (id: string) => {
+    setLinkSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const saveLink = async () => {
+    if (!linkTarget) return;
+    setIsSaving(true);
+    try {
+      const userId = linkTarget.userId;
+      const { error: delErr } = await supabase
+        .from("terminal_user_supervisor_mappings")
+        .delete()
+        .eq("user_id", userId);
+      if (delErr) throw delErr;
+
+      if (linkSelected.size > 0) {
+        const rows = Array.from(linkSelected).map(sid => ({ user_id: userId, supervisor_id: sid }));
+        const { error: insErr } = await supabase
+          .from("terminal_user_supervisor_mappings")
+          .insert(rows);
+        if (insErr) throw insErr;
+      }
+
+      toast({
+        title: "Reporting manager updated",
+        description: `${linkTarget.displayName}'s hierarchy link has been saved.`,
+      });
+      setLinkTarget(null);
+      await fetchHierarchy();
+    } catch (err: any) {
+      console.error("Error saving supervisor link:", err);
+      toast({
+        title: "Failed to update",
+        description: err?.message || "Could not save the reporting manager link.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+
   // Filter tree by reporting manager
   const filteredTree = managerFilter === "all"
     ? tree

@@ -65,7 +65,7 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   // Build purchase query - match by supplier_name (case insensitive)
   let purchaseQuery = supabase
     .from('purchase_orders')
-    .select('order_number, total_amount, order_date')
+    .select('id, order_number, total_amount, order_date')
     .neq('status', 'CANCELLED')
     .order('order_date', { ascending: false })
     .limit(50);

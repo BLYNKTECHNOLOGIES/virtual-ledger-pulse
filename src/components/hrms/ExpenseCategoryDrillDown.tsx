@@ -100,7 +100,7 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
                 </TableRow>
               ) : transactions && transactions.length > 0 ? (
                 transactions.map((t: any) => (
-                  <TableRow key={t.id}>
+                  <TableRow key={t.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openTransaction({ type: 'bank_transaction', id: t.id })} title="Click to view full transaction details">
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="text-sm">{format(new Date(t.transaction_date), 'MMM dd, yyyy')}</span>

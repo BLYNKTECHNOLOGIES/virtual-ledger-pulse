@@ -50,7 +50,7 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   // Build sales query - match by client_name (case insensitive)
   let salesQuery = supabase
     .from('sales_orders')
-    .select('order_number, total_amount, order_date')
+    .select('id, order_number, total_amount, order_date')
     .neq('status', 'CANCELLED')
     .order('order_date', { ascending: false })
     .limit(50);

@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
 import { ReversalBadge } from "@/components/stock/ReversalBadge";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface TransferHistoryProps {
   transfers: any[];

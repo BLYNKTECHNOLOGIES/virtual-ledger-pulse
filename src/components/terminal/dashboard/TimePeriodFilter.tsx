@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, CalendarRange } from 'lucide-react';
+import { DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,6 +18,7 @@ export type ShiftKey = 'all' | 'shift1' | 'shift2' | 'shift3';
 
 export type TimeFilter =
   | { mode: '1d'; date: Date; shift: ShiftKey }
+  | { mode: 'range'; from: Date; to: Date }
   | { mode: '7d' | '30d' | '1y' };
 
 // IST offset in ms (+5:30)

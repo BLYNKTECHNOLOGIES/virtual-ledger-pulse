@@ -160,17 +160,31 @@ serve(async (req) => {
       "x-api-secret": BINANCE_API_SECRET,
     };
 
-    // Fetch orders from last 30 days that are completed but missing verified name or risk snapshot
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    // Optional overrides via request body (for manual full backfills).
+    let windowDays = 30;
+    let batchLimit = 30;
+    try {
+      if (req.method === "POST") {
+        const body = await req.clone().json().catch(() => ({}));
+        if (Number.isFinite(body?.windowDays)) windowDays = Math.max(1, Math.min(3650, Number(body.windowDays)));
+        if (Number.isFinite(body?.limit)) batchLimit = Math.max(1, Math.min(100, Number(body.limit)));
+      }
+    } catch { /* ignore body parse errors */ }
+
+    // Fetch completed orders that are missing verified name, risk snapshot, OR order detail.
+    // Orders without order_detail_raw still carry a MASKED counterparty nickname ("P2P***"),
+    // so fetching the detail lets us recover the real unmasked nickname below.
+    const windowStart = Date.now() - windowDays * 24 * 60 * 60 * 1000;
 
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
-      .select("order_number, trade_type, verified_name, counterparty_risk_snapshot")
+      .select("order_number, trade_type, verified_name, counter_part_nick_name, counterparty_risk_snapshot, order_detail_raw")
       .eq("order_status", "COMPLETED")
-      .gte("create_time", thirtyDaysAgo)
-      .or("verified_name.is.null,counterparty_risk_snapshot.is.null")
+      .gte("create_time", windowStart)
+      .or("verified_name.is.null,counterparty_risk_snapshot.is.null,order_detail_raw.is.null")
       .order("create_time", { ascending: false })
-      .limit(20); // Process max 20 per run to stay within timeout
+      .limit(batchLimit);
+
 
     if (fetchErr) {
       console.error("DB fetch error:", fetchErr);

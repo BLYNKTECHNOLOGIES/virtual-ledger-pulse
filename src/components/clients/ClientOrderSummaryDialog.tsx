@@ -11,6 +11,7 @@ import {
   Package
 } from "lucide-react";
 import { format } from "date-fns";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface ClientOrderSummaryDialogProps {
   open: boolean;

@@ -155,13 +155,11 @@ serve(async (req) => {
 
   try {
     const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
-    const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-    const BINANCE_API_SECRET = Deno.env.get("BINANCE_API_SECRET");
     const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    if (!BINANCE_PROXY_URL || !BINANCE_API_KEY || !BINANCE_API_SECRET || !BINANCE_PROXY_TOKEN) {
+    if (!BINANCE_PROXY_URL || !BINANCE_PROXY_TOKEN) {
       return new Response(JSON.stringify({ error: "Missing proxy config" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -170,12 +168,24 @@ serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const proxyHeaders: Record<string, string> = {
-      "Content-Type": "application/json",
-      "x-proxy-token": BINANCE_PROXY_TOKEN,
-      "x-api-key": BINANCE_API_KEY,
-      "x-api-secret": BINANCE_API_SECRET,
-    };
+    // Resolve per-account proxy headers on demand. Each order belongs to a
+    // specific exchange account (Blynk = default, ASEC = acct2); the detail
+    // endpoint only returns the order when called with THAT account's API key.
+    const headersCache = new Map<string, Record<string, string> | null>();
+    async function headersForAccount(accountId: string | null): Promise<Record<string, string> | null> {
+      const key = accountId ?? "default";
+      if (headersCache.has(key)) return headersCache.get(key)!;
+      let headers: Record<string, string> | null = null;
+      try {
+        const acct: ResolvedAccount = await resolveAccount(accountId);
+        headers = proxyHeadersFor(acct);
+      } catch (e) {
+        console.warn(`Could not resolve credentials for account ${key}:`, (e as Error).message);
+        headers = null;
+      }
+      headersCache.set(key, headers);
+      return headers;
+    }
 
     // Optional overrides via request body (for manual full backfills).
     let windowDays = 30;

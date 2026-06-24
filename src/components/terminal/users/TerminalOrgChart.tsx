@@ -42,10 +42,12 @@ const DEFAULT_COLOR = { bg: "bg-muted/20", border: "border-border", text: "text-
 function OrgCardNode({
   node,
   onToggle,
+  onLink,
   searchQuery,
 }: {
   node: OrgNode;
   onToggle: (userId: string) => void;
+  onLink: (node: OrgNode) => void;
   searchQuery: string;
 }) {
   const level = node.hierarchyLevel ?? 5;

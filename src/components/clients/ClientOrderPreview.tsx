@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { TrendingUp, TrendingDown, Calendar, ShoppingCart, Package } from "lucide-react";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface ClientOrderPreviewProps {
   clientId: string;

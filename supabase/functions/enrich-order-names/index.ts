@@ -220,6 +220,7 @@ serve(async (req) => {
           result = JSON.parse(text);
         } catch {
           console.warn(`Failed to parse response for ${order.order_number}`);
+          if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
           failed++;
           continue;
         }
@@ -227,9 +228,14 @@ serve(async (req) => {
         const detail = result?.data?.data || result?.data || result;
         if (!detail || detail.error) {
           console.warn(`No detail for ${order.order_number}:`, JSON.stringify(result).substring(0, 500));
+          // Mark as attempted so this un-fetchable order is not re-selected forever
+          // and does not starve recoverable rows in subsequent runs.
+          if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
           failed++;
           continue;
         }
+
+
 
         // For BUY orders, counterparty is seller; for SELL orders, counterparty is buyer
         let verifiedName: string | null = null;

@@ -106,6 +106,20 @@ function OrgCardNode({
             )}
           </button>
         )}
+
+        {/* Link to supervisor */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLink(node);
+          }}
+          title="Link to reporting manager"
+          className={`absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full border ${
+            node.isOrphan ? "border-destructive/60 bg-destructive/20 text-destructive" : `${colors.border} ${colors.bg} text-muted-foreground`
+          } flex items-center justify-center hover:scale-110 transition-transform z-10`}
+        >
+          <Link2 className="h-3 w-3" />
+        </button>
       </div>
 
       {/* Children */}

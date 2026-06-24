@@ -480,7 +480,7 @@ export function TerminalOrgChart() {
                 }}
               >
                 {filteredTree.map(node => (
-                  <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} searchQuery={searchQuery} />
+                  <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} onLink={openLinkDialog} searchQuery={searchQuery} />
                 ))}
                 {orphanNodes.length > 0 && filteredTree.length > 0 && (
                   <div className="w-full flex flex-col items-center mt-10 pt-6 border-t border-destructive/30">
@@ -490,7 +490,7 @@ export function TerminalOrgChart() {
                     </div>
                     <div className="flex items-start gap-6 flex-wrap justify-center">
                       {orphanNodes.map(node => (
-                        <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} searchQuery={searchQuery} />
+                        <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} onLink={openLinkDialog} searchQuery={searchQuery} />
                       ))}
                     </div>
                   </div>

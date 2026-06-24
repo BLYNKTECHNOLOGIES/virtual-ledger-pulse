@@ -109,6 +109,8 @@ function TerminalOrdersContent() {
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkHandledRef = useRef(false);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;

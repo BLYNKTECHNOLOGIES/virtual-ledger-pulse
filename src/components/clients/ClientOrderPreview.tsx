@@ -22,6 +22,7 @@ interface ClientOrderPreviewProps {
 }
 
 interface OrderData {
+  id: string;
   order_number: string;
   total_amount: number;
   order_date: string;

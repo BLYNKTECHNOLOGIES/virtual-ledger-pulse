@@ -131,7 +131,23 @@ async function fetchWithRetry(
   throw lastError;
 }
 
+// Mark an order whose detail Binance won't return, so it stops being re-selected
+// every run (which would starve recoverable rows). Uses a small sentinel in
+// order_detail_raw; real detail (if ever available) is never overwritten here.
+async function markNoDetail(supabase: any, orderNumber: string) {
+  try {
+    await supabase
+      .from("binance_order_history")
+      .update({
+        order_detail_raw: { _enrich_no_detail: true, _attempted_at: new Date().toISOString() },
+      })
+      .eq("order_number", orderNumber)
+      .is("order_detail_raw", null);
+  } catch (_e) { /* best effort */ }
+}
+
 serve(async (req) => {
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

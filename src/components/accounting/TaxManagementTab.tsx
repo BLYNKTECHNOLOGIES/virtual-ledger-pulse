@@ -311,8 +311,16 @@ export function TaxManagementTab() {
               </TableCell>
             </TableRow>
           ) : visibleRows.map(r => (
-            <TableRow key={r.id}>
-              <TableCell>
+            <TableRow
+              key={r.id}
+              className={r.purchase_order_id ? "cursor-pointer hover:bg-muted/50" : undefined}
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('button, a, input, [role="checkbox"], [data-no-row-click]')) return;
+                if (r.purchase_order_id) openTransaction({ type: 'purchase_order', id: r.purchase_order_id });
+              }}
+              title={r.purchase_order_id ? "Click to view full order details" : undefined}
+            >
+              <TableCell data-no-row-click>
                 <Checkbox
                   checked={selectedIds.includes(r.id)}
                   onCheckedChange={() => toggleRow(r.id)}

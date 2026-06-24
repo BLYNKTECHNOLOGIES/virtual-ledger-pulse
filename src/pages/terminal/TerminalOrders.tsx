@@ -831,6 +831,25 @@ function TerminalOrdersContent() {
 
   const visibleOrders = useMemo(() => displayOrders.slice(0, visibleCount), [displayOrders, visibleCount]);
 
+  // Deep-link: when arriving with ?order=<orderNumber> (e.g. from the dashboard
+  // Operational Alerts), auto-open that order's workspace once it's loaded.
+  useEffect(() => {
+    if (deepLinkHandledRef.current) return;
+    const target = searchParams.get('order');
+    if (!target || !displayOrders.length) return;
+    const match = displayOrders.find(
+      o => String(o.binance_order_number) === target || String((o as any).orderNumber) === target,
+    );
+    if (match) {
+      deepLinkHandledRef.current = true;
+      setSelectedOrder(match);
+      // Strip the param so navigating back to the list doesn't re-open it.
+      searchParams.delete('order');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, displayOrders, setSearchParams]);
+
+
   const { data: releaseMonitorLogs = [] } = useQuery({
     queryKey: ['terminal-release-monitor-latest'],
     queryFn: async () => {

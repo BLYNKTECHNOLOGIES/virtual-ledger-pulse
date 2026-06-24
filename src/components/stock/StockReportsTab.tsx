@@ -448,7 +448,8 @@ export function StockReportsTab() {
                       <td className="py-3 px-4">{row.wallet_name || '-'}</td>
                       <td className="py-3 px-4">{row.reference_number || '-'}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               

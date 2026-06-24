@@ -230,26 +230,38 @@ serve(async (req) => {
           body: JSON.stringify({ adOrderNo: order.order_number }),
         });
 
+        // A previously stored, real (non-sentinel) detail we can fall back to
+        // when the live API no longer returns this (old/cancelled) order.
+        const storedDetail =
+          order.order_detail_raw && typeof order.order_detail_raw === "object" &&
+          !(order.order_detail_raw as any)._enrich_no_detail
+            ? order.order_detail_raw
+            : null;
+
         const text = await response.text();
         let result: any;
         try {
           result = JSON.parse(text);
         } catch {
           console.warn(`Failed to parse response for ${order.order_number}`);
-          if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
-          failed++;
-          continue;
+          result = null;
         }
 
-        const detail = result?.data?.data || result?.data || result;
+        let detail = result?.data?.data || result?.data || result;
         if (!detail || detail.error) {
-          console.warn(`No detail for ${order.order_number}:`, JSON.stringify(result).substring(0, 500));
-          // Mark as attempted so this un-fetchable order is not re-selected forever
-          // and does not starve recoverable rows in subsequent runs.
-          if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
-          failed++;
-          continue;
+          if (storedDetail) {
+            // Recover from already-stored detail instead of giving up.
+            detail = storedDetail;
+          } else {
+            console.warn(`No detail for ${order.order_number}`);
+            // Mark as attempted so this un-fetchable order is not re-selected
+            // forever and does not starve recoverable rows in later runs.
+            if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
+            failed++;
+            continue;
+          }
         }
+
 
 
 

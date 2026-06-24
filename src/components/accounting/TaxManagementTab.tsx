@@ -18,6 +18,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import * as XLSX from "xlsx";
 import { filterNonAdjustmentBanks } from "@/lib/adjustment-accounts";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface AllocationRow {
   id: string;

@@ -280,43 +280,54 @@ export function useSyncOrderHistory() {
     onSuccess: async ({ count, duration, type }) => {
       const label = type === 'full' ? 'Full sync' : 'Incremental sync';
       toast.success(`${label}: ${count.toLocaleString('en-IN')} orders in ${(duration / 1000).toFixed(0)}s`);
-      
-      // Post-sync: capture seller payment details from active BUY orders (before they complete)
-      try {
-        const { captured } = await captureSellerPaymentDetails();
-        if (captured > 0) {
-        }
-      } catch (err) {
-        console.error('[PostSync] Seller payment capture failed:', err);
-      }
 
-      // Post-sync: sync completed BUY orders to terminal_purchase_sync
-      try {
-        const { synced, duplicates } = await syncCompletedBuyOrders();
-        if (synced > 0) {
-          toast.info(`${synced} new purchase(s) synced to ERP for approval`);
-        }
-      } catch (err) {
-        console.error('[PostSync] Purchase sync failed:', err);
-      }
-
-      // Post-sync: sync completed SELL orders to terminal_sales_sync
-      try {
-        const { synced: sellSynced } = await syncCompletedSellOrders();
-        if (sellSynced > 0) {
-          toast.info(`${sellSynced} new sale(s) synced to ERP for approval`);
-        }
-      } catch (err) {
-        console.error('[PostSync] Sales sync failed:', err);
-      }
-
+      // PHASE 1 — refresh the dashboard immediately from the freshly-synced
+      // order history. Buy/Sell volume and counts are computed from these rows,
+      // so invalidating here (before the slower ERP syncs below) makes the
+      // metric cards update within seconds instead of waiting for the whole
+      // post-sync chain. This is why Buy Volume used to sit at 0 and only jump
+      // up after 2-3 minutes: recently-released buys flip to COMPLETED during
+      // this sync, but the dashboard wasn't re-read until everything finished.
       queryClient.invalidateQueries({ queryKey: ['cached-order-history'] });
       queryClient.invalidateQueries({ queryKey: ['binance-sync-metadata'] });
-      queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
-      queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
-      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
-      queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
-      queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
+
+      // PHASE 2 — heavier ERP syncs run in the background. They feed the
+      // approval queues (purchases/sales), not the dashboard metrics, so they
+      // must not block the dashboard refresh above.
+      void (async () => {
+        // Capture seller payment details from active BUY orders (before they complete)
+        try {
+          await captureSellerPaymentDetails();
+        } catch (err) {
+          console.error('[PostSync] Seller payment capture failed:', err);
+        }
+
+        // Sync completed BUY orders to terminal_purchase_sync
+        try {
+          const { synced } = await syncCompletedBuyOrders();
+          if (synced > 0) {
+            toast.info(`${synced} new purchase(s) synced to ERP for approval`);
+          }
+        } catch (err) {
+          console.error('[PostSync] Purchase sync failed:', err);
+        }
+
+        // Sync completed SELL orders to terminal_sales_sync
+        try {
+          const { synced: sellSynced } = await syncCompletedSellOrders();
+          if (sellSynced > 0) {
+            toast.info(`${sellSynced} new sale(s) synced to ERP for approval`);
+          }
+        } catch (err) {
+          console.error('[PostSync] Sales sync failed:', err);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
+        queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
+      })();
     },
     onError: (err: Error) => {
       toast.error(`Sync failed: ${err.message}`);

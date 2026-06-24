@@ -667,6 +667,13 @@ export function SellerOnboardingApprovals() {
                     return (
                       <tr key={seller.id} className="border-b hover:bg-gray-50">
                         <td className="py-3 px-4">
+                          <Checkbox
+                            checked={selectedIds.has(seller.id)}
+                            onCheckedChange={() => toggleSelectOne(seller.id)}
+                            aria-label={`Select ${seller.name}`}
+                          />
+                        </td>
+                        <td className="py-3 px-4">
                           <button
                             onClick={() => handleViewOrders(seller.id)}
                             className="font-medium text-blue-600 hover:underline flex items-center gap-1"

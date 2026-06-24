@@ -94,12 +94,14 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   // Combine and sort recent transactions
   const allOrders: OrderData[] = [
     ...salesOrders.slice(0, 5).map(o => ({ 
+      id: o.id,
       order_number: o.order_number, 
       total_amount: o.total_amount, 
       order_date: o.order_date, 
       type: 'buy' as const 
     })),
     ...purchaseOrders.slice(0, 5).map(o => ({ 
+      id: o.id,
       order_number: o.order_number, 
       total_amount: o.total_amount, 
       order_date: o.order_date, 

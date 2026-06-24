@@ -153,13 +153,18 @@ interface Props {
 
 export function TimePeriodFilter({ value, onChange }: Props) {
   const [calOpen, setCalOpen] = useState(false);
+  const [rangeOpen, setRangeOpen] = useState(false);
   const isDayMode = value.mode === '1d';
+  const isRangeMode = value.mode === 'range';
   const selectedDate = isDayMode ? value.date : new Date();
   const activeShift = isDayMode ? value.shift : 'all';
+  const [draftRange, setDraftRange] = useState<DateRange | undefined>(
+    isRangeMode ? { from: value.from, to: value.to } : undefined,
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {/* Date picker */}
+      {/* Single date picker */}
       <Popover open={calOpen} onOpenChange={setCalOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -192,6 +197,73 @@ export function TimePeriodFilter({ value, onChange }: Props) {
           />
         </PopoverContent>
       </Popover>
+
+      {/* Custom date range picker */}
+      <Popover
+        open={rangeOpen}
+        onOpenChange={(o) => {
+          setRangeOpen(o);
+          if (o) setDraftRange(isRangeMode ? { from: value.from, to: value.to } : undefined);
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            variant={isRangeMode ? 'default' : 'outline'}
+            size="sm"
+            className={cn(
+              'h-7 text-xs px-2.5 gap-1.5',
+              isRangeMode
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <CalendarRange className="h-3 w-3" />
+            {isRangeMode
+              ? `${format(value.from, 'dd MMM')} – ${format(value.to, 'dd MMM')}`
+              : 'Range'}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="range"
+            selected={draftRange}
+            onSelect={(r) => setDraftRange(r)}
+            disabled={(d) => d > new Date()}
+            numberOfMonths={2}
+            initialFocus
+            className="p-3 pointer-events-auto"
+          />
+          <div className="flex items-center justify-end gap-2 border-t border-border p-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                setDraftRange(undefined);
+                setRangeOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              disabled={!draftRange?.from}
+              onClick={() => {
+                if (draftRange?.from) {
+                  const from = draftRange.from;
+                  const to = draftRange.to ?? draftRange.from;
+                  onChange({ mode: 'range', from, to });
+                  setRangeOpen(false);
+                }
+              }}
+            >
+              Apply
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
 
       {/* Shift chips — only in day mode */}
       {isDayMode && (

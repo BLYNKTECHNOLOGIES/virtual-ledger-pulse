@@ -123,13 +123,12 @@ export default function TerminalDashboard() {
     }));
   }, [cachedOrders]);
 
-  // Filter orders by selected filter
+  // Re-filter client-side as a safety net (DB read is already scoped to the window)
   const orders = useMemo(() => {
-    const { startTimestamp, endTimestamp } = getTimestampsForFilter(filter);
+    const { startTimestamp, endTimestamp } = filterBounds;
     return allOrders.filter(o => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [allOrders, filter]);
+  }, [allOrders, filterBounds]);
 
-  const filterBounds = useMemo(() => getTimestampsForFilter(filter), [filter]);
   const stats = useMemo(() => computeOrderStats(orders, filterBounds), [orders, filterBounds]);
 
   const periodLabel = getFilterLabel(filter);

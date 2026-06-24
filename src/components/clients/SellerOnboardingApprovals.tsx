@@ -12,6 +12,17 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +46,10 @@ export function SellerOnboardingApprovals() {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [sellerToReject, setSellerToReject] = useState<any>(null);
-  
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
@@ -303,80 +317,85 @@ export function SellerOnboardingApprovals() {
     return 'new_client';
   };
 
-  // Approve seller mutation
-  const approveMutation = useMutation({
-    mutationFn: async (sellerId: string) => {
-      // If this pending seller record is actually a duplicate of an already-known client
-      // (matched by Binance nickname), redirect approval to that existing client and soft-
-      // delete the duplicate to prevent a parallel record.
-      const seller = pendingSellers?.find(s => s.id === sellerId);
-      const linkedExisting = seller ? sellerNicknameMap?.[seller.name]?.existingClient : null;
+  // Core approval logic for a single seller (reused by single + bulk approve).
+  const approveSingleSeller = async (sellerId: string) => {
+    // If this pending seller record is actually a duplicate of an already-known client
+    // (matched by Binance nickname), redirect approval to that existing client and soft-
+    // delete the duplicate to prevent a parallel record.
+    const seller = pendingSellers?.find(s => s.id === sellerId);
+    const linkedExisting = seller ? sellerNicknameMap?.[seller.name]?.existingClient : null;
 
-      if (linkedExisting && linkedExisting.id !== sellerId) {
-        // Flip existing client's seller side to APPROVED
-        const { error: updErr } = await supabase
-          .from('clients')
-          .update({
-            is_seller: true,
-            kyc_status: 'VERIFIED',
-            seller_approval_status: 'APPROVED',
-            seller_approved_at: new Date().toISOString(),
-          })
-          .eq('id', linkedExisting.id);
-        if (updErr) throw updErr;
-
-        // Soft-delete the duplicate pending record
-        const { error: delErr } = await supabase
-          .from('clients')
-          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-          .eq('id', sellerId);
-        if (delErr) throw delErr;
-
-        return { mergedInto: linkedExisting.id };
-      }
-
-      const { error } = await supabase
+    if (linkedExisting && linkedExisting.id !== sellerId) {
+      // Flip existing client's seller side to APPROVED
+      const { error: updErr } = await supabase
         .from('clients')
-        .update({ 
+        .update({
+          is_seller: true,
           kyc_status: 'VERIFIED',
           seller_approval_status: 'APPROVED',
           seller_approved_at: new Date().toISOString(),
         })
+        .eq('id', linkedExisting.id);
+      if (updErr) throw updErr;
+
+      // Soft-delete the duplicate pending record
+      const { error: delErr } = await supabase
+        .from('clients')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq('id', sellerId);
-      
-      if (error) throw error;
-      return { mergedInto: null };
-    },
-    onSuccess: async (result, sellerId) => {
-      // Auto-capture Binance nickname → client link (point to merged target if applicable)
-      const seller = pendingSellers?.find(s => s.id === sellerId);
-      const targetClientId = result?.mergedInto || sellerId;
-      if (seller) {
-        const nickInfo = sellerNicknameMap?.[seller.name];
-        if (nickInfo?.nickname && !nickInfo.nickname.includes('*')) {
-          try {
-            await supabase.from('client_binance_nicknames').upsert({
-              client_id: targetClientId,
-              nickname: nickInfo.nickname,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' });
-          } catch (e) {
-            console.error('Failed to auto-capture seller nickname link:', e);
-          }
-        }
-        // Auto-capture verified name (seller.name is KYC-verified)
-        try {
-          await supabase.from('client_verified_names').upsert({
-            client_id: targetClientId,
-            verified_name: seller.name.trim(),
-            source: 'approval',
-            last_seen_at: new Date().toISOString(),
-          }, { onConflict: 'client_id,verified_name' });
-        } catch (e) {
-          console.error('Failed to auto-capture seller verified name:', e);
-        }
+      if (delErr) throw delErr;
+
+      return { mergedInto: linkedExisting.id };
+    }
+
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        kyc_status: 'VERIFIED',
+        seller_approval_status: 'APPROVED',
+        seller_approved_at: new Date().toISOString(),
+      })
+      .eq('id', sellerId);
+
+    if (error) throw error;
+    return { mergedInto: null };
+  };
+
+  // Auto-capture Binance nickname + verified name links after approval.
+  const captureSellerLinks = async (sellerId: string, mergedInto: string | null) => {
+    const seller = pendingSellers?.find(s => s.id === sellerId);
+    const targetClientId = mergedInto || sellerId;
+    if (!seller) return;
+    const nickInfo = sellerNicknameMap?.[seller.name];
+    if (nickInfo?.nickname && !nickInfo.nickname.includes('*')) {
+      try {
+        await supabase.from('client_binance_nicknames').upsert({
+          client_id: targetClientId,
+          nickname: nickInfo.nickname,
+          source: 'approval',
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'nickname' });
+      } catch (e) {
+        console.error('Failed to auto-capture seller nickname link:', e);
       }
+    }
+    try {
+      await supabase.from('client_verified_names').upsert({
+        client_id: targetClientId,
+        verified_name: seller.name.trim(),
+        source: 'approval',
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: 'client_id,verified_name' });
+    } catch (e) {
+      console.error('Failed to auto-capture seller verified name:', e);
+    }
+  };
+
+  // Approve seller mutation
+  const approveMutation = useMutation({
+    mutationFn: async (sellerId: string) => approveSingleSeller(sellerId),
+    onSuccess: async (result, sellerId) => {
+      await captureSellerLinks(sellerId, result?.mergedInto || null);
 
       toast({
         title: result?.mergedInto ? "Merged into existing client" : "Seller Approved",
@@ -394,6 +413,49 @@ export function SellerOnboardingApprovals() {
       toast({
         title: "Error",
         description: `Failed to approve seller: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk approve selected sellers (sequential to keep merge/link logic safe).
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (sellerIds: string[]) => {
+      let approved = 0;
+      let failed = 0;
+      setBulkProgress({ done: 0, total: sellerIds.length });
+      for (const sellerId of sellerIds) {
+        try {
+          const result = await approveSingleSeller(sellerId);
+          await captureSellerLinks(sellerId, result?.mergedInto || null);
+          queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
+            old ? old.filter(s => s.id !== sellerId) : []
+          );
+          approved++;
+        } catch (e) {
+          console.error('Bulk approve failed for seller:', sellerId, e);
+          failed++;
+        }
+        setBulkProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev);
+      }
+      return { approved, failed };
+    },
+    onSuccess: ({ approved, failed }) => {
+      toast({
+        title: "Bulk Approval Complete",
+        description: `${approved} seller(s) approved${failed ? `, ${failed} failed` : ''}.`,
+        variant: failed ? "destructive" : undefined,
+      });
+      setSelectedIds(new Set());
+      setBulkProgress(null);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-approval-nicknames'] });
+    },
+    onError: (error: any) => {
+      setBulkProgress(null);
+      toast({
+        title: "Error",
+        description: `Bulk approval failed: ${error.message}`,
         variant: "destructive",
       });
     },
@@ -462,6 +524,35 @@ export function SellerOnboardingApprovals() {
     seller.client_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const allVisibleSelected = !!filteredSellers?.length && filteredSellers.every(s => selectedIds.has(s.id));
+  const someVisibleSelected = !!filteredSellers?.some(s => selectedIds.has(s.id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filteredSellers?.forEach(s => next.delete(s.id));
+      } else {
+        filteredSellers?.forEach(s => next.add(s.id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (sellerId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(sellerId)) next.delete(sellerId);
+      else next.add(sellerId);
+      return next;
+    });
+  };
+
+  const handleBulkApproveConfirm = () => {
+    setShowBulkConfirm(false);
+    bulkApproveMutation.mutate(Array.from(selectedIds));
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -503,14 +594,40 @@ export function SellerOnboardingApprovals() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search by name or client ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search by name or client ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedIds(new Set())}
+                  disabled={bulkApproveMutation.isPending}
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => setShowBulkConfirm(true)}
+                  disabled={bulkApproveMutation.isPending}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  {bulkApproveMutation.isPending && bulkProgress
+                    ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
+                    : `Bulk Approve (${selectedIds.size})`}
+                </Button>
+              </div>
+            )}
           </div>
 
           {filteredSellers && filteredSellers.length > 0 ? (
@@ -518,6 +635,13 @@ export function SellerOnboardingApprovals() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600 w-10">
+                      <Checkbox
+                        checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all sellers"
+                      />
+                    </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Binance ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>
@@ -542,6 +666,13 @@ export function SellerOnboardingApprovals() {
                     const noIdentitySignal = identityState === 'new_client' && !safeNick && !isSameUserByVName;
                     return (
                       <tr key={seller.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          <Checkbox
+                            checked={selectedIds.has(seller.id)}
+                            onCheckedChange={() => toggleSelectOne(seller.id)}
+                            aria-label={`Select ${seller.name}`}
+                          />
+                        </td>
                         <td className="py-3 px-4">
                           <button
                             onClick={() => handleViewOrders(seller.id)}
@@ -706,6 +837,26 @@ export function SellerOnboardingApprovals() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Approve Confirmation */}
+      <AlertDialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bulk Approve Sellers</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to approve <strong>{selectedIds.size}</strong> selected seller{selectedIds.size === 1 ? '' : 's'}.
+              Each will be marked as verified and approved on the seller side. Known-client duplicates will be merged automatically. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-green-600 hover:bg-green-700" onClick={handleBulkApproveConfirm}>
+              Approve {selectedIds.size} Seller{selectedIds.size === 1 ? '' : 's'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }

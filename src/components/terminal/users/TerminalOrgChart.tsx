@@ -177,6 +177,15 @@ export function TerminalOrgChart() {
   const [managerFilter, setManagerFilter] = useState("all");
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // All users (for the supervisor picker) and current supervisor mappings
+  const [allUsers, setAllUsers] = useState<{ userId: string; displayName: string; roleName: string; hierarchyLevel: number | null }[]>([]);
+  const [supervisorsByUser, setSupervisorsByUser] = useState<Map<string, string[]>>(new Map());
+  // Link dialog state
+  const [linkTarget, setLinkTarget] = useState<OrgNode | null>(null);
+  const [linkSelected, setLinkSelected] = useState<Set<string>>(new Set());
+  const [linkSearch, setLinkSearch] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartWrapperRef = useRef<HTMLDivElement>(null);
 

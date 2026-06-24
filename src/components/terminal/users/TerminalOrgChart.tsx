@@ -3,12 +3,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   RefreshCw, ZoomIn, ZoomOut, Maximize2, Search,
   ChevronDown, ChevronUp, User, Users, Crown, Briefcase, Shield,
-  AlertTriangle, Link2Off
+  AlertTriangle, Link2Off, Link2, Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrgNode {
   userId: string;
@@ -38,10 +42,12 @@ const DEFAULT_COLOR = { bg: "bg-muted/20", border: "border-border", text: "text-
 function OrgCardNode({
   node,
   onToggle,
+  onLink,
   searchQuery,
 }: {
   node: OrgNode;
   onToggle: (userId: string) => void;
+  onLink: (node: OrgNode) => void;
   searchQuery: string;
 }) {
   const level = node.hierarchyLevel ?? 5;
@@ -100,6 +106,20 @@ function OrgCardNode({
             )}
           </button>
         )}
+
+        {/* Link to supervisor */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onLink(node);
+          }}
+          title="Link to reporting manager"
+          className={`absolute -top-2.5 -right-2.5 h-6 w-6 rounded-full border ${
+            node.isOrphan ? "border-destructive/60 bg-destructive/20 text-destructive" : `${colors.border} ${colors.bg} text-muted-foreground`
+          } flex items-center justify-center hover:scale-110 transition-transform z-10`}
+        >
+          <Link2 className="h-3 w-3" />
+        </button>
       </div>
 
       {/* Children */}
@@ -112,6 +132,7 @@ function OrgCardNode({
             <OrgCardNode
               node={node.children[0]}
               onToggle={onToggle}
+                      onLink={onLink}
               searchQuery={searchQuery}
             />
           ) : (
@@ -133,6 +154,7 @@ function OrgCardNode({
                     <OrgCardNode
                       node={child}
                       onToggle={onToggle}
+                      onLink={onLink}
                       searchQuery={searchQuery}
                     />
                   </div>
@@ -155,6 +177,15 @@ export function TerminalOrgChart() {
   const [managerFilter, setManagerFilter] = useState("all");
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // All users (for the supervisor picker) and current supervisor mappings
+  const [allUsers, setAllUsers] = useState<{ userId: string; displayName: string; roleName: string; hierarchyLevel: number | null }[]>([]);
+  const [supervisorsByUser, setSupervisorsByUser] = useState<Map<string, string[]>>(new Map());
+  // Link dialog state
+  const [linkTarget, setLinkTarget] = useState<OrgNode | null>(null);
+  const [linkSelected, setLinkSelected] = useState<Set<string>>(new Set());
+  const [linkSearch, setLinkSearch] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -264,6 +295,13 @@ export function TerminalOrgChart() {
       setManagers(mgrs);
       setTree(trueRoots);
       setOrphanNodes(orphans);
+
+      // All users for the supervisor picker, sorted by hierarchy then name
+      const usersList = Array.from(nodesMap.values())
+        .map(n => ({ userId: n.userId, displayName: n.displayName, roleName: n.roleName, hierarchyLevel: n.hierarchyLevel }))
+        .sort((a, b) => (a.hierarchyLevel ?? 99) - (b.hierarchyLevel ?? 99) || a.displayName.localeCompare(b.displayName));
+      setAllUsers(usersList);
+      setSupervisorsByUser(supervisorMap);
     } catch (err) {
       console.error("Error building org chart:", err);
     } finally {
@@ -284,6 +322,78 @@ export function TerminalOrgChart() {
       return toggle(prev);
     });
   }, []);
+
+  const openLinkDialog = useCallback((node: OrgNode) => {
+    setLinkTarget(node);
+    setLinkSelected(new Set(supervisorsByUser.get(node.userId) || []));
+    setLinkSearch("");
+  }, [supervisorsByUser]);
+
+  // Prevent picking the user themselves or any of their descendants as a supervisor (would create a cycle)
+  const descendantIds = useMemo(() => {
+    if (!linkTarget) return new Set<string>();
+    const ids = new Set<string>();
+    const walk = (n: OrgNode) => {
+      ids.add(n.userId);
+      n.children.forEach(walk);
+    };
+    walk(linkTarget);
+    return ids;
+  }, [linkTarget]);
+
+  const candidateUsers = useMemo(() => {
+    const q = linkSearch.trim().toLowerCase();
+    return allUsers.filter(u =>
+      !descendantIds.has(u.userId) &&
+      (!q || u.displayName.toLowerCase().includes(q) || u.roleName.toLowerCase().includes(q))
+    );
+  }, [allUsers, descendantIds, linkSearch]);
+
+  const toggleLinkSelection = (id: string) => {
+    setLinkSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const saveLink = async () => {
+    if (!linkTarget) return;
+    setIsSaving(true);
+    try {
+      const userId = linkTarget.userId;
+      const { error: delErr } = await supabase
+        .from("terminal_user_supervisor_mappings")
+        .delete()
+        .eq("user_id", userId);
+      if (delErr) throw delErr;
+
+      if (linkSelected.size > 0) {
+        const rows = Array.from(linkSelected).map(sid => ({ user_id: userId, supervisor_id: sid }));
+        const { error: insErr } = await supabase
+          .from("terminal_user_supervisor_mappings")
+          .insert(rows);
+        if (insErr) throw insErr;
+      }
+
+      toast({
+        title: "Reporting manager updated",
+        description: `${linkTarget.displayName}'s hierarchy link has been saved.`,
+      });
+      setLinkTarget(null);
+      await fetchHierarchy();
+    } catch (err: any) {
+      console.error("Error saving supervisor link:", err);
+      toast({
+        title: "Failed to update",
+        description: err?.message || "Could not save the reporting manager link.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   // Filter tree by reporting manager
   const filteredTree = managerFilter === "all"
@@ -355,6 +465,7 @@ export function TerminalOrgChart() {
                 key={node.userId}
                 node={node}
                 onToggle={toggleNode}
+                onLink={openLinkDialog}
                 searchQuery={searchQuery}
               />
             ))}
@@ -372,6 +483,7 @@ export function TerminalOrgChart() {
                       key={node.userId}
                       node={node}
                       onToggle={toggleNode}
+                onLink={openLinkDialog}
                       searchQuery={searchQuery}
                     />
                   ))}
@@ -391,6 +503,7 @@ export function TerminalOrgChart() {
                       key={node.userId}
                       node={node}
                       onToggle={toggleNode}
+                onLink={openLinkDialog}
                       searchQuery={searchQuery}
                     />
                   ))}
@@ -455,7 +568,7 @@ export function TerminalOrgChart() {
                 }}
               >
                 {filteredTree.map(node => (
-                  <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} searchQuery={searchQuery} />
+                  <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} onLink={openLinkDialog} searchQuery={searchQuery} />
                 ))}
                 {orphanNodes.length > 0 && filteredTree.length > 0 && (
                   <div className="w-full flex flex-col items-center mt-10 pt-6 border-t border-destructive/30">
@@ -465,7 +578,7 @@ export function TerminalOrgChart() {
                     </div>
                     <div className="flex items-start gap-6 flex-wrap justify-center">
                       {orphanNodes.map(node => (
-                        <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} searchQuery={searchQuery} />
+                        <OrgCardNode key={node.userId} node={node} onToggle={toggleNode} onLink={openLinkDialog} searchQuery={searchQuery} />
                       ))}
                     </div>
                   </div>
@@ -547,6 +660,66 @@ export function TerminalOrgChart() {
           {chartContent}
         </div>
       </div>
+
+      {/* Link to reporting manager dialog */}
+      <Dialog open={!!linkTarget} onOpenChange={(open) => { if (!open) setLinkTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Link Reporting Manager
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {linkTarget && (
+                <>Select the reporting manager(s) for <span className="font-medium text-foreground">{linkTarget.displayName}</span> ({linkTarget.roleName}). They will be connected above in the org chart.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={linkSearch}
+              onChange={(e) => setLinkSearch(e.target.value)}
+              placeholder="Search users..."
+              className="h-8 pl-7 text-xs bg-secondary border-border"
+            />
+          </div>
+
+          <ScrollArea className="h-[280px] pr-3 -mr-3">
+            <div className="space-y-1">
+              {candidateUsers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">No matching users.</p>
+              ) : (
+                candidateUsers.map(u => (
+                  <label
+                    key={u.userId}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/40 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={linkSelected.has(u.userId)}
+                      onCheckedChange={() => toggleLinkSelection(u.userId)}
+                    />
+                    <span className="text-xs text-foreground flex-1 truncate">{u.displayName}</span>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{u.roleName}</Badge>
+                  </label>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => setLinkTarget(null)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button size="sm" className="text-xs gap-1.5" onClick={saveLink} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+              {linkSelected.size === 0 ? "Remove Manager" : `Save (${linkSelected.size})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }

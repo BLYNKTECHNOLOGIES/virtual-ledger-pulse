@@ -132,6 +132,7 @@ function OrgCardNode({
             <OrgCardNode
               node={node.children[0]}
               onToggle={onToggle}
+                      onLink={onLink}
               searchQuery={searchQuery}
             />
           ) : (
@@ -153,6 +154,7 @@ function OrgCardNode({
                     <OrgCardNode
                       node={child}
                       onToggle={onToggle}
+                      onLink={onLink}
                       searchQuery={searchQuery}
                     />
                   </div>
@@ -375,6 +377,7 @@ export function TerminalOrgChart() {
                 key={node.userId}
                 node={node}
                 onToggle={toggleNode}
+                onLink={openLinkDialog}
                 searchQuery={searchQuery}
               />
             ))}
@@ -392,6 +395,7 @@ export function TerminalOrgChart() {
                       key={node.userId}
                       node={node}
                       onToggle={toggleNode}
+                onLink={openLinkDialog}
                       searchQuery={searchQuery}
                     />
                   ))}
@@ -411,6 +415,7 @@ export function TerminalOrgChart() {
                       key={node.userId}
                       node={node}
                       onToggle={toggleNode}
+                onLink={openLinkDialog}
                       searchQuery={searchQuery}
                     />
                   ))}

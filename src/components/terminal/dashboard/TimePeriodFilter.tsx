@@ -41,6 +41,12 @@ function istToUtc(date: Date, hours: number, minutes: number): number {
 export function getTimestampsForFilter(filter: TimeFilter): { startTimestamp: number; endTimestamp: number } {
   const now = Date.now();
 
+  if (filter.mode === 'range') {
+    const start = istToUtc(filter.from, 0, 0);
+    const end = istToUtc(filter.to, 24, 0);
+    return { startTimestamp: start, endTimestamp: Math.min(end, now) };
+  }
+
   if (filter.mode !== '1d') {
     switch (filter.mode) {
       case '7d':

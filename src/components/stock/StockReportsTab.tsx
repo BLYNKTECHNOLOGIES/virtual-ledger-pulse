@@ -188,6 +188,8 @@ export function StockReportsTab() {
     }),
     ...(purchaseReport || []).map((p: any) => ({
       id: `POI-${p.id}`,
+      _txType: 'purchase_order' as const,
+      _txId: p.purchase_order_id || null,
       transaction_date: p.purchase_orders?.order_date,
       products: {
         name: p.products?.name,
@@ -207,6 +209,8 @@ export function StockReportsTab() {
       const isCredit = ['TRANSFER_IN', 'CREDIT'].includes(type);
       return {
         id: `WT-${w.id}`,
+        _txType: 'wallet_transaction' as const,
+        _txId: w.id,
         transaction_date: w.created_at,
         products: {
           name: usdtProduct?.name || 'USDT',

@@ -131,9 +131,9 @@ async function fetchWithRetry(
   throw lastError;
 }
 
-// Mark an order whose detail Binance won't return, so it stops being re-selected
-// every run (which would starve recoverable rows). Uses a small sentinel in
-// order_detail_raw; real detail (if ever available) is never overwritten here.
+// Mark an order whose detail Binance won't return (or returns only an error
+// envelope), so it stops being re-selected every run and does not starve
+// recoverable rows. Called only when no usable detail exists anywhere.
 async function markNoDetail(supabase: any, orderNumber: string) {
   try {
     await supabase
@@ -141,10 +141,10 @@ async function markNoDetail(supabase: any, orderNumber: string) {
       .update({
         order_detail_raw: { _enrich_no_detail: true, _attempted_at: new Date().toISOString() },
       })
-      .eq("order_number", orderNumber)
-      .is("order_detail_raw", null);
+      .eq("order_number", orderNumber);
   } catch (_e) { /* best effort */ }
 }
+
 
 serve(async (req) => {
 

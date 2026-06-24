@@ -395,35 +395,7 @@ export function SellerOnboardingApprovals() {
   const approveMutation = useMutation({
     mutationFn: async (sellerId: string) => approveSingleSeller(sellerId),
     onSuccess: async (result, sellerId) => {
-      // Auto-capture Binance nickname → client link (point to merged target if applicable)
-      const seller = pendingSellers?.find(s => s.id === sellerId);
-      const targetClientId = result?.mergedInto || sellerId;
-      if (seller) {
-        const nickInfo = sellerNicknameMap?.[seller.name];
-        if (nickInfo?.nickname && !nickInfo.nickname.includes('*')) {
-          try {
-            await supabase.from('client_binance_nicknames').upsert({
-              client_id: targetClientId,
-              nickname: nickInfo.nickname,
-              source: 'approval',
-              last_seen_at: new Date().toISOString(),
-            }, { onConflict: 'nickname' });
-          } catch (e) {
-            console.error('Failed to auto-capture seller nickname link:', e);
-          }
-        }
-        // Auto-capture verified name (seller.name is KYC-verified)
-        try {
-          await supabase.from('client_verified_names').upsert({
-            client_id: targetClientId,
-            verified_name: seller.name.trim(),
-            source: 'approval',
-            last_seen_at: new Date().toISOString(),
-          }, { onConflict: 'client_id,verified_name' });
-        } catch (e) {
-          console.error('Failed to auto-capture seller verified name:', e);
-        }
-      }
+      await captureSellerLinks(sellerId, result?.mergedInto || null);
 
       toast({
         title: result?.mergedInto ? "Merged into existing client" : "Seller Approved",
@@ -441,6 +413,49 @@ export function SellerOnboardingApprovals() {
       toast({
         title: "Error",
         description: `Failed to approve seller: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk approve selected sellers (sequential to keep merge/link logic safe).
+  const bulkApproveMutation = useMutation({
+    mutationFn: async (sellerIds: string[]) => {
+      let approved = 0;
+      let failed = 0;
+      setBulkProgress({ done: 0, total: sellerIds.length });
+      for (const sellerId of sellerIds) {
+        try {
+          const result = await approveSingleSeller(sellerId);
+          await captureSellerLinks(sellerId, result?.mergedInto || null);
+          queryClient.setQueryData(['pending-seller-approvals'], (old: any[] | undefined) =>
+            old ? old.filter(s => s.id !== sellerId) : []
+          );
+          approved++;
+        } catch (e) {
+          console.error('Bulk approve failed for seller:', sellerId, e);
+          failed++;
+        }
+        setBulkProgress(prev => prev ? { ...prev, done: prev.done + 1 } : prev);
+      }
+      return { approved, failed };
+    },
+    onSuccess: ({ approved, failed }) => {
+      toast({
+        title: "Bulk Approval Complete",
+        description: `${approved} seller(s) approved${failed ? `, ${failed} failed` : ''}.`,
+        variant: failed ? "destructive" : undefined,
+      });
+      setSelectedIds(new Set());
+      setBulkProgress(null);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['seller-approval-nicknames'] });
+    },
+    onError: (error: any) => {
+      setBulkProgress(null);
+      toast({
+        title: "Error",
+        description: `Bulk approval failed: ${error.message}`,
         variant: "destructive",
       });
     },

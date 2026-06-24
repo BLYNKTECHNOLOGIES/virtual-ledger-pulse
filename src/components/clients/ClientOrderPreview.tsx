@@ -39,6 +39,7 @@ interface PreviewData {
 }
 
 interface RawOrderData {
+  id: string;
   order_number: string;
   total_amount: number;
   order_date: string;

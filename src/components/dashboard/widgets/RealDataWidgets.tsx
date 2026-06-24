@@ -6,6 +6,7 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { openTransaction } from "@/components/transaction-detail";
 import { TerminalSalesApprovalDialog } from "@/components/sales/TerminalSalesApprovalDialog";
 import { TerminalPurchaseApprovalDialog } from "@/components/purchase/TerminalPurchaseApprovalDialog";
 import { format, subDays, startOfDay, endOfDay, subMonths, startOfMonth, endOfMonth } from "date-fns";

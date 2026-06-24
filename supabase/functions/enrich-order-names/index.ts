@@ -248,12 +248,21 @@ serve(async (req) => {
         }
 
         let detail = result?.data?.data || result?.data || result;
-        if (!detail || detail.error) {
-          if (storedDetail) {
+        // A real order detail carries identity/trade fields. Binance error
+        // envelopes (e.g. { code, msg } when the order belongs to another
+        // exchange account the primary key can't read) must NOT be treated
+        // as valid detail.
+        const hasUsableDetail = (d: any) =>
+          d && typeof d === "object" &&
+          (d.sellerName || d.buyerName || d.sellerNickname || d.buyerNickname ||
+           d.sellerNickName || d.buyerNickName || d.orderNumber || d.tradeType);
+
+        if (!hasUsableDetail(detail) || detail.error) {
+          if (hasUsableDetail(storedDetail)) {
             // Recover from already-stored detail instead of giving up.
             detail = storedDetail;
           } else {
-            console.warn(`No detail for ${order.order_number}`);
+            console.warn(`No usable detail for ${order.order_number}`);
             // Mark as attempted so this un-fetchable order is not re-selected
             // forever and does not starve recoverable rows in later runs.
             if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
@@ -261,6 +270,7 @@ serve(async (req) => {
             continue;
           }
         }
+
 
 
 

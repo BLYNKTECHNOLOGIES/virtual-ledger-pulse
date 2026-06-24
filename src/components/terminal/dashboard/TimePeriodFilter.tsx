@@ -89,6 +89,9 @@ export function serializeTimeFilter(f: TimeFilter): string {
   if (f.mode === '1d') {
     return JSON.stringify({ mode: '1d', date: f.date.toISOString(), shift: f.shift });
   }
+  if (f.mode === 'range') {
+    return JSON.stringify({ mode: 'range', from: f.from.toISOString(), to: f.to.toISOString() });
+  }
   return JSON.stringify({ mode: f.mode });
 }
 
@@ -98,6 +101,9 @@ export function deserializeTimeFilter(raw: string | undefined | null): TimeFilte
     const obj = JSON.parse(raw);
     if (obj.mode === '1d') {
       return { mode: '1d', date: new Date(obj.date), shift: obj.shift || 'all' };
+    }
+    if (obj.mode === 'range' && obj.from && obj.to) {
+      return { mode: 'range', from: new Date(obj.from), to: new Date(obj.to) };
     }
     if (['7d', '30d', '1y'].includes(obj.mode)) {
       return { mode: obj.mode };
@@ -114,6 +120,12 @@ export function getFilterLabel(filter: TimeFilter): string {
     const dateStr = isToday ? 'Today' : format(filter.date, 'dd MMM yyyy');
     if (filter.shift === 'all') return dateStr;
     return `${dateStr} · ${SHIFTS[filter.shift].fullLabel}`;
+  }
+  if (filter.mode === 'range') {
+    const sameYear = filter.from.getFullYear() === filter.to.getFullYear();
+    const fromStr = format(filter.from, sameYear ? 'dd MMM' : 'dd MMM yyyy');
+    const toStr = format(filter.to, 'dd MMM yyyy');
+    return `${fromStr} – ${toStr}`;
   }
   if (filter.mode === '7d') return 'Last 7 Days';
   if (filter.mode === '30d') return 'Last 30 Days';

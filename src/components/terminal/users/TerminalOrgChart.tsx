@@ -660,6 +660,66 @@ export function TerminalOrgChart() {
           {chartContent}
         </div>
       </div>
+
+      {/* Link to reporting manager dialog */}
+      <Dialog open={!!linkTarget} onOpenChange={(open) => { if (!open) setLinkTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Link Reporting Manager
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {linkTarget && (
+                <>Select the reporting manager(s) for <span className="font-medium text-foreground">{linkTarget.displayName}</span> ({linkTarget.roleName}). They will be connected above in the org chart.</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              value={linkSearch}
+              onChange={(e) => setLinkSearch(e.target.value)}
+              placeholder="Search users..."
+              className="h-8 pl-7 text-xs bg-secondary border-border"
+            />
+          </div>
+
+          <ScrollArea className="h-[280px] pr-3 -mr-3">
+            <div className="space-y-1">
+              {candidateUsers.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-8">No matching users.</p>
+              ) : (
+                candidateUsers.map(u => (
+                  <label
+                    key={u.userId}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/40 cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={linkSelected.has(u.userId)}
+                      onCheckedChange={() => toggleLinkSelection(u.userId)}
+                    />
+                    <span className="text-xs text-foreground flex-1 truncate">{u.displayName}</span>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{u.roleName}</Badge>
+                  </label>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => setLinkTarget(null)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button size="sm" className="text-xs gap-1.5" onClick={saveLink} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+              {linkSelected.size === 0 ? "Remove Manager" : `Save (${linkSelected.size})`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }

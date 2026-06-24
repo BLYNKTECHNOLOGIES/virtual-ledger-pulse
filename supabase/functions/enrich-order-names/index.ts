@@ -233,11 +233,26 @@ serve(async (req) => {
 
         // For BUY orders, counterparty is seller; for SELL orders, counterparty is buyer
         let verifiedName: string | null = null;
+        let counterpartyNickname: string | null = null;
         if (order.trade_type === "BUY") {
           verifiedName = detail.sellerRealName || detail.sellerName || null;
+          counterpartyNickname = detail.sellerNickname || detail.sellerNickName || null;
         } else {
           verifiedName = detail.buyerRealName || detail.buyerName || null;
+          counterpartyNickname = detail.buyerNickname || detail.buyerNickName || null;
         }
+
+        // Only accept a clean, unmasked nickname (no '*', not 'Unknown').
+        const cleanNick =
+          typeof counterpartyNickname === "string" &&
+          counterpartyNickname.trim() &&
+          !counterpartyNickname.includes("*") &&
+          counterpartyNickname.trim().toLowerCase() !== "unknown"
+            ? counterpartyNickname.trim()
+            : null;
+
+        const existingNick = typeof order.counter_part_nick_name === "string" ? order.counter_part_nick_name : "";
+        const nickNeedsFix = !existingNick || existingNick.includes("*") || existingNick !== cleanNick;
 
         const updatePayload: Record<string, unknown> = {
           order_detail_raw: detail,
@@ -245,14 +260,23 @@ serve(async (req) => {
           counterparty_risk_captured_at: new Date().toISOString(),
         };
         if (verifiedName && !order.verified_name) updatePayload.verified_name = verifiedName;
+        if (cleanNick && nickNeedsFix) updatePayload.counter_part_nick_name = cleanNick;
 
-        if (verifiedName || !order.counterparty_risk_snapshot) {
+        if (verifiedName || cleanNick || !order.counterparty_risk_snapshot) {
           const { error: updateErr } = await supabase
             .from("binance_order_history")
             .update(updatePayload)
             .eq("order_number", order.order_number);
 
           if (!updateErr) {
+            // Promote the unmasked nickname into p2p_order_records, which is what the
+            // client onboarding/approval screens read identity from.
+            if (cleanNick) {
+              await supabase
+                .from("p2p_order_records")
+                .update({ counterparty_nickname: cleanNick })
+                .eq("binance_order_number", order.order_number);
+            }
             await persistCommissionRateSnapshots(supabase, detail, "order_detail", order.order_number);
             enriched++;
           } else {
@@ -260,9 +284,10 @@ serve(async (req) => {
             failed++;
           }
         } else {
-          console.warn(`No name found for ${order.order_number} (${order.trade_type}), detail keys:`, Object.keys(detail));
+          console.warn(`No name/nickname found for ${order.order_number} (${order.trade_type}), detail keys:`, Object.keys(detail));
           failed++;
         }
+
 
         // Rate limit: 200ms delay between API calls
         await new Promise((r) => setTimeout(r, 200));

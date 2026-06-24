@@ -594,14 +594,40 @@ export function SellerOnboardingApprovals() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-4 w-4 text-gray-400" />
-            <Input
-              placeholder="Search by name or client ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search by name or client ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedIds(new Set())}
+                  disabled={bulkApproveMutation.isPending}
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => setShowBulkConfirm(true)}
+                  disabled={bulkApproveMutation.isPending}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  {bulkApproveMutation.isPending && bulkProgress
+                    ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
+                    : `Bulk Approve (${selectedIds.size})`}
+                </Button>
+              </div>
+            )}
           </div>
 
           {filteredSellers && filteredSellers.length > 0 ? (
@@ -609,6 +635,13 @@ export function SellerOnboardingApprovals() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600 w-10">
+                      <Checkbox
+                        checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Select all sellers"
+                      />
+                    </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Binance ID</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>

@@ -317,50 +317,83 @@ export function SellerOnboardingApprovals() {
     return 'new_client';
   };
 
-  // Approve seller mutation
-  const approveMutation = useMutation({
-    mutationFn: async (sellerId: string) => {
-      // If this pending seller record is actually a duplicate of an already-known client
-      // (matched by Binance nickname), redirect approval to that existing client and soft-
-      // delete the duplicate to prevent a parallel record.
-      const seller = pendingSellers?.find(s => s.id === sellerId);
-      const linkedExisting = seller ? sellerNicknameMap?.[seller.name]?.existingClient : null;
+  // Core approval logic for a single seller (reused by single + bulk approve).
+  const approveSingleSeller = async (sellerId: string) => {
+    // If this pending seller record is actually a duplicate of an already-known client
+    // (matched by Binance nickname), redirect approval to that existing client and soft-
+    // delete the duplicate to prevent a parallel record.
+    const seller = pendingSellers?.find(s => s.id === sellerId);
+    const linkedExisting = seller ? sellerNicknameMap?.[seller.name]?.existingClient : null;
 
-      if (linkedExisting && linkedExisting.id !== sellerId) {
-        // Flip existing client's seller side to APPROVED
-        const { error: updErr } = await supabase
-          .from('clients')
-          .update({
-            is_seller: true,
-            kyc_status: 'VERIFIED',
-            seller_approval_status: 'APPROVED',
-            seller_approved_at: new Date().toISOString(),
-          })
-          .eq('id', linkedExisting.id);
-        if (updErr) throw updErr;
-
-        // Soft-delete the duplicate pending record
-        const { error: delErr } = await supabase
-          .from('clients')
-          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-          .eq('id', sellerId);
-        if (delErr) throw delErr;
-
-        return { mergedInto: linkedExisting.id };
-      }
-
-      const { error } = await supabase
+    if (linkedExisting && linkedExisting.id !== sellerId) {
+      // Flip existing client's seller side to APPROVED
+      const { error: updErr } = await supabase
         .from('clients')
-        .update({ 
+        .update({
+          is_seller: true,
           kyc_status: 'VERIFIED',
           seller_approval_status: 'APPROVED',
           seller_approved_at: new Date().toISOString(),
         })
+        .eq('id', linkedExisting.id);
+      if (updErr) throw updErr;
+
+      // Soft-delete the duplicate pending record
+      const { error: delErr } = await supabase
+        .from('clients')
+        .update({ is_deleted: true, deleted_at: new Date().toISOString() })
         .eq('id', sellerId);
-      
-      if (error) throw error;
-      return { mergedInto: null };
-    },
+      if (delErr) throw delErr;
+
+      return { mergedInto: linkedExisting.id };
+    }
+
+    const { error } = await supabase
+      .from('clients')
+      .update({
+        kyc_status: 'VERIFIED',
+        seller_approval_status: 'APPROVED',
+        seller_approved_at: new Date().toISOString(),
+      })
+      .eq('id', sellerId);
+
+    if (error) throw error;
+    return { mergedInto: null };
+  };
+
+  // Auto-capture Binance nickname + verified name links after approval.
+  const captureSellerLinks = async (sellerId: string, mergedInto: string | null) => {
+    const seller = pendingSellers?.find(s => s.id === sellerId);
+    const targetClientId = mergedInto || sellerId;
+    if (!seller) return;
+    const nickInfo = sellerNicknameMap?.[seller.name];
+    if (nickInfo?.nickname && !nickInfo.nickname.includes('*')) {
+      try {
+        await supabase.from('client_binance_nicknames').upsert({
+          client_id: targetClientId,
+          nickname: nickInfo.nickname,
+          source: 'approval',
+          last_seen_at: new Date().toISOString(),
+        }, { onConflict: 'nickname' });
+      } catch (e) {
+        console.error('Failed to auto-capture seller nickname link:', e);
+      }
+    }
+    try {
+      await supabase.from('client_verified_names').upsert({
+        client_id: targetClientId,
+        verified_name: seller.name.trim(),
+        source: 'approval',
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: 'client_id,verified_name' });
+    } catch (e) {
+      console.error('Failed to auto-capture seller verified name:', e);
+    }
+  };
+
+  // Approve seller mutation
+  const approveMutation = useMutation({
+    mutationFn: async (sellerId: string) => approveSingleSeller(sellerId),
     onSuccess: async (result, sellerId) => {
       // Auto-capture Binance nickname → client link (point to merged target if applicable)
       const seller = pendingSellers?.find(s => s.id === sellerId);

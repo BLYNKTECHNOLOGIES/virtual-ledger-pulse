@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface ClientTDSRecordsProps {
   clientId?: string;
@@ -217,7 +218,12 @@ export function ClientTDSRecords({ clientId, clientName, clientPhone }: ClientTD
               </TableHeader>
               <TableBody>
                 {tdsRecords.slice(0, 5).map((record) => (
-                  <TableRow key={record.id}>
+                  <TableRow
+                    key={record.id}
+                    className={record.purchase_order_id ? "cursor-pointer hover:bg-muted/50" : undefined}
+                    onClick={() => record.purchase_order_id && openTransaction({ type: 'purchase_order', id: record.purchase_order_id })}
+                    title={record.purchase_order_id ? "Click to view full order details" : undefined}
+                  >
                     <TableCell className="font-medium">{record.order_number}</TableCell>
                     <TableCell>{record.pan_number}</TableCell>
                     <TableCell>₹{record.total_amount?.toLocaleString('en-IN')}</TableCell>

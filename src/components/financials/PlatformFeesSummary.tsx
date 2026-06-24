@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format } from "date-fns";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface PlatformFeesSummaryProps {
   startDate: Date;
@@ -366,7 +367,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                   const priceUsd = c.quantity > 0 ? c.gross_usd_value / c.quantity : 0;
                   const feeUsdtEq = c.fee_asset === 'USDT' ? Number(c.fee_amount) : Number(c.fee_amount) * priceUsd;
                   return (
-                    <TableRow key={c.id}>
+                    <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => openTransaction({ type: 'product_conversion', id: c.id })} title="Click to view full conversion details">
                       <TableCell>{format(new Date(c.created_at), 'dd/MM/yyyy')}</TableCell>
                       <TableCell className="font-mono text-sm">{c.reference_no || '-'}</TableCell>
                       <TableCell>

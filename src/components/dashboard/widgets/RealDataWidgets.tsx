@@ -6,6 +6,7 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { openTransaction } from "@/components/transaction-detail";
 import { TerminalSalesApprovalDialog } from "@/components/sales/TerminalSalesApprovalDialog";
 import { TerminalPurchaseApprovalDialog } from "@/components/purchase/TerminalPurchaseApprovalDialog";
 import { format, subDays, startOfDay, endOfDay, subMonths, startOfMonth, endOfMonth } from "date-fns";
@@ -89,7 +90,7 @@ export function RecentOrdersWidget() {
     <div className="p-4 space-y-2.5">
       {(data || []).length === 0 && <p className="text-sm text-gray-400 text-center py-4">No recent orders</p>}
       {(data || []).map((o: any) => (
-        <div key={o.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors rounded px-1" title="Click to view full order details">
           <div className="min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">{o.order_number}</p>
             <p className="text-xs text-gray-500 truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>

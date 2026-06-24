@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import { TrendingUp, TrendingDown, Calendar, ShoppingCart, Package } from "lucide-react";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface ClientOrderPreviewProps {
   clientId: string;
@@ -21,6 +22,7 @@ interface ClientOrderPreviewProps {
 }
 
 interface OrderData {
+  id: string;
   order_number: string;
   total_amount: number;
   order_date: string;
@@ -37,6 +39,7 @@ interface PreviewData {
 }
 
 interface RawOrderData {
+  id: string;
   order_number: string;
   total_amount: number;
   order_date: string;
@@ -47,7 +50,7 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   // Build sales query - match by client_name (case insensitive)
   let salesQuery = supabase
     .from('sales_orders')
-    .select('order_number, total_amount, order_date')
+    .select('id, order_number, total_amount, order_date')
     .neq('status', 'CANCELLED')
     .order('order_date', { ascending: false })
     .limit(50);
@@ -62,7 +65,7 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   // Build purchase query - match by supplier_name (case insensitive)
   let purchaseQuery = supabase
     .from('purchase_orders')
-    .select('order_number, total_amount, order_date')
+    .select('id, order_number, total_amount, order_date')
     .neq('status', 'CANCELLED')
     .order('order_date', { ascending: false })
     .limit(50);
@@ -91,12 +94,14 @@ async function fetchClientOrders(clientName: string, clientPhone?: string | null
   // Combine and sort recent transactions
   const allOrders: OrderData[] = [
     ...salesOrders.slice(0, 5).map(o => ({ 
+      id: o.id,
       order_number: o.order_number, 
       total_amount: o.total_amount, 
       order_date: o.order_date, 
       type: 'buy' as const 
     })),
     ...purchaseOrders.slice(0, 5).map(o => ({ 
+      id: o.id,
       order_number: o.order_number, 
       total_amount: o.total_amount, 
       order_date: o.order_date, 
@@ -244,7 +249,9 @@ export function ClientOrderPreview({
             {data.recentOrders.map((order, idx) => (
               <div 
                 key={idx} 
-                className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1.5"
+                className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1.5 cursor-pointer hover:bg-muted transition-colors"
+                onClick={() => order.id && openTransaction({ type: order.type === 'buy' ? 'sales_order' : 'purchase_order', id: order.id })}
+                title="Click to view full order details"
               >
                 <div className="flex items-center gap-2">
                   {order.type === 'buy' ? (

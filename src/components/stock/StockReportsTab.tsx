@@ -13,6 +13,7 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format, subDays, startOfMonth, endOfMonth } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAverageCost } from "@/hooks/useAverageCost";
+import { openTransaction } from "@/components/transaction-detail";
 
 export function StockReportsTab() {
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30));
@@ -188,6 +189,8 @@ export function StockReportsTab() {
     }),
     ...(purchaseReport || []).map((p: any) => ({
       id: `POI-${p.id}`,
+      _txType: 'purchase_order' as const,
+      _txId: p.purchase_order_id || null,
       transaction_date: p.purchase_orders?.order_date,
       products: {
         name: p.products?.name,
@@ -207,6 +210,8 @@ export function StockReportsTab() {
       const isCredit = ['TRANSFER_IN', 'CREDIT'].includes(type);
       return {
         id: `WT-${w.id}`,
+        _txType: 'wallet_transaction' as const,
+        _txId: w.id,
         transaction_date: w.created_at,
         products: {
           name: usdtProduct?.name || 'USDT',
@@ -416,8 +421,15 @@ export function StockReportsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredMovements?.map((row: any) => (
-                    <tr key={row.id} className="border-b hover:bg-gray-50">
+                  {filteredMovements?.map((row: any) => {
+                    const clickable = !!(row._txType && row._txId);
+                    return (
+                    <tr
+                      key={row.id}
+                      className={cn("border-b hover:bg-gray-50", clickable && "cursor-pointer")}
+                      onClick={() => clickable && openTransaction({ type: row._txType, id: row._txId })}
+                      title={clickable ? "Click to view full details" : undefined}
+                    >
                       <td className="py-3 px-4">{format(new Date(row.transaction_date), 'dd/MM/yyyy')}</td>
                       <td className="py-3 px-4">
                         <div>
@@ -436,7 +448,8 @@ export function StockReportsTab() {
                       <td className="py-3 px-4">{row.wallet_name || '-'}</td>
                       <td className="py-3 px-4">{row.reference_number || '-'}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
               

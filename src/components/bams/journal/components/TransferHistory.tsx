@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
 import { ReversalBadge } from "@/components/stock/ReversalBadge";
+import { openTransaction } from "@/components/transaction-detail";
 
 interface TransferHistoryProps {
   transfers: any[];
@@ -98,7 +99,12 @@ export function TransferHistory({ transfers }: TransferHistoryProps) {
               {filteredTransfers.map((transfer) => (
                 <div
                   key={transfer.id}
-                  className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button, a, [role="button"], [data-no-row-click]')) return;
+                    openTransaction({ type: 'bank_transaction', id: transfer.id });
+                  }}
+                  title="Click to view full transaction details"
                 >
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-blue-100 rounded-full">

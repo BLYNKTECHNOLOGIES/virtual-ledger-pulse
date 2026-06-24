@@ -191,8 +191,13 @@ export function ClientOrderSummaryDialog({
                 </thead>
                 <tbody>
                   {orders.map((order) => (
-                    <tr key={order.id} className="border-b hover:bg-gray-50">
-                      <td className="py-2 px-4 font-mono text-sm">{order.order_number}</td>
+                    <tr
+                      key={order.id}
+                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => openTransaction({ type: 'purchase_order', id: order.id })}
+                      title="Click to view full order details"
+                    >
+                      <td className="py-2 px-4 font-mono text-sm text-blue-600 hover:underline">{order.order_number}</td>
                       <td className="py-2 px-4 text-sm">
                         {order.order_date 
                           ? format(new Date(order.order_date), 'dd MMM yyyy')

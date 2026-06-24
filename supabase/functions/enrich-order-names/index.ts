@@ -265,7 +265,7 @@ serve(async (req) => {
             console.warn(`No usable detail for ${order.order_number}`);
             // Mark as attempted so this un-fetchable order is not re-selected
             // forever and does not starve recoverable rows in later runs.
-            if (!order.order_detail_raw) await markNoDetail(supabase, order.order_number);
+            await markNoDetail(supabase, order.order_number);
             failed++;
             continue;
           }

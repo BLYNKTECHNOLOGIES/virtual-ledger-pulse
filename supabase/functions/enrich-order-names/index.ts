@@ -262,7 +262,7 @@ serve(async (req) => {
             // Recover from already-stored detail instead of giving up.
             detail = storedDetail;
           } else {
-            console.warn(`No usable detail for ${order.order_number}`);
+            console.warn(`No usable detail for ${order.order_number}:`, JSON.stringify(detail).substring(0, 200));
             // Mark as attempted so this un-fetchable order is not re-selected
             // forever and does not starve recoverable rows in later runs.
             await markNoDetail(supabase, order.order_number);

@@ -195,7 +195,7 @@ export default function TerminalDashboard() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TradeVolumeChart orders={orders} isLoading={dbLoading} period={filter.mode === '1d' ? '1d' : filter.mode} />
+        <TradeVolumeChart orders={orders} isLoading={dbLoading} period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode} />
         <OrderStatusBreakdown orders={orders} isLoading={dbLoading} />
       </div>
 

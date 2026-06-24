@@ -54,7 +54,15 @@ export function useCachedOrderHistory(range: CachedOrderHistoryRange = {}) {
 
       return allRows.map(dbRowToOrder);
     },
-    staleTime: 30 * 1000,
+    // Keep cached orders "fresh" for 2 min so navigating between Terminal pages
+    // shows the data instantly instead of re-fetching the whole window every time.
+    staleTime: 2 * 60 * 1000,
+    // Retain the cache for 30 min so leaving the dashboard and coming back does
+    // not throw the data away and force a full reload.
+    gcTime: 30 * 60 * 1000,
+    // When the filter/window changes, keep showing the previous result while the
+    // new one loads — avoids a blocking spinner on every switch.
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -24,6 +24,7 @@ import Purchase from './pages/Purchase';
 import BAMS from './pages/BAMS';
 import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
+import RADashboard from './pages/RADashboard';
 import Leads from './pages/Leads';
 import UserManagement from './pages/UserManagement';
 

@@ -112,10 +112,16 @@ export function RAAssignmentsTab() {
                   />
                   <span className="font-medium">{s.ra.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{s.total} assigned</Badge>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline">{s.total} active</Badge>
                   <Badge className="bg-green-100 text-green-800">{s.contacted} contacted</Badge>
                   <Badge className="bg-yellow-100 text-yellow-800">{s.pending} pending</Badge>
+                  {s.converted > 0 && (
+                    <Badge className="bg-emerald-100 text-emerald-800">{s.converted} converted</Badge>
+                  )}
+                  {s.notInterested > 0 && (
+                    <Badge className="bg-red-100 text-red-800">{s.notInterested} not interested</Badge>
+                  )}
                   {s.lastActivity && (
                     <span className="text-xs text-muted-foreground hidden sm:inline">
                       Last: {format(new Date(s.lastActivity), "dd MMM")}

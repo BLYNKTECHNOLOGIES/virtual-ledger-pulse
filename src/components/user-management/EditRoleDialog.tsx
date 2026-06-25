@@ -75,6 +75,8 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
     permissions: [
       { id: 'clients_view', name: 'View', description: 'View clients', tier: 'view' },
       { id: 'clients_manage', name: 'Manage', description: 'Manage clients', tier: 'manage' },
+      { id: 'ra_assign', name: 'Assign RA', description: 'Assign clients to Relationship Associates', tier: 'special' },
+      { id: 'ra_dashboard_view', name: 'RA Dashboard', description: 'Access own Relationship Associate dashboard', tier: 'special' },
     ],
   },
   leads: {

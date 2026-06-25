@@ -24,6 +24,8 @@ const availablePermissions = [
   { id: "bams_manage", name: "BAMS Manage", description: "Manage Bank Account Management System" },
   { id: "clients_view", name: "Clients View", description: "View client information" },
   { id: "clients_manage", name: "Clients Manage", description: "Manage clients" },
+  { id: "ra_assign", name: "Assign RA", description: "Assign clients to Relationship Associates" },
+  { id: "ra_dashboard_view", name: "RA Dashboard", description: "Access own Relationship Associate dashboard" },
   { id: "leads_view", name: "Leads View", description: "View leads" },
   { id: "leads_manage", name: "Leads Manage", description: "Manage leads" },
   { id: "user_management_view", name: "User Management View", description: "View users and roles" },

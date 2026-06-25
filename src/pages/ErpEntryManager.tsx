@@ -214,7 +214,39 @@ export default function ErpEntryManager() {
       rejectConversion.mutate({ conversionId: row.raw.id, reason: reason || undefined });
       return;
     }
-    // Terminal Buy/Sale and Small batches: open the source dialog where reject lives
+    // Terminal Buy / Sale: reject directly by flagging the sync record.
+    // (The approval dialog only approves — it has no reject control.)
+    if (row.source === "terminal_buy" || row.source === "terminal_sale") {
+      const reason = window.prompt(
+        `Reject this terminal ${row.source === "terminal_buy" ? "buy" : "sell"} order?\nOptional reason:`
+      );
+      if (reason === null) return;
+      const table = row.source === "terminal_buy" ? "terminal_purchase_sync" : "terminal_sales_sync";
+      (async () => {
+        let userId: string | null = null;
+        try {
+          const { data } = await supabase.auth.getUser();
+          userId = data?.user?.id ?? null;
+        } catch { /* ignore */ }
+        const { error } = await supabase
+          .from(table)
+          .update({
+            sync_status: "rejected",
+            rejection_reason: reason || null,
+            reviewed_by: userId,
+            reviewed_at: new Date().toISOString(),
+          })
+          .eq("id", row.raw.id);
+        if (error) {
+          toast({ title: "Rejection failed", description: error.message, variant: "destructive" });
+          return;
+        }
+        toast({ title: "Rejected", description: "Order removed from queue." });
+        refreshErpEntryCaches();
+      })();
+      return;
+    }
+    // Small batches: open the source dialog where reject lives
     setActiveRow(row);
   }
 

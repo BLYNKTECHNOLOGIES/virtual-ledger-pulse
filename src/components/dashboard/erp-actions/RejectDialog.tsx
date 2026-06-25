@@ -18,9 +18,25 @@ export function RejectDialog({ item, open, onOpenChange }: RejectDialogProps) {
   const [reason, setReason] = useState("");
   const rejectMutation = useRejectQueueItem();
   const { toast } = useToast();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
 
-  if (!hasPermission('erp_destructive')) {
+  // Wait for permissions to resolve before deciding — otherwise the first render
+  // (empty permissions array) wrongly shows "Permission Denied" to users who DO
+  // have access.
+  if (open && permissionsLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Checking permissions…</DialogTitle>
+            <DialogDescription>Please wait while we verify your access.</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!permissionsLoading && !hasPermission('erp_destructive')) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-sm">

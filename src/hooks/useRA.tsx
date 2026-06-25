@@ -213,7 +213,7 @@ export function useAssignClientsToRA() {
         .from("ra_assignments")
         .update({ status: "reassigned" } as any)
         .in("client_id", clientIds)
-        .eq("status", "active");
+        .neq("status", "reassigned");
       if (deErr) throw deErr;
 
       const rows = clientIds.map((cid) => ({

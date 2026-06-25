@@ -706,8 +706,16 @@ export function ClientDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
+                       <tr className="border-b">
+                         {canAssignRA && (
+                           <th className="text-left py-3 px-4 w-10">
+                             <Checkbox
+                               checked={(filteredSellers?.length || 0) > 0 && filteredSellers!.every((c) => selectedClientIds.has(c.id))}
+                               onCheckedChange={(checked) => toggleAll((filteredSellers || []).map((c) => c.id), !!checked)}
+                             />
+                           </th>
+                         )}
+                         <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Seller ID</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>

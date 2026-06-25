@@ -24,6 +24,7 @@ import Purchase from './pages/Purchase';
 import BAMS from './pages/BAMS';
 import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
+import RADashboard from './pages/RADashboard';
 import Leads from './pages/Leads';
 import UserManagement from './pages/UserManagement';
 
@@ -233,6 +234,18 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <ClientDetail />
+            </Layout>
+          </AuthCheck>
+      </QueryProvider>
+    ),
+  },
+  {
+    path: "/ra-dashboard",
+    element: (
+      <QueryProvider>
+          <AuthCheck>
+            <Layout>
+              <RADashboard />
             </Layout>
           </AuthCheck>
       </QueryProvider>

@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Users, UserCheck, ShoppingCart, ArrowUpDown } from "lucide-react";
+import { Plus, Search, Users, UserCheck, ShoppingCart, ArrowUpDown, Headset } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddClientDialog } from "./AddClientDialog";
@@ -17,7 +18,12 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useClientTypeFromOrders, getClientActivityStatus, ClientOrderData, VolumeTrend } from "@/hooks/useClientTypeFromOrders";
 import { ClientDirectoryFilterButton, ClientDirectoryFilterPanel, ClientFilters, defaultFilters } from "./ClientDirectoryFilters";
 import { VolumeTrendBadge } from "./VolumeTrendBadge";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useActiveRAAssignments } from "@/hooks/useRA";
+import { AssignToRADialog } from "./AssignToRADialog";
+import { RAAssignmentsTab } from "./RAAssignmentsTab";
 import { format, differenceInDays } from "date-fns";
+
 
 const CLIENT_DASHBOARD_TAB_KEY = 'clientDashboard.activeTab';
 const CLIENT_DIRECTORY_TAB_KEY = 'clientDashboard.directoryTab';
@@ -52,7 +58,27 @@ export function ClientDashboard() {
   const [sellerFiltersOpen, setSellerFiltersOpen] = useState(false);
   const [buyerSort, setBuyerSort] = useState("onboarding-desc");
   const [sellerSort, setSellerSort] = useState("onboarding-desc");
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canAssignRA = hasPermission("ra_assign");
+  const { data: raAssignmentsMap } = useActiveRAAssignments();
+
+  const toggleClient = (id: string) =>
+    setSelectedClientIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleAll = (ids: string[], checked: boolean) =>
+    setSelectedClientIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+      return next;
+    });
+
 
   useEffect(() => {
     writeStoredTab(CLIENT_DASHBOARD_TAB_KEY, activeTab);
@@ -427,13 +453,20 @@ export function ClientDashboard() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className={`grid w-full ${canAssignRA ? "grid-cols-3" : "grid-cols-2"}`}>
           <TabsTrigger value="directory">Client Directory</TabsTrigger>
           <TabsTrigger value="approvals" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
             Approvals
           </TabsTrigger>
+          {canAssignRA && (
+            <TabsTrigger value="assignments" className="flex items-center gap-2">
+              <Headset className="h-4 w-4" />
+              Assignments
+            </TabsTrigger>
+          )}
         </TabsList>
+
 
         <TabsContent value="directory" className="space-y-6">
           {/* Nested tabs for Buyers and Sellers */}
@@ -517,6 +550,14 @@ export function ClientDashboard() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
+                        {canAssignRA && (
+                          <th className="text-left py-3 px-4 w-10">
+                            <Checkbox
+                              checked={(filteredBuyers?.length || 0) > 0 && filteredBuyers!.every((c) => selectedClientIds.has(c.id))}
+                              onCheckedChange={(checked) => toggleAll((filteredBuyers || []).map((c) => c.id), !!checked)}
+                            />
+                          </th>
+                        )}
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Buyer Name</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Buyer ID</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
@@ -545,6 +586,14 @@ export function ClientDashboard() {
                             className="border-b hover:bg-gray-50 cursor-pointer"
                             onClick={() => handleClientClick(client.id)}
                           >
+                            {canAssignRA && (
+                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedClientIds.has(client.id)}
+                                  onCheckedChange={() => toggleClient(client.id)}
+                                />
+                              </td>
+                            )}
                             <td className="py-3 px-4 font-medium">{client.name}</td>
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
@@ -657,8 +706,16 @@ export function ClientDashboard() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
+                       <tr className="border-b">
+                         {canAssignRA && (
+                           <th className="text-left py-3 px-4 w-10">
+                             <Checkbox
+                               checked={(filteredSellers?.length || 0) > 0 && filteredSellers!.every((c) => selectedClientIds.has(c.id))}
+                               onCheckedChange={(checked) => toggleAll((filteredSellers || []).map((c) => c.id), !!checked)}
+                             />
+                           </th>
+                         )}
+                         <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Seller ID</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
@@ -686,6 +743,14 @@ export function ClientDashboard() {
                             className="border-b hover:bg-gray-50 cursor-pointer"
                             onClick={() => handleClientClick(client.id)}
                           >
+                            {canAssignRA && (
+                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedClientIds.has(client.id)}
+                                  onCheckedChange={() => toggleClient(client.id)}
+                                />
+                              </td>
+                            )}
                             <td className="py-3 px-4 font-medium">{client.name}</td>
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
@@ -748,7 +813,36 @@ export function ClientDashboard() {
             </TabsContent>
           </Tabs>
         </TabsContent>
+
+        {canAssignRA && (
+          <TabsContent value="assignments">
+            <RAAssignmentsTab />
+          </TabsContent>
+        )}
       </Tabs>
+
+      {/* Sticky assignment action bar */}
+      {canAssignRA && selectedClientIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-full border bg-background px-5 py-3 shadow-lg">
+          <span className="text-sm font-medium">{selectedClientIds.size} selected</span>
+          <Button size="sm" onClick={() => setShowAssignDialog(true)}>
+            <Headset className="h-4 w-4 mr-1" />
+            Assign to RA
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedClientIds(new Set())}>
+            Clear
+          </Button>
+        </div>
+      )}
+
+      <AssignToRADialog
+        open={showAssignDialog}
+        onOpenChange={setShowAssignDialog}
+        clientIds={Array.from(selectedClientIds)}
+        alreadyAssignedCount={Array.from(selectedClientIds).filter((id) => raAssignmentsMap?.has(id)).length}
+        onAssigned={() => setSelectedClientIds(new Set())}
+      />
+
 
       {/* Add Client Dialog */}
       <AddClientDialog 

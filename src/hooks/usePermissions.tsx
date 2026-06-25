@@ -10,6 +10,7 @@ const ADMIN_PERMISSIONS = [
   'terminal_view', 'terminal_manage',
   'bams_view', 'bams_manage',
   'clients_view', 'clients_manage',
+  'ra_assign', 'ra_dashboard_view',
   'leads_view', 'leads_manage',
   'user_management_view', 'user_management_manage',
   'hrms_view', 'hrms_manage',

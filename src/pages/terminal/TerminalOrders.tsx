@@ -1038,6 +1038,8 @@ function TerminalOrdersContent() {
           align="end"
           className="h-8 text-xs bg-secondary border-border"
         />
+      </div>
+
 
       {/* Orders Table */}
       <Card className="bg-card border-border">

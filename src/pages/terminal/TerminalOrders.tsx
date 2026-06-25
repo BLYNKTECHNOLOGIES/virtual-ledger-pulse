@@ -105,6 +105,8 @@ import { TerminalPermissionGate } from '@/components/terminal/TerminalPermission
 
 function TerminalOrdersContent() {
   const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);

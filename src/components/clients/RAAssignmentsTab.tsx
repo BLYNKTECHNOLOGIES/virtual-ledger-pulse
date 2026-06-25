@@ -13,14 +13,15 @@ import { RARemarkDialog } from "./RARemarkDialog";
 export function RAAssignmentsTab() {
   const navigate = useNavigate();
   const { data: raUsers } = useRAUsers();
-  const { data: assignmentsMap } = useActiveRAAssignments();
+  const { data: allAssignments } = useAllRAAssignments();
   const { data: allRemarks } = useAllRARemarks();
   const [expandedRA, setExpandedRA] = useState<string | null>(null);
   const [viewRemark, setViewRemark] = useState<{ id: string; name: string } | null>(null);
 
+  // Exclude reassigned rows; keep active + terminal (converted / not_interested)
   const assignments = useMemo(
-    () => (assignmentsMap ? Array.from(assignmentsMap.values()) : []),
-    [assignmentsMap]
+    () => (allAssignments || []).filter((a) => a.status !== "reassigned"),
+    [allAssignments]
   );
 
   const assignedClientIds = useMemo(() => assignments.map((a) => a.client_id), [assignments]);

@@ -7,20 +7,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Headset, ExternalLink, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
-import { useActiveRAAssignments, useAllRARemarks, useRAUsers } from "@/hooks/useRA";
+import { useAllRAAssignments, useAllRARemarks, useRAUsers } from "@/hooks/useRA";
 import { RARemarkDialog } from "./RARemarkDialog";
 
 export function RAAssignmentsTab() {
   const navigate = useNavigate();
   const { data: raUsers } = useRAUsers();
-  const { data: assignmentsMap } = useActiveRAAssignments();
+  const { data: allAssignments } = useAllRAAssignments();
   const { data: allRemarks } = useAllRARemarks();
   const [expandedRA, setExpandedRA] = useState<string | null>(null);
   const [viewRemark, setViewRemark] = useState<{ id: string; name: string } | null>(null);
 
+  // Exclude reassigned rows; keep active + terminal (converted / not_interested)
   const assignments = useMemo(
-    () => (assignmentsMap ? Array.from(assignmentsMap.values()) : []),
-    [assignmentsMap]
+    () => (allAssignments || []).filter((a) => a.status !== "reassigned"),
+    [allAssignments]
   );
 
   const assignedClientIds = useMemo(() => assignments.map((a) => a.client_id), [assignments]);
@@ -61,7 +62,10 @@ export function RAAssignmentsTab() {
   const raSummaries = useMemo(() => {
     const list = (raUsers || []).map((ra) => {
       const raAssignments = assignments.filter((a) => a.ra_user_id === ra.id);
-      const contacted = raAssignments.filter((a) => remarkClientIds.has(a.client_id)).length;
+      const active = raAssignments.filter((a) => a.status === "active");
+      const contacted = active.filter((a) => remarkClientIds.has(a.client_id)).length;
+      const converted = raAssignments.filter((a) => a.status === "converted").length;
+      const notInterested = raAssignments.filter((a) => a.status === "not_interested").length;
       const lastActivity = (allRemarks || [])
         .filter((r) => r.ra_user_id === ra.id)
         .map((r) => r.created_at)
@@ -69,9 +73,11 @@ export function RAAssignmentsTab() {
         .reverse()[0];
       return {
         ra,
-        total: raAssignments.length,
+        total: active.length,
         contacted,
-        pending: raAssignments.length - contacted,
+        pending: active.length - contacted,
+        converted,
+        notInterested,
         lastActivity,
         assignments: raAssignments,
       };
@@ -106,10 +112,16 @@ export function RAAssignmentsTab() {
                   />
                   <span className="font-medium">{s.ra.name}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{s.total} assigned</Badge>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline">{s.total} active</Badge>
                   <Badge className="bg-green-100 text-green-800">{s.contacted} contacted</Badge>
                   <Badge className="bg-yellow-100 text-yellow-800">{s.pending} pending</Badge>
+                  {s.converted > 0 && (
+                    <Badge className="bg-emerald-100 text-emerald-800">{s.converted} converted</Badge>
+                  )}
+                  {s.notInterested > 0 && (
+                    <Badge className="bg-red-100 text-red-800">{s.notInterested} not interested</Badge>
+                  )}
                   {s.lastActivity && (
                     <span className="text-xs text-muted-foreground hidden sm:inline">
                       Last: {format(new Date(s.lastActivity), "dd MMM")}
@@ -147,7 +159,11 @@ export function RAAssignmentsTab() {
                                 </button>
                               </td>
                               <td className="py-2 px-3">
-                                {lr ? (
+                                {a.status === "converted" ? (
+                                  <Badge className="bg-emerald-100 text-emerald-800">Converted</Badge>
+                                ) : a.status === "not_interested" ? (
+                                  <Badge className="bg-red-100 text-red-800">Not Interested</Badge>
+                                ) : lr ? (
                                   <Badge className="bg-green-100 text-green-800">Contacted</Badge>
                                 ) : (
                                   <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>

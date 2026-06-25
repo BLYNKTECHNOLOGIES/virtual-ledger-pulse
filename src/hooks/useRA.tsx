@@ -102,6 +102,32 @@ export function useActiveRAAssignments() {
   });
 }
 
+/** All assignments across every status (for manager overview). */
+export function useAllRAAssignments() {
+  return useQuery({
+    queryKey: ["ra-assignments", "all"],
+    queryFn: async (): Promise<RAAssignment[]> => {
+      const PAGE = 1000;
+      let from = 0;
+      const all: RAAssignment[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("ra_assignments")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...(data as any));
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
 /** Active assignments for the current logged-in RA. */
 export function useMyRAAssignments() {
   const { user } = useAuth();
@@ -187,7 +213,7 @@ export function useAssignClientsToRA() {
         .from("ra_assignments")
         .update({ status: "reassigned" } as any)
         .in("client_id", clientIds)
-        .eq("status", "active");
+        .neq("status", "reassigned");
       if (deErr) throw deErr;
 
       const rows = clientIds.map((cid) => ({
@@ -253,11 +279,28 @@ export function useAddRARemark() {
         file_name: fileName,
       } as any);
       if (error) throw error;
+
+      // Terminal outcomes close the assignment so it drops off the RA dashboard
+      // (but remains visible with its final status in the manager Assignments tab).
+      const terminalStatus =
+        contactOutcome === "Not Interested"
+          ? "not_interested"
+          : contactOutcome === "Converted"
+          ? "converted"
+          : null;
+      if (terminalStatus && assignmentId) {
+        const { error: stErr } = await supabase
+          .from("ra_assignments")
+          .update({ status: terminalStatus } as any)
+          .eq("id", assignmentId);
+        if (stErr) throw stErr;
+      }
     },
     onSuccess: (_d, vars) => {
       queryClient.invalidateQueries({ queryKey: ["ra-remarks", vars.clientId] });
       queryClient.invalidateQueries({ queryKey: ["ra-remarks", "all"] });
       queryClient.invalidateQueries({ queryKey: ["client-communication-logs", vars.clientId] });
+      queryClient.invalidateQueries({ queryKey: ["ra-assignments"] });
     },
   });
 }
@@ -275,6 +318,7 @@ export const CONTACT_OUTCOMES = [
   "Connected",
   "No Answer",
   "Callback Requested",
+  "Converted",
   "Not Interested",
   "Wrong Number",
   "Other",

@@ -159,7 +159,11 @@ export function RAAssignmentsTab() {
                                 </button>
                               </td>
                               <td className="py-2 px-3">
-                                {lr ? (
+                                {a.status === "converted" ? (
+                                  <Badge className="bg-emerald-100 text-emerald-800">Converted</Badge>
+                                ) : a.status === "not_interested" ? (
+                                  <Badge className="bg-red-100 text-red-800">Not Interested</Badge>
+                                ) : lr ? (
                                   <Badge className="bg-green-100 text-green-800">Contacted</Badge>
                                 ) : (
                                   <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>

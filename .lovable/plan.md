@@ -1,48 +1,63 @@
-# Make remaining ERP entry rows clickable → open detail dialog
+# RA (Relationship Associate) Dashboard
 
-## Goal
-Following the same pattern already applied to the client Order Summary popup, every place in the ERP that lists transaction-type entries (purchase orders, sales orders, bank transactions, wallet transactions, product conversions) should let the user click a row to open the global **Transaction Detail** dialog with full info.
+Build a Relationship Associate workflow: seniors assign clients (buyers & sellers) from the Client Directory to RAs; RAs work a dedicated dashboard where they contact clients and log a conversation; assigners monitor RA progress from a new tab inside Clients. One client has one active RA at a time. Conversation logs surface in the RA dashboard, the Client Directory, and each client's own page.
 
-This reuses the existing system in `src/components/transaction-detail/`:
-- `openTransaction({ type, id })` opens the globally-mounted `TransactionDetailDialog` (already in `Layout.tsx`).
-- Supported types: `purchase_order`, `sales_order`, `bank_transaction`, `wallet_transaction`, `product_conversion`.
+## Permissions (User Management)
 
-No new infrastructure is needed — only wiring up existing list rows.
+Add two new `app_permission` enum values, wired into the existing role/permission system:
+- `ra_assign` — senior who can select clients in the directory and assign them to RAs, and see the Assignments tab.
+- `ra_dashboard_view` — RA who gets their own dashboard and appears in the assignee picker.
 
-## Audit result — files that render entry rows WITHOUT linkage
+These are added to the enum, to the `availablePermissions` list in `AddRoleDialog`/`EditRoleDialog`, and to the admin permission set in `usePermissions`. Existing role-permission UI then manages them with no extra work.
 
-### Sales / Purchase orders
-- `src/components/clients/ClientOrderPreview.tsx` (~line 244) — mixed recent orders, each row has `id` + `order_type` (SALES/PURCHASE).
-- `src/components/clients/ClientOverviewPanel.tsx` — recent orders list (sales + purchase merged), row `id` + `order_type`.
-- `src/components/dashboard/widgets/RealDataWidgets.tsx` (~line 91) — recent sales orders, row `o.id` → `sales_order`.
-- `src/components/clients/ClientTDSRecords.tsx` (~line 220) — purchase orders with TDS, row tied to `purchase_order_id` → `purchase_order`.
-- `src/components/accounting/TaxManagementTab.tsx` (~line 313) — TDS records linked to a `purchase_order_id` → `purchase_order`.
+## Database
 
-### Bank transactions
-- `src/components/hrms/ExpenseCategoryDrillDown.tsx` (~line 102) — `bank_transactions`, row `t.id`.
-- `src/components/bams/journal/ContraEntriesTab.tsx` — `bank_transactions` rows.
-- `src/components/bams/journal/components/TransferHistory.tsx` (~line 98) — bank transfer rows (`bank_transactions`).
+New table `ra_assignments` (one active row per client):
+- `client_id`, `ra_user_id` (current RA), `assigned_by` (senior), `status` (`active` / `reassigned`), assigned/updated timestamps.
+- Unique partial index on `client_id WHERE status='active'` to enforce single active RA. Re-assigning marks the old row `reassigned` and inserts a new active row.
 
-### Wallet transactions / product conversions
-- `src/components/financials/PlatformFeesSummary.tsx`
-  - Conversions table (~line 369): row `c.id` → `product_conversion`.
-  - Transfer-fee wallet transactions section: row id → `wallet_transaction`.
+New table `ra_client_remarks` (the conversation log):
+- `client_id`, `ra_user_id`, `assignment_id`, `remark` (text), `file_url` (nullable), `file_name`, `contact_outcome` (e.g. Connected / No Answer / Callback), `created_at`.
 
-### Mixed / needs id resolution (best-effort)
-- `src/components/stock/StockReportsTab.tsx` (~lines 420/536) — movement rows use prefixed ids (`POI-<purchaseOrderItemId>`, `WT-<walletTxId>`). Will link only where the underlying transaction id is directly available (wallet tx rows → `wallet_transaction`; purchase rows → resolve to parent `purchase_order` id where present). Rows without a resolvable supported id stay non-clickable.
+Both tables get GRANTs + RLS for `authenticated`, plus `service_role`. Remark file uploads go to a new private `ra-remarks` storage bucket with RLS policies.
 
-> Already linked (no change): `ClientOrderSummaryDialog`, `CompletedPurchaseOrders`, `EntryRow`, `SalesPurchasesTab`, `ExpensesIncomesTab`, `StockTransactionsTab`, `ConversionHistoryTable`, `PendingConversionsTable`, and the Purchase/Sales/Stock/Accounting/BAMS/Dashboard/ProfitLoss pages.
+RA remarks are also reflected into the existing `client_communication_logs` (type `ra_remark`) on insert, so they appear automatically in the client page's existing communication/conversation log and anywhere that log is shown.
 
-## Approach (per file)
-1. Import `openTransaction` from `@/components/transaction-detail`.
-2. Add `onClick={() => openTransaction({ type, id })}` to each row, plus `cursor-pointer` and a hover style; for mixed lists, derive `type` from the row's `order_type`/source.
-3. Preserve existing row actions: clicks on buttons/links inside the row must not trigger navigation (guard with `e.target.closest('button,a,[role="button"]')` or stop propagation on those controls). Where a row already has its own detail dialog (e.g. `OrderHistoryModule` has `handleViewOrder`), leave its existing behavior intact and skip.
-4. Only wire rows whose id maps to a supported transaction type; skip aggregate/summary rows.
+## Client Directory — selection & assignment (gated by `ra_assign`)
 
-## Verification
-- Typecheck the changed files.
-- Spot-check in preview: open Client → order/TDS lists, Dashboard recent sales widget, BAMS contra/transfer history, Accounting tax tab, Platform Fees, and confirm clicking a row opens the detail dialog while in-row buttons still work.
+In `ClientDashboard.tsx` (buyers and sellers tables):
+- Add a checkbox column (header = select-all of the currently filtered/visible rows). Selection works with any filter applied since it operates on the already-filtered list.
+- A sticky action bar appears when rows are selected: "Assign N clients to RA" → opens an **Assign to RA** dialog.
+- The dialog lists only users holding `ra_dashboard_view` (fetched via role_permissions), shows each client's current RA if any, warns on re-assignment, and writes `ra_assignments` (deactivating prior active rows).
+- Row click still opens the client page; checkbox click is isolated so it does not navigate.
 
-## Notes / limitations
-- `PlatformFeesSummary` fee-deduction rows reference an order by `order_number` (not a direct supported id); these will be left non-clickable unless a direct order id is available, to avoid fragile lookups.
-- Pure analytics/aggregate views (e.g. `TerminalAnalytics`, `StatisticsTab` charts) are not row-level transaction lists and are out of scope.
+## RA Dashboard (new page, gated by `ra_dashboard_view`)
+
+New route `/ra-dashboard`, new sidebar entry (permission `ra_dashboard_view`), new page `src/pages/RADashboard.tsx`.
+- Loads clients assigned to the logged-in RA (active assignments), paginated past 1000.
+- Line-by-line table: Client Name, Phone, Risk Level, Total Orders, Total Order Volume, Last Order Date, latest remark/outcome, and actions.
+- Order stats reuse `useClientTypeFromOrders` (sales for buyers, purchase for sellers; combined for composite).
+- **Remark** action per row → dialog to type text + optional file upload + outcome; saves to `ra_client_remarks` (+ mirror to communication log). Shows the full conversation log history for that client.
+- **Open client** action → navigates to `/clients/:id` (full client page, same view as directory), so RA sees complete details.
+
+## Assignments tab (inside Clients, gated by `ra_assign`)
+
+Add a third top-level tab in `ClientDashboard` ("Assignments"):
+- Lists each RA with summary status: total assigned, contacted vs not contacted, last activity.
+- Clicking an RA expands/opens a panel listing all their assigned clients with the remarks/conversation log done by that RA, plus ability to re-assign.
+
+## Client page & directory reflection
+
+- Client page already renders communication logs; RA remarks appear there automatically via the mirrored `client_communication_logs` entries (labelled "RA Remark").
+- Client Directory rows get a small indicator (assigned RA name / latest RA remark snippet) so assignment status is visible in the directory.
+
+## Recommendations included
+- **Outcome tags** on each remark (Connected / No Answer / Callback / Not Interested) for quick filtering and status rollups.
+- **Contacted vs pending status** per client driven by whether any remark exists, surfaced in both RA dashboard and Assignments tab.
+- **Re-assignment history preserved** (old rows kept as `reassigned`) for accountability.
+- **Audit trail**: assignments and remarks both carry actor + timestamp.
+
+## Technical notes
+- New enum values via `supabase--migration` (ALTER TYPE ... ADD VALUE), then tables/bucket/RLS in follow-up migration (enum add value must commit before use).
+- No business-logic changes to orders/wallets — purely a CRM overlay reading existing order data.
+- Phone shown from `clients` record per the contact-by-phone requirement (note: email collection remains prohibited per project rules).

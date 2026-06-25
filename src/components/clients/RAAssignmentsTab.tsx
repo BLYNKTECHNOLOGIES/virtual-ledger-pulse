@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Headset, ExternalLink, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
-import { useActiveRAAssignments, useAllRARemarks, useRAUsers } from "@/hooks/useRA";
+import { useAllRAAssignments, useAllRARemarks, useRAUsers } from "@/hooks/useRA";
 import { RARemarkDialog } from "./RARemarkDialog";
 
 export function RAAssignmentsTab() {

@@ -318,6 +318,7 @@ export const CONTACT_OUTCOMES = [
   "Connected",
   "No Answer",
   "Callback Requested",
+  "Converted",
   "Not Interested",
   "Wrong Number",
   "Other",

@@ -825,7 +825,7 @@ function TerminalOrdersContent() {
   }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);
+  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);
 
   // Infinite scroll: load more when scrolling near bottom
   const loadMoreRef = useRef<HTMLDivElement>(null);

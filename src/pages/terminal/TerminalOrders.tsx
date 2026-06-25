@@ -23,6 +23,8 @@ import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignm
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';
+import { DateRangePicker, getDateRangeFromPreset, type DateRangePreset } from '@/components/ui/date-range-picker';
+import type { DateRange } from 'react-day-picker';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,6 +105,8 @@ import { TerminalPermissionGate } from '@/components/terminal/TerminalPermission
 
 function TerminalOrdersContent() {
   const [search, setSearch] = useState('');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
@@ -738,6 +742,17 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Filter by selected date range (based on Binance order create time)
+    if (dateRange?.from) {
+      const fromMs = new Date(dateRange.from.getFullYear(), dateRange.from.getMonth(), dateRange.from.getDate()).getTime();
+      const toRef = dateRange.to ?? dateRange.from;
+      const toMs = new Date(toRef.getFullYear(), toRef.getMonth(), toRef.getDate(), 23, 59, 59, 999).getTime();
+      enriched = enriched.filter(o => {
+        const t = Number(o.createTime) || 0;
+        return t >= fromMs && t <= toMs;
+      });
+    }
+
     const allRecords = enriched.map(o => {
       const record = binanceToOrderRecord(o);
       record.order_status = o._resolvedStatus;
@@ -807,10 +822,10 @@ function TerminalOrdersContent() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);
+  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);
 
   // Infinite scroll: load more when scrolling near bottom
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -1014,7 +1029,17 @@ function TerminalOrdersContent() {
             className="h-8 pl-8 text-xs bg-secondary border-border"
           />
         </div>
+
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          align="end"
+          className="h-8 text-xs bg-secondary border-border"
+        />
       </div>
+
 
       {/* Orders Table */}
       <Card className="bg-card border-border">

@@ -15,9 +15,22 @@ interface Props {
 export function ConversionApprovalDialog({ record, onClose }: Props) {
   const [reason, setReason] = useState("");
   const rejectMutation = useRejectConversion();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isLoading: permissionsLoading } = usePermissions();
 
-  if (!hasPermission('stock_destructive')) {
+  // Wait for permissions to load before deciding — a premature render with an
+  // empty permissions array would wrongly block users who actually have access.
+  if (record && permissionsLoading) {
+    return (
+      <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Checking permissions…</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Please wait while we verify your access.</p>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (!permissionsLoading && !hasPermission('stock_destructive')) {
     return (
       <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="sm:max-w-md">

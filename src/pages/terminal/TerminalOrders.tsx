@@ -822,7 +822,7 @@ function TerminalOrdersContent() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search]);

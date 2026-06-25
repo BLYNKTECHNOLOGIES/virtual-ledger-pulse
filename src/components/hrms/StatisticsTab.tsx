@@ -76,12 +76,16 @@ export function StatisticsTab() {
       const prevEndStr = format(prevPeriodEnd, 'yyyy-MM-dd');
 
       // Fetch sales orders with client info (paginated — date ranges can exceed 1000 rows)
+      // NOTE: a stable .order('id') is REQUIRED. Without a deterministic sort,
+      // PostgREST .range() pagination returns duplicated/skipped rows across
+      // pages once the result exceeds 1000 rows, corrupting Revenue totals.
       const salesOrders = await fetchAllPaginated<any>(() =>
         supabase
           .from('sales_orders')
           .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit, client_name')
           .gte('order_date', startStr)
-          .lte('order_date', endStr));
+          .lte('order_date', endStr)
+          .order('id', { ascending: true }));
 
       // Fetch previous period sales
       const prevSalesOrders = await fetchAllPaginated<any>(() =>
@@ -89,7 +93,8 @@ export function StatisticsTab() {
           .from('sales_orders')
           .select('id, total_amount')
           .gte('order_date', prevStartStr)
-          .lte('order_date', prevEndStr));
+          .lte('order_date', prevEndStr)
+          .order('id', { ascending: true }));
 
       // Fetch purchase orders
       const purchaseOrders = await fetchAllPaginated<any>(() =>
@@ -97,7 +102,8 @@ export function StatisticsTab() {
           .from('purchase_orders')
           .select('id, total_amount, order_date, status, supplier_name, created_by')
           .gte('order_date', startStr)
-          .lte('order_date', endStr));
+          .lte('order_date', endStr)
+          .order('id', { ascending: true }));
 
       // (purchase_order_items no longer needed — profit comes from daily_gross_profit_history)
 

@@ -742,6 +742,17 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Filter by selected date range (based on Binance order create time)
+    if (dateRange?.from) {
+      const fromMs = new Date(dateRange.from.getFullYear(), dateRange.from.getMonth(), dateRange.from.getDate()).getTime();
+      const toRef = dateRange.to ?? dateRange.from;
+      const toMs = new Date(toRef.getFullYear(), toRef.getMonth(), toRef.getDate(), 23, 59, 59, 999).getTime();
+      enriched = enriched.filter(o => {
+        const t = Number(o.createTime) || 0;
+        return t >= fromMs && t <= toMs;
+      });
+    }
+
     const allRecords = enriched.map(o => {
       const record = binanceToOrderRecord(o);
       record.order_status = o._resolvedStatus;

@@ -102,6 +102,32 @@ export function useActiveRAAssignments() {
   });
 }
 
+/** All assignments across every status (for manager overview). */
+export function useAllRAAssignments() {
+  return useQuery({
+    queryKey: ["ra-assignments", "all"],
+    queryFn: async (): Promise<RAAssignment[]> => {
+      const PAGE = 1000;
+      let from = 0;
+      const all: RAAssignment[] = [];
+      while (true) {
+        const { data, error } = await supabase
+          .from("ra_assignments")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...(data as any));
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+      return all;
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
 /** Active assignments for the current logged-in RA. */
 export function useMyRAAssignments() {
   const { user } = useAuth();

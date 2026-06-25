@@ -12057,6 +12057,104 @@ export type Database = {
           },
         ]
       }
+      ra_assignments: {
+        Row: {
+          assigned_by: string | null
+          assigned_by_name: string | null
+          client_id: string
+          created_at: string
+          id: string
+          ra_name: string | null
+          ra_user_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          ra_name?: string | null
+          ra_user_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_by_name?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          ra_name?: string | null
+          ra_user_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ra_assignments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ra_client_remarks: {
+        Row: {
+          assignment_id: string | null
+          client_id: string
+          contact_outcome: string | null
+          created_at: string
+          file_name: string | null
+          file_url: string | null
+          id: string
+          ra_name: string | null
+          ra_user_id: string
+          remark: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          client_id: string
+          contact_outcome?: string | null
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          ra_name?: string | null
+          ra_user_id: string
+          remark: string
+        }
+        Update: {
+          assignment_id?: string | null
+          client_id?: string
+          contact_outcome?: string | null
+          created_at?: string
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          ra_name?: string | null
+          ra_user_id?: string
+          remark?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ra_client_remarks_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "ra_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ra_client_remarks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       raci_assignments: {
         Row: {
           assignment_type: string

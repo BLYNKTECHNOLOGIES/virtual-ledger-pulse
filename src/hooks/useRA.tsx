@@ -279,11 +279,28 @@ export function useAddRARemark() {
         file_name: fileName,
       } as any);
       if (error) throw error;
+
+      // Terminal outcomes close the assignment so it drops off the RA dashboard
+      // (but remains visible with its final status in the manager Assignments tab).
+      const terminalStatus =
+        contactOutcome === "Not Interested"
+          ? "not_interested"
+          : contactOutcome === "Converted"
+          ? "converted"
+          : null;
+      if (terminalStatus && assignmentId) {
+        const { error: stErr } = await supabase
+          .from("ra_assignments")
+          .update({ status: terminalStatus } as any)
+          .eq("id", assignmentId);
+        if (stErr) throw stErr;
+      }
     },
     onSuccess: (_d, vars) => {
       queryClient.invalidateQueries({ queryKey: ["ra-remarks", vars.clientId] });
       queryClient.invalidateQueries({ queryKey: ["ra-remarks", "all"] });
       queryClient.invalidateQueries({ queryKey: ["client-communication-logs", vars.clientId] });
+      queryClient.invalidateQueries({ queryKey: ["ra-assignments"] });
     },
   });
 }

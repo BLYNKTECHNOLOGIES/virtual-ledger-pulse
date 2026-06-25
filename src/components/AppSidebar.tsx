@@ -88,6 +88,15 @@ const standaloneItems: SidebarGroupItem[] = [
     permissions: ["clients_view", "clients_manage"]
   },
   {
+    id: "ra-dashboard",
+    title: "RA Dashboard",
+    url: "/ra-dashboard",
+    icon: Headset,
+    color: "text-pink-600",
+    bgColor: "bg-pink-100",
+    permissions: ["ra_dashboard_view"]
+  },
+  {
     id: "leads",
     title: "Leads",
     url: "/leads",

@@ -240,6 +240,18 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: "/ra-dashboard",
+    element: (
+      <QueryProvider>
+          <AuthCheck>
+            <Layout>
+              <RADashboard />
+            </Layout>
+          </AuthCheck>
+      </QueryProvider>
+    ),
+  },
+  {
     path: "/leads",
     element: (
       <QueryProvider>

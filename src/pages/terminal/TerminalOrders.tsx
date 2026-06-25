@@ -1029,7 +1029,15 @@ function TerminalOrdersContent() {
             className="h-8 pl-8 text-xs bg-secondary border-border"
           />
         </div>
-      </div>
+
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          align="end"
+          className="h-8 text-xs bg-secondary border-border"
+        />
 
       {/* Orders Table */}
       <Card className="bg-card border-border">

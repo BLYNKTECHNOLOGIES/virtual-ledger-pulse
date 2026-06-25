@@ -62,7 +62,10 @@ export function RAAssignmentsTab() {
   const raSummaries = useMemo(() => {
     const list = (raUsers || []).map((ra) => {
       const raAssignments = assignments.filter((a) => a.ra_user_id === ra.id);
-      const contacted = raAssignments.filter((a) => remarkClientIds.has(a.client_id)).length;
+      const active = raAssignments.filter((a) => a.status === "active");
+      const contacted = active.filter((a) => remarkClientIds.has(a.client_id)).length;
+      const converted = raAssignments.filter((a) => a.status === "converted").length;
+      const notInterested = raAssignments.filter((a) => a.status === "not_interested").length;
       const lastActivity = (allRemarks || [])
         .filter((r) => r.ra_user_id === ra.id)
         .map((r) => r.created_at)
@@ -70,9 +73,11 @@ export function RAAssignmentsTab() {
         .reverse()[0];
       return {
         ra,
-        total: raAssignments.length,
+        total: active.length,
         contacted,
-        pending: raAssignments.length - contacted,
+        pending: active.length - contacted,
+        converted,
+        notInterested,
         lastActivity,
         assignments: raAssignments,
       };

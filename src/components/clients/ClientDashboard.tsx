@@ -586,6 +586,14 @@ export function ClientDashboard() {
                             className="border-b hover:bg-gray-50 cursor-pointer"
                             onClick={() => handleClientClick(client.id)}
                           >
+                            {canAssignRA && (
+                              <td className="py-3 px-4" onClick={(e) => e.stopPropagation()}>
+                                <Checkbox
+                                  checked={selectedClientIds.has(client.id)}
+                                  onCheckedChange={() => toggleClient(client.id)}
+                                />
+                              </td>
+                            )}
                             <td className="py-3 px-4 font-medium">{client.name}</td>
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>

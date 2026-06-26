@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, CheckCircle, Clock, FileText, ExternalLink } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 
 interface InvestigationDetailsDialogProps {
   investigation: any;
@@ -407,6 +409,14 @@ export function InvestigationDetailsDialog({
     }
   };
 
+  const { isDragActive: filesDragActive, dropzoneProps: filesDropzone } = useFileDropzone({
+    onFiles: (files) => setSelectedFiles(files),
+  });
+  const { isDragActive: finalDragActive, dropzoneProps: finalDropzone } = useFileDropzone({
+    onFiles: (files) => setFinalResolutionFiles(files),
+  });
+
+
   // Helper function to check if a step can be completed (sequential constraint)
   const canCompleteStep = (step: any) => {
     if (!steps) return false;
@@ -543,7 +553,13 @@ export function InvestigationDetailsDialog({
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
+                  <div
+                    {...filesDropzone}
+                    className={cn(
+                      "relative rounded-md transition-colors",
+                      filesDragActive && "ring-2 ring-primary bg-primary/10",
+                    )}
+                  >
                     <Button
                       type="button"
                       variant="outline"
@@ -721,7 +737,13 @@ export function InvestigationDetailsDialog({
                   Supporting Documents <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
+                  <div
+                    {...finalDropzone}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md transition-colors",
+                      finalDragActive && "ring-2 ring-primary bg-primary/10 p-2",
+                    )}
+                  >
                     <Button
                       type="button"
                       variant="outline"

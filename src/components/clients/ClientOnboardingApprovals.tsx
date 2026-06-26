@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { prefetchKycUpload, resolveKycUpload } from '@/lib/kyc-background-upload';
 import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { format } from 'date-fns';
@@ -234,6 +235,68 @@ const deleteBuyerApprovalDraft = async (id: string) => {
   }
 };
 
+
+interface BankStatementDropAreaProps {
+  entry: BankEntry;
+  index: number;
+  onFileChange: (index: number, file: File | null) => void;
+}
+function BankStatementDropArea({ entry, index, onFileChange }: BankStatementDropAreaProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => {
+      const file = files[0] || null;
+      if (file) void prefetchKycUpload(file);
+      onFileChange(index, file);
+    },
+    multiple: false,
+  });
+  return (
+    <div
+      {...dropzoneProps}
+      className={cn(
+        "flex items-center gap-2 mt-1 rounded-md p-1 transition-colors",
+        isDragActive && "border border-dashed border-primary bg-primary/10"
+      )}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload className="h-3 w-3 mr-1" />
+        {entry.statementFile ? entry.statementFile.name : 'Upload Statement'}
+      </Button>
+      <input
+        type="file"
+        ref={inputRef}
+        className="hidden"
+        accept=".pdf,.jpg,.jpeg,.png"
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          if (file) void prefetchKycUpload(file);
+          onFileChange(index, file);
+          if (inputRef.current) inputRef.current.value = '';
+        }}
+      />
+      {entry.statementFile && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            onFileChange(index, null);
+            if (inputRef.current) inputRef.current.value = '';
+          }}
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -268,6 +331,31 @@ export function ClientOnboardingApprovals() {
   const tradeHistoryInputRef = useRef<HTMLInputElement | null>(null);
   const vkycVideoInputRef = useRef<HTMLInputElement | null>(null);
   const additionalDocsInputRef = useRef<HTMLInputElement | null>(null);
+
+  const { isDragActive: isDragSourceOfFund, dropzoneProps: dropSourceOfFund } = useFileDropzone({
+    onFiles: (files) => { const f = files[0] || null; if (f) void prefetchKycUpload(f); setSourceOfFundFile(f); },
+    multiple: false,
+  });
+  const { isDragActive: isDragAadhaar, dropzoneProps: dropAadhaar } = useFileDropzone({
+    onFiles: (files) => { if (files.length > 0) { files.forEach(f => { void prefetchKycUpload(f); }); setAadhaarFiles(prev => [...prev, ...files]); } },
+    multiple: true,
+  });
+  const { isDragActive: isDragUsdtProof, dropzoneProps: dropUsdtProof } = useFileDropzone({
+    onFiles: (files) => { const f = files[0] || null; if (f) void prefetchKycUpload(f); setUsdtProofFile(f); },
+    multiple: false,
+  });
+  const { isDragActive: isDragTradeHistory, dropzoneProps: dropTradeHistory } = useFileDropzone({
+    onFiles: (files) => { const f = files[0] || null; if (f) void prefetchKycUpload(f); setTradeHistoryFile(f); },
+    multiple: false,
+  });
+  const { isDragActive: isDragVkyc, dropzoneProps: dropVkyc } = useFileDropzone({
+    onFiles: (files) => { const f = files[0] || null; if (!f) return; void prefetchKycUpload(f, { compress: true }); setVkycVideoFile(f); },
+    multiple: false,
+  });
+  const { isDragActive: isDragAdditionalDocs, dropzoneProps: dropAdditionalDocs } = useFileDropzone({
+    onFiles: (files) => { if (files.length > 0) { files.forEach(f => { void prefetchKycUpload(f); }); setAdditionalDocs(prev => [...prev, ...files]); } },
+    multiple: true,
+  });
   
   const { toast } = useToast();
   const queryClient = useQueryClient();

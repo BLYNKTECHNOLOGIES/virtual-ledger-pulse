@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, Video, Camera } from "lucide-react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 
 interface ReKYCFormProps {
   requestId: string;
@@ -153,6 +154,33 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
     return data.publicUrl;
   };
 
+  // One hook per file input (top-level, never conditional)
+  const { isDragActive: dragAadharFront, dropzoneProps: dropAadharFront } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleFileChange("aadhar_front", files[0]); },
+    disabled: isReadOnly,
+    multiple: false,
+  });
+  const { isDragActive: dragAadharBack, dropzoneProps: dropAadharBack } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleFileChange("aadhar_back", files[0]); },
+    disabled: isReadOnly,
+    multiple: false,
+  });
+  const { isDragActive: dragPanCard, dropzoneProps: dropPanCard } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleFileChange("pan_card", files[0]); },
+    disabled: isReadOnly,
+    multiple: false,
+  });
+  const { isDragActive: dragBankStatement, dropzoneProps: dropBankStatement } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleFileChange("bank_statement", files[0]); },
+    disabled: isReadOnly,
+    multiple: false,
+  });
+  const { isDragActive: dragVkycVideo, dropzoneProps: dropVkycVideo } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleFileChange("vkyc_video", files[0]); },
+    disabled: isReadOnly,
+    multiple: false,
+  });
+
   if (isLoading) {
     return <div>Loading ReKYC form...</div>;
   }
@@ -195,12 +223,18 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                 </a>
               </div>
             ) : (
-              <Input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => handleFileChange("aadhar_front", e.target.files?.[0] || null)}
-                disabled={isReadOnly}
-              />
+              <div
+                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragAadharFront ? "border-primary bg-primary/10" : "border-transparent"}`}
+                {...dropAadharFront}
+              >
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => handleFileChange("aadhar_front", e.target.files?.[0] || null)}
+                  disabled={isReadOnly}
+                />
+                {dragAadharFront && <p className="text-xs text-primary text-center mt-1">Drop file here</p>}
+              </div>
             )}
           </div>
 
@@ -222,12 +256,18 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                 </a>
               </div>
             ) : (
-              <Input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => handleFileChange("aadhar_back", e.target.files?.[0] || null)}
-                disabled={isReadOnly}
-              />
+              <div
+                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragAadharBack ? "border-primary bg-primary/10" : "border-transparent"}`}
+                {...dropAadharBack}
+              >
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => handleFileChange("aadhar_back", e.target.files?.[0] || null)}
+                  disabled={isReadOnly}
+                />
+                {dragAadharBack && <p className="text-xs text-primary text-center mt-1">Drop file here</p>}
+              </div>
             )}
           </div>
 
@@ -249,12 +289,18 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                 </a>
               </div>
             ) : (
-              <Input
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => handleFileChange("pan_card", e.target.files?.[0] || null)}
-                disabled={isReadOnly}
-              />
+              <div
+                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragPanCard ? "border-primary bg-primary/10" : "border-transparent"}`}
+                {...dropPanCard}
+              >
+                <Input
+                  type="file"
+                  accept="image/*,.pdf"
+                  onChange={(e) => handleFileChange("pan_card", e.target.files?.[0] || null)}
+                  disabled={isReadOnly}
+                />
+                {dragPanCard && <p className="text-xs text-primary text-center mt-1">Drop file here</p>}
+              </div>
             )}
           </div>
 
@@ -276,12 +322,18 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                 </a>
               </div>
             ) : (
-              <Input
-                type="file"
-                accept=".pdf,image/*"
-                onChange={(e) => handleFileChange("bank_statement", e.target.files?.[0] || null)}
-                disabled={isReadOnly}
-              />
+              <div
+                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragBankStatement ? "border-primary bg-primary/10" : "border-transparent"}`}
+                {...dropBankStatement}
+              >
+                <Input
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={(e) => handleFileChange("bank_statement", e.target.files?.[0] || null)}
+                  disabled={isReadOnly}
+                />
+                {dragBankStatement && <p className="text-xs text-primary text-center mt-1">Drop file here</p>}
+              </div>
             )}
           </div>
 
@@ -303,12 +355,18 @@ export function ReKYCForm({ requestId, isReadOnly = false, onClose }: ReKYCFormP
                 </a>
               </div>
             ) : (
-              <Input
-                type="file"
-                accept="video/*"
-                onChange={(e) => handleFileChange("vkyc_video", e.target.files?.[0] || null)}
-                disabled={isReadOnly}
-              />
+              <div
+                className={`rounded-md border-2 border-dashed p-2 transition-colors ${dragVkycVideo ? "border-primary bg-primary/10" : "border-transparent"}`}
+                {...dropVkycVideo}
+              >
+                <Input
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => handleFileChange("vkyc_video", e.target.files?.[0] || null)}
+                  disabled={isReadOnly}
+                />
+                {dragVkycVideo && <p className="text-xs text-primary text-center mt-1">Drop file here</p>}
+              </div>
             )}
             
             {!isReadOnly && (

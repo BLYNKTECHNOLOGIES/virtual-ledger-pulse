@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 
 export function LegalCommunicationsTab() {
   const [showNewCommDialog, setShowNewCommDialog] = useState(false);
@@ -36,7 +38,6 @@ export function LegalCommunicationsTab() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
 
-  // Fetch legal communications
   const { data: communications, isLoading } = useQuery({
     queryKey: ['legal_communications', searchTerm, filterStatus],
     queryFn: async () => {
@@ -59,7 +60,6 @@ export function LegalCommunicationsTab() {
     },
   });
 
-  // Fetch legal actions for linking
   const { data: legalActions } = useQuery({
     queryKey: ['legal_actions_for_comm'],
     queryFn: async () => {
@@ -79,37 +79,40 @@ export function LegalCommunicationsTab() {
     setAttachments(prev => [...prev, ...files]);
   };
 
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => setAttachments(prev => [...prev, ...files]),
+    multiple: true,
+  });
+
   const removeAttachment = (index: number) => {
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const uploadFiles = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
-    
+
     for (const file of files) {
       const fileName = `legal-communications/${Date.now()}-${file.name}`;
       const { data, error } = await supabase.storage
         .from('kyc-documents')
         .upload(fileName, file);
-      
+
       if (error) throw error;
-      
+
       const { data: { publicUrl } } = supabase.storage
         .from('kyc-documents')
         .getPublicUrl(fileName);
-      
+
       uploadedUrls.push(publicUrl);
     }
-    
+
     return uploadedUrls;
   };
 
-  // Create communication mutation
   const createCommunicationMutation = useMutation({
     mutationFn: async (commData: typeof newCommunication) => {
       let attachmentUrls: string[] = [];
-      
-      // Upload attachments if any
+
       if (attachments.length > 0) {
         attachmentUrls = await uploadFiles(attachments);
       }
@@ -173,7 +176,7 @@ export function LegalCommunicationsTab() {
   };
 
   const communicationTypes = [
-    "Email", "Phone Call", "Meeting", "Letter", "Legal Notice", 
+    "Email", "Phone Call", "Meeting", "Letter", "Legal Notice",
     "Court Filing", "Settlement Discussion", "Other"
   ];
 
@@ -202,8 +205,8 @@ export function LegalCommunicationsTab() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Communication Type *</Label>
-                      <Select 
-                        value={newCommunication.communication_type} 
+                      <Select
+                        value={newCommunication.communication_type}
                         onValueChange={(value) => setNewCommunication(prev => ({ ...prev, communication_type: value }))}
                         required
                       >
@@ -219,7 +222,7 @@ export function LegalCommunicationsTab() {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Communication Date *</Label>
                       <Input
@@ -241,7 +244,7 @@ export function LegalCommunicationsTab() {
                         required
                       />
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label>Contact Person</Label>
                       <Input
@@ -274,8 +277,8 @@ export function LegalCommunicationsTab() {
 
                   <div className="space-y-2">
                     <Label>Related Legal Action (Optional)</Label>
-                    <Select 
-                      value={newCommunication.legal_action_id} 
+                    <Select
+                      value={newCommunication.legal_action_id}
                       onValueChange={(value) => setNewCommunication(prev => ({ ...prev, legal_action_id: value }))}
                     >
                       <SelectTrigger>
@@ -294,7 +297,13 @@ export function LegalCommunicationsTab() {
 
                   <div className="space-y-2">
                     <Label>Attachments</Label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <div
+                      className={cn(
+                        "border-2 border-dashed border-gray-300 rounded-lg p-4 transition-colors",
+                        isDragActive && "border-primary bg-primary/10"
+                      )}
+                      {...dropzoneProps}
+                    >
                       <Input
                         type="file"
                         multiple
@@ -303,12 +312,12 @@ export function LegalCommunicationsTab() {
                         id="file-upload"
                         accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                       />
-                      <Label 
-                        htmlFor="file-upload" 
+                      <Label
+                        htmlFor="file-upload"
                         className="cursor-pointer flex items-center justify-center space-x-2 text-gray-600"
                       >
                         <Upload className="h-4 w-4" />
-                        <span>Click to upload files</span>
+                        <span>Click to upload or drag & drop files</span>
                       </Label>
                     </div>
                     {attachments.length > 0 && (
@@ -349,7 +358,7 @@ export function LegalCommunicationsTab() {
                       />
                     </div>
                   )}
-                  
+
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setShowNewCommDialog(false)}>
                       Cancel
@@ -409,11 +418,11 @@ export function LegalCommunicationsTab() {
                       {comm.status.replace('_', ' ')}
                     </Badge>
                   </div>
-                  
+
                   {comm.content && (
                     <p className="text-sm text-gray-700 mb-3">{comm.content}</p>
                   )}
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
                     <div>
                       <span className="font-medium">Date:</span> {new Date(comm.communication_date).toLocaleDateString()}
@@ -435,12 +444,6 @@ export function LegalCommunicationsTab() {
                       </div>
                     )}
                   </div>
-
-                  {comm.attachments && comm.attachments.length > 0 && (
-                    <div className="text-sm text-gray-600">
-                      <span className="font-medium">Attachments:</span> {comm.attachments.length} file(s)
-                    </div>
-                  )}
                 </div>
               ))
             )}

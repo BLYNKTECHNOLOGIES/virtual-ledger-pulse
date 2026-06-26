@@ -15,6 +15,7 @@ import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyF
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAppealConfig, useUpsertAppealCase } from '@/hooks/useTerminalAppeals';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -221,6 +222,12 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
   const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await processPaidScreenshot(file);
+  };
+
+  const processPaidScreenshot = async (file: File) => {
+    if (!file) return;
+
 
     if (!file.type.startsWith('image/')) {
       toast.error('Only image files are allowed');
@@ -289,6 +296,14 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  const { isDragActive: paidDragActive, dropzoneProps: paidDropzone } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) void processPaidScreenshot(files[0]); },
+    disabled: isUploading,
+    multiple: false,
+  });
+
+
 
   return (
     <TableRow
@@ -421,7 +436,11 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
+          <div
+            {...paidDropzone}
+            className={`flex items-center gap-1.5 justify-end flex-wrap rounded-md transition-colors ${paidDragActive ? 'ring-2 ring-primary bg-primary/10' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Hidden file input for upload */}
             <input
               ref={fileInputRef}

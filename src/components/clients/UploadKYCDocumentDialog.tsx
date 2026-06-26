@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,40 @@ const DOC_TYPES: { value: string; label: string; folder: string }[] = [
   { value: "source_of_fund", label: "Source of Fund", folder: "source_of_fund" },
   { value: "other", label: "Other Document", folder: "other" },
 ];
+
+
+function KycFileDropArea({ files, setFiles, disabled }: { files: File[]; setFiles: (f: File[]) => void; disabled: boolean }) {
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (dropped) => setFiles(Array.from(dropped)),
+    disabled,
+    multiple: true,
+  });
+  return (
+    <div>
+      <Label htmlFor="kyc-file">Files *</Label>
+      <div
+        {...dropzoneProps}
+        className={cn(
+          "mt-1 rounded-md border border-dashed border-muted-foreground/40 transition-colors",
+          isDragActive && "border-primary bg-primary/10"
+        )}
+      >
+        <Input
+          id="kyc-file"
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm"
+          disabled={disabled}
+          onChange={(e) => setFiles(Array.from(e.target.files || []))}
+          className="cursor-pointer"
+        />
+      </div>
+      {files.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-1">{files.length} file(s) selected</p>
+      )}
+    </div>
+  );
+}
 
 export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientName }: UploadKYCDocumentDialogProps) {
   const { toast } = useToast();
@@ -119,19 +155,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="kyc-file">Files *</Label>
-            <Input
-              id="kyc-file"
-              type="file"
-              multiple
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,.mp4,.mov,.webm"
-              onChange={(e) => setFiles(Array.from(e.target.files || []))}
-            />
-            {files.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">{files.length} file(s) selected</p>
-            )}
-          </div>
+          <KycFileDropArea files={files} setFiles={setFiles} disabled={uploading} />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={uploading}>

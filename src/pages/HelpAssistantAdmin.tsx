@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -150,6 +152,11 @@ function DocsTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [uploading, setUploading] = useState(false);
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleUpload(files[0]); },
+    disabled: uploading,
+    multiple: false,
+  });
 
   const { data: docs = [] } = useQuery({
     queryKey: ["kb-docs-admin"],
@@ -201,7 +208,7 @@ function DocsTab() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>SOP Documents ({docs.length})</CardTitle>
-          <label className="cursor-pointer">
+          <label className={cn("cursor-pointer rounded-lg transition-colors", isDragActive && "ring-2 ring-primary ring-offset-2")} {...dropzoneProps}>
             <input type="file" className="hidden" accept=".pdf,.docx,.txt,.md,.csv" onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0])} />
             <span className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />} Upload

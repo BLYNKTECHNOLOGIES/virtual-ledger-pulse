@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -854,8 +856,7 @@ export default function UserProfile() {
     }
   });
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const processAvatarFile = (file?: File | null) => {
     if (file) {
       if (file.size > 5242880) { toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" }); return; }
       if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) { toast({ title: "Error", description: "Only JPG, PNG, and WebP images are allowed", variant: "destructive" }); return; }
@@ -865,6 +866,16 @@ export default function UserProfile() {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processAvatarFile(e.target.files?.[0]);
+  };
+
+  const { isDragActive: avatarDragActive, dropzoneProps: avatarDropzone } = useFileDropzone({
+    onFiles: (files) => processAvatarFile(files[0]),
+    disabled: uploadAvatarMutation.isPending,
+    multiple: false,
+  });
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
@@ -1409,7 +1420,9 @@ export default function UserProfile() {
                   </Avatar>
                   <div className="w-full space-y-2">
                     <Label htmlFor="avatar">Upload New Image</Label>
-                    <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
+                    <div {...avatarDropzone} className={cn("rounded-md transition-colors", avatarDragActive && "ring-2 ring-primary bg-primary/10 p-1")}>
+                      <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
+                    </div>
                     <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max size 5MB.</p>
                   </div>
                   {avatarFile && (

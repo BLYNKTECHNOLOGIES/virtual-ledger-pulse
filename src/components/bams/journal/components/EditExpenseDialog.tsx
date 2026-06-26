@@ -1,4 +1,5 @@
  import { useState, useEffect, useMemo } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
  import {
    Dialog,
    DialogContent,
@@ -46,6 +47,12 @@
   const [billFile, setBillFile] = useState<File | null>(null);
   const [removeBill, setRemoveBill] = useState(false);
   const [uploadingBill, setUploadingBill] = useState(false);
+
+  const { isDragActive: billDragActive, dropzoneProps: billDropzone } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) { setBillFile(files[0]); setRemoveBill(false); } },
+    disabled: uploadingBill,
+    multiple: false,
+  });
  
    // Parse existing category to extract main category and sub-category
    useEffect(() => {
@@ -408,7 +415,8 @@
             ) : (
               <label
                 htmlFor="editBillAttachment"
-                className="mt-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/30"
+                {...billDropzone}
+                className={cn("mt-1 flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/30", billDragActive && "border-primary bg-primary/10")}
               >
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm text-muted-foreground">

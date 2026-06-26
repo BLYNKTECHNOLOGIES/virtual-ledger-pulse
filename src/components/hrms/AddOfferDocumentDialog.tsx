@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Upload } from "lucide-react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 
 interface AddOfferDocumentDialogProps {
   open: boolean;
@@ -87,10 +88,7 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
     });
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const uploadSingleFile = async (file: File) => {
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
@@ -123,6 +121,18 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
       setUploading(false);
     }
   };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await uploadSingleFile(file);
+  };
+
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) uploadSingleFile(files[0]); },
+    disabled: uploading,
+    multiple: false,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +181,12 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
 
           <div>
             <Label htmlFor="document_upload">Upload Document</Label>
-            <div className="mt-2">
+            <div
+              className={`mt-2 rounded-md border-2 border-dashed p-3 transition-colors ${
+                isDragActive ? "border-primary bg-primary/10" : "border-transparent"
+              }`}
+              {...dropzoneProps}
+            >
               <Input
                 id="document_upload"
                 type="file"
@@ -184,6 +199,9 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
               )}
               {formData.document_url && (
                 <div className="mt-2 text-sm text-green-600">Document uploaded successfully</div>
+              )}
+              {isDragActive && (
+                <p className="mt-1 text-xs text-primary text-center">Drop file here</p>
               )}
             </div>
           </div>

@@ -49,6 +49,7 @@ export default function Sales() {
   
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
   const [filterAssetType, setFilterAssetType] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();

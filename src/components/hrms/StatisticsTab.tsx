@@ -165,7 +165,8 @@ export function StatisticsTab() {
       const onboardingApprovals = await fetchAllPaginated<any>(() =>
         supabase
           .from('client_onboarding_approvals')
-          .select('id, approval_status, created_at, reviewed_at, client_name, order_amount'));
+          .select('id, approval_status, created_at, reviewed_at, client_name, order_amount')
+          .order('id', { ascending: true }));
 
 
       // Onboarding in period

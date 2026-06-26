@@ -615,31 +615,27 @@ export function SellerOnboardingApprovals() {
                 className="max-w-sm"
               />
             </div>
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedIds(new Set())}
-                  disabled={bulkApproveMutation.isPending}
-                >
-                  Clear
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => setShowBulkConfirm(true)}
-                  disabled={bulkApproveMutation.isPending}
-                >
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  {bulkApproveMutation.isPending && bulkProgress
-                    ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
-                    : `Bulk Approve (${selectedIds.size})`}
-                </Button>
-              </div>
-            )}
+            <SegmentedControl
+              size="sm"
+              aria-label="Row density"
+              value={density}
+              onValueChange={setDensity}
+              options={[
+                { label: "Comfortable", value: "comfortable" },
+                { label: "Compact", value: "compact" },
+              ]}
+            />
           </div>
+
+          {searchTerm.trim() && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <FilterChip
+                label="Search:"
+                value={searchTerm}
+                onRemove={() => setSearchTerm("")}
+              />
+            </div>
+          )}
 
           {filteredSellers && filteredSellers.length > 0 ? (
             <div className="overflow-x-auto">

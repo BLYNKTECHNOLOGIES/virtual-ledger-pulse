@@ -51,7 +51,7 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected }: DailyReportProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>

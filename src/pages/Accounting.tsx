@@ -54,7 +54,7 @@ export default function Accounting() {
         </div>
 
       <Tabs defaultValue="sales-purchases" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="sales-purchases" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Sales & Purchases
@@ -63,23 +63,14 @@ export default function Accounting() {
             <Calculator className="h-4 w-4" />
             Tax Management
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            Reports
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sales-purchases">
           <SalesPurchasesTab />
         </TabsContent>
 
-
         <TabsContent value="tax">
           <TaxManagementTab />
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <ReportsTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -553,7 +553,13 @@ export function InvestigationDetailsDialog({
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="relative">
+                  <div
+                    {...filesDropzone}
+                    className={cn(
+                      "relative rounded-md transition-colors",
+                      filesDragActive && "ring-2 ring-primary bg-primary/10",
+                    )}
+                  >
                     <Button
                       type="button"
                       variant="outline"

@@ -171,9 +171,6 @@ export function ProductCardListingTab() {
                     <CardTitle className="text-lg font-semibold text-gray-900">
                       {product.name}
                     </CardTitle>
-                    <Badge variant="outline" className="text-xs">
-                      #{product.code}
-                    </Badge>
                   </div>
                 <div className="flex flex-col items-end gap-1">
                   <StockStatusBadge currentStock={product.total_stock} />

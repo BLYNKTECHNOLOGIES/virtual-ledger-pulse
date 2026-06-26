@@ -854,8 +854,7 @@ export default function UserProfile() {
     }
   });
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const processAvatarFile = (file?: File | null) => {
     if (file) {
       if (file.size > 5242880) { toast({ title: "Error", description: "Image must be less than 5MB", variant: "destructive" }); return; }
       if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) { toast({ title: "Error", description: "Only JPG, PNG, and WebP images are allowed", variant: "destructive" }); return; }
@@ -865,6 +864,16 @@ export default function UserProfile() {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    processAvatarFile(e.target.files?.[0]);
+  };
+
+  const { isDragActive: avatarDragActive, dropzoneProps: avatarDropzone } = useFileDropzone({
+    onFiles: (files) => processAvatarFile(files[0]),
+    disabled: uploadAvatarMutation.isPending,
+    multiple: false,
+  });
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 

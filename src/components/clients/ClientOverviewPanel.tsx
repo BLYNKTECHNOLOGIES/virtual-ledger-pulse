@@ -227,21 +227,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           )}
         </div>
 
-        {/* Display Aadhar and Address from KYC if available */}
-        {latestKyc && (
-          <div className="grid grid-cols-1 gap-4 p-3 bg-blue-50 rounded-md">
-            <div>
-              <label className="text-sm font-medium text-gray-600">KYC Information</label>
-              <div className="flex items-center gap-2 mt-1">
-                <FileText className="h-4 w-4 text-gray-400" />
-                <span className="text-sm">Aadhar documents submitted</span>
-              </div>
-              {latestKyc.additional_info && (
-                <p className="text-sm text-gray-600 mt-1">{latestKyc.additional_info}</p>
-              )}
-            </div>
-          </div>
-        )}
 
         {client.operator_notes && (
           <div>

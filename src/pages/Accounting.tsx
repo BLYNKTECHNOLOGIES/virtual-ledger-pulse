@@ -2,10 +2,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, FileText, CreditCard, TrendingUp, Calculator, BarChart, Shield } from "lucide-react";
-import { LedgerAccountsTab } from "@/components/accounting/LedgerAccountsTab";
-import { JournalEntriesTab } from "@/components/accounting/JournalEntriesTab";
-import { BankReconciliationTab } from "@/components/accounting/BankReconciliationTab";
+import { TrendingUp, Calculator, BarChart, Shield } from "lucide-react";
 import { SalesPurchasesTab } from "@/components/accounting/SalesPurchasesTab";
 import { TaxManagementTab } from "@/components/accounting/TaxManagementTab";
 import { ReportsTab } from "@/components/accounting/ReportsTab";

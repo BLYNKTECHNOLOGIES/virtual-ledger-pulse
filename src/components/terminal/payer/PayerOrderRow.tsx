@@ -15,6 +15,7 @@ import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyF
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAppealConfig, useUpsertAppealCase } from '@/hooks/useTerminalAppeals';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
@@ -88,6 +89,11 @@ export function TopHeader() {
   return (
     <header className="h-14 md:h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-3 md:px-6 shadow-sm">
       <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+        <SidebarTrigger
+          className="hidden md:inline-flex h-9 w-9 flex-shrink-0 text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-2 border-gray-200 rounded-lg"
+          aria-label="Toggle sidebar"
+          title="Collapse / expand sidebar (Ctrl/⌘ + B)"
+        />
         <button 
           onClick={handleDashboardClick}
           className="text-sm md:text-lg font-bold text-blue-700 hover:text-blue-800 transition-colors cursor-pointer truncate"

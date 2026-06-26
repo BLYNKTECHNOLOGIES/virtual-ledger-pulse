@@ -615,11 +615,11 @@ export function SellerOnboardingApprovals() {
                 className="max-w-sm"
               />
             </div>
-            <SegmentedControl<"comfortable" | "compact">
+            <SegmentedControl
               size="sm"
               aria-label="Row density"
               value={density}
-              onValueChange={setDensity}
+              onValueChange={(v) => setDensity(v as "comfortable" | "compact")}
               options={[
                 { label: "Comfortable", value: "comfortable" },
                 { label: "Compact", value: "compact" },

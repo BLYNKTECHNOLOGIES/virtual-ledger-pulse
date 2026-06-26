@@ -17,12 +17,20 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  // Persist sidebar expanded/collapsed (icon-rail) state across reloads.
+  const defaultSidebarOpen =
+    typeof document !== "undefined"
+      ? document.cookie
+          .split("; ")
+          .find((c) => c.startsWith("sidebar:state="))
+          ?.split("=")[1] !== "false"
+      : true;
   return (
     <PinUnlockProvider>
       <SidebarEditProvider>
         <NotificationProvider>
           <ExchangeAccountProvider>
-            <SidebarProvider>
+            <SidebarProvider defaultOpen={defaultSidebarOpen}>
               <div className="flex w-full min-h-screen bg-slate-50">
                 {/* Desktop sidebar - hidden on mobile */}
                 <div className="hidden md:block">

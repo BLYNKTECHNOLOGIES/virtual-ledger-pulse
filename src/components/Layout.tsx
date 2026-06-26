@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TopHeader } from "./TopHeader";
@@ -15,6 +16,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const location = useLocation();
   return (
     <PinUnlockProvider>
       <SidebarEditProvider>
@@ -29,7 +31,9 @@ export function Layout({ children }: LayoutProps) {
                 <SidebarInset className="flex flex-col flex-1 min-w-0">
                   <TopHeader />
                   <main className="flex-1 overflow-auto bg-slate-50 pb-16 md:pb-0">
-                    {children}
+                    <div key={location.pathname} className="page-mount">
+                      {children}
+                    </div>
                   </main>
                   {/* Mobile bottom navigation */}
                   <MobileBottomNav />

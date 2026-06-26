@@ -1,51 +1,59 @@
-# Add Rejected ERP Entries to Daily Business Report
+## Goal
 
-Append a new audit section at the end of the daily report email listing every ERP transactional entry that was **rejected during the report's IST calendar day**, including the rejecting user. No rejected entry is filtered out beyond the date scope, so the section is audit-complete.
+Make the ERP feel finished and polished instead of "raw Excel sheet" by adding subtle, fast micro-animations — without changing any tab positions, page layouts, data, or business logic. All changes happen in shared UI primitives and one global CSS/config file, so every page benefits at once.
 
-## Scope
+## Guardrails (hard constraints)
 
-Time window: entries rejected on the report day only (same IST day used by every other section).
+- No placement changes to tabs or any UI element. Only motion/transition styling is added.
+- No business-logic, data, query, or backend changes.
+- Performance-first: only GPU-friendly properties (`transform`, `opacity`), durations capped at 150–250ms, and respect `prefers-reduced-motion` so heavy data tables never feel laggy.
+- Everything stays in the existing design-token system (no hardcoded colors).
 
-Sources included (transactional ERP entries):
-- `terminal_purchase_sync` and `terminal_sales_sync` — `sync_status = 'rejected'`
-- `small_buys_sync` and `small_sales_sync` — `sync_status = 'rejected'`
-- `erp_action_queue` — `status = 'REJECTED'` (deposits/withdrawals)
-- `erp_product_conversions` — `status = 'REJECTED'`
+## What gets polished
 
-Buyer KYC onboarding rejections are intentionally excluded (already has its own KYC section logic).
+### 1. Dialogs & modals (the biggest "raw" feeling)
+`src/components/ui/dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `drawer.tsx`
+- Add a smooth zoom+fade entrance on mobile too (currently only desktop zooms; mobile just fades).
+- Soften overlay fade and add a gentle backdrop blur on open.
+- Slightly longer, eased close so dialogs don't "snap" shut.
 
-## Data gathering (`supabase/functions/daily-report-email/index.ts`)
+### 2. Tab switching
+`src/components/ui/tabs.tsx`
+- Add a quick fade/slide-up on `TabsContent` when a tab becomes active (content animates, tabs stay exactly where they are).
+- Smooth the active-pill transition on `TabsTrigger` (color/shadow already transitions; refine easing).
 
-Add `buildRejected(supabase, date)`:
-- Query each source for rejected rows, paginated via the existing `fetchAllRows`.
-- Determine the rejection timestamp per source and keep only rows whose IST date (via existing `istDateStr`) equals the report date:
-  - sync tables: `reviewed_at` (fall back to `updated_at`/`synced_at`)
-  - `erp_action_queue`: `processed_at` (fall back to `updated_at`)
-  - `erp_product_conversions`: `rejected_at`
-- Resolve the rejecting user to a display name:
-  - sync tables: `reviewed_by`
-  - `erp_action_queue`: `processed_by`
-  - conversions: `rejected_by_name` if present, else `rejected_by`
-  - Batch-resolve the collected UUIDs against `users` (first_name/last_name/username); show "—" when unknown.
-- Normalize each into a flat row: `{ type, label, amount, counterparty, reason, rejectedBy, rejectedAt }` (type = Terminal Buy / Terminal Sale / Small Buys / Small Sales / Deposit / Withdrawal / Conversion), reusing the same amount/label formatting style as the frontend rejected feed.
-- Sort newest-rejected first and return `{ count, rows }`.
-- Wire into `buildReport` return payload as `rejected`.
+### 3. Tables (kills the "spreadsheet" feel)
+`src/components/ui/table.tsx`
+- Subtle row hover lift/tint refinement and smoother `transition-colors`.
+- Optional staggered fade-in for newly rendered rows (CSS-only, no JS per-row cost).
 
-## Template (`supabase/functions/_shared/transactional-email-templates/daily-business-report.tsx`)
+### 4. Cards, dropdowns, popovers, tooltips, accordions
+`card.tsx`, `dropdown-menu.tsx`, `select.tsx`, `popover.tsx`, `hover-card.tsx`, `tooltip.tsx`, `accordion.tsx`
+- Ensure consistent enter/exit zoom+fade (most already have it via radix; standardize duration/easing).
+- Cards: gentle hover elevation using existing shadow tokens.
 
-- Extend `DailyReportProps` with:
-  `rejected?: { count: number; rows: { type: string; label: string; amount: string; counterparty: string; reason: string; rejectedBy: string; rejectedAt: string }[] }`
-- Add a new `<Section>` (styled like other cards, with a red/destructive accent) rendered just before the footer, titled "Rejected ERP Entries (Audit)".
-  - If `count === 0`: show "No entries were rejected on this day."
-  - Otherwise a table with columns: Type, Details, Amount, Rejected By, Time, Reason.
-- Keep `Body` background white per email rules; use red accent only on the card border/header.
+### 5. Buttons & interactive controls
+`src/components/ui/button.tsx`
+- Add subtle active-press scale (`active:scale-[0.98]`) and consistent transition for a tactile feel.
 
-## Deployment
+### 6. Global motion foundation
+`tailwind.config.ts` + `src/index.css`
+- Add a small set of reusable keyframes/utilities (e.g. `fade-in-up`, `content-show`) with standardized easing curve.
+- Add a global `@media (prefers-reduced-motion: reduce)` block that disables/reduces animations for accessibility and low-power devices.
+- Add a route/page-content mount fade so navigating between modules feels intentional.
 
-After editing, deploy `daily-report-email`, `send-transactional-email`, and the shared template (registry already includes `daily-business-report`).
+## Approach
+
+Because all interactive UI is built on these shared primitives, editing them propagates the polish across every module (Sales, Terminal, BAMS, Accounting, Approvals, etc.) with zero per-page edits and zero placement changes.
+
+## Verification
+
+- Build passes.
+- Drive Playwright on the live preview to open a dialog, switch tabs, and hover table rows; capture before/after screenshots and confirm motion is subtle and tabs/layout are unchanged.
+- Confirm reduced-motion media query disables animations.
 
 ## Technical notes
 
-- All counts use IST date conversion already present in the file; no new timezone logic.
-- User-name resolution mirrors the pattern used elsewhere (first+last, fallback username).
-- No schema/migration changes required — all needed columns (`reviewed_by`, `processed_by`, `rejected_by`, `*_at`, reason fields) already exist.
+- Durations: 150ms (hover/press), 200ms (dropdowns/tabs), 250ms (dialogs). Easing: `cubic-bezier(0.16,1,0.3,1)` for entrances.
+- Only animate `transform`/`opacity`/`filter`(blur on overlay only) to avoid layout reflow and keep 60fps on large tables.
+- No changes to any `*Tab.tsx` page files, sidebar, or routing structure beyond an opt-in mount-fade wrapper.

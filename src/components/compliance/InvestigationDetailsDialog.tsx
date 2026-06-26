@@ -409,6 +409,14 @@ export function InvestigationDetailsDialog({
     }
   };
 
+  const { isDragActive: filesDragActive, dropzoneProps: filesDropzone } = useFileDropzone({
+    onFiles: (files) => setSelectedFiles(files),
+  });
+  const { isDragActive: finalDragActive, dropzoneProps: finalDropzone } = useFileDropzone({
+    onFiles: (files) => setFinalResolutionFiles(files),
+  });
+
+
   // Helper function to check if a step can be completed (sequential constraint)
   const canCompleteStep = (step: any) => {
     if (!steps) return false;

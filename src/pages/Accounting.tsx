@@ -2,10 +2,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, FileText, CreditCard, TrendingUp, Calculator, BarChart, Shield } from "lucide-react";
-import { LedgerAccountsTab } from "@/components/accounting/LedgerAccountsTab";
-import { JournalEntriesTab } from "@/components/accounting/JournalEntriesTab";
-import { BankReconciliationTab } from "@/components/accounting/BankReconciliationTab";
+import { TrendingUp, Calculator, BarChart, Shield } from "lucide-react";
 import { SalesPurchasesTab } from "@/components/accounting/SalesPurchasesTab";
 import { TaxManagementTab } from "@/components/accounting/TaxManagementTab";
 import { ReportsTab } from "@/components/accounting/ReportsTab";
@@ -57,20 +54,8 @@ export default function Accounting() {
           </div>
         </div>
 
-      <Tabs defaultValue="ledger" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="ledger" className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            Ledger Accounts
-          </TabsTrigger>
-          <TabsTrigger value="journal" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Journal Entries
-          </TabsTrigger>
-          <TabsTrigger value="reconciliation" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            Bank Reconciliation
-          </TabsTrigger>
+      <Tabs defaultValue="sales-purchases" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="sales-purchases" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Sales & Purchases
@@ -85,21 +70,10 @@ export default function Accounting() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="ledger">
-          <LedgerAccountsTab />
-        </TabsContent>
-
-        <TabsContent value="journal">
-          <JournalEntriesTab />
-        </TabsContent>
-
-        <TabsContent value="reconciliation">
-          <BankReconciliationTab />
-        </TabsContent>
-
         <TabsContent value="sales-purchases">
           <SalesPurchasesTab />
         </TabsContent>
+
 
         <TabsContent value="tax">
           <TaxManagementTab />

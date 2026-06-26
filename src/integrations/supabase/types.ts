@@ -8730,39 +8730,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ledger_accounts: {
-        Row: {
-          account_code: string | null
-          account_type: string
-          created_at: string
-          current_balance: number
-          id: string
-          name: string
-          opening_balance: number
-          updated_at: string
-        }
-        Insert: {
-          account_code?: string | null
-          account_type: string
-          created_at?: string
-          current_balance?: number
-          id?: string
-          name: string
-          opening_balance?: number
-          updated_at?: string
-        }
-        Update: {
-          account_code?: string | null
-          account_type?: string
-          created_at?: string
-          current_balance?: number
-          id?: string
-          name?: string
-          opening_balance?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       ledger_anchors: {
         Row: {
           anchored_at: string

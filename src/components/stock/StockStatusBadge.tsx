@@ -82,7 +82,7 @@ export function StockStatusBadge({
 
   return (
     <Badge variant={getBadgeVariant(total_stock)} className={className}>
-      {total_stock} {unit_of_measurement}
+      {total_stock.toFixed(2)} {unit_of_measurement}
     </Badge>
   );
 }

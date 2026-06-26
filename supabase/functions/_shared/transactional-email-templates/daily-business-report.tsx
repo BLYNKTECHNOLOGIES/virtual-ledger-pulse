@@ -477,6 +477,10 @@ export const template = {
       gatewayGroups: [{ name: 'Razorpay', total: '3,50,000.00', count: 12 }],
     },
     charts: { salesVsPurchase: '', pnl: '', volumeByAsset: '', hourly: '', expensesByCategory: '' },
+    rejected: { count: 2, rows: [
+      { type: 'Terminal Sale', label: 'Order 22938471', amount: '1,200.00 USDT', counterparty: 'UPI · rahul_p', reason: 'Wrong payment proof', rejectedBy: 'Abhishek Singh', rejectedAt: '14:32 IST' },
+      { type: 'Deposit', label: 'Deposit · TRX', amount: '500.00 TRX', counterparty: 'TRC20 · 9af13c0b2e…', reason: 'Duplicate movement', rejectedBy: 'Shubham Singh', rejectedAt: '11:05 IST' },
+    ] },
   },
 } satisfies TemplateEntry
 

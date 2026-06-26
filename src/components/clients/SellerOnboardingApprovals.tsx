@@ -802,6 +802,26 @@ export function SellerOnboardingApprovals() {
         </CardContent>
       </Card>
 
+      {/* Floating bulk action bar — appears when sellers are selected */}
+      <BulkActionBar
+        count={selectedIds.size}
+        itemNoun="seller"
+        onClear={() => setSelectedIds(new Set())}
+      >
+        <Button
+          size="sm"
+          className="bg-green-600 hover:bg-green-700"
+          onClick={() => setShowBulkConfirm(true)}
+          disabled={bulkApproveMutation.isPending}
+        >
+          <CheckCircle className="h-3 w-3 mr-1" />
+          {bulkApproveMutation.isPending && bulkProgress
+            ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
+            : `Bulk Approve (${selectedIds.size})`}
+        </Button>
+      </BulkActionBar>
+
+
       {/* Order Summary Dialog */}
       <ClientOrderSummaryDialog
         open={showOrderSummary}

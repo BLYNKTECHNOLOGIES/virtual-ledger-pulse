@@ -30,8 +30,6 @@ const moreNavItems: MobileNavItem[] = [
   { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage"] },
   { title: "Compliance", url: "/compliance", icon: Package, permissions: ["compliance_view", "compliance_manage"] },
   { title: "Risk Management", url: "/risk-management", icon: Package, permissions: ["risk_management_view", "risk_management_manage"] },
-  { title: "Video KYC", url: "/video-kyc", icon: Package, permissions: ["video_kyc_view", "video_kyc_manage"] },
-  { title: "KYC Approvals", url: "/kyc-approvals", icon: Package, permissions: ["kyc_approvals_view", "kyc_approvals_manage"] },
   { title: "HRMS", url: "/hrms", icon: Users, permissions: ["hrms_view", "hrms_manage"] },
   { title: "Accounting", url: "/accounting", icon: Package, permissions: ["accounting_view", "accounting_manage"] },
   { title: "P&L", url: "/profit-loss", icon: TrendingUp, permissions: ["accounting_view", "accounting_manage"] },

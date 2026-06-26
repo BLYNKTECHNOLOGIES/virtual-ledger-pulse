@@ -670,9 +670,9 @@ export default function Sales() {
                   )}
                 </TableCell>
                 <TableCell>{order.wallet?.wallet_name || order.platform || 'Off Market'}</TableCell>
-                <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
-                <TableCell>{order.quantity || 1}</TableCell>
-                <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
+                <TableCell numeric className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
+                <TableCell numeric>{order.quantity || 1}</TableCell>
+                <TableCell numeric>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
                 <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
                 <TableCell>
                   {order.created_by_user ? (

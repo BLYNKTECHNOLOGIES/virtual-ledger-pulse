@@ -15,7 +15,7 @@ import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { useCoinMarketRates, isStableCoin } from "@/hooks/useCoinMarketRates";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
-import { formatSmartDecimal } from "@/lib/format-smart-decimal";
+
 import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
 export function ProductCardListingTab() {

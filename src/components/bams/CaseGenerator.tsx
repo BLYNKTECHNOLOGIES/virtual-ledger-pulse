@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar, Upload, X } from "lucide-react";
 import { format } from "date-fns";
 import { usePermissions } from "@/hooks/usePermissions";
+import { cn } from "@/lib/utils";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 const CASE_TYPES = [
@@ -380,6 +382,27 @@ export function CaseGenerator() {
     }));
   };
 
+  const { isDragActive: screenshotsDrag, dropzoneProps: screenshotsZone } = useFileDropzone({
+    onFiles: (files) => setFormData(prev => ({ ...prev, screenshots: files })),
+    multiple: true,
+  });
+  const { isDragActive: proofDebitDrag, dropzoneProps: proofDebitZone } = useFileDropzone({
+    onFiles: (files) => setFormData(prev => ({ ...prev, proof_of_debit: files })),
+    multiple: true,
+  });
+  const { isDragActive: supportingProofDrag, dropzoneProps: supportingProofZone } = useFileDropzone({
+    onFiles: (files) => setFormData(prev => ({ ...prev, supporting_proof: files })),
+    multiple: true,
+  });
+  const { isDragActive: supportingDocDrag, dropzoneProps: supportingDocZone } = useFileDropzone({
+    onFiles: (files) => setFormData(prev => ({ ...prev, supporting_document: files })),
+    multiple: true,
+  });
+  const { isDragActive: statementProofDrag, dropzoneProps: statementProofZone } = useFileDropzone({
+    onFiles: (files) => setFormData(prev => ({ ...prev, statement_proof: files })),
+    multiple: true,
+  });
+
   // Render case-specific fields based on selected case type
   const renderCaseSpecificFields = () => {
     switch (formData.case_type) {
@@ -397,7 +420,7 @@ export function CaseGenerator() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className={cn("space-y-2 rounded-md transition-colors", screenshotsDrag && "ring-2 ring-primary bg-primary/10")} {...screenshotsZone}>
               <Label htmlFor="screenshots">Screenshots (Optional)</Label>
               <Input
                 id="screenshots"
@@ -532,7 +555,7 @@ export function CaseGenerator() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className={cn("space-y-2 rounded-md transition-colors", proofDebitDrag && "ring-2 ring-primary bg-primary/10")} {...proofDebitZone}>
               <Label htmlFor="proof_of_debit">Proof of Debit (Screenshot / Bank Entry)</Label>
               <Input
                 id="proof_of_debit"
@@ -609,7 +632,7 @@ export function CaseGenerator() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className={cn("space-y-2 rounded-md transition-colors", supportingProofDrag && "ring-2 ring-primary bg-primary/10")} {...supportingProofZone}>
               <Label htmlFor="supporting_proof">Supporting Proof / Settlement Advice</Label>
               <Input
                 id="supporting_proof"
@@ -676,7 +699,7 @@ export function CaseGenerator() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className={cn("space-y-2 rounded-md transition-colors", supportingDocDrag && "ring-2 ring-primary bg-primary/10")} {...supportingDocZone}>
               <Label htmlFor="supporting_document">Supporting Document (Bank Notice if available)</Label>
               <Input
                 id="supporting_document"
@@ -765,7 +788,7 @@ export function CaseGenerator() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className={cn("space-y-2 rounded-md transition-colors", statementProofDrag && "ring-2 ring-primary bg-primary/10")} {...statementProofZone}>
               <Label htmlFor="statement_proof">Screenshot / Statement Proof</Label>
               <Input
                 id="statement_proof"

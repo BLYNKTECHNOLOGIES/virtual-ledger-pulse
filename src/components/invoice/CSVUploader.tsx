@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { Upload, FileText, AlertCircle } from "lucide-react";
 import { parseCSV } from "@/lib/csvParser";

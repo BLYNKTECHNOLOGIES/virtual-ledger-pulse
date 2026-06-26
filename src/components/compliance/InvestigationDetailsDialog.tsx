@@ -737,7 +737,13 @@ export function InvestigationDetailsDialog({
                   Supporting Documents <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-3">
-                  <div className="flex items-center gap-3">
+                  <div
+                    {...finalDropzone}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md transition-colors",
+                      finalDragActive && "ring-2 ring-primary bg-primary/10 p-2",
+                    )}
+                  >
                     <Button
                       type="button"
                       variant="outline"

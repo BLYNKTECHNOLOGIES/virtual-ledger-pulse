@@ -399,11 +399,45 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
-
-
-
+          {/* ERP vs Terminal USDT balance difference — captured at 4 AM (bottom-most) */}
+          {erpDiff && (
+            <Section style={{ ...card, backgroundColor: '#f3f6fb', borderColor: '#bcd0e6' }}>
+              <Text style={{ ...sectionTitle, color: '#1565C0', borderBottomColor: '#1565C0' }}>
+                ERP vs Terminal Balance Insight (USDT)
+              </Text>
+              <Text style={{ fontSize: '11px', color: '#5b7796', margin: '0 0 8px' }}>
+                Per Binance account: USDT balance recorded in the ERP (Asset Inventory · Wallet Distribution)
+                versus the actual live balance in the terminal. Captured by the system at 4:00 AM IST.
+              </Text>
+              {erpDiff.count === 0 ? (
+                <Text style={{ fontSize: '13px', color: '#555', margin: '4px 0' }}>No 4 AM balance snapshot was available for this report.</Text>
+              ) : (
+                <table style={tbl}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Account</th>
+                      <th style={thR}>ERP USDT</th>
+                      <th style={thR}>Terminal USDT</th>
+                      <th style={thR}>Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {erpDiff.rows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={td}>{r.account}</td>
+                        <td style={tdR}>{r.erp}</td>
+                        <td style={tdR}>{r.status === 'error' ? 'Unavailable' : r.terminal}</td>
+                        <td style={{ ...tdR, color: r.hasDrift ? '#C62828' : '#2E7D32', fontWeight: 600 }}>{r.difference}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Section>
+          )}
 
           <Hr style={divider} />
+
           <Text style={footer}>
             Automated daily report from {SITE_NAME} ERP. All figures are derived from the
             system's verified ledger (effective USDT valuation). Adjustment buckets are excluded.

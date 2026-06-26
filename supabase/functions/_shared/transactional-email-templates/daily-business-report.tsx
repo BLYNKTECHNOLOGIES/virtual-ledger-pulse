@@ -517,6 +517,11 @@ export const template = {
       { type: 'Terminal Sale', label: 'Order 22938471', amount: '1,200.00 USDT', counterparty: 'UPI · rahul_p', reason: 'Wrong payment proof', rejectedBy: 'Abhishek Singh', rejectedAt: '14:32 IST' },
       { type: 'Deposit', label: 'Deposit · TRX', amount: '500.00 TRX', counterparty: 'TRC20 · 9af13c0b2e…', reason: 'Duplicate movement', rejectedBy: 'Shubham Singh', rejectedAt: '11:05 IST' },
     ] },
+    erpDiff: { count: 2, capturedAt: '2026-06-26T22:30:00Z', rows: [
+      { account: 'Blynk Binance', erp: '9,409.0400', terminal: '9,410.0000', difference: '-0.9600', hasDrift: false, status: 'ok' },
+      { account: 'ASEC Binance', erp: '2,977.2175', terminal: '2,950.0000', difference: '27.2175', hasDrift: true, status: 'ok' },
+    ] },
+
   },
 } satisfies TemplateEntry
 

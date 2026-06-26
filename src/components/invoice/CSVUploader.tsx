@@ -1,4 +1,5 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { Upload, FileText, AlertCircle } from "lucide-react";
 import { parseCSV } from "@/lib/csvParser";
 import type { OrderRecord, InvoiceCategory, GSTConfig } from "@/types/invoice";
@@ -9,7 +10,6 @@ interface CSVUploaderProps {
 }
 
 export default function CSVUploader({ onDataLoaded, category = "it_services" }: CSVUploaderProps) {
-  const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,26 +34,17 @@ export default function CSVUploader({ onDataLoaded, category = "it_services" }: 
     reader.readAsText(file);
   }, [onDataLoaded, category]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
-
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processFile(file);
   }, [processFile]);
 
   return (
     <div
-      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-      onDragLeave={() => setIsDragging(false)}
-      onDrop={handleDrop}
+      {...dropzoneProps}
       className={`
         relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 cursor-pointer
-        ${isDragging
+        ${isDragActive
           ? "border-primary bg-primary/5 scale-[1.02]"
           : fileName
             ? "border-green-500 bg-green-50"

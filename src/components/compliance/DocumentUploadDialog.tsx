@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Upload } from "lucide-react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 
 interface DocumentUploadDialogProps {
   open: boolean;
@@ -15,7 +17,7 @@ interface DocumentUploadDialogProps {
 
 export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialogProps) {
   const { toast } = useToast();
-  
+
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -30,9 +32,16 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
     }
   };
 
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => {
+      if (files[0]) setFormData(prev => ({ ...prev, file: files[0] }));
+    },
+    multiple: false,
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.file) {
       toast({
         title: "Error",
@@ -41,13 +50,13 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
       });
       return;
     }
-    
+
     // Here you would typically upload the file to your backend/storage
     toast({
       title: "Document Uploaded",
       description: `Document "${formData.name}" has been uploaded successfully.`,
     });
-    
+
     resetForm();
     onOpenChange(false);
   };
@@ -67,7 +76,7 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
         <DialogHeader>
           <DialogTitle>Upload Legal Document</DialogTitle>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="name">Document Name *</Label>
@@ -109,13 +118,21 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
 
           <div>
             <Label htmlFor="file">Select File *</Label>
-            <Input
-              id="file"
-              type="file"
-              onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              required
-            />
+            <div
+              className={cn(
+                "rounded-md transition-colors",
+                isDragActive && "ring-2 ring-primary bg-primary/10"
+              )}
+              {...dropzoneProps}
+            >
+              <Input
+                id="file"
+                type="file"
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                required
+              />
+            </div>
             {formData.file && (
               <p className="text-sm text-gray-600 mt-1">
                 Selected: {formData.file.name}

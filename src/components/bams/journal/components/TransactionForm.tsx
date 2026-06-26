@@ -1,4 +1,5 @@
  import { useState, useMemo, useRef } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,20 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
   const [billFile, setBillFile] = useState<File | null>(null);
   const [uploadingBill, setUploadingBill] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { isDragActive: billDragActive, dropzoneProps: billDropzone } = useFileDropzone({
+    onFiles: (files) => {
+      const file = files[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: "Error", description: "File size must be under 10MB", variant: "destructive" });
+        return;
+      }
+      setBillFile(file);
+    },
+    disabled: createTransactionMutation.isPending || uploadingBill,
+    multiple: false,
+  });
   const [formData, setFormData] = useState({
     bankAccountId: "",
     transactionType: "",

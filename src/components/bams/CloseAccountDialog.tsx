@@ -9,6 +9,8 @@ import { Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import { cn } from "@/lib/utils";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 
 interface BankAccount {
   id: string;
@@ -40,6 +42,12 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
   const [settlementAccountId, setSettlementAccountId] = useState<string>('');
   const [availableBankAccounts, setAvailableBankAccounts] = useState<BankAccount[]>([]);
   const { toast } = useToast();
+
+  const { isDragActive: docsDragActive, dropzoneProps: docsDropzone } = useFileDropzone({
+    onFiles: (files) => setDocuments(files),
+    disabled: uploading,
+    multiple: true,
+  });
 
   // Fetch available bank accounts for settlement
   useEffect(() => {
@@ -288,7 +296,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
             <div>
               <Label htmlFor="documents">Upload Documents (Optional)</Label>
               <div className="mt-2">
-                <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                <label {...docsDropzone} className={cn("flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50", docsDragActive && "border-primary bg-primary/10")}>
                   <div className="flex flex-col items-center">
                     <Upload className="w-8 h-8 text-gray-400" />
                     <p className="mt-2 text-sm text-gray-500">Click to upload files</p>

@@ -9,6 +9,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import * as XLSX from "xlsx";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 
 interface ImportWalletsDialogProps {
   open: boolean;
@@ -160,6 +162,15 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
     }
   });
 
+  const { isDragActive: walletFileDragActive, dropzoneProps: walletFileDropzone } = useFileDropzone({
+    onFiles: (files) => {
+      const fakeEvent = { target: { files: (() => { const dt = new DataTransfer(); files.forEach(f => dt.items.add(f)); return dt.files; })() } } as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(fakeEvent);
+    },
+    disabled: isValidating,
+    multiple: false,
+  });
+
   const handleImport = () => {
     if (importData.length === 0) {
       toast({
@@ -208,7 +219,10 @@ export function ImportWalletsDialog({ open, onOpenChange }: ImportWalletsDialogP
             <p className="text-sm text-muted-foreground">
               Upload your filled Excel file to validate and import.
             </p>
-            <div>
+            <div
+              {...walletFileDropzone}
+              className={cn("rounded-md p-1 transition-colors", walletFileDragActive && "border border-primary bg-primary/10")}
+            >
               <Label htmlFor="wallet-file-upload">Choose File</Label>
               <Input
                 ref={fileInputRef}

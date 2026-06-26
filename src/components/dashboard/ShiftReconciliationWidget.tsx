@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 
 // ─── Types ───
 interface ReconciliationItem {
@@ -218,9 +219,7 @@ export function ShiftReconciliationWidget() {
   };
 
   // ─── Upload & Compare ───
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processUploadFile = async (file: File) => {
     setUploading(true);
 
     try {
@@ -372,9 +371,14 @@ export function ShiftReconciliationWidget() {
       toast({ title: "Upload Error", description: err.message, variant: "destructive" });
     } finally {
       setUploading(false);
-      // Reset file input
-      e.target.value = "";
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processUploadFile(file);
+    e.target.value = "";
   };
 
   // ─── Approve / Reject ───
@@ -577,6 +581,13 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
 
   const pendingCount = history?.filter(h => h.status === "pending_review").length || 0;
 
+
+  const { isDragActive: isDragActiveUpload, dropzoneProps: uploadDropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) processUploadFile(files[0]); },
+    disabled: uploading,
+    multiple: false,
+  });
+
   return (
     <>
       {/* Shift Reconciliation Button */}
@@ -666,7 +677,10 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                 </Card>
 
                 {/* Step 3: Upload */}
-                <Card className="border-2 border-dashed border-green-200 bg-green-50/50">
+                <Card
+                  className={`border-2 border-dashed transition-colors ${isDragActiveUpload ? "border-primary bg-primary/10" : "border-green-200 bg-green-50/50"}`}
+                  {...uploadDropzoneProps}
+                >
                   <CardContent className="p-6 text-center space-y-3">
                     <Upload className="h-10 w-10 text-green-500 mx-auto" />
                     <h3 className="font-semibold text-lg">Step 2: Upload Filled Template</h3>

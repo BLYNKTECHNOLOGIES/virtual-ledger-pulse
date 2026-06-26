@@ -3,6 +3,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 
 interface Step2KYCDocumentsProps {
   formData: any;
@@ -15,8 +17,48 @@ interface AdditionalDocument {
   file: File | null;
 }
 
+
+function AdditionalDocDropInput({ doc, onFile }: { doc: AdditionalDocument; onFile: (file: File | null) => void }) {
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => onFile(files[0] || null),
+    multiple: false,
+  });
+  return (
+    <div
+      {...dropzoneProps}
+      className={cn(
+        "rounded-md border border-dashed border-muted-foreground/40 transition-colors",
+        isDragActive && "border-primary bg-primary/10"
+      )}
+    >
+      <Input
+        id={`doc_file_${doc.id}`}
+        type="file"
+        accept="image/*,.pdf"
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          onFile(file);
+        }}
+      />
+    </div>
+  );
+}
+
 export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsProps) {
   const [additionalDocs, setAdditionalDocs] = useState<AdditionalDocument[]>([]);
+
+  const { isDragActive: isDragPan, dropzoneProps: dropPan } = useFileDropzone({
+    onFiles: (files) => setFormData({ ...formData, pan_card_file: files[0] || null }),
+    multiple: false,
+  });
+  const { isDragActive: isDragAadhaarFront, dropzoneProps: dropAadhaarFront } = useFileDropzone({
+    onFiles: (files) => setFormData({ ...formData, aadhar_front_file: files[0] || null }),
+    multiple: false,
+  });
+  const { isDragActive: isDragAadhaarBack, dropzoneProps: dropAadhaarBack } = useFileDropzone({
+    onFiles: (files) => setFormData({ ...formData, aadhar_back_file: files[0] || null }),
+    multiple: false,
+  });
 
   const addAdditionalDocument = () => {
     const newDoc: AdditionalDocument = {
@@ -76,16 +118,24 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
         <div className="grid grid-cols-2 gap-4">
           <div>
             <Label htmlFor="pan_card">PAN Card *</Label>
-            <Input
-              id="pan_card"
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setFormData({ ...formData, pan_card_file: file });
-              }}
-              required
-            />
+            <div
+              {...dropPan}
+              className={cn(
+                "rounded-md border border-dashed border-muted-foreground/40 transition-colors",
+                isDragPan && "border-primary bg-primary/10"
+              )}
+            >
+              <Input
+                id="pan_card"
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setFormData({ ...formData, pan_card_file: file });
+                }}
+                required
+              />
+            </div>
             {formData.pan_card_file && (
               <p className="text-sm text-green-600 mt-1">✓ {formData.pan_card_file.name}</p>
             )}
@@ -93,16 +143,24 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
 
           <div>
             <Label htmlFor="aadhar_front">Aadhar Card (Front) *</Label>
-            <Input
-              id="aadhar_front"
-              type="file"
-              accept="image/*,.pdf"
-              onChange={(e) => {
-                const file = e.target.files?.[0] || null;
-                setFormData({ ...formData, aadhar_front_file: file });
-              }}
-              required
-            />
+            <div
+              {...dropAadhaarFront}
+              className={cn(
+                "rounded-md border border-dashed border-muted-foreground/40 transition-colors",
+                isDragAadhaarFront && "border-primary bg-primary/10"
+              )}
+            >
+              <Input
+                id="aadhar_front"
+                type="file"
+                accept="image/*,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setFormData({ ...formData, aadhar_front_file: file });
+                }}
+                required
+              />
+            </div>
             {formData.aadhar_front_file && (
               <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_front_file.name}</p>
             )}
@@ -111,16 +169,24 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
 
         <div className="w-1/2">
           <Label htmlFor="aadhar_back">Aadhar Card (Back) *</Label>
-          <Input
-            id="aadhar_back"
-            type="file"
-            accept="image/*,.pdf"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              setFormData({ ...formData, aadhar_back_file: file });
-            }}
-            required
-          />
+          <div
+            {...dropAadhaarBack}
+            className={cn(
+              "rounded-md border border-dashed border-muted-foreground/40 transition-colors",
+              isDragAadhaarBack && "border-primary bg-primary/10"
+            )}
+          >
+            <Input
+              id="aadhar_back"
+              type="file"
+              accept="image/*,.pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setFormData({ ...formData, aadhar_back_file: file });
+              }}
+              required
+            />
+          </div>
           {formData.aadhar_back_file && (
             <p className="text-sm text-green-600 mt-1">✓ {formData.aadhar_back_file.name}</p>
           )}
@@ -156,14 +222,9 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
             </div>
             <div className="flex-1">
               <Label htmlFor={`doc_file_${doc.id}`}>Document File</Label>
-              <Input
-                id={`doc_file_${doc.id}`}
-                type="file"
-                accept="image/*,.pdf"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  updateAdditionalDocFile(doc.id, file);
-                }}
+              <AdditionalDocDropInput
+                doc={doc}
+                onFile={(file) => updateAdditionalDocFile(doc.id, file)}
               />
             </div>
             <Button

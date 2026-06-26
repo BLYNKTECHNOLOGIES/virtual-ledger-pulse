@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -404,6 +405,13 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
     : "";
   const nonWeeklyOff = parsedRows.filter((r) => r.status !== "weekly_off" && r.employeeId).length;
 
+
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) handleFile(files[0]); },
+    disabled: step !== "upload",
+    multiple: false,
+  });
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="!max-w-none !w-screen !h-screen !max-h-screen !rounded-none !inset-0 !translate-x-0 !translate-y-0 !left-0 !top-0 flex flex-col p-6">
@@ -416,14 +424,9 @@ export default function BiometricReportUploader({ open, onOpenChange }: Biometri
 
         {step === "upload" && (
           <div
-            className="border-2 border-dashed rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all"
+            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/50 transition-all ${isDragActive ? "border-primary bg-primary/10" : ""}`}
             onClick={() => document.getElementById("biometric-file-input")?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const file = e.dataTransfer.files[0];
-              if (file) handleFile(file);
-            }}
+            {...dropzoneProps}
           >
             <input
               id="biometric-file-input"

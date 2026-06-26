@@ -1,4 +1,6 @@
 import { useCallback } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 import type { SignatoryConfig } from "@/types/invoice";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -12,6 +14,17 @@ interface SignatorySettingsProps {
 }
 
 export default function SignatorySettings({ signatory, onChange }: SignatorySettingsProps) {
+  const { isDragActive: sigDragActive, dropzoneProps: sigDropzone } = useFileDropzone({
+    onFiles: (files) => {
+      const file = files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => { onChange({ ...signatory, signatureDataUrl: ev.target?.result as string }); };
+      reader.readAsDataURL(file);
+    },
+    multiple: false,
+  });
+
   const handleSignatureUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -74,14 +87,19 @@ export default function SignatorySettings({ signatory, onChange }: SignatorySett
                   </Button>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => document.getElementById("sig-upload")?.click()}
+                <div
+                  {...sigDropzone}
+                  className={cn("inline-block rounded-md transition-colors", sigDragActive && "ring-2 ring-primary bg-primary/10 p-1")}
                 >
-                  <Upload className="w-4 h-4" />
-                  Upload Signature
-                </Button>
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => document.getElementById("sig-upload")?.click()}
+                  >
+                    <Upload className="w-4 h-4" />
+                    {sigDragActive ? "Drop to upload" : "Upload Signature"}
+                  </Button>
+                </div>
               )}
               <input
                 id="sig-upload"

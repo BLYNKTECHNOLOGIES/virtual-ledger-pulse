@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +48,12 @@ export function RARemarkDialog({
   const [text, setText] = useState("");
   const [outcome, setOutcome] = useState<string>("Connected");
   const [file, setFile] = useState<File | null>(null);
+
+  const { isDragActive: isFileDragActive, dropzoneProps: fileDropzoneProps } = useFileDropzone({
+    onFiles: (files) => setFile(files[0] ?? null),
+    disabled: addRemark.isPending,
+    multiple: false,
+  });
 
   const handleSubmit = async () => {
     if (!text.trim()) {
@@ -112,7 +120,13 @@ export function RARemarkDialog({
               </div>
             </div>
             <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <label
+                className={cn(
+                  "flex items-center gap-2 text-sm text-muted-foreground cursor-pointer rounded px-1 transition-colors",
+                  isFileDragActive && "text-primary bg-primary/10"
+                )}
+                {...fileDropzoneProps}
+              >
                 <Paperclip className="h-4 w-4" />
                 {file ? file.name : "Attach file (optional)"}
                 <input

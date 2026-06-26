@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, File, Trash2, Download, Loader2 } from 'lucide-react';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
 
 const from = (table: string) => supabase.from(table as any);
 
@@ -40,9 +41,7 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
     },
   });
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadFile = async (file: File) => {
     setUploading(true);
     try {
       const filePath = `${taskId}/${Date.now()}_${file.name}`;
@@ -74,9 +73,21 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
       toast({ title: 'Upload failed', variant: 'destructive' });
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
   };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await uploadFile(file);
+    e.target.value = '';
+  };
+
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) uploadFile(files[0]); },
+    disabled: uploading,
+    multiple: false,
+  });
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -85,9 +96,14 @@ export function TaskAttachments({ taskId }: { taskId: string }) {
   };
 
   return (
-    <div className="space-y-2">
+    <div
+      className={`space-y-2 rounded-md transition-colors ${isDragActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
+      {...dropzoneProps}
+    >
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Attachments</h4>
+        <h4 className="text-sm font-medium">
+          Attachments{isDragActive && <span className="ml-2 text-primary text-xs">Drop to upload</span>}
+        </h4>
         <label>
           <input type="file" className="hidden" onChange={handleUpload} disabled={uploading} />
           <Button size="sm" variant="outline" asChild className="cursor-pointer">

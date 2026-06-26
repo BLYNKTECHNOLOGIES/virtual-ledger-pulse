@@ -31,7 +31,9 @@ export function Layout({ children }: LayoutProps) {
                 <SidebarInset className="flex flex-col flex-1 min-w-0">
                   <TopHeader />
                   <main className="flex-1 overflow-auto bg-slate-50 pb-16 md:pb-0">
-                    {children}
+                    <div key={location.pathname} className="page-mount">
+                      {children}
+                    </div>
                   </main>
                   {/* Mobile bottom navigation */}
                   <MobileBottomNav />

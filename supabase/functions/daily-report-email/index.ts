@@ -564,6 +564,10 @@ async function buildReport(supabase: any, date: string) {
   // Rejected ERP entries on the report day (audit section, at the very bottom)
   const rejected = await buildRejected(supabase, date);
 
+  // ERP vs Terminal USDT balance difference (captured at 4 AM, erased after send)
+  const erpDiff = await buildErpDiff(supabase);
+
+
   // Sales + purchases for the day and the previous day (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
     fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", date),

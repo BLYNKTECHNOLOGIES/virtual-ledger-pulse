@@ -33,7 +33,7 @@ export function StockStatusBadge({
 
     return (
       <Badge variant={getBadgeVariant(safeStock, minStock)} className={className}>
-        {safeStock}
+        {safeStock.toFixed(2)}
       </Badge>
     );
   }

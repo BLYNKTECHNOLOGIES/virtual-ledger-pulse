@@ -615,7 +615,7 @@ export function SellerOnboardingApprovals() {
                 className="max-w-sm"
               />
             </div>
-            <SegmentedControl
+            <SegmentedControl<"comfortable" | "compact">
               size="sm"
               aria-label="Row density"
               value={density}

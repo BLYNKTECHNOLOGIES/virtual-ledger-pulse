@@ -14,6 +14,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { BulkActionBar } from "@/components/ui/bulk-action-bar";
+import { FilterChip } from "@/components/ui/filter-chip";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -49,6 +61,7 @@ export function SellerOnboardingApprovals() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -570,10 +583,8 @@ export function SellerOnboardingApprovals() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="py-8">
-          <div className="flex items-center justify-center text-muted-foreground">
-            Loading pending approvals...
-          </div>
+        <CardContent className="py-6">
+          <TableSkeleton rows={8} columns={9} />
         </CardContent>
       </Card>
     );
@@ -604,55 +615,50 @@ export function SellerOnboardingApprovals() {
                 className="max-w-sm"
               />
             </div>
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">{selectedIds.size} selected</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedIds(new Set())}
-                  disabled={bulkApproveMutation.isPending}
-                >
-                  Clear
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={() => setShowBulkConfirm(true)}
-                  disabled={bulkApproveMutation.isPending}
-                >
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  {bulkApproveMutation.isPending && bulkProgress
-                    ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
-                    : `Bulk Approve (${selectedIds.size})`}
-                </Button>
-              </div>
-            )}
+            <SegmentedControl<"comfortable" | "compact">
+              size="sm"
+              aria-label="Row density"
+              value={density}
+              onValueChange={setDensity}
+              options={[
+                { label: "Comfortable", value: "comfortable" },
+                { label: "Compact", value: "compact" },
+              ]}
+            />
           </div>
 
+          {searchTerm.trim() && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <FilterChip
+                label="Search:"
+                value={searchTerm}
+                onRemove={() => setSearchTerm("")}
+              />
+            </div>
+          )}
+
           {filteredSellers && filteredSellers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600 w-10">
+            <Table stickyHeader density={density} maxHeight="65vh" className={selectedIds.size > 0 ? "pb-20" : undefined}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
                       <Checkbox
                         checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all sellers"
                       />
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Binance ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Contact</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">First Order Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">First Order Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                    <TableHead>Seller Name</TableHead>
+                    <TableHead>Binance ID</TableHead>
+                    <TableHead>Client ID</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>First Order Date</TableHead>
+                    <TableHead numeric>First Order Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredSellers.map((seller) => {
                     const firstOrder = sellerOrders?.[seller.name];
                     const nickInfo = sellerNicknameMap?.[seller.name];
@@ -665,15 +671,15 @@ export function SellerOnboardingApprovals() {
                     // nor any verified-name / phone match.
                     const noIdentitySignal = identityState === 'new_client' && !safeNick && !isSameUserByVName;
                     return (
-                      <tr key={seller.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">
+                      <TableRow key={seller.id} data-state={selectedIds.has(seller.id) ? "selected" : undefined}>
+                        <TableCell>
                           <Checkbox
                             checked={selectedIds.has(seller.id)}
                             onCheckedChange={() => toggleSelectOne(seller.id)}
                             aria-label={`Select ${seller.name}`}
                           />
-                        </td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell>
                           <button
                             onClick={() => handleViewOrders(seller.id)}
                             className="font-medium text-blue-600 hover:underline flex items-center gap-1"
@@ -722,27 +728,27 @@ export function SellerOnboardingApprovals() {
                               ⚠ No identity signal — review manually
                             </Badge>
                           )}
-                        </td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell>
                           <div className="flex flex-col gap-0.5">
                             <span className="font-mono text-sm">{nickInfo?.nickname ? `@${nickInfo.nickname}` : '—'}</span>
                             <span className="text-[10px] text-muted-foreground">{seller.name}</span>
                           </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-sm">{seller.client_id}</td>
-                        <td className="py-3 px-4">{seller.phone || '-'}</td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{seller.client_id}</TableCell>
+                        <TableCell>{seller.phone || '-'}</TableCell>
+                        <TableCell>
                           {firstOrder?.order_date 
                             ? new Date(firstOrder.order_date).toLocaleDateString() 
                             : '-'}
-                        </td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell numeric>
                           {firstOrder?.total_amount 
                             ? `₹${firstOrder.total_amount.toLocaleString('en-IN')}` 
                             : '-'}
-                        </td>
-                        <td className="py-3 px-4">{getStatusBadge(seller.kyc_status)}</td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell>{getStatusBadge(seller.kyc_status)}</TableCell>
+                        <TableCell>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -780,13 +786,12 @@ export function SellerOnboardingApprovals() {
                               </Button>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <UserCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
@@ -796,6 +801,26 @@ export function SellerOnboardingApprovals() {
           )}
         </CardContent>
       </Card>
+
+      {/* Floating bulk action bar — appears when sellers are selected */}
+      <BulkActionBar
+        count={selectedIds.size}
+        itemNoun="seller"
+        onClear={() => setSelectedIds(new Set())}
+      >
+        <Button
+          size="sm"
+          className="bg-green-600 hover:bg-green-700"
+          onClick={() => setShowBulkConfirm(true)}
+          disabled={bulkApproveMutation.isPending}
+        >
+          <CheckCircle className="h-3 w-3 mr-1" />
+          {bulkApproveMutation.isPending && bulkProgress
+            ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
+            : `Bulk Approve (${selectedIds.size})`}
+        </Button>
+      </BulkActionBar>
+
 
       {/* Order Summary Dialog */}
       <ClientOrderSummaryDialog

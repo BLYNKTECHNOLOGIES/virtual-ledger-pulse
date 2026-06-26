@@ -53,7 +53,7 @@ import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
 import TerminalSettings from './pages/terminal/TerminalSettings';
 import TerminalAssets from './pages/terminal/TerminalAssets';
 import TerminalLogs from './pages/terminal/TerminalLogs';
-import Support from './pages/Support';
+
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
 import { HorillaLayout } from './components/horilla/HorillaLayout';

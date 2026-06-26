@@ -324,30 +324,6 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/video-kyc",
-    element: (
-      <QueryProvider>
-          <AuthCheck>
-            <Layout>
-              <VideoKYC />
-            </Layout>
-          </AuthCheck>
-      </QueryProvider>
-    ),
-  },
-  {
-    path: "/kyc-approvals",
-    element: (
-      <QueryProvider>
-          <AuthCheck>
-            <Layout>
-              <KYCApprovals />
-            </Layout>
-          </AuthCheck>
-      </QueryProvider>
-    ),
-  },
-  {
     path: "/statistics",
     element: (
       <QueryProvider>

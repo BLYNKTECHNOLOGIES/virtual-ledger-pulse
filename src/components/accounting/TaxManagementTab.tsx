@@ -136,16 +136,35 @@ export function TaxManagementTab() {
     },
   });
 
-  // Distinct companies present in the quarter
+  // All active subsidiaries (so every company is always reflected as a tab,
+  // even when it has no TDS in the selected quarter)
+  const { data: subsidiaries } = useQuery({
+    queryKey: ['subsidiaries_active_for_tds'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('subsidiaries')
+        .select('id, firm_name')
+        .eq('status', 'ACTIVE')
+        .order('firm_name');
+      if (error) throw error;
+      return (data || []) as { id: string; firm_name: string }[];
+    },
+  });
+
+  // Distinct companies: union of all active subsidiaries + any company present in
+  // the quarter's allocations (covers banks not linked to a subsidiary record).
   const companies = useMemo(() => {
     const map = new Map<string, { firm_name: string; subsidiary_id: string | null }>();
+    (subsidiaries || []).forEach(s => {
+      map.set(s.id, { firm_name: s.firm_name, subsidiary_id: s.id });
+    });
     (allocations || []).forEach(a => {
       const key = a.subsidiary_id || `name:${a.firm_name || 'Unassigned'}`;
       if (!map.has(key)) map.set(key, { firm_name: a.firm_name || 'Unassigned', subsidiary_id: a.subsidiary_id });
     });
     return Array.from(map.entries()).map(([key, v]) => ({ key, ...v }))
       .sort((a, b) => a.firm_name.localeCompare(b.firm_name));
-  }, [allocations]);
+  }, [subsidiaries, allocations]);
 
   // Rows for the active tab
   const visibleRows = useMemo(() => {

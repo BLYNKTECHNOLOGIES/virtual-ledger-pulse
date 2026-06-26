@@ -436,7 +436,11 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 justify-end flex-wrap" onClick={(e) => e.stopPropagation()}>
+          <div
+            {...paidDropzone}
+            className={`flex items-center gap-1.5 justify-end flex-wrap rounded-md transition-colors ${paidDragActive ? 'ring-2 ring-primary bg-primary/10' : ''}`}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Hidden file input for upload */}
             <input
               ref={fileInputRef}

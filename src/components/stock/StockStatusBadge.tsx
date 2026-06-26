@@ -61,7 +61,7 @@ export function StockStatusBadge({
     return (
       <div className="space-y-1">
         <Badge variant={getBadgeVariant(total_stock)} className={className}>
-          Total: {total_stock} {unit_of_measurement}
+          Total: {total_stock.toFixed(2)} {unit_of_measurement}
         </Badge>
         <div className="flex flex-wrap gap-1">
           {wallet_stocks

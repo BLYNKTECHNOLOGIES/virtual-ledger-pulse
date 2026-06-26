@@ -47,8 +47,8 @@ export default function Accounting() {
               <Calculator className="h-8 w-8 text-emerald-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Accounting Management</h1>
-              <p className="text-gray-600 mt-1">Complete financial management and reporting</p>
+              <h1 className="text-3xl font-bold text-gray-900">Tax Management</h1>
+              <p className="text-gray-600 mt-1">Tax and financial management</p>
             </div>
           </div>
         </div>

@@ -2,10 +2,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Calculator, BarChart, Shield } from "lucide-react";
+import { TrendingUp, Calculator, Shield } from "lucide-react";
 import { SalesPurchasesTab } from "@/components/accounting/SalesPurchasesTab";
 import { TaxManagementTab } from "@/components/accounting/TaxManagementTab";
-import { ReportsTab } from "@/components/accounting/ReportsTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +27,7 @@ export default function Accounting() {
                 <div>
                   <h2 className="text-xl font-semibold">Access Denied</h2>
                   <p className="text-muted-foreground mt-2">
-                    You don't have permission to access Accounting Management.
+                    You don't have permission to access Tax Management.
                   </p>
                 </div>
                 <Button onClick={() => navigate("/dashboard")}>
@@ -48,14 +47,14 @@ export default function Accounting() {
               <Calculator className="h-8 w-8 text-emerald-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Accounting Management</h1>
-              <p className="text-gray-600 mt-1">Complete financial management and reporting</p>
+              <h1 className="text-3xl font-bold text-gray-900">Tax Management</h1>
+              <p className="text-gray-600 mt-1">Tax and financial management</p>
             </div>
           </div>
         </div>
 
       <Tabs defaultValue="sales-purchases" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="sales-purchases" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Sales & Purchases
@@ -64,23 +63,14 @@ export default function Accounting() {
             <Calculator className="h-4 w-4" />
             Tax Management
           </TabsTrigger>
-          <TabsTrigger value="reports" className="flex items-center gap-2">
-            <BarChart className="h-4 w-4" />
-            Reports
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="sales-purchases">
           <SalesPurchasesTab />
         </TabsContent>
 
-
         <TabsContent value="tax">
           <TaxManagementTab />
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <ReportsTab />
         </TabsContent>
       </Tabs>
     </div>

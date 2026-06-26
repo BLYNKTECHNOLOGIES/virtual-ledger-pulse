@@ -163,7 +163,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
     children: [
       {
         id: "accounting",
-        title: "Accounting",
+        title: "Tax Management",
         url: "/accounting",
         icon: BookOpen,
         color: "text-yellow-700",

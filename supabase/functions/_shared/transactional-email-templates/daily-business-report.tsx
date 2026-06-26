@@ -42,13 +42,16 @@ interface DailyReportProps {
   }
   charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
   kyc?: { newClients: number; approvedToday: number; pendingTotal: number }
+  rejected?: { count: number; rows: { type: string; label: string; amount: string; counterparty: string; reason: string; rejectedBy: string; rejectedAt: string }[] }
+
+
 
 }
 
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected }: DailyReportProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>
@@ -354,6 +357,48 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
+          {/* Rejected ERP entries — audit (bottom) */}
+          {rejected && (
+            <Section style={{ ...card, backgroundColor: '#fdf3f3', borderColor: '#e6bcbc' }}>
+              <Text style={{ ...sectionTitle, color: '#C62828', borderBottomColor: '#C62828' }}>
+                Rejected ERP Entries (Audit) — {rejected.count}
+              </Text>
+              <Text style={{ fontSize: '11px', color: '#9C7878', margin: '0 0 8px' }}>
+                Every ERP transactional entry rejected on this day (terminal buys/sales, small buys/sales batches, deposits/withdrawals and conversions), with the user who rejected it. Audit-complete — no rejected entry is skipped.
+              </Text>
+              {rejected.count === 0 ? (
+                <Text style={{ fontSize: '13px', color: '#555', margin: '4px 0' }}>No entries were rejected on this day.</Text>
+              ) : (
+                <table style={tbl}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Type</th>
+                      <th style={th}>Details</th>
+                      <th style={thR}>Amount</th>
+                      <th style={th}>Rejected By</th>
+                      <th style={thR}>Time</th>
+                      <th style={th}>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rejected.rows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={td}>{r.type}</td>
+                        <td style={td}>{r.label}{r.counterparty && r.counterparty !== '—' ? ` · ${r.counterparty}` : ''}</td>
+                        <td style={tdR}>{r.amount}</td>
+                        <td style={td}>{r.rejectedBy}</td>
+                        <td style={tdR}>{r.rejectedAt}</td>
+                        <td style={td}>{r.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Section>
+          )}
+
+
+
 
 
           <Hr style={divider} />
@@ -432,6 +477,10 @@ export const template = {
       gatewayGroups: [{ name: 'Razorpay', total: '3,50,000.00', count: 12 }],
     },
     charts: { salesVsPurchase: '', pnl: '', volumeByAsset: '', hourly: '', expensesByCategory: '' },
+    rejected: { count: 2, rows: [
+      { type: 'Terminal Sale', label: 'Order 22938471', amount: '1,200.00 USDT', counterparty: 'UPI · rahul_p', reason: 'Wrong payment proof', rejectedBy: 'Abhishek Singh', rejectedAt: '14:32 IST' },
+      { type: 'Deposit', label: 'Deposit · TRX', amount: '500.00 TRX', counterparty: 'TRC20 · 9af13c0b2e…', reason: 'Duplicate movement', rejectedBy: 'Shubham Singh', rejectedAt: '11:05 IST' },
+    ] },
   },
 } satisfies TemplateEntry
 

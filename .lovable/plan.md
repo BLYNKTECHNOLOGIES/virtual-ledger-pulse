@@ -1,42 +1,51 @@
-# Follow-up Cleanup of Outdated / Unused Database Objects
+# Add Rejected ERP Entries to Daily Business Report
 
-I re-audited all **public tables and views** against the entire frontend (`src/`, excluding the auto-generated `types.ts`), every edge function, and every database function/trigger. Almost everything flagged as a "code orphan" is actually alive via RPC, triggers, or audit-logging functions (e.g. `terminal_bypass_codes`, `terminal_webauthn_credentials`, `reversal_guards`, `terminal_mpi_snapshots`, `terminal_permission_change_log`, `permission_enforcement_config/log`, the balance-drift views). Those are kept.
+Append a new audit section at the end of the daily report email listing every ERP transactional entry that was **rejected during the report's IST calendar day**, including the rejecting user. No rejected entry is filtered out beyond the date scope, so the section is audit-complete.
 
-Only the objects below are genuinely dead — no UI usage, no edge-function usage, no live DB-function usage, and no incoming foreign keys.
+## Scope
 
-## Confirmed dead — safe to drop
+Time window: entries rejected on the report day only (same IST day used by every other section).
 
-| Object | Type | Rows | Why it's dead |
-|---|---|---|---|
-| `employee_offboarding` | table | 0 | Superseded by the live resignation flow (`hr_resignation_checklist`, `hr_resignation_checklist_template`, `hr_fnf_settlements`). The Separation page uses those, never this table. Zero code/function refs. |
-| `journal_entries` | table | 0 | The Accounting "Journal Entries" tab is a hard-coded "Coming Soon" placeholder that never queries it. Only reference is a cleanup line in `delete_user_with_cleanup`. |
-| `p2p_order_types` | table | 5 (seed) | Unused lookup table. The terminal P2P system runs entirely on `p2p_order_records` (47,750 rows). Zero code/function refs. |
-| `daily_reconciliation_summary` | view | — | Unused diagnostic view. Zero references in code or DB functions. |
+Sources included (transactional ERP entries):
+- `terminal_purchase_sync` and `terminal_sales_sync` — `sync_status = 'rejected'`
+- `small_buys_sync` and `small_sales_sync` — `sync_status = 'rejected'`
+- `erp_action_queue` — `status = 'REJECTED'` (deposits/withdrawals)
+- `erp_product_conversions` — `status = 'REJECTED'`
 
-## Kept (verified alive, do NOT drop)
-- `hr_attendance_activity_archive`, `hr_attendance_punches_archive` — empty now but are the write targets of the `archive_old_attendance_data` archival function. Intentional sinks.
-- `terminal_permission_change_log` (370 rows), `permission_enforcement_config/log` — actively written/read by `log_terminal_permission_change` and the `require_permission` guard (used by ~14 RPCs).
-- `erp_balance_drift_report`, `erp_post_baseline_drift`, `bank_accounts_with_balance`, `hr_monthly_hours_summary` — referenced by balance-healing functions and/or UI pages.
+Buyer KYC onboarding rejections are intentionally excluded (already has its own KYC section logic).
 
-## Approach
+## Data gathering (`supabase/functions/daily-report-email/index.ts`)
 
-```text
-1. Migration (single):
-   - DROP FUNCTION dependency edit first: recreate delete_user_with_cleanup
-     WITHOUT the journal_entries cleanup line (its only reference).
-   - DROP VIEW  public.daily_reconciliation_summary;
-   - DROP TABLE public.employee_offboarding;
-   - DROP TABLE public.journal_entries;
-   - DROP TABLE public.p2p_order_types;
-2. Re-run a quick dependency check after the migration to confirm no
-   function/trigger still references the dropped objects.
-3. types.ts regenerates automatically post-migration (no manual edit).
-```
+Add `buildRejected(supabase, date)`:
+- Query each source for rejected rows, paginated via the existing `fetchAllRows`.
+- Determine the rejection timestamp per source and keep only rows whose IST date (via existing `istDateStr`) equals the report date:
+  - sync tables: `reviewed_at` (fall back to `updated_at`/`synced_at`)
+  - `erp_action_queue`: `processed_at` (fall back to `updated_at`)
+  - `erp_product_conversions`: `rejected_at`
+- Resolve the rejecting user to a display name:
+  - sync tables: `reviewed_by`
+  - `erp_action_queue`: `processed_by`
+  - conversions: `rejected_by_name` if present, else `rejected_by`
+  - Batch-resolve the collected UUIDs against `users` (first_name/last_name/username); show "—" when unknown.
+- Normalize each into a flat row: `{ type, label, amount, counterparty, reason, rejectedBy, rejectedAt }` (type = Terminal Buy / Terminal Sale / Small Buys / Small Sales / Deposit / Withdrawal / Conversion), reusing the same amount/label formatting style as the frontend rejected feed.
+- Sort newest-rejected first and return `{ count, rows }`.
+- Wire into `buildReport` return payload as `rejected`.
 
-## Technical details
-- Pre-flight already done: no foreign keys point into any of the four objects, and no trigger is named for or attached via them.
-- The only code-side touchpoint is `delete_user_with_cleanup`, which deletes from `journal_entries` during user unlinking. That line will be removed in the same migration so the function keeps working.
-- No UI changes are required — none of these objects render anywhere. The Accounting "Journal Entries" placeholder tab stays as-is (it does not read the table).
+## Template (`supabase/functions/_shared/transactional-email-templates/daily-business-report.tsx`)
 
-## Note
-This is a pure backend/data-model cleanup, consistent with the project's data-integrity priority. If you'd prefer to keep `p2p_order_types` (it holds 5 seed rows) in case the terminal later wires an order-type lookup, I can exclude it and drop only the other three.
+- Extend `DailyReportProps` with:
+  `rejected?: { count: number; rows: { type: string; label: string; amount: string; counterparty: string; reason: string; rejectedBy: string; rejectedAt: string }[] }`
+- Add a new `<Section>` (styled like other cards, with a red/destructive accent) rendered just before the footer, titled "Rejected ERP Entries (Audit)".
+  - If `count === 0`: show "No entries were rejected on this day."
+  - Otherwise a table with columns: Type, Details, Amount, Rejected By, Time, Reason.
+- Keep `Body` background white per email rules; use red accent only on the card border/header.
+
+## Deployment
+
+After editing, deploy `daily-report-email`, `send-transactional-email`, and the shared template (registry already includes `daily-business-report`).
+
+## Technical notes
+
+- All counts use IST date conversion already present in the file; no new timezone logic.
+- User-name resolution mirrors the pattern used elsewhere (first+last, fallback username).
+- No schema/migration changes required — all needed columns (`reviewed_by`, `processed_by`, `rejected_by`, `*_at`, reason fields) already exist.

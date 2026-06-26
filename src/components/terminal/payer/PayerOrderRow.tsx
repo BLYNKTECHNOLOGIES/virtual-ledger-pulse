@@ -296,6 +296,14 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
     }
   };
 
+  const { isDragActive: paidDragActive, dropzoneProps: paidDropzone } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) void processPaidScreenshot(files[0]); },
+    disabled: isUploading,
+    multiple: false,
+  });
+
+
+
   return (
     <TableRow
       className="border-border cursor-pointer hover:bg-secondary/40 transition-colors"

@@ -50,7 +50,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
 
   const { isDragActive: billDragActive, dropzoneProps: billDropzone } = useFileDropzone({
     onFiles: (files) => { if (files[0]) { setBillFile(files[0]); setRemoveBill(false); } },
-    disabled: updateTransactionMutation.isPending || uploadingBill,
+    disabled: uploadingBill,
     multiple: false,
   });
  

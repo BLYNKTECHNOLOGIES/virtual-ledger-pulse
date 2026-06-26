@@ -481,7 +481,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         onOpenChange={setShowProfileDialog}
         client={client}
         orders={orders}
-        kycData={kycData}
       />
 
       <RequestLimitIncreaseDialog

@@ -265,7 +265,7 @@ export function ProductCardListingTab() {
                                   </Tooltip>
                                 );
                               })()}
-                              <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(0)}</span>
+                              <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(2)}</span>
                             </div>
                           </div>
                         ))}

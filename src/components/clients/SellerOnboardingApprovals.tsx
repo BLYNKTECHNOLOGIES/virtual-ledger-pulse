@@ -638,28 +638,27 @@ export function SellerOnboardingApprovals() {
           )}
 
           {filteredSellers && filteredSellers.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600 w-10">
+            <Table stickyHeader density={density} maxHeight="65vh" className={selectedIds.size > 0 ? "pb-20" : undefined}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-10">
                       <Checkbox
                         checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
                         onCheckedChange={toggleSelectAll}
                         aria-label="Select all sellers"
                       />
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Binance ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Client ID</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Contact</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">First Order Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">First Order Amount</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                    <TableHead>Seller Name</TableHead>
+                    <TableHead>Binance ID</TableHead>
+                    <TableHead>Client ID</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>First Order Date</TableHead>
+                    <TableHead numeric>First Order Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {filteredSellers.map((seller) => {
                     const firstOrder = sellerOrders?.[seller.name];
                     const nickInfo = sellerNicknameMap?.[seller.name];
@@ -672,15 +671,15 @@ export function SellerOnboardingApprovals() {
                     // nor any verified-name / phone match.
                     const noIdentitySignal = identityState === 'new_client' && !safeNick && !isSameUserByVName;
                     return (
-                      <tr key={seller.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4">
+                      <TableRow key={seller.id} data-state={selectedIds.has(seller.id) ? "selected" : undefined}>
+                        <TableCell>
                           <Checkbox
                             checked={selectedIds.has(seller.id)}
                             onCheckedChange={() => toggleSelectOne(seller.id)}
                             aria-label={`Select ${seller.name}`}
                           />
-                        </td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell>
                           <button
                             onClick={() => handleViewOrders(seller.id)}
                             className="font-medium text-blue-600 hover:underline flex items-center gap-1"
@@ -729,27 +728,27 @@ export function SellerOnboardingApprovals() {
                               ⚠ No identity signal — review manually
                             </Badge>
                           )}
-                        </td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell>
                           <div className="flex flex-col gap-0.5">
                             <span className="font-mono text-sm">{nickInfo?.nickname ? `@${nickInfo.nickname}` : '—'}</span>
                             <span className="text-[10px] text-muted-foreground">{seller.name}</span>
                           </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-sm">{seller.client_id}</td>
-                        <td className="py-3 px-4">{seller.phone || '-'}</td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{seller.client_id}</TableCell>
+                        <TableCell>{seller.phone || '-'}</TableCell>
+                        <TableCell>
                           {firstOrder?.order_date 
                             ? new Date(firstOrder.order_date).toLocaleDateString() 
                             : '-'}
-                        </td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell numeric>
                           {firstOrder?.total_amount 
                             ? `₹${firstOrder.total_amount.toLocaleString('en-IN')}` 
                             : '-'}
-                        </td>
-                        <td className="py-3 px-4">{getStatusBadge(seller.kyc_status)}</td>
-                        <td className="py-3 px-4">
+                        </TableCell>
+                        <TableCell>{getStatusBadge(seller.kyc_status)}</TableCell>
+                        <TableCell>
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -787,13 +786,12 @@ export function SellerOnboardingApprovals() {
                               </Button>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </TableBody>
+              </Table>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <UserCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />

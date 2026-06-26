@@ -39,6 +39,11 @@ const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => 
     if (file) processFile(file);
   }, [processFile]);
 
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) processFile(files[0]); },
+    multiple: false,
+  });
+
   return (
     <div
       {...dropzoneProps}

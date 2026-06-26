@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 
 export function DocumentManagementTab() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
@@ -23,13 +25,17 @@ export function DocumentManagementTab() {
     expiry_date: "",
     file: null as File | null
   });
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("compliance_manage");
 
-  // Fetch compliance documents
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) setNewDocument(prev => ({ ...prev, file: files[0] })); },
+    multiple: false,
+  });
+
   const { data: documents, isLoading } = useQuery({
     queryKey: ['compliance_documents', searchTerm, filterCategory],
     queryFn: async () => {
@@ -52,12 +58,10 @@ export function DocumentManagementTab() {
     },
   });
 
-  // Upload document mutation
   const uploadDocumentMutation = useMutation({
     mutationFn: async (formData: typeof newDocument) => {
       if (!formData.file) throw new Error("No file selected");
 
-      // Upload file to storage
       const fileName = `compliance-documents/${Date.now()}-${formData.file.name}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('kyc-documents')
@@ -65,12 +69,10 @@ export function DocumentManagementTab() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('kyc-documents')
         .getPublicUrl(fileName);
 
-      // Save document info to database
       const { data, error } = await supabase
         .from('compliance_documents')
         .insert([{
@@ -80,7 +82,7 @@ export function DocumentManagementTab() {
           file_type: formData.file.type,
           file_size: formData.file.size,
           expiry_date: formData.expiry_date || null,
-          uploaded_by: null // Replace with actual user ID when auth is implemented
+          uploaded_by: null
         }])
         .select()
         .single();
@@ -89,20 +91,13 @@ export function DocumentManagementTab() {
       return data;
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Document uploaded successfully",
-      });
+      toast({ title: "Success", description: "Document uploaded successfully" });
       setNewDocument({ name: "", category: "", expiry_date: "", file: null });
       setShowUploadDialog(false);
       queryClient.invalidateQueries({ queryKey: ['compliance_documents'] });
     },
     onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to upload document",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to upload document", variant: "destructive" });
       console.error('Upload error:', error);
     },
   });
@@ -122,7 +117,7 @@ export function DocumentManagementTab() {
   };
 
   const categories = [
-    "Certifications", "Licenses", "Contracts", "Agreements", 
+    "Certifications", "Licenses", "Contracts", "Agreements",
     "Legal Documents", "Compliance Certificates", "Other"
   ];
 
@@ -163,11 +158,11 @@ export function DocumentManagementTab() {
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Category *</Label>
-                    <Select 
-                      value={newDocument.category} 
+                    <Select
+                      value={newDocument.category}
                       onValueChange={(value) => setNewDocument(prev => ({ ...prev, category: value }))}
                       required
                     >
@@ -183,7 +178,7 @@ export function DocumentManagementTab() {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Expiry Date (Optional)</Label>
                     <Input
@@ -192,17 +187,28 @@ export function DocumentManagementTab() {
                       onChange={(e) => setNewDocument(prev => ({ ...prev, expiry_date: e.target.value }))}
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>File *</Label>
-                    <Input
-                      type="file"
-                      onChange={(e) => setNewDocument(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
-                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                      required
-                    />
+                    <div
+                      className={cn(
+                        "rounded-md transition-colors",
+                        isDragActive && "ring-2 ring-primary bg-primary/10"
+                      )}
+                      {...dropzoneProps}
+                    >
+                      <Input
+                        type="file"
+                        onChange={(e) => setNewDocument(prev => ({ ...prev, file: e.target.files?.[0] || null }))}
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                        required
+                      />
+                    </div>
+                    {newDocument.file && (
+                      <p className="text-sm text-gray-600">Selected: {newDocument.file.name}</p>
+                    )}
                   </div>
-                  
+
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setShowUploadDialog(false)}>
                       Cancel
@@ -264,7 +270,7 @@ export function DocumentManagementTab() {
                       {document.status}
                     </Badge>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
                     <div>
                       <span className="font-medium">File Type:</span> {document.file_type}
@@ -281,7 +287,7 @@ export function DocumentManagementTab() {
                       <span className="font-medium">Uploaded:</span> {new Date(document.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" asChild>
                       <a href={document.file_url} target="_blank" rel="noopener noreferrer">

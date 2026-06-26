@@ -61,6 +61,7 @@ export function SellerOnboardingApprovals() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();

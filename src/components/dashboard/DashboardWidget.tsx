@@ -290,16 +290,6 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       case 'compliance-alerts':
         return <ComplianceAlertsWidgetContent />;
 
-      case 'kyc-overview':
-        return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserCheck className="h-8 w-8 text-white" />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">{metrics?.verifiedClients || 0}</div>
-            <p className="text-sm text-gray-600 mt-1">KYC Verified</p>
-          </div>
-        );
 
       case 'payroll-summary':
         return <PayrollSummaryWidgetContent />;

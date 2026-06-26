@@ -1,34 +1,48 @@
-# Auto-close RA clients on "Not Interested" / "Converted"
+# Remove KYC Approvals + Video KYC
 
-When an RA logs a remark with outcome **Not Interested** or **Converted**, that client should disappear from the RA's own dashboard, while still appearing in the manager's Client → Assignments tab with the final status.
+Both pages share the same two tables (`kyc_approval_requests`, `kyc_queries`) and form one pipeline (KYC Approvals hands status `VIDEO_KYC` to the Video KYC page). Per your answers, both pages go, the two tables are dropped (purging their rows), and the client-directory KYC submission view is removed. **All `sales_orders`, `wallets`, `sales_payment_methods`, and `bank_accounts` records previously created by this flow are left fully intact** — only the KYC request/query data is removed.
 
-## Behavior
-- Add **"Converted"** to the contact-outcome list (currently: Connected, No Answer, Callback Requested, Not Interested, Wrong Number, Other).
-- On saving a remark whose outcome is **Not Interested** or **Converted**, the client's active assignment is moved to a terminal status (`not_interested` or `converted`).
-- RA Dashboard ("My Assigned Clients") only shows `active` assignments, so the client drops off automatically after the remark is saved.
-- The remark/conversation history is preserved (it lives in `ra_client_remarks`, untouched).
-- The manager Assignments tab keeps showing the client under the RA, now labeled with its final status (Not Interested / Converted) instead of just Contacted/Pending.
+## Frontend removals
 
-## Changes
+**Delete pages & route**
+- Delete `src/pages/KYCApprovals.tsx` and `src/pages/VideoKYC.tsx`.
+- In `src/App.tsx`: remove the `KYCApprovals` and `VideoKYC` imports and the `/kyc-approvals` and `/video-kyc` route entries.
 
-### 1. `src/hooks/useRA.tsx`
-- Add `"Converted"` to `CONTACT_OUTCOMES`.
-- In `useAddRARemark`, after inserting the remark, if `contactOutcome` is `"Not Interested"` or `"Converted"` and an `assignmentId` is present, update that `ra_assignments` row: set `status` to `"not_interested"` or `"converted"`. Invalidate `["ra-assignments"]` so the RA dashboard refreshes.
-- Add a new hook `useAllRAAssignments()` that fetches assignments across all statuses (paginated), for the manager view.
+**Delete exclusive component folders/files**
+- `src/components/hrms/kyc-approvals/` (entire folder: PendingKYCTab, QueriesTab, RejectedKYCTab, AcceptedKYCTab, CreateKYCRequestDialog, CreateQueryDialog, ResolveQueryDialog, OrderCompletionDialog, KYCDetailsDialog, KYCTimelineDialog, PaymentMethodSelectionDialog, UserPayingOptionsDialog).
+- `src/components/hrms/KYCApprovalsTab.tsx`.
+- `src/components/hrms/video-kyc/` (entire folder: NewVideoKYCTab, CompletedVideoKYCTab, VideoKYCSessionDialog).
+- `src/components/hrms/VideoKYCTab.tsx`.
 
-### 2. `src/components/clients/RAAssignmentsTab.tsx`
-- Switch from `useActiveRAAssignments` (active only) to the new `useAllRAAssignments` so closed clients still appear.
-- In each RA's client table, derive the Status badge from the assignment status:
-  - `active` → Contacted (green) if a remark exists, else Pending (yellow)
-  - `converted` → "Converted" (emerald)
-  - `not_interested` → "Not Interested" (red)
-  - `reassigned` → hide or label "Reassigned" (gray) — keep current behavior of only listing the latest assignment per RA.
-- Per-RA summary counts updated to reflect active vs closed (e.g. show "active assigned" count from active rows so workload numbers stay meaningful).
+**Navigation**
+- `src/components/AppSidebar.tsx`: remove the `kyc-approvals` and `video-kyc` menu items (and now-unused `Video` icon import if unreferenced).
+- `src/components/MobileBottomNav.tsx`: remove the "KYC Approvals" and "Video KYC" entries.
 
-### 3. `src/pages/RADashboard.tsx`
-- No query change needed (already filters `status = "active"`), but confirm the list re-fetches after a remark closes a client (handled by the `["ra-assignments"]` invalidation in step 1).
+**Permissions UI**
+- `src/components/user-management/EditRoleDialog.tsx` and `AddRoleDialog.tsx`: remove the `'n'` (KYC Approvals) and `video_kyc_view`/`video_kyc_manage` permission rows.
+- `src/pages/UserManagement.tsx`: remove the `view_kyc_approvals`/`'n'` and video_kyc permission mappings.
+- The underlying `app_permission` enum values are left in place (Postgres enum values can't be safely dropped and are harmless once unused).
 
-## Technical notes
-- No DB schema change required — `ra_assignments.status` is already a free-text status column already using `active`/`reassigned`. We add `converted` and `not_interested` as new values.
-- The existing trigger that mirrors remarks into `client_communication_logs` is unaffected.
-- Re-assigning a client later (via AssignToRADialog) already deactivates prior assignments by setting `status='reassigned'`; a closed (`converted`/`not_interested`) client can still be reassigned because that flow targets `status='active'` only — so a manager who reassigns a closed client should be handled: I'll widen the re-assignment deactivation to also cover non-active rows for the same client to avoid duplicate active rows. (Minor safeguard.)
+## Client directory cleanup
+- `src/components/clients/ClientOverviewPanel.tsx`: remove the `kycData` query against `kyc_approval_requests` and any UI that renders it; remove the `KYCDocumentsDialog` usage tied to the KYC submission view.
+- `src/components/clients/KYCDocumentsDialog.tsx`: remove the "Latest KYC Submission (from kyc_approval_requests)" section and its query. If the dialog also surfaces `client_kyc_documents`, that part stays; if the dialog becomes entirely about the removed submission, delete the file and its import.
+
+## Edge function cleanup
+- `supabase/functions/risk-detection/index.ts`: remove the `FREQUENT_APPEALS` rule (its only logic queries `kyc_queries`). All other risk rules are untouched, so scoring continues without that one signal.
+
+## Database migration
+After all code references are gone:
+- `DROP TABLE public.kyc_queries;` (has FK to kyc_approval_requests — dropped first).
+- `DROP TABLE public.kyc_approval_requests;`
+
+This purges all KYC request/query rows. `sales_orders`, `wallets`, `sales_payment_methods`, and `bank_accounts` have no FK into these tables, so they are unaffected. No daily-report metrics change — those read `client_onboarding_approvals`, a separate table.
+
+## Verification
+- Typecheck/build to confirm no dangling imports.
+- Grep the repo for `kyc_approval_requests`, `kyc_queries`, `KYCApprovalsTab`, `VideoKYCTab`, `/kyc-approvals`, `/video-kyc` to confirm zero remaining references before running the drop migration.
+- Confirm Client directory, risk-detection, and the daily report still build and run.
+
+## Out of scope / preserved
+- `client_onboarding_approvals` (buyer-side daily-report ledger) — untouched.
+- `client_kyc_documents` and the rest of the Client directory — untouched.
+- All financial records (sales orders, wallets, bank accounts) created by the old flow — untouched.

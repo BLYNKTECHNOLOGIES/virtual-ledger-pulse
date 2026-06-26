@@ -130,15 +130,6 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
       { id: 'accounting_manage', name: 'Manage', description: 'Manage accounting', tier: 'manage' },
     ],
   },
-  kyc: {
-    label: 'KYC',
-    permissions: [
-      { id: 'video_kyc_view', name: 'Video KYC View', description: 'View Video KYC', tier: 'view' },
-      { id: 'video_kyc_manage', name: 'Video KYC Manage', description: 'Manage Video KYC', tier: 'manage' },
-      { id: 'kyc_approvals_view', name: 'Approvals View', description: 'View KYC approvals', tier: 'view' },
-      { id: 'kyc_approvals_manage', name: 'Approvals Manage', description: 'Manage KYC approvals', tier: 'manage' },
-    ],
-  },
   statistics: {
     label: 'Statistics',
     permissions: [
@@ -243,8 +234,6 @@ const permissionMapping: Record<string, string> = {
   'view_stock': 'stock_view',
   'view_stock_management': 'stock_view',
   'view_accounting': 'accounting_view',
-  'view_video_kyc': 'video_kyc_view',
-  'view_kyc_approvals': 'kyc_approvals_view',
   'view_statistics': 'statistics_view',
   'view_ems': 'ems_view',
 };

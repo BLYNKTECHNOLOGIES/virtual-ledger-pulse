@@ -89,23 +89,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
     enabled: !!activeClientId && !!client,
   });
 
-  // Fetch KYC data for additional information (Aadhar, address)
-  const { data: kycData } = useQuery({
-    queryKey: ['client-kyc', activeClientId],
-    queryFn: async () => {
-      if (!activeClientId || !client) return [];
-      
-      const { data, error } = await supabase
-        .from('kyc_approval_requests')
-        .select('*')
-        .eq('counterparty_name', client.name)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!activeClientId && !!client,
-  });
 
   // Fetch income details
   const { data: incomeDetails } = useQuery({
@@ -175,8 +158,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
   const firstOrder = orders?.[0];
   const firstOrderValue = firstOrder?.total_amount || client.first_order_value || 0;
   
-  // Get latest KYC info for additional details
-  const latestKyc = kycData?.[0];
 
   // Calculate order statistics
   const totalOrders = orders?.length || 0;
@@ -227,21 +208,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           )}
         </div>
 
-        {/* Display Aadhar and Address from KYC if available */}
-        {latestKyc && (
-          <div className="grid grid-cols-1 gap-4 p-3 bg-blue-50 rounded-md">
-            <div>
-              <label className="text-sm font-medium text-gray-600">KYC Information</label>
-              <div className="flex items-center gap-2 mt-1">
-                <FileText className="h-4 w-4 text-gray-400" />
-                <span className="text-sm">Aadhar documents submitted</span>
-              </div>
-              {latestKyc.additional_info && (
-                <p className="text-sm text-gray-600 mt-1">{latestKyc.additional_info}</p>
-              )}
-            </div>
-          </div>
-        )}
 
         {client.operator_notes && (
           <div>
@@ -515,7 +481,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         onOpenChange={setShowProfileDialog}
         client={client}
         orders={orders}
-        kycData={kycData}
       />
 
       <RequestLimitIncreaseDialog

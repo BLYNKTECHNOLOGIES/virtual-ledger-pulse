@@ -104,24 +104,6 @@ const handler = async (req: Request): Promise<Response> => {
           return avgPastVolume > 0 && currentVolume > (avgPastVolume * 2);
         }
       },
-      {
-        type: "FREQUENT_APPEALS",
-        description: "More than 2 active appeals in the last 30 days",
-        score: 15,
-        check: async (user, { supabase }) => {
-          const thirtyDaysAgo = new Date();
-          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-          const { data: appeals } = await supabase
-            .from("kyc_queries")
-            .select("id")
-            .eq("created_by", user.id)
-            .eq("resolved", false)
-            .gte("created_at", thirtyDaysAgo.toISOString());
-
-          return (appeals?.length || 0) > 2;
-        }
-      }
     ];
 
     let totalFlagged = 0;

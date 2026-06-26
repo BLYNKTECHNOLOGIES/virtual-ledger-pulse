@@ -18,8 +18,6 @@ const ADMIN_PERMISSIONS = [
   'compliance_view', 'compliance_manage',
   'stock_view', 'stock_manage',
   'accounting_view', 'accounting_manage',
-  'video_kyc_view', 'video_kyc_manage',
-  'kyc_approvals_view', 'kyc_approvals_manage',
   'statistics_view', 'statistics_manage',
   'risk_management_view', 'risk_management_manage',
   'erp_destructive', 'terminal_destructive', 'bams_destructive',

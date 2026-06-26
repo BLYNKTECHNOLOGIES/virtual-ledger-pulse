@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Video, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -122,24 +122,6 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-yellow-600",
     bgColor: "bg-yellow-100",
     permissions: ["risk_management_view", "risk_management_manage"]
-  },
-  {
-    id: "video-kyc",
-    title: "Video KYC",
-    url: "/video-kyc",
-    icon: Video,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100",
-    permissions: ["video_kyc_view", "video_kyc_manage"]
-  },
-  {
-    id: "kyc-approvals",
-    title: "KYC Approvals",
-    url: "/kyc-approvals",
-    icon: Shield,
-    color: "text-blue-600",
-    bgColor: "bg-blue-100",
-    permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
   },
   {
     id: "hrms",

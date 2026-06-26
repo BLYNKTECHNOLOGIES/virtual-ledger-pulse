@@ -34,8 +34,6 @@ import HelpAssistant from './pages/HelpAssistant';
 import HelpAssistantAdmin from './pages/HelpAssistantAdmin';
 import StockManagement from './pages/StockManagement';
 import Accounting from './pages/Accounting';
-import VideoKYC from './pages/VideoKYC';
-import KYCApprovals from './pages/KYCApprovals';
 import Statistics from './pages/Statistics';
 import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
@@ -318,30 +316,6 @@ const router = createBrowserRouter([
           <AuthCheck>
             <Layout>
               <Accounting />
-            </Layout>
-          </AuthCheck>
-      </QueryProvider>
-    ),
-  },
-  {
-    path: "/video-kyc",
-    element: (
-      <QueryProvider>
-          <AuthCheck>
-            <Layout>
-              <VideoKYC />
-            </Layout>
-          </AuthCheck>
-      </QueryProvider>
-    ),
-  },
-  {
-    path: "/kyc-approvals",
-    element: (
-      <QueryProvider>
-          <AuthCheck>
-            <Layout>
-              <KYCApprovals />
             </Layout>
           </AuthCheck>
       </QueryProvider>

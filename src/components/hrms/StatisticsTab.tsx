@@ -626,7 +626,7 @@ export function StatisticsTab() {
           </Card>
         </ClickableCard>
 
-        <ClickableCard to="/kyc-approvals">
+        <ClickableCard to="/clients">
           <Card className="shadow-md border-0 bg-gradient-to-br from-purple-500 to-purple-600 text-white h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">

@@ -189,21 +189,25 @@ export function StatisticsTab() {
       );
 
       // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
-      const { data: usdtFees } = await supabase
-        .from('wallet_transactions')
-        .select(`
-          id,
-          amount,
-          reference_type,
-          reference_id,
-          description,
-          created_at,
-          wallets:wallet_id (wallet_name, wallet_type)
-        `)
-        .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-        .eq('transaction_type', 'DEBIT')
-        .gte('created_at', startStr)
-        .lte('created_at', endStr + 'T23:59:59');
+      // Paginated + ordered: busy months exceed 1000 fee rows, and a silent cap
+      // here would undercount fees and overstate Net Profit.
+      const usdtFees = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('wallet_transactions')
+          .select(`
+            id,
+            amount,
+            reference_type,
+            reference_id,
+            description,
+            created_at,
+            wallets:wallet_id (wallet_name, wallet_type)
+          `)
+          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+          .eq('transaction_type', 'DEBIT')
+          .gte('created_at', startStr)
+          .lte('created_at', endStr + 'T23:59:59')
+          .order('id', { ascending: true }));
 
       // Calculate core KPIs
       const currentRevenue = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;

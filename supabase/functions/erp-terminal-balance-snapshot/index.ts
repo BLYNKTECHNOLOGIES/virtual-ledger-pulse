@@ -74,16 +74,21 @@ Deno.serve(async (req) => {
         );
         if (invokeErr) throw new Error(invokeErr.message);
 
-        const balances: any[] = balData?.balances || [];
+        // binance-assets wraps its payload as { success, data: { balances, ... } }.
+        if (balData?.success === false) {
+          throw new Error(String(balData?.error || "binance-assets returned failure"));
+        }
+        const balances: any[] = balData?.data?.balances || balData?.balances || [];
         const usdtRow = balances.find((b) => String(b.asset).toUpperCase() === "USDT");
         if (usdtRow) {
           terminalUsdt = Number(usdtRow.total_balance || 0);
         } else if (balData?.error) {
           throw new Error(String(balData.error));
         } else {
-          // No USDT row returned but call succeeded => zero balance
+          // Call succeeded but no USDT row returned => genuinely zero balance
           terminalUsdt = 0;
         }
+
       } catch (e) {
         status = "error";
         captureError = (e as Error).message?.slice(0, 500) ?? "unknown error";

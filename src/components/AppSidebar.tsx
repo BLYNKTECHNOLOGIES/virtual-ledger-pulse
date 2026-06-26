@@ -124,24 +124,6 @@ const standaloneItems: SidebarGroupItem[] = [
     permissions: ["risk_management_view", "risk_management_manage"]
   },
   {
-    id: "video-kyc",
-    title: "Video KYC",
-    url: "/video-kyc",
-    icon: Video,
-    color: "text-violet-600",
-    bgColor: "bg-violet-100",
-    permissions: ["video_kyc_view", "video_kyc_manage"]
-  },
-  {
-    id: "kyc-approvals",
-    title: "KYC Approvals",
-    url: "/kyc-approvals",
-    icon: Shield,
-    color: "text-blue-600",
-    bgColor: "bg-blue-100",
-    permissions: ["kyc_approvals_view", "kyc_approvals_manage"]
-  },
-  {
     id: "hrms",
     title: "HRMS",
     url: "/hrms",

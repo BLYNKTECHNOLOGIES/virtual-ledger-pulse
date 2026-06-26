@@ -33,7 +33,7 @@ export function StockStatusBadge({
 
     return (
       <Badge variant={getBadgeVariant(safeStock, minStock)} className={className}>
-        {safeStock}
+        {safeStock.toFixed(2)}
       </Badge>
     );
   }
@@ -61,7 +61,7 @@ export function StockStatusBadge({
     return (
       <div className="space-y-1">
         <Badge variant={getBadgeVariant(total_stock)} className={className}>
-          Total: {total_stock} {unit_of_measurement}
+          Total: {total_stock.toFixed(2)} {unit_of_measurement}
         </Badge>
         <div className="flex flex-wrap gap-1">
           {wallet_stocks
@@ -72,7 +72,7 @@ export function StockStatusBadge({
                 variant={ws.balance > 0 ? "outline" : "destructive"} 
                 className="text-xs"
               >
-                {ws.wallet_name}: {ws.balance}
+                {ws.wallet_name}: {ws.balance.toFixed(2)}
               </Badge>
             ))}
         </div>
@@ -82,7 +82,7 @@ export function StockStatusBadge({
 
   return (
     <Badge variant={getBadgeVariant(total_stock)} className={className}>
-      {total_stock} {unit_of_measurement}
+      {total_stock.toFixed(2)} {unit_of_measurement}
     </Badge>
   );
 }

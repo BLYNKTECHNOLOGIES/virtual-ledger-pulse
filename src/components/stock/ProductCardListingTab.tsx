@@ -15,7 +15,7 @@ import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
 import { useBinanceBalances } from "@/hooks/useBinanceAssets";
 import { useCoinMarketRates, isStableCoin } from "@/hooks/useCoinMarketRates";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
-import { formatSmartDecimal } from "@/lib/format-smart-decimal";
+
 import { isAdjustmentWallet } from "@/lib/adjustment-accounts";
 
 export function ProductCardListingTab() {
@@ -171,9 +171,6 @@ export function ProductCardListingTab() {
                     <CardTitle className="text-lg font-semibold text-gray-900">
                       {product.name}
                     </CardTitle>
-                    <Badge variant="outline" className="text-xs">
-                      #{product.code}
-                    </Badge>
                   </div>
                 <div className="flex flex-col items-end gap-1">
                   <StockStatusBadge currentStock={product.total_stock} />
@@ -189,7 +186,7 @@ export function ProductCardListingTab() {
                       In Stock
                     </span>
                     <p className="font-semibold text-lg text-green-600">
-                      {formatSmartDecimal(product.total_stock)} {product.unit_of_measurement}
+                      {product.total_stock.toFixed(2)}
                     </p>
                   </div>
                   <div>
@@ -198,7 +195,7 @@ export function ProductCardListingTab() {
                       Avg Cost
                     </span>
                     <p className="font-semibold text-lg text-blue-600">
-                      ₹{formatSmartDecimal(product.average_cost)}
+                      ₹{product.average_cost.toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -206,7 +203,7 @@ export function ProductCardListingTab() {
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-gray-500">Holdings Value:</span>
-                    <span className="font-bold text-purple-600">₹{product.total_value.toFixed(0)}</span>
+                    <span className="font-bold text-purple-600">₹{product.total_value.toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -246,7 +243,7 @@ export function ProductCardListingTab() {
                               <span className="text-gray-600">{wallet.wallet_name}</span>
                             </div>
                             <div className="text-right flex items-center gap-1.5">
-                              <span className="font-medium">{formatSmartDecimal(wallet.balance)}</span>
+                              <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                               {(() => {
                                 if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
                                 const bBal = binanceBalanceMap.get(product.code);
@@ -268,7 +265,7 @@ export function ProductCardListingTab() {
                                   </Tooltip>
                                 );
                               })()}
-                              <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(0)}</span>
+                              <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(2)}</span>
                             </div>
                           </div>
                         ))}

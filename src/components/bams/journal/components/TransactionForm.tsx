@@ -41,7 +41,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       }
       setBillFile(file);
     },
-    disabled: createTransactionMutation.isPending || uploadingBill,
+    disabled: uploadingBill,
     multiple: false,
   });
   const [formData, setFormData] = useState({

@@ -637,15 +637,15 @@ export default function Sales() {
       
       {/* Desktop view - table */}
       <div className="hidden md:block overflow-x-auto">
-        <Table>
+        <Table stickyHeader density={density} maxHeight="65vh">
           <TableHeader>
             <TableRow>
               <TableHead>Order #</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Platform</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Price</TableHead>
+              <TableHead numeric>Amount</TableHead>
+              <TableHead numeric>Qty</TableHead>
+              <TableHead numeric>Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created By</TableHead>
               <TableHead>Date</TableHead>

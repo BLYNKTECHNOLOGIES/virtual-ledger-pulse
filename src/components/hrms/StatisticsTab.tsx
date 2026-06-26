@@ -111,7 +111,8 @@ export function StatisticsTab() {
       const allClients = await fetchAllPaginated<any>(() =>
         supabase
           .from('clients')
-          .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator'));
+          .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator')
+          .order('id', { ascending: true }));
 
 
       // Clients created in this period (new clients) - use normalized timestamps

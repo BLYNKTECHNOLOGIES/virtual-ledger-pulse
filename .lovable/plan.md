@@ -1,55 +1,42 @@
-# Cleanup of Outdated / Unused Database Tables
+# Follow-up Cleanup of Outdated / Unused Database Objects
 
-I cross-referenced all **206 public tables** against the entire frontend (`src/`), every edge function (`supabase/functions/`), and all database functions/triggers. Most "code-orphan" tables are actually alive via RPC or triggers (e.g. `terminal_bypass_codes`, `terminal_webauthn_credentials`, `reversal_guards`, `terminal_mpi_snapshots`) — those are kept. The list below is what is genuinely dead: no UI usage, no edge-function usage, no DB-function usage.
+I re-audited all **public tables and views** against the entire frontend (`src/`, excluding the auto-generated `types.ts`), every edge function, and every database function/trigger. Almost everything flagged as a "code orphan" is actually alive via RPC, triggers, or audit-logging functions (e.g. `terminal_bypass_codes`, `terminal_webauthn_credentials`, `reversal_guards`, `terminal_mpi_snapshots`, `terminal_permission_change_log`, `permission_enforcement_config/log`, the balance-drift views). Those are kept.
 
-## Tier A — Confirmed dead, safe to drop
+Only the objects below are genuinely dead — no UI usage, no edge-function usage, no live DB-function usage, and no incoming foreign keys.
 
-**Customer Support module (leftover from the deleted Support page)**
-- `customer_support_tickets` (2 rows)
-- `customer_support_ticket_activities` (1 row)
-- `customer_support_ticket_attachments` (0 rows)
-- `customer_support_ticket_transfers` (1 row)
+## Confirmed dead — safe to drop
 
-These have zero references in code, edge functions, or DB functions. The HR Helpdesk page uses a different table (`hr_helpdesk_tickets`), so it is unaffected. They have FKs among themselves, so they must be dropped together (children first, or `CASCADE`).
+| Object | Type | Rows | Why it's dead |
+|---|---|---|---|
+| `employee_offboarding` | table | 0 | Superseded by the live resignation flow (`hr_resignation_checklist`, `hr_resignation_checklist_template`, `hr_fnf_settlements`). The Separation page uses those, never this table. Zero code/function refs. |
+| `journal_entries` | table | 0 | The Accounting "Journal Entries" tab is a hard-coded "Coming Soon" placeholder that never queries it. Only reference is a cleanup line in `delete_user_with_cleanup`. |
+| `p2p_order_types` | table | 5 (seed) | Unused lookup table. The terminal P2P system runs entirely on `p2p_order_records` (47,750 rows). Zero code/function refs. |
+| `daily_reconciliation_summary` | view | — | Unused diagnostic view. Zero references in code or DB functions. |
 
-**Superseded MPI v1 tables** (replaced by the Horilla MPI v3 set used by `MPIPage.tsx`: `mpi_critical_violations`, `mpi_kpi_definitions`, `mpi_monthly_results`, `mpi_pip_records`, `mpi_scorecard_templates`)
-- `mpi_audit_log` (0 rows)
-- `mpi_monthly_scores` (0 rows)
-- `mpi_score_overrides` (0 rows)
-
-Zero rows, zero references anywhere.
-
-## Tier B — Almost certainly dead, drop after a final dependency confirmation
-
-These have no code/edge/DB-function references. The strings that looked like matches in code are unrelated local variable names (e.g. a `platforms` array built from wallets, not the table).
-- `platforms` (8 rows) — superseded by the wallet-derived platform list in `SalesOrderDialog.tsx`
-- `payment_methods_master` (9 rows) — superseded by the active `payment_methods` table
-- `stock_adjustments` (0 rows) — superseded by `stock_transactions`
-- `ad_payment_methods` (0 rows) — has 1 DB-function reference only; confirm that function is itself dead
-- `wallet_drift_audit` (0 rows) — audit sink, never written; confirm no planned trigger relies on it
-- `email_send_state` (1 row) — confirm the email cron/edge flow does not write it via RPC before dropping
+## Kept (verified alive, do NOT drop)
+- `hr_attendance_activity_archive`, `hr_attendance_punches_archive` — empty now but are the write targets of the `archive_old_attendance_data` archival function. Intentional sinks.
+- `terminal_permission_change_log` (370 rows), `permission_enforcement_config/log` — actively written/read by `log_terminal_permission_change` and the `require_permission` guard (used by ~14 RPCs).
+- `erp_balance_drift_report`, `erp_post_baseline_drift`, `bank_accounts_with_balance`, `hr_monthly_hours_summary` — referenced by balance-healing functions and/or UI pages.
 
 ## Approach
 
 ```text
-1. Pre-flight (read-only): for each Tier B table, re-confirm
-   - no foreign keys point INTO it from a live table
-   - no trigger writes to it
-   - row counts unchanged
-2. Migration 1: DROP Tier A tables (CASCADE on the support set).
-3. Migration 2: DROP Tier B tables individually after pre-flight passes.
-4. Remove the now-orphaned types from src/integrations/supabase/types.ts
-   (auto-regenerated after migration; no manual edit needed).
-5. Storage: if a bucket exists solely for customer_support_ticket_attachments,
-   flag it for removal (handled separately, not auto-deleted).
+1. Migration (single):
+   - DROP FUNCTION dependency edit first: recreate delete_user_with_cleanup
+     WITHOUT the journal_entries cleanup line (its only reference).
+   - DROP VIEW  public.daily_reconciliation_summary;
+   - DROP TABLE public.employee_offboarding;
+   - DROP TABLE public.journal_entries;
+   - DROP TABLE public.p2p_order_types;
+2. Re-run a quick dependency check after the migration to confirm no
+   function/trigger still references the dropped objects.
+3. types.ts regenerates automatically post-migration (no manual edit).
 ```
 
-No UI changes are required — none of these tables render anywhere. This is a pure backend/data-model cleanup.
+## Technical details
+- Pre-flight already done: no foreign keys point into any of the four objects, and no trigger is named for or attached via them.
+- The only code-side touchpoint is `delete_user_with_cleanup`, which deletes from `journal_entries` during user unlinking. That line will be removed in the same migration so the function keeps working.
+- No UI changes are required — none of these objects render anywhere. The Accounting "Journal Entries" placeholder tab stays as-is (it does not read the table).
 
-## Notes / not touched
-- Cron/webhook-only edge functions (e.g. `daily-report-email`, `biometric-webhook`, `cleanup-pending-kyc`, `snapshot-asset-value`) are not called from `src/` by design — they are alive, not dead.
-- `docs/binance_api-17.pdf` is reference material — kept.
-- One-off `backfill-verified-names` edge function is harmless; can be removed later if desired (not included here).
-
-## Question before I build
-Do you want me to drop **both Tier A and Tier B** in this pass, or **Tier A only** (the most clear-cut: deleted-Support + dead-MPI tables) and leave Tier B for a separate review? Given the project's data-integrity priority, I will run the Tier B pre-flight checks regardless before any drop.
+## Note
+This is a pure backend/data-model cleanup, consistent with the project's data-integrity priority. If you'd prefer to keep `p2p_order_types` (it holds 5 seed rows) in case the terminal later wires an order-type lookup, I can exclude it and drop only the other three.

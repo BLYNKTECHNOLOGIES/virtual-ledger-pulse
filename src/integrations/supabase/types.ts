@@ -2696,62 +2696,6 @@ export type Database = {
         }
         Relationships: []
       }
-      employee_offboarding: {
-        Row: {
-          assets_returned: boolean | null
-          created_at: string
-          employee_id: string
-          exit_interview_completed: boolean | null
-          final_settlement_amount: number | null
-          handover_status: string
-          id: string
-          initiated_by: string | null
-          last_working_day: string | null
-          notice_period_days: number | null
-          reason_for_leaving: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          assets_returned?: boolean | null
-          created_at?: string
-          employee_id: string
-          exit_interview_completed?: boolean | null
-          final_settlement_amount?: number | null
-          handover_status?: string
-          id?: string
-          initiated_by?: string | null
-          last_working_day?: string | null
-          notice_period_days?: number | null
-          reason_for_leaving?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          assets_returned?: boolean | null
-          created_at?: string
-          employee_id?: string
-          exit_interview_completed?: boolean | null
-          final_settlement_amount?: number | null
-          handover_status?: string
-          id?: string
-          initiated_by?: string | null
-          last_working_day?: string | null
-          notice_period_days?: number | null
-          reason_for_leaving?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "employee_offboarding_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       employees: {
         Row: {
           aadhaar_card_url: string | null
@@ -8595,47 +8539,6 @@ export type Database = {
         }
         Relationships: []
       }
-      journal_entries: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          entry_date: string
-          id: string
-          reference_number: string
-          status: string
-          total_amount: number
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          entry_date: string
-          id?: string
-          reference_number: string
-          status?: string
-          total_amount: number
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          entry_date?: string
-          id?: string
-          reference_number?: string
-          status?: string
-          total_amount?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "journal_entries_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       kb_document_chunks: {
         Row: {
           chunk_index: number
@@ -10041,42 +9944,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      p2p_order_types: {
-        Row: {
-          auto_assign_rules: Json | null
-          color: string
-          created_at: string
-          icon_name: string | null
-          id: string
-          is_active: boolean
-          label: string
-          name: string
-          notification_escalation: boolean
-        }
-        Insert: {
-          auto_assign_rules?: Json | null
-          color?: string
-          created_at?: string
-          icon_name?: string | null
-          id?: string
-          is_active?: boolean
-          label: string
-          name: string
-          notification_escalation?: boolean
-        }
-        Update: {
-          auto_assign_rules?: Json | null
-          color?: string
-          created_at?: string
-          icon_name?: string | null
-          id?: string
-          is_active?: boolean
-          label?: string
-          name?: string
-          notification_escalation?: boolean
-        }
-        Relationships: []
       }
       p2p_quick_replies: {
         Row: {
@@ -12556,13 +12423,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "shift_reconciliations_parent_reconciliation_id_fkey"
-            columns: ["parent_reconciliation_id"]
-            isOneToOne: false
-            referencedRelation: "daily_reconciliation_summary"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "shift_reconciliations_parent_reconciliation_id_fkey"
             columns: ["parent_reconciliation_id"]
@@ -16065,45 +15925,6 @@ export type Database = {
           lien_amount: number | null
           status: string | null
           updated_at: string | null
-        }
-        Relationships: []
-      }
-      daily_reconciliation_summary: {
-        Row: {
-          has_mismatches: boolean | null
-          id: string | null
-          method_count: number | null
-          mismatch_count: number | null
-          recon_date: string | null
-          reviewed_at: string | null
-          shift_label: string | null
-          status: string | null
-          submitted_at: string | null
-          total_submitted_amount: number | null
-        }
-        Insert: {
-          has_mismatches?: boolean | null
-          id?: string | null
-          method_count?: never
-          mismatch_count?: number | null
-          recon_date?: never
-          reviewed_at?: string | null
-          shift_label?: string | null
-          status?: string | null
-          submitted_at?: string | null
-          total_submitted_amount?: never
-        }
-        Update: {
-          has_mismatches?: boolean | null
-          id?: string | null
-          method_count?: never
-          mismatch_count?: number | null
-          recon_date?: never
-          reviewed_at?: string | null
-          shift_label?: string | null
-          status?: string | null
-          submitted_at?: string | null
-          total_submitted_amount?: never
         }
         Relationships: []
       }

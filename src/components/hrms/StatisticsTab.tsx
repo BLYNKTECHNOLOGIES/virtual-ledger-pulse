@@ -76,12 +76,16 @@ export function StatisticsTab() {
       const prevEndStr = format(prevPeriodEnd, 'yyyy-MM-dd');
 
       // Fetch sales orders with client info (paginated — date ranges can exceed 1000 rows)
+      // NOTE: a stable .order('id') is REQUIRED. Without a deterministic sort,
+      // PostgREST .range() pagination returns duplicated/skipped rows across
+      // pages once the result exceeds 1000 rows, corrupting Revenue totals.
       const salesOrders = await fetchAllPaginated<any>(() =>
         supabase
           .from('sales_orders')
           .select('id, total_amount, order_date, status, payment_status, quantity, price_per_unit, client_name')
           .gte('order_date', startStr)
-          .lte('order_date', endStr));
+          .lte('order_date', endStr)
+          .order('id', { ascending: true }));
 
       // Fetch previous period sales
       const prevSalesOrders = await fetchAllPaginated<any>(() =>
@@ -89,7 +93,8 @@ export function StatisticsTab() {
           .from('sales_orders')
           .select('id, total_amount')
           .gte('order_date', prevStartStr)
-          .lte('order_date', prevEndStr));
+          .lte('order_date', prevEndStr)
+          .order('id', { ascending: true }));
 
       // Fetch purchase orders
       const purchaseOrders = await fetchAllPaginated<any>(() =>
@@ -97,7 +102,8 @@ export function StatisticsTab() {
           .from('purchase_orders')
           .select('id, total_amount, order_date, status, supplier_name, created_by')
           .gte('order_date', startStr)
-          .lte('order_date', endStr));
+          .lte('order_date', endStr)
+          .order('id', { ascending: true }));
 
       // (purchase_order_items no longer needed — profit comes from daily_gross_profit_history)
 
@@ -105,7 +111,8 @@ export function StatisticsTab() {
       const allClients = await fetchAllPaginated<any>(() =>
         supabase
           .from('clients')
-          .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator'));
+          .select('id, created_at, kyc_status, client_type, name, date_of_onboarding, is_buyer, is_seller, buyer_approval_status, seller_approval_status, assigned_operator')
+          .order('id', { ascending: true }));
 
 
       // Clients created in this period (new clients) - use normalized timestamps
@@ -158,7 +165,8 @@ export function StatisticsTab() {
       const onboardingApprovals = await fetchAllPaginated<any>(() =>
         supabase
           .from('client_onboarding_approvals')
-          .select('id, approval_status, created_at, reviewed_at, client_name, order_amount'));
+          .select('id, approval_status, created_at, reviewed_at, client_name, order_amount')
+          .order('id', { ascending: true }));
 
 
       // Onboarding in period
@@ -181,21 +189,25 @@ export function StatisticsTab() {
       );
 
       // Fetch USDT fees from wallet_transactions (PLATFORM_FEE, TRANSFER_FEE, etc.)
-      const { data: usdtFees } = await supabase
-        .from('wallet_transactions')
-        .select(`
-          id,
-          amount,
-          reference_type,
-          reference_id,
-          description,
-          created_at,
-          wallets:wallet_id (wallet_name, wallet_type)
-        `)
-        .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-        .eq('transaction_type', 'DEBIT')
-        .gte('created_at', startStr)
-        .lte('created_at', endStr + 'T23:59:59');
+      // Paginated + ordered: busy months exceed 1000 fee rows, and a silent cap
+      // here would undercount fees and overstate Net Profit.
+      const usdtFees = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('wallet_transactions')
+          .select(`
+            id,
+            amount,
+            reference_type,
+            reference_id,
+            description,
+            created_at,
+            wallets:wallet_id (wallet_name, wallet_type)
+          `)
+          .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
+          .eq('transaction_type', 'DEBIT')
+          .gte('created_at', startStr)
+          .lte('created_at', endStr + 'T23:59:59')
+          .order('id', { ascending: true }));
 
       // Calculate core KPIs
       const currentRevenue = salesOrders?.reduce((sum, o) => sum + Number(o.total_amount || 0), 0) || 0;

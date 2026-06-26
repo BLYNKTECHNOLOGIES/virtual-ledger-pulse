@@ -166,7 +166,6 @@ const dynamicWidgets: WidgetType[] = [
   
   // Compliance
   { id: 'compliance-alerts', name: 'Compliance Alerts', description: 'Pending compliance items and alerts', icon: AlertTriangle, category: 'Compliance', size: 'medium', requiredPermissions: ['compliance_view'] },
-  { id: 'kyc-overview', name: 'KYC Overview', description: 'KYC approval status summary', icon: Shield, category: 'Compliance', size: 'small', requiredPermissions: ['kyc_approvals_view'] },
   // HRMS
   { id: 'team-status', name: 'Team Status', description: "Today's employee attendance summary", icon: UserCheck, category: 'HRMS', size: 'medium', requiredPermissions: ['hrms_view'] },
   // Payroll

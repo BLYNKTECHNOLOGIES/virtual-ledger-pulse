@@ -980,6 +980,17 @@ serve(async (req) => {
 
     const allOk = results.every((r) => r.success);
 
+    // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the report
+    // has been sent successfully (per requirement: stored only until the mail goes out).
+    if (allOk) {
+      const { error: clearErr } = await supabase
+        .from("erp_terminal_balance_snapshots")
+        .delete()
+        .not("id", "is", null);
+      if (clearErr) console.error("failed to clear balance snapshots:", clearErr.message);
+    }
+
+
     return new Response(JSON.stringify({ success: allOk, date, recipients: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

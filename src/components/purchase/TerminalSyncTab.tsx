@@ -439,6 +439,9 @@ export function TerminalSyncTab() {
                         />
                       ) : null}
                     </TableCell>
+                    <TableCell className="text-xs font-mono whitespace-nowrap">
+                      {record.binance_order_number || '—'}
+                    </TableCell>
                     <TableCell className="text-xs">
                       {isMaskedName ? (
                         <div className="flex flex-col items-start gap-0.5">

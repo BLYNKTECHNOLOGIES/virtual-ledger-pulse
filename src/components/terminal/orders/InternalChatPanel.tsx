@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -145,6 +146,14 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
     }
   };
 
+  const handleDropFiles = (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    const fakeEvent = { target: { files: [file], value: '' } } as unknown as React.ChangeEvent<HTMLInputElement>;
+    handleFileUpload(fakeEvent);
+  };
+  const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles: handleDropFiles, disabled: uploading, multiple: false });
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -203,7 +212,7 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
       </ScrollArea>
 
       {/* Input area */}
-      <div className="border-t border-border px-3 py-2 bg-card/50">
+      <div className={`border-t border-border px-3 py-2 bg-card/50 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
         <div className="flex items-center gap-2">
           <input
             type="file"

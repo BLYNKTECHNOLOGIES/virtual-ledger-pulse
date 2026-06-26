@@ -1,5 +1,7 @@
 
 import { useState } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { X, Upload } from "lucide-react";
@@ -11,6 +13,20 @@ interface FileUploadProps {
 
 export function FileUpload({ onFilesUploaded, existingFiles }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
+
+  const onFiles = (files: File[]) => {
+    if (files.length === 0) return;
+    setUploading(true);
+    try {
+      const newUrls = files.map(file => URL.createObjectURL(file));
+      onFilesUploaded([...existingFiles, ...newUrls]);
+    } catch (error) {
+      console.error('Error uploading files:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+  const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles, disabled: uploading, multiple: true });
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -34,7 +50,7 @@ export function FileUpload({ onFilesUploaded, existingFiles }: FileUploadProps) 
   };
 
   return (
-    <div className="space-y-4">
+    <div className={cn("space-y-4 rounded-lg border-2 border-dashed border-transparent transition-colors p-2", isDragActive && "border-primary bg-primary/5")} {...dropzoneProps}>
       <div className="flex items-center gap-2">
         <Input
           type="file"

@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react';
+import { useFileDropzone } from '@/hooks/useFileDropzone';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Image as ImageIcon, Loader2, X, Send } from 'lucide-react';
 import { useGetChatImageUploadUrl } from '@/hooks/useBinanceActions';
@@ -104,6 +106,18 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const handleDropFiles = (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Only image files are allowed'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+  const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles: handleDropFiles, disabled: uploading, multiple: false });
+
   return (
     <>
       <input
@@ -149,6 +163,7 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
         </div>
       )}
 
+      <div {...dropzoneProps} className={cn('rounded transition-colors', isDragActive && 'ring-2 ring-primary ring-offset-1')}>
       <Button
         variant="ghost"
         size="icon"
@@ -162,6 +177,7 @@ export function ChatImageUpload({ orderNo, onImageSent }: Props) {
           <ImageIcon className="h-4 w-4" />
         )}
       </Button>
+      </div>
     </>
   );
 }

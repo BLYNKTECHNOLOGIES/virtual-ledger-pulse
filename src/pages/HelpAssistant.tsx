@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -87,10 +88,10 @@ export default function HelpAssistant() {
   }, [messages, streaming]);
 
   // Compress + upload image
-  const handleFiles = async (files: FileList | null) => {
+  const handleFiles = async (files: FileList | File[] | null) => {
     if (!files || !user?.id) return;
     const remaining = 3 - pendingImages.length;
-    const list = Array.from(files).slice(0, remaining);
+    const list = Array.from(files as Iterable<File>).slice(0, remaining);
     for (const file of list) {
       try {
         const compressed = await compressImage(file, 1600, 0.85);
@@ -202,6 +203,12 @@ export default function HelpAssistant() {
     await supabase.from("staff_chat_messages").update({ feedback: val }).eq("id", msgId);
   };
 
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => handleFiles(files),
+    disabled: streaming || pendingImages.length >= 3,
+    multiple: true,
+  });
+
   return (
     <PermissionGate permissions={["help_assistant_view", "help_assistant_manage"]}>
       <div className="flex h-[calc(100vh-4rem)] bg-background">
@@ -310,7 +317,7 @@ export default function HelpAssistant() {
           </div>
 
           {/* Input bar */}
-          <div className="border-t border-border bg-card px-6 py-4">
+          <div className={`border-t border-border bg-card px-6 py-4 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
             <div className="max-w-3xl mx-auto">
               {pendingImages.length > 0 && (
                 <div className="flex gap-2 mb-2 flex-wrap">

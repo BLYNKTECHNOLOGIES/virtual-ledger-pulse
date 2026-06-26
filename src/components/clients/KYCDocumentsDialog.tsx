@@ -138,7 +138,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Last Updated</label>
-                <p className="text-sm">{latestKyc ? new Date(latestKyc.created_at).toLocaleDateString() : 'N/A'}</p>
+                <p className="text-sm">{latestDocument ? new Date(latestDocument.created_at).toLocaleDateString() : 'N/A'}</p>
               </div>
             </CardContent>
           </Card>

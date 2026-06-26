@@ -944,7 +944,36 @@ export default function Sales() {
               <Search className="h-4 w-4 mr-2" />
               Search
             </Button>
+            <SegmentedControl
+              size="sm"
+              aria-label="Row density"
+              value={density}
+              onValueChange={(v) => setDensity(v as "comfortable" | "compact")}
+              options={[
+                { label: "Comfortable", value: "comfortable" },
+                { label: "Compact", value: "compact" },
+              ]}
+            />
           </div>
+          {(searchTerm.trim() || filterPaymentStatus || filterAssetType || filterDateFrom || filterDateTo) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {searchTerm.trim() && (
+                <FilterChip label="Search:" value={searchTerm} onRemove={() => setSearchTerm("")} />
+              )}
+              {filterPaymentStatus && (
+                <FilterChip label="Status:" value={filterPaymentStatus} onRemove={() => setFilterPaymentStatus("")} />
+              )}
+              {filterAssetType && (
+                <FilterChip label="Asset:" value={filterAssetType} onRemove={() => setFilterAssetType("")} />
+              )}
+              {filterDateFrom && (
+                <FilterChip label="From:" value={format(filterDateFrom, "PP")} onRemove={() => setFilterDateFrom(undefined)} />
+              )}
+              {filterDateTo && (
+                <FilterChip label="To:" value={format(filterDateTo, "PP")} onRemove={() => setFilterDateTo(undefined)} />
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

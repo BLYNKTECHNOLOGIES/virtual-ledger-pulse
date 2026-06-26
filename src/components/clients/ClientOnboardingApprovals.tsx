@@ -236,6 +236,8 @@ const deleteBuyerApprovalDraft = async (id: string) => {
 
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOrderData, setViewOrderData] = useState<any>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);

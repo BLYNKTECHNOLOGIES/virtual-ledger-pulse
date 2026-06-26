@@ -3786,6 +3786,45 @@ export type Database = {
           },
         ]
       }
+      erp_terminal_balance_snapshots: {
+        Row: {
+          account_name: string
+          capture_error: string | null
+          capture_status: string
+          captured_at: string
+          difference: number | null
+          erp_usdt_balance: number
+          exchange_account_id: string | null
+          id: string
+          snapshot_date: string
+          terminal_usdt_balance: number | null
+        }
+        Insert: {
+          account_name: string
+          capture_error?: string | null
+          capture_status?: string
+          captured_at?: string
+          difference?: number | null
+          erp_usdt_balance?: number
+          exchange_account_id?: string | null
+          id?: string
+          snapshot_date?: string
+          terminal_usdt_balance?: number | null
+        }
+        Update: {
+          account_name?: string
+          capture_error?: string | null
+          capture_status?: string
+          captured_at?: string
+          difference?: number | null
+          erp_usdt_balance?: number
+          exchange_account_id?: string | null
+          id?: string
+          snapshot_date?: string
+          terminal_usdt_balance?: number | null
+        }
+        Relationships: []
+      }
       hr_announcements: {
         Row: {
           category: string | null

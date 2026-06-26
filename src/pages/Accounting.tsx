@@ -27,7 +27,7 @@ export default function Accounting() {
                 <div>
                   <h2 className="text-xl font-semibold">Access Denied</h2>
                   <p className="text-muted-foreground mt-2">
-                    You don't have permission to access Accounting Management.
+                    You don't have permission to access Tax Management.
                   </p>
                 </div>
                 <Button onClick={() => navigate("/dashboard")}>

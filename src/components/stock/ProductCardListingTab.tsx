@@ -186,7 +186,7 @@ export function ProductCardListingTab() {
                       In Stock
                     </span>
                     <p className="font-semibold text-lg text-green-600">
-                      {formatSmartDecimal(product.total_stock)} {product.unit_of_measurement}
+                      {product.total_stock.toFixed(2)}
                     </p>
                   </div>
                   <div>
@@ -195,7 +195,7 @@ export function ProductCardListingTab() {
                       Avg Cost
                     </span>
                     <p className="font-semibold text-lg text-blue-600">
-                      ₹{formatSmartDecimal(product.average_cost)}
+                      ₹{product.average_cost.toFixed(2)}
                     </p>
                   </div>
                 </div>

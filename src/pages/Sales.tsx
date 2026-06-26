@@ -11,6 +11,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/ui/skeleton";
+import { FilterChip } from "@/components/ui/filter-chip";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { ClickableRow, useDeepLinkHighlight } from "@/components/transaction-detail";
 import { CalendarIcon, Plus, Search, Filter, Download, Edit, Trash2, Eye, ShoppingCart, Shield } from "lucide-react";
 import { format } from "date-fns";
@@ -46,6 +49,7 @@ export default function Sales() {
   
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [density, setDensity] = useState<"comfortable" | "compact">("comfortable");
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>("");
   const [filterAssetType, setFilterAssetType] = useState<string>("");
   const [filterDateFrom, setFilterDateFrom] = useState<Date>();
@@ -633,15 +637,15 @@ export default function Sales() {
       
       {/* Desktop view - table */}
       <div className="hidden md:block overflow-x-auto">
-        <Table>
+        <Table stickyHeader density={density} maxHeight="65vh">
           <TableHeader>
             <TableRow>
               <TableHead>Order #</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Platform</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Price</TableHead>
+              <TableHead numeric>Amount</TableHead>
+              <TableHead numeric>Qty</TableHead>
+              <TableHead numeric>Price</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created By</TableHead>
               <TableHead>Date</TableHead>
@@ -666,9 +670,9 @@ export default function Sales() {
                   )}
                 </TableCell>
                 <TableCell>{order.wallet?.wallet_name || order.platform || 'Off Market'}</TableCell>
-                <TableCell className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
-                <TableCell>{order.quantity || 1}</TableCell>
-                <TableCell>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
+                <TableCell numeric className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</TableCell>
+                <TableCell numeric>{order.quantity || 1}</TableCell>
+                <TableCell numeric>₹{Number(order.price_per_unit || order.total_amount).toLocaleString('en-IN')}</TableCell>
                 <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
                 <TableCell>
                   {order.created_by_user ? (
@@ -940,7 +944,36 @@ export default function Sales() {
               <Search className="h-4 w-4 mr-2" />
               Search
             </Button>
+            <SegmentedControl
+              size="sm"
+              aria-label="Row density"
+              value={density}
+              onValueChange={(v) => setDensity(v as "comfortable" | "compact")}
+              options={[
+                { label: "Comfortable", value: "comfortable" },
+                { label: "Compact", value: "compact" },
+              ]}
+            />
           </div>
+          {(searchTerm.trim() || filterPaymentStatus || filterAssetType || filterDateFrom || filterDateTo) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {searchTerm.trim() && (
+                <FilterChip label="Search:" value={searchTerm} onRemove={() => setSearchTerm("")} />
+              )}
+              {filterPaymentStatus && (
+                <FilterChip label="Status:" value={filterPaymentStatus} onRemove={() => setFilterPaymentStatus("")} />
+              )}
+              {filterAssetType && (
+                <FilterChip label="Asset:" value={filterAssetType} onRemove={() => setFilterAssetType("")} />
+              )}
+              {filterDateFrom && (
+                <FilterChip label="From:" value={format(filterDateFrom, "PP")} onRemove={() => setFilterDateFrom(undefined)} />
+              )}
+              {filterDateTo && (
+                <FilterChip label="To:" value={format(filterDateTo, "PP")} onRemove={() => setFilterDateTo(undefined)} />
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -951,7 +984,7 @@ export default function Sales() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">Loading sales orders...</div>
+            <TableSkeleton rows={8} columns={10} />
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">

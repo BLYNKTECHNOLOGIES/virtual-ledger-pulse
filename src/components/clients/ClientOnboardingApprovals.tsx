@@ -11,6 +11,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import { FilterChip } from '@/components/ui/filter-chip';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SalesOrderDetailsDialog } from '@/components/sales/SalesOrderDetailsDialog';
@@ -232,6 +236,8 @@ const deleteBuyerApprovalDraft = async (id: string) => {
 
 export function ClientOnboardingApprovals() {
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewOrderData, setViewOrderData] = useState<any>(null);
   const [viewOrderOpen, setViewOrderOpen] = useState(false);
@@ -1433,7 +1439,18 @@ export function ClientOnboardingApprovals() {
       pendingByClient.set(key, { primary: a, allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
     }
   }
-  const pendingApprovals = Array.from(pendingByClient.values());
+  const allPendingApprovals = Array.from(pendingByClient.values());
+  const search = searchTerm.trim().toLowerCase();
+  const pendingApprovals = search
+    ? allPendingApprovals.filter((entry) => {
+        const a = entry.primary;
+        return (
+          a.client_name?.toLowerCase().includes(search) ||
+          a.client_phone?.toLowerCase().includes(search) ||
+          (identityMap?.[a.id]?.nickname || '').toLowerCase().includes(search)
+        );
+      })
+    : allPendingApprovals;
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
   // Build nickname-based "Same User" detection — sanitized so 'Unknown' / masked
@@ -1490,15 +1507,43 @@ export function ClientOnboardingApprovals() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search by name, phone or Binance ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <SegmentedControl
+              size="sm"
+              aria-label="Row density"
+              value={density}
+              onValueChange={(v) => setDensity(v as 'comfortable' | 'compact')}
+              options={[
+                { label: 'Comfortable', value: 'comfortable' },
+                { label: 'Compact', value: 'compact' },
+              ]}
+            />
+          </div>
+
+          {searchTerm.trim() && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <FilterChip label="Search:" value={searchTerm} onRemove={() => setSearchTerm('')} />
+            </div>
+          )}
+
           {isLoading ? (
-            <div className="text-center py-8">Loading approvals...</div>
+            <TableSkeleton rows={8} columns={8} />
           ) : (
-            <Table>
+            <Table stickyHeader density={density} maxHeight="65vh">
               <TableHeader>
                  <TableRow>
                    <TableHead>Client Name</TableHead>
                    <TableHead>Binance ID</TableHead>
-                   <TableHead>Order Details</TableHead>
+                   <TableHead numeric>Order Details</TableHead>
                    <TableHead>Contact</TableHead>
                    <TableHead>Documents</TableHead>
                    <TableHead>VKYC</TableHead>
@@ -1599,7 +1644,7 @@ export function ClientOnboardingApprovals() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell numeric>
                       <div className="text-sm">
                         <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
                         <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>

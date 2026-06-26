@@ -335,32 +335,6 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
             </Card>
           )}
 
-          {/* KYC History */}
-          {kycData && kycData.length > 1 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">KYC History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {kycData.slice(1).map((kyc: any, index: number) => (
-                    <div key={kyc.id} className="flex items-center justify-between p-3 border rounded-md">
-                      <div>
-                        <p className="text-sm font-medium">KYC Submission #{kycData.length - index - 1}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(kyc.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(kyc.status)}
-                        <Button size="sm" variant="ghost">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Actions */}
           <div className="flex justify-end">

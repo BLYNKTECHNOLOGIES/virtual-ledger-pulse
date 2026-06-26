@@ -1644,7 +1644,7 @@ export function ClientOnboardingApprovals() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell numeric>
                       <div className="text-sm">
                         <div>₹{entry.totalAmount.toLocaleString('en-IN')}</div>
                         <div className="text-muted-foreground">{new Date(approval.order_date).toLocaleDateString()}</div>

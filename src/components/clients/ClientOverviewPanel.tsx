@@ -89,23 +89,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
     enabled: !!activeClientId && !!client,
   });
 
-  // Fetch KYC data for additional information (Aadhar, address)
-  const { data: kycData } = useQuery({
-    queryKey: ['client-kyc', activeClientId],
-    queryFn: async () => {
-      if (!activeClientId || !client) return [];
-      
-      const { data, error } = await supabase
-        .from('kyc_approval_requests')
-        .select('*')
-        .eq('counterparty_name', client.name)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!activeClientId && !!client,
-  });
 
   // Fetch income details
   const { data: incomeDetails } = useQuery({

@@ -243,7 +243,7 @@ export function ProductCardListingTab() {
                               <span className="text-gray-600">{wallet.wallet_name}</span>
                             </div>
                             <div className="text-right flex items-center gap-1.5">
-                              <span className="font-medium">{formatSmartDecimal(wallet.balance)}</span>
+                              <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                               {(() => {
                                 if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
                                 const bBal = binanceBalanceMap.get(product.code);

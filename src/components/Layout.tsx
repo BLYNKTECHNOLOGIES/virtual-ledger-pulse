@@ -16,6 +16,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const location = useLocation();
   return (
     <PinUnlockProvider>
       <SidebarEditProvider>

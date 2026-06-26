@@ -72,7 +72,7 @@ export function StockStatusBadge({
                 variant={ws.balance > 0 ? "outline" : "destructive"} 
                 className="text-xs"
               >
-                {ws.wallet_name}: {ws.balance}
+                {ws.wallet_name}: {ws.balance.toFixed(2)}
               </Badge>
             ))}
         </div>

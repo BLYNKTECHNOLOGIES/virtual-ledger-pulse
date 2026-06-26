@@ -296,6 +296,216 @@ async function buildAssetValue(supabase: any) {
   };
 }
 
+// ---------- Rejected ERP entries (audit) ----------
+// Lists every ERP transactional entry that was REJECTED on the report's IST day.
+// Audit-complete: nothing is filtered beyond the date scope. Sources mirror the
+// ERP "Rejected" feed (useErpEntryRejectedFeed) minus buyer-KYC onboarding.
+function fmtRejAmount(n: number, asset: string): string {
+  if (!isFinite(n)) return `${n} ${asset}`;
+  const abs = Math.abs(n);
+  const decimals = abs >= 1 ? 2 : 6;
+  return `${n.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: decimals })} ${asset}`;
+}
+
+function fmtRejTime(ts: string | null): string {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return "—";
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000);
+  const hh = String(ist.getUTCHours()).padStart(2, "0");
+  const mm = String(ist.getUTCMinutes()).padStart(2, "0");
+  return `${hh}:${mm} IST`;
+}
+
+async function buildRejected(supabase: any, date: string) {
+  const [
+    actionQueueRes,
+    terminalBuyRes,
+    terminalSaleRes,
+    smallBuysRes,
+    smallSalesRes,
+    conversionRes,
+  ] = await Promise.all([
+    fetchAllRows(() =>
+      supabase.from("erp_action_queue").select("*").eq("status", "REJECTED")),
+    fetchAllRows(() =>
+      supabase.from("terminal_purchase_sync").select("*").eq("sync_status", "rejected")),
+    fetchAllRows(() =>
+      supabase.from("terminal_sales_sync").select("*").eq("sync_status", "rejected")),
+    fetchAllRows(() =>
+      supabase.from("small_buys_sync").select("*").eq("sync_status", "rejected")),
+    fetchAllRows(() =>
+      supabase.from("small_sales_sync").select("*").eq("sync_status", "rejected")),
+    fetchAllRows(() =>
+      supabase.from("erp_product_conversions").select("*").eq("status", "REJECTED")),
+  ]);
+
+  interface RejRow {
+    type: string;
+    label: string;
+    amount: string;
+    counterparty: string;
+    reason: string;
+    rejectedByRaw: string | null; // UUID or pre-resolved name
+    rejectedByName?: string | null;
+    rejectedAt: string | null;
+    rejectedTs: number;
+  }
+
+  const rows: RejRow[] = [];
+
+  // erp_action_queue (deposits / withdrawals)
+  for (const r of actionQueueRes) {
+    const at = r.processed_at || r.updated_at || null;
+    if (istDateStr(at) !== date) continue;
+    const isDeposit = r.movement_type === "deposit";
+    const amount = Number(r.amount || 0);
+    rows.push({
+      type: isDeposit ? "Deposit" : "Withdrawal",
+      label: `${isDeposit ? "Deposit" : "Withdrawal"} · ${r.asset || ""}`.trim(),
+      amount: fmtRejAmount(amount, r.asset || ""),
+      counterparty: [r.network, r.tx_id ? `${String(r.tx_id).slice(0, 10)}…` : null].filter(Boolean).join(" · ") || "Binance movement",
+      reason: r.reject_reason || r.rejection_reason || "—",
+      rejectedByRaw: r.processed_by || null,
+      rejectedAt: at,
+      rejectedTs: at ? new Date(at).getTime() : 0,
+    });
+  }
+
+  // terminal buys
+  for (const r of terminalBuyRes) {
+    const at = r.reviewed_at || r.updated_at || r.synced_at || null;
+    if (istDateStr(at) !== date) continue;
+    const od = r.order_data || {};
+    const qty = parseFloat(od.amount || "0");
+    const asset = String(od.asset || "USDT").toUpperCase();
+    rows.push({
+      type: "Terminal Buy",
+      label: r.binance_order_number ? `Order ${r.binance_order_number}` : "Terminal Buy",
+      amount: fmtRejAmount(qty, asset),
+      counterparty: [od.pay_method, r.counterparty_name].filter(Boolean).join(" · ") || "—",
+      reason: r.rejection_reason || "—",
+      rejectedByRaw: r.reviewed_by || null,
+      rejectedAt: at,
+      rejectedTs: at ? new Date(at).getTime() : 0,
+    });
+  }
+
+  // terminal sales
+  for (const r of terminalSaleRes) {
+    const at = r.reviewed_at || r.updated_at || r.synced_at || null;
+    if (istDateStr(at) !== date) continue;
+    const od = r.order_data || {};
+    const qty = parseFloat(od.amount || "0");
+    const asset = String(od.asset || "USDT").toUpperCase();
+    rows.push({
+      type: "Terminal Sale",
+      label: r.binance_order_number ? `Order ${r.binance_order_number}` : "Terminal Sale",
+      amount: fmtRejAmount(qty, asset),
+      counterparty: [od.pay_method, r.counterparty_name].filter(Boolean).join(" · ") || "—",
+      reason: r.rejection_reason || "—",
+      rejectedByRaw: r.reviewed_by || null,
+      rejectedAt: at,
+      rejectedTs: at ? new Date(at).getTime() : 0,
+    });
+  }
+
+  // small buys batches
+  for (const r of smallBuysRes) {
+    const at = r.reviewed_at || r.updated_at || null;
+    if (istDateStr(at) !== date) continue;
+    const asset = r.asset_code || "USDT";
+    const qty = Number(r.total_quantity || 0);
+    rows.push({
+      type: "Small Buys",
+      label: `Batch · ${r.order_count || 0} orders`,
+      amount: fmtRejAmount(qty, asset),
+      counterparty: r.sync_batch_id || "—",
+      reason: r.rejection_reason || "—",
+      rejectedByRaw: r.reviewed_by || null,
+      rejectedAt: at,
+      rejectedTs: at ? new Date(at).getTime() : 0,
+    });
+  }
+
+  // small sales batches
+  for (const r of smallSalesRes) {
+    const at = r.reviewed_at || r.updated_at || null;
+    if (istDateStr(at) !== date) continue;
+    const asset = r.asset_code || "USDT";
+    const qty = Number(r.total_quantity || 0);
+    rows.push({
+      type: "Small Sales",
+      label: `Batch · ${r.order_count || 0} orders`,
+      amount: fmtRejAmount(qty, asset),
+      counterparty: r.sync_batch_id || "—",
+      reason: r.rejection_reason || "—",
+      rejectedByRaw: r.reviewed_by || null,
+      rejectedAt: at,
+      rejectedTs: at ? new Date(at).getTime() : 0,
+    });
+  }
+
+  // conversions
+  for (const r of conversionRes) {
+    const at = r.rejected_at || null;
+    if (istDateStr(at) !== date) continue;
+    const asset = r.asset_code || "";
+    const qty = Number(r.quantity || 0);
+    rows.push({
+      type: "Conversion",
+      label: `${r.side || ""} ${r.reference_no || ""}`.trim() || "Conversion",
+      amount: fmtRejAmount(qty, asset),
+      counterparty: r.reference_no || "—",
+      reason: r.rejection_reason || "—",
+      rejectedByRaw: r.rejected_by || null,
+      rejectedByName: r.rejected_by_name || null,
+      rejectedAt: at,
+      rejectedTs: at ? new Date(at).getTime() : 0,
+    });
+  }
+
+  // Resolve rejecting-user UUIDs -> display names (batch)
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const ids = Array.from(
+    new Set(
+      rows
+        .filter((r) => !r.rejectedByName && r.rejectedByRaw && uuidRe.test(r.rejectedByRaw))
+        .map((r) => r.rejectedByRaw as string),
+    ),
+  );
+  const nameMap: Record<string, string> = {};
+  if (ids.length) {
+    const { data: users } = await supabase
+      .from("users")
+      .select("id, first_name, last_name, username")
+      .in("id", ids);
+    for (const u of users || []) {
+      nameMap[u.id] = [u.first_name, u.last_name].filter(Boolean).join(" ") || u.username || "—";
+    }
+  }
+
+  const outRows = rows
+    .sort((a, b) => b.rejectedTs - a.rejectedTs)
+    .map((r) => {
+      let rejectedBy = r.rejectedByName || "—";
+      if (rejectedBy === "—" && r.rejectedByRaw) {
+        rejectedBy = uuidRe.test(r.rejectedByRaw) ? (nameMap[r.rejectedByRaw] || "—") : r.rejectedByRaw;
+      }
+      return {
+        type: r.type,
+        label: r.label || "—",
+        amount: r.amount,
+        counterparty: r.counterparty || "—",
+        reason: r.reason || "—",
+        rejectedBy,
+        rejectedAt: fmtRejTime(r.rejectedAt),
+      };
+    });
+
+  return { count: outRows.length, rows: outRows };
+}
+
 // ---------- aggregation ----------
 
 async function buildReport(supabase: any, date: string) {

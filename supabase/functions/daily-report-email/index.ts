@@ -943,6 +943,8 @@ async function buildReport(supabase: any, date: string) {
     charts,
     kyc,
     rejected,
+    erpDiff,
+
   };
 }
 

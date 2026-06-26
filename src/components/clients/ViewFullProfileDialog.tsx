@@ -19,10 +19,9 @@ interface ViewFullProfileDialogProps {
   onOpenChange: (open: boolean) => void;
   client: any;
   orders?: any[];
-  kycData?: any[];
 }
 
-export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [], kycData = [] }: ViewFullProfileDialogProps) {
+export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] }: ViewFullProfileDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
@@ -101,7 +100,6 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [],
   const totalOrders = orders.length;
   const totalVolume = orders.reduce((sum, order) => sum + order.total_amount, 0);
   const avgOrderValue = totalOrders > 0 ? totalVolume / totalOrders : 0;
-  const latestKyc = kycData[0];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

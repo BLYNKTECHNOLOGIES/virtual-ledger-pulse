@@ -517,6 +517,9 @@ async function buildReport(supabase: any, date: string) {
   // Buyer-client KYC onboarding summary (low-priority section, shown at the bottom)
   const kyc = await buildKyc(supabase, date);
 
+  // Rejected ERP entries on the report day (audit section, at the very bottom)
+  const rejected = await buildRejected(supabase, date);
+
   // Sales + purchases for the day and the previous day (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
     fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", date),

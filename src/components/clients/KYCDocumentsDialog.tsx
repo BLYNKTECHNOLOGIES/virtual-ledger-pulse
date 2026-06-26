@@ -99,7 +99,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
     }
   };
 
-  const latestKyc = kycData?.[0];
+  const latestDocument = kycDocuments?.[0];
   const latestOnboarding = onboardingData?.[0];
 
   // Group KYC documents by type

@@ -43,6 +43,8 @@ interface DailyReportProps {
   charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
   kyc?: { newClients: number; approvedToday: number; pendingTotal: number }
   rejected?: { count: number; rows: { type: string; label: string; amount: string; counterparty: string; reason: string; rejectedBy: string; rejectedAt: string }[] }
+  erpDiff?: { count: number; capturedAt: string | null; rows: { account: string; erp: string; terminal: string; difference: string; hasDrift: boolean; status: string }[] }
+
 
 
 

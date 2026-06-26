@@ -234,8 +234,6 @@ const permissionMapping: Record<string, string> = {
   'view_stock': 'stock_view',
   'view_stock_management': 'stock_view',
   'view_accounting': 'accounting_view',
-  'view_video_kyc': 'video_kyc_view',
-  'view_kyc_approvals': 'kyc_approvals_view',
   'view_statistics': 'statistics_view',
   'view_ems': 'ems_view',
 };

@@ -1507,15 +1507,43 @@ export function ClientOnboardingApprovals() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search by name, phone or Binance ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            <SegmentedControl
+              size="sm"
+              aria-label="Row density"
+              value={density}
+              onValueChange={(v) => setDensity(v as 'comfortable' | 'compact')}
+              options={[
+                { label: 'Comfortable', value: 'comfortable' },
+                { label: 'Compact', value: 'compact' },
+              ]}
+            />
+          </div>
+
+          {searchTerm.trim() && (
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <FilterChip label="Search:" value={searchTerm} onRemove={() => setSearchTerm('')} />
+            </div>
+          )}
+
           {isLoading ? (
-            <div className="text-center py-8">Loading approvals...</div>
+            <TableSkeleton rows={8} columns={8} />
           ) : (
-            <Table>
+            <Table stickyHeader density={density} maxHeight="65vh">
               <TableHeader>
                  <TableRow>
                    <TableHead>Client Name</TableHead>
                    <TableHead>Binance ID</TableHead>
-                   <TableHead>Order Details</TableHead>
+                   <TableHead numeric>Order Details</TableHead>
                    <TableHead>Contact</TableHead>
                    <TableHead>Documents</TableHead>
                    <TableHead>VKYC</TableHead>

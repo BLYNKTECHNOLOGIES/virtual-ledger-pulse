@@ -119,7 +119,7 @@ export function CaseGenerator() {
 
   // Fetch bank accounts for dropdown (excluding dormant)
   const { data: bankAccounts } = useQuery({
-    queryKey: ['bank_accounts'],
+    queryKey: ['bank_accounts', 'case-generator-minimal'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')

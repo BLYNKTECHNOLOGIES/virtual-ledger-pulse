@@ -143,7 +143,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
                     <span className="text-sm text-gray-500 ml-2">
-                      (₹{parseFloat(account.balance.toString()).toLocaleString('en-IN')})
+                      (₹{parseFloat(String(account.balance ?? 0)).toLocaleString('en-IN')})
                     </span>
                   </SelectItem>
                 ))}
@@ -162,7 +162,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
                     <span className="text-sm text-gray-500 ml-2">
-                      (₹{parseFloat(account.balance.toString()).toLocaleString('en-IN')})
+                      (₹{parseFloat(String(account.balance ?? 0)).toLocaleString('en-IN')})
                     </span>
                   </SelectItem>
                 ))}

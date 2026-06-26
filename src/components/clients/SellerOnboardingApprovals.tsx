@@ -583,10 +583,8 @@ export function SellerOnboardingApprovals() {
   if (isLoading) {
     return (
       <Card>
-        <CardContent className="py-8">
-          <div className="flex items-center justify-center text-muted-foreground">
-            Loading pending approvals...
-          </div>
+        <CardContent className="py-6">
+          <TableSkeleton rows={8} columns={9} />
         </CardContent>
       </Card>
     );

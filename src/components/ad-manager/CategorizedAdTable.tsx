@@ -127,6 +127,18 @@ function categorizeAds(
     }
   }
 
+  // Keep same-coin ads together, and within each coin show the lower-priced ad on top.
+  const sortGroup = (list: BinanceAd[]) =>
+    [...list].sort((a, b) => {
+      const assetCmp = String(a.asset || '').localeCompare(String(b.asset || ''));
+      if (assetCmp !== 0) return assetCmp;
+      return Number(a.price || 0) - Number(b.price || 0);
+    });
+
+  for (const key of Object.keys(buckets) as (keyof typeof buckets)[]) {
+    buckets[key] = sortGroup(buckets[key]);
+  }
+
   return [
     {
       label: 'Block Ads',

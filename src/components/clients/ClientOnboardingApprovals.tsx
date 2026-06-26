@@ -1439,7 +1439,18 @@ export function ClientOnboardingApprovals() {
       pendingByClient.set(key, { primary: a, allIds: [a.id], totalAmount: a.order_amount, orderCount: 1 });
     }
   }
-  const pendingApprovals = Array.from(pendingByClient.values());
+  const allPendingApprovals = Array.from(pendingByClient.values());
+  const search = searchTerm.trim().toLowerCase();
+  const pendingApprovals = search
+    ? allPendingApprovals.filter((entry) => {
+        const a = entry.primary;
+        return (
+          a.client_name?.toLowerCase().includes(search) ||
+          a.client_phone?.toLowerCase().includes(search) ||
+          (identityMap?.[a.id]?.nickname || '').toLowerCase().includes(search)
+        );
+      })
+    : allPendingApprovals;
   const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
 
   // Build nickname-based "Same User" detection — sanitized so 'Unknown' / masked

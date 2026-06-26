@@ -10,6 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, X, CheckCircle, Clock, FileText, ExternalLink } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
 import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { cn } from "@/lib/utils";
 
 interface InvestigationDetailsDialogProps {
   investigation: any;

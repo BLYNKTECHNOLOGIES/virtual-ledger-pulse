@@ -357,6 +357,48 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
+          {/* Rejected ERP entries — audit (bottom) */}
+          {rejected && (
+            <Section style={{ ...card, backgroundColor: '#fdf3f3', borderColor: '#e6bcbc' }}>
+              <Text style={{ ...sectionTitle, color: '#C62828', borderBottomColor: '#C62828' }}>
+                Rejected ERP Entries (Audit) — {rejected.count}
+              </Text>
+              <Text style={{ fontSize: '11px', color: '#9C7878', margin: '0 0 8px' }}>
+                Every ERP transactional entry rejected on this day (terminal buys/sales, small buys/sales batches, deposits/withdrawals and conversions), with the user who rejected it. Audit-complete — no rejected entry is skipped.
+              </Text>
+              {rejected.count === 0 ? (
+                <Text style={{ fontSize: '13px', color: '#555', margin: '4px 0' }}>No entries were rejected on this day.</Text>
+              ) : (
+                <table style={tbl}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Type</th>
+                      <th style={th}>Details</th>
+                      <th style={thR}>Amount</th>
+                      <th style={th}>Rejected By</th>
+                      <th style={thR}>Time</th>
+                      <th style={th}>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rejected.rows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={td}>{r.type}</td>
+                        <td style={td}>{r.label}{r.counterparty && r.counterparty !== '—' ? ` · ${r.counterparty}` : ''}</td>
+                        <td style={tdR}>{r.amount}</td>
+                        <td style={td}>{r.rejectedBy}</td>
+                        <td style={tdR}>{r.rejectedAt}</td>
+                        <td style={td}>{r.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Section>
+          )}
+
+
+
 
 
           <Hr style={divider} />

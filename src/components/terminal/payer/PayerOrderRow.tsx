@@ -221,6 +221,12 @@ export function PayerOrderRow({ order, isExcluded, smallPaymentCase, isCompleted
   const handleUploadAndMarkPaid = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    await processPaidScreenshot(file);
+  };
+
+  const processPaidScreenshot = async (file: File) => {
+    if (!file) return;
+
 
     if (!file.type.startsWith('image/')) {
       toast.error('Only image files are allowed');

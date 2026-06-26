@@ -1,48 +1,55 @@
-# Remove KYC Approvals + Video KYC
+# Cleanup of Outdated / Unused Database Tables
 
-Both pages share the same two tables (`kyc_approval_requests`, `kyc_queries`) and form one pipeline (KYC Approvals hands status `VIDEO_KYC` to the Video KYC page). Per your answers, both pages go, the two tables are dropped (purging their rows), and the client-directory KYC submission view is removed. **All `sales_orders`, `wallets`, `sales_payment_methods`, and `bank_accounts` records previously created by this flow are left fully intact** — only the KYC request/query data is removed.
+I cross-referenced all **206 public tables** against the entire frontend (`src/`), every edge function (`supabase/functions/`), and all database functions/triggers. Most "code-orphan" tables are actually alive via RPC or triggers (e.g. `terminal_bypass_codes`, `terminal_webauthn_credentials`, `reversal_guards`, `terminal_mpi_snapshots`) — those are kept. The list below is what is genuinely dead: no UI usage, no edge-function usage, no DB-function usage.
 
-## Frontend removals
+## Tier A — Confirmed dead, safe to drop
 
-**Delete pages & route**
-- Delete `src/pages/KYCApprovals.tsx` and `src/pages/VideoKYC.tsx`.
-- In `src/App.tsx`: remove the `KYCApprovals` and `VideoKYC` imports and the `/kyc-approvals` and `/video-kyc` route entries.
+**Customer Support module (leftover from the deleted Support page)**
+- `customer_support_tickets` (2 rows)
+- `customer_support_ticket_activities` (1 row)
+- `customer_support_ticket_attachments` (0 rows)
+- `customer_support_ticket_transfers` (1 row)
 
-**Delete exclusive component folders/files**
-- `src/components/hrms/kyc-approvals/` (entire folder: PendingKYCTab, QueriesTab, RejectedKYCTab, AcceptedKYCTab, CreateKYCRequestDialog, CreateQueryDialog, ResolveQueryDialog, OrderCompletionDialog, KYCDetailsDialog, KYCTimelineDialog, PaymentMethodSelectionDialog, UserPayingOptionsDialog).
-- `src/components/hrms/KYCApprovalsTab.tsx`.
-- `src/components/hrms/video-kyc/` (entire folder: NewVideoKYCTab, CompletedVideoKYCTab, VideoKYCSessionDialog).
-- `src/components/hrms/VideoKYCTab.tsx`.
+These have zero references in code, edge functions, or DB functions. The HR Helpdesk page uses a different table (`hr_helpdesk_tickets`), so it is unaffected. They have FKs among themselves, so they must be dropped together (children first, or `CASCADE`).
 
-**Navigation**
-- `src/components/AppSidebar.tsx`: remove the `kyc-approvals` and `video-kyc` menu items (and now-unused `Video` icon import if unreferenced).
-- `src/components/MobileBottomNav.tsx`: remove the "KYC Approvals" and "Video KYC" entries.
+**Superseded MPI v1 tables** (replaced by the Horilla MPI v3 set used by `MPIPage.tsx`: `mpi_critical_violations`, `mpi_kpi_definitions`, `mpi_monthly_results`, `mpi_pip_records`, `mpi_scorecard_templates`)
+- `mpi_audit_log` (0 rows)
+- `mpi_monthly_scores` (0 rows)
+- `mpi_score_overrides` (0 rows)
 
-**Permissions UI**
-- `src/components/user-management/EditRoleDialog.tsx` and `AddRoleDialog.tsx`: remove the `'n'` (KYC Approvals) and `video_kyc_view`/`video_kyc_manage` permission rows.
-- `src/pages/UserManagement.tsx`: remove the `view_kyc_approvals`/`'n'` and video_kyc permission mappings.
-- The underlying `app_permission` enum values are left in place (Postgres enum values can't be safely dropped and are harmless once unused).
+Zero rows, zero references anywhere.
 
-## Client directory cleanup
-- `src/components/clients/ClientOverviewPanel.tsx`: remove the `kycData` query against `kyc_approval_requests` and any UI that renders it; remove the `KYCDocumentsDialog` usage tied to the KYC submission view.
-- `src/components/clients/KYCDocumentsDialog.tsx`: remove the "Latest KYC Submission (from kyc_approval_requests)" section and its query. If the dialog also surfaces `client_kyc_documents`, that part stays; if the dialog becomes entirely about the removed submission, delete the file and its import.
+## Tier B — Almost certainly dead, drop after a final dependency confirmation
 
-## Edge function cleanup
-- `supabase/functions/risk-detection/index.ts`: remove the `FREQUENT_APPEALS` rule (its only logic queries `kyc_queries`). All other risk rules are untouched, so scoring continues without that one signal.
+These have no code/edge/DB-function references. The strings that looked like matches in code are unrelated local variable names (e.g. a `platforms` array built from wallets, not the table).
+- `platforms` (8 rows) — superseded by the wallet-derived platform list in `SalesOrderDialog.tsx`
+- `payment_methods_master` (9 rows) — superseded by the active `payment_methods` table
+- `stock_adjustments` (0 rows) — superseded by `stock_transactions`
+- `ad_payment_methods` (0 rows) — has 1 DB-function reference only; confirm that function is itself dead
+- `wallet_drift_audit` (0 rows) — audit sink, never written; confirm no planned trigger relies on it
+- `email_send_state` (1 row) — confirm the email cron/edge flow does not write it via RPC before dropping
 
-## Database migration
-After all code references are gone:
-- `DROP TABLE public.kyc_queries;` (has FK to kyc_approval_requests — dropped first).
-- `DROP TABLE public.kyc_approval_requests;`
+## Approach
 
-This purges all KYC request/query rows. `sales_orders`, `wallets`, `sales_payment_methods`, and `bank_accounts` have no FK into these tables, so they are unaffected. No daily-report metrics change — those read `client_onboarding_approvals`, a separate table.
+```text
+1. Pre-flight (read-only): for each Tier B table, re-confirm
+   - no foreign keys point INTO it from a live table
+   - no trigger writes to it
+   - row counts unchanged
+2. Migration 1: DROP Tier A tables (CASCADE on the support set).
+3. Migration 2: DROP Tier B tables individually after pre-flight passes.
+4. Remove the now-orphaned types from src/integrations/supabase/types.ts
+   (auto-regenerated after migration; no manual edit needed).
+5. Storage: if a bucket exists solely for customer_support_ticket_attachments,
+   flag it for removal (handled separately, not auto-deleted).
+```
 
-## Verification
-- Typecheck/build to confirm no dangling imports.
-- Grep the repo for `kyc_approval_requests`, `kyc_queries`, `KYCApprovalsTab`, `VideoKYCTab`, `/kyc-approvals`, `/video-kyc` to confirm zero remaining references before running the drop migration.
-- Confirm Client directory, risk-detection, and the daily report still build and run.
+No UI changes are required — none of these tables render anywhere. This is a pure backend/data-model cleanup.
 
-## Out of scope / preserved
-- `client_onboarding_approvals` (buyer-side daily-report ledger) — untouched.
-- `client_kyc_documents` and the rest of the Client directory — untouched.
-- All financial records (sales orders, wallets, bank accounts) created by the old flow — untouched.
+## Notes / not touched
+- Cron/webhook-only edge functions (e.g. `daily-report-email`, `biometric-webhook`, `cleanup-pending-kyc`, `snapshot-asset-value`) are not called from `src/` by design — they are alive, not dead.
+- `docs/binance_api-17.pdf` is reference material — kept.
+- One-off `backfill-verified-names` edge function is harmless; can be removed later if desired (not included here).
+
+## Question before I build
+Do you want me to drop **both Tier A and Tier B** in this pass, or **Tier A only** (the most clear-cut: deleted-Support + dead-MPI tables) and leave Tier B for a separate review? Given the project's data-integrity priority, I will run the Tier B pre-flight checks regardless before any drop.

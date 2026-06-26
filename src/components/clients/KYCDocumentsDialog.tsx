@@ -134,7 +134,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Total Submissions</label>
-                <p className="text-xl font-bold">{kycData?.length || 0}</p>
+                <p className="text-xl font-bold">{kycDocuments?.length || 0}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Last Updated</label>

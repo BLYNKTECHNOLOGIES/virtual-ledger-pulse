@@ -984,7 +984,7 @@ export default function Sales() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="text-center py-8">Loading sales orders...</div>
+            <TableSkeleton rows={8} columns={10} />
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3">

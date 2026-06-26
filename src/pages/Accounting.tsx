@@ -2,10 +2,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Calculator, BarChart, Shield } from "lucide-react";
+import { TrendingUp, Calculator, Shield } from "lucide-react";
 import { SalesPurchasesTab } from "@/components/accounting/SalesPurchasesTab";
 import { TaxManagementTab } from "@/components/accounting/TaxManagementTab";
-import { ReportsTab } from "@/components/accounting/ReportsTab";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";

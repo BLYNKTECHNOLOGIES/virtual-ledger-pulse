@@ -175,8 +175,6 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
   const firstOrder = orders?.[0];
   const firstOrderValue = firstOrder?.total_amount || client.first_order_value || 0;
   
-  // Get latest KYC info for additional details
-  const latestKyc = kycData?.[0];
 
   // Calculate order statistics
   const totalOrders = orders?.length || 0;

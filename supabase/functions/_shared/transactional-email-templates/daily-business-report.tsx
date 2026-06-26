@@ -43,6 +43,8 @@ interface DailyReportProps {
   charts?: { salesVsPurchase: string; pnl: string; volumeByAsset: string; hourly: string; expensesByCategory?: string }
   kyc?: { newClients: number; approvedToday: number; pendingTotal: number }
   rejected?: { count: number; rows: { type: string; label: string; amount: string; counterparty: string; reason: string; rejectedBy: string; rejectedAt: string }[] }
+  erpDiff?: { count: number; capturedAt: string | null; rows: { account: string; erp: string; terminal: string; difference: string; hasDrift: boolean; status: string }[] }
+
 
 
 
@@ -51,7 +53,7 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff }: DailyReportProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>
@@ -397,11 +399,45 @@ const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, sh
             </Section>
           )}
 
-
-
-
+          {/* ERP vs Terminal USDT balance difference — captured at 4 AM (bottom-most) */}
+          {erpDiff && (
+            <Section style={{ ...card, backgroundColor: '#f3f6fb', borderColor: '#bcd0e6' }}>
+              <Text style={{ ...sectionTitle, color: '#1565C0', borderBottomColor: '#1565C0' }}>
+                ERP vs Terminal Balance Insight (USDT)
+              </Text>
+              <Text style={{ fontSize: '11px', color: '#5b7796', margin: '0 0 8px' }}>
+                Per Binance account: USDT balance recorded in the ERP (Asset Inventory · Wallet Distribution)
+                versus the actual live balance in the terminal. Captured by the system at 4:00 AM IST.
+              </Text>
+              {erpDiff.count === 0 ? (
+                <Text style={{ fontSize: '13px', color: '#555', margin: '4px 0' }}>No 4 AM balance snapshot was available for this report.</Text>
+              ) : (
+                <table style={tbl}>
+                  <thead>
+                    <tr>
+                      <th style={th}>Account</th>
+                      <th style={thR}>ERP USDT</th>
+                      <th style={thR}>Terminal USDT</th>
+                      <th style={thR}>Difference</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {erpDiff.rows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={td}>{r.account}</td>
+                        <td style={tdR}>{r.erp}</td>
+                        <td style={tdR}>{r.status === 'error' ? 'Unavailable' : r.terminal}</td>
+                        <td style={{ ...tdR, color: r.hasDrift ? '#C62828' : '#2E7D32', fontWeight: 600 }}>{r.difference}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </Section>
+          )}
 
           <Hr style={divider} />
+
           <Text style={footer}>
             Automated daily report from {SITE_NAME} ERP. All figures are derived from the
             system's verified ledger (effective USDT valuation). Adjustment buckets are excluded.
@@ -481,6 +517,11 @@ export const template = {
       { type: 'Terminal Sale', label: 'Order 22938471', amount: '1,200.00 USDT', counterparty: 'UPI · rahul_p', reason: 'Wrong payment proof', rejectedBy: 'Abhishek Singh', rejectedAt: '14:32 IST' },
       { type: 'Deposit', label: 'Deposit · TRX', amount: '500.00 TRX', counterparty: 'TRC20 · 9af13c0b2e…', reason: 'Duplicate movement', rejectedBy: 'Shubham Singh', rejectedAt: '11:05 IST' },
     ] },
+    erpDiff: { count: 2, capturedAt: '2026-06-26T22:30:00Z', rows: [
+      { account: 'Blynk Binance', erp: '9,409.0400', terminal: '9,410.0000', difference: '-0.9600', hasDrift: false, status: 'ok' },
+      { account: 'ASEC Binance', erp: '2,977.2175', terminal: '2,950.0000', difference: '27.2175', hasDrift: true, status: 'ok' },
+    ] },
+
   },
 } satisfies TemplateEntry
 

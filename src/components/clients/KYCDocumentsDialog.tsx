@@ -20,21 +20,6 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 };
 
 export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsDialogProps) {
-  // Fetch KYC data for the client
-  const { data: kycData } = useQuery({
-    queryKey: ['client-kyc-documents', client?.id],
-    queryFn: async () => {
-      if (!client) return [];
-      const { data, error } = await supabase
-        .from('kyc_approval_requests')
-        .select('*')
-        .eq('counterparty_name', client.name)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!client && open,
-  });
 
   // Fetch client onboarding approvals
   const { data: onboardingData } = useQuery({

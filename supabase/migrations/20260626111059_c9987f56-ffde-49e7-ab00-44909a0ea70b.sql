@@ -1,0 +1,155 @@
+-- Tier A: leftover Customer Support module (deleted Support page)
+DROP TABLE IF EXISTS public.customer_support_ticket_attachments CASCADE;
+DROP TABLE IF EXISTS public.customer_support_ticket_activities CASCADE;
+DROP TABLE IF EXISTS public.customer_support_ticket_transfers CASCADE;
+DROP TABLE IF EXISTS public.customer_support_tickets CASCADE;
+
+-- Tier A: superseded MPI v1 tables (replaced by current MPI page tables)
+DROP TABLE IF EXISTS public.mpi_audit_log CASCADE;
+DROP TABLE IF EXISTS public.mpi_monthly_scores CASCADE;
+DROP TABLE IF EXISTS public.mpi_score_overrides CASCADE;
+
+-- Tier B: patch delete_user_with_cleanup to drop the ad_payment_methods reference,
+-- then drop the table.
+CREATE OR REPLACE FUNCTION public.delete_user_with_cleanup(p_user_id uuid)
+ RETURNS json
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _tid text := p_user_id::text;
+  _user_name text;
+  _full_name text;
+BEGIN
+  PERFORM public.require_permission(auth.uid(), 'user_management_manage', 'delete_user');
+  PERFORM public.require_permission(auth.uid(), 'erp_destructive', 'delete_user');
+
+  SELECT COALESCE(NULLIF(TRIM(COALESCE(first_name,'') || ' ' || COALESCE(last_name,'')), ''), username, email)
+    INTO _full_name FROM public.users WHERE id = p_user_id;
+  IF _full_name IS NULL THEN RETURN json_build_object('success', false, 'error', 'User not found'); END IF;
+  _user_name := _full_name || ' [deleted]';
+
+  DELETE FROM public.terminal_webauthn_credentials WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_webauthn_challenges WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_biometric_sessions WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_user_presence WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_internal_chat_reads WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_bypass_codes WHERE user_id = p_user_id OR generated_by = p_user_id;
+  DELETE FROM public.terminal_notifications WHERE user_id = p_user_id OR related_user_id = p_user_id;
+  DELETE FROM public.terminal_user_exchange_mappings WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_user_size_range_mappings WHERE user_id = p_user_id;
+  DELETE FROM public.terminal_user_supervisor_mappings WHERE user_id = p_user_id OR supervisor_id = p_user_id;
+  DELETE FROM public.terminal_auto_reply_exclusions WHERE excluded_by = p_user_id;
+  DELETE FROM public.p2p_terminal_user_roles WHERE user_id = p_user_id;
+  UPDATE public.p2p_terminal_user_roles SET assigned_by = NULL WHERE assigned_by = p_user_id;
+  DELETE FROM public.terminal_user_profiles WHERE user_id = p_user_id;
+  UPDATE public.terminal_user_profiles SET reports_to = NULL WHERE reports_to = p_user_id;
+
+  DELETE FROM public.terminal_order_assignments WHERE assigned_to = p_user_id;
+  UPDATE public.terminal_order_assignments SET assigned_by = NULL WHERE assigned_by = p_user_id;
+  DELETE FROM public.terminal_payer_assignments WHERE payer_user_id = p_user_id OR assigned_by = p_user_id;
+  DELETE FROM public.terminal_operator_assignments WHERE operator_user_id = p_user_id;
+  UPDATE public.terminal_operator_assignments SET assigned_by = NULL WHERE assigned_by = p_user_id;
+  DELETE FROM public.terminal_small_payment_manager_assignments WHERE manager_user_id = p_user_id;
+  UPDATE public.terminal_small_payment_manager_assignments SET assigned_by = NULL WHERE assigned_by = p_user_id;
+  UPDATE public.terminal_small_payment_cases SET manager_user_id = NULL WHERE manager_user_id = p_user_id;
+  UPDATE public.terminal_appeal_cases SET requested_by = NULL WHERE requested_by = p_user_id;
+  UPDATE public.terminal_appeal_cases SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.terminal_appeal_cases SET updated_by = NULL WHERE updated_by = p_user_id;
+  UPDATE public.terminal_appeal_cases SET response_timer_set_by = NULL WHERE response_timer_set_by = p_user_id;
+  UPDATE public.terminal_appeal_cases SET last_checked_in_by = NULL WHERE last_checked_in_by = p_user_id;
+  UPDATE public.terminal_alternate_upi_requests SET requested_by = NULL WHERE requested_by = p_user_id;
+  UPDATE public.terminal_alternate_upi_requests SET resolved_by = NULL WHERE resolved_by = p_user_id;
+  DELETE FROM public.terminal_assignment_audit_logs WHERE performed_by = p_user_id OR target_user_id = p_user_id;
+  DELETE FROM public.terminal_payer_order_log WHERE payer_id = p_user_id;
+
+  UPDATE public.terminal_activity_log
+     SET metadata = COALESCE(metadata, '{}'::jsonb)
+                    || jsonb_build_object('deleted_user_id', p_user_id, 'deleted_user_name', _user_name),
+         user_id = NULL
+   WHERE user_id = p_user_id;
+  UPDATE public.terminal_broadcasts SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.terminal_order_escalations SET escalated_by = NULL WHERE escalated_by = p_user_id;
+  UPDATE public.terminal_order_escalations SET escalated_to = NULL WHERE escalated_to = p_user_id;
+  UPDATE public.terminal_order_escalations SET resolved_by = NULL WHERE resolved_by = p_user_id;
+  UPDATE public.terminal_shift_handovers SET outgoing_user_id = NULL WHERE outgoing_user_id = p_user_id;
+  UPDATE public.terminal_shift_handovers SET incoming_user_id = NULL WHERE incoming_user_id = p_user_id;
+
+  DELETE FROM public.user_roles WHERE user_id = p_user_id;
+  DELETE FROM public.user_preferences WHERE user_id = p_user_id;
+
+  UPDATE public.users SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.employees SET user_id = NULL WHERE user_id = p_user_id;
+  UPDATE public.bank_accounts SET dormant_by = NULL WHERE dormant_by = p_user_id;
+  UPDATE public.hr_loans SET approved_by = NULL WHERE approved_by = p_user_id;
+  UPDATE public.hr_payroll_runs SET reviewed_by = NULL WHERE reviewed_by = p_user_id;
+
+  UPDATE public.payment_gateway_settlements SET settled_by = NULL WHERE settled_by = p_user_id;
+  UPDATE public.payment_gateway_settlements SET reversed_by = NULL WHERE reversed_by = p_user_id;
+  UPDATE public.password_reset_requests SET resolved_by = NULL WHERE resolved_by = p_user_id;
+  UPDATE public.risk_flags SET resolved_by = NULL WHERE resolved_by = p_user_id;
+  UPDATE public.tds_records SET paid_by = NULL WHERE paid_by = p_user_id;
+  UPDATE public.erp_tasks SET escalation_user_id = NULL WHERE escalation_user_id = p_user_id;
+
+  UPDATE public.erp_product_conversions SET created_by_name = _user_name, created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.erp_product_conversions SET approved_by_name = _user_name, approved_by = NULL WHERE approved_by = p_user_id;
+  UPDATE public.erp_product_conversions SET rejected_by_name = _user_name, rejected_by = NULL WHERE rejected_by = p_user_id;
+
+  UPDATE public.system_action_logs SET user_name = _user_name, user_id = NULL WHERE user_id = p_user_id;
+
+  UPDATE public.ad_action_logs SET user_name = _user_name WHERE user_id = _tid AND (user_name IS NULL OR user_name = '');
+  UPDATE public.ad_action_logs SET user_id = 'DELETED' WHERE user_id = _tid;
+
+  UPDATE public.chat_message_senders SET username = _user_name WHERE user_id = _tid AND (username IS NULL OR username = '');
+  UPDATE public.chat_message_senders SET user_id = 'DELETED' WHERE user_id = _tid;
+
+  UPDATE public.terminal_auto_assignment_log SET assigned_to = 'DELETED:' || _user_name WHERE assigned_to = _tid;
+
+  DELETE FROM public.terminal_mpi_snapshots WHERE user_id = p_user_id;
+
+  PERFORM set_config('app.allow_ledger_mutation', 'on', true);
+  UPDATE public.wallet_transactions SET created_by = NULL WHERE created_by = p_user_id;
+  PERFORM set_config('app.allow_ledger_mutation', 'off', true);
+
+  PERFORM set_config('app.allow_bank_ledger_mutation', 'on', true);
+  UPDATE public.bank_transactions SET created_by = NULL WHERE created_by = p_user_id;
+  PERFORM set_config('app.allow_bank_ledger_mutation', 'off', true);
+
+  UPDATE public.purchase_orders SET created_by = NULL WHERE created_by = p_user_id;
+  IF to_regclass('public.purchase_order_payments') IS NOT NULL THEN
+    EXECUTE 'UPDATE public.purchase_order_payments SET created_by = NULL WHERE created_by = $1' USING p_user_id;
+  END IF;
+  UPDATE public.purchase_order_payment_splits SET created_by = NULL WHERE created_by = p_user_id;
+  IF to_regclass('public.purchase_order_reviews') IS NOT NULL THEN
+    EXECUTE 'UPDATE public.purchase_order_reviews SET created_by = NULL WHERE created_by = $1' USING p_user_id;
+    EXECUTE 'UPDATE public.purchase_order_reviews SET read_by = NULL WHERE read_by = $1' USING p_user_id;
+  END IF;
+  IF to_regclass('public.purchase_order_status_history') IS NOT NULL THEN
+    EXECUTE 'UPDATE public.purchase_order_status_history SET changed_by = NULL WHERE changed_by = $1' USING p_user_id;
+  END IF;
+  UPDATE public.purchase_action_timings SET actor_user_id = NULL WHERE actor_user_id = p_user_id;
+  UPDATE public.sales_orders SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.stock_transactions SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.journal_entries SET created_by = NULL WHERE created_by = p_user_id;
+  UPDATE public.rekyc_requests SET reviewed_by = NULL WHERE reviewed_by = p_user_id;
+  UPDATE public.rekyc_requests SET user_id = NULL WHERE user_id = p_user_id;
+
+  DELETE FROM public.users WHERE id = p_user_id;
+  DELETE FROM auth.users WHERE id = p_user_id;
+
+  RETURN json_build_object('success', true, 'user_name', _user_name);
+EXCEPTION WHEN OTHERS THEN
+  PERFORM set_config('app.allow_ledger_mutation', 'off', true);
+  PERFORM set_config('app.allow_bank_ledger_mutation', 'off', true);
+  RETURN json_build_object('success', false, 'error', SQLERRM);
+END;
+$function$;
+
+-- Tier B: drop remaining unused tables
+DROP TABLE IF EXISTS public.ad_payment_methods CASCADE;
+DROP TABLE IF EXISTS public.platforms CASCADE;
+DROP TABLE IF EXISTS public.payment_methods_master CASCADE;
+DROP TABLE IF EXISTS public.stock_adjustments CASCADE;
+DROP TABLE IF EXISTS public.wallet_drift_audit CASCADE;
+DROP TABLE IF EXISTS public.email_send_state CASCADE;

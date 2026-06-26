@@ -128,51 +128,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ad_payment_methods: {
-        Row: {
-          binance_ad_id: string
-          binance_pay_id: number | null
-          created_at: string
-          created_by_user_id: string | null
-          exchange_account_id: string
-          id: string
-          payment_method_id: string
-        }
-        Insert: {
-          binance_ad_id: string
-          binance_pay_id?: number | null
-          created_at?: string
-          created_by_user_id?: string | null
-          exchange_account_id?: string
-          id?: string
-          payment_method_id: string
-        }
-        Update: {
-          binance_ad_id?: string
-          binance_pay_id?: number | null
-          created_at?: string
-          created_by_user_id?: string | null
-          exchange_account_id?: string
-          id?: string
-          payment_method_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ad_payment_methods_payment_method_id_fkey"
-            columns: ["payment_method_id"]
-            isOneToOne: false
-            referencedRelation: "payment_methods_master"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_ad_payment_methods_exch_acct"
-            columns: ["exchange_account_id"]
-            isOneToOne: false
-            referencedRelation: "terminal_exchange_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ad_pricing_effectiveness_snapshots: {
         Row: {
           avg_applied_price: number | null
@@ -2546,174 +2501,6 @@ export type Database = {
         }
         Relationships: []
       }
-      customer_support_ticket_activities: {
-        Row: {
-          activity_type: string
-          actor_id: string
-          created_at: string
-          id: string
-          message: string
-          metadata: Json | null
-          ticket_id: string
-        }
-        Insert: {
-          activity_type?: string
-          actor_id: string
-          created_at?: string
-          id?: string
-          message: string
-          metadata?: Json | null
-          ticket_id: string
-        }
-        Update: {
-          activity_type?: string
-          actor_id?: string
-          created_at?: string
-          id?: string
-          message?: string
-          metadata?: Json | null
-          ticket_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_support_ticket_activities_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "customer_support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customer_support_ticket_attachments: {
-        Row: {
-          created_at: string
-          file_name: string
-          file_path: string
-          file_size: number | null
-          id: string
-          mime_type: string | null
-          note: string | null
-          ticket_id: string
-          uploaded_by: string
-        }
-        Insert: {
-          created_at?: string
-          file_name: string
-          file_path: string
-          file_size?: number | null
-          id?: string
-          mime_type?: string | null
-          note?: string | null
-          ticket_id: string
-          uploaded_by: string
-        }
-        Update: {
-          created_at?: string
-          file_name?: string
-          file_path?: string
-          file_size?: number | null
-          id?: string
-          mime_type?: string | null
-          note?: string | null
-          ticket_id?: string
-          uploaded_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_support_ticket_attachments_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "customer_support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customer_support_ticket_transfers: {
-        Row: {
-          created_at: string
-          from_user_id: string | null
-          id: string
-          ticket_id: string
-          to_user_id: string
-          transfer_reason: string | null
-          transferred_by: string
-        }
-        Insert: {
-          created_at?: string
-          from_user_id?: string | null
-          id?: string
-          ticket_id: string
-          to_user_id: string
-          transfer_reason?: string | null
-          transferred_by: string
-        }
-        Update: {
-          created_at?: string
-          from_user_id?: string | null
-          id?: string
-          ticket_id?: string
-          to_user_id?: string
-          transfer_reason?: string | null
-          transferred_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_support_ticket_transfers_ticket_id_fkey"
-            columns: ["ticket_id"]
-            isOneToOne: false
-            referencedRelation: "customer_support_tickets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customer_support_tickets: {
-        Row: {
-          assigned_to: string | null
-          created_at: string
-          created_by: string
-          customer_issue: string
-          escalated: boolean
-          escalation_reason: string | null
-          id: string
-          order_number: string
-          priority: string
-          resolution_notes: string | null
-          resolved_at: string | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          created_at?: string
-          created_by: string
-          customer_issue: string
-          escalated?: boolean
-          escalation_reason?: string | null
-          id?: string
-          order_number: string
-          priority?: string
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          created_at?: string
-          created_by?: string
-          customer_issue?: string
-          escalated?: boolean
-          escalation_reason?: string | null
-          id?: string
-          order_number?: string
-          priority?: string
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       daily_gross_profit_history: {
         Row: {
           avg_sales_rate: number
@@ -2882,33 +2669,6 @@ export type Database = {
           recipient_email?: string
           status?: string
           template_name?: string
-        }
-        Relationships: []
-      }
-      email_send_state: {
-        Row: {
-          auth_email_ttl_minutes: number
-          batch_size: number
-          id: number
-          retry_after_until: string | null
-          send_delay_ms: number
-          transactional_email_ttl_minutes: number
-        }
-        Insert: {
-          auth_email_ttl_minutes?: number
-          batch_size?: number
-          id?: number
-          retry_after_until?: string | null
-          send_delay_ms?: number
-          transactional_email_ttl_minutes?: number
-        }
-        Update: {
-          auth_email_ttl_minutes?: number
-          batch_size?: number
-          id?: number
-          retry_after_until?: string | null
-          send_delay_ms?: number
-          transactional_email_ttl_minutes?: number
         }
         Relationships: []
       }
@@ -9389,39 +9149,6 @@ export type Database = {
           },
         ]
       }
-      mpi_audit_log: {
-        Row: {
-          action: string
-          actor_id: string | null
-          after_data: Json | null
-          before_data: Json | null
-          created_at: string
-          entity_id: string | null
-          entity_type: string
-          id: string
-        }
-        Insert: {
-          action: string
-          actor_id?: string | null
-          after_data?: Json | null
-          before_data?: Json | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type: string
-          id?: string
-        }
-        Update: {
-          action?: string
-          actor_id?: string | null
-          after_data?: Json | null
-          before_data?: Json | null
-          created_at?: string
-          entity_id?: string | null
-          entity_type?: string
-          id?: string
-        }
-        Relationships: []
-      }
       mpi_critical_violations: {
         Row: {
           acknowledged: boolean
@@ -9558,66 +9285,6 @@ export type Database = {
           },
         ]
       }
-      mpi_monthly_scores: {
-        Row: {
-          created_at: string
-          employee_id: string
-          id: string
-          is_overridden: boolean
-          kpi_id: string
-          normalized_score: number
-          override_id: string | null
-          period_key: string
-          raw_value: number | null
-          template_id: string
-          updated_at: string
-          weighted_score: number
-        }
-        Insert: {
-          created_at?: string
-          employee_id: string
-          id?: string
-          is_overridden?: boolean
-          kpi_id: string
-          normalized_score?: number
-          override_id?: string | null
-          period_key: string
-          raw_value?: number | null
-          template_id: string
-          updated_at?: string
-          weighted_score?: number
-        }
-        Update: {
-          created_at?: string
-          employee_id?: string
-          id?: string
-          is_overridden?: boolean
-          kpi_id?: string
-          normalized_score?: number
-          override_id?: string | null
-          period_key?: string
-          raw_value?: number | null
-          template_id?: string
-          updated_at?: string
-          weighted_score?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mpi_monthly_scores_kpi_id_fkey"
-            columns: ["kpi_id"]
-            isOneToOne: false
-            referencedRelation: "mpi_kpi_definitions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mpi_monthly_scores_template_id_fkey"
-            columns: ["template_id"]
-            isOneToOne: false
-            referencedRelation: "mpi_scorecard_templates"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mpi_pip_records: {
         Row: {
           closed_by: string | null
@@ -9665,56 +9332,6 @@ export type Database = {
           weekly_reviews?: Json
         }
         Relationships: []
-      }
-      mpi_score_overrides: {
-        Row: {
-          approved_at: string | null
-          approved_by: string | null
-          employee_id: string
-          id: string
-          kpi_id: string
-          period_key: string
-          proposed_at: string
-          proposed_by: string
-          proposed_score: number
-          reason: string
-          status: string
-        }
-        Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
-          employee_id: string
-          id?: string
-          kpi_id: string
-          period_key: string
-          proposed_at?: string
-          proposed_by: string
-          proposed_score: number
-          reason: string
-          status?: string
-        }
-        Update: {
-          approved_at?: string | null
-          approved_by?: string | null
-          employee_id?: string
-          id?: string
-          kpi_id?: string
-          period_key?: string
-          proposed_at?: string
-          proposed_by?: string
-          proposed_score?: number
-          reason?: string
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mpi_score_overrides_kpi_id_fkey"
-            columns: ["kpi_id"]
-            isOneToOne: false
-            referencedRelation: "mpi_kpi_definitions"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       mpi_scorecard_templates: {
         Row: {
@@ -10963,42 +10580,6 @@ export type Database = {
         }
         Relationships: []
       }
-      payment_methods_master: {
-        Row: {
-          binance_identifier: string
-          binance_pay_type: string
-          color_accent: string | null
-          created_at: string
-          icon_label: string | null
-          id: string
-          is_active: boolean
-          method_name: string
-          sort_order: number | null
-        }
-        Insert: {
-          binance_identifier: string
-          binance_pay_type: string
-          color_accent?: string | null
-          created_at?: string
-          icon_label?: string | null
-          id?: string
-          is_active?: boolean
-          method_name: string
-          sort_order?: number | null
-        }
-        Update: {
-          binance_identifier?: string
-          binance_pay_type?: string
-          color_accent?: string | null
-          created_at?: string
-          icon_label?: string | null
-          id?: string
-          is_active?: boolean
-          method_name?: string
-          sort_order?: number | null
-        }
-        Relationships: []
-      }
       pending_registrations: {
         Row: {
           badge_id: string | null
@@ -11349,30 +10930,6 @@ export type Database = {
           required_permission?: string
           user_id?: string | null
           username?: string | null
-        }
-        Relationships: []
-      }
-      platforms: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          name: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          updated_at?: string
         }
         Relationships: []
       }
@@ -13558,62 +13115,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      stock_adjustments: {
-        Row: {
-          adjustment_date: string
-          adjustment_type: string
-          created_at: string
-          created_by: string | null
-          from_warehouse_id: string | null
-          id: string
-          product_id: string
-          quantity: number
-          reason: string | null
-          reference_number: string | null
-          to_warehouse_id: string | null
-          updated_at: string
-          warehouse_id: string | null
-        }
-        Insert: {
-          adjustment_date?: string
-          adjustment_type: string
-          created_at?: string
-          created_by?: string | null
-          from_warehouse_id?: string | null
-          id?: string
-          product_id: string
-          quantity: number
-          reason?: string | null
-          reference_number?: string | null
-          to_warehouse_id?: string | null
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Update: {
-          adjustment_date?: string
-          adjustment_type?: string
-          created_at?: string
-          created_by?: string | null
-          from_warehouse_id?: string | null
-          id?: string
-          product_id?: string
-          quantity?: number
-          reason?: string | null
-          reference_number?: string | null
-          to_warehouse_id?: string | null
-          updated_at?: string
-          warehouse_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stock_adjustments_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       stock_transactions: {
         Row: {
@@ -16304,50 +15805,6 @@ export type Database = {
           },
           {
             foreignKeyName: "wallet_asset_positions_wallet_id_fkey"
-            columns: ["wallet_id"]
-            isOneToOne: false
-            referencedRelation: "wallets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      wallet_drift_audit: {
-        Row: {
-          asset_code: string
-          binance_balance: number
-          created_at: string
-          delta: number | null
-          id: string
-          ledger_balance: number
-          notes: string | null
-          severity: string
-          wallet_id: string | null
-        }
-        Insert: {
-          asset_code: string
-          binance_balance: number
-          created_at?: string
-          delta?: number | null
-          id?: string
-          ledger_balance: number
-          notes?: string | null
-          severity?: string
-          wallet_id?: string | null
-        }
-        Update: {
-          asset_code?: string
-          binance_balance?: number
-          created_at?: string
-          delta?: number | null
-          id?: string
-          ledger_balance?: number
-          notes?: string | null
-          severity?: string
-          wallet_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wallet_drift_audit_wallet_id_fkey"
             columns: ["wallet_id"]
             isOneToOne: false
             referencedRelation: "wallets"

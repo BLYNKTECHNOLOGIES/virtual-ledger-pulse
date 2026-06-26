@@ -1420,7 +1420,9 @@ export default function UserProfile() {
                   </Avatar>
                   <div className="w-full space-y-2">
                     <Label htmlFor="avatar">Upload New Image</Label>
-                    <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
+                    <div {...avatarDropzone} className={cn("rounded-md transition-colors", avatarDragActive && "ring-2 ring-primary bg-primary/10 p-1")}>
+                      <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
+                    </div>
                     <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max size 5MB.</p>
                   </div>
                   {avatarFile && (

@@ -506,6 +506,50 @@ async function buildRejected(supabase: any, date: string) {
   return { count: outRows.length, rows: outRows };
 }
 
+// ---------- ERP vs Terminal balance difference (4 AM snapshot) ----------
+
+async function buildErpDiff(supabase: any) {
+  // Read the most recent captured snapshot per exchange account.
+  const rows = await fetchAllRows(() =>
+    supabase
+      .from("erp_terminal_balance_snapshots")
+      .select("*")
+      .order("snapshot_date", { ascending: false })
+      .order("captured_at", { ascending: false }));
+
+  const latestByAccount = new Map<string, any>();
+  for (const r of rows) {
+    const key = String(r.exchange_account_id ?? r.account_name);
+    if (!latestByAccount.has(key)) latestByAccount.set(key, r);
+  }
+
+  const out = Array.from(latestByAccount.values()).map((r: any) => {
+    const erp = Number(r.erp_usdt_balance || 0);
+    const term = r.terminal_usdt_balance === null || r.terminal_usdt_balance === undefined
+      ? null
+      : Number(r.terminal_usdt_balance);
+    const diff = r.difference === null || r.difference === undefined
+      ? (term === null ? null : erp - term)
+      : Number(r.difference);
+    return {
+      account: r.account_name,
+      erp: fmtNum(erp, 4),
+      terminal: term === null ? "Unavailable" : fmtNum(term, 4),
+      difference: diff === null ? "—" : fmtNum(diff, 4),
+      hasDrift: diff !== null && Math.abs(diff) > 1,
+      status: r.capture_status,
+      capturedAt: r.captured_at,
+    };
+  });
+
+  return {
+    count: out.length,
+    capturedAt: out[0]?.capturedAt || null,
+    rows: out,
+  };
+}
+
+
 // ---------- aggregation ----------
 
 async function buildReport(supabase: any, date: string) {

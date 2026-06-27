@@ -337,7 +337,16 @@ Deno.serve(async (req) => {
       subject: resolvedSubject,
       content: plainText,
       html,
+      // Gmail groups messages with similar subjects/identical boilerplate into a
+      // single conversation and then "trims" the repeated parts behind a "•••"
+      // expander — which made recurring reports (e.g. the daily business report)
+      // look truncated/incomplete at the bottom. A unique X-Entity-Ref-ID forces
+      // Gmail to treat every send as its own conversation, so nothing is collapsed.
+      headers: {
+        "X-Entity-Ref-ID": messageId,
+      },
     })
+
 
     await client.close()
 

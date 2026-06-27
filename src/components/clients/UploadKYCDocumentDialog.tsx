@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { smartUpload } from "@/lib/resumable-upload";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface UploadKYCDocumentDialogProps {
@@ -69,6 +70,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
   const [docType, setDocType] = useState<string>("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const reset = () => {
     setDocType("");
@@ -94,10 +96,16 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
     for (const file of files) {
       try {
         const filePath = `${clientId}/${meta.folder}/${Date.now()}_${file.name}`;
-        const { error: upErr } = await supabase.storage
-          .from("kyc-documents")
-          .upload(filePath, file);
-        if (upErr) throw upErr;
+        // Resumable upload for large files (e.g. lengthy vKYC videos); falls back
+        // to standard upload for small files. Avoids the 30s fetch timeout and
+        // single-request size cap that made long videos fail.
+        await smartUpload({
+          bucket: "kyc-documents",
+          path: filePath,
+          file,
+          contentType: file.type || undefined,
+          onProgress: (p) => setProgress(p),
+        });
         const { data: urlD } = supabase.storage.from("kyc-documents").getPublicUrl(filePath);
         const { error: insErr } = await supabase.from("client_kyc_documents").insert({
           client_id: clientId,
@@ -114,6 +122,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
         failed++;
       }
     }
+    setProgress(0);
 
     setUploading(false);
     if (success > 0) {
@@ -163,7 +172,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
             </Button>
             <Button type="submit" disabled={uploading}>
               {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? (progress > 0 && progress < 100 ? `Uploading ${progress}%` : "Uploading...") : "Upload"}
             </Button>
           </div>
         </form>

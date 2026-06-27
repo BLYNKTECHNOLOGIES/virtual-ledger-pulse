@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { smartUpload } from '@/lib/resumable-upload';
 import { compressVideo } from '@/utils/videoCompressor';
 
 /**

@@ -95,10 +95,16 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
     for (const file of files) {
       try {
         const filePath = `${clientId}/${meta.folder}/${Date.now()}_${file.name}`;
-        const { error: upErr } = await supabase.storage
-          .from("kyc-documents")
-          .upload(filePath, file);
-        if (upErr) throw upErr;
+        // Resumable upload for large files (e.g. lengthy vKYC videos); falls back
+        // to standard upload for small files. Avoids the 30s fetch timeout and
+        // single-request size cap that made long videos fail.
+        await smartUpload({
+          bucket: "kyc-documents",
+          path: filePath,
+          file,
+          contentType: file.type || undefined,
+          onProgress: (p) => setProgress(p),
+        });
         const { data: urlD } = supabase.storage.from("kyc-documents").getPublicUrl(filePath);
         const { error: insErr } = await supabase.from("client_kyc_documents").insert({
           client_id: clientId,
@@ -115,6 +121,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
         failed++;
       }
     }
+    setProgress(0);
 
     setUploading(false);
     if (success > 0) {

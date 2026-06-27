@@ -172,7 +172,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
             </Button>
             <Button type="submit" disabled={uploading}>
               {uploading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Upload className="h-4 w-4 mr-2" />}
-              {uploading ? "Uploading..." : "Upload"}
+              {uploading ? (progress > 0 && progress < 100 ? `Uploading ${progress}%` : "Uploading...") : "Upload"}
             </Button>
           </div>
         </form>

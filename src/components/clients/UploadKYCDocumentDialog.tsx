@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { smartUpload } from "@/lib/resumable-upload";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface UploadKYCDocumentDialogProps {

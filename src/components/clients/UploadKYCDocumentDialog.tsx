@@ -70,6 +70,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
   const [docType, setDocType] = useState<string>("");
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const reset = () => {
     setDocType("");

@@ -545,10 +545,15 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
         let totalPurchaseQty = 0;
 
         if (poIds.length > 0) {
-          const { data: items } = await supabase.from('purchase_order_items')
-            .select('purchase_order_id, quantity, unit_price, products!inner(code)')
-            .in('purchase_order_id', poIds);
-          (items || []).forEach((item: any) => {
+          const items: any[] = [];
+          for (let i = 0; i < poIds.length; i += 200) {
+            const chunk = poIds.slice(i, i + 200);
+            const chunkItems = await fetchAllPaginated<any>(() => supabase.from('purchase_order_items')
+              .select('purchase_order_id, quantity, unit_price, products!inner(code)')
+              .in('purchase_order_id', chunk));
+            items.push(...chunkItems);
+          }
+          items.forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const unitPrice = Number(item.unit_price || 0);
             totalPurchaseValue += qty * unitPrice;

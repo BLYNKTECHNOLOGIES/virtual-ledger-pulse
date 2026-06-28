@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchAllRows } from "../_shared/paginate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,13 +52,19 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 2. WALLET ASSET BALANCES (tracked + calculated)
     // ═══════════════════════════════════════════════════
-    const { data: walletAssets } = await supabase
-      .from("wallet_asset_balances")
-      .select("wallet_id, asset_code, balance, total_received, total_sent");
+    const walletAssets = await fetchAllRows((from, to) =>
+      supabase
+        .from("wallet_asset_balances")
+        .select("wallet_id, asset_code, balance, total_received, total_sent")
+        .range(from, to)
+    );
 
-    const { data: wallets } = await supabase
-      .from("wallets")
-      .select("id, wallet_name, current_balance, total_received, total_sent, is_active");
+    const wallets = await fetchAllRows((from, to) =>
+      supabase
+        .from("wallets")
+        .select("id, wallet_name, current_balance, total_received, total_sent, is_active")
+        .range(from, to)
+    );
 
     const walletNameMap = new Map(
       (wallets || []).map((w: any) => [w.id, w.wallet_name])
@@ -125,9 +132,12 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 3. BANK ACCOUNT BALANCES
     // ═══════════════════════════════════════════════════
-    const { data: bankAccounts } = await supabase
-      .from("bank_accounts")
-      .select("id, account_name, balance, status, lien_amount, account_type");
+    const bankAccounts = await fetchAllRows((from, to) =>
+      supabase
+        .from("bank_accounts")
+        .select("id, account_name, balance, status, lien_amount, account_type")
+        .range(from, to)
+    );
 
     // Get calculated bank balances
     const { data: bankCalcRows } = await supabase.rpc("get_bank_calculated_balances");
@@ -159,9 +169,12 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 4. PRODUCT STOCK LEVELS
     // ═══════════════════════════════════════════════════
-    const { data: products } = await supabase
-      .from("products")
-      .select("id, name, code, current_stock_quantity, total_purchases, total_sales");
+    const products = await fetchAllRows((from, to) =>
+      supabase
+        .from("products")
+        .select("id, name, code, current_stock_quantity, total_purchases, total_sales")
+        .range(from, to)
+    );
 
     for (const p of products || []) {
       lines.push({
@@ -182,11 +195,14 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 5. CLIENT MONTHLY USAGE
     // ═══════════════════════════════════════════════════
-    const { data: clients } = await supabase
-      .from("clients")
-      .select("id, name, client_id, current_month_used, monthly_limit")
-      .eq("is_deleted", false)
-      .gt("monthly_limit", 0);
+    const clients = await fetchAllRows((from, to) =>
+      supabase
+        .from("clients")
+        .select("id, name, client_id, current_month_used, monthly_limit")
+        .eq("is_deleted", false)
+        .gt("monthly_limit", 0)
+        .range(from, to)
+    );
 
     for (const c of clients || []) {
       lines.push({
@@ -207,10 +223,13 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 6. PAYMENT METHOD USAGE
     // ═══════════════════════════════════════════════════
-    const { data: payMethods } = await supabase
-      .from("sales_payment_methods")
-      .select("id, nickname, type, current_usage, payment_limit, is_active")
-      .eq("is_active", true);
+    const payMethods = await fetchAllRows((from, to) =>
+      supabase
+        .from("sales_payment_methods")
+        .select("id, nickname, type, current_usage, payment_limit, is_active")
+        .eq("is_active", true)
+        .range(from, to)
+    );
 
     for (const pm of payMethods || []) {
       lines.push({
@@ -231,9 +250,12 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 7. WALLET ASSET POSITIONS (cost accounting)
     // ═══════════════════════════════════════════════════
-    const { data: positions } = await supabase
-      .from("wallet_asset_positions")
-      .select("id, wallet_id, asset_code, qty_on_hand, cost_pool_usdt, avg_cost_usdt");
+    const positions = await fetchAllRows((from, to) =>
+      supabase
+        .from("wallet_asset_positions")
+        .select("id, wallet_id, asset_code, qty_on_hand, cost_pool_usdt, avg_cost_usdt")
+        .range(from, to)
+    );
 
     for (const pos of positions || []) {
       lines.push({
@@ -338,11 +360,14 @@ Deno.serve(async (req) => {
     }
 
     // Auto-resolve previously-open INTERNAL_SNAPSHOT alerts that are no longer drifting
-    const { data: openAlerts } = await supabase
-      .from("erp_drift_alerts")
-      .select("id, entity_type, entity_id, asset_code")
-      .is("resolved_at", null)
-      .eq("source", "INTERNAL_SNAPSHOT");
+    const openAlerts = await fetchAllRows((from, to) =>
+      supabase
+        .from("erp_drift_alerts")
+        .select("id, entity_type, entity_id, asset_code")
+        .is("resolved_at", null)
+        .eq("source", "INTERNAL_SNAPSHOT")
+        .range(from, to)
+    );
     const toResolve = (openAlerts || [])
       .filter(
         (a: any) => !currentAlertKeys.has(`${a.entity_type}::${a.entity_id}::${a.asset_code ?? ""}`)

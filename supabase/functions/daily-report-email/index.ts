@@ -744,13 +744,14 @@ async function buildReport(supabase: any, date: string) {
 
   const dayStart = date + "T00:00:00";
   const dayEnd = date + "T23:59:59";
-  const { data: feeRows } = await supabase
-    .from("wallet_transactions")
-    .select("amount, reference_type")
-    .eq("transaction_type", "DEBIT")
-    .in("reference_type", ["PLATFORM_FEE", "TRANSFER_FEE", "SALES_ORDER_FEE", "PURCHASE_ORDER_FEE"])
-    .gte("created_at", dayStart)
-    .lte("created_at", dayEnd);
+  const feeRows = await fetchAllRows(() =>
+    supabase
+      .from("wallet_transactions")
+      .select("amount, reference_type")
+      .eq("transaction_type", "DEBIT")
+      .in("reference_type", ["PLATFORM_FEE", "TRANSFER_FEE", "SALES_ORDER_FEE", "PURCHASE_ORDER_FEE"])
+      .gte("created_at", dayStart)
+      .lte("created_at", dayEnd));
   const feesByType: Record<string, number> = {};
   let totalFees = 0;
   for (const f of feeRows || []) {
@@ -764,11 +765,12 @@ async function buildReport(supabase: any, date: string) {
     "Purchase", "Sales", "Stock Purchase", "Stock Sale", "Trade", "Trading",
     "Settlement", "Payment Gateway Settlement", "OPENING_BALANCE", "ADJUSTMENT",
   ];
-  const { data: expenseRows } = await supabase
-    .from("bank_transactions")
-    .select("amount, category, description, reference_number, transaction_date, is_reversed")
-    .eq("transaction_type", "EXPENSE")
-    .eq("transaction_date", date);
+  const expenseRows = await fetchAllRows(() =>
+    supabase
+      .from("bank_transactions")
+      .select("amount, category, description, reference_number, transaction_date, is_reversed")
+      .eq("transaction_type", "EXPENSE")
+      .eq("transaction_date", date));
   const expenseList: { category: string; description: string; amount: number }[] = [];
   const expenseByCategory: Record<string, number> = {};
   let totalExpenses = 0;
@@ -794,9 +796,10 @@ async function buildReport(supabase: any, date: string) {
   const netProfit = grossProfit - totalFees;
 
   // ----- Wallet balances (current snapshot) -----
-  const { data: balanceRows } = await supabase
-    .from("wallet_asset_balances")
-    .select("asset_code, balance");
+  const balanceRows = await fetchAllRows(() =>
+    supabase
+      .from("wallet_asset_balances")
+      .select("asset_code, balance"));
   const balByAsset: Record<string, number> = {};
   for (const b of balanceRows || []) {
     balByAsset[b.asset_code] = (balByAsset[b.asset_code] || 0) + (Number(b.balance) || 0);

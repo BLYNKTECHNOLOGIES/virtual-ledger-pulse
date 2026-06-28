@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { fetchAllRows } from "../_shared/paginate.ts"
 
 interface Database {
   public: {
@@ -69,9 +70,18 @@ serve(async (req) => {
     }
 
     // Reset sales payment methods
-    const { data: salesMethods, error: salesError } = await supabaseClient
-      .from('sales_payment_methods')
-      .select('id, frequency, last_reset, current_usage, custom_frequency')
+    let salesMethods: any[] = []
+    let salesError: any = null
+    try {
+      salesMethods = await fetchAllRows((from, to) =>
+        supabaseClient
+          .from('sales_payment_methods')
+          .select('id, frequency, last_reset, current_usage, custom_frequency')
+          .range(from, to)
+      )
+    } catch (e) {
+      salesError = e
+    }
 
     if (salesError) {
       console.error('Error fetching sales payment methods:', salesError)
@@ -96,9 +106,18 @@ serve(async (req) => {
     }
 
     // Reset purchase payment methods
-    const { data: purchaseMethods, error: purchaseError } = await supabaseClient
-      .from('purchase_payment_methods')
-      .select('id, frequency, last_reset, current_usage, custom_frequency')
+    let purchaseMethods: any[] = []
+    let purchaseError: any = null
+    try {
+      purchaseMethods = await fetchAllRows((from, to) =>
+        supabaseClient
+          .from('purchase_payment_methods')
+          .select('id, frequency, last_reset, current_usage, custom_frequency')
+          .range(from, to)
+      )
+    } catch (e) {
+      purchaseError = e
+    }
 
     if (purchaseError) {
       console.error('Error fetching purchase payment methods:', purchaseError)

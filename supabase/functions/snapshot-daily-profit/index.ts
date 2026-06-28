@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchAllRows } from "../_shared/paginate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,11 +12,14 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   const dayEnd = snapshotDate + "T23:59:59";
 
   // 1. Fetch completed sales orders for the day — use effective USDT fields
-  const { data: salesOrders } = await supabase
-    .from("sales_orders")
-    .select("id, quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
-    .eq("status", "COMPLETED")
-    .eq("order_date", snapshotDate);
+  const salesOrders = await fetchAllRows((from, to) =>
+    supabase
+      .from("sales_orders")
+      .select("id, quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
+      .eq("status", "COMPLETED")
+      .eq("order_date", snapshotDate)
+      .range(from, to)
+  );
 
   // Use effective_usdt_qty/rate when available (normalized USDT-equivalent)
   const totalSalesQty = salesOrders?.reduce(
@@ -33,11 +37,14 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
   // 2. Fetch completed purchase orders for the day — use effective USDT fields
-  const { data: purchaseOrders } = await supabase
-    .from("purchase_orders")
-    .select("id, total_amount, effective_usdt_qty")
-    .eq("status", "COMPLETED")
-    .eq("order_date", snapshotDate);
+  const purchaseOrders = await fetchAllRows((from, to) =>
+    supabase
+      .from("purchase_orders")
+      .select("id, total_amount, effective_usdt_qty")
+      .eq("status", "COMPLETED")
+      .eq("order_date", snapshotDate)
+      .range(from, to)
+  );
 
   let totalPurchaseValue = 0;
   let totalPurchaseQty = 0;
@@ -53,18 +60,21 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   }
 
   // 3. Fetch USDT fee debits for the day
-  const { data: usdtFees } = await supabase
-    .from("wallet_transactions")
-    .select("amount")
-    .eq("transaction_type", "DEBIT")
-    .in("reference_type", [
-      "PLATFORM_FEE",
-      "TRANSFER_FEE",
-      "SALES_ORDER_FEE",
-      "PURCHASE_ORDER_FEE",
-    ])
-    .gte("created_at", dayStart)
-    .lte("created_at", dayEnd);
+  const usdtFees = await fetchAllRows((from, to) =>
+    supabase
+      .from("wallet_transactions")
+      .select("amount")
+      .eq("transaction_type", "DEBIT")
+      .in("reference_type", [
+        "PLATFORM_FEE",
+        "TRANSFER_FEE",
+        "SALES_ORDER_FEE",
+        "PURCHASE_ORDER_FEE",
+      ])
+      .gte("created_at", dayStart)
+      .lte("created_at", dayEnd)
+      .range(from, to)
+  );
 
   const totalUsdtFees =
     usdtFees?.reduce((sum: number, f: any) => sum + Number(f.amount), 0) || 0;

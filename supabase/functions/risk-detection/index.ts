@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
+import { fetchAllRows } from "../_shared/paginate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,14 +28,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Starting risk detection scan...");
 
     // Get all active users
-    const { data: users, error: usersError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("status", "ACTIVE");
-
-    if (usersError) {
-      throw usersError;
-    }
+    const users = await fetchAllRows((from, to) =>
+      supabase
+        .from("users")
+        .select("*")
+        .eq("status", "ACTIVE")
+        .range(from, to)
+    );
 
     console.log(`Scanning ${users?.length || 0} users for risk factors`);
 
@@ -51,20 +51,26 @@ const handler = async (req: Request): Promise<Response> => {
           const lastMonthStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
 
           // Get current month orders
-          const { data: currentOrders } = await supabase
-            .from("sales_orders")
-            .select("id")
-            .eq("client_name", user.username)
-            .gte("order_date", `${currentMonth}-01`)
-            .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`);
+          const currentOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("id")
+              .eq("client_name", user.username)
+              .gte("order_date", `${currentMonth}-01`)
+              .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`)
+              .range(from, to)
+          );
 
           // Get last month orders
-          const { data: lastOrders } = await supabase
-            .from("sales_orders")
-            .select("id")
-            .eq("client_name", user.username)
-            .gte("order_date", `${lastMonthStr}-01`)
-            .lt("order_date", `${currentMonth}-01`);
+          const lastOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("id")
+              .eq("client_name", user.username)
+              .gte("order_date", `${lastMonthStr}-01`)
+              .lt("order_date", `${currentMonth}-01`)
+              .range(from, to)
+          );
 
           const currentCount = currentOrders?.length || 0;
           const lastCount = lastOrders?.length || 0;
@@ -81,21 +87,27 @@ const handler = async (req: Request): Promise<Response> => {
           const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
           
           // Get current month volume
-          const { data: currentOrders } = await supabase
-            .from("sales_orders")
-            .select("total_amount")
-            .eq("client_name", user.username)
-            .gte("order_date", `${currentMonth}-01`)
-            .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`);
+          const currentOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("total_amount")
+              .eq("client_name", user.username)
+              .gte("order_date", `${currentMonth}-01`)
+              .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`)
+              .range(from, to)
+          );
 
           // Get last 3 months volume
           const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3);
-          const { data: pastOrders } = await supabase
-            .from("sales_orders")
-            .select("total_amount")
-            .eq("client_name", user.username)
-            .gte("order_date", `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`)
-            .lt("order_date", `${currentMonth}-01`);
+          const pastOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("total_amount")
+              .eq("client_name", user.username)
+              .gte("order_date", `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`)
+              .lt("order_date", `${currentMonth}-01`)
+              .range(from, to)
+          );
 
           const currentVolume = currentOrders?.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) || 0;
           const pastVolume = pastOrders?.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) || 0;

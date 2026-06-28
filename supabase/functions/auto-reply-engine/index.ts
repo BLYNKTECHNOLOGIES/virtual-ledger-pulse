@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { fetchAllRows } from "../_shared/paginate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -520,9 +521,12 @@ serve(async (req) => {
     }
 
     {
-      const { data: exclusionRows } = await supabase
-        .from("terminal_auto_reply_exclusions")
-        .select("order_number");
+      const exclusionRows = await fetchAllRows((from, to) =>
+        supabase
+          .from("terminal_auto_reply_exclusions")
+          .select("order_number")
+          .range(from, to)
+      );
       const excludedOrders = new Set((exclusionRows || []).map((r: any) => r.order_number));
 
       const { data: sbConfig } = await supabase

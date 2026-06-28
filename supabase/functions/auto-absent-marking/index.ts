@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchAllRows } from "../_shared/paginate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -35,10 +36,13 @@ Deno.serve(async (req) => {
     }
 
     // Get all active employees
-    const { data: employees } = await supabase
-      .from("hr_employees")
-      .select("id")
-      .eq("status", "active");
+    const employees = await fetchAllRows((from, to) =>
+      supabase
+        .from("hr_employees")
+        .select("id")
+        .eq("status", "active")
+        .range(from, to)
+    );
 
     if (!employees || employees.length === 0) {
       return new Response(
@@ -50,11 +54,14 @@ Deno.serve(async (req) => {
     const employeeIds = employees.map((e: any) => e.id);
 
     // Get employees who already have attendance for yesterday
-    const { data: existingAttendance } = await supabase
-      .from("hr_attendance")
-      .select("employee_id")
-      .eq("attendance_date", yesterdayStr)
-      .in("employee_id", employeeIds);
+    const existingAttendance = await fetchAllRows((from, to) =>
+      supabase
+        .from("hr_attendance")
+        .select("employee_id")
+        .eq("attendance_date", yesterdayStr)
+        .in("employee_id", employeeIds)
+        .range(from, to)
+    );
 
     const attendedIds = new Set((existingAttendance || []).map((a: any) => a.employee_id));
     const absentEmployees = employeeIds.filter((id: string) => !attendedIds.has(id));

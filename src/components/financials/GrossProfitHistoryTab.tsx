@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { BarChart3, TrendingUp, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts";
 import { toast } from "sonner";
@@ -34,11 +35,11 @@ export function GrossProfitHistoryTab() {
     queryKey: ["daily_gross_profit_live", todayStr],
     queryFn: async () => {
       // Sales — use effective USDT fields for normalized comparison
-      const { data: sales } = await supabase
+      const sales = await fetchAllPaginated<any>(() => supabase
         .from("sales_orders")
         .select("quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
         .eq("status", "COMPLETED")
-        .eq("order_date", todayStr);
+        .eq("order_date", todayStr));
 
       const totalSalesQty = sales?.reduce((s, o) => s + (Number(o.effective_usdt_qty || o.quantity) || 0), 0) || 0;
       const totalSalesValue = sales?.reduce((s, o) => {
@@ -49,11 +50,11 @@ export function GrossProfitHistoryTab() {
       const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
       // Purchases — use effective_usdt_qty from purchase_orders directly
-      const { data: purchases } = await supabase
+      const purchases = await fetchAllPaginated<any>(() => supabase
         .from("purchase_orders")
         .select("id, total_amount, effective_usdt_qty")
         .eq("status", "COMPLETED")
-        .eq("order_date", todayStr);
+        .eq("order_date", todayStr));
 
       let totalPurchaseValue = 0;
       let totalPurchaseQty = 0;

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useNavigate } from "react-router-dom";
 import {
   Users, UserPlus, CheckCircle, CalendarDays, Briefcase,
@@ -19,10 +20,7 @@ export default function HorillaDashboard() {
 
   const { data: employees } = useQuery({
     queryKey: ["hr_dashboard_employees"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_employees").select("id, is_active, created_at");
-      return data || [];
-    },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at")),
   });
 
   const { data: candidates } = useQuery({
@@ -62,10 +60,7 @@ export default function HorillaDashboard() {
 
   const { data: todayAttendance } = useQuery({
     queryKey: ["hr_dashboard_attendance", today],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_attendance").select("id, employee_id, attendance_status, late_minutes").eq("attendance_date", today);
-      return data || [];
-    },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_attendance").select("id, employee_id, attendance_status, late_minutes").eq("attendance_date", today)),
   });
 
   const { data: leaveRequests } = useQuery({

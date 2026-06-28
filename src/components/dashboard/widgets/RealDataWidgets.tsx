@@ -505,25 +505,25 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
 
       // Fetch current & previous period data in parallel
       const [
-        { data: thisSales },
-        { data: lastSales },
-        { data: thisPurchaseOrders },
-        { data: lastPurchaseOrders },
-        { data: thisUsdtFees },
-        { data: lastUsdtFees },
+        thisSales,
+        lastSales,
+        thisPurchaseOrders,
+        lastPurchaseOrders,
+        thisUsdtFees,
+        lastUsdtFees,
         { count: totalClients },
         { count: activeClients },
       ] = await Promise.all([
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
-        supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
-        supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
-        supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
           .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59'),
-        supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
+          .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
           .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59'),
+          .gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59')),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
       ]);
@@ -545,10 +545,15 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
         let totalPurchaseQty = 0;
 
         if (poIds.length > 0) {
-          const { data: items } = await supabase.from('purchase_order_items')
-            .select('purchase_order_id, quantity, unit_price, products!inner(code)')
-            .in('purchase_order_id', poIds);
-          (items || []).forEach((item: any) => {
+          const items: any[] = [];
+          for (let i = 0; i < poIds.length; i += 200) {
+            const chunk = poIds.slice(i, i + 200);
+            const chunkItems = await fetchAllPaginated<any>(() => supabase.from('purchase_order_items')
+              .select('purchase_order_id, quantity, unit_price, products!inner(code)')
+              .in('purchase_order_id', chunk));
+            items.push(...chunkItems);
+          }
+          items.forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const unitPrice = Number(item.unit_price || 0);
             totalPurchaseValue += qty * unitPrice;
@@ -693,9 +698,9 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
       const prevStartStr = format(prevStart, 'yyyy-MM-dd');
       const prevEndStr = format(prevEnd, 'yyyy-MM-dd');
 
-      const [{ data: currentSales }, { data: previousSales }] = await Promise.all([
-        supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
-        supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
+      const [currentSales, previousSales] = await Promise.all([
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
       ]);
 
       const currentTotal = (currentSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
@@ -836,7 +841,7 @@ export function ExpenseTrendsWidget() {
           months.push({ label: format(d, 'MMM'), start: s, end: e });
         }
         const results = await Promise.all(months.map(async m => {
-          const { data } = await supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end);
+          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end));
           const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: m.label, expense: total };
         }));
@@ -853,7 +858,7 @@ export function ExpenseTrendsWidget() {
           days.push({ label: format(d, 'dd MMM'), start: dateStr, end: dateStr });
         }
         const results = await Promise.all(days.map(async day => {
-          const { data } = await supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start);
+          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start));
           const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: day.label, expense: total };
         }));
@@ -1090,9 +1095,9 @@ export function InventoryStatusWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_inventory_status_inr'],
     queryFn: async () => {
-      const [{ data: wallets }, { data: positions }] = await Promise.all([
-        supabase.from('wallet_asset_balances').select('asset_code, balance'),
-        supabase.from('wallet_asset_positions' as any).select('asset_code, avg_cost_usdt'),
+      const [wallets, positions] = await Promise.all([
+        fetchAllPaginated<any>(() => supabase.from('wallet_asset_balances').select('asset_code, balance')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_asset_positions' as any).select('asset_code, avg_cost_usdt')),
       ]);
 
       // Get USDT/INR rate

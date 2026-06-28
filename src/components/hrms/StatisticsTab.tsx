@@ -128,9 +128,11 @@ export function StatisticsTab() {
       }) || [];
 
       // Fetch leads
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('id, status, created_at, name, lead_type, estimated_order_value, contact_channel');
+      const leads = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('leads')
+          .select('id, status, created_at, name, lead_type, estimated_order_value, contact_channel')
+          .order('id', { ascending: true }));
 
       // Leads in current period
       const leadsInPeriod = leads?.filter(l => {
@@ -145,9 +147,11 @@ export function StatisticsTab() {
       }) || [];
 
       // Fetch employees from hr_employees (source of truth)
-      const { data: hrEmployees } = await supabase
-        .from('hr_employees')
-        .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info(department_id, job_role, departments(name))');
+      const hrEmployees = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('hr_employees')
+          .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info(department_id, job_role, departments(name))')
+          .order('id', { ascending: true }));
       
       // Map to compatible format
       const employees = hrEmployees?.map(e => ({

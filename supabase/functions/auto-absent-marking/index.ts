@@ -36,10 +36,13 @@ Deno.serve(async (req) => {
     }
 
     // Get all active employees
-    const { data: employees } = await supabase
-      .from("hr_employees")
-      .select("id")
-      .eq("status", "active");
+    const employees = await fetchAllRows((from, to) =>
+      supabase
+        .from("hr_employees")
+        .select("id")
+        .eq("status", "active")
+        .range(from, to)
+    );
 
     if (!employees || employees.length === 0) {
       return new Response(

@@ -73,7 +73,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   const { data: transferFeeData } = useQuery({
     queryKey: ['transfer_fees', startDate, endDate],
     queryFn: async () => {
-      const { data: transferFees, error } = await supabase
+      const transferFees = await fetchAllPaginated<any>(() => supabase
         .from('wallet_transactions')
         .select(`
           *,
@@ -84,9 +84,8 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
         .eq('reference_type', 'TRANSFER_FEE')
         .gte('created_at', format(startDate, 'yyyy-MM-dd'))
         .lte('created_at', format(endDate, 'yyyy-MM-dd') + 'T23:59:59')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }));
 
-      if (error) throw error;
       return transferFees || [];
     },
   });

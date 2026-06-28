@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -21,16 +22,16 @@ export default function LateComeEarlyOutPage() {
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["hr_late_come_early_out", monthFilter, typeFilter],
     queryFn: async () => {
-      let query = (supabase as any)
-        .from("hr_late_come_early_out")
-        .select("*, hr_employees!hr_late_come_early_out_employee_id_fkey(badge_id, first_name, last_name)")
-        .gte("attendance_date", monthStart)
-        .lte("attendance_date", monthEnd)
-        .order("attendance_date", { ascending: false });
-      if (typeFilter !== "all") query = query.eq("type", typeFilter);
-      const { data, error } = await query;
-      if (error) throw error;
-      return data || [];
+      return await fetchAllPaginated<any>(() => {
+        let query = (supabase as any)
+          .from("hr_late_come_early_out")
+          .select("*, hr_employees!hr_late_come_early_out_employee_id_fkey(badge_id, first_name, last_name)")
+          .gte("attendance_date", monthStart)
+          .lte("attendance_date", monthEnd)
+          .order("attendance_date", { ascending: false });
+        if (typeFilter !== "all") query = query.eq("type", typeFilter);
+        return query;
+      });
     },
   });
 

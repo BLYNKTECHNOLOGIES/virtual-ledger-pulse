@@ -23,13 +23,11 @@ export default function AttendanceSummaryPage() {
   const { data: attendance = [], isLoading } = useQuery({
     queryKey: ["hr_attendance_summary", month],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      return await fetchAllPaginated<any>(() => (supabase as any)
         .from("hr_attendance")
         .select("*, hr_employees!hr_attendance_employee_id_fkey(id, badge_id, first_name, last_name)")
         .gte("attendance_date", startDate)
-        .lte("attendance_date", endDate);
-      if (error) throw error;
-      return (data as any[]) || [];
+        .lte("attendance_date", endDate));
     },
   });
 

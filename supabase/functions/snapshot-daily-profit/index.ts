@@ -37,11 +37,14 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
   // 2. Fetch completed purchase orders for the day — use effective USDT fields
-  const { data: purchaseOrders } = await supabase
-    .from("purchase_orders")
-    .select("id, total_amount, effective_usdt_qty")
-    .eq("status", "COMPLETED")
-    .eq("order_date", snapshotDate);
+  const purchaseOrders = await fetchAllRows((from, to) =>
+    supabase
+      .from("purchase_orders")
+      .select("id, total_amount, effective_usdt_qty")
+      .eq("status", "COMPLETED")
+      .eq("order_date", snapshotDate)
+      .range(from, to)
+  );
 
   let totalPurchaseValue = 0;
   let totalPurchaseQty = 0;

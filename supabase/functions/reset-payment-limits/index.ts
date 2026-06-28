@@ -70,9 +70,18 @@ serve(async (req) => {
     }
 
     // Reset sales payment methods
-    const { data: salesMethods, error: salesError } = await supabaseClient
-      .from('sales_payment_methods')
-      .select('id, frequency, last_reset, current_usage, custom_frequency')
+    let salesMethods: any[] = []
+    let salesError: any = null
+    try {
+      salesMethods = await fetchAllRows((from, to) =>
+        supabaseClient
+          .from('sales_payment_methods')
+          .select('id, frequency, last_reset, current_usage, custom_frequency')
+          .range(from, to)
+      )
+    } catch (e) {
+      salesError = e
+    }
 
     if (salesError) {
       console.error('Error fetching sales payment methods:', salesError)

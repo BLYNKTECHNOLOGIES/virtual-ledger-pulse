@@ -251,17 +251,20 @@ export default function ProfitLoss() {
 
       let purchaseItems: any[] = [];
       if (filteredPurchaseOrderIds.length > 0) {
-        let purchaseQuery = supabase
-          .from('purchase_order_items')
-          .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
-          .in('purchase_order_id', filteredPurchaseOrderIds);
-        
-        if (selectedAsset !== 'all') {
-          purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
+        for (let i = 0; i < filteredPurchaseOrderIds.length; i += 200) {
+          const chunk = filteredPurchaseOrderIds.slice(i, i + 200);
+          const items = await fetchAllPaginated<any>(() => {
+            let purchaseQuery = supabase
+              .from('purchase_order_items')
+              .select('purchase_order_id, product_id, quantity, unit_price, products!inner(code)')
+              .in('purchase_order_id', chunk);
+            if (selectedAsset !== 'all') {
+              purchaseQuery = purchaseQuery.eq('products.code', selectedAsset);
+            }
+            return purchaseQuery;
+          });
+          purchaseItems.push(...items);
         }
-        
-        const { data: items } = await purchaseQuery;
-        purchaseItems = items || [];
       }
 
       // For "All Assets" mode, fetch USDT conversion rates for non-USDT assets

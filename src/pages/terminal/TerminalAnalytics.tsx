@@ -423,8 +423,8 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
 
       const smallBuySyncById = new Map(smallBuySyncRows.map((row) => [row.id, row]));
       const smallSaleSyncById = new Map(smallSaleSyncRows.map((row) => [row.id, row]));
-      const purchaseOrderById = new Map(((smallBuyOrderRes.data || []) as any[]).map((row) => [row.id, row]));
-      const salesOrderById = new Map(((smallSaleOrderRes.data || []) as any[]).map((row) => [row.id, row]));
+      const purchaseOrderById = new Map((smallBuyOrderRows as any[]).map((row) => [row.id, row]));
+      const salesOrderById = new Map((smallSaleOrderRows as any[]).map((row) => [row.id, row]));
 
       smallBuyMapRows.forEach((row) => {
         const syncRow = smallBuySyncById.get(row.small_buys_sync_id || '');

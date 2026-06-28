@@ -360,11 +360,14 @@ Deno.serve(async (req) => {
     }
 
     // Auto-resolve previously-open INTERNAL_SNAPSHOT alerts that are no longer drifting
-    const { data: openAlerts } = await supabase
-      .from("erp_drift_alerts")
-      .select("id, entity_type, entity_id, asset_code")
-      .is("resolved_at", null)
-      .eq("source", "INTERNAL_SNAPSHOT");
+    const openAlerts = await fetchAllRows((from, to) =>
+      supabase
+        .from("erp_drift_alerts")
+        .select("id, entity_type, entity_id, asset_code")
+        .is("resolved_at", null)
+        .eq("source", "INTERNAL_SNAPSHOT")
+        .range(from, to)
+    );
     const toResolve = (openAlerts || [])
       .filter(
         (a: any) => !currentAlertKeys.has(`${a.entity_type}::${a.entity_id}::${a.asset_code ?? ""}`)

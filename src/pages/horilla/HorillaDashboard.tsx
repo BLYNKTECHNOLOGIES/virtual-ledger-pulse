@@ -20,10 +20,7 @@ export default function HorillaDashboard() {
 
   const { data: employees } = useQuery({
     queryKey: ["hr_dashboard_employees"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_employees").select("id, is_active, created_at");
-      return data || [];
-    },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at")),
   });
 
   const { data: candidates } = useQuery({

@@ -60,10 +60,7 @@ export default function HorillaDashboard() {
 
   const { data: todayAttendance } = useQuery({
     queryKey: ["hr_dashboard_attendance", today],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_attendance").select("id, employee_id, attendance_status, late_minutes").eq("attendance_date", today);
-      return data || [];
-    },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_attendance").select("id, employee_id, attendance_status, late_minutes").eq("attendance_date", today)),
   });
 
   const { data: leaveRequests } = useQuery({

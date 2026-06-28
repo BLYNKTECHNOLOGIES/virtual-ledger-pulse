@@ -858,7 +858,7 @@ export function ExpenseTrendsWidget() {
           days.push({ label: format(d, 'dd MMM'), start: dateStr, end: dateStr });
         }
         const results = await Promise.all(days.map(async day => {
-          const { data } = await supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start);
+          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start));
           const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: day.label, expense: total };
         }));

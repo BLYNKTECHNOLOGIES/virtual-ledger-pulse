@@ -60,18 +60,21 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   }
 
   // 3. Fetch USDT fee debits for the day
-  const { data: usdtFees } = await supabase
-    .from("wallet_transactions")
-    .select("amount")
-    .eq("transaction_type", "DEBIT")
-    .in("reference_type", [
-      "PLATFORM_FEE",
-      "TRANSFER_FEE",
-      "SALES_ORDER_FEE",
-      "PURCHASE_ORDER_FEE",
-    ])
-    .gte("created_at", dayStart)
-    .lte("created_at", dayEnd);
+  const usdtFees = await fetchAllRows((from, to) =>
+    supabase
+      .from("wallet_transactions")
+      .select("amount")
+      .eq("transaction_type", "DEBIT")
+      .in("reference_type", [
+        "PLATFORM_FEE",
+        "TRANSFER_FEE",
+        "SALES_ORDER_FEE",
+        "PURCHASE_ORDER_FEE",
+      ])
+      .gte("created_at", dayStart)
+      .lte("created_at", dayEnd)
+      .range(from, to)
+  );
 
   const totalUsdtFees =
     usdtFees?.reduce((sum: number, f: any) => sum + Number(f.amount), 0) || 0;

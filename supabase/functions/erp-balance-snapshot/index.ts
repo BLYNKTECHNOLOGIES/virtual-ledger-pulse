@@ -169,9 +169,12 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 4. PRODUCT STOCK LEVELS
     // ═══════════════════════════════════════════════════
-    const { data: products } = await supabase
-      .from("products")
-      .select("id, name, code, current_stock_quantity, total_purchases, total_sales");
+    const products = await fetchAllRows((from, to) =>
+      supabase
+        .from("products")
+        .select("id, name, code, current_stock_quantity, total_purchases, total_sales")
+        .range(from, to)
+    );
 
     for (const p of products || []) {
       lines.push({

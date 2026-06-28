@@ -223,10 +223,13 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 6. PAYMENT METHOD USAGE
     // ═══════════════════════════════════════════════════
-    const { data: payMethods } = await supabase
-      .from("sales_payment_methods")
-      .select("id, nickname, type, current_usage, payment_limit, is_active")
-      .eq("is_active", true);
+    const payMethods = await fetchAllRows((from, to) =>
+      supabase
+        .from("sales_payment_methods")
+        .select("id, nickname, type, current_usage, payment_limit, is_active")
+        .eq("is_active", true)
+        .range(from, to)
+    );
 
     for (const pm of payMethods || []) {
       lines.push({

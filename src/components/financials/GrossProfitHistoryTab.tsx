@@ -50,11 +50,11 @@ export function GrossProfitHistoryTab() {
       const avgSalesRate = totalSalesQty > 0 ? totalSalesValue / totalSalesQty : 0;
 
       // Purchases — use effective_usdt_qty from purchase_orders directly
-      const { data: purchases } = await supabase
+      const purchases = await fetchAllPaginated<any>(() => supabase
         .from("purchase_orders")
         .select("id, total_amount, effective_usdt_qty")
         .eq("status", "COMPLETED")
-        .eq("order_date", todayStr);
+        .eq("order_date", todayStr));
 
       let totalPurchaseValue = 0;
       let totalPurchaseQty = 0;

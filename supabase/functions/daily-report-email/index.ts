@@ -744,13 +744,14 @@ async function buildReport(supabase: any, date: string) {
 
   const dayStart = date + "T00:00:00";
   const dayEnd = date + "T23:59:59";
-  const { data: feeRows } = await supabase
-    .from("wallet_transactions")
-    .select("amount, reference_type")
-    .eq("transaction_type", "DEBIT")
-    .in("reference_type", ["PLATFORM_FEE", "TRANSFER_FEE", "SALES_ORDER_FEE", "PURCHASE_ORDER_FEE"])
-    .gte("created_at", dayStart)
-    .lte("created_at", dayEnd);
+  const feeRows = await fetchAllRows(() =>
+    supabase
+      .from("wallet_transactions")
+      .select("amount, reference_type")
+      .eq("transaction_type", "DEBIT")
+      .in("reference_type", ["PLATFORM_FEE", "TRANSFER_FEE", "SALES_ORDER_FEE", "PURCHASE_ORDER_FEE"])
+      .gte("created_at", dayStart)
+      .lte("created_at", dayEnd));
   const feesByType: Record<string, number> = {};
   let totalFees = 0;
   for (const f of feeRows || []) {

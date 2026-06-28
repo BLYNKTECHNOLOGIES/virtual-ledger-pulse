@@ -385,30 +385,25 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
       const smallBuySyncIds = Array.from(new Set(smallBuyMapRows.map((row) => row.small_buys_sync_id).filter(Boolean))) as string[];
       const smallSaleSyncIds = Array.from(new Set(smallSaleMapRows.map((row) => row.small_sales_sync_id).filter(Boolean))) as string[];
 
-      const [smallBuySyncRes, smallSaleSyncRes] = await Promise.all([
+      const [smallBuySyncRows, smallSaleSyncRows] = await Promise.all([
         smallBuySyncIds.length
-          ? supabase.from('small_buys_sync' as any).select('id, total_quantity, purchase_order_id').in('id', smallBuySyncIds)
-          : Promise.resolve({ data: [], error: null }),
+          ? fetchRowsInChunks<any>(smallBuySyncIds, (chunk) => supabase.from('small_buys_sync' as any).select('id, total_quantity, purchase_order_id').in('id', chunk) as any)
+          : Promise.resolve([] as any[]),
         smallSaleSyncIds.length
-          ? supabase.from('small_sales_sync' as any).select('id, total_quantity, sales_order_id').in('id', smallSaleSyncIds)
-          : Promise.resolve({ data: [], error: null }),
+          ? fetchRowsInChunks<any>(smallSaleSyncIds, (chunk) => supabase.from('small_sales_sync' as any).select('id, total_quantity, sales_order_id').in('id', chunk) as any)
+          : Promise.resolve([] as any[]),
       ]);
 
-      if (smallBuySyncRes.error) throw smallBuySyncRes.error;
-      if (smallSaleSyncRes.error) throw smallSaleSyncRes.error;
-
-      const smallBuySyncRows = (smallBuySyncRes.data || []) as any[];
-      const smallSaleSyncRows = (smallSaleSyncRes.data || []) as any[];
       const purchaseOrderIds = Array.from(new Set(smallBuySyncRows.map((row) => row.purchase_order_id).filter(Boolean))) as string[];
       const salesOrderIds = Array.from(new Set(smallSaleSyncRows.map((row) => row.sales_order_id).filter(Boolean))) as string[];
 
-      const [smallBuyOrderRes, smallSaleOrderRes] = await Promise.all([
+      const [smallBuyOrderRows, smallSaleOrderRows] = await Promise.all([
         purchaseOrderIds.length
-          ? supabase.from('purchase_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', purchaseOrderIds)
-          : Promise.resolve({ data: [], error: null }),
+          ? fetchRowsInChunks<any>(purchaseOrderIds, (chunk) => supabase.from('purchase_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', chunk) as any)
+          : Promise.resolve([] as any[]),
         salesOrderIds.length
-          ? supabase.from('sales_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', salesOrderIds)
-          : Promise.resolve({ data: [], error: null }),
+          ? fetchRowsInChunks<any>(salesOrderIds, (chunk) => supabase.from('sales_orders').select('id, effective_usdt_qty, effective_usdt_rate, market_rate_usdt, quantity').in('id', chunk) as any)
+          : Promise.resolve([] as any[]),
       ]);
 
       if (smallBuyOrderRes.error) throw smallBuyOrderRes.error;

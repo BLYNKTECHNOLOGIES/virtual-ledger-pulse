@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,15 +19,13 @@ export default function OvertimePage() {
     queryFn: async () => {
       const startDate = `${month}-01`;
       const endDate = `${month}-31`;
-      const { data, error } = await supabase
+      return await fetchAllPaginated<any>(() => supabase
         .from("hr_attendance")
         .select("*, hr_employees!hr_attendance_employee_id_fkey(badge_id, first_name, last_name)")
         .gte("attendance_date", startDate)
         .lte("attendance_date", endDate)
         .gt("overtime_hours", 0)
-        .order("attendance_date", { ascending: false });
-      if (error) throw error;
-      return data || [];
+        .order("attendance_date", { ascending: false }));
     },
   });
 

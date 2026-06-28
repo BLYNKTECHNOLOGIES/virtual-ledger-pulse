@@ -147,9 +147,11 @@ export function StatisticsTab() {
       }) || [];
 
       // Fetch employees from hr_employees (source of truth)
-      const { data: hrEmployees } = await supabase
-        .from('hr_employees')
-        .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info(department_id, job_role, departments(name))');
+      const hrEmployees = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('hr_employees')
+          .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info(department_id, job_role, departments(name))')
+          .order('id', { ascending: true }));
       
       // Map to compatible format
       const employees = hrEmployees?.map(e => ({

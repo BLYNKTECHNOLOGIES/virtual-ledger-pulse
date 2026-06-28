@@ -106,9 +106,18 @@ serve(async (req) => {
     }
 
     // Reset purchase payment methods
-    const { data: purchaseMethods, error: purchaseError } = await supabaseClient
-      .from('purchase_payment_methods')
-      .select('id, frequency, last_reset, current_usage, custom_frequency')
+    let purchaseMethods: any[] = []
+    let purchaseError: any = null
+    try {
+      purchaseMethods = await fetchAllRows((from, to) =>
+        supabaseClient
+          .from('purchase_payment_methods')
+          .select('id, frequency, last_reset, current_usage, custom_frequency')
+          .range(from, to)
+      )
+    } catch (e) {
+      purchaseError = e
+    }
 
     if (purchaseError) {
       console.error('Error fetching purchase payment methods:', purchaseError)

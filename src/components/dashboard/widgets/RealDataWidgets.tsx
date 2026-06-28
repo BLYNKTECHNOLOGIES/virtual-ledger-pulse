@@ -505,25 +505,25 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
 
       // Fetch current & previous period data in parallel
       const [
-        { data: thisSales },
-        { data: lastSales },
-        { data: thisPurchaseOrders },
-        { data: lastPurchaseOrders },
-        { data: thisUsdtFees },
-        { data: lastUsdtFees },
+        thisSales,
+        lastSales,
+        thisPurchaseOrders,
+        lastPurchaseOrders,
+        thisUsdtFees,
+        lastUsdtFees,
         { count: totalClients },
         { count: activeClients },
       ] = await Promise.all([
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
-        supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
-        supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
-        supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
-        supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, market_rate_usdt').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
           .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59'),
-        supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
+          .gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT')
           .in('reference_type', ['PLATFORM_FEE', 'TRANSFER_FEE', 'SALES_ORDER_FEE', 'PURCHASE_ORDER_FEE'])
-          .gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59'),
+          .gte('created_at', prevStartStr).lte('created_at', prevEndStr + 'T23:59:59')),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', thirtyDaysAgo),
       ]);

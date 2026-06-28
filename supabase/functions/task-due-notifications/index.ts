@@ -20,14 +20,15 @@ Deno.serve(async (req) => {
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     // Get non-completed tasks with due dates
-    const { data: tasks, error } = await supabase
-      .from('erp_tasks')
-      .select('id, title, assignee_id, due_date, status, escalation_hours, escalation_user_id, reminder_hours_before')
-      .neq('status', 'completed')
-      .not('due_date', 'is', null)
-      .not('assignee_id', 'is', null);
-
-    if (error) throw error;
+    const tasks = await fetchAllRows((from, to) =>
+      supabase
+        .from('erp_tasks')
+        .select('id, title, assignee_id, due_date, status, escalation_hours, escalation_user_id, reminder_hours_before')
+        .neq('status', 'completed')
+        .not('due_date', 'is', null)
+        .not('assignee_id', 'is', null)
+        .range(from, to)
+    );
 
     const notifications: any[] = [];
 

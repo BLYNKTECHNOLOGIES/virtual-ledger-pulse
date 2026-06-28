@@ -68,8 +68,7 @@ export default function Feedback360Page() {
   const { data: employees = [], isLoading: employeesLoading } = useQuery({
     queryKey: ['hr_employees_active'],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true);
-      if (error) throw error;
+      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true));
       return data as Employee[];
     },
   });

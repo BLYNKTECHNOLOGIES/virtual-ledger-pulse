@@ -698,9 +698,9 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
       const prevStartStr = format(prevStart, 'yyyy-MM-dd');
       const prevEndStr = format(prevEnd, 'yyyy-MM-dd');
 
-      const [{ data: currentSales }, { data: previousSales }] = await Promise.all([
-        supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr),
-        supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr),
+      const [currentSales, previousSales] = await Promise.all([
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount').eq('status', 'COMPLETED').gte('order_date', prevStartStr).lte('order_date', prevEndStr)),
       ]);
 
       const currentTotal = (currentSales || []).reduce((s, o: any) => s + Number(o.total_amount || 0), 0);

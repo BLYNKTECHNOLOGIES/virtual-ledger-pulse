@@ -175,7 +175,7 @@ export function ShiftScheduleAssigner() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active_list"],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name");
+      const data = await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name"));
       return data || [];
     },
   });

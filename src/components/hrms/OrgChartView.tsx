@@ -222,17 +222,15 @@ export function OrgChartView() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [posRes, deptRes, empRes, wiRes] = await Promise.all([
+      const [posRes, deptRes, employees, workInfos] = await Promise.all([
         supabase.from("positions").select("id, title, department_id, hierarchy_level, reports_to_position_id").eq("is_active", true),
         supabase.from("departments").select("id, name, code").eq("is_active", true),
-        supabase.from("hr_employees").select("id, first_name, last_name, badge_id, profile_image_url, is_active").eq("is_active", true),
-        supabase.from("hr_employee_work_info").select("employee_id, department_id, job_position_id, reporting_manager_id, job_role"),
+        fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name, badge_id, profile_image_url, is_active").eq("is_active", true)),
+        fetchAllPaginated<any>(() => supabase.from("hr_employee_work_info").select("employee_id, department_id, job_position_id, reporting_manager_id, job_role")),
       ]);
 
       const positions = posRes.data || [];
       const depts = deptRes.data || [];
-      const employees = empRes.data || [];
-      const workInfos = wiRes.data || [];
 
       setRawEmployees(employees);
       setRawWorkInfos(workInfos);

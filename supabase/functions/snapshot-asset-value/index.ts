@@ -120,15 +120,19 @@ serve(async (req) => {
       stockValuation += units * getAvgCost(code);
     });
 
-    // 4. Unpaid TDS liability
-    const { data: unpaidTds } = await supabase
-      .from("tds_records")
-      .select("tds_amount")
-      .or("payment_status.is.null,payment_status.neq.PAID");
+    // 4. Unpaid TDS liability (paginated — 2000+ unpaid rows; without this the
+    //    1000-row cap truncated the liability and inflated the snapshot total)
+    const unpaidTds = await fetchAllRows<any>((from, to) =>
+      supabase
+        .from("tds_records")
+        .select("tds_amount")
+        .or("payment_status.is.null,payment_status.neq.PAID")
+        .range(from, to)
+    );
 
-    const totalUnpaidTds = unpaidTds?.reduce(
+    const totalUnpaidTds = unpaidTds.reduce(
       (sum: number, r: any) => sum + Number(r.tds_amount || 0), 0
-    ) || 0;
+    );
 
     // 5. Total Asset Value (net of TDS liability)
     const totalAssetValue = totalBankBalance + totalGatewayBalance + stockValuation - totalUnpaidTds;

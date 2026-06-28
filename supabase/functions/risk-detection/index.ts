@@ -87,21 +87,27 @@ const handler = async (req: Request): Promise<Response> => {
           const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
           
           // Get current month volume
-          const { data: currentOrders } = await supabase
-            .from("sales_orders")
-            .select("total_amount")
-            .eq("client_name", user.username)
-            .gte("order_date", `${currentMonth}-01`)
-            .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`);
+          const currentOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("total_amount")
+              .eq("client_name", user.username)
+              .gte("order_date", `${currentMonth}-01`)
+              .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`)
+              .range(from, to)
+          );
 
           // Get last 3 months volume
           const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3);
-          const { data: pastOrders } = await supabase
-            .from("sales_orders")
-            .select("total_amount")
-            .eq("client_name", user.username)
-            .gte("order_date", `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`)
-            .lt("order_date", `${currentMonth}-01`);
+          const pastOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("total_amount")
+              .eq("client_name", user.username)
+              .gte("order_date", `${threeMonthsAgo.getFullYear()}-${String(threeMonthsAgo.getMonth() + 1).padStart(2, '0')}-01`)
+              .lt("order_date", `${currentMonth}-01`)
+              .range(from, to)
+          );
 
           const currentVolume = currentOrders?.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) || 0;
           const pastVolume = pastOrders?.reduce((sum: number, order: any) => sum + (order.total_amount || 0), 0) || 0;

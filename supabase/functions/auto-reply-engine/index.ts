@@ -521,9 +521,12 @@ serve(async (req) => {
     }
 
     {
-      const { data: exclusionRows } = await supabase
-        .from("terminal_auto_reply_exclusions")
-        .select("order_number");
+      const exclusionRows = await fetchAllRows((from, to) =>
+        supabase
+          .from("terminal_auto_reply_exclusions")
+          .select("order_number")
+          .range(from, to)
+      );
       const excludedOrders = new Set((exclusionRows || []).map((r: any) => r.order_number));
 
       const { data: sbConfig } = await supabase

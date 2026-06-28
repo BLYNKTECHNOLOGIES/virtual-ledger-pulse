@@ -6,10 +6,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Fetch ALL rows for a query, bypassing PostgREST's 1000-row default cap.
+// Without this, large tables (tds_records, purchase_orders) get silently
+// truncated, undercounting liabilities and corrupting the snapshot total.
+async function fetchAllRows<T = any>(
+  builder: (from: number, to: number) => any,
+): Promise<T[]> {
+  const PAGE = 1000;
+  let from = 0;
+  const all: T[] = [];
+  while (true) {
+    const { data, error } = await builder(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -67,11 +88,14 @@ serve(async (req) => {
       nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
     });
 
-    // 3c. Avg costs per product from completed POs
-    const { data: purchaseOrders } = await supabase
-      .from("purchase_orders")
-      .select(`*, purchase_order_items(quantity, total_price, products(code))`)
-      .eq("status", "COMPLETED");
+    // 3c. Avg costs per product from completed POs (paginated — 4000+ rows)
+    const purchaseOrders = await fetchAllRows<any>((from, to) =>
+      supabase
+        .from("purchase_orders")
+        .select(`*, purchase_order_items(quantity, total_price, products(code))`)
+        .eq("status", "COMPLETED")
+        .range(from, to)
+    );
 
     const costCalc = new Map<string, { qty: number; cost: number }>();
     (purchaseOrders || []).forEach((po: any) => {
@@ -96,15 +120,19 @@ serve(async (req) => {
       stockValuation += units * getAvgCost(code);
     });
 
-    // 4. Unpaid TDS liability
-    const { data: unpaidTds } = await supabase
-      .from("tds_records")
-      .select("tds_amount")
-      .or("payment_status.is.null,payment_status.neq.PAID");
+    // 4. Unpaid TDS liability (paginated — 2000+ unpaid rows; without this the
+    //    1000-row cap truncated the liability and inflated the snapshot total)
+    const unpaidTds = await fetchAllRows<any>((from, to) =>
+      supabase
+        .from("tds_records")
+        .select("tds_amount")
+        .or("payment_status.is.null,payment_status.neq.PAID")
+        .range(from, to)
+    );
 
-    const totalUnpaidTds = unpaidTds?.reduce(
+    const totalUnpaidTds = unpaidTds.reduce(
       (sum: number, r: any) => sum + Number(r.tds_amount || 0), 0
-    ) || 0;
+    );
 
     // 5. Total Asset Value (net of TDS liability)
     const totalAssetValue = totalBankBalance + totalGatewayBalance + stockValuation - totalUnpaidTds;

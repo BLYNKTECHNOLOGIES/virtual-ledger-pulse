@@ -35,11 +35,11 @@ export function GrossProfitHistoryTab() {
     queryKey: ["daily_gross_profit_live", todayStr],
     queryFn: async () => {
       // Sales — use effective USDT fields for normalized comparison
-      const { data: sales } = await supabase
+      const sales = await fetchAllPaginated<any>(() => supabase
         .from("sales_orders")
         .select("quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
         .eq("status", "COMPLETED")
-        .eq("order_date", todayStr);
+        .eq("order_date", todayStr));
 
       const totalSalesQty = sales?.reduce((s, o) => s + (Number(o.effective_usdt_qty || o.quantity) || 0), 0) || 0;
       const totalSalesValue = sales?.reduce((s, o) => {

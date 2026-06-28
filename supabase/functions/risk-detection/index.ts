@@ -51,20 +51,26 @@ const handler = async (req: Request): Promise<Response> => {
           const lastMonthStr = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
 
           // Get current month orders
-          const { data: currentOrders } = await supabase
-            .from("sales_orders")
-            .select("id")
-            .eq("client_name", user.username)
-            .gte("order_date", `${currentMonth}-01`)
-            .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`);
+          const currentOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("id")
+              .eq("client_name", user.username)
+              .gte("order_date", `${currentMonth}-01`)
+              .lt("order_date", `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}-01`)
+              .range(from, to)
+          );
 
           // Get last month orders
-          const { data: lastOrders } = await supabase
-            .from("sales_orders")
-            .select("id")
-            .eq("client_name", user.username)
-            .gte("order_date", `${lastMonthStr}-01`)
-            .lt("order_date", `${currentMonth}-01`);
+          const lastOrders = await fetchAllRows((from, to) =>
+            supabase
+              .from("sales_orders")
+              .select("id")
+              .eq("client_name", user.username)
+              .gte("order_date", `${lastMonthStr}-01`)
+              .lt("order_date", `${currentMonth}-01`)
+              .range(from, to)
+          );
 
           const currentCount = currentOrders?.length || 0;
           const lastCount = lastOrders?.length || 0;

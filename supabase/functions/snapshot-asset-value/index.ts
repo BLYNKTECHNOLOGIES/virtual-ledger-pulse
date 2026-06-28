@@ -6,10 +6,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Fetch ALL rows for a query, bypassing PostgREST's 1000-row default cap.
+// Without this, large tables (tds_records, purchase_orders) get silently
+// truncated, undercounting liabilities and corrupting the snapshot total.
+async function fetchAllRows<T = any>(
+  builder: (from: number, to: number) => any,
+): Promise<T[]> {
+  const PAGE = 1000;
+  let from = 0;
+  const all: T[] = [];
+  while (true) {
+    const { data, error } = await builder(from, from + PAGE - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

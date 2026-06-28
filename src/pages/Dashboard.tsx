@@ -252,9 +252,9 @@ export default function Dashboard() {
         prevPurchaseData,
         { count: verifiedClientsCount },
         { count: totalClientsCount },
-        { data: bankData },
-        { data: productsData },
-        { data: walletAssetBalances },
+        bankData,
+        productsData,
+        walletAssetBalances,
       ] = await Promise.all([
         fetchAllPaginated<any>(() => supabase.from('sales_orders').select('total_amount, created_at')
           .gte('created_at', startOfDay(startDate).toISOString())
@@ -270,9 +270,9 @@ export default function Dashboard() {
           .lte('created_at', prevEnd.toISOString())),
         supabase.from('clients').select('id', { count: 'exact', head: true }).eq('kyc_status', 'VERIFIED'),
         supabase.from('clients').select('id', { count: 'exact', head: true }),
-        supabase.from('bank_accounts').select('account_name, balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null),
-        supabase.from('products').select('code, cost_price'),
-        supabase.from('wallet_asset_balances').select('asset_code, balance'),
+        fetchAllPaginated<any>(() => supabase.from('bank_accounts').select('account_name, balance, lien_amount').eq('status', 'ACTIVE').is('dormant_at', null)),
+        fetchAllPaginated<any>(() => supabase.from('products').select('code, cost_price')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_asset_balances').select('asset_code, balance')),
       ]);
 
 

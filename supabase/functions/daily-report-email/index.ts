@@ -796,9 +796,10 @@ async function buildReport(supabase: any, date: string) {
   const netProfit = grossProfit - totalFees;
 
   // ----- Wallet balances (current snapshot) -----
-  const { data: balanceRows } = await supabase
-    .from("wallet_asset_balances")
-    .select("asset_code, balance");
+  const balanceRows = await fetchAllRows(() =>
+    supabase
+      .from("wallet_asset_balances")
+      .select("asset_code, balance"));
   const balByAsset: Record<string, number> = {};
   for (const b of balanceRows || []) {
     balByAsset[b.asset_code] = (balByAsset[b.asset_code] || 0) + (Number(b.balance) || 0);

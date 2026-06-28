@@ -31,21 +31,18 @@ export default function PenaltyAutoCalcPage() {
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_employees").select("id, first_name, last_name, badge_id, total_salary").eq("is_active", true);
-      return data || [];
-    },
+    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, first_name, last_name, badge_id, total_salary").eq("is_active", true)),
   });
 
   const calculateMutation = useMutation({
     mutationFn: async () => {
       // Get all attendance records for the month
-      const { data: attendance } = await (supabase as any)
+      const attendance = await fetchAllPaginated<any>(() => (supabase as any)
         .from("hr_attendance")
         .select("employee_id, late_minutes")
         .gte("attendance_date", monthStart)
         .lte("attendance_date", monthEnd)
-        .gt("late_minutes", 0);
+        .gt("late_minutes", 0));
 
       // Count lates per employee
       const lateCounts: Record<string, number> = {};

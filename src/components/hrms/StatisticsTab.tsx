@@ -128,9 +128,11 @@ export function StatisticsTab() {
       }) || [];
 
       // Fetch leads
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('id, status, created_at, name, lead_type, estimated_order_value, contact_channel');
+      const leads = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('leads')
+          .select('id, status, created_at, name, lead_type, estimated_order_value, contact_channel')
+          .order('id', { ascending: true }));
 
       // Leads in current period
       const leadsInPeriod = leads?.filter(l => {

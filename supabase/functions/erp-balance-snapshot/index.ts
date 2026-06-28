@@ -195,11 +195,14 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 5. CLIENT MONTHLY USAGE
     // ═══════════════════════════════════════════════════
-    const { data: clients } = await supabase
-      .from("clients")
-      .select("id, name, client_id, current_month_used, monthly_limit")
-      .eq("is_deleted", false)
-      .gt("monthly_limit", 0);
+    const clients = await fetchAllRows((from, to) =>
+      supabase
+        .from("clients")
+        .select("id, name, client_id, current_month_used, monthly_limit")
+        .eq("is_deleted", false)
+        .gt("monthly_limit", 0)
+        .range(from, to)
+    );
 
     for (const c of clients || []) {
       lines.push({

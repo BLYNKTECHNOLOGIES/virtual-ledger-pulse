@@ -57,6 +57,7 @@
         { value: "overdraft_interest", label: "Overdraft interest" },
         { value: "reversal", label: "Reversal" },
         { value: "lien", label: "Lien" },
+        { value: "tds", label: "TDS" },
       ],
    },
    {
@@ -68,6 +69,7 @@
        { value: "cloud_hosting", label: "Cloud hosting" },
        { value: "domain_hosting", label: "Domain & hosting" },
        { value: "it_support_maintenance", label: "IT support & maintenance" },
+       { value: "hardware", label: "Hardware" },
      ],
    },
    {

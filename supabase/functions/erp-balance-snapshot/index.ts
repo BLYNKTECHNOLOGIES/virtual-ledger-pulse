@@ -250,9 +250,12 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 7. WALLET ASSET POSITIONS (cost accounting)
     // ═══════════════════════════════════════════════════
-    const { data: positions } = await supabase
-      .from("wallet_asset_positions")
-      .select("id, wallet_id, asset_code, qty_on_hand, cost_pool_usdt, avg_cost_usdt");
+    const positions = await fetchAllRows((from, to) =>
+      supabase
+        .from("wallet_asset_positions")
+        .select("id, wallet_id, asset_code, qty_on_hand, cost_pool_usdt, avg_cost_usdt")
+        .range(from, to)
+    );
 
     for (const pos of positions || []) {
       lines.push({

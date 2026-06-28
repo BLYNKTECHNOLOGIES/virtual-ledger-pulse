@@ -52,13 +52,19 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 2. WALLET ASSET BALANCES (tracked + calculated)
     // ═══════════════════════════════════════════════════
-    const { data: walletAssets } = await supabase
-      .from("wallet_asset_balances")
-      .select("wallet_id, asset_code, balance, total_received, total_sent");
+    const walletAssets = await fetchAllRows((from, to) =>
+      supabase
+        .from("wallet_asset_balances")
+        .select("wallet_id, asset_code, balance, total_received, total_sent")
+        .range(from, to)
+    );
 
-    const { data: wallets } = await supabase
-      .from("wallets")
-      .select("id, wallet_name, current_balance, total_received, total_sent, is_active");
+    const wallets = await fetchAllRows((from, to) =>
+      supabase
+        .from("wallets")
+        .select("id, wallet_name, current_balance, total_received, total_sent, is_active")
+        .range(from, to)
+    );
 
     const walletNameMap = new Map(
       (wallets || []).map((w: any) => [w.id, w.wallet_name])

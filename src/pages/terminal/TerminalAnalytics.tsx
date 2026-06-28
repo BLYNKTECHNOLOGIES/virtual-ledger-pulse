@@ -406,8 +406,7 @@ function useEffectiveOrderValuations(orderNumbers: string[]) {
           : Promise.resolve([] as any[]),
       ]);
 
-      if (smallBuyOrderRes.error) throw smallBuyOrderRes.error;
-      if (smallSaleOrderRes.error) throw smallSaleOrderRes.error;
+
 
       const map = new Map<string, EffectiveValuation>();
       const addValuation = (orderNumber: string, row: any) => {

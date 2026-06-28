@@ -22,12 +22,12 @@ export default function ReportsPage() {
 
   const { data: employees = [] } = useQuery({
     queryKey: ["rpt_employees"],
-    queryFn: async () => { const { data } = await supabase.from("hr_employees").select("id, is_active, created_at, total_salary"); return data || []; },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at, total_salary")),
   });
 
   const { data: leaveRequests = [] } = useQuery({
     queryKey: ["rpt_leaves"],
-    queryFn: async () => { const { data } = await supabase.from("hr_leave_requests").select("id, status, total_days, leave_type_id, start_date, created_at"); return data || []; },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_leave_requests").select("id, status, total_days, leave_type_id, start_date, created_at")),
   });
 
   const { data: leaveTypes = [] } = useQuery({
@@ -37,12 +37,12 @@ export default function ReportsPage() {
 
   const { data: payrollRuns = [] } = useQuery({
     queryKey: ["rpt_payroll"],
-    queryFn: async () => { const { data } = await supabase.from("hr_payroll_runs").select("id, title, total_net, total_gross, total_deductions, run_date, employee_count").order("run_date"); return data || []; },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_payroll_runs").select("id, title, total_net, total_gross, total_deductions, run_date, employee_count").order("run_date")),
   });
 
   const { data: workInfos = [] } = useQuery({
     queryKey: ["rpt_work_infos"],
-    queryFn: async () => { const { data } = await supabase.from("hr_employee_work_info").select("employee_id, employee_type, department_id"); return data || []; },
+    queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employee_work_info").select("employee_id, employee_type, department_id")),
   });
 
   const { data: departments = [] } = useQuery({
@@ -52,12 +52,9 @@ export default function ReportsPage() {
 
   const { data: attendance = [] } = useQuery({
     queryKey: ["rpt_attendance", dateFrom, dateTo],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_attendance")
-        .select("id, employee_id, attendance_date, status")
-        .gte("attendance_date", dateFrom).lte("attendance_date", dateTo);
-      return data || [];
-    },
+    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any).from("hr_attendance")
+      .select("id, employee_id, attendance_date, status")
+      .gte("attendance_date", dateFrom).lte("attendance_date", dateTo)),
   });
 
   // Filtered data by date range

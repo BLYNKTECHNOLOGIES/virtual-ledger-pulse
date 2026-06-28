@@ -765,11 +765,12 @@ async function buildReport(supabase: any, date: string) {
     "Purchase", "Sales", "Stock Purchase", "Stock Sale", "Trade", "Trading",
     "Settlement", "Payment Gateway Settlement", "OPENING_BALANCE", "ADJUSTMENT",
   ];
-  const { data: expenseRows } = await supabase
-    .from("bank_transactions")
-    .select("amount, category, description, reference_number, transaction_date, is_reversed")
-    .eq("transaction_type", "EXPENSE")
-    .eq("transaction_date", date);
+  const expenseRows = await fetchAllRows(() =>
+    supabase
+      .from("bank_transactions")
+      .select("amount, category, description, reference_number, transaction_date, is_reversed")
+      .eq("transaction_type", "EXPENSE")
+      .eq("transaction_date", date));
   const expenseList: { category: string; description: string; amount: number }[] = [];
   const expenseByCategory: Record<string, number> = {};
   let totalExpenses = 0;

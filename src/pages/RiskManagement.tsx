@@ -22,31 +22,18 @@ export default function RiskManagement() {
   const { data: riskStats } = useQuery({
     queryKey: ["risk-stats"],
     queryFn: async () => {
-      const { data: flagged } = await supabase
-        .from("risk_flags")
-        .select("id")
-        .eq("status", "FLAGGED");
-
-      const { data: underRekyc } = await supabase
-        .from("risk_flags")
-        .select("id")
-        .eq("status", "UNDER_REKYC");
-
-      const { data: cleared } = await supabase
-        .from("risk_flags")
-        .select("id")
-        .eq("status", "CLEARED");
-
-      const { data: blacklisted } = await supabase
-        .from("risk_flags")
-        .select("id")
-        .eq("status", "BLACKLISTED");
+      const [{ count: flagged }, { count: underRekyc }, { count: cleared }, { count: blacklisted }] = await Promise.all([
+        supabase.from("risk_flags").select("id", { count: "exact", head: true }).eq("status", "FLAGGED"),
+        supabase.from("risk_flags").select("id", { count: "exact", head: true }).eq("status", "UNDER_REKYC"),
+        supabase.from("risk_flags").select("id", { count: "exact", head: true }).eq("status", "CLEARED"),
+        supabase.from("risk_flags").select("id", { count: "exact", head: true }).eq("status", "BLACKLISTED"),
+      ]);
 
       return {
-        flagged: flagged?.length || 0,
-        underRekyc: underRekyc?.length || 0,
-        cleared: cleared?.length || 0,
-        blacklisted: blacklisted?.length || 0,
+        flagged: flagged || 0,
+        underRekyc: underRekyc || 0,
+        cleared: cleared || 0,
+        blacklisted: blacklisted || 0,
       };
     },
   });

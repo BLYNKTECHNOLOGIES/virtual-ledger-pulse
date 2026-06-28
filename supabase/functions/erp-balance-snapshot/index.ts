@@ -132,9 +132,12 @@ Deno.serve(async (req) => {
     // ═══════════════════════════════════════════════════
     // 3. BANK ACCOUNT BALANCES
     // ═══════════════════════════════════════════════════
-    const { data: bankAccounts } = await supabase
-      .from("bank_accounts")
-      .select("id, account_name, balance, status, lien_amount, account_type");
+    const bankAccounts = await fetchAllRows((from, to) =>
+      supabase
+        .from("bank_accounts")
+        .select("id, account_name, balance, status, lien_amount, account_type")
+        .range(from, to)
+    );
 
     // Get calculated bank balances
     const { data: bankCalcRows } = await supabase.rpc("get_bank_calculated_balances");

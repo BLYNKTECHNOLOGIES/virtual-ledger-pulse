@@ -1095,9 +1095,9 @@ export function InventoryStatusWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_inventory_status_inr'],
     queryFn: async () => {
-      const [{ data: wallets }, { data: positions }] = await Promise.all([
-        supabase.from('wallet_asset_balances').select('asset_code, balance'),
-        supabase.from('wallet_asset_positions' as any).select('asset_code, avg_cost_usdt'),
+      const [wallets, positions] = await Promise.all([
+        fetchAllPaginated<any>(() => supabase.from('wallet_asset_balances').select('asset_code, balance')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_asset_positions' as any).select('asset_code, avg_cost_usdt')),
       ]);
 
       // Get USDT/INR rate

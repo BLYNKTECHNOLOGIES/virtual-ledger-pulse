@@ -57,6 +57,7 @@
         { value: "overdraft_interest", label: "Overdraft interest" },
         { value: "reversal", label: "Reversal" },
         { value: "lien", label: "Lien" },
+        { value: "tds", label: "TDS" },
       ],
    },
    {

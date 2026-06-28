@@ -88,11 +88,14 @@ serve(async (req) => {
       nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
     });
 
-    // 3c. Avg costs per product from completed POs
-    const { data: purchaseOrders } = await supabase
-      .from("purchase_orders")
-      .select(`*, purchase_order_items(quantity, total_price, products(code))`)
-      .eq("status", "COMPLETED");
+    // 3c. Avg costs per product from completed POs (paginated — 4000+ rows)
+    const purchaseOrders = await fetchAllRows<any>((from, to) =>
+      supabase
+        .from("purchase_orders")
+        .select(`*, purchase_order_items(quantity, total_price, products(code))`)
+        .eq("status", "COMPLETED")
+        .range(from, to)
+    );
 
     const costCalc = new Map<string, { qty: number; cost: number }>();
     (purchaseOrders || []).forEach((po: any) => {

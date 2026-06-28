@@ -28,14 +28,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Starting risk detection scan...");
 
     // Get all active users
-    const { data: users, error: usersError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("status", "ACTIVE");
-
-    if (usersError) {
-      throw usersError;
-    }
+    const users = await fetchAllRows((from, to) =>
+      supabase
+        .from("users")
+        .select("*")
+        .eq("status", "ACTIVE")
+        .range(from, to)
+    );
 
     console.log(`Scanning ${users?.length || 0} users for risk factors`);
 

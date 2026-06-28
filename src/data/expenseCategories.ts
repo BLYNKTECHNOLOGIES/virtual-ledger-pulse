@@ -69,6 +69,7 @@
        { value: "cloud_hosting", label: "Cloud hosting" },
        { value: "domain_hosting", label: "Domain & hosting" },
        { value: "it_support_maintenance", label: "IT support & maintenance" },
+       { value: "hardware", label: "Hardware" },
      ],
    },
    {

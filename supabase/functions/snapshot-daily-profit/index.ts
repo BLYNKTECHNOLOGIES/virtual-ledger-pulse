@@ -12,11 +12,14 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   const dayEnd = snapshotDate + "T23:59:59";
 
   // 1. Fetch completed sales orders for the day — use effective USDT fields
-  const { data: salesOrders } = await supabase
-    .from("sales_orders")
-    .select("id, quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
-    .eq("status", "COMPLETED")
-    .eq("order_date", snapshotDate);
+  const salesOrders = await fetchAllRows((from, to) =>
+    supabase
+      .from("sales_orders")
+      .select("id, quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate")
+      .eq("status", "COMPLETED")
+      .eq("order_date", snapshotDate)
+      .range(from, to)
+  );
 
   // Use effective_usdt_qty/rate when available (normalized USDT-equivalent)
   const totalSalesQty = salesOrders?.reduce(

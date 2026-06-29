@@ -72,9 +72,9 @@ export async function resumableUpload({
   const objectPath = cleanStoragePath(path);
   if (!bearerToken) throw new Error("Large file upload could not start because storage authentication was unavailable.");
 
-  return new Promise<string>((resolve, reject) => {
+  const runTusUpload = (endpoint: string) => new Promise<string>((resolve, reject) => {
     const upload = new tus.Upload(file, {
-      endpoint: `${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`,
+      endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
         authorization: `Bearer ${bearerToken}`,
@@ -109,6 +109,18 @@ export async function resumableUpload({
     // URLs from the old endpoint. Resuming those makes the same file fail again.
     upload.start();
   });
+
+  try {
+    return await runTusUpload(`${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`);
+  } catch (error) {
+    // If the user's network blocks the direct storage hostname, retry once via
+    // the standard Supabase API hostname. This keeps long vKYC upload reliable
+    // across office networks while still preferring the faster official host.
+    if (isNetworkOrTusError(error)) {
+      return runTusUpload(`${SUPABASE_URL}/storage/v1/upload/resumable`);
+    }
+    throw error;
+  }
 }
 
 /**

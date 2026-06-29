@@ -52,7 +52,7 @@ export interface ResumableUploadOptions {
 }
 
 export interface MultipartUploadManifest {
-  kind: typeof MULTIPART_MANIFEST_KIND;
+  kind: "supabase-multipart-file";
   version: 1;
   bucket: string;
   fileName: string;

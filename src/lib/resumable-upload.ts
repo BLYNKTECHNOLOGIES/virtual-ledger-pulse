@@ -51,7 +51,7 @@ export async function resumableUpload({
   contentType,
   upsert = false,
   onProgress,
-}: ResumableUploadOptions): Promise<void> {
+}: ResumableUploadOptions): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
   // Small uploads sent through supabase-js automatically carry the publishable
   // key, so they work even for legacy ERP sessions where Supabase Auth has not
@@ -84,7 +84,7 @@ export async function resumableUpload({
       onProgress: (sent, total) => {
         if (onProgress && total > 0) onProgress(Math.round((sent / total) * 100));
       },
-      onSuccess: () => resolve(),
+      onSuccess: () => resolve(objectPath),
     });
 
     // Resume an interrupted upload if a matching one exists.
@@ -102,8 +102,7 @@ export async function resumableUpload({
 export async function smartUpload(opts: ResumableUploadOptions): Promise<void> {
   const path = cleanStoragePath(opts.path);
   if (opts.file.size > RESUMABLE_THRESHOLD_BYTES) {
-    await resumableUpload({ ...opts, path });
-    return;
+    return resumableUpload({ ...opts, path });
   }
   const { error } = await supabase.storage
     .from(opts.bucket)
@@ -112,4 +111,5 @@ export async function smartUpload(opts: ResumableUploadOptions): Promise<void> {
       upsert: opts.upsert,
     });
   if (error) throw error;
+  return path;
 }

@@ -59,9 +59,9 @@ export function prefetchKycUpload(file: File, opts: KycUploadOptions = {}): Prom
     }
 
     const path = `pending-kyc/${Date.now()}_${randomToken()}_${sanitizeName(toUpload.name)}`;
-    await smartUpload({ bucket: 'kyc-documents', path, file: toUpload, contentType: toUpload.type || undefined });
+    const uploadedPath = await smartUpload({ bucket: 'kyc-documents', path, file: toUpload, contentType: toUpload.type || undefined });
 
-    const { data } = supabase.storage.from('kyc-documents').getPublicUrl(path);
+    const { data } = supabase.storage.from('kyc-documents').getPublicUrl(uploadedPath);
     return {
       url: data?.publicUrl || '',
       fileName: toUpload.name,

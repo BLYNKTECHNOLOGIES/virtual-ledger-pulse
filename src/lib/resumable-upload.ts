@@ -63,7 +63,7 @@ export async function resumableUpload({
   const objectPath = cleanStoragePath(path);
   if (!bearerToken) throw new Error("Large file upload could not start because storage authentication was unavailable.");
 
-  await new Promise<void>((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const upload = new tus.Upload(file, {
       endpoint: `${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
@@ -99,7 +99,7 @@ export async function resumableUpload({
  * Upload a file to storage, automatically choosing resumable (TUS) for large
  * files and the standard upload for small ones.
  */
-export async function smartUpload(opts: ResumableUploadOptions): Promise<void> {
+export async function smartUpload(opts: ResumableUploadOptions): Promise<string> {
   const path = cleanStoragePath(opts.path);
   if (opts.file.size > RESUMABLE_THRESHOLD_BYTES) {
     return resumableUpload({ ...opts, path });

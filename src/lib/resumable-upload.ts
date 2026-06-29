@@ -68,6 +68,7 @@ export async function resumableUpload({
       endpoint: `${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
+        apikey: SUPABASE_PUBLISHABLE_KEY,
         authorization: `Bearer ${bearerToken}`,
         "x-upsert": upsert ? "true" : "false",
       },

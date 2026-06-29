@@ -349,7 +349,7 @@ export function ClientOnboardingApprovals() {
     multiple: false,
   });
   const { isDragActive: isDragVkyc, dropzoneProps: dropVkyc } = useFileDropzone({
-    onFiles: (files) => { const f = files[0] || null; if (!f) return; void prefetchKycUpload(f, { compress: true }); setVkycVideoFile(f); },
+    onFiles: (files) => { const f = files[0] || null; if (!f) return; void prefetchKycUpload(f); setVkycVideoFile(f); },
     multiple: false,
   });
   const { isDragActive: isDragAdditionalDocs, dropzoneProps: dropAdditionalDocs } = useFileDropzone({
@@ -1019,14 +1019,15 @@ export function ClientOnboardingApprovals() {
         const { aadhaarFiles: aFiles, usdtProofFile: uFile, tradeHistoryFile: tFile, vkycVideoFile: vFile, additionalDocs: addDocs } = kycDocuments;
 
         // All of these files were already uploaded in the background the moment
-        // the reviewer attached them (the vKYC video is compressed + uploaded in
-        // the background too). Here we just resolve those in-flight/finished
+        // the reviewer attached them. Large vKYC videos are uploaded directly via
+        // resumable storage — no slow client-side re-encode on the approval click.
+        // Here we just resolve those in-flight/finished
         // uploads — no slow re-encode or sequential upload on the approval click.
         const docTasks: { file: File; type: string; compress?: boolean }[] = [];
         for (const f of aFiles) docTasks.push({ file: f, type: 'aadhaar' });
         if (uFile) docTasks.push({ file: uFile, type: 'usdt_usage_proof' });
         if (tFile) docTasks.push({ file: tFile, type: 'trade_history_screenshot' });
-        if (vFile) docTasks.push({ file: vFile, type: 'vkyc_video', compress: true });
+        if (vFile) docTasks.push({ file: vFile, type: 'vkyc_video' });
         if (addDocs && addDocs.length > 0) {
           for (const f of addDocs) docTasks.push({ file: f, type: 'other' });
         }
@@ -2470,7 +2471,7 @@ export function ClientOnboardingApprovals() {
                   {/* vKYC Video - optional */}
                   <div className="bg-white p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — auto-compressed for large files)</span></Label>
+                      <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — resumable upload for large files)</span></Label>
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
@@ -2489,9 +2490,9 @@ export function ClientOnboardingApprovals() {
                           onChange={(e) => {
                             const file = e.target.files?.[0] || null;
                             if (!file) return;
-                            // Compress + upload the vKYC video in the background so
-                            // approval doesn't have to wait for the slow re-encode.
-                            void prefetchKycUpload(file, { compress: true });
+                            // Upload the vKYC video in the background using resumable
+                            // storage so approval doesn't wait on a long upload.
+                            void prefetchKycUpload(file);
                             setVkycVideoFile(file);
                             if (vkycVideoInputRef.current) vkycVideoInputRef.current.value = '';
                           }}

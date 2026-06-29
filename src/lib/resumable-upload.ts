@@ -31,6 +31,17 @@ const getTusErrorMessage = (error: unknown) => {
  */
 export const RESUMABLE_THRESHOLD_BYTES = 6 * 1024 * 1024; // 6MB
 
+/**
+ * Supabase Free projects cannot store a single object larger than 50MB. The
+ * project/bucket limit is not visible to the browser until the upload starts,
+ * so lengthy vKYC videos can fail before any useful app-side error appears.
+ * Store very large files as safe-size chunks plus a tiny manifest. The viewer
+ * reconstructs the original file when staff opens/downloads it.
+ */
+export const MULTIPART_THRESHOLD_BYTES = 45 * 1024 * 1024; // safely below 50MB
+
+const MULTIPART_MANIFEST_KIND = "supabase-multipart-file";
+
 export interface ResumableUploadOptions {
   bucket: string;
   path: string;
@@ -39,6 +50,23 @@ export interface ResumableUploadOptions {
   upsert?: boolean;
   onProgress?: (percent: number) => void;
 }
+
+export interface MultipartUploadManifest {
+  kind: "supabase-multipart-file";
+  version: 1;
+  bucket: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  originalPath: string;
+  createdAt: string;
+  chunks: Array<{ index: number; path: string; size: number }>;
+}
+
+const isNetworkOrTusError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /network|fetch|timeout|abort|tus|resumable|large file|failed to fetch|load failed|request timed out/i.test(message);
+};
 
 /**
  * Upload a (potentially large) file to Supabase Storage using the TUS
@@ -52,6 +80,10 @@ export async function resumableUpload({
   upsert = false,
   onProgress,
 }: ResumableUploadOptions): Promise<string> {
+  if (!tus.isSupported) {
+    throw new Error("Large file upload is not supported in this browser. Please use latest Chrome/Edge and try again.");
+  }
+
   const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
   // Small uploads sent through supabase-js automatically carry the publishable
   // key, so they work even for legacy ERP sessions where Supabase Auth has not
@@ -63,16 +95,18 @@ export async function resumableUpload({
   const objectPath = cleanStoragePath(path);
   if (!bearerToken) throw new Error("Large file upload could not start because storage authentication was unavailable.");
 
-  return new Promise<string>((resolve, reject) => {
+  const runTusUpload = (endpoint: string) => new Promise<string>((resolve, reject) => {
     const upload = new tus.Upload(file, {
-      endpoint: `${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`,
+      endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
-        apikey: SUPABASE_PUBLISHABLE_KEY,
         authorization: `Bearer ${bearerToken}`,
         "x-upsert": upsert ? "true" : "false",
       },
+      parallelUploads: 1,
+      addRequestId: true,
       uploadDataDuringCreation: true,
+      storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       metadata: {
         bucketName: bucket,
@@ -81,6 +115,11 @@ export async function resumableUpload({
         cacheControl: "3600",
       },
       chunkSize: 6 * 1024 * 1024, // required by Supabase storage TUS
+      onBeforeRequest: (req) => {
+        // Supabase Storage validates the API key on some deployments/proxies.
+        // tus-js-client preserves these headers for POST/PATCH/HEAD requests.
+        req.setHeader("apikey", SUPABASE_PUBLISHABLE_KEY);
+      },
       onError: (error) => reject(new Error(getTusErrorMessage(error))),
       onProgress: (sent, total) => {
         if (onProgress && total > 0) onProgress(Math.round((sent / total) * 100));
@@ -88,25 +127,31 @@ export async function resumableUpload({
       onSuccess: () => resolve(objectPath),
     });
 
-    // Resume an interrupted upload if a matching one exists.
-    upload.findPreviousUploads()
-      .then((previous) => {
-        if (previous.length) upload.resumeFromPreviousUpload(previous[0]);
-        upload.start();
-      })
-      .catch(() => upload.start());
+    // Do not resume old browser-stored TUS URLs here. The vKYC path contains a
+    // fresh timestamp, and earlier failed attempts may have stored stale upload
+    // URLs from the old endpoint. Resuming those makes the same file fail again.
+    upload.start();
   });
+
+  try {
+    return await runTusUpload(`${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`);
+  } catch (error) {
+    // If the user's network blocks the direct storage hostname, retry once via
+    // the standard Supabase API hostname. This keeps long vKYC upload reliable
+    // across office networks while still preferring the faster official host.
+    if (isNetworkOrTusError(error)) {
+      return runTusUpload(`${SUPABASE_URL}/storage/v1/upload/resumable`);
+    }
+    throw error;
+  }
 }
 
-/**
- * Upload a file to storage, automatically choosing resumable (TUS) for large
- * files and the standard upload for small ones.
- */
-export async function smartUpload(opts: ResumableUploadOptions): Promise<string> {
+const uploadSmallOrResumable = async (opts: ResumableUploadOptions): Promise<string> => {
   const path = cleanStoragePath(opts.path);
   if (opts.file.size > RESUMABLE_THRESHOLD_BYTES) {
     return resumableUpload({ ...opts, path });
   }
+
   const { error } = await supabase.storage
     .from(opts.bucket)
     .upload(path, opts.file, {
@@ -115,4 +160,101 @@ export async function smartUpload(opts: ResumableUploadOptions): Promise<string>
     });
   if (error) throw error;
   return path;
+};
+
+async function multipartUpload(opts: ResumableUploadOptions): Promise<string> {
+  const originalPath = cleanStoragePath(opts.path);
+  const fileName = (opts.file as File).name || originalPath.split("/").pop() || "large-file";
+  const contentType = opts.contentType || (opts.file as File).type || "application/octet-stream";
+  const pathParts = originalPath.split("/");
+  const originalFilePart = pathParts.pop() || fileName;
+  const folder = pathParts.join("/");
+  const safeBase = originalFilePart.replace(/\.[^.]+$/, "");
+  const uploadId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const chunkFolder = cleanStoragePath(`${folder}/__multipart__/${safeBase}_${uploadId}`);
+  const manifestPath = cleanStoragePath(`${folder}/__multipart_manifests__/${safeBase}_${uploadId}.manifest.json`);
+  const chunks: MultipartUploadManifest["chunks"] = [];
+  const uploadedPaths: string[] = [];
+  let uploadedBytes = 0;
+
+  try {
+    for (let start = 0, index = 0; start < opts.file.size; start += MULTIPART_THRESHOLD_BYTES, index++) {
+      const end = Math.min(start + MULTIPART_THRESHOLD_BYTES, opts.file.size);
+      const chunk = opts.file.slice(start, end, "application/octet-stream");
+      const chunkPath = `${chunkFolder}/part-${String(index).padStart(5, "0")}.bin`;
+
+      const uploadedChunkPath = await uploadSmallOrResumable({
+        bucket: opts.bucket,
+        path: chunkPath,
+        file: chunk,
+        contentType: "application/octet-stream",
+        upsert: opts.upsert,
+        onProgress: (chunkPercent) => {
+          const currentChunkUploaded = chunk.size * (chunkPercent / 100);
+          const overallPercent = Math.min(99, Math.round(((uploadedBytes + currentChunkUploaded) / opts.file.size) * 100));
+          opts.onProgress?.(overallPercent);
+        },
+      });
+
+      chunks.push({ index, path: uploadedChunkPath, size: chunk.size });
+      uploadedPaths.push(uploadedChunkPath);
+      uploadedBytes += chunk.size;
+      opts.onProgress?.(Math.min(99, Math.round((uploadedBytes / opts.file.size) * 100)));
+    }
+
+    const manifest: MultipartUploadManifest = {
+      kind: MULTIPART_MANIFEST_KIND,
+      version: 1,
+      bucket: opts.bucket,
+      fileName,
+      fileSize: opts.file.size,
+      contentType,
+      originalPath,
+      createdAt: new Date().toISOString(),
+      chunks,
+    };
+
+    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
+    const uploadedManifestPath = await uploadSmallOrResumable({
+      bucket: opts.bucket,
+      path: manifestPath,
+      file: manifestBlob,
+      contentType: "application/json",
+      upsert: opts.upsert,
+    });
+    opts.onProgress?.(100);
+    return uploadedManifestPath;
+  } catch (error) {
+    // Best-effort cleanup. If cleanup itself fails, keep the original upload
+    // error because that is the useful message for the operator.
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from(opts.bucket).remove(uploadedPaths).catch(() => undefined);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Upload a file to storage, automatically choosing resumable (TUS) for large
+ * files and the standard upload for small ones.
+ */
+export async function smartUpload(opts: ResumableUploadOptions): Promise<string> {
+  const path = cleanStoragePath(opts.path);
+  if (opts.file.size > MULTIPART_THRESHOLD_BYTES) {
+    return multipartUpload({ ...opts, path });
+  }
+
+  if (opts.file.size > RESUMABLE_THRESHOLD_BYTES) {
+    return resumableUpload({ ...opts, path });
+  }
+  try {
+    return uploadSmallOrResumable({ ...opts, path });
+  } catch (error) {
+    // Some videos are under the size threshold but still exceed the browser/app
+    // fetch timeout because of slow upload speed. Retry those through TUS.
+    if (isNetworkOrTusError(error)) {
+      return resumableUpload({ ...opts, path });
+    }
+    throw error;
+  }
 }

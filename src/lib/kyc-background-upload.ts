@@ -1,6 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 import { smartUpload } from '@/lib/resumable-upload';
-import { compressVideo } from '@/utils/videoCompressor';
 
 /**
  * Background ("pre-fetch") uploads for client KYC / onboarding documents.
@@ -25,7 +24,7 @@ export interface KycUploadResult {
 }
 
 export interface KycUploadOptions {
-  /** Compress the file before uploading (used for the vKYC video). */
+  /** Deprecated: large vKYC videos are uploaded as-is through resumable storage. */
   compress?: boolean;
 }
 
@@ -46,17 +45,7 @@ export function prefetchKycUpload(file: File, opts: KycUploadOptions = {}): Prom
   if (existing) return existing;
 
   const promise = (async (): Promise<KycUploadResult> => {
-    let toUpload: File = file;
-
-    if (opts.compress) {
-      // Compress off the critical path. If it fails, fall back to the original
-      // so the document is never lost.
-      try {
-        toUpload = await compressVideo(file);
-      } catch {
-        toUpload = file;
-      }
-    }
+    const toUpload: File = file;
 
     const path = `pending-kyc/${Date.now()}_${randomToken()}_${sanitizeName(toUpload.name)}`;
     const uploadedPath = await smartUpload({ bucket: 'kyc-documents', path, file: toUpload, contentType: toUpload.type || undefined });

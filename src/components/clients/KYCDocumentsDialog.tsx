@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Download, Eye, Upload, Calendar, CreditCard, Briefcase, Video, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { downloadStorageDocumentUrl, openStorageDocumentUrl } from "@/lib/storage-multipart";
 
 interface KYCDocumentsDialogProps {
   open: boolean;
@@ -182,13 +183,11 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                               )}
                             </div>
                             <div className="flex gap-1 shrink-0">
-                              <Button size="sm" variant="ghost" onClick={() => window.open(doc.file_url, '_blank')}>
+                              <Button size="sm" variant="ghost" onClick={() => openStorageDocumentUrl(doc.file_url)}>
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button size="sm" variant="ghost" asChild>
-                                <a href={doc.file_url} download={doc.file_name} target="_blank" rel="noopener noreferrer">
-                                  <Download className="h-4 w-4" />
-                                </a>
+                              <Button size="sm" variant="ghost" onClick={() => downloadStorageDocumentUrl(doc.file_url, doc.file_name)}>
+                                <Download className="h-4 w-4" />
                               </Button>
                             </div>
                           </div>

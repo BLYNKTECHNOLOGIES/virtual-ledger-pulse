@@ -83,6 +83,7 @@ export async function resumableUpload({
       parallelUploads: 1,
       addRequestId: true,
       uploadDataDuringCreation: true,
+      storeFingerprintForResuming: false,
       removeFingerprintOnSuccess: true,
       metadata: {
         bucketName: bucket,
@@ -103,13 +104,10 @@ export async function resumableUpload({
       onSuccess: () => resolve(objectPath),
     });
 
-    // Resume an interrupted upload if a matching one exists.
-    upload.findPreviousUploads()
-      .then((previous) => {
-        if (previous.length) upload.resumeFromPreviousUpload(previous[0]);
-        upload.start();
-      })
-      .catch(() => upload.start());
+    // Do not resume old browser-stored TUS URLs here. The vKYC path contains a
+    // fresh timestamp, and earlier failed attempts may have stored stale upload
+    // URLs from the old endpoint. Resuming those makes the same file fail again.
+    upload.start();
   });
 }
 

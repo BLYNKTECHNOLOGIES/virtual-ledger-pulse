@@ -349,7 +349,7 @@ export function ClientOnboardingApprovals() {
     multiple: false,
   });
   const { isDragActive: isDragVkyc, dropzoneProps: dropVkyc } = useFileDropzone({
-    onFiles: (files) => { const f = files[0] || null; if (!f) return; void prefetchKycUpload(f, { compress: true }); setVkycVideoFile(f); },
+    onFiles: (files) => { const f = files[0] || null; if (!f) return; void prefetchKycUpload(f); setVkycVideoFile(f); },
     multiple: false,
   });
   const { isDragActive: isDragAdditionalDocs, dropzoneProps: dropAdditionalDocs } = useFileDropzone({

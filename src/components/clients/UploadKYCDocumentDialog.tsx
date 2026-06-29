@@ -92,6 +92,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
     setUploading(true);
     let success = 0;
     let failed = 0;
+    let lastError = "";
 
     for (const file of files) {
       try {
@@ -119,6 +120,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
         success++;
       } catch (err: any) {
         console.error("Upload failed", err);
+        lastError = err?.message || err?.error_description || "Could not upload documents.";
         failed++;
       }
     }
@@ -135,7 +137,7 @@ export function UploadKYCDocumentDialog({ open, onOpenChange, clientId, clientNa
       reset();
       onOpenChange(false);
     } else {
-      toast({ title: "Upload failed", description: "Could not upload documents.", variant: "destructive" });
+      toast({ title: "Upload failed", description: lastError || "Could not upload documents.", variant: "destructive" });
     }
   };
 

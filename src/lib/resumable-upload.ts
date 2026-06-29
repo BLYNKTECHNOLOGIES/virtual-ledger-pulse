@@ -89,10 +89,12 @@ export async function resumableUpload({
     });
 
     // Resume an interrupted upload if a matching one exists.
-    upload.findPreviousUploads().then((previous) => {
-      if (previous.length) upload.resumeFromPreviousUpload(previous[0]);
-      upload.start();
-    });
+    upload.findPreviousUploads()
+      .then((previous) => {
+        if (previous.length) upload.resumeFromPreviousUpload(previous[0]);
+        upload.start();
+      })
+      .catch(() => upload.start());
   });
 }
 

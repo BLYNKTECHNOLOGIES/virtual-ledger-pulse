@@ -7,6 +7,7 @@ import { FileText, CheckCircle, AlertCircle, ExternalLink, Download, Video, Uplo
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { UploadKYCDocumentDialog } from "./UploadKYCDocumentDialog";
+import { openStorageDocumentUrl } from "@/lib/storage-multipart";
 
 interface KYCBankInfoProps {
   clientId?: string;
@@ -77,8 +78,8 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
     enabled: !!clientId,
   });
 
-  const handleViewDocument = (url: string) => {
-    if (url) window.open(url, '_blank');
+  const handleViewDocument = async (url: string) => {
+    if (url) await openStorageDocumentUrl(url);
   };
 
   const getStatusIcon = (hasDoc: boolean) => {

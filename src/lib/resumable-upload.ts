@@ -40,6 +40,11 @@ export interface ResumableUploadOptions {
   onProgress?: (percent: number) => void;
 }
 
+const isNetworkOrTusError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return /network|fetch|timeout|abort|tus|resumable|large file|failed to fetch|load failed|request timed out/i.test(message);
+};
+
 /**
  * Upload a (potentially large) file to Supabase Storage using the TUS
  * resumable protocol. Returns once the upload is fully committed.
@@ -52,6 +57,10 @@ export async function resumableUpload({
   upsert = false,
   onProgress,
 }: ResumableUploadOptions): Promise<string> {
+  if (!tus.isSupported) {
+    throw new Error("Large file upload is not supported in this browser. Please use latest Chrome/Edge and try again.");
+  }
+
   const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
   // Small uploads sent through supabase-js automatically carry the publishable
   // key, so they work even for legacy ERP sessions where Supabase Auth has not
@@ -68,10 +77,11 @@ export async function resumableUpload({
       endpoint: `${SUPABASE_STORAGE_URL}/storage/v1/upload/resumable`,
       retryDelays: [0, 3000, 5000, 10000, 20000],
       headers: {
-        apikey: SUPABASE_PUBLISHABLE_KEY,
         authorization: `Bearer ${bearerToken}`,
         "x-upsert": upsert ? "true" : "false",
       },
+      parallelUploads: 1,
+      addRequestId: true,
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       metadata: {
@@ -81,6 +91,11 @@ export async function resumableUpload({
         cacheControl: "3600",
       },
       chunkSize: 6 * 1024 * 1024, // required by Supabase storage TUS
+      onBeforeRequest: (req) => {
+        // Supabase Storage validates the API key on some deployments/proxies.
+        // tus-js-client preserves these headers for POST/PATCH/HEAD requests.
+        req.setHeader("apikey", SUPABASE_PUBLISHABLE_KEY);
+      },
       onError: (error) => reject(new Error(getTusErrorMessage(error))),
       onProgress: (sent, total) => {
         if (onProgress && total > 0) onProgress(Math.round((sent / total) * 100));
@@ -107,12 +122,21 @@ export async function smartUpload(opts: ResumableUploadOptions): Promise<string>
   if (opts.file.size > RESUMABLE_THRESHOLD_BYTES) {
     return resumableUpload({ ...opts, path });
   }
-  const { error } = await supabase.storage
-    .from(opts.bucket)
-    .upload(path, opts.file, {
-      contentType: opts.contentType || (opts.file as File).type || undefined,
-      upsert: opts.upsert,
-    });
-  if (error) throw error;
-  return path;
+  try {
+    const { error } = await supabase.storage
+      .from(opts.bucket)
+      .upload(path, opts.file, {
+        contentType: opts.contentType || (opts.file as File).type || undefined,
+        upsert: opts.upsert,
+      });
+    if (error) throw error;
+    return path;
+  } catch (error) {
+    // Some videos are under the size threshold but still exceed the browser/app
+    // fetch timeout because of slow upload speed. Retry those through TUS.
+    if (isNetworkOrTusError(error)) {
+      return resumableUpload({ ...opts, path });
+    }
+    throw error;
+  }
 }

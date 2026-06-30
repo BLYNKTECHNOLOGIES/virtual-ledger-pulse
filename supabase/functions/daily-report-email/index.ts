@@ -796,7 +796,8 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
       .from("bank_transactions")
       .select("amount, category, description, reference_number, transaction_date, is_reversed")
       .eq("transaction_type", "EXPENSE")
-      .eq("transaction_date", date));
+      .gte("transaction_date", startDate)
+      .lte("transaction_date", endDate));
   const expenseList: { category: string; description: string; amount: number }[] = [];
   const expenseByCategory: Record<string, number> = {};
   let totalExpenses = 0;

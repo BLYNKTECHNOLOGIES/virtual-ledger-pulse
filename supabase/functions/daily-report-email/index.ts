@@ -904,7 +904,9 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
   };
 
   return {
-    date,
+    date: startDate,
+    periodStart: startDate,
+    periodEnd: endDate,
     pnl: {
       grossProfit: fmtNum(grossProfit),
       netProfit: fmtNum(netProfit),

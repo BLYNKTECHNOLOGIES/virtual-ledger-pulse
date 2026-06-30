@@ -208,11 +208,11 @@ export default function TerminalDashboard() {
 
       {/* Metric cards */}
       <MetricCards
-        activeOrders={stats.activeOrders}
-        awaitingPayment={stats.awaitingPayment}
-        awaitingRelease={stats.awaitingRelease}
+        activeOrders={activeOrders}
+        awaitingPayment={awaitingPayment}
+        awaitingRelease={awaitingRelease}
         completedInPeriod={stats.completedInPeriod}
-        appeals={stats.appeals}
+        appeals={appeals}
         totalBuyVolume={stats.totalBuyVolume}
         totalSellVolume={stats.totalSellVolume}
         avgOrderSize={stats.avgOrderSize}

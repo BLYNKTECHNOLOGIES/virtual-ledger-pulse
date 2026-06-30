@@ -32,6 +32,28 @@ function shiftDate(dateStr: string, days: number): string {
   return d.toISOString().split("T")[0];
 }
 
+// Inclusive YYYY-MM-DD range check
+function inDateRange(d: string | null | undefined, start: string, end: string): boolean {
+  return !!d && d >= start && d <= end;
+}
+
+// Returns the previous full calendar month (IST) as an inclusive date range + label.
+function previousIstMonthRange(): { start: string; end: string; label: string } {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const y = ist.getUTCFullYear();
+  const m = ist.getUTCMonth(); // 0-based, current IST month
+  // Last day of the previous month
+  const lastPrev = new Date(Date.UTC(y, m, 0));
+  const start = new Date(Date.UTC(lastPrev.getUTCFullYear(), lastPrev.getUTCMonth(), 1))
+    .toISOString().split("T")[0];
+  const end = lastPrev.toISOString().split("T")[0];
+  const label = new Date(start + "T00:00:00Z").toLocaleDateString("en-IN", {
+    month: "long", year: "numeric", timeZone: "UTC",
+  });
+  return { start, end, label };
+}
+
 // Convert a UTC timestamptz string to IST hour (0-23)
 function istHour(ts: string): number {
   const d = new Date(ts);

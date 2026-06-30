@@ -170,7 +170,7 @@ function walletPlatformLabel(name?: string | null): string {
 }
 
 
-async function fetchAll(supabase: any, table: string, columns: string, date: string) {
+async function fetchAll(supabase: any, table: string, columns: string, startDate: string, endDate: string) {
   const pageSize = 1000;
   let from = 0;
   const out: any[] = [];
@@ -178,7 +178,8 @@ async function fetchAll(supabase: any, table: string, columns: string, date: str
     const { data, error } = await supabase
       .from(table)
       .select(columns)
-      .eq("order_date", date)
+      .gte("order_date", startDate)
+      .lte("order_date", endDate)
       .range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;

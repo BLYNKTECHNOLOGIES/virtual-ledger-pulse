@@ -132,6 +132,34 @@ export default function TerminalDashboard() {
 
   const stats = useMemo(() => computeOrderStats(orders, filterBounds), [orders, filterBounds]);
 
+  // ── Live workflow counts ──────────────────────────────────────────────
+  // Active / Awaiting Payment / Awaiting Release / Appeals reflect the CURRENT
+  // live state of open orders, which the cached history table cannot do (its
+  // statuses are frozen at the last sync). Binance's listActiveOrders endpoint
+  // is the source of truth for these and is polled every 5s.
+  const { data: activeOrdersData } = useBinanceActiveOrders();
+  const liveStats = useMemo(() => {
+    const list = (activeOrdersData as any)?.data || (activeOrdersData as any)?.list || activeOrdersData;
+    if (!Array.isArray(list)) return null;
+    let activeOrders = 0, awaitingPayment = 0, awaitingRelease = 0, appeals = 0;
+    for (const o of list) {
+      // Binance returns numeric orderStatus on the active endpoint:
+      // 1 TRADING · 2/3 BUYER_PAYED · 5/8 APPEAL
+      const s = typeof o.orderStatus === 'number' ? o.orderStatus : Number(o.orderStatus);
+      if (s === 1) { activeOrders++; awaitingPayment++; }
+      else if (s === 2 || s === 3) { activeOrders++; awaitingRelease++; }
+      else if (s === 5 || s === 8) { activeOrders++; appeals++; }
+    }
+    return { activeOrders, awaitingPayment, awaitingRelease, appeals };
+  }, [activeOrdersData]);
+
+  // Prefer live counts for workflow states; fall back to cached history when the
+  // live endpoint is unavailable so the cards never go blank.
+  const activeOrders = liveStats?.activeOrders ?? stats.activeOrders;
+  const awaitingPayment = liveStats?.awaitingPayment ?? stats.awaitingPayment;
+  const awaitingRelease = liveStats?.awaitingRelease ?? stats.awaitingRelease;
+  const appeals = liveStats?.appeals ?? stats.appeals;
+
   const periodLabel = getFilterLabel(filter);
 
   const lastSyncLabel = syncMeta?.last_sync_at

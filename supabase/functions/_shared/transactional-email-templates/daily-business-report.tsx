@@ -57,20 +57,26 @@ interface DailyReportProps {
 const formatDate = (d?: string) =>
   d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : ''
 
-const DailyBusinessReport = ({ date, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff }: DailyReportProps) => (
+const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, periodEnd, pnl, sales, purchases, wallet, expenses, shifts, platformRates, stats, assetValue, charts, kyc, rejected, erpDiff }: DailyReportProps) => {
+  const reportKind = isMonthly ? 'Monthly Business Report' : 'Daily Business Report'
+  const periodTitle = isMonthly ? (periodLabel || formatDate(periodStart)) : formatDate(date)
+  const introText = isMonthly
+    ? `Full-month summary (${formatDate(periodStart)} – ${formatDate(periodEnd)}, IST) of P&\u00A0L, sales, purchases, wallet balances and key statistics.`
+    : 'Full-day summary (12:00 AM – 12:00 AM IST) of P&\u00A0L, sales, purchases, wallet balances and key statistics.'
+  return (
   <Html lang="en" dir="ltr">
     <Head />
-    <Preview>{`Daily Business Report — ${formatDate(date)}`}</Preview>
+    <Preview>{`${reportKind} — ${periodTitle}`}</Preview>
     <Body style={main}>
       <Container style={container}>
         <Section style={headerBar}>
           <Text style={headerText}>{SITE_NAME}</Text>
-          <Text style={headerSub}>Daily Business Report</Text>
+          <Text style={headerSub}>{reportKind}</Text>
         </Section>
 
         <Section style={content}>
-          <Heading style={h1}>Report for {formatDate(date)}</Heading>
-          <Text style={text}>Full-day summary (12:00 AM – 12:00 AM IST) of P&amp;L, sales, purchases, wallet balances and key statistics.</Text>
+          <Heading style={h1}>Report for {periodTitle}</Heading>
+          <Text style={text}>{introText}</Text>
 
           {/* KPI cards */}
           {pnl && (

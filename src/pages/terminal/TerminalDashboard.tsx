@@ -17,6 +17,7 @@ import {
   deserializeTimeFilter,
 } from '@/components/terminal/dashboard/TimePeriodFilter';
 import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
+import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncMetadata } from '@/hooks/useBinanceOrderSync';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';

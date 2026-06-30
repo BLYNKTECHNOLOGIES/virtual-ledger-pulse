@@ -52,23 +52,46 @@ export function useCounterpartyChatHistory(
   }
 
   const fetchPastOrders = useCallback(async () => {
-    // Wait for verifiedName to be available before querying (nicknames are masked and won't match)
-    if (!counterpartyVerifiedName || !hasMore || isLoading) return;
+    if (!hasMore || isLoading) return;
     setIsLoading(true);
 
     try {
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
-        cachedVerifiedNameRef.current = counterpartyVerifiedName;
-        const { data, error } = await supabase
-          .from('binance_order_history')
-          .select('order_number, trade_type, asset, total_price, fiat_unit, create_time')
-          .eq('verified_name', counterpartyVerifiedName!)
-          .neq('order_number', currentOrderNumber)
-          .order('create_time', { ascending: false });
+        // Resolve the verified name: prefer the prop, otherwise look it up from the
+        // current order's stored history (live order detail is often empty for
+        // completed/older orders, which previously left this query unable to run).
+        let resolvedName = counterpartyVerifiedName;
+        if (!resolvedName) {
+          const { data: current } = await supabase
+            .from('binance_order_history')
+            .select('verified_name')
+            .eq('order_number', currentOrderNumber)
+            .maybeSingle();
+          resolvedName = current?.verified_name || undefined;
+        }
+        cachedVerifiedNameRef.current = resolvedName;
 
-        if (error) throw error;
-        allPastOrdersRef.current = data || [];
+        // Match by verified name when available, otherwise fall back to the
+        // (masked) counterparty nickname so the lookup still resolves.
+        const matchClauses: string[] = [];
+        if (resolvedName) matchClauses.push(`verified_name.eq.${resolvedName}`);
+        if (counterpartyNickname) matchClauses.push(`counter_part_nick_name.eq.${counterpartyNickname}`);
+
+        if (matchClauses.length === 0) {
+          // Nothing to match on — no past orders can be resolved.
+          allPastOrdersRef.current = [];
+        } else {
+          const { data, error } = await supabase
+            .from('binance_order_history')
+            .select('order_number, trade_type, asset, total_price, fiat_unit, create_time')
+            .or(matchClauses.join(','))
+            .neq('order_number', currentOrderNumber)
+            .order('create_time', { ascending: false });
+
+          if (error) throw error;
+          allPastOrdersRef.current = data || [];
+        }
       }
 
       const allOrders = allPastOrdersRef.current;

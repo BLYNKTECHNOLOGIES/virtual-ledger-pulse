@@ -380,7 +380,7 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   // erp_action_queue (deposits / withdrawals)
   for (const r of actionQueueRes) {
     const at = r.processed_at || r.updated_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const isDeposit = r.movement_type === "deposit";
     const amount = Number(r.amount || 0);
     rows.push({
@@ -398,7 +398,7 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   // terminal buys
   for (const r of terminalBuyRes) {
     const at = r.reviewed_at || r.updated_at || r.synced_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const od = r.order_data || {};
     const qty = parseFloat(od.amount || "0");
     const asset = String(od.asset || "USDT").toUpperCase();
@@ -417,7 +417,7 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   // terminal sales
   for (const r of terminalSaleRes) {
     const at = r.reviewed_at || r.updated_at || r.synced_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const od = r.order_data || {};
     const qty = parseFloat(od.amount || "0");
     const asset = String(od.asset || "USDT").toUpperCase();
@@ -436,7 +436,7 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   // small buys batches
   for (const r of smallBuysRes) {
     const at = r.reviewed_at || r.updated_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const asset = r.asset_code || "USDT";
     const qty = Number(r.total_quantity || 0);
     rows.push({
@@ -454,7 +454,7 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   // small sales batches
   for (const r of smallSalesRes) {
     const at = r.reviewed_at || r.updated_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const asset = r.asset_code || "USDT";
     const qty = Number(r.total_quantity || 0);
     rows.push({
@@ -472,7 +472,7 @@ async function buildRejected(supabase: any, startDate: string, endDate: string) 
   // conversions
   for (const r of conversionRes) {
     const at = r.rejected_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const asset = r.asset_code || "";
     const qty = Number(r.quantity || 0);
     rows.push({

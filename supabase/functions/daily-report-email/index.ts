@@ -768,8 +768,8 @@ async function buildReport(supabase: any, startDate: string, endDate: string) {
 
   // ----- Fees -----
 
-  const dayStart = date + "T00:00:00";
-  const dayEnd = date + "T23:59:59";
+  const dayStart = startDate + "T00:00:00";
+  const dayEnd = endDate + "T23:59:59";
   const feeRows = await fetchAllRows(() =>
     supabase
       .from("wallet_transactions")

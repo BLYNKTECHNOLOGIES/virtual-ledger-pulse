@@ -110,7 +110,7 @@ async function buildKyc(supabase: any, startDate: string, endDate: string) {
     if (!prev || d < prev) firstSale.set(k, d);
   }
   let newClients = 0;
-  for (const d of firstSale.values()) if (d === date) newClients += 1;
+  for (const d of firstSale.values()) if (inDateRange(d, startDate, endDate)) newClients += 1;
 
   return {
     newClients,

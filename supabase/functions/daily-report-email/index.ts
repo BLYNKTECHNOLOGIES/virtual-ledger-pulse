@@ -32,6 +32,28 @@ function shiftDate(dateStr: string, days: number): string {
   return d.toISOString().split("T")[0];
 }
 
+// Inclusive YYYY-MM-DD range check
+function inDateRange(d: string | null | undefined, start: string, end: string): boolean {
+  return !!d && d >= start && d <= end;
+}
+
+// Returns the previous full calendar month (IST) as an inclusive date range + label.
+function previousIstMonthRange(): { start: string; end: string; label: string } {
+  const now = new Date();
+  const ist = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
+  const y = ist.getUTCFullYear();
+  const m = ist.getUTCMonth(); // 0-based, current IST month
+  // Last day of the previous month
+  const lastPrev = new Date(Date.UTC(y, m, 0));
+  const start = new Date(Date.UTC(lastPrev.getUTCFullYear(), lastPrev.getUTCMonth(), 1))
+    .toISOString().split("T")[0];
+  const end = lastPrev.toISOString().split("T")[0];
+  const label = new Date(start + "T00:00:00Z").toLocaleDateString("en-IN", {
+    month: "long", year: "numeric", timeZone: "UTC",
+  });
+  return { start, end, label };
+}
+
 // Convert a UTC timestamptz string to IST hour (0-23)
 function istHour(ts: string): number {
   const d = new Date(ts);
@@ -52,7 +74,7 @@ function istDateStr(ts?: string | null): string | null {
 // `client_onboarding_approvals` is the buyer-side KYC approval ledger (every row is
 // created from a sales order, i.e. a client BUYING crypto from us). Sellers go through
 // purchase orders and never create rows here, so this table is buyer-only by design.
-async function buildKyc(supabase: any, date: string) {
+async function buildKyc(supabase: any, startDate: string, endDate: string) {
   const rows = await fetchAllRows(() =>
     supabase
       .from("client_onboarding_approvals")
@@ -68,7 +90,7 @@ async function buildKyc(supabase: any, date: string) {
   for (const r of rows) {
     const k = nameKey(r);
     if (!k) continue;
-    if (r.approval_status === "APPROVED" && istDateStr(r.reviewed_at) === date) approvedSet.add(k);
+    if (r.approval_status === "APPROVED" && inDateRange(istDateStr(r.reviewed_at), startDate, endDate)) approvedSet.add(k);
     if (r.approval_status === "PENDING") pendingSet.add(k);
   }
 
@@ -88,7 +110,7 @@ async function buildKyc(supabase: any, date: string) {
     if (!prev || d < prev) firstSale.set(k, d);
   }
   let newClients = 0;
-  for (const d of firstSale.values()) if (d === date) newClients += 1;
+  for (const d of firstSale.values()) if (inDateRange(d, startDate, endDate)) newClients += 1;
 
   return {
     newClients,
@@ -148,7 +170,7 @@ function walletPlatformLabel(name?: string | null): string {
 }
 
 
-async function fetchAll(supabase: any, table: string, columns: string, date: string) {
+async function fetchAll(supabase: any, table: string, columns: string, startDate: string, endDate: string) {
   const pageSize = 1000;
   let from = 0;
   const out: any[] = [];
@@ -156,7 +178,8 @@ async function fetchAll(supabase: any, table: string, columns: string, date: str
     const { data, error } = await supabase
       .from(table)
       .select(columns)
-      .eq("order_date", date)
+      .gte("order_date", startDate)
+      .lte("order_date", endDate)
       .range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -317,7 +340,7 @@ function fmtRejTime(ts: string | null): string {
   return `${hh}:${mm} IST`;
 }
 
-async function buildRejected(supabase: any, date: string) {
+async function buildRejected(supabase: any, startDate: string, endDate: string) {
   const [
     actionQueueRes,
     terminalBuyRes,
@@ -357,7 +380,7 @@ async function buildRejected(supabase: any, date: string) {
   // erp_action_queue (deposits / withdrawals)
   for (const r of actionQueueRes) {
     const at = r.processed_at || r.updated_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const isDeposit = r.movement_type === "deposit";
     const amount = Number(r.amount || 0);
     rows.push({
@@ -375,7 +398,7 @@ async function buildRejected(supabase: any, date: string) {
   // terminal buys
   for (const r of terminalBuyRes) {
     const at = r.reviewed_at || r.updated_at || r.synced_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const od = r.order_data || {};
     const qty = parseFloat(od.amount || "0");
     const asset = String(od.asset || "USDT").toUpperCase();
@@ -394,7 +417,7 @@ async function buildRejected(supabase: any, date: string) {
   // terminal sales
   for (const r of terminalSaleRes) {
     const at = r.reviewed_at || r.updated_at || r.synced_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const od = r.order_data || {};
     const qty = parseFloat(od.amount || "0");
     const asset = String(od.asset || "USDT").toUpperCase();
@@ -413,7 +436,7 @@ async function buildRejected(supabase: any, date: string) {
   // small buys batches
   for (const r of smallBuysRes) {
     const at = r.reviewed_at || r.updated_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const asset = r.asset_code || "USDT";
     const qty = Number(r.total_quantity || 0);
     rows.push({
@@ -431,7 +454,7 @@ async function buildRejected(supabase: any, date: string) {
   // small sales batches
   for (const r of smallSalesRes) {
     const at = r.reviewed_at || r.updated_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const asset = r.asset_code || "USDT";
     const qty = Number(r.total_quantity || 0);
     rows.push({
@@ -449,7 +472,7 @@ async function buildRejected(supabase: any, date: string) {
   // conversions
   for (const r of conversionRes) {
     const at = r.rejected_at || null;
-    if (istDateStr(at) !== date) continue;
+    if (!inDateRange(istDateStr(at), startDate, endDate)) continue;
     const asset = r.asset_code || "";
     const qty = Number(r.quantity || 0);
     rows.push({
@@ -552,28 +575,31 @@ async function buildErpDiff(supabase: any) {
 
 // ---------- aggregation ----------
 
-async function buildReport(supabase: any, date: string) {
-  const prevDate = shiftDate(date, -1);
+async function buildReport(supabase: any, startDate: string, endDate: string) {
+  // Previous equal-length period immediately before the report period (for comparison).
+  const periodDays = Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1;
+  const prevEnd = shiftDate(startDate, -1);
+  const prevStart = shiftDate(prevEnd, -(periodDays - 1));
 
   // Total Asset Value snapshot (current, mirrors the Financials tab widget)
   const av = await buildAssetValue(supabase);
 
   // Buyer-client KYC onboarding summary (low-priority section, shown at the bottom)
-  const kyc = await buildKyc(supabase, date);
+  const kyc = await buildKyc(supabase, startDate, endDate);
 
-  // Rejected ERP entries on the report day (audit section, at the very bottom)
-  const rejected = await buildRejected(supabase, date);
+  // Rejected ERP entries in the report period (audit section, at the very bottom)
+  const rejected = await buildRejected(supabase, startDate, endDate);
 
   // ERP vs Terminal USDT balance difference (captured at 4 AM, erased after send)
   const erpDiff = await buildErpDiff(supabase);
 
 
-  // Sales + purchases for the day and the previous day (for comparison)
+  // Sales + purchases for the period and the previous period (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
-    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", date),
-    fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", date),
-    fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevDate),
-    fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevDate),
+    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", startDate, endDate),
+    fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", startDate, endDate),
+    fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevStart, prevEnd),
+    fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevStart, prevEnd),
   ]);
 
   // product id -> name map for sales asset breakdown
@@ -742,8 +768,8 @@ async function buildReport(supabase: any, date: string) {
 
   // ----- Fees -----
 
-  const dayStart = date + "T00:00:00";
-  const dayEnd = date + "T23:59:59";
+  const dayStart = startDate + "T00:00:00";
+  const dayEnd = endDate + "T23:59:59";
   const feeRows = await fetchAllRows(() =>
     supabase
       .from("wallet_transactions")
@@ -770,7 +796,8 @@ async function buildReport(supabase: any, date: string) {
       .from("bank_transactions")
       .select("amount, category, description, reference_number, transaction_date, is_reversed")
       .eq("transaction_type", "EXPENSE")
-      .eq("transaction_date", date));
+      .gte("transaction_date", startDate)
+      .lte("transaction_date", endDate));
   const expenseList: { category: string; description: string; amount: number }[] = [];
   const expenseByCategory: Record<string, number> = {};
   let totalExpenses = 0;
@@ -877,7 +904,9 @@ async function buildReport(supabase: any, date: string) {
   };
 
   return {
-    date,
+    date: startDate,
+    periodStart: startDate,
+    periodEnd: endDate,
     pnl: {
       grossProfit: fmtNum(grossProfit),
       netProfit: fmtNum(netProfit),
@@ -962,10 +991,35 @@ serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* no body */ }
 
-    const date: string = body.date || previousIstDate();
+    const isMonthly = body.mode === "monthly";
     const recipients: string[] = body.recipients || RECIPIENTS;
 
-    const report = await buildReport(supabase, date);
+    // Resolve the report period.
+    let startDate: string;
+    let endDate: string;
+    let periodLabel: string;
+    if (isMonthly) {
+      if (body.start && body.end) {
+        startDate = body.start;
+        endDate = body.end;
+        periodLabel = new Date(startDate + "T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+      } else {
+        const r = previousIstMonthRange();
+        startDate = r.start;
+        endDate = r.end;
+        periodLabel = r.label;
+      }
+    } else {
+      startDate = body.date || previousIstDate();
+      endDate = startDate;
+      periodLabel = "";
+    }
+
+    const report: any = await buildReport(supabase, startDate, endDate);
+    report.isMonthly = isMonthly;
+    report.periodLabel = periodLabel;
+
+    const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${startDate}`;
 
     const results: { recipient: string; success: boolean; error?: string }[] = [];
     for (const recipient of recipients) {
@@ -973,7 +1027,7 @@ serve(async (req) => {
         body: {
           templateName: "daily-business-report",
           recipientEmail: recipient,
-          idempotencyKey: `daily-report-${date}-${recipient}`,
+          idempotencyKey: `${idemPrefix}-${recipient}`,
           templateData: report,
         },
       });
@@ -983,9 +1037,10 @@ serve(async (req) => {
 
     const allOk = results.every((r) => r.success);
 
-    // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the report
+    // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the DAILY report
     // has been sent successfully (per requirement: stored only until the mail goes out).
-    if (allOk) {
+    // The monthly report must NOT erase these daily snapshots.
+    if (allOk && !isMonthly) {
       const { error: clearErr } = await supabase
         .from("erp_terminal_balance_snapshots")
         .delete()
@@ -994,7 +1049,7 @@ serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({ success: allOk, date, recipients: results }), {
+    return new Response(JSON.stringify({ success: allOk, date: startDate, periodStart: startDate, periodEnd: endDate, isMonthly, recipients: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

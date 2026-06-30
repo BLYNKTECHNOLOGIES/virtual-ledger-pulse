@@ -90,7 +90,7 @@ async function buildKyc(supabase: any, startDate: string, endDate: string) {
   for (const r of rows) {
     const k = nameKey(r);
     if (!k) continue;
-    if (r.approval_status === "APPROVED" && istDateStr(r.reviewed_at) === date) approvedSet.add(k);
+    if (r.approval_status === "APPROVED" && inDateRange(istDateStr(r.reviewed_at), startDate, endDate)) approvedSet.add(k);
     if (r.approval_status === "PENDING") pendingSet.add(k);
   }
 

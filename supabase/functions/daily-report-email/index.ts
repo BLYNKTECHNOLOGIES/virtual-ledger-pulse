@@ -340,7 +340,7 @@ function fmtRejTime(ts: string | null): string {
   return `${hh}:${mm} IST`;
 }
 
-async function buildRejected(supabase: any, date: string) {
+async function buildRejected(supabase: any, startDate: string, endDate: string) {
   const [
     actionQueueRes,
     terminalBuyRes,

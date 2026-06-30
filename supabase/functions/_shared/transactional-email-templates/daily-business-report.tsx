@@ -456,7 +456,8 @@ const DailyBusinessReport = ({ date, isMonthly, periodLabel, periodStart, period
       </Container>
     </Body>
   </Html>
-)
+  )
+}
 
 const Row = ({ label, value }: { label: string; value: string }) => (
   <table style={rowTbl}><tbody><tr>

@@ -575,28 +575,31 @@ async function buildErpDiff(supabase: any) {
 
 // ---------- aggregation ----------
 
-async function buildReport(supabase: any, date: string) {
-  const prevDate = shiftDate(date, -1);
+async function buildReport(supabase: any, startDate: string, endDate: string) {
+  // Previous equal-length period immediately before the report period (for comparison).
+  const periodDays = Math.round((Date.parse(endDate) - Date.parse(startDate)) / 86400000) + 1;
+  const prevEnd = shiftDate(startDate, -1);
+  const prevStart = shiftDate(prevEnd, -(periodDays - 1));
 
   // Total Asset Value snapshot (current, mirrors the Financials tab widget)
   const av = await buildAssetValue(supabase);
 
   // Buyer-client KYC onboarding summary (low-priority section, shown at the bottom)
-  const kyc = await buildKyc(supabase, date);
+  const kyc = await buildKyc(supabase, startDate, endDate);
 
-  // Rejected ERP entries on the report day (audit section, at the very bottom)
-  const rejected = await buildRejected(supabase, date);
+  // Rejected ERP entries in the report period (audit section, at the very bottom)
+  const rejected = await buildRejected(supabase, startDate, endDate);
 
   // ERP vs Terminal USDT balance difference (captured at 4 AM, erased after send)
   const erpDiff = await buildErpDiff(supabase);
 
 
-  // Sales + purchases for the day and the previous day (for comparison)
+  // Sales + purchases for the period and the previous period (for comparison)
   const [salesRaw, purchasesRaw, salesPrevRaw, purchasesPrevRaw] = await Promise.all([
-    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", date),
-    fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", date),
-    fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevDate),
-    fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevDate),
+    fetchAll(supabase, "sales_orders", "id, quantity, price_per_unit, total_amount, status, product_id, client_name, created_at, effective_usdt_qty, effective_usdt_rate, platform, source, wallet_id", startDate, endDate),
+    fetchAll(supabase, "purchase_orders", "id, quantity, price_per_unit, total_amount, status, product_name, supplier_name, created_at, effective_usdt_qty, effective_usdt_rate, source, wallet_id", startDate, endDate),
+    fetchAll(supabase, "sales_orders", "id, total_amount, status, effective_usdt_qty, effective_usdt_rate, quantity", prevStart, prevEnd),
+    fetchAll(supabase, "purchase_orders", "id, total_amount, status, effective_usdt_qty", prevStart, prevEnd),
   ]);
 
   // product id -> name map for sales asset breakdown

@@ -21,6 +21,10 @@ const SITE_NAME = 'BLYNK Virtual Technologies'
 interface AssetRow { asset: string; qty: string; value: string; count: number }
 interface DailyReportProps {
   date?: string
+  isMonthly?: boolean
+  periodLabel?: string
+  periodStart?: string
+  periodEnd?: string
   pnl?: {
     grossProfit: string; netProfit: string; avgSalesRate: string;
     effectivePurchaseRate: string; npm: string; totalFees: string; netProfitPositive: boolean

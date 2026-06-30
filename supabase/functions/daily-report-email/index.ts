@@ -991,10 +991,35 @@ serve(async (req) => {
     let body: any = {};
     try { body = await req.json(); } catch { /* no body */ }
 
-    const date: string = body.date || previousIstDate();
+    const isMonthly = body.mode === "monthly";
     const recipients: string[] = body.recipients || RECIPIENTS;
 
-    const report = await buildReport(supabase, date);
+    // Resolve the report period.
+    let startDate: string;
+    let endDate: string;
+    let periodLabel: string;
+    if (isMonthly) {
+      if (body.start && body.end) {
+        startDate = body.start;
+        endDate = body.end;
+        periodLabel = new Date(startDate + "T00:00:00Z").toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+      } else {
+        const r = previousIstMonthRange();
+        startDate = r.start;
+        endDate = r.end;
+        periodLabel = r.label;
+      }
+    } else {
+      startDate = body.date || previousIstDate();
+      endDate = startDate;
+      periodLabel = "";
+    }
+
+    const report: any = await buildReport(supabase, startDate, endDate);
+    report.isMonthly = isMonthly;
+    report.periodLabel = periodLabel;
+
+    const idemPrefix = isMonthly ? `monthly-report-${startDate}` : `daily-report-${startDate}`;
 
     const results: { recipient: string; success: boolean; error?: string }[] = [];
     for (const recipient of recipients) {
@@ -1002,7 +1027,7 @@ serve(async (req) => {
         body: {
           templateName: "daily-business-report",
           recipientEmail: recipient,
-          idempotencyKey: `daily-report-${date}-${recipient}`,
+          idempotencyKey: `${idemPrefix}-${recipient}`,
           templateData: report,
         },
       });
@@ -1012,9 +1037,10 @@ serve(async (req) => {
 
     const allOk = results.every((r) => r.success);
 
-    // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the report
+    // Erase the consumed 4 AM ERP-vs-Terminal balance snapshots once the DAILY report
     // has been sent successfully (per requirement: stored only until the mail goes out).
-    if (allOk) {
+    // The monthly report must NOT erase these daily snapshots.
+    if (allOk && !isMonthly) {
       const { error: clearErr } = await supabase
         .from("erp_terminal_balance_snapshots")
         .delete()
@@ -1023,7 +1049,7 @@ serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({ success: allOk, date, recipients: results }), {
+    return new Response(JSON.stringify({ success: allOk, date: startDate, periodStart: startDate, periodEnd: endDate, isMonthly, recipients: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

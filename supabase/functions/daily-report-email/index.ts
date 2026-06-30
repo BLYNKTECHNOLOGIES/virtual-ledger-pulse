@@ -74,7 +74,7 @@ function istDateStr(ts?: string | null): string | null {
 // `client_onboarding_approvals` is the buyer-side KYC approval ledger (every row is
 // created from a sales order, i.e. a client BUYING crypto from us). Sellers go through
 // purchase orders and never create rows here, so this table is buyer-only by design.
-async function buildKyc(supabase: any, date: string) {
+async function buildKyc(supabase: any, startDate: string, endDate: string) {
   const rows = await fetchAllRows(() =>
     supabase
       .from("client_onboarding_approvals")

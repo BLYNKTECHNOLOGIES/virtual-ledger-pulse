@@ -150,7 +150,7 @@ export function StatisticsTab() {
       const hrEmployees = await fetchAllPaginated<any>(() =>
         supabase
           .from('hr_employees')
-          .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info(department_id, job_role, departments(name))')
+          .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id, job_role, departments(name))')
           .order('id', { ascending: true }));
       
       // Map to compatible format

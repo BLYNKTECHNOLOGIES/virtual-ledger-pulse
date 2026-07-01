@@ -887,6 +887,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerName,
           compliance_notes: 'Auto-approved with primary record'
         })
         .eq('approval_status', 'PENDING')

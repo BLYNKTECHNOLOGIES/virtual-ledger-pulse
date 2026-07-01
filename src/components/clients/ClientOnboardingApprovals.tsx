@@ -1927,7 +1927,7 @@ export function ClientOnboardingApprovals() {
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
                   <TableCell>₹{approval.order_amount.toLocaleString('en-IN')}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
-                  <TableCell>{approval.reviewed_by || '-'}</TableCell>
+                  <TableCell>{(approval.reviewed_by && (reviewerNameMap?.[approval.reviewed_by] || approval.reviewed_by)) || '-'}</TableCell>
                   <TableCell>
                     {approval.reviewed_at ? new Date(approval.reviewed_at).toLocaleDateString() : '-'}
                   </TableCell>

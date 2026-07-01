@@ -879,8 +879,18 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Merge in the on-demand direct order lookup result when searching for a full
+    // order number that isn't present locally. Bypasses status/date/trade filters so
+    // the operator always sees the order they explicitly searched for.
+    if (directOrder && debouncedSearch && !filtered.some(r => r.binance_order_number === directOrder.orderNumber)) {
+      const record = binanceToOrderRecord(directOrder);
+      record.order_status = extractAppealStatusFromRaw(directOrder.raw_data) || mapOrderStatusCode(directOrder.orderStatus);
+      (record as any).exchange_account_id = directOrder._exchangeAccountId ?? null;
+      filtered = [record, ...filtered];
+    }
+
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, debouncedSearch, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);

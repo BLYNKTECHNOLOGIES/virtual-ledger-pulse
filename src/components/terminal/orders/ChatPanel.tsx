@@ -25,10 +25,11 @@ interface Props {
   counterpartyNickname: string;
   tradeType?: string;
   counterpartyVerifiedName?: string;
+  exchangeAccountId?: string | null;
 }
 
-export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName }: Props) {
-  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber);
+export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId }: Props) {
+  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [] } = useArchivedBinanceChatMessages(orderNumber);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
@@ -50,7 +51,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   useEffect(() => {
     if (orderNumber) {
       markOrderChatRead(orderNumber);
-      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }).catch((err) => {
+      callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch((err) => {
         console.warn('Failed to mark Binance chat read:', err);
       });
     }
@@ -59,7 +60,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   useEffect(() => {
     if (!orderNumber) return;
     let cancelled = false;
-    callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' })
+    callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' }, exchangeAccountId ?? undefined)
       .catch((err) => {
         if (!cancelled) console.warn('Binance chat archive sync failed:', err);
       });

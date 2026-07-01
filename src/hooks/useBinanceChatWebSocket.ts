@@ -58,8 +58,14 @@ async function wsDataToString(data: any): Promise<string> {
 let tempIdCounter = 1;
 
 export function useBinanceChatWebSocket(
-  activeOrderNo: string | null
+  activeOrderNo: string | null,
+  accountId?: string | null
 ): UseBinanceChatWebSocketReturn {
+  // The chat WebSocket + REST credentials MUST be scoped to the order's owning
+  // Binance account. In multi-account / "All accounts" mode, omitting this makes
+  // the proxy fall back to the primary account and stream a DIFFERENT order's chat.
+  const accountIdRef = useRef<string | null>(accountId ?? null);
+  accountIdRef.current = accountId ?? null;
   const [messages, setMessages] = useState<TrackedMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -122,7 +128,7 @@ export function useBinanceChatWebSocket(
   const fetchGroupId = useCallback(async (orderNo: string) => {
     if (groupIdMapRef.current.has(orderNo)) return;
     try {
-      const result = await callBinanceAds('getChatGroupId', { orderNo });
+      const result = await callBinanceAds('getChatGroupId', { orderNo }, accountIdRef.current ?? undefined);
       const data = result?.data?.data || result?.data || result;
       const gid = data?.groupId || data?.chatGroupId;
       if (gid) {
@@ -156,7 +162,7 @@ export function useBinanceChatWebSocket(
           page,
           rows: 50,
           sort: 'asc',
-        });
+        }, accountIdRef.current ?? undefined);
         const list = extractBinanceChatMessages(result);
         const restGroupId = getBinanceChatGroupId(result);
         if (restGroupId && orderNo) {
@@ -177,9 +183,18 @@ export function useBinanceChatWebSocket(
         }
       }
 
-      if (allMessages.length > 0) {
+      // Defensive: the Binance getChatMessages endpoint occasionally returns
+      // messages for a DIFFERENT (usually the most recent active) order. Drop
+      // any message that explicitly carries a mismatching order number so a
+      // foreign order's chat (and PAN/bank docs) can never render here.
+      const belongsToOrder = allMessages.filter((msg) => {
+        const msgOrderNo = msg.orderNo || msg.topicId || msg.order?.orderNo || null;
+        return !msgOrderNo || String(msgOrderNo) === String(orderNo);
+      });
+
+      if (belongsToOrder.length > 0) {
         const seen = new Set<string>();
-        const deduped = allMessages.filter((msg) => {
+        const deduped = belongsToOrder.filter((msg) => {
           const key = String(msg.id || msg.uuid || `${msg.createTime}-${msg.type}-${msg.content || msg.message || ''}`);
           if (seen.has(key)) return false;
           seen.add(key);
@@ -322,7 +337,7 @@ export function useBinanceChatWebSocket(
     setError(null);
 
     try {
-      const credResult = await callBinanceAds('getChatCredential');
+      const credResult = await callBinanceAds('getChatCredential', {}, accountIdRef.current ?? undefined);
       const credData = credResult?.data?.data || credResult?.data || credResult;
       const relay: RelayInfo | undefined = credResult?.data?._relay || credResult?._relay;
 

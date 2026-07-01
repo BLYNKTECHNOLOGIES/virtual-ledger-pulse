@@ -50,6 +50,8 @@ export interface P2POrderRecord {
   additional_kyc_verify?: number; // 0=none, 1=pending, 2=verified
   appeal_status?: string | null;
   appeal_order_status?: string | null;
+  // Owning Binance account (for per-order account-scoped live calls)
+  exchange_account_id?: string | null;
   // Joined
   counterparty?: P2PCounterparty;
 }

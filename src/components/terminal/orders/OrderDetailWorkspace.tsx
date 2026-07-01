@@ -27,14 +27,19 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
   const [rightPanel, setRightPanel] = useState<'profile' | 'internal'>('internal');
   const [mobileTab, setMobileTab] = useState<'details' | 'chat' | 'internal' | 'profile'>('internal');
   const isMobile = useIsMobile();
+  // The order's owning Binance account. Every per-order live Binance call
+  // (chat, order detail, live status) MUST be scoped to this account —
+  // otherwise, in multi-account / "All accounts" mode the proxy falls back to
+  // the primary account and returns a DIFFERENT order's data (mismatched chat).
+  const orderAccountId = (order as any).exchange_account_id ?? null;
   const { data: counterpartyById } = useP2PCounterparty(order.counterparty_id);
   const { data: counterpartyByNick } = useP2PCounterpartyByNickname(!order.counterparty_id ? order.counterparty_nickname : null);
   const counterparty = counterpartyById || counterpartyByNick;
-  const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number);
+  const { data: liveDetail } = useBinanceOrderDetail(order.binance_order_number, orderAccountId);
   const { data: storedRiskSnapshot } = useBinanceOrderRiskSnapshot(order.binance_order_number);
   const { data: commissionSnapshots } = useOrderCommissionSnapshots(order.binance_order_number);
-  const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number);
-  const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number);
+  const { data: historyOrder } = useBinanceOrderLiveStatus(order.binance_order_number, orderAccountId);
+  const { data: chatMessages } = useBinanceChatMessages(order.binance_order_number, orderAccountId);
 
   const hasPaymentMarkedSignal = useMemo(() => {
     const extractItems = (response: unknown): any[] => {
@@ -153,6 +158,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
       counterpartyNickname={order.counterparty_nickname}
       tradeType={order.trade_type}
       counterpartyVerifiedName={counterpartyVerifiedName}
+      exchangeAccountId={orderAccountId}
     />
   );
 

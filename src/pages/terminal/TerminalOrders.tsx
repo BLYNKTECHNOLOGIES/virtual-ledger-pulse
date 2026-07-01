@@ -418,6 +418,63 @@ function TerminalOrdersContent() {
     return Array.from(orderMap.values()).sort((a, b) => (b.createTime || 0) - (a.createTime || 0));
   }, [activeOrdersData, historyOrders, recentHistory]);
 
+  // ---- On-demand direct order lookup ----
+  // The local search only filters over the currently-loaded set (active orders +
+  // recent/synced history within a limited window). When an operator pastes a full
+  // Binance order number that is older than that window (or already terminal), it
+  // simply won't be present locally and the page shows "No orders found".
+  // To fix this at the root, when the search term is a full numeric order number
+  // that is NOT already loaded, fetch it directly from Binance via getOrderDetail
+  // (which already searches across all configured accounts) and merge it in,
+  // bypassing the status/date/trade filters so it always surfaces.
+  const debouncedSearch = useDebounce(search.trim(), 400);
+  const isFullOrderNumber = /^\d{12,}$/.test(debouncedSearch);
+  const alreadyLoaded = useMemo(
+    () => rawOrders.some((o: any) => String(o.orderNumber) === debouncedSearch),
+    [rawOrders, debouncedSearch],
+  );
+  const { data: directOrder } = useQuery({
+    queryKey: ['binance-direct-order-lookup', debouncedSearch],
+    enabled: isFullOrderNumber && !alreadyLoaded,
+    staleTime: 30 * 1000,
+    retry: false,
+    queryFn: async () => {
+      try {
+        const response = await callBinanceAds('getOrderDetail', { orderNumber: debouncedSearch });
+        const detail = response?.data || response;
+        if (!detail || detail.error) return null;
+        const orderNumber = String(detail.orderNumber ?? debouncedSearch);
+        const nick = detail.counterPartNickName
+          || (detail.tradeType === 'BUY' ? (detail.sellerNickName || detail.sellerNickname) : (detail.buyerNickName || detail.buyerNickname));
+        return {
+          orderNumber,
+          advNo: detail.advNo || detail.advOrderNumber || null,
+          tradeType: detail.tradeType,
+          asset: detail.asset || 'USDT',
+          fiat: detail.fiatUnit || detail.fiat || 'INR',
+          amount: detail.amount,
+          totalPrice: detail.totalPrice,
+          unitPrice: detail.unitPrice || detail.price,
+          commission: detail.commission,
+          orderStatus: detail.orderStatus,
+          createTime: detail.createTime,
+          payMethodName: detail.payMethodName || detail.selectedPayId || null,
+          counterPartNickName: nick,
+          buyerNickname: detail.tradeType === 'SELL' ? nick : undefined,
+          sellerNickname: detail.tradeType === 'BUY' ? nick : undefined,
+          additionalKycVerify: detail.additionalKycVerify ?? 0,
+          raw_data: detail,
+          _exchangeAccountId: detail._exchangeAccountId ?? null,
+          _isDirectLookup: true,
+        };
+      } catch {
+        return null;
+      }
+    },
+  });
+
+
+
   // Build a map of order history statuses for enrichment
   const historyStatusMap = useMemo(() => {
     const map = new Map<string, string>();

@@ -39,7 +39,7 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
     queryFn: async () => {
       const { data, error } = await supabase
         .from('hr_employees')
-        .select('id, first_name, last_name, badge_id, hr_employee_work_info(department_id, job_role, departments(name))')
+        .select('id, first_name, last_name, badge_id, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id, job_role, departments(name))')
         .eq('is_active', true)
         .order('first_name');
       

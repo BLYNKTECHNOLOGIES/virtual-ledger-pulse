@@ -635,6 +635,9 @@ serve(async (req) => {
 
     // Resolve which Binance account this request targets (defaults to primary).
     const requestedAccountId = accountIdFromPayload(payload);
+    // Whether the client explicitly scoped the request to one account. When true,
+    // per-order actions (e.g. getOrderDetail) must NOT fall back to other accounts.
+    const hasExplicitAccount = !!payload.exchange_account_id;
     const acct = await resolveAccount(requestedAccountId);
     const EXCHANGE_ACCOUNT_ID = acct.id;
     const BINANCE_PROXY_URL = acct.proxyUrl;
@@ -1039,7 +1042,7 @@ serve(async (req) => {
         // If historical rows are mapped to the wrong Binance account, Binance returns
         // 83998 "operation is illegal". Try the other configured accounts and persist
         // the account that can actually read the order.
-        if (payload.orderNumber && result?.code === 83998) {
+        if (payload.orderNumber && result?.code === 83998 && !hasExplicitAccount) {
           const accounts = await listActiveAccounts();
           for (const candidate of accounts) {
             if (candidate.id === EXCHANGE_ACCOUNT_ID) continue;

@@ -28,6 +28,7 @@ import type { DateRange } from 'react-day-picker';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
@@ -118,6 +119,7 @@ function TerminalOrdersContent() {
   const deepLinkHandledRef = useRef(false);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const { activeAccountId, isAllAccounts } = useExchangeAccount();
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;
@@ -436,16 +438,27 @@ function TerminalOrdersContent() {
     [rawOrders, lookupOrderNumber],
   );
   const { data: directOrder, isFetching: isFetchingDirectOrder } = useQuery({
-    queryKey: ['binance-direct-order-lookup', lookupOrderNumber],
+    queryKey: ['binance-direct-order-lookup', lookupOrderNumber, activeAccountId],
     // Deep links must always verify the exact order/account before opening chat.
     enabled: isFullOrderNumber && (!!deepLinkedOrderNumber || !alreadyLoaded),
     staleTime: 30 * 1000,
     retry: false,
     queryFn: async () => {
       try {
-        const response = await callBinanceAds('getOrderDetail', { orderNumber: lookupOrderNumber });
+        // Scope the lookup to the currently-selected account. When a specific
+        // Binance account is active (not "All"), only query that account so an
+        // order that belongs to another account never surfaces in the terminal.
+        const scopedAccountId = isAllAccounts ? undefined : activeAccountId;
+        const response = await callBinanceAds('getOrderDetail', { orderNumber: lookupOrderNumber }, scopedAccountId);
         const detail = response?.data?.data || response?.data || response;
         if (!detail || detail.error) return null;
+        const resolvedAccountId = response?._resolvedExchangeAccountId ?? response?._exchangeAccountId ?? detail._exchangeAccountId ?? null;
+        // Hard guard: if a specific account is active and the order actually
+        // belongs to a different account, drop it. It must only reflect under
+        // its own Binance ID (or when "All accounts" is selected).
+        if (!isAllAccounts && resolvedAccountId && resolvedAccountId !== activeAccountId) {
+          return null;
+        }
         const orderNumber = String(detail.orderNumber ?? lookupOrderNumber);
         const nick = detail.counterPartNickName
           || (detail.tradeType === 'BUY' ? (detail.sellerNickName || detail.sellerNickname) : (detail.buyerNickName || detail.buyerNickname));
@@ -467,7 +480,7 @@ function TerminalOrdersContent() {
           sellerNickname: detail.tradeType === 'BUY' ? nick : undefined,
           additionalKycVerify: detail.additionalKycVerify ?? 0,
           raw_data: detail,
-          _exchangeAccountId: response?._resolvedExchangeAccountId ?? response?._exchangeAccountId ?? detail._exchangeAccountId ?? null,
+          _exchangeAccountId: resolvedAccountId,
           _isDirectLookup: true,
         };
       } catch {

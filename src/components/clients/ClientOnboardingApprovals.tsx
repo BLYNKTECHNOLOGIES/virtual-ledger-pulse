@@ -360,6 +360,8 @@ export function ClientOnboardingApprovals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
+  const reviewerName = user ? ([user.firstName, user.lastName].filter(Boolean).join(' ') || user.username) : null;
 
   const closeApprovalDialog = () => {
     setDialogOpen(false);

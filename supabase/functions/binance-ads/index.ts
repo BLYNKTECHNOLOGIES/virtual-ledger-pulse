@@ -635,6 +635,9 @@ serve(async (req) => {
 
     // Resolve which Binance account this request targets (defaults to primary).
     const requestedAccountId = accountIdFromPayload(payload);
+    // Whether the client explicitly scoped the request to one account. When true,
+    // per-order actions (e.g. getOrderDetail) must NOT fall back to other accounts.
+    const hasExplicitAccount = !!payload.exchange_account_id;
     const acct = await resolveAccount(requestedAccountId);
     const EXCHANGE_ACCOUNT_ID = acct.id;
     const BINANCE_PROXY_URL = acct.proxyUrl;

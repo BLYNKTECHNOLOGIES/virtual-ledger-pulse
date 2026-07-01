@@ -444,7 +444,7 @@ function TerminalOrdersContent() {
     queryFn: async () => {
       try {
         const response = await callBinanceAds('getOrderDetail', { orderNumber: lookupOrderNumber });
-        const detail = response?.data || response;
+        const detail = response?.data?.data || response?.data || response;
         if (!detail || detail.error) return null;
         const orderNumber = String(detail.orderNumber ?? lookupOrderNumber);
         const nick = detail.counterPartNickName

@@ -28,6 +28,7 @@ import type { DateRange } from 'react-day-picker';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';

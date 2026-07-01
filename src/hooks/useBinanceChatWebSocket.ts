@@ -183,9 +183,18 @@ export function useBinanceChatWebSocket(
         }
       }
 
-      if (allMessages.length > 0) {
+      // Defensive: the Binance getChatMessages endpoint occasionally returns
+      // messages for a DIFFERENT (usually the most recent active) order. Drop
+      // any message that explicitly carries a mismatching order number so a
+      // foreign order's chat (and PAN/bank docs) can never render here.
+      const belongsToOrder = allMessages.filter((msg) => {
+        const msgOrderNo = msg.orderNo || msg.topicId || msg.order?.orderNo || null;
+        return !msgOrderNo || String(msgOrderNo) === String(orderNo);
+      });
+
+      if (belongsToOrder.length > 0) {
         const seen = new Set<string>();
-        const deduped = allMessages.filter((msg) => {
+        const deduped = belongsToOrder.filter((msg) => {
           const key = String(msg.id || msg.uuid || `${msg.createTime}-${msg.type}-${msg.content || msg.message || ''}`);
           if (seen.has(key)) return false;
           seen.add(key);

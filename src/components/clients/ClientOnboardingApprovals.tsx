@@ -48,6 +48,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { useAuth } from "@/hooks/useAuth";
 
 interface BankEntry {
   bankName: string;
@@ -360,6 +361,8 @@ export function ClientOnboardingApprovals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+  const { user } = useAuth();
+  const reviewerName = user ? ([user.firstName, user.lastName].filter(Boolean).join(' ') || user.username) : null;
 
   const closeApprovalDialog = () => {
     setDialogOpen(false);
@@ -861,6 +864,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerName,
           aadhar_number: clientData.aadhar_number || null,
           address: clientData.address || null,
           purpose_of_buying: clientData.purpose_of_buying || null,
@@ -883,6 +887,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerName,
           compliance_notes: 'Auto-approved with primary record'
         })
         .eq('approval_status', 'PENDING')
@@ -1187,6 +1192,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'REJECTED',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerName,
           rejection_reason: reason
         })
         .eq('id', id);
@@ -1540,7 +1546,42 @@ export function ClientOnboardingApprovals() {
         );
       })
     : allPendingApprovals;
-  const reviewedApprovals = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
+  // A single client can have several onboarding submissions (multiple KYC uploads /
+  // re-submissions). When one is approved, its siblings are auto-approved too — some of
+  // those siblings carry order_amount = 0, which is NOT a real "client without orders",
+  // just a duplicate record. Collapse the history to one row per client (name + phone),
+  // keeping the record that actually holds the order value & proposed limit.
+  const reviewedApprovals = (() => {
+    const all = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
+    const groups = new Map<string, typeof all[number]>();
+    for (const a of all) {
+      const key = `${(a.client_name || '').trim().toLowerCase()}|${(a.client_phone || '').trim()}`;
+      const existing = groups.get(key);
+      if (!existing) {
+        groups.set(key, a);
+        continue;
+      }
+      // Prefer the richer record: higher order amount, then a real proposed limit.
+      const better =
+        (a.order_amount || 0) > (existing.order_amount || 0) ||
+        ((a.order_amount || 0) === (existing.order_amount || 0) &&
+          (a.proposed_monthly_limit || 0) > (existing.proposed_monthly_limit || 0));
+      if (better) {
+        // Carry over reviewer/limit info if the richer record is missing them.
+        groups.set(key, {
+          ...a,
+          reviewed_by: a.reviewed_by || existing.reviewed_by,
+          reviewed_at: a.reviewed_at || existing.reviewed_at,
+          proposed_monthly_limit: a.proposed_monthly_limit ?? existing.proposed_monthly_limit,
+        });
+      } else if (!existing.reviewed_by && a.reviewed_by) {
+        groups.set(key, { ...existing, reviewed_by: a.reviewed_by, reviewed_at: existing.reviewed_at || a.reviewed_at });
+      }
+    }
+    return Array.from(groups.values()).sort(
+      (x, y) => new Date(y.reviewed_at || 0).getTime() - new Date(x.reviewed_at || 0).getTime()
+    );
+  })();
 
   // Build nickname-based "Same User" detection — sanitized so 'Unknown' / masked
   // values can NEVER be grouping keys (these were creating false N-way merges).

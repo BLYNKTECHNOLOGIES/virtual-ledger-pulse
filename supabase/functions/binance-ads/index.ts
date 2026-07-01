@@ -1042,7 +1042,7 @@ serve(async (req) => {
         // If historical rows are mapped to the wrong Binance account, Binance returns
         // 83998 "operation is illegal". Try the other configured accounts and persist
         // the account that can actually read the order.
-        if (payload.orderNumber && result?.code === 83998) {
+        if (payload.orderNumber && result?.code === 83998 && !hasExplicitAccount) {
           const accounts = await listActiveAccounts();
           for (const candidate of accounts) {
             if (candidate.id === EXCHANGE_ACCOUNT_ID) continue;

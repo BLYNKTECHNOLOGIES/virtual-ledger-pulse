@@ -1535,8 +1535,15 @@ export function ClientOnboardingApprovals() {
     return <Badge className={variants[status as keyof typeof variants]}>{status}</Badge>;
   };
 
-  const openDocument = (url: string) => {
-    window.open(url, '_blank');
+  const openDocument = async (url: string) => {
+    // Large vKYC videos are stored as multipart chunks + a manifest JSON.
+    // Opening the raw manifest URL shows JSON instead of the video, so resolve
+    // and reconstruct the original file before opening.
+    try {
+      await openStorageDocumentUrl(url, 'kyc-documents');
+    } catch (err: any) {
+      toast({ title: 'Could not open document', description: err?.message || 'Failed to load the file.', variant: 'destructive' });
+    }
   };
 
   // Deduplicate pending approvals by client_name — show each client once with aggregated order info

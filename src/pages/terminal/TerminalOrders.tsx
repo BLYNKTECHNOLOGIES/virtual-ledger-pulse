@@ -435,7 +435,7 @@ function TerminalOrdersContent() {
     () => rawOrders.some((o: any) => String(o.orderNumber) === lookupOrderNumber),
     [rawOrders, lookupOrderNumber],
   );
-  const { data: directOrder } = useQuery({
+  const { data: directOrder, isFetching: isFetchingDirectOrder } = useQuery({
     queryKey: ['binance-direct-order-lookup', lookupOrderNumber],
     // Deep links must always verify the exact order/account before opening chat.
     enabled: isFullOrderNumber && (!!deepLinkedOrderNumber || !alreadyLoaded),
@@ -443,10 +443,10 @@ function TerminalOrdersContent() {
     retry: false,
     queryFn: async () => {
       try {
-        const response = await callBinanceAds('getOrderDetail', { orderNumber: debouncedSearch });
+        const response = await callBinanceAds('getOrderDetail', { orderNumber: lookupOrderNumber });
         const detail = response?.data || response;
         if (!detail || detail.error) return null;
-        const orderNumber = String(detail.orderNumber ?? debouncedSearch);
+        const orderNumber = String(detail.orderNumber ?? lookupOrderNumber);
         const nick = detail.counterPartNickName
           || (detail.tradeType === 'BUY' ? (detail.sellerNickName || detail.sellerNickname) : (detail.buyerNickName || detail.buyerNickname));
         return {
@@ -922,7 +922,8 @@ function TerminalOrdersContent() {
   useEffect(() => {
     if (deepLinkHandledRef.current) return;
     const target = searchParams.get('order');
-    if (!target || !displayOrders.length) return;
+    if (!target) return;
+    if (/^\d{12,}$/.test(target) && isFetchingDirectOrder) return;
     const directMatch = directOrder && String(directOrder.orderNumber) === target ? (() => {
       const record = binanceToOrderRecord(directOrder);
       record.order_status = extractAppealStatusFromRaw(directOrder.raw_data) || mapOrderStatusCode(directOrder.orderStatus);
@@ -939,7 +940,7 @@ function TerminalOrdersContent() {
       searchParams.delete('order');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, displayOrders, directOrder, setSearchParams]);
+  }, [searchParams, displayOrders, directOrder, isFetchingDirectOrder, setSearchParams]);
 
 
   const { data: releaseMonitorLogs = [] } = useQuery({

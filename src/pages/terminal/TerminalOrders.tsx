@@ -33,6 +33,7 @@ import { useInternalUnreadCounts } from '@/hooks/useInternalChat';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
 import { syncCompletedSellOrders } from '@/hooks/useTerminalSalesSync';
 import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
+import { useDebounce } from '@/hooks/useDebounce';
 
 
 /** Convert numeric orderStatus to string */

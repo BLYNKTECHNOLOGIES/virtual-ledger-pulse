@@ -48,6 +48,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
+import { useAuth } from "@/hooks/useAuth";
 
 interface BankEntry {
   bankName: string;

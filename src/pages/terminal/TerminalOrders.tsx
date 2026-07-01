@@ -428,14 +428,17 @@ function TerminalOrdersContent() {
   // (which already searches across all configured accounts) and merge it in,
   // bypassing the status/date/trade filters so it always surfaces.
   const debouncedSearch = useDebounce(search.trim(), 400);
-  const isFullOrderNumber = /^\d{12,}$/.test(debouncedSearch);
+  const deepLinkedOrderNumber = searchParams.get('order')?.trim() || '';
+  const lookupOrderNumber = /^\d{12,}$/.test(deepLinkedOrderNumber) ? deepLinkedOrderNumber : debouncedSearch;
+  const isFullOrderNumber = /^\d{12,}$/.test(lookupOrderNumber);
   const alreadyLoaded = useMemo(
-    () => rawOrders.some((o: any) => String(o.orderNumber) === debouncedSearch),
-    [rawOrders, debouncedSearch],
+    () => rawOrders.some((o: any) => String(o.orderNumber) === lookupOrderNumber),
+    [rawOrders, lookupOrderNumber],
   );
   const { data: directOrder } = useQuery({
-    queryKey: ['binance-direct-order-lookup', debouncedSearch],
-    enabled: isFullOrderNumber && !alreadyLoaded,
+    queryKey: ['binance-direct-order-lookup', lookupOrderNumber],
+    // Deep links must always verify the exact order/account before opening chat.
+    enabled: isFullOrderNumber && (!!deepLinkedOrderNumber || !alreadyLoaded),
     staleTime: 30 * 1000,
     retry: false,
     queryFn: async () => {
@@ -464,7 +467,7 @@ function TerminalOrdersContent() {
           sellerNickname: detail.tradeType === 'BUY' ? nick : undefined,
           additionalKycVerify: detail.additionalKycVerify ?? 0,
           raw_data: detail,
-          _exchangeAccountId: detail._exchangeAccountId ?? null,
+          _exchangeAccountId: response?._resolvedExchangeAccountId ?? response?._exchangeAccountId ?? detail._exchangeAccountId ?? null,
           _isDirectLookup: true,
         };
       } catch {
@@ -882,7 +885,7 @@ function TerminalOrdersContent() {
     // Merge in the on-demand direct order lookup result when searching for a full
     // order number that isn't present locally. Bypasses status/date/trade filters so
     // the operator always sees the order they explicitly searched for.
-    if (directOrder && debouncedSearch && !filtered.some(r => r.binance_order_number === directOrder.orderNumber)) {
+    if (directOrder && lookupOrderNumber && !filtered.some(r => r.binance_order_number === directOrder.orderNumber)) {
       const record = binanceToOrderRecord(directOrder);
       record.order_status = extractAppealStatusFromRaw(directOrder.raw_data) || mapOrderStatusCode(directOrder.orderStatus);
       (record as any).exchange_account_id = directOrder._exchangeAccountId ?? null;
@@ -890,7 +893,7 @@ function TerminalOrdersContent() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, debouncedSearch, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);
@@ -920,7 +923,13 @@ function TerminalOrdersContent() {
     if (deepLinkHandledRef.current) return;
     const target = searchParams.get('order');
     if (!target || !displayOrders.length) return;
-    const match = displayOrders.find(
+    const directMatch = directOrder && String(directOrder.orderNumber) === target ? (() => {
+      const record = binanceToOrderRecord(directOrder);
+      record.order_status = extractAppealStatusFromRaw(directOrder.raw_data) || mapOrderStatusCode(directOrder.orderStatus);
+      (record as any).exchange_account_id = directOrder._exchangeAccountId ?? null;
+      return record;
+    })() : null;
+    const match = directMatch || displayOrders.find(
       o => String(o.binance_order_number) === target || String((o as any).orderNumber) === target,
     );
     if (match) {
@@ -930,7 +939,7 @@ function TerminalOrdersContent() {
       searchParams.delete('order');
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, displayOrders, setSearchParams]);
+  }, [searchParams, displayOrders, directOrder, setSearchParams]);
 
 
   const { data: releaseMonitorLogs = [] } = useQuery({

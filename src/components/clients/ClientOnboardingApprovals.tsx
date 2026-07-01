@@ -864,6 +864,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerName,
           aadhar_number: clientData.aadhar_number || null,
           address: clientData.address || null,
           purpose_of_buying: clientData.purpose_of_buying || null,

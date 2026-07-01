@@ -118,6 +118,7 @@ function TerminalOrdersContent() {
   const deepLinkHandledRef = useRef(false);
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const { activeAccountId, isAllAccounts } = useExchangeAccount();
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;

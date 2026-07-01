@@ -864,7 +864,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerName,
+          reviewed_by: reviewerId,
           aadhar_number: clientData.aadhar_number || null,
           address: clientData.address || null,
           purpose_of_buying: clientData.purpose_of_buying || null,
@@ -887,7 +887,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerName,
+          reviewed_by: reviewerId,
           compliance_notes: 'Auto-approved with primary record'
         })
         .eq('approval_status', 'PENDING')
@@ -1192,7 +1192,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'REJECTED',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerName,
+          reviewed_by: reviewerId,
           rejection_reason: reason
         })
         .eq('id', id);

@@ -244,10 +244,10 @@ export function useBinanceActiveOrders(filters?: {
 
 // ==================== ORDER DETAIL ====================
 
-export function useBinanceOrderDetail(orderNumber: string | null) {
+export function useBinanceOrderDetail(orderNumber: string | null, accountId?: string | null) {
   return useQuery({
-    queryKey: ['binance-order-detail', orderNumber],
-    queryFn: () => callBinanceAds('getOrderDetail', { orderNumber }),
+    queryKey: ['binance-order-detail', orderNumber, accountId ?? null],
+    queryFn: () => callBinanceAds('getOrderDetail', { orderNumber }, accountId ?? undefined),
     enabled: !!orderNumber,
     staleTime: 10 * 1000,
     retry: 1, // Don't retry excessively if endpoint is blocked
@@ -306,16 +306,16 @@ export function useAdCommissionSnapshots(advNo: string | null) {
 }
 
 /** Fetch single-order status from order history (reliable fallback) */
-export function useBinanceOrderLiveStatus(orderNumber: string | null) {
+export function useBinanceOrderLiveStatus(orderNumber: string | null, accountId?: string | null) {
   return useQuery({
-    queryKey: ['binance-order-live-status', orderNumber],
+    queryKey: ['binance-order-live-status', orderNumber, accountId ?? null],
     queryFn: async () => {
       // Use getOrderHistory with a wide window — it returns orderStatus as a string
       const result = await callBinanceAds('getOrderHistory', {
         rows: 100,
         startTimestamp: Date.now() - 30 * 24 * 60 * 60 * 1000, // 30 days
         endTimestamp: Date.now(),
-      });
+      }, accountId ?? undefined);
       // Response shape: { data: { code, data: [...orders] } }
       const orders = result?.data?.data || result?.data || result || [];
       if (!Array.isArray(orders)) return null;
@@ -526,16 +526,16 @@ export interface ArchivedBinanceChatMessage {
   is_compliance_relevant: boolean;
 }
 
-export function useBinanceChatMessages(orderNo: string | null) {
+export function useBinanceChatMessages(orderNo: string | null, accountId?: string | null) {
   return useQuery({
-    queryKey: ['binance-chat-messages', orderNo],
+    queryKey: ['binance-chat-messages', orderNo, accountId ?? null],
     queryFn: async () => {
       const result = await callBinanceAds('getChatMessages', { 
         orderNo, 
         page: 1, 
         rows: 50,
         sort: 'asc',
-      });
+      }, accountId ?? undefined);
       return result;
     },
     enabled: !!orderNo,

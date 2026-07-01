@@ -480,6 +480,28 @@ export function ClientOnboardingApprovals() {
     };
   }, [approvals, dialogOpen, selectedApproval]);
 
+  // Resolve reviewer UUIDs → display names for the Approval History "Reviewed By" column.
+  const { data: reviewerNameMap } = useQuery({
+    queryKey: ['buyer-approval-reviewer-names'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      const ids = Array.from(
+        new Set((approvals || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
+      );
+      if (ids.length === 0) return map;
+      const { data } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, username')
+        .in('id', ids);
+      for (const u of data || []) {
+        map[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || '';
+      }
+      return map;
+    },
+    enabled: (approvals || []).some(a => !!a.reviewed_by),
+  });
+
   const { data: identityMap } = useQuery({
     queryKey: ['buyer-approval-identity', pendingApprovalsRaw.map(a => a.id).sort().join(',')],
     enabled: pendingApprovalsRaw.length > 0,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { prefetchKycUpload, resolveKycUpload } from '@/lib/kyc-background-upload';
+import { openStorageDocumentUrl } from '@/lib/storage-multipart';
 import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';

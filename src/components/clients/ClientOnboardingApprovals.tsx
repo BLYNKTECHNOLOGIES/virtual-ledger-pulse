@@ -1192,6 +1192,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'REJECTED',
           reviewed_at: new Date().toISOString(),
+          reviewed_by: reviewerName,
           rejection_reason: reason
         })
         .eq('id', id);

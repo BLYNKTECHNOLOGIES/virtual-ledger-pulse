@@ -35,7 +35,7 @@ export function EmployeeInformationTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('hr_employees')
-        .select('id, first_name, last_name, badge_id, email, phone, is_active, total_salary, created_at, hr_employee_work_info(department_id, job_role, joining_date, departments(name))')
+        .select('id, first_name, last_name, badge_id, email, phone, is_active, total_salary, created_at, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id, job_role, joining_date, departments(name))')
         .order('created_at', { ascending: false });
       
       if (error) throw error;

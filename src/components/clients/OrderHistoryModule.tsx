@@ -10,7 +10,7 @@ import { History, Search, Download, Filter, Eye, ShoppingCart, ShoppingBag, Buil
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useState } from "react";
 
 interface OrderHistoryModuleProps {
@@ -161,6 +161,7 @@ function OrderDetailsContent({ selectedOrder, getStatusBadge, onClose }: {
 
 export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryModuleProps) {
   const params = useParams();
+  const navigate = useNavigate();
   const activeClientId = clientId || params.clientId;
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -365,7 +366,16 @@ export function OrderHistoryModule({ clientId, showTabs = false }: OrderHistoryM
           {orders.map((order) => (
             <TableRow key={order.id} className="hover:bg-muted/30 border-b border-border">
               <TableCell className="font-medium text-primary font-mono">
-                {order.order_number}
+                <button
+                  type="button"
+                  className="underline decoration-muted-foreground/30 underline-offset-2 hover:text-primary/80"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/terminal/orders?order=${encodeURIComponent(order.order_number)}`);
+                  }}
+                >
+                  {order.order_number}
+                </button>
               </TableCell>
               <TableCell>
                 {new Date(order.order_date).toLocaleDateString()}

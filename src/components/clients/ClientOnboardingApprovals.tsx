@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { prefetchKycUpload, resolveKycUpload } from '@/lib/kyc-background-upload';
 import { openStorageDocumentUrl } from '@/lib/storage-multipart';
@@ -300,6 +301,7 @@ function BankStatementDropArea({ entry, index, onFileChange }: BankStatementDrop
 }
 
 export function ClientOnboardingApprovals() {
+  const navigate = useNavigate();
   const [selectedApproval, setSelectedApproval] = useState<ClientOnboardingApproval | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
@@ -2045,7 +2047,15 @@ export function ClientOnboardingApprovals() {
                           <tbody>
                             {existingClientTransactions.map((tx, idx) => (
                               <tr key={idx} className="border-b border-dashed last:border-0">
-                                <td className="py-1 pr-2 font-mono">{tx.order_number}</td>
+                                <td className="py-1 pr-2 font-mono">
+                                  <button
+                                    type="button"
+                                    className="text-primary underline decoration-muted-foreground/30 underline-offset-2 hover:text-primary/80"
+                                    onClick={() => navigate(`/terminal/orders?order=${encodeURIComponent(tx.order_number)}`)}
+                                  >
+                                    {tx.order_number}
+                                  </button>
+                                </td>
                                 <td className="py-1 pr-2">{new Date(tx.order_date).toLocaleDateString('en-IN')}</td>
                                 <td className="py-1 pr-2 capitalize">{tx.sale_type || 'N/A'}</td>
                                 <td className="py-1 pr-2 text-right">₹{tx.total_amount?.toLocaleString('en-IN')}</td>

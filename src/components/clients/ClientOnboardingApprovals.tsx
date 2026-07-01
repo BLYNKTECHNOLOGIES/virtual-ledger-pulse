@@ -362,7 +362,7 @@ export function ClientOnboardingApprovals() {
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
   const { user } = useAuth();
-  const reviewerName = user ? ([user.firstName, user.lastName].filter(Boolean).join(' ') || user.username) : null;
+  const reviewerId = user?.id ?? null;
 
   const closeApprovalDialog = () => {
     setDialogOpen(false);
@@ -479,6 +479,28 @@ export function ClientOnboardingApprovals() {
       cancelled = true;
     };
   }, [approvals, dialogOpen, selectedApproval]);
+
+  // Resolve reviewer UUIDs → display names for the Approval History "Reviewed By" column.
+  const { data: reviewerNameMap } = useQuery({
+    queryKey: ['buyer-approval-reviewer-names'],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      const ids = Array.from(
+        new Set((approvals || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
+      );
+      if (ids.length === 0) return map;
+      const { data } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, username')
+        .in('id', ids);
+      for (const u of data || []) {
+        map[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || '';
+      }
+      return map;
+    },
+    enabled: (approvals || []).some(a => !!a.reviewed_by),
+  });
 
   const { data: identityMap } = useQuery({
     queryKey: ['buyer-approval-identity', pendingApprovalsRaw.map(a => a.id).sort().join(',')],
@@ -864,7 +886,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerName,
+          reviewed_by: reviewerId,
           aadhar_number: clientData.aadhar_number || null,
           address: clientData.address || null,
           purpose_of_buying: clientData.purpose_of_buying || null,
@@ -887,7 +909,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'APPROVED',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerName,
+          reviewed_by: reviewerId,
           compliance_notes: 'Auto-approved with primary record'
         })
         .eq('approval_status', 'PENDING')
@@ -1192,7 +1214,7 @@ export function ClientOnboardingApprovals() {
         .update({
           approval_status: 'REJECTED',
           reviewed_at: new Date().toISOString(),
-          reviewed_by: reviewerName,
+          reviewed_by: reviewerId,
           rejection_reason: reason
         })
         .eq('id', id);
@@ -1905,7 +1927,7 @@ export function ClientOnboardingApprovals() {
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
                   <TableCell>₹{approval.order_amount.toLocaleString('en-IN')}</TableCell>
                   <TableCell>{getStatusBadge(approval.approval_status)}</TableCell>
-                  <TableCell>{approval.reviewed_by || '-'}</TableCell>
+                  <TableCell>{(approval.reviewed_by && (reviewerNameMap?.[approval.reviewed_by] || approval.reviewed_by)) || '-'}</TableCell>
                   <TableCell>
                     {approval.reviewed_at ? new Date(approval.reviewed_at).toLocaleDateString() : '-'}
                   </TableCell>

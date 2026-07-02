@@ -8,7 +8,7 @@ import {
   TERMINAL_GLOBAL_SHORTCUTS, TERMINAL_NAVIGATION_SHORTCUTS,
   TERMINAL_ORDER_NAV_SHORTCUTS, type TerminalShortcutDef,
 } from "@/config/terminal-shortcuts";
-import { TerminalPermissionGate } from "@/components/terminal/TerminalPermissionGate";
+
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 

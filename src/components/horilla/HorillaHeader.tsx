@@ -75,35 +75,35 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
   });
 
   return (
-    <header className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-3 md:px-4 shrink-0 gap-2">
+    <header className="h-14 bg-card border-b border-border flex items-center justify-between px-3 md:px-4 shrink-0 gap-2">
       <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
         <button
           onClick={onToggleSidebar}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors shrink-0"
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors shrink-0"
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 px-3 py-1.5 min-w-0 w-full sm:w-64 sm:max-w-none max-w-[220px]">
-          <Search className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+        <div className="flex items-center bg-muted/50 rounded-lg border border-border px-3 py-1.5 min-w-0 w-full sm:w-64 sm:max-w-none max-w-[220px]">
+          <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
           <input
             type="text"
             placeholder="Search anything..."
-            className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full min-w-0"
+            className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full min-w-0"
           />
         </div>
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
         {!isMobile && (
-          <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+          <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors">
             <Moon className="h-5 w-5" />
           </button>
         )}
 
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 relative transition-colors">
+            <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground relative transition-colors">
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
                 <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">

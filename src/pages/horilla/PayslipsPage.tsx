@@ -264,19 +264,19 @@ export default function PayslipsPage() {
   const statusColor = (s: string) => {
     if (s === "paid") return "bg-green-100 text-green-700";
     if (s === "pending") return "bg-yellow-100 text-yellow-700";
-    return "bg-gray-100 text-gray-700";
+    return "bg-muted text-foreground";
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Payslips</h1>
-        <p className="text-sm text-gray-500">View individual employee payslips with earnings/deductions breakdown</p>
+        <h1 className="text-2xl font-bold text-foreground">Payslips</h1>
+        <p className="text-sm text-muted-foreground">View individual employee payslips with earnings/deductions breakdown</p>
       </div>
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={runFilter} onValueChange={setRunFilter}>
@@ -291,23 +291,23 @@ export default function PayslipsPage() {
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No payslips found. Generate payslips from a payroll run first.</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No payslips found. Generate payslips from a payroll run first.</td></tr>
               ) : (
                 filtered.map((p: any) => (
-                  <tr key={p.id} className="border-b hover:bg-gray-50">
+                  <tr key={p.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.hr_employees?.badge_id}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3 text-xs">{p.hr_payroll_runs?.title}</td>
                     <td className="px-4 py-3 text-green-700 font-medium">₹{p.gross_salary?.toLocaleString('en-IN')}</td>
                     <td className="px-4 py-3 text-red-600">₹{p.total_deductions?.toLocaleString('en-IN')}</td>
@@ -340,10 +340,10 @@ export default function PayslipsPage() {
           </DialogHeader>
           {detail && (
             <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
-                <div className="flex justify-between"><span className="text-gray-500">Payroll Run</span><span className="font-medium">{detail.hr_payroll_runs?.title}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Period</span><span>{detail.hr_payroll_runs?.pay_period_start} — {detail.hr_payroll_runs?.pay_period_end}</span></div>
-                {detail.overtime_hours > 0 && <div className="flex justify-between"><span className="text-gray-500">Overtime</span><span>{detail.overtime_hours}h</span></div>}
+              <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+                <div className="flex justify-between"><span className="text-muted-foreground">Payroll Run</span><span className="font-medium">{detail.hr_payroll_runs?.title}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span>{detail.hr_payroll_runs?.pay_period_start} — {detail.hr_payroll_runs?.pay_period_end}</span></div>
+                {detail.overtime_hours > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Overtime</span><span>{detail.overtime_hours}h</span></div>}
               </div>
 
               {/* Attendance Breakdown */}
@@ -375,50 +375,50 @@ export default function PayslipsPage() {
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-blue-50 rounded-lg px-3 py-2 text-center">
                         <p className="text-lg font-bold text-blue-700">{workingDays}</p>
-                        <p className="text-[10px] text-gray-500">Total Working Days (Mon-Sat)</p>
+                        <p className="text-[10px] text-muted-foreground">Total Working Days (Mon-Sat)</p>
                       </div>
                       <div className="bg-green-50 rounded-lg px-3 py-2 text-center">
                         <p className="text-lg font-bold text-green-700">{fullPresentCount}</p>
-                        <p className="text-[10px] text-gray-500">Present Days</p>
+                        <p className="text-[10px] text-muted-foreground">Present Days</p>
                       </div>
                       {halfDayCount > 0 && (
                         <div className="bg-purple-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-purple-700">{halfDayCount}</p>
-                          <p className="text-[10px] text-gray-500">Half Days ({halfDayCount * 0.5}d paid)</p>
+                          <p className="text-[10px] text-muted-foreground">Half Days ({halfDayCount * 0.5}d paid)</p>
                         </div>
                       )}
                       {sundayWorked > 0 && (
                         <div className="bg-orange-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-orange-700">{sundayWorked}</p>
-                          <p className="text-[10px] text-gray-500">Sunday Worked (Extra Pay)</p>
+                          <p className="text-[10px] text-muted-foreground">Sunday Worked (Extra Pay)</p>
                         </div>
                       )}
                       {holidayWorked > 0 && (
                         <div className="bg-teal-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-teal-700">{holidayWorked}</p>
-                          <p className="text-[10px] text-gray-500">Holiday Worked (Extra Pay)</p>
+                          <p className="text-[10px] text-muted-foreground">Holiday Worked (Extra Pay)</p>
                         </div>
                       )}
                       {Object.entries(leaveByType).map(([name, days]) => (
                         <div key={name} className="bg-amber-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-amber-700">{days}</p>
-                          <p className="text-[10px] text-gray-500">{name}</p>
+                          <p className="text-[10px] text-muted-foreground">{name}</p>
                         </div>
                       ))}
                       {totalLeaveDaysFromRequests === 0 && (
                         <div className="bg-amber-50 rounded-lg px-3 py-2 text-center">
                           <p className="text-lg font-bold text-amber-700">0</p>
-                          <p className="text-[10px] text-gray-500">Leave Days</p>
+                          <p className="text-[10px] text-muted-foreground">Leave Days</p>
                         </div>
                       )}
                       <div className="bg-red-50 rounded-lg px-3 py-2 text-center">
                         <p className="text-lg font-bold text-red-600">{absentDays}</p>
-                        <p className="text-[10px] text-gray-500">Absent Days</p>
+                        <p className="text-[10px] text-muted-foreground">Absent Days</p>
                       </div>
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                      <span>Paid Days: <span className="font-semibold text-gray-700">{presentDays}</span> / {workingDays}</span>
-                      <span>Attendance: <span className="font-semibold text-gray-700">{workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0}%</span></span>
+                    <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1">
+                      <span>Paid Days: <span className="font-semibold text-foreground">{presentDays}</span> / {workingDays}</span>
+                      <span>Attendance: <span className="font-semibold text-foreground">{workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 0}%</span></span>
                     </div>
                   </div>
                 );
@@ -452,7 +452,7 @@ export default function PayslipsPage() {
                     </div>
                   ))}
                   {(!detail.deductions_breakdown || Object.keys(detail.deductions_breakdown).length === 0) && (
-                    <p className="text-xs text-gray-400">No deductions</p>
+                    <p className="text-xs text-muted-foreground">No deductions</p>
                   )}
                   <div className="flex justify-between text-sm font-bold border-t pt-1.5 mt-1">
                     <span>Total Deductions</span>
@@ -463,7 +463,7 @@ export default function PayslipsPage() {
 
               {/* Net */}
               <div className="bg-[#E8604C]/5 border border-[#E8604C]/20 rounded-lg p-3 flex justify-between items-center">
-                <span className="font-semibold text-gray-900">Net Salary</span>
+                <span className="font-semibold text-foreground">Net Salary</span>
                 <span className="text-xl font-bold text-[#E8604C]">₹{detail.net_salary?.toLocaleString('en-IN')}</span>
               </div>
 
@@ -473,8 +473,8 @@ export default function PayslipsPage() {
                   <div className="flex items-center gap-2 text-green-700 font-medium">
                     <CheckCircle className="h-4 w-4" /> Paid
                   </div>
-                  {detail.payment_date && <p className="text-xs text-gray-500 mt-1">Date: {detail.payment_date}</p>}
-                  {detail.payment_reference && <p className="text-xs text-gray-500">Ref: {detail.payment_reference}</p>}
+                  {detail.payment_date && <p className="text-xs text-muted-foreground mt-1">Date: {detail.payment_date}</p>}
+                  {detail.payment_reference && <p className="text-xs text-muted-foreground">Ref: {detail.payment_reference}</p>}
                 </div>
               ) : (
                 <div className="space-y-2">

@@ -230,7 +230,7 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
       'HRMS': 'bg-pink-100 text-pink-700 border-pink-200',
       'Payroll': 'bg-teal-100 text-teal-700 border-teal-200',
     };
-    return colors[category] || 'bg-gray-100 text-gray-700 border-gray-200';
+    return colors[category] || 'bg-muted text-foreground border-border';
   };
 
   const getCategoryIcon = (category: string) => {

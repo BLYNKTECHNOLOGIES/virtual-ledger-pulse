@@ -182,18 +182,18 @@ export function ClientOrderSummaryDialog({
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/20">
-                    <th className="text-left py-2 px-4 font-medium text-gray-600 text-sm">Order #</th>
-                    <th className="text-left py-2 px-4 font-medium text-gray-600 text-sm">Date</th>
-                    <th className="text-left py-2 px-4 font-medium text-gray-600 text-sm">Description</th>
-                    <th className="text-right py-2 px-4 font-medium text-gray-600 text-sm">Amount</th>
-                    <th className="text-center py-2 px-4 font-medium text-gray-600 text-sm">Status</th>
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground text-sm">Order #</th>
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground text-sm">Date</th>
+                    <th className="text-left py-2 px-4 font-medium text-muted-foreground text-sm">Description</th>
+                    <th className="text-right py-2 px-4 font-medium text-muted-foreground text-sm">Amount</th>
+                    <th className="text-center py-2 px-4 font-medium text-muted-foreground text-sm">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((order) => (
                     <tr
                       key={order.id}
-                      className="border-b hover:bg-gray-50 cursor-pointer"
+                      className="border-b hover:bg-muted/50 cursor-pointer"
                       onClick={() => openTransaction({ type: 'purchase_order', id: order.id })}
                       title="Click to view full order details"
                     >
@@ -203,7 +203,7 @@ export function ClientOrderSummaryDialog({
                           ? format(new Date(order.order_date), 'dd MMM yyyy')
                           : '-'}
                       </td>
-                      <td className="py-2 px-4 text-sm text-gray-600 max-w-xs truncate">
+                      <td className="py-2 px-4 text-sm text-muted-foreground max-w-xs truncate">
                         {order.description || '-'}
                       </td>
                       <td className="py-2 px-4 text-sm text-right font-medium">

@@ -104,7 +104,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
 
   if (!open) return null;
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const STATUS_COLORS: Record<string, string> = {
     scheduled: "bg-blue-100 text-blue-700",
@@ -114,7 +114,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
   };
 
   const REC_COLORS: Record<string, string> = {
-    pending: "text-gray-500",
+    pending: "text-muted-foreground",
     strong_yes: "text-emerald-600",
     yes: "text-green-600",
     no: "text-red-600",
@@ -123,20 +123,20 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+      <div className="bg-card rounded-xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Interviews — {candidateName}</h2>
-            <p className="text-xs text-gray-500">{interviews.length} interview(s) scheduled</p>
+            <h2 className="text-lg font-semibold text-foreground">Interviews — {candidateName}</h2>
+            <p className="text-xs text-muted-foreground">{interviews.length} interview(s) scheduled</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100 px-5 shrink-0">
+        <div className="flex border-b border-border px-5 shrink-0">
           {(["list", "schedule"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-[#E8604C] text-[#E8604C]" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-[#E8604C] text-[#E8604C]" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
               {t === "list" ? "All Interviews" : "+ Schedule New"}
             </button>
           ))}
@@ -147,9 +147,9 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
             feedbackForm ? (
               /* Feedback Form */
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900">Submit Feedback</h3>
+                <h3 className="text-sm font-semibold text-foreground">Submit Feedback</h3>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Rating</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Rating</label>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map(i => (
                       <button key={i} onClick={() => setFeedbackForm({ ...feedbackForm, rating: i })}>
@@ -159,24 +159,24 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Feedback</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Feedback</label>
                   <textarea value={feedbackForm.feedback} onChange={e => setFeedbackForm({ ...feedbackForm, feedback: e.target.value })}
                     className={`${inputCls} resize-none`} rows={3} placeholder="Overall assessment..." />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Strengths</label>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Strengths</label>
                     <textarea value={feedbackForm.strengths} onChange={e => setFeedbackForm({ ...feedbackForm, strengths: e.target.value })}
                       className={`${inputCls} resize-none`} rows={2} />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-700 mb-1 block">Weaknesses</label>
+                    <label className="text-sm font-medium text-foreground mb-1 block">Weaknesses</label>
                     <textarea value={feedbackForm.weaknesses} onChange={e => setFeedbackForm({ ...feedbackForm, weaknesses: e.target.value })}
                       className={`${inputCls} resize-none`} rows={2} />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Recommendation</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Recommendation</label>
                   <select value={feedbackForm.recommendation} onChange={e => setFeedbackForm({ ...feedbackForm, recommendation: e.target.value })} className={inputCls}>
                     <option value="pending">Pending</option>
                     <option value="strong_yes">Strong Yes</option>
@@ -186,7 +186,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   </select>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+                  <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
                   <button onClick={() => feedbackMutation.mutate()}
                     disabled={feedbackMutation.isPending}
                     className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
@@ -198,26 +198,26 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
               /* Interview List */
               <div className="space-y-3">
                 {isLoading ? (
-                  <p className="text-sm text-gray-400 text-center py-6">Loading...</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
                 ) : interviews.length === 0 ? (
                   <div className="text-center py-8">
                     <Calendar className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                    <p className="text-sm text-gray-500">No interviews scheduled</p>
+                    <p className="text-sm text-muted-foreground">No interviews scheduled</p>
                     <button onClick={() => setTab("schedule")} className="mt-2 text-sm text-[#E8604C] hover:underline">
                       + Schedule first interview
                     </button>
                   </div>
                 ) : interviews.map(iv => (
-                  <div key={iv.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
+                  <div key={iv.id} className="border border-border rounded-lg p-4 hover:border-border transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900">{iv.interviewer_name}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[iv.status] || "bg-gray-100 text-gray-600"}`}>
+                          <span className="text-sm font-medium text-foreground">{iv.interviewer_name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground"}`}>
                             {iv.status}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                        <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(iv.interview_date).toLocaleDateString()}</span>
                           {iv.interview_time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{iv.interview_time}</span>}
                           <span>{iv.duration_minutes}min</span>
@@ -244,7 +244,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                     </div>
                     {/* Feedback display */}
                     {iv.status === "completed" && iv.feedback && (
-                      <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="mt-3 pt-3 border-t border-border">
                         <div className="flex items-center gap-2 mb-1">
                           {iv.rating && (
                             <div className="flex gap-0.5">
@@ -259,7 +259,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-600">{iv.feedback}</p>
+                        <p className="text-xs text-muted-foreground">{iv.feedback}</p>
                         {iv.strengths && <p className="text-[10px] text-emerald-600 mt-1">✓ {iv.strengths}</p>}
                         {iv.weaknesses && <p className="text-[10px] text-red-500 mt-0.5">✗ {iv.weaknesses}</p>}
                       </div>
@@ -272,26 +272,26 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
             /* Schedule Form */
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Interviewer Name *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Interviewer Name *</label>
                 <input value={form.interviewer_name} onChange={e => setForm({ ...form, interviewer_name: e.target.value })} className={inputCls} placeholder="Interviewer name" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Date *</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Date *</label>
                   <input type="date" value={form.interview_date} onChange={e => setForm({ ...form, interview_date: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Time</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Time</label>
                   <input type="time" value={form.interview_time} onChange={e => setForm({ ...form, interview_time: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Duration (min)</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Duration (min)</label>
                   <input type="number" min={15} step={15} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: parseInt(e.target.value) || 30 })} className={inputCls} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Type</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Type</label>
                   <select value={form.interview_type} onChange={e => setForm({ ...form, interview_type: e.target.value })} className={inputCls}>
                     <option value="in_person">In Person</option>
                     <option value="video">Video Call</option>
@@ -299,7 +299,7 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  <label className="text-sm font-medium text-foreground mb-1 block">
                     {form.interview_type === "video" ? "Meeting Link" : "Location"}
                   </label>
                   {form.interview_type === "video" ? (
@@ -310,11 +310,11 @@ export function InterviewDialog({ open, onClose, candidateId, candidateName, rec
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Notes</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Notes</label>
                 <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className={`${inputCls} resize-none`} rows={2} placeholder="Any special instructions..." />
               </div>
               <div className="flex gap-2 pt-2">
-                <button onClick={() => setTab("list")} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+                <button onClick={() => setTab("list")} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
                 <button
                   onClick={() => scheduleMutation.mutate()}
                   disabled={!form.interviewer_name || !form.interview_date || scheduleMutation.isPending}

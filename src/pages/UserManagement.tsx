@@ -373,8 +373,8 @@ export default function UserManagement() {
     return (
       <div className="space-y-6 p-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600 mt-1">Loading permissions...</p>
+          <h1 className="text-3xl font-bold text-foreground">User Management</h1>
+          <p className="text-muted-foreground mt-1">Loading permissions...</p>
         </div>
         <div className="flex justify-center items-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -385,9 +385,9 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-muted/50 p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
+      <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
@@ -471,7 +471,7 @@ export default function UserManagement() {
                 <CardContent>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
                     <div className="flex items-center space-x-2 flex-1">
-                      <Search className="h-4 w-4 text-gray-400" />
+                      <Search className="h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search users..."
                         value={searchTerm}
@@ -480,7 +480,7 @@ export default function UserManagement() {
                       />
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Filter className="h-4 w-4 text-gray-400" />
+                      <Filter className="h-4 w-4 text-muted-foreground" />
                       <Select value={selectedRole} onValueChange={setSelectedRole}>
                         <SelectTrigger className="w-[180px]">
                           <SelectValue placeholder="Filter by role" />
@@ -513,7 +513,7 @@ export default function UserManagement() {
                           <CardContent className="p-4">
                             <div className="space-y-3">
                               <div className="flex justify-between items-start">
-                                <h3 className="font-semibold text-gray-900 truncate">
+                                <h3 className="font-semibold text-foreground truncate">
                                   {user.first_name && user.last_name 
                                     ? `${user.first_name} ${user.last_name}`
                                     : user.username
@@ -529,7 +529,7 @@ export default function UserManagement() {
                                 </div>
                               </div>
                               
-                              <div className="space-y-1 text-sm text-gray-600">
+                              <div className="space-y-1 text-sm text-muted-foreground">
                                 <p><strong>Username:</strong> {user.username}</p>
                                 <p><strong>Email:</strong> {user.email}</p>
                                 {user.phone && <p><strong>Phone:</strong> {user.phone}</p>}
@@ -577,7 +577,7 @@ export default function UserManagement() {
                     </div>
                   ) : (
                     <Card>
-                      <CardContent className="p-8 text-center text-gray-500">
+                      <CardContent className="p-8 text-center text-muted-foreground">
                         <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No users found matching your search.</p>
                       </CardContent>
@@ -680,7 +680,7 @@ export default function UserManagement() {
                         </div>
                       ) : (
                         <Card>
-                          <CardContent className="p-8 text-center text-gray-500">
+                          <CardContent className="p-8 text-center text-muted-foreground">
                             <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No roles found.</p>
                           </CardContent>
@@ -715,7 +715,7 @@ export default function UserManagement() {
                               <CardContent className="p-4">
                                 <div className="space-y-2">
                                   <div className="flex justify-between items-start">
-                                    <h3 className="font-semibold text-gray-900">
+                                    <h3 className="font-semibold text-foreground">
                                       {user.first_name && user.last_name 
                                         ? `${user.first_name} ${user.last_name}`
                                         : user.username
@@ -726,7 +726,7 @@ export default function UserManagement() {
                                     </Badge>
                                   </div>
                                   
-                                  <div className="space-y-1 text-sm text-gray-600">
+                                  <div className="space-y-1 text-sm text-muted-foreground">
                                     <p><strong>Username:</strong> {user.username}</p>
                                     <p><strong>Email:</strong> {user.email}</p>
                                     <p><strong>Last Seen:</strong> {formatTime(user.last_seen)}</p>
@@ -753,7 +753,7 @@ export default function UserManagement() {
                         </div>
                       ) : (
                         <Card>
-                          <CardContent className="p-8 text-center text-gray-500">
+                          <CardContent className="p-8 text-center text-muted-foreground">
                             <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
                             <p>No users are currently online.</p>
                             <p className="text-xs mt-2">Users are considered online if they've been active in the last 5 minutes.</p>

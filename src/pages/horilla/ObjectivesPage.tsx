@@ -39,14 +39,14 @@ interface Employee {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
+  draft: "bg-muted text-foreground",
   active: "bg-blue-100 text-blue-700",
   completed: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  low: "bg-gray-100 text-gray-600",
+  low: "bg-muted text-muted-foreground",
   medium: "bg-yellow-100 text-yellow-700",
   high: "bg-orange-100 text-orange-700",
   critical: "bg-red-100 text-red-700",
@@ -136,14 +136,14 @@ export default function ObjectivesPage() {
 
   const empMap = Object.fromEntries(employees.map((e) => [e.id, `${e.first_name} ${e.last_name}`]));
 
-  if (loading) return <div className="flex items-center justify-center py-24 text-gray-500">Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Objectives & Key Results</h1>
-          <p className="text-gray-500 text-sm">Set and track OKRs for individuals, teams, and the company</p>
+          <h1 className="text-2xl font-bold text-foreground">Objectives & Key Results</h1>
+          <p className="text-muted-foreground text-sm">Set and track OKRs for individuals, teams, and the company</p>
         </div>
         <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={openCreate}>
           <Plus className="h-4 w-4 mr-1" /> New Objective
@@ -152,7 +152,7 @@ export default function ObjectivesPage() {
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative w-64">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search objectives..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -168,7 +168,7 @@ export default function ObjectivesPage() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-gray-400">No objectives found</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">No objectives found</CardContent></Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((obj) => (
@@ -178,25 +178,25 @@ export default function ObjectivesPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Target className="h-4 w-4 text-[#E8604C] shrink-0" />
-                      <h3 className="font-semibold text-gray-900 truncate">{obj.title}</h3>
+                      <h3 className="font-semibold text-foreground truncate">{obj.title}</h3>
                     </div>
-                    {obj.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{obj.description}</p>}
+                    {obj.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{obj.description}</p>}
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <Badge variant="outline" className={STATUS_COLORS[obj.status]}>{obj.status}</Badge>
                       <Badge variant="outline" className={PRIORITY_COLORS[obj.priority]}>{obj.priority}</Badge>
-                      <span className="text-xs text-gray-500 capitalize">{obj.objective_type}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{obj.objective_type}</span>
                       {obj.employee_id && empMap[obj.employee_id] && (
-                        <span className="text-xs text-gray-400">• {empMap[obj.employee_id]}</span>
+                        <span className="text-xs text-muted-foreground">• {empMap[obj.employee_id]}</span>
                       )}
-                      {obj.review_cycle && <span className="text-xs text-gray-400">• {obj.review_cycle}</span>}
-                      {obj.due_date && <span className="text-xs text-gray-400">• Due: {obj.due_date}</span>}
+                      {obj.review_cycle && <span className="text-xs text-muted-foreground">• {obj.review_cycle}</span>}
+                      {obj.due_date && <span className="text-xs text-muted-foreground">• Due: {obj.due_date}</span>}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <div className="w-28">
                       <div className="flex items-center gap-2">
                         <Progress value={obj.progress} className="h-2" />
-                        <span className="text-xs font-medium text-gray-600 w-8">{obj.progress}%</span>
+                        <span className="text-xs font-medium text-muted-foreground w-8">{obj.progress}%</span>
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => openEdit(obj)}><Pencil className="h-4 w-4" /></Button>

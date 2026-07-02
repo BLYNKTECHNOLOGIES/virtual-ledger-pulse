@@ -28,7 +28,7 @@ const typeColors: Record<string, string> = {
   email: "bg-green-100 text-green-800",
   meeting: "bg-purple-100 text-purple-800",
   video_call: "bg-orange-100 text-orange-800",
-  note: "bg-gray-100 text-gray-800",
+  note: "bg-muted text-foreground",
 };
 
 export function CommunicationLogDialog({ clientId }: CommunicationLogDialogProps) {

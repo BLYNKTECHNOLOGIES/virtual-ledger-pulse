@@ -321,7 +321,7 @@ export function OrderCompletionForm({ open, onOpenChange, order }: OrderCompleti
                       <SelectItem key={product.id} value={product.name}>
                         <div className="flex flex-col">
                           <span>{product.name}</span>
-                          <span className="text-xs text-gray-500">Stock: {product.current_stock_quantity} {product.unit_of_measurement}</span>
+                          <span className="text-xs text-muted-foreground">Stock: {product.current_stock_quantity} {product.unit_of_measurement}</span>
                         </div>
                       </SelectItem>
                     ))}

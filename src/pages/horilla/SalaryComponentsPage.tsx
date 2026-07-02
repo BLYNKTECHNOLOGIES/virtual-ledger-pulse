@@ -77,8 +77,8 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{label}</h1>
-          <p className="text-sm text-gray-500">Manage salary {label.toLowerCase()} components</p>
+          <h1 className="text-2xl font-bold text-foreground">{label}</h1>
+          <p className="text-sm text-muted-foreground">Manage salary {label.toLowerCase()} components</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm({ ...defaultForm, component_type: componentType }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> Add {componentType === "allowance" ? "Allowance" : "Deduction"}
@@ -88,25 +88,25 @@ export default function SalaryComponentsPage({ componentType = "allowance" }: { 
       <Card>
         <CardContent className="p-0">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Name", "Code", "Taxable", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : components.length === 0 ? (
-                <tr><td colSpan={5} className="text-center py-8 text-gray-400">No {label.toLowerCase()} configured</td></tr>
+                <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No {label.toLowerCase()} configured</td></tr>
               ) : (
                 components.map((c: any) => (
-                  <tr key={c.id} className={`border-b hover:bg-gray-50 ${!c.is_active ? "opacity-50" : ""}`}>
+                  <tr key={c.id} className={`border-b hover:bg-muted/50 ${!c.is_active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3 font-medium">{c.name}</td>
-                    <td className="px-4 py-3"><span className="bg-gray-100 px-1.5 py-0.5 rounded text-xs">{c.code}</span></td>
+                    <td className="px-4 py-3"><span className="bg-muted px-1.5 py-0.5 rounded text-xs">{c.code}</span></td>
                     <td className="px-4 py-3">
-                      {c.is_taxable ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Taxable</span> : <span className="text-xs text-gray-400">Non-taxable</span>}
+                      {c.is_taxable ? <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Taxable</span> : <span className="text-xs text-muted-foreground">Non-taxable</span>}
                     </td>
                     <td className="px-4 py-3">
                       <Switch checked={c.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: c.id, is_active: v })} />

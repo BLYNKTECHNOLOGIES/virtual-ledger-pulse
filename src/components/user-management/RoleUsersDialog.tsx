@@ -112,9 +112,9 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
                               : user.username
                             }
                           </h3>
-                          <p className="text-sm text-gray-600">@{user.username}</p>
-                          <p className="text-sm text-gray-600">{user.email}</p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-sm text-muted-foreground">@{user.username}</p>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                          <p className="text-xs text-muted-foreground">
                             Created: {formatDate(user.created_at)}
                           </p>
                         </div>
@@ -126,7 +126,7 @@ export function RoleUsersDialog({ role, onClose }: RoleUsersDialogProps) {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
                   <h3 className="text-lg font-medium">No Users Found</h3>
                   <p className="text-sm">No users have been assigned the {role.name} role yet.</p>

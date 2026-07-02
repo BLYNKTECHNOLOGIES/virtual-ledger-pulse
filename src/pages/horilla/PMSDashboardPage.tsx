@@ -10,7 +10,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { useMemo } from "react";
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-700",
+  draft: "bg-muted text-foreground",
   active: "bg-blue-100 text-blue-700",
   completed: "bg-green-100 text-green-700",
   cancelled: "bg-red-100 text-red-700",
@@ -65,14 +65,14 @@ export default function PMSDashboardPage() {
     { label: "Avg Rating", value: safeStats.avgRating || "–", icon: Star, color: "text-amber-600", bg: "bg-amber-50" },
   ];
 
-  if (loading) return <div className="flex items-center justify-center py-24 text-gray-500">Loading PMS data...</div>;
+  if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading PMS data...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Performance Management</h1>
-          <p className="text-gray-500 text-sm">OKRs, objectives, and 360° feedback</p>
+          <h1 className="text-2xl font-bold text-foreground">Performance Management</h1>
+          <p className="text-muted-foreground text-sm">OKRs, objectives, and 360° feedback</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => navigate("/hrms/pms/feedback")}>360° Feedback</Button>
@@ -87,7 +87,7 @@ export default function PMSDashboardPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2.5 rounded-xl ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold text-gray-900">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+              <div><p className="text-2xl font-bold text-foreground">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -107,7 +107,7 @@ export default function PMSDashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-gray-400 text-center py-12">No objectives yet</p>
+              <p className="text-muted-foreground text-center py-12">No objectives yet</p>
             )}
           </CardContent>
         </Card>
@@ -125,7 +125,7 @@ export default function PMSDashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-gray-400 text-center py-12">No objectives yet</p>
+              <p className="text-muted-foreground text-center py-12">No objectives yet</p>
             )}
           </CardContent>
         </Card>
@@ -138,23 +138,23 @@ export default function PMSDashboardPage() {
         </CardHeader>
         <CardContent>
           {objectives.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">No objectives created yet</p>
+            <p className="text-muted-foreground text-center py-8">No objectives created yet</p>
           ) : (
             <div className="space-y-3">
               {objectives.slice(0, 5).map((obj: any) => (
-                <div key={obj.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={obj.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-gray-900 truncate">{obj.title}</p>
+                    <p className="font-medium text-sm text-foreground truncate">{obj.title}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className={STATUS_COLORS[obj.status]}>{obj.status}</Badge>
-                      <span className="text-xs text-gray-500 capitalize">{obj.objective_type}</span>
-                      {obj.review_cycle && <span className="text-xs text-gray-400">{obj.review_cycle}</span>}
+                      <span className="text-xs text-muted-foreground capitalize">{obj.objective_type}</span>
+                      {obj.review_cycle && <span className="text-xs text-muted-foreground">{obj.review_cycle}</span>}
                     </div>
                   </div>
                   <div className="w-32 ml-4">
                     <div className="flex items-center gap-2">
                       <Progress value={obj.progress} className="h-2" />
-                      <span className="text-xs font-medium text-gray-600 w-8">{obj.progress}%</span>
+                      <span className="text-xs font-medium text-muted-foreground w-8">{obj.progress}%</span>
                     </div>
                   </div>
                 </div>

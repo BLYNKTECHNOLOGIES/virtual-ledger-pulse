@@ -104,8 +104,8 @@ export default function BiometricDevicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Biometric Devices</h1>
-          <p className="text-sm text-gray-500">Manage biometric attendance devices</p>
+          <h1 className="text-2xl font-bold text-foreground">Biometric Devices</h1>
+          <p className="text-sm text-muted-foreground">Manage biometric attendance devices</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-4 text-xs">
@@ -123,14 +123,14 @@ export default function BiometricDevicesPage() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search devices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {isLoading ? (
-        <p className="text-center py-12 text-gray-400">Loading...</p>
+        <p className="text-center py-12 text-muted-foreground">Loading...</p>
       ) : filtered.length === 0 ? (
-        <p className="text-center py-12 text-gray-400">No biometric devices found. Click "+ Add" to register one.</p>
+        <p className="text-center py-12 text-muted-foreground">No biometric devices found. Click "+ Add" to register one.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((d: any) => {
@@ -140,9 +140,9 @@ export default function BiometricDevicesPage() {
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h3 className="font-semibold text-gray-900">{d.name}</h3>
-                      <p className="text-xs text-gray-500">{d.device_type}</p>
-                      <p className="text-xs text-gray-500">{d.device_direction}</p>
+                      <h3 className="font-semibold text-foreground">{d.name}</h3>
+                      <p className="text-xs text-muted-foreground">{d.device_type}</p>
+                      <p className="text-xs text-muted-foreground">{d.device_direction}</p>
                     </div>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -176,16 +176,16 @@ export default function BiometricDevicesPage() {
                   </div>
 
                   {d.machine_ip && (
-                    <p className="text-sm text-gray-600 font-mono">{d.machine_ip}{d.port_no ? `:${d.port_no}` : ""}</p>
+                    <p className="text-sm text-muted-foreground font-mono">{d.machine_ip}{d.port_no ? `:${d.port_no}` : ""}</p>
                   )}
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <span className={`w-2 h-2 rounded-full ${status.color}`} />
                       {status.label}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">Live capture</span>
+                      <span className="text-xs text-muted-foreground">Live capture</span>
                       <Switch
                         checked={d.is_live_capture}
                         onCheckedChange={async (checked) => {
@@ -212,7 +212,7 @@ export default function BiometricDevicesPage() {
                     >
                       {d.is_scheduled ? "Unschedule" : "Schedule"}
                     </Button>
-                    <Button size="sm" variant="outline" className="text-xs h-7 border-gray-400 text-gray-600 hover:bg-gray-50">
+                    <Button size="sm" variant="outline" className="text-xs h-7 border-gray-400 text-muted-foreground hover:bg-muted/50">
                       Employee
                     </Button>
                   </div>

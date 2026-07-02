@@ -53,13 +53,13 @@ function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           An error occurred while rendering this component.
         </p>
         {error && (
-          <details className="text-sm text-gray-500">
+          <details className="text-sm text-muted-foreground">
             <summary className="cursor-pointer font-medium">Error details</summary>
-            <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-auto">
+            <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">
               {error.message}
             </pre>
           </details>

@@ -86,10 +86,10 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
 
   if (!open) return null;
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const STATUS_STYLES: Record<string, string> = {
-    draft: "bg-gray-100 text-gray-600",
+    draft: "bg-muted text-muted-foreground",
     sent: "bg-blue-100 text-blue-700",
     accepted: "bg-emerald-100 text-emerald-700",
     rejected: "bg-red-100 text-red-700",
@@ -99,50 +99,50 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
+      <div className="bg-card rounded-xl w-full max-w-lg shadow-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Offer Letters — {candidateName}</h2>
-            <p className="text-xs text-gray-500">{offers.length} offer(s)</p>
+            <h2 className="text-lg font-semibold text-foreground">Offer Letters — {candidateName}</h2>
+            <p className="text-xs text-muted-foreground">{offers.length} offer(s)</p>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5">
           {showCreate ? (
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Create Offer Letter</h3>
+              <h3 className="text-sm font-semibold text-foreground">Create Offer Letter</h3>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Offered Salary *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Offered Salary *</label>
                 <input type="number" value={form.offered_salary} onChange={e => setForm({ ...form, offered_salary: e.target.value })} className={inputCls} placeholder="e.g. 60000" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Position</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Position</label>
                   <input value={form.offered_position} onChange={e => setForm({ ...form, offered_position: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Department</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Department</label>
                   <input value={form.offered_department} onChange={e => setForm({ ...form, offered_department: e.target.value })} className={inputCls} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Joining Date</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Joining Date</label>
                   <input type="date" value={form.joining_date} onChange={e => setForm({ ...form, joining_date: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Offer Expiry</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Offer Expiry</label>
                   <input type="date" value={form.expiry_date} onChange={e => setForm({ ...form, expiry_date: e.target.value })} className={inputCls} />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Negotiation Notes</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Negotiation Notes</label>
                 <textarea value={form.negotiation_notes} onChange={e => setForm({ ...form, negotiation_notes: e.target.value })}
                   className={`${inputCls} resize-none`} rows={3} placeholder="Salary expectations, special terms..." />
               </div>
               <div className="flex gap-2 pt-2">
-                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
                 <button onClick={() => createMutation.mutate()}
                   disabled={!form.offered_salary || createMutation.isPending}
                   className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
@@ -153,33 +153,33 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
           ) : (
             <div className="space-y-3">
               <button onClick={() => setShowCreate(true)}
-                className="w-full border-2 border-dashed border-gray-200 rounded-lg py-3 text-sm text-[#E8604C] font-medium hover:border-[#E8604C]/30 transition-colors">
+                className="w-full border-2 border-dashed border-border rounded-lg py-3 text-sm text-[#E8604C] font-medium hover:border-[#E8604C]/30 transition-colors">
                 + Create New Offer
               </button>
 
               {isLoading ? (
-                <p className="text-sm text-gray-400 text-center py-6">Loading...</p>
+                <p className="text-sm text-muted-foreground text-center py-6">Loading...</p>
               ) : offers.length === 0 ? (
                 <div className="text-center py-6">
                   <FileText className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                  <p className="text-sm text-gray-500">No offers created yet</p>
+                  <p className="text-sm text-muted-foreground">No offers created yet</p>
                 </div>
               ) : offers.map(offer => (
-                <div key={offer.id} className="border border-gray-200 rounded-lg p-4">
+                <div key={offer.id} className="border border-border rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-gray-400" />
-                        <span className="text-lg font-bold text-gray-900">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_STYLES[offer.status] || "bg-gray-100 text-gray-600"}`}>
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-lg font-bold text-foreground">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_STYLES[offer.status] || "bg-muted text-muted-foreground"}`}>
                           {offer.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         {offer.offered_position && <span>{offer.offered_position}</span>}
                         {offer.offered_department && <span>• {offer.offered_department}</span>}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                         <span>Offered: {new Date(offer.offer_date).toLocaleDateString()}</span>
                         {offer.joining_date && <span>Join: {new Date(offer.joining_date).toLocaleDateString()}</span>}
                         {offer.expiry_date && <span>Expires: {new Date(offer.expiry_date).toLocaleDateString()}</span>}
@@ -215,7 +215,7 @@ export function OfferDialog({ open, onClose, candidateId, candidateName, recruit
                     )}
                   </div>
                   {offer.negotiation_notes && (
-                    <p className="mt-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-2">{offer.negotiation_notes}</p>
+                    <p className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">{offer.negotiation_notes}</p>
                   )}
                 </div>
               ))}

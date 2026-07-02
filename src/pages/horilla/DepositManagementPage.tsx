@@ -246,7 +246,7 @@ export default function DepositManagementPage() {
       case "completed": return "bg-emerald-100 text-emerald-700";
       case "paused": return "bg-yellow-100 text-yellow-700";
       case "resumed": return "bg-teal-100 text-teal-700";
-      default: return "bg-gray-100 text-gray-700";
+      default: return "bg-muted text-foreground";
     }
   };
 
@@ -390,7 +390,7 @@ export default function DepositManagementPage() {
                       </TableCell>
                       <TableCell>
                         {d.is_settled ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">Settled</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">Settled</span>
                         ) : d.is_fully_collected ? (
                           <span className="px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">Fully Collected</span>
                         ) : d.is_paused ? (

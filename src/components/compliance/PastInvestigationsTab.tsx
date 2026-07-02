@@ -199,19 +199,19 @@ export function PastInvestigationsTab() {
         <CardContent>
           {investigations?.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              <Archive className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <Archive className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium mb-2">No Past Investigations</h3>
               <p>No investigations have been completed yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {investigations?.map((investigation) => (
-                <Card key={investigation.id} className="border border-gray-200">
+                <Card key={investigation.id} className="border border-border">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
-                          <h4 className="font-medium text-gray-900">
+                          <h4 className="font-medium text-foreground">
                             {investigation.bank_accounts?.bank_name}
                           </h4>
                           <Badge variant="default" className="flex items-center gap-1">
@@ -223,43 +223,43 @@ export function PastInvestigationsTab() {
                           </Badge>
                         </div>
                         
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-sm text-muted-foreground mb-2">
                           {investigation.bank_accounts?.account_name}
                         </p>
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                           <div>
-                            <span className="font-medium text-gray-500">Type:</span>
-                            <p className="text-gray-900">{investigation.investigation_type}</p>
+                            <span className="font-medium text-muted-foreground">Type:</span>
+                            <p className="text-foreground">{investigation.investigation_type}</p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-500">Duration:</span>
-                            <p className="text-gray-900">
+                            <span className="font-medium text-muted-foreground">Duration:</span>
+                            <p className="text-foreground">
                               {getDurationInDays(investigation.created_at, investigation.resolved_at)} days
                             </p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-500">Started:</span>
-                            <p className="text-gray-900">
+                            <span className="font-medium text-muted-foreground">Started:</span>
+                            <p className="text-foreground">
                               {new Date(investigation.created_at).toLocaleDateString()}
                             </p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-500">Resolved:</span>
-                            <p className="text-gray-900">
+                            <span className="font-medium text-muted-foreground">Resolved:</span>
+                            <p className="text-foreground">
                               {new Date(investigation.resolved_at).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
                         
                         <div className="mt-3">
-                          <span className="font-medium text-gray-500 text-sm">Reason:</span>
-                          <p className="text-sm text-gray-900 line-clamp-2">{investigation.reason}</p>
+                          <span className="font-medium text-muted-foreground text-sm">Reason:</span>
+                          <p className="text-sm text-foreground line-clamp-2">{investigation.reason}</p>
                         </div>
                         
                         {investigation.resolution_notes && (
                           <div className="mt-2">
-                            <span className="font-medium text-gray-500 text-sm">Resolution:</span>
+                            <span className="font-medium text-muted-foreground text-sm">Resolution:</span>
                             <p className="text-sm text-green-700 line-clamp-2">{investigation.resolution_notes}</p>
                           </div>
                         )}

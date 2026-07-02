@@ -39,7 +39,7 @@ export function OrderTypeSelectionDialog({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Select an existing client from searchable dropdown (by name, ID, or platform)
               </p>
             </CardContent>
@@ -54,7 +54,7 @@ export function OrderTypeSelectionDialog({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-muted-foreground">
                 Create a new client with manual form entry (Name, Phone, Platform, etc.)
               </p>
             </CardContent>

@@ -299,7 +299,7 @@ export function LegalCommunicationsTab() {
                     <Label>Attachments</Label>
                     <div
                       className={cn(
-                        "border-2 border-dashed border-gray-300 rounded-lg p-4 transition-colors",
+                        "border-2 border-dashed border-border rounded-lg p-4 transition-colors",
                         isDragActive && "border-primary bg-primary/10"
                       )}
                       {...dropzoneProps}
@@ -314,7 +314,7 @@ export function LegalCommunicationsTab() {
                       />
                       <Label
                         htmlFor="file-upload"
-                        className="cursor-pointer flex items-center justify-center space-x-2 text-gray-600"
+                        className="cursor-pointer flex items-center justify-center space-x-2 text-muted-foreground"
                       >
                         <Upload className="h-4 w-4" />
                         <span>Click to upload or drag & drop files</span>
@@ -323,7 +323,7 @@ export function LegalCommunicationsTab() {
                     {attachments.length > 0 && (
                       <div className="space-y-2">
                         {attachments.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <div key={index} className="flex items-center justify-between bg-muted/50 p-2 rounded">
                             <span className="text-sm">{file.name}</span>
                             <Button
                               type="button"
@@ -377,7 +377,7 @@ export function LegalCommunicationsTab() {
           <div className="flex gap-4 mb-6">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search communications..."
                   value={searchTerm}
@@ -403,7 +403,7 @@ export function LegalCommunicationsTab() {
             {isLoading ? (
               <div className="text-center py-8">Loading communications...</div>
             ) : (communications?.length || 0) === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No communications found. Log your first communication to get started.
               </div>
             ) : (
@@ -412,7 +412,7 @@ export function LegalCommunicationsTab() {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h4 className="font-medium">{comm.subject}</h4>
-                      <p className="text-sm text-gray-600">{comm.communication_type} with {comm.party_name}</p>
+                      <p className="text-sm text-muted-foreground">{comm.communication_type} with {comm.party_name}</p>
                     </div>
                     <Badge variant={getStatusVariant(comm.status)}>
                       {comm.status.replace('_', ' ')}
@@ -420,10 +420,10 @@ export function LegalCommunicationsTab() {
                   </div>
 
                   {comm.content && (
-                    <p className="text-sm text-gray-700 mb-3">{comm.content}</p>
+                    <p className="text-sm text-foreground mb-3">{comm.content}</p>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-3">
                     <div>
                       <span className="font-medium">Date:</span> {new Date(comm.communication_date).toLocaleDateString()}
                     </div>

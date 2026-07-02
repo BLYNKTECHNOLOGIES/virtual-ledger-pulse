@@ -113,7 +113,7 @@ export default function Feedback360Page() {
   });
 
   function renderStars(rating: number | null) {
-    if (!rating) return <span className="text-xs text-gray-400">Not rated</span>;
+    if (!rating) return <span className="text-xs text-muted-foreground">Not rated</span>;
     return (
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((s) => (
@@ -123,14 +123,14 @@ export default function Feedback360Page() {
     );
   }
 
-  if (loading) return <div className="flex items-center justify-center py-24 text-gray-500">Loading...</div>;
+  if (loading) return <div className="flex items-center justify-center py-24 text-muted-foreground">Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">360° Feedback</h1>
-          <p className="text-gray-500 text-sm">Multi-directional performance feedback</p>
+          <h1 className="text-2xl font-bold text-foreground">360° Feedback</h1>
+          <p className="text-muted-foreground text-sm">Multi-directional performance feedback</p>
         </div>
         <Button className="bg-[#E8604C] hover:bg-[#d4553f] text-white" onClick={() => { setForm(emptyForm); setDialogOpen(true); }}>
           <Plus className="h-4 w-4 mr-1" /> New Feedback
@@ -139,7 +139,7 @@ export default function Feedback360Page() {
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative w-64">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by name or cycle..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -155,7 +155,7 @@ export default function Feedback360Page() {
       </div>
 
       {filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-gray-400">No feedback records found</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">No feedback records found</CardContent></Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((fb) => (
@@ -163,8 +163,8 @@ export default function Feedback360Page() {
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900">{empMap[fb.employee_id] || "Unknown"}</p>
-                    <p className="text-xs text-gray-500">{fb.review_cycle}</p>
+                    <p className="font-semibold text-foreground">{empMap[fb.employee_id] || "Unknown"}</p>
+                    <p className="text-xs text-muted-foreground">{fb.review_cycle}</p>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => setDeleteTarget(fb.id)}>
                     <Trash2 className="h-4 w-4 text-red-400" />
@@ -172,16 +172,16 @@ export default function Feedback360Page() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className={TYPE_COLORS[fb.feedback_type]}>{fb.feedback_type}</Badge>
-                  <Badge variant="outline" className={fb.status === "submitted" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}>
+                  <Badge variant="outline" className={fb.status === "submitted" ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}>
                     {fb.status}
                   </Badge>
                 </div>
                 {renderStars(fb.rating)}
                 {fb.reviewer_id && empMap[fb.reviewer_id] && (
-                  <p className="text-xs text-gray-400">Reviewer: {empMap[fb.reviewer_id]}</p>
+                  <p className="text-xs text-muted-foreground">Reviewer: {empMap[fb.reviewer_id]}</p>
                 )}
-                {fb.strengths && <p className="text-xs text-gray-600 line-clamp-2"><strong>Strengths:</strong> {fb.strengths}</p>}
-                {fb.improvements && <p className="text-xs text-gray-600 line-clamp-2"><strong>Improvements:</strong> {fb.improvements}</p>}
+                {fb.strengths && <p className="text-xs text-muted-foreground line-clamp-2"><strong>Strengths:</strong> {fb.strengths}</p>}
+                {fb.improvements && <p className="text-xs text-muted-foreground line-clamp-2"><strong>Improvements:</strong> {fb.improvements}</p>}
               </CardContent>
             </Card>
           ))}

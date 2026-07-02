@@ -69,7 +69,7 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
       )}
       {/* Resize controls — bottom-right in edit mode */}
       {isEditMode && onResize && (
-        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 bg-white border border-gray-200 rounded-full shadow-lg px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 bg-card border border-border rounded-full shadow-lg px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {SIZE_OPTIONS.map(opt => {
             const isActive = currentSpan === opt.span;
             return (
@@ -79,7 +79,7 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
                 className={`px-2 py-0.5 text-[10px] font-semibold rounded-full transition-colors ${
                   isActive
                     ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
                 title={opt.label}
               >

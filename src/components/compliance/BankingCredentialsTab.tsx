@@ -484,7 +484,7 @@ export function BankingCredentialsTab() {
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold">Banking Credentials</h3>
-          <p className="text-sm text-gray-600">Securely store banking login credentials and passwords</p>
+          <p className="text-sm text-muted-foreground">Securely store banking login credentials and passwords</p>
         </div>
         <div className="flex gap-2">
           <div className="flex items-center gap-2">
@@ -600,18 +600,18 @@ export function BankingCredentialsTab() {
                   </CardTitle>
                   <Badge variant="secondary">{credential.credential_type}</Badge>
                 </div>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   {credential.bank_accounts?.bank_name} – {credential.bank_accounts?.account_number}
                 </p>
               </CardHeader>
               <CardContent className="space-y-3">
                 {credential.credential_type === 'Security Question' ? (
                   <div>
-                    <Label className="text-xs text-gray-500">Security Questions</Label>
+                    <Label className="text-xs text-muted-foreground">Security Questions</Label>
                     {credential.security_questions?.map((sq, index) => (
                       <div key={index} className="text-sm space-y-1 border-b pb-2 mb-2 last:border-b-0">
                         <div className="font-medium">{sq.question}</div>
-                        <div className="text-gray-600">{sq.answer}</div>
+                        <div className="text-muted-foreground">{sq.answer}</div>
                       </div>
                     ))}
                   </div>
@@ -620,7 +620,7 @@ export function BankingCredentialsTab() {
                   <div className="space-y-3">
                     {credential.customer_id && (
                       <div>
-                        <Label className="text-xs text-gray-500">Customer ID</Label>
+                        <Label className="text-xs text-muted-foreground">Customer ID</Label>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-mono">
                             {showPasswords[`${credential.id}_customer_id`] ? credential.customer_id : '••••••••'}
@@ -650,7 +650,7 @@ export function BankingCredentialsTab() {
                     
                     {credential.login_id && (
                       <div>
-                        <Label className="text-xs text-gray-500">Net Banking ID</Label>
+                        <Label className="text-xs text-muted-foreground">Net Banking ID</Label>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-mono">
                             {showPasswords[`${credential.id}_login_id`] ? credential.login_id : '••••••••'}
@@ -680,7 +680,7 @@ export function BankingCredentialsTab() {
                     
                     {credential.password && (
                       <div>
-                        <Label className="text-xs text-gray-500">Password</Label>
+                        <Label className="text-xs text-muted-foreground">Password</Label>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-mono">
                             {showPasswords[`${credential.id}_password`] ? credential.password : '••••••••'}
@@ -710,7 +710,7 @@ export function BankingCredentialsTab() {
                     
                     {credential.transaction_password && (
                       <div>
-                        <Label className="text-xs text-gray-500">Transaction Password</Label>
+                        <Label className="text-xs text-muted-foreground">Transaction Password</Label>
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-mono">
                             {showPasswords[`${credential.id}_transaction_password`] ? credential.transaction_password : '••••••••'}
@@ -741,7 +741,7 @@ export function BankingCredentialsTab() {
                 ) : (
                   // Show single credential for other types
                   <div>
-                    <Label className="text-xs text-gray-500">
+                    <Label className="text-xs text-muted-foreground">
                       {credential.credential_type === 'Other' ? credential.credential_name : credential.credential_type}
                     </Label>
                     <div className="flex items-center justify-between">
@@ -770,8 +770,8 @@ export function BankingCredentialsTab() {
                 
                 {credential.notes && (
                   <div>
-                    <Label className="text-xs text-gray-500">Notes</Label>
-                    <p className="text-sm text-gray-600">{credential.notes}</p>
+                    <Label className="text-xs text-muted-foreground">Notes</Label>
+                    <p className="text-sm text-muted-foreground">{credential.notes}</p>
                   </div>
                 )}
                 
@@ -798,7 +798,7 @@ export function BankingCredentialsTab() {
           ))}
           
           {(!credentials || credentials.length === 0) && (
-            <div className="col-span-full text-center py-8 text-gray-500">
+            <div className="col-span-full text-center py-8 text-muted-foreground">
               No banking credentials found. {selectedBankFilter && selectedBankFilter !== "placeholder" && "Try removing the bank filter or"} Add your first credential to get started.
             </div>
           )}

@@ -200,7 +200,7 @@ export function SettlementSummary() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Settled</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Settled</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ export function SettlementSummary() {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Transactions</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Transactions</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -228,7 +228,7 @@ export function SettlementSummary() {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total MDR Deducted</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total MDR Deducted</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -242,7 +242,7 @@ export function SettlementSummary() {
         
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Average Settlement</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Average Settlement</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -308,9 +308,9 @@ export function SettlementSummary() {
         <CardContent>
           {filteredSettlements.length === 0 ? (
             <div className="text-center py-8">
-              <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No settlements found</p>
-              <p className="text-sm text-gray-400 mt-2">
+              <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No settlements found</p>
+              <p className="text-sm text-muted-foreground mt-2">
                 Try adjusting your filters or date range
               </p>
             </div>
@@ -338,7 +338,7 @@ export function SettlementSummary() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{settlement.bank_accounts.account_name}</p>
-                        <p className="text-sm text-gray-500">{settlement.bank_accounts.bank_name}</p>
+                        <p className="text-sm text-muted-foreground">{settlement.bank_accounts.bank_name}</p>
                       </div>
                     </TableCell>
                     <TableCell>{settlement.settlement_items.length}</TableCell>

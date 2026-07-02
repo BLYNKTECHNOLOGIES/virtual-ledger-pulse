@@ -95,8 +95,8 @@ export function ShiftAttendanceTab() {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600">{shift.startTime} - {shift.endTime}</p>
-                    <p className="text-sm text-gray-500">{shift.employeeCount} employees assigned</p>
+                    <p className="text-sm text-muted-foreground">{shift.startTime} - {shift.endTime}</p>
+                    <p className="text-sm text-muted-foreground">{shift.employeeCount} employees assigned</p>
                   </div>
                 ))}
               </div>
@@ -117,11 +117,11 @@ export function ShiftAttendanceTab() {
                  <div className="flex justify-between items-center p-3 md:p-4 border rounded-lg">
                    <div>
                      <h3 className="font-semibold text-sm md:text-base">Today's Attendance</h3>
-                     <p className="text-xs md:text-sm text-gray-600">June 16, 2025</p>
+                     <p className="text-xs md:text-sm text-muted-foreground">June 16, 2025</p>
                    </div>
                    <div className="text-right">
                      <div className="text-xl md:text-2xl font-bold text-green-600">18/20</div>
-                     <div className="text-xs md:text-sm text-gray-600">Present</div>
+                     <div className="text-xs md:text-sm text-muted-foreground">Present</div>
                    </div>
                  </div>
               </div>
@@ -139,8 +139,8 @@ export function ShiftAttendanceTab() {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <Clock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No overtime records for today</p>
+                <Clock className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No overtime records for today</p>
                 <Button className="mt-4" onClick={() => setShowOvertimeDialog(true)}>
                   Record Overtime
                 </Button>
@@ -162,7 +162,7 @@ export function ShiftAttendanceTab() {
                  <div className="flex justify-between items-center p-3 md:p-4 border rounded-lg">
                    <div>
                      <h3 className="font-semibold text-sm md:text-base">Absent Today</h3>
-                     <p className="text-xs md:text-sm text-gray-600">2 employees</p>
+                     <p className="text-xs md:text-sm text-muted-foreground">2 employees</p>
                    </div>
                    <Badge variant="secondary">2 Absences</Badge>
                  </div>

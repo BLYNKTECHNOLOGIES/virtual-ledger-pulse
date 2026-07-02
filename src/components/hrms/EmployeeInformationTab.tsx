@@ -84,7 +84,7 @@ export function EmployeeInformationTab() {
       case 'ACTIVE': return 'bg-green-100 text-green-800';
       case 'INACTIVE': return 'bg-red-100 text-red-800';
       case 'ON_LEAVE': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -132,23 +132,23 @@ export function EmployeeInformationTab() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Employee Details</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Designation</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Joining Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Salary</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Employee Details</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Department</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Designation</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Joining Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Salary</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {employees.map((employee) => (
-                    <tr key={employee.id} className="border-b hover:bg-gray-50">
+                    <tr key={employee.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-4">
                         <div>
                           <p className="font-medium">{employee.name}</p>
                           <p className="text-sm text-blue-600">{employee.employee_id}</p>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                          <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1">
                               <Mail className="h-3 w-3" />
                               {employee.email}
@@ -166,13 +166,13 @@ export function EmployeeInformationTab() {
                       <td className="py-3 px-4">{employee.designation}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
-                          <Calendar className="h-4 w-4 text-gray-400" />
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
                           {new Date(employee.date_of_joining).toLocaleDateString()}
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-1">
-                          <DollarSign className="h-4 w-4 text-gray-400" />
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
                           ₹{employee.salary.toLocaleString('en-IN')}
                         </div>
                       </td>
@@ -219,7 +219,7 @@ export function EmployeeInformationTab() {
               </table>
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No employees found
             </div>
           )}

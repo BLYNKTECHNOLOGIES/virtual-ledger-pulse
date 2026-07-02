@@ -25,7 +25,7 @@ export default function BAMS() {
     <PermissionGate 
       permissions={["bams_view", "bams_manage"]} 
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="max-w-md border-red-200 bg-red-50">
             <CardContent className="p-8 text-center">
               <div className="space-y-4">
@@ -48,9 +48,9 @@ export default function BAMS() {
         </div>
       }
     >
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-muted/50 p-6">
         {/* Header */}
-        <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
+        <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
           <div className="px-6 py-8">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="space-y-2">
@@ -72,40 +72,40 @@ export default function BAMS() {
           </div>
         </div>
 
-        <div className="w-full h-full flex-1 overflow-auto bg-white rounded-lg shadow-sm p-0">
+        <div className="w-full h-full flex-1 overflow-auto bg-card rounded-lg shadow-sm p-0">
           <Tabs defaultValue="bank-accounts" className="h-full flex flex-col">
             {/* Single responsive tab bar: horizontal scroll on mobile, full width on desktop */}
             <div className="overflow-x-auto pb-1 mb-4 md:mb-6">
-              <TabsList className="inline-flex w-max md:grid md:w-full md:grid-cols-8 bg-gray-100 p-1 rounded-md gap-1">
-                <TabsTrigger value="account-summary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <TabsList className="inline-flex w-max md:grid md:w-full md:grid-cols-8 bg-muted p-1 rounded-md gap-1">
+                <TabsTrigger value="account-summary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <BarChart3 className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Account Summary</span>
                 </TabsTrigger>
-                <TabsTrigger value="bank-accounts" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="bank-accounts" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <Building className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Bank Accounts</span>
                 </TabsTrigger>
-                <TabsTrigger value="payment-methods" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="payment-methods" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <CreditCard className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Sales Methods</span>
                 </TabsTrigger>
-                <TabsTrigger value="purchases" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="purchases" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <ShoppingBag className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Purchase Management</span>
                 </TabsTrigger>
-                <TabsTrigger value="journal-entries" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="journal-entries" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <BookOpen className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Bank Journal Entries</span>
                 </TabsTrigger>
-                <TabsTrigger value="payment-gateway" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="payment-gateway" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <Smartphone className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Payment Gateway</span>
                 </TabsTrigger>
-                <TabsTrigger value="case-generator" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="case-generator" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Case Generator</span>
                 </TabsTrigger>
-                <TabsTrigger value="beneficiary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <TabsTrigger value="beneficiary" className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm px-3 py-2 md:p-3 rounded-md whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm">
                   <Users className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0" />
                   <span>Beneficiary</span>
                 </TabsTrigger>

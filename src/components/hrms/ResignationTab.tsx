@@ -401,7 +401,7 @@ export function ResignationTab() {
       case "pending_approval": return <Badge className="bg-blue-100 text-blue-800">Pending Approval</Badge>;
       case "notice_period": return <Badge className="bg-amber-100 text-amber-800">Notice Period</Badge>;
       case "completed": return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
-      case "withdrawn": return <Badge className="bg-gray-100 text-gray-800">Withdrawn</Badge>;
+      case "withdrawn": return <Badge className="bg-muted text-foreground">Withdrawn</Badge>;
       default: return <Badge variant="outline">Unknown</Badge>;
     }
   };

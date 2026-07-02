@@ -288,7 +288,7 @@ export function HorillaSidebar({
         {navGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-[0.12em] px-2 mb-1.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em] px-2 mb-1.5">
                 {group.title}
               </p>
             )}
@@ -317,7 +317,7 @@ export function HorillaSidebar({
                         "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150",
                         active
                           ? "bg-[#6C63FF] text-white"
-                          : "text-gray-400 hover:text-gray-200 hover:bg-[#252540]",
+                          : "text-muted-foreground hover:text-gray-200 hover:bg-[#252540]",
                         collapsed && "justify-center px-2"
                       )}
                     >
@@ -347,7 +347,7 @@ export function HorillaSidebar({
                               onClick={() => handleNavigate(child.path)}
                               className={cn(
                                 "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
-                                childActive ? "text-[#6C63FF] font-medium" : "text-gray-500 hover:text-gray-300"
+                                childActive ? "text-[#6C63FF] font-medium" : "text-muted-foreground hover:text-gray-300"
                               )}
                             >
                               {child.label}
@@ -359,7 +359,7 @@ export function HorillaSidebar({
 
                     {!isMobile && collapsed && hoveredItem === item.label && hasChildren && (
                       <div className="absolute left-full top-0 ml-2 bg-[#1a1a2e] border border-[#2a2a40] rounded-lg shadow-2xl py-2 min-w-[180px] z-50">
-                        <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wider">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                           {item.label}
                         </div>
                         {item.children!.map((child) => (
@@ -370,7 +370,7 @@ export function HorillaSidebar({
                               "w-full text-left text-sm py-2 px-3 transition-colors",
                               location.pathname === child.path
                                 ? "text-[#6C63FF] bg-[#6C63FF]/10"
-                                : "text-gray-400 hover:text-white hover:bg-[#252540]"
+                                : "text-muted-foreground hover:text-white hover:bg-[#252540]"
                             )}
                           >
                             {child.label}
@@ -390,7 +390,7 @@ export function HorillaSidebar({
         <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
           <button
             onClick={onToggle}
-            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-[#252540] transition-colors text-[13px]"
+            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-muted-foreground hover:text-gray-200 hover:bg-[#252540] transition-colors text-[13px]"
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />

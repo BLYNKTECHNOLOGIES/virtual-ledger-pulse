@@ -40,21 +40,21 @@ export default function OvertimePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Overtime Records</h1>
-        <p className="text-sm text-gray-500">Track employee overtime hours</p>
+        <h1 className="text-2xl font-bold text-foreground">Overtime Records</h1>
+        <p className="text-sm text-muted-foreground">Track employee overtime hours</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-orange-50"><Clock className="h-5 w-5 text-orange-600" /></div>
-            <div><p className="text-2xl font-bold">{totalOT.toFixed(1)}h</p><p className="text-xs text-gray-500">Total OT Hours</p></div>
+            <div><p className="text-2xl font-bold">{totalOT.toFixed(1)}h</p><p className="text-xs text-muted-foreground">Total OT Hours</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-50"><Clock className="h-5 w-5 text-blue-600" /></div>
-            <div><p className="text-2xl font-bold">{filtered.length}</p><p className="text-xs text-gray-500">OT Records</p></div>
+            <div><p className="text-2xl font-bold">{filtered.length}</p><p className="text-xs text-muted-foreground">OT Records</p></div>
           </CardContent>
         </Card>
       </div>
@@ -62,7 +62,7 @@ export default function OvertimePage() {
       <div className="flex gap-3">
         <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44" />
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
@@ -70,24 +70,24 @@ export default function OvertimePage() {
       <Card>
         <CardContent className="p-0">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "ID", "Department", "Date", "OT Hours", "Check In", "Check Out"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No overtime records</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No overtime records</td></tr>
               ) : (
                 filtered.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-gray-50">
+                  <tr key={r.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{r.hr_employees?.badge_id}</td>
-                    <td className="px-4 py-3 text-gray-500">—</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
+                    <td className="px-4 py-3 text-muted-foreground">—</td>
                     <td className="px-4 py-3">{r.attendance_date}</td>
                     <td className="px-4 py-3"><span className="font-semibold text-orange-600">{r.overtime_hours}h</span></td>
                     <td className="px-4 py-3">{r.check_in || "—"}</td>

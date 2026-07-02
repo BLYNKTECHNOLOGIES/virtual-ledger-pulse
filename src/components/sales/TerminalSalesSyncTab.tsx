@@ -362,7 +362,7 @@ export function TerminalSalesSyncTab() {
             <SelectTrigger className="w-[160px] h-8 text-xs">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
-            <SelectContent className="bg-white border z-50">
+            <SelectContent className="bg-card border z-50">
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="synced_pending_approval">Pending Approval</SelectItem>
               <SelectItem value="client_mapping_pending">Client Mapping</SelectItem>

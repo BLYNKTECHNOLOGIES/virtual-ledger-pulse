@@ -69,7 +69,7 @@ export function FileUpload({ onFilesUploaded, existingFiles }: FileUploadProps) 
         <div className="space-y-2">
           <p className="text-sm font-medium">Uploaded files:</p>
           {existingFiles.map((file, index) => (
-            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+            <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
               <span className="text-sm truncate">File {index + 1}</span>
               <Button
                 type="button"

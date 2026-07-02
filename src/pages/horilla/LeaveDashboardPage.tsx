@@ -39,8 +39,8 @@ export default function LeaveDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Leave Dashboard</h1>
-        <p className="text-sm text-gray-500">Overview of leave requests and allocations</p>
+        <h1 className="text-2xl font-bold text-foreground">Leave Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Overview of leave requests and allocations</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -53,7 +53,7 @@ export default function LeaveDashboardPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -74,7 +74,7 @@ export default function LeaveDashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-gray-400 py-8">No data</p>
+              <p className="text-center text-muted-foreground py-8">No data</p>
             )}
           </CardContent>
         </Card>
@@ -87,7 +87,7 @@ export default function LeaveDashboardPage() {
                 <div key={r.id} className="px-4 py-3 flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</p>
-                    <p className="text-xs text-gray-500">{r.hr_leave_types?.name} • {r.start_date} to {r.end_date}</p>
+                    <p className="text-xs text-muted-foreground">{r.hr_leave_types?.name} • {r.start_date} to {r.end_date}</p>
                   </div>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                     r.status === "approved" ? "bg-green-100 text-green-700" :
@@ -96,7 +96,7 @@ export default function LeaveDashboardPage() {
                   }`}>{r.status}</span>
                 </div>
               ))}
-              {requests.length === 0 && <p className="text-center text-gray-400 py-8">No leave requests</p>}
+              {requests.length === 0 && <p className="text-center text-muted-foreground py-8">No leave requests</p>}
             </div>
           </CardContent>
         </Card>

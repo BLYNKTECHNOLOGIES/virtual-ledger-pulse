@@ -533,7 +533,7 @@ export function ShiftReconciliationWidget() {
 placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                   value={reviewNotes}
                   onChange={e => setReviewNotes(e.target.value)}
-                  className={`bg-white ${!reviewNotes.trim() ? "border-amber-400" : "border-green-400"}`}
+                  className={`bg-card ${!reviewNotes.trim() ? "border-amber-400" : "border-green-400"}`}
                 />
                 {!reviewNotes.trim() && (
                   <p className="text-xs text-amber-600 flex items-center gap-1">
@@ -835,7 +835,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                           placeholder="Add review notes (optional)..."
                           value={reviewNotes}
                           onChange={e => setReviewNotes(e.target.value)}
-                          className="bg-white"
+                          className="bg-card"
                         />
                         <div className="flex gap-2">
                           <Button

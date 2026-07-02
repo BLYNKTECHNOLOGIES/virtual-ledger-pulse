@@ -99,7 +99,7 @@ export function AssetValueHistoryTab() {
       </div>
 
       {/* Chart */}
-      <Card className="bg-white border-2 border-gray-200 shadow-xl">
+      <Card className="bg-card border-2 border-border shadow-xl">
         <CardHeader className="bg-indigo-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-3 text-xl">
@@ -112,7 +112,7 @@ export function AssetValueHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-white text-indigo-700" : "text-white hover:bg-indigo-500"}
+                className={viewMode === "day" ? "bg-card text-indigo-700" : "text-white hover:bg-indigo-500"}
                 onClick={() => setViewMode("day")}
               >
                 Day
@@ -120,7 +120,7 @@ export function AssetValueHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-white text-indigo-700" : "text-white hover:bg-indigo-500"}
+                className={viewMode === "month" ? "bg-card text-indigo-700" : "text-white hover:bg-indigo-500"}
                 onClick={() => setViewMode("month")}
               >
                 Month

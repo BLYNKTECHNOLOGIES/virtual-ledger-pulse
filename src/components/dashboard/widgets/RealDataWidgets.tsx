@@ -55,8 +55,8 @@ export function CustomerGrowthWidget() {
     <div className="p-4">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <div className="text-2xl font-bold text-gray-900">{data?.[data.length - 1]?.clients || 0}</div>
-          <p className="text-xs text-gray-500">Total Clients</p>
+          <div className="text-2xl font-bold text-foreground">{data?.[data.length - 1]?.clients || 0}</div>
+          <p className="text-xs text-muted-foreground">Total Clients</p>
         </div>
         <Badge className={`${Number(growth) >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
           {Number(growth) >= 0 ? '+' : ''}{growth}% this month
@@ -88,15 +88,15 @@ export function RecentOrdersWidget() {
 
   return (
     <div className="p-4 space-y-2.5">
-      {(data || []).length === 0 && <p className="text-sm text-gray-400 text-center py-4">No recent orders</p>}
+      {(data || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No recent orders</p>}
       {(data || []).map((o: any) => (
-        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors rounded px-1" title="Click to view full order details">
+        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-muted/50 transition-colors rounded px-1" title="Click to view full order details">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{o.order_number}</p>
-            <p className="text-xs text-gray-500 truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
+            <p className="text-sm font-medium text-foreground truncate">{o.order_number}</p>
+            <p className="text-xs text-muted-foreground truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-sm font-semibold text-gray-900">₹{Math.round(Number(o.total_amount)).toLocaleString('en-IN')}</p>
+            <p className="text-sm font-semibold text-foreground">₹{Math.round(Number(o.total_amount)).toLocaleString('en-IN')}</p>
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.status || 'Pending'}</Badge>
           </div>
         </div>
@@ -136,7 +136,7 @@ export function DailyActivityWidget() {
       {stats.map(s => (
         <div key={s.label} className={`text-center p-3 ${s.bg} rounded-lg`}>
           <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-          <p className="text-[10px] text-gray-600 mt-0.5">{s.label}</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
         </div>
       ))}
     </div>
@@ -675,8 +675,8 @@ export function ConversionRateWidget({ metrics }: { metrics?: any }) {
   return (
     <div className="text-center p-4">
       <div className="text-3xl font-bold text-blue-600">{rate}%</div>
-      <p className="text-sm text-gray-500 mt-1">KYC Conversion Rate</p>
-      <p className="text-xs text-gray-400 mt-2">{metrics?.verifiedClients || 0} verified of {metrics?.totalClients || 0}</p>
+      <p className="text-sm text-muted-foreground mt-1">KYC Conversion Rate</p>
+      <p className="text-xs text-muted-foreground mt-2">{metrics?.verifiedClients || 0} verified of {metrics?.totalClients || 0}</p>
     </div>
   );
 }
@@ -721,10 +721,10 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
       <div className={`text-3xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
         {isPositive ? '+' : ''}{data?.growth}%
       </div>
-      <p className="text-sm text-gray-500 mt-1">Revenue Growth ({data?.periodLabel})</p>
+      <p className="text-sm text-muted-foreground mt-1">Revenue Growth ({data?.periodLabel})</p>
       <div className="flex items-center justify-center gap-1 mt-2">
         {isPositive ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
-        <span className="text-xs text-gray-400">vs previous period</span>
+        <span className="text-xs text-muted-foreground">vs previous period</span>
       </div>
     </div>
   );
@@ -1233,9 +1233,9 @@ function WidgetLoader() {
   return (
     <div className="p-6 text-center">
       <div className="animate-pulse space-y-3">
-        <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto" />
-        <div className="h-8 bg-gray-200 rounded w-1/2 mx-auto" />
-        <div className="h-3 bg-gray-200 rounded w-2/3 mx-auto" />
+        <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
+        <div className="h-8 bg-muted rounded w-1/2 mx-auto" />
+        <div className="h-3 bg-muted rounded w-2/3 mx-auto" />
       </div>
     </div>
   );

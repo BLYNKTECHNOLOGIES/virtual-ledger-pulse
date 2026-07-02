@@ -1703,7 +1703,7 @@ export function ClientOnboardingApprovals() {
         <CardContent>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, phone or Binance ID..."
                 value={searchTerm}
@@ -1927,7 +1927,7 @@ export function ClientOnboardingApprovals() {
                 })}
                 {pendingApprovals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No pending approvals found.
                     </TableCell>
                   </TableRow>
@@ -2034,7 +2034,7 @@ export function ClientOnboardingApprovals() {
                   </p>
                   
                   {/* Existing client details */}
-                   <div className="bg-white rounded-md p-3 border border-orange-200">
+                   <div className="bg-card rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">Existing Client Record</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Client ID:</span> {existingClientMatch.client_id}</div>
@@ -2059,7 +2059,7 @@ export function ClientOnboardingApprovals() {
 
                   {/* Recent Transactions */}
                   {existingClientTransactions.length > 0 && (
-                    <div className="bg-white rounded-md p-3 border border-orange-200">
+                    <div className="bg-card rounded-md p-3 border border-orange-200">
                       <h4 className="font-semibold text-sm mb-2 text-foreground">Recent Transactions (Last {existingClientTransactions.length})</h4>
                       <div className="w-full">
                         <table className="w-full text-xs table-fixed">
@@ -2096,7 +2096,7 @@ export function ClientOnboardingApprovals() {
                                 <td className="py-1 pr-2">{tx.client_phone || '-'}</td>
                                 <td className="py-1 pr-2">{tx.client_state || '-'}</td>
                                 <td className="py-1">
-                                  <span className={`px-1.5 py-0.5 rounded text-xs ${tx.status === 'APPROVED' ? 'bg-green-100 text-green-700' : tx.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
+                                  <span className={`px-1.5 py-0.5 rounded text-xs ${tx.status === 'APPROVED' ? 'bg-green-100 text-green-700' : tx.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' : 'bg-muted text-muted-foreground'}`}>
                                     {tx.status}
                                   </span>
                                 </td>
@@ -2108,7 +2108,7 @@ export function ClientOnboardingApprovals() {
                     </div>
                   )}
 
-                  <div className="bg-white rounded-md p-3 border border-orange-200">
+                  <div className="bg-card rounded-md p-3 border border-orange-200">
                     <h4 className="font-semibold text-sm mb-2 text-foreground">New Onboarding Request</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div><span className="text-muted-foreground">Name:</span> {selectedApproval.client_name}</div>
@@ -2158,7 +2158,7 @@ export function ClientOnboardingApprovals() {
               )}
 
               {/* Client Details */}
-              <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="bg-muted/50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">Order Information</h3>
                 <div className="space-y-4 text-sm">
                   {/* Row 1: Client Name + Order Amount */}
@@ -2239,7 +2239,7 @@ export function ClientOnboardingApprovals() {
                 </div>
                 <div className="space-y-4">
                   {bankEntries.map((entry, index) => (
-                    <div key={index} className="bg-white p-3 rounded-md border border-blue-100 space-y-3">
+                    <div key={index} className="bg-card p-3 rounded-md border border-blue-100 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-muted-foreground">Bank Account #{index + 1}</span>
                         {index > 0 && (
@@ -2465,7 +2465,7 @@ export function ClientOnboardingApprovals() {
                 </h4>
                 <div className="space-y-4">
                   {/* Aadhaar Card - mandatory, multi-file */}
-                  <div className="bg-white p-3 rounded-md border space-y-2">
+                  <div className="bg-card p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">Aadhaar Card * <span className="text-xs text-muted-foreground">(PDF, Image, or any file — multiple allowed)</span></Label>
                       <Button
@@ -2510,7 +2510,7 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* USDT Usage Proof - optional */}
-                  <div className="bg-white p-3 rounded-md border space-y-2">
+                  <div className="bg-card p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">USDT Usage Proof <span className="text-xs text-muted-foreground">(Optional)</span></Label>
                       <div className="flex items-center gap-2">
@@ -2546,7 +2546,7 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* Trade History Screenshot - optional */}
-                  <div className="bg-white p-3 rounded-md border space-y-2">
+                  <div className="bg-card p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">Trade History Screenshot <span className="text-xs text-muted-foreground">(Optional)</span></Label>
                       <div className="flex items-center gap-2">
@@ -2582,7 +2582,7 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* vKYC Video - optional */}
-                  <div className="bg-white p-3 rounded-md border space-y-2">
+                  <div className="bg-card p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — resumable upload for large files)</span></Label>
                       <div className="flex items-center gap-2">
@@ -2629,7 +2629,7 @@ export function ClientOnboardingApprovals() {
                   <FileText className="h-4 w-4 text-purple-600" />
                   Additional Documents <span className="text-xs font-normal text-muted-foreground">(Optional — payment receipts, invoices, supporting docs)</span>
                 </Label>
-                <div className="bg-white p-3 rounded-md border space-y-2">
+                <div className="bg-card p-3 rounded-md border space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">
                       Upload Files <span className="text-xs text-muted-foreground">(PDF, images, multiple allowed)</span>

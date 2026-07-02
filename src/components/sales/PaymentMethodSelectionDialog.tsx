@@ -116,8 +116,8 @@ export function PaymentMethodSelectionDialog({
 
         {method.type === 'UPI' && method.upi_id && (
           <div className="space-y-1">
-            <div className="text-sm text-gray-600">UPI ID</div>
-            <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+            <div className="text-sm text-muted-foreground">UPI ID</div>
+            <div className="flex items-center justify-between bg-muted/50 p-2 rounded">
               <span className="font-mono text-sm">{method.upi_id}</span>
               <Button 
                 variant="ghost" 
@@ -137,11 +137,11 @@ export function PaymentMethodSelectionDialog({
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <span className="text-gray-600">Bank:</span>
+                <span className="text-muted-foreground">Bank:</span>
                 <p className="font-medium">{method.bank_accounts.bank_name}</p>
               </div>
               <div>
-                <span className="text-gray-600">Account:</span>
+                <span className="text-muted-foreground">Account:</span>
                 <div className="flex items-center gap-1">
                   <span className="font-mono">{method.bank_accounts.account_number}</span>
                   <Button 
@@ -157,7 +157,7 @@ export function PaymentMethodSelectionDialog({
                 </div>
               </div>
               <div>
-                <span className="text-gray-600">IFSC:</span>
+                <span className="text-muted-foreground">IFSC:</span>
                 <div className="flex items-center gap-1">
                   <span className="font-mono">{method.bank_accounts.IFSC}</span>
                   <Button 
@@ -173,7 +173,7 @@ export function PaymentMethodSelectionDialog({
                 </div>
               </div>
               <div>
-                <span className="text-gray-600">Name:</span>
+                <span className="text-muted-foreground">Name:</span>
                 <p className="font-medium">{method.bank_accounts.bank_account_holder_name}</p>
               </div>
             </div>
@@ -200,7 +200,7 @@ export function PaymentMethodSelectionDialog({
               {paymentMethods.map(renderPaymentMethodCard)}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No available payment methods found for this risk category and type.
             </div>
           )}

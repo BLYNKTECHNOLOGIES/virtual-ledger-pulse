@@ -107,14 +107,14 @@ export default function SalaryStructureAssignments() {
   return (
     <div className="space-y-4 mt-4">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input placeholder="Search employees..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {isLoading ? (
-        <p className="text-center text-gray-400 py-12">Loading...</p>
+        <p className="text-center text-muted-foreground py-12">Loading...</p>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-gray-400">No employees found.</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">No employees found.</CardContent></Card>
       ) : (
         <div className="space-y-3">
           {filtered.map((emp: any) => {
@@ -130,8 +130,8 @@ export default function SalaryStructureAssignments() {
                         {emp.first_name?.[0]}{emp.last_name?.[0]}
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{emp.first_name} {emp.last_name}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="font-semibold text-foreground">{emp.first_name} {emp.last_name}</p>
+                        <p className="text-xs text-muted-foreground">
                           {emp.badge_id}
                           {tmplName && <span className="ml-2 bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">{tmplName}</span>}
                         </p>
@@ -139,12 +139,12 @@ export default function SalaryStructureAssignments() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right text-sm">
-                        <p className="text-gray-500">Total Salary: <span className="font-medium text-gray-900">₹{(Number(emp.total_salary) || 0).toLocaleString('en-IN')}</span></p>
+                        <p className="text-muted-foreground">Total Salary: <span className="font-medium text-foreground">₹{(Number(emp.total_salary) || 0).toLocaleString('en-IN')}</span></p>
                         {breakdown && (
                           <>
                             <p className="text-green-700">Earnings: ₹{breakdown.totalEarnings.toLocaleString('en-IN')}</p>
                             <p className="text-red-600">Deductions: ₹{breakdown.totalDeductions.toLocaleString('en-IN')}</p>
-                            <p className="font-bold text-gray-900">Net: ₹{breakdown.net.toLocaleString('en-IN')}</p>
+                            <p className="font-bold text-foreground">Net: ₹{breakdown.net.toLocaleString('en-IN')}</p>
                           </>
                         )}
                       </div>
@@ -159,11 +159,11 @@ export default function SalaryStructureAssignments() {
                       <div>
                         <p className="text-xs font-semibold text-green-700 mb-1.5">EARNINGS</p>
                         <div className="space-y-1">
-                          {breakdown.earnings.length === 0 && <p className="text-xs text-gray-400">None</p>}
+                          {breakdown.earnings.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                           {breakdown.earnings.map((e, i) => (
                             <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${e.isVariable ? 'bg-amber-50/50' : 'bg-green-50'}`}>
                               <span>
-                                {e.name} <span className="text-xs text-gray-400">({e.code})</span>
+                                {e.name} <span className="text-xs text-muted-foreground">({e.code})</span>
                                 {e.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
                               </span>
                               <span className="font-medium">{e.isVariable ? '—' : `₹${e.amount.toLocaleString('en-IN')}`}</span>
@@ -174,11 +174,11 @@ export default function SalaryStructureAssignments() {
                       <div>
                         <p className="text-xs font-semibold text-red-600 mb-1.5">DEDUCTIONS</p>
                         <div className="space-y-1">
-                          {breakdown.deductions.length === 0 && <p className="text-xs text-gray-400">None</p>}
+                          {breakdown.deductions.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                           {breakdown.deductions.map((d, i) => (
                             <div key={i} className={`flex justify-between text-sm px-3 py-1.5 rounded ${d.isVariable ? 'bg-amber-50/50' : 'bg-red-50'}`}>
                               <span>
-                                {d.name} <span className="text-xs text-gray-400">({d.code})</span>
+                                {d.name} <span className="text-xs text-muted-foreground">({d.code})</span>
                                 {d.isVariable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
                               </span>
                               <span className="font-medium">{d.isVariable ? '—' : `₹${d.amount.toLocaleString('en-IN')}`}</span>
@@ -190,7 +190,7 @@ export default function SalaryStructureAssignments() {
                   )}
 
                   {!breakdown && !tmplName && (
-                    <p className="text-xs text-gray-400 border-t pt-2">No salary structure assigned. Click "Assign" to set one.</p>
+                    <p className="text-xs text-muted-foreground border-t pt-2">No salary structure assigned. Click "Assign" to set one.</p>
                   )}
                 </CardContent>
               </Card>
@@ -214,7 +214,7 @@ export default function SalaryStructureAssignments() {
                 onChange={(e) => setAssignForm({ ...assignForm, total_salary: parseFloat(e.target.value) || 0 })}
                 placeholder="Enter employee's total salary / CTC"
               />
-              <p className="text-xs text-gray-400 mt-1">This is the base amount used for percentage calculations</p>
+              <p className="text-xs text-muted-foreground mt-1">This is the base amount used for percentage calculations</p>
             </div>
             <div>
               <Label>Salary Structure Template</Label>
@@ -241,8 +241,8 @@ export default function SalaryStructureAssignments() {
               const vars = buildVarsMap(items, totalSalary, basicPay);
 
               return (
-                <div className="border rounded-lg p-3 bg-gray-50">
-                  <p className="text-xs font-semibold text-gray-600 mb-2">PREVIEW (for ₹{totalSalary.toLocaleString('en-IN')} total salary)</p>
+                <div className="border rounded-lg p-3 bg-muted/50">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">PREVIEW (for ₹{totalSalary.toLocaleString('en-IN')} total salary)</p>
                   <div className="space-y-1 text-sm">
                     {items.map((i: any, idx: number) => {
                       const comp = i.hr_salary_components;

@@ -12,8 +12,8 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Review & Add Notes</h3>
-        <p className="text-gray-600">Review the client information and add any operator notes</p>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Review & Add Notes</h3>
+        <p className="text-muted-foreground">Review the client information and add any operator notes</p>
       </div>
 
       {/* Summary Cards */}
@@ -68,7 +68,7 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
                   </p>
                 ))
               ) : (
-                <p className="text-gray-500">No bank accounts added</p>
+                <p className="text-muted-foreground">No bank accounts added</p>
               )}
             </div>
           </CardContent>
@@ -86,7 +86,7 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
           rows={6}
           className="resize-none"
         />
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           These notes will be visible to all operators and can include information about client preferences, 
           special requirements, risk assessments, or any other relevant details.
         </p>

@@ -81,7 +81,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             Select a client to view value score
           </div>
         </CardContent>
@@ -125,25 +125,25 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="text-sm font-medium text-gray-600">Monthly Purchase Value</label>
+          <label className="text-sm font-medium text-muted-foreground">Monthly Purchase Value</label>
           <p className="text-2xl font-bold text-green-600">₹{monthlyPurchaseValue.toLocaleString('en-IN')}</p>
-          <p className="text-xs text-gray-500">{currentMonthOrders.length} orders this month</p>
+          <p className="text-xs text-muted-foreground">{currentMonthOrders.length} orders this month</p>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Client Value (3%)</label>
+          <label className="text-sm font-medium text-muted-foreground">Client Value (3%)</label>
           <p className="text-xl font-semibold text-purple-600">₹{clientValue.toLocaleString('en-IN')}</p>
-          <p className="text-sm text-gray-500">Indicates priority level</p>
+          <p className="text-sm text-muted-foreground">Indicates priority level</p>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Total Lifetime Value</label>
+          <label className="text-sm font-medium text-muted-foreground">Total Lifetime Value</label>
           <p className="text-lg font-semibold text-blue-600">₹{totalLifetimeValue.toLocaleString('en-IN')}</p>
-          <p className="text-xs text-gray-500">{orders?.length || 0} total orders</p>
+          <p className="text-xs text-muted-foreground">{orders?.length || 0} total orders</p>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Client Priority Tag</label>
+          <label className="text-sm font-medium text-muted-foreground">Client Priority Tag</label>
           <Badge className={`${priorityTag.color} text-white flex items-center gap-1 w-fit`}>
             <Star className="h-3 w-3" />
             {priorityTag.label}
@@ -151,7 +151,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Client Value Score</label>
+          <label className="text-sm font-medium text-muted-foreground">Client Value Score</label>
           <p className="text-lg font-semibold text-indigo-600">{client.client_value_score || 0}/100</p>
         </div>
       </CardContent>

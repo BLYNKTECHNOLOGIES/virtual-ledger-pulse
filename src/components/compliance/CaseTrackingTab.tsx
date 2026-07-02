@@ -136,7 +136,7 @@ export function CaseTrackingTab() {
       case 'ACTIVE':
         return 'text-red-800 bg-red-50 border-red-200';
       default:
-        return 'text-gray-800 bg-gray-50 border-gray-200';
+        return 'text-foreground bg-muted/50 border-border';
     }
   };
 
@@ -258,7 +258,7 @@ export function CaseTrackingTab() {
                     {getCaseTypeIcon(bankCase.case_type)}
                     <h4 className="font-medium">{bankCase.case_number}</h4>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     {bankCase.bank_accounts?.bank_name} - {bankCase.bank_accounts?.account_name}
                   </p>
                   <p className="text-sm font-medium text-blue-600 mt-1">
@@ -271,9 +271,9 @@ export function CaseTrackingTab() {
               </div>
               
               <div className="mb-3">
-                <h5 className="font-medium text-gray-900">{bankCase.title}</h5>
+                <h5 className="font-medium text-foreground">{bankCase.title}</h5>
                 {bankCase.description && bankCase.description.trim() && (
-                  <p className="text-sm text-gray-600 mt-1">{bankCase.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{bankCase.description}</p>
                 )}
               </div>
 
@@ -281,17 +281,17 @@ export function CaseTrackingTab() {
                 {bankCase.amount_involved !== null && bankCase.amount_involved !== undefined && 
                  bankCase.case_type !== 'ACCOUNT_NOT_WORKING' && (
                   <div>
-                    <span className="text-gray-600">Amount:</span> ₹{Number(bankCase.amount_involved).toLocaleString('en-IN')}
+                    <span className="text-muted-foreground">Amount:</span> ₹{Number(bankCase.amount_involved).toLocaleString('en-IN')}
                   </div>
                 )}
                 {bankCase.due_date && (
                   <div>
-                    <span className="text-gray-600">Due Date:</span> {new Date(bankCase.due_date).toLocaleDateString()}
+                    <span className="text-muted-foreground">Due Date:</span> {new Date(bankCase.due_date).toLocaleDateString()}
                   </div>
                 )}
                 {bankCase.priority && (
                   <div>
-                    <span className="text-gray-600">Priority:</span> 
+                    <span className="text-muted-foreground">Priority:</span> 
                     <span className={`ml-1 font-medium ${
                       bankCase.priority === 'HIGH' ? 'text-red-600' : 
                       bankCase.priority === 'MEDIUM' ? 'text-orange-600' : 'text-green-600'
@@ -302,7 +302,7 @@ export function CaseTrackingTab() {
                 )}
                 {bankCase.assigned_to && (
                   <div>
-                    <span className="text-gray-600">Assigned to:</span> {bankCase.assigned_to}
+                    <span className="text-muted-foreground">Assigned to:</span> {bankCase.assigned_to}
                   </div>
                 )}
               </div>
@@ -336,7 +336,7 @@ export function CaseTrackingTab() {
           ))}
           
           {(!bankCases || bankCases.length === 0) && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No cases found. Report your first case to get started.
             </div>
           )}

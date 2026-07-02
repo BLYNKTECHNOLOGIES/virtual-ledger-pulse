@@ -384,7 +384,7 @@ export function LienCaseTrackingTab() {
           ))}
           
           {(!lienCases || lienCases.length === 0) && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No lien cases found. {(selectedBankFilter && selectedBankFilter !== "placeholder") || selectedStatusFilter !== "all" ? "Try removing the filters or" : ""} Report your first lien case to get started.
             </div>
           )}

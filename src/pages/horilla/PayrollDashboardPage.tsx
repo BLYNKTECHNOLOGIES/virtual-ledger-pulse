@@ -142,13 +142,13 @@ export default function PayrollDashboardPage() {
 
   const statusColor = (status: string) => {
     switch (status) {
-      case "draft": return "bg-gray-100 text-gray-700";
+      case "draft": return "bg-muted text-foreground";
       case "processing": return "bg-blue-100 text-blue-700";
       case "reviewed": return "bg-indigo-100 text-indigo-700";
       case "completed": return "bg-green-100 text-green-700";
       case "paid": return "bg-emerald-100 text-emerald-800";
       case "cancelled": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+      default: return "bg-muted text-foreground";
     }
   };
 
@@ -171,8 +171,8 @@ export default function PayrollDashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payroll Dashboard</h1>
-          <p className="text-sm text-gray-500">Manage payroll runs, generate payslips and process payments</p>
+          <h1 className="text-2xl font-bold text-foreground">Payroll Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Manage payroll runs, generate payslips and process payments</p>
         </div>
         <Button onClick={() => setShowCreate(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> New Payroll Run
@@ -189,7 +189,7 @@ export default function PayrollDashboardPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+              <div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -199,23 +199,23 @@ export default function PayrollDashboardPage() {
         <CardHeader><CardTitle className="text-sm">Payroll Runs</CardTitle></CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Title", "Period", "Run Date", "Employees", "Gross", "Deductions", "Net", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : runs.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No payroll runs yet</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No payroll runs yet</td></tr>
               ) : (
                 runs.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-gray-50">
+                  <tr key={r.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{r.title}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
                     <td className="px-4 py-3">{r.run_date}</td>
                     <td className="px-4 py-3">{r.employee_count || 0}</td>
                     <td className="px-4 py-3 text-green-700 font-medium">₹{(r.total_gross || 0).toLocaleString('en-IN')}</td>

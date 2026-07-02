@@ -449,7 +449,7 @@ export function PaymentMethodManagement() {
       case "Medium Risk": return "bg-yellow-100 text-yellow-800";
       case "Low Risk": return "bg-blue-100 text-blue-800";
       case "No Risk": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
+      default: return "bg-muted text-foreground";
     }
   };
 
@@ -461,8 +461,8 @@ export function PaymentMethodManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Sales Payment Methods</h2>
-          <p className="text-gray-600">Manage UPI and bank account payment methods with risk categories for sales. All methods must be linked to a bank account.</p>
+          <h2 className="text-2xl font-bold text-foreground">Sales Payment Methods</h2>
+          <p className="text-muted-foreground">Manage UPI and bank account payment methods with risk categories for sales. All methods must be linked to a bank account.</p>
         </div>
         <ViewOnlyWrapper isViewOnly={isViewOnly}>
           <div className="flex gap-2">
@@ -497,7 +497,7 @@ export function PaymentMethodManagement() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {editingMethod ? "Edit Sales Payment Method" : "Add New Sales Payment Method"}
-                <span className="text-sm text-gray-500">Step {step} of {formData.payment_gateway ? 4 : 3}</span>
+                <span className="text-sm text-muted-foreground">Step {step} of {formData.payment_gateway ? 4 : 3}</span>
               </DialogTitle>
             </DialogHeader>
             
@@ -507,11 +507,11 @@ export function PaymentMethodManagement() {
                   <div key={stepNum} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                       stepNum <= step ? 'bg-blue-600 text-white' : 
-                      'bg-gray-200 text-gray-500'
+                      'bg-muted text-muted-foreground'
                     } ${stepNum === step ? 'ring-2 ring-blue-300' : ''}`}>
                       {stepNum < step ? '✓' : stepNum}
                     </div>
-                    {stepNum < (formData.payment_gateway ? 4 : 3) && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+                    {stepNum < (formData.payment_gateway ? 4 : 3) && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-muted'}`} />}
                   </div>
                 ))}
               </div>
@@ -541,7 +541,7 @@ export function PaymentMethodManagement() {
                           <SelectItem key={account.id} value={account.id}>
                             <div className="flex flex-col">
                               <span className="font-medium">{account.account_name}</span>
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-muted-foreground">
                                 {account.bank_name} - {account.account_number} ({account.IFSC})
                               </span>
                             </div>
@@ -549,7 +549,7 @@ export function PaymentMethodManagement() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       All sales through this method will be credited to this bank account
                     </p>
                   </div>
@@ -640,9 +640,9 @@ export function PaymentMethodManagement() {
                         settlement_cycle: e.target.checked ? prev.settlement_cycle : "",
                         settlement_days: e.target.checked ? prev.settlement_days : ""
                       }))}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-border rounded"
                     />
-                    <Label htmlFor="payment_gateway" className="text-sm font-medium text-gray-700">
+                    <Label htmlFor="payment_gateway" className="text-sm font-medium text-foreground">
                       Payment Gateway
                     </Label>
                   </div>
@@ -769,7 +769,7 @@ export function PaymentMethodManagement() {
                         <SelectItem value="Custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       24 hours: Limit resets 24 hours after each transaction | Daily: Resets at midnight
                     </p>
                   </div>
@@ -800,7 +800,7 @@ export function PaymentMethodManagement() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           Set how many hours after which the payment limit will reset
                         </p>
                       </div>
@@ -819,7 +819,7 @@ export function PaymentMethodManagement() {
               {step === 4 && formData.payment_gateway && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Settlement Cycle Configuration</h3>
-                  <p className="text-sm text-gray-600">Configure how quickly funds are settled to your bank account</p>
+                  <p className="text-sm text-muted-foreground">Configure how quickly funds are settled to your bank account</p>
                   
                   <div>
                     <Label htmlFor="settlement_cycle">Settlement Cycle *</Label>
@@ -838,7 +838,7 @@ export function PaymentMethodManagement() {
                         <SelectItem value="Custom">Custom (T+n)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Instant: Funds available immediately | T+1: Next business day | Custom: Specify number of days
                     </p>
                   </div>
@@ -856,7 +856,7 @@ export function PaymentMethodManagement() {
                         onChange={(e) => setFormData(prev => ({ ...prev, settlement_days: e.target.value }))}
                         required={formData.settlement_cycle === "Custom"}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Enter the number of days after transaction for settlement (e.g., 2 for T+2, 7 for T+7)
                       </p>
                     </div>
@@ -945,7 +945,7 @@ export function PaymentMethodManagement() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={method.nickname ? "font-medium" : "text-gray-400"}>
+                      <span className={method.nickname ? "font-medium" : "text-muted-foreground"}>
                         {method.nickname || "NIL"}
                       </span>
                     </TableCell>
@@ -957,7 +957,7 @@ export function PaymentMethodManagement() {
                       ) : (
                         <div className="flex flex-col">
                           <span className="font-medium">Bank Transfer</span>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-muted-foreground">
                             Direct bank account payment
                           </span>
                         </div>
@@ -965,11 +965,11 @@ export function PaymentMethodManagement() {
                     </TableCell>
                     <TableCell>
                       {isLoadingBankAccounts ? (
-                        <div className="text-sm text-gray-500">Loading...</div>
+                        <div className="text-sm text-muted-foreground">Loading...</div>
                       ) : method.bank_accounts ? (
                         <div className="flex flex-col">
                           <span className="font-medium">{method.bank_accounts.account_name}</span>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-muted-foreground">
                             {method.bank_accounts.bank_name} - {method.bank_accounts.account_number}
                           </span>
                         </div>
@@ -986,7 +986,7 @@ export function PaymentMethodManagement() {
                     <TableCell>
                       <div className="flex flex-col">
                         <span>₹{method.current_usage.toLocaleString('en-IN')}</span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-xs text-muted-foreground">
                           ({((method.current_usage / method.payment_limit) * 100).toFixed(1)}%)
                         </span>
                       </div>
@@ -1027,7 +1027,7 @@ export function PaymentMethodManagement() {
                 ))}
                 {paymentMethods?.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       No payment methods found. Add your first payment method to get started.
                     </TableCell>
                   </TableRow>
@@ -1046,12 +1046,12 @@ export function PaymentMethodManagement() {
             <AlertDialogDescription>
               Are you sure you want to delete this payment method?
               {deletingMethod && (
-                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                <div className="mt-2 p-3 bg-muted/50 rounded-lg">
                   <p className="font-medium">
                     {deletingMethod.type === "UPI" ? deletingMethod.upi_id : "Bank Transfer"}
                   </p>
                   {deletingMethod.bank_accounts && (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       Linked to: {deletingMethod.bank_accounts.account_name}
                     </p>
                   )}

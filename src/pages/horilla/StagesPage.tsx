@@ -173,17 +173,17 @@ export default function StagesPage() {
     offer: { label: "Offer", color: "bg-emerald-100 text-emerald-700" },
     hired: { label: "Hired", color: "bg-green-100 text-green-700" },
     cancelled: { label: "Cancelled", color: "bg-red-100 text-red-700" },
-    other: { label: "Other", color: "bg-gray-100 text-gray-700" },
+    other: { label: "Other", color: "bg-muted text-foreground" },
   };
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Stages</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Manage recruitment pipeline stages across all positions</p>
+          <h1 className="text-xl font-bold text-foreground">Stages</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage recruitment pipeline stages across all positions</p>
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
@@ -201,26 +201,26 @@ export default function StagesPage() {
             <option key={r.id} value={r.id}>{r.title} {r.closed ? "(Closed)" : ""}</option>
           ))}
         </select>
-        <span className="text-xs text-gray-400">{filtered.length} stages</span>
+        <span className="text-xs text-muted-foreground">{filtered.length} stages</span>
       </div>
 
       {/* Stages grouped by recruitment */}
       {isLoading ? (
-        <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+        <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
       ) : Object.keys(grouped).length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400 text-sm">
+        <div className="bg-card rounded-xl border border-border p-8 text-center text-muted-foreground text-sm">
           No stages found. Create one to get started.
         </div>
       ) : (
         Object.entries(grouped).map(([recId, recStages]) => {
           const recTitle = (recStages[0] as any).hr_recruitments?.title || "Unknown";
           return (
-            <div key={recId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            <div key={recId} className="bg-card rounded-xl border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border bg-muted/50">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <Layers className="h-4 w-4 text-[#E8604C]" />
                   {recTitle}
-                  <span className="text-xs text-gray-400 font-normal">({recStages.length} stages)</span>
+                  <span className="text-xs text-muted-foreground font-normal">({recStages.length} stages)</span>
                 </h3>
               </div>
               <div className="divide-y divide-gray-50">
@@ -228,31 +228,31 @@ export default function StagesPage() {
                   const typeInfo = STAGE_TYPES[stage.stage_type] || STAGE_TYPES.initial;
                   const count = getCountForStage(stage.id);
                     return (
-                      <div key={stage.id} className="px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <div key={stage.id} className="px-4 py-3 hover:bg-muted/50 transition-colors">
                         <div className="flex items-center gap-4">
                           <GripVertical className="h-4 w-4 text-gray-300 shrink-0" />
-                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">{stage.stage_name}</p>
+                            <p className="text-sm font-medium text-foreground">{stage.stage_name}</p>
                           </div>
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${typeInfo.color}`}>
                             {typeInfo.label}
                           </span>
-                          <span className="text-xs text-gray-500 min-w-[60px] text-right">
+                          <span className="text-xs text-muted-foreground min-w-[60px] text-right">
                             {count} candidate{count !== 1 ? "s" : ""}
                           </span>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={() => setManagerDialogStageId(stage.id)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Manage stage managers">
+                            <button onClick={() => setManagerDialogStageId(stage.id)} className="p-1 rounded hover:bg-blue-50 text-muted-foreground hover:text-blue-600" title="Manage stage managers">
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                            <button onClick={() => openEdit(stage)} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
                               <Edit className="h-3.5 w-3.5" />
                             </button>
                             <button
                               onClick={() => setDeleteTarget({ id: stage.id, name: stage.stage_name })}
-                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                              className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -261,7 +261,7 @@ export default function StagesPage() {
                         {/* Show assigned managers */}
                         {getManagersForStage(stage.id).length > 0 && (
                           <div className="flex items-center gap-2 mt-1.5 ml-14 flex-wrap">
-                            <Users className="h-3 w-3 text-gray-400" />
+                            <Users className="h-3 w-3 text-muted-foreground" />
                             {getManagersForStage(stage.id).map((m: any) => (
                               <span key={m.id} className="text-[10px] px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 flex items-center gap-1">
                                 {m.hr_employees?.first_name} {m.hr_employees?.last_name}
@@ -284,15 +284,15 @@ export default function StagesPage() {
       {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">{editStage ? "Edit" : "Add"} Stage</h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">{editStage ? "Edit" : "Add"} Stage</h2>
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               {!editStage && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Recruitment *</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Recruitment *</label>
                   <select value={form.recruitment_id} onChange={e => setForm({ ...form, recruitment_id: e.target.value })} className={inputCls}>
                     <option value="">Select Recruitment</option>
                     {recruitments.filter((r: any) => !r.closed).map((r: any) => (
@@ -302,11 +302,11 @@ export default function StagesPage() {
                 </div>
               )}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Stage Name *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Stage Name *</label>
                 <input value={form.stage_name} onChange={e => setForm({ ...form, stage_name: e.target.value })} className={inputCls} placeholder="e.g. Technical Interview" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Stage Type</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Stage Type</label>
                 <select value={form.stage_type} onChange={e => setForm({ ...form, stage_type: e.target.value })} className={inputCls}>
                   {Object.entries(STAGE_TYPES).map(([k, v]) => (
                     <option key={k} value={k}>{v.label}</option>
@@ -314,8 +314,8 @@ export default function StagesPage() {
                 </select>
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
+              <button onClick={closeDialog} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
               <button
                 onClick={() => saveMutation.mutate()}
                 disabled={!form.stage_name || (!editStage && !form.recruitment_id)}
@@ -331,14 +331,14 @@ export default function StagesPage() {
       {/* Stage Manager Assignment Dialog */}
       {managerDialogStageId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Assign Stage Manager</h2>
-              <button onClick={() => setManagerDialogStageId(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Assign Stage Manager</h2>
+              <button onClick={() => setManagerDialogStageId(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Select Employee</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Select Employee</label>
                 <select value={selectedManagerId} onChange={e => setSelectedManagerId(e.target.value)} className={inputCls}>
                   <option value="">Choose employee...</option>
                   {employees
@@ -351,11 +351,11 @@ export default function StagesPage() {
               {/* Current managers */}
               {getManagersForStage(managerDialogStageId).length > 0 && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Current Managers</label>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Current Managers</label>
                   <div className="space-y-1">
                     {getManagersForStage(managerDialogStageId).map((m: any) => (
-                      <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                        <span className="text-sm text-gray-700">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
+                      <div key={m.id} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-foreground">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
                         <button onClick={() => removeManagerMutation.mutate(m.id)} className="text-xs text-red-500 hover:underline">Remove</button>
                       </div>
                     ))}
@@ -363,8 +363,8 @@ export default function StagesPage() {
                 </div>
               )}
             </div>
-            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
-              <button onClick={() => setManagerDialogStageId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Close</button>
+            <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
+              <button onClick={() => setManagerDialogStageId(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Close</button>
               <button
                 onClick={() => addManagerMutation.mutate()}
                 disabled={!selectedManagerId}

@@ -51,32 +51,32 @@ export default function HelpdeskPage() {
   const stats = { open: tickets.filter((t: any) => t.status === "open").length, in_progress: tickets.filter((t: any) => t.status === "in_progress").length, resolved: tickets.filter((t: any) => t.status === "resolved").length };
 
   const priorityColor = (p: string) => p === "high" ? "bg-red-100 text-red-700" : p === "medium" ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700";
-  const statusColor = (s: string) => s === "open" ? "bg-blue-100 text-blue-700" : s === "in_progress" ? "bg-yellow-100 text-yellow-700" : s === "resolved" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700";
+  const statusColor = (s: string) => s === "open" ? "bg-blue-100 text-blue-700" : s === "in_progress" ? "bg-yellow-100 text-yellow-700" : s === "resolved" ? "bg-green-100 text-green-700" : "bg-muted text-foreground";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">Helpdesk</h1><p className="text-sm text-gray-500">Manage support tickets</p></div>
+        <div><h1 className="text-2xl font-bold text-foreground">Helpdesk</h1><p className="text-sm text-muted-foreground">Manage support tickets</p></div>
         <Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> New Ticket</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[{ label: "Open", value: stats.open, icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" }, { label: "In Progress", value: stats.in_progress, icon: Clock, color: "text-yellow-600", bg: "bg-yellow-50" }, { label: "Resolved", value: stats.resolved, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" }].map(s => (
-          <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div><div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div></CardContent></Card>
+          <Card key={s.label}><CardContent className="p-4 flex items-center gap-3"><div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div><div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div></CardContent></Card>
         ))}
       </div>
       <div className="flex gap-3">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" /><Input placeholder="Search tickets..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search tickets..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="open">Open</SelectItem><SelectItem value="in_progress">In Progress</SelectItem><SelectItem value="resolved">Resolved</SelectItem><SelectItem value="closed">Closed</SelectItem></SelectContent></Select>
       </div>
       <Card><CardContent className="p-0">
-        <table className="w-full text-sm"><thead className="bg-gray-50 border-b"><tr>{["Title", "Category", "Priority", "Status", "Created", "Actions"].map(h => <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>)}</tr></thead>
-        <tbody>{isLoading ? <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-gray-400">No tickets</td></tr> : filtered.map((t: any) => (
-          <tr key={t.id} className="border-b hover:bg-gray-50">
+        <table className="w-full text-sm"><thead className="bg-muted/50 border-b"><tr>{["Title", "Category", "Priority", "Status", "Created", "Actions"].map(h => <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>)}</tr></thead>
+        <tbody>{isLoading ? <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</td></tr> : filtered.length === 0 ? <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No tickets</td></tr> : filtered.map((t: any) => (
+          <tr key={t.id} className="border-b hover:bg-muted/50">
             <td className="px-4 py-3 font-medium">{t.title}</td>
-            <td className="px-4 py-3 text-gray-500 capitalize">{t.category}</td>
+            <td className="px-4 py-3 text-muted-foreground capitalize">{t.category}</td>
             <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${priorityColor(t.priority)}`}>{t.priority}</span></td>
             <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor(t.status)}`}>{t.status}</span></td>
-            <td className="px-4 py-3 text-xs text-gray-500">{new Date(t.created_at).toLocaleDateString()}</td>
+            <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(t.created_at).toLocaleDateString()}</td>
             <td className="px-4 py-3"><div className="flex gap-1">
               {t.status === "open" && <Button size="sm" variant="ghost" className="text-yellow-600 h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "in_progress" })}><Clock className="h-4 w-4" /></Button>}
               {(t.status === "open" || t.status === "in_progress") && <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: t.id, status: "resolved" })}><CheckCircle className="h-4 w-4" /></Button>}

@@ -937,7 +937,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
                 <SelectTrigger>
                   <SelectValue placeholder="Select TDS option" />
                 </SelectTrigger>
-                <SelectContent className="bg-white z-50">
+                <SelectContent className="bg-card z-50">
                   <SelectItem value="none">No TDS</SelectItem>
                   <SelectItem value="1%">1% TDS (Requires PAN)</SelectItem>
                   <SelectItem value="20%">20% TDS (No PAN Required)</SelectItem>
@@ -959,7 +959,7 @@ export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps>
               )}
 
               {tdsCalculation.tdsRate > 0 && parseFloat(formData.total_amount) > 0 && (
-                <div className="text-sm bg-white p-2 rounded border">
+                <div className="text-sm bg-card p-2 rounded border">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">TDS Amount ({tdsCalculation.tdsRate}%):</span>
                     <span className="font-medium text-amber-600">₹{tdsCalculation.tdsAmount.toFixed(2)}</span>

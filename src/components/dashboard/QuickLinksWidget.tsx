@@ -84,9 +84,9 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
             <LinkIcon className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="font-semibold text-gray-900 group-hover:text-blue-900">{link.title}</p>
+            <p className="font-semibold text-foreground group-hover:text-blue-900">{link.title}</p>
             {link.description && (
-              <p className="text-sm text-gray-600 group-hover:text-blue-700">{link.description}</p>
+              <p className="text-sm text-muted-foreground group-hover:text-blue-700">{link.description}</p>
             )}
           </div>
         </div>
@@ -113,7 +113,7 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-          {link.isExternal && <ExternalLink className="h-4 w-4 text-gray-400" />}
+          {link.isExternal && <ExternalLink className="h-4 w-4 text-muted-foreground" />}
         </div>
       </div>
     );
@@ -134,7 +134,7 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
   };
 
   return (
-    <Card className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 bg-white shadow-sm border-0">
+    <Card className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 bg-card shadow-sm border-0">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 bg-gradient-to-r from-gray-50 to-gray-100">
         <CardTitle className="text-xl font-bold flex items-center gap-3">
           <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm">
@@ -192,7 +192,7 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
                   id="isExternal"
                   checked={formData.isExternal}
                   onChange={(e) => setFormData(prev => ({ ...prev, isExternal: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 rounded border-border focus:ring-blue-500"
                 />
                 <Label htmlFor="isExternal" className="text-sm">External link (opens in new tab)</Label>
               </div>
@@ -224,8 +224,8 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
               <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <LinkIcon className="h-8 w-8 text-blue-500" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No quick links added yet</h3>
-              <p className="text-gray-600 mb-4">Create shortcuts to your most-used pages and external tools</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">No quick links added yet</h3>
+              <p className="text-muted-foreground mb-4">Create shortcuts to your most-used pages and external tools</p>
               <Button
                 onClick={() => setShowAddDialog(true)}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"

@@ -252,7 +252,7 @@ export default function RecruitmentDashboardPage() {
     { label: "Active Recruitments", value: activeRecruitments, icon: Briefcase, color: "bg-blue-100 text-blue-600" },
     { label: "Total Candidates", value: totalCandidates, icon: Users, color: "bg-violet-100 text-violet-600" },
     { label: "Hired", value: totalHired, icon: CheckCircle, color: "bg-emerald-100 text-emerald-600" },
-    { label: "Closed", value: closedRecruitments, icon: XCircle, color: "bg-gray-100 text-gray-600" },
+    { label: "Closed", value: closedRecruitments, icon: XCircle, color: "bg-muted text-muted-foreground" },
   ];
 
   const JOB_TYPES: Record<string, string> = {
@@ -262,7 +262,7 @@ export default function RecruitmentDashboardPage() {
     fresher: "Fresher", junior: "Junior", mid: "Mid Level", senior: "Senior", lead: "Lead", manager: "Manager"
   };
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const getDeptName = (id: string) => departments?.find(d => d.id === id)?.name || "";
 
@@ -270,8 +270,8 @@ export default function RecruitmentDashboardPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Recruitment</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Manage job openings and candidate pipeline</p>
+          <h1 className="text-xl font-bold text-foreground">Recruitment</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage job openings and candidate pipeline</p>
         </div>
         <button
           onClick={() => { closeDialog(); setCreateOpen(true); }}
@@ -285,22 +285,22 @@ export default function RecruitmentDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div key={s.label} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center shrink-0`}>
               <s.icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className="text-2xl font-bold text-foreground">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Recruitment list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">All Recruitments</h3>
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">All Recruitments</h3>
           <button
             onClick={() => navigate("/hrms/recruitment/pipeline")}
             className="text-xs text-[#E8604C] font-medium hover:underline flex items-center gap-1"
@@ -310,10 +310,10 @@ export default function RecruitmentDashboardPage() {
         </div>
 
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : !recruitments?.length ? (
           <div className="p-8 text-center">
-            <p className="text-gray-500 text-sm">No recruitments yet</p>
+            <p className="text-muted-foreground text-sm">No recruitments yet</p>
             <button onClick={() => setCreateOpen(true)} className="mt-2 text-[#E8604C] text-sm font-medium hover:underline">
               + Create your first recruitment
             </button>
@@ -321,16 +321,16 @@ export default function RecruitmentDashboardPage() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Title</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Department</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Vacancy</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Candidates</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Hired</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Managers</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Title</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Department</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Type</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Vacancy</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidates</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Hired</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Managers</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -338,34 +338,34 @@ export default function RecruitmentDashboardPage() {
                 const recCandidates = getCandidatesForRecruitment(rec.id);
                 const hired = recCandidates.filter(c => c.hired).length;
                 return (
-                  <tr key={rec.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <tr key={rec.id} className="border-b border-gray-50 hover:bg-muted/50 transition-colors">
                     <td className="py-3 px-4">
                       <button
                         onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)}
-                        className="font-medium text-gray-900 hover:text-[#E8604C] transition-colors"
+                        className="font-medium text-foreground hover:text-[#E8604C] transition-colors"
                       >
                         {rec.title}
                       </button>
                       <div className="flex items-center gap-2 mt-0.5">
                         {rec.location && (
-                          <span className="text-[10px] text-gray-400 flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{rec.location}</span>
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><MapPin className="h-2.5 w-2.5" />{rec.location}</span>
                         )}
                         {rec.salary_min && (
-                          <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
                             <DollarSign className="h-2.5 w-2.5" />
                             {rec.salary_min?.toLocaleString('en-IN')}{rec.salary_max ? ` - ${rec.salary_max.toLocaleString('en-IN')}` : ""}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-gray-600 text-xs">{getDeptName(rec.department_id) || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground text-xs">{getDeptName(rec.department_id) || "—"}</td>
                     <td className="py-3 px-4">
                       <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
                         {JOB_TYPES[rec.job_type] || rec.job_type || "—"}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-600">{rec.vacancy || "—"}</td>
-                    <td className="py-3 px-4 text-gray-600">{recCandidates.length}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{rec.vacancy || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{recCandidates.length}</td>
                     <td className="py-3 px-4">
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                         {hired}
@@ -374,7 +374,7 @@ export default function RecruitmentDashboardPage() {
                     <td className="py-3 px-4">
                       {rec.closed ? (
                         <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: true })}
-                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 cursor-pointer">
+                          className="text-xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-muted cursor-pointer">
                           Closed
                         </button>
                       ) : rec.is_published ? (
@@ -398,12 +398,12 @@ export default function RecruitmentDashboardPage() {
                                 {m.hr_employees?.first_name?.[0]}{m.hr_employees?.last_name?.[0]}
                               </div>
                             ))}
-                            {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-gray-400 ml-1">+{getRecManagers(rec.id).length - 3}</span>}
+                            {getRecManagers(rec.id).length > 3 && <span className="text-[10px] text-muted-foreground ml-1">+{getRecManagers(rec.id).length - 3}</span>}
                           </div>
                         ) : (
                           <span className="text-[10px] text-gray-300">No managers</span>
                         )}
-                        <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title="Assign managers">
+                        <button onClick={() => setManagerDialogRecId(rec.id)} className="p-0.5 rounded hover:bg-blue-50 text-muted-foreground hover:text-blue-600" title="Assign managers">
                           <UserPlus className="h-3 w-3" />
                         </button>
                       </div>
@@ -412,23 +412,23 @@ export default function RecruitmentDashboardPage() {
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => navigate(`/hrms/recruitment/pipeline?id=${rec.id}`)}
-                          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-blue-600"
                           title="Pipeline"
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
                         <button onClick={() => openEdit(rec)}
-                          className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600" title="Edit">
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit">
                           <Edit className="h-3.5 w-3.5" />
                         </button>
                         {!rec.closed ? (
                           <button onClick={() => toggleCloseMutation.mutate({ id: rec.id, isClosed: false })}
-                            className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500" title="Close">
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-500" title="Close">
                             <XCircle className="h-3.5 w-3.5" />
                           </button>
                         ) : (
                           <button onClick={() => setDeleteTarget({ id: rec.id, name: rec.title })}
-                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500" title="Delete">
+                            className="p-1 rounded hover:bg-red-50 text-muted-foreground hover:text-red-500" title="Delete">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -445,31 +445,31 @@ export default function RecruitmentDashboardPage() {
       {/* Create/Edit Dialog */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-              <h2 className="text-lg font-semibold text-gray-900">{editRec ? "Edit" : "Create"} Recruitment</h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+          <div className="bg-card rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-semibold text-foreground">{editRec ? "Edit" : "Create"} Recruitment</h2>
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
               {/* Title */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Job Title *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Job Title *</label>
                 <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} className={inputCls} placeholder="e.g. Senior Developer" />
               </div>
 
               {/* Department + Position */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Department</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Department</label>
                   <select value={form.department_id} onChange={e => setForm({ ...form, department_id: e.target.value })} className={inputCls}>
                     <option value="">Select Department</option>
                     {departments?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Position</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Position</label>
                   <select value={form.position_id} onChange={e => setForm({ ...form, position_id: e.target.value })} className={inputCls}>
                     <option value="">Select Position</option>
                     {positions?.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -480,19 +480,19 @@ export default function RecruitmentDashboardPage() {
               {/* Job Type + Experience + Vacancies */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Job Type</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Job Type</label>
                   <select value={form.job_type} onChange={e => setForm({ ...form, job_type: e.target.value })} className={inputCls}>
                     {Object.entries(JOB_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Experience Level</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Experience Level</label>
                   <select value={form.experience_level} onChange={e => setForm({ ...form, experience_level: e.target.value })} className={inputCls}>
                     {Object.entries(EXP_LEVELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Vacancies</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Vacancies</label>
                   <input type="number" min={1} value={form.vacancy} onChange={e => setForm({ ...form, vacancy: parseInt(e.target.value) || 1 })} className={inputCls} />
                 </div>
               </div>
@@ -500,15 +500,15 @@ export default function RecruitmentDashboardPage() {
               {/* Salary Range + Location */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Min Salary</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Min Salary</label>
                   <input type="number" value={form.salary_min} onChange={e => setForm({ ...form, salary_min: e.target.value })} className={inputCls} placeholder="e.g. 50000" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Max Salary</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Max Salary</label>
                   <input type="number" value={form.salary_max} onChange={e => setForm({ ...form, salary_max: e.target.value })} className={inputCls} placeholder="e.g. 80000" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Location</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Location</label>
                   <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className={inputCls} placeholder="e.g. Remote, Mumbai" />
                 </div>
               </div>
@@ -516,31 +516,31 @@ export default function RecruitmentDashboardPage() {
               {/* Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Start Date</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Start Date</label>
                   <input type="date" value={form.start_date} onChange={e => setForm({ ...form, start_date: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">End Date</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">End Date</label>
                   <input type="date" value={form.end_date} onChange={e => setForm({ ...form, end_date: e.target.value })} className={inputCls} />
                 </div>
               </div>
 
               {/* Description */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
                 <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3}
                   className={`${inputCls} resize-none`} placeholder="Job description..." />
               </div>
 
               {/* Requirements */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Requirements</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Requirements</label>
                 <textarea value={form.requirements} onChange={e => setForm({ ...form, requirements: e.target.value })} rows={3}
                   className={`${inputCls} resize-none`} placeholder="Required skills, qualifications..." />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100 shrink-0">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border shrink-0">
+              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button
                 onClick={() => saveMutation.mutate()}
                 disabled={!form.title || saveMutation.isPending}
@@ -556,15 +556,15 @@ export default function RecruitmentDashboardPage() {
       {/* Manager Assignment Dialog */}
       {managerDialogRecId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Assign Recruitment Managers</h2>
-              <button onClick={() => setManagerDialogRecId(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Assign Recruitment Managers</h2>
+              <button onClick={() => setManagerDialogRecId(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Select Employee</label>
-                <select value={selectedMgrId} onChange={e => setSelectedMgrId(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
+                <label className="text-sm font-medium text-foreground mb-1 block">Select Employee</label>
+                <select value={selectedMgrId} onChange={e => setSelectedMgrId(e.target.value)} className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
                   <option value="">Choose employee...</option>
                   {allEmployees
                     .filter((emp: any) => !getRecManagers(managerDialogRecId).some((m: any) => m.employee_id === emp.id))
@@ -575,11 +575,11 @@ export default function RecruitmentDashboardPage() {
               </div>
               {getRecManagers(managerDialogRecId).length > 0 && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">Current Managers</label>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Current Managers</label>
                   <div className="space-y-1">
                     {getRecManagers(managerDialogRecId).map((m: any) => (
-                      <div key={m.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                        <span className="text-sm text-gray-700">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
+                      <div key={m.id} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-foreground">{m.hr_employees?.first_name} {m.hr_employees?.last_name}</span>
                         <button onClick={() => removeRecMgrMutation.mutate(m.id)} className="text-xs text-red-500 hover:underline">Remove</button>
                       </div>
                     ))}
@@ -587,8 +587,8 @@ export default function RecruitmentDashboardPage() {
                 </div>
               )}
             </div>
-            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
-              <button onClick={() => setManagerDialogRecId(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Close</button>
+            <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
+              <button onClick={() => setManagerDialogRecId(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Close</button>
               <button
                 onClick={() => addRecMgrMutation.mutate()}
                 disabled={!selectedMgrId}

@@ -70,49 +70,49 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
     ? positions.filter((p) => p.department_id === form.department_id)
     : positions;
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Add Employee</h2>
-          <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+      <div className="bg-card rounded-xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Add Employee</h2>
+          <button onClick={() => onOpenChange(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="px-5 py-4 space-y-4">
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Badge ID *</label>
+            <label className="text-sm font-medium text-foreground mb-1 block">Badge ID *</label>
             <input value={form.badge_id} onChange={(e) => setForm({ ...form, badge_id: e.target.value })} className={inputCls} placeholder="e.g. EMP001" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">First Name *</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">First Name *</label>
               <input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className={inputCls} />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Last Name *</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Last Name *</label>
               <input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className={inputCls} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Email</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Email</label>
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={inputCls} />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Phone</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Phone</label>
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={inputCls} />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Gender</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Gender</label>
               <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className={inputCls}>
                 <option value="">Select</option>
                 <option value="male">Male</option>
@@ -121,24 +121,24 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Date of Birth</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Date of Birth</label>
               <input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} className={inputCls} />
             </div>
           </div>
 
-          <hr className="border-gray-100" />
-          <p className="text-sm font-medium text-gray-600">Work Information</p>
+          <hr className="border-border" />
+          <p className="text-sm font-medium text-muted-foreground">Work Information</p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Department</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Department</label>
               <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value, job_position_id: "" })} className={inputCls}>
                 <option value="">Select</option>
                 {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Position</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Position</label>
               <select value={form.job_position_id} onChange={(e) => setForm({ ...form, job_position_id: e.target.value })} className={inputCls}>
                 <option value="">Select</option>
                 {filteredPositions.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -148,17 +148,17 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Job Role</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Job Role</label>
               <input value={form.job_role} onChange={(e) => setForm({ ...form, job_role: e.target.value })} className={inputCls} placeholder="e.g. Frontend Developer" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-1 block">Joining Date</label>
+              <label className="text-sm font-medium text-foreground mb-1 block">Joining Date</label>
               <input type="date" value={form.joining_date} onChange={(e) => setForm({ ...form, joining_date: e.target.value })} className={inputCls} />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700 mb-1 block">Employee Type</label>
+            <label className="text-sm font-medium text-foreground mb-1 block">Employee Type</label>
             <select value={form.employee_type} onChange={(e) => setForm({ ...form, employee_type: e.target.value })} className={inputCls}>
               <option value="Full-time">Full-time</option>
               <option value="Part-time">Part-time</option>
@@ -168,8 +168,8 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
-          <button onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">Cancel</button>
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+          <button onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted transition-colors">Cancel</button>
           <button
             onClick={() => createMutation.mutate()}
             disabled={!form.badge_id || !form.first_name || !form.last_name || createMutation.isPending}

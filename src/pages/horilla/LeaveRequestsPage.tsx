@@ -151,8 +151,8 @@ export default function LeaveRequestsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Requests</h1>
-          <p className="text-sm text-gray-500">Manage employee leave requests</p>
+          <h1 className="text-2xl font-bold text-foreground">Leave Requests</h1>
+          <p className="text-sm text-muted-foreground">Manage employee leave requests</p>
         </div>
         <Button onClick={() => setShowAdd(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> New Request
@@ -161,7 +161,7 @@ export default function LeaveRequestsPage() {
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -178,21 +178,21 @@ export default function LeaveRequestsPage() {
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No leave requests</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No leave requests</td></tr>
               ) : (
                 filtered.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-gray-50">
+                  <tr key={r.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
                     <td className="px-4 py-3">
                       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[#E8604C]/10 text-[#E8604C]">
@@ -221,7 +221,7 @@ export default function LeaveRequestsPage() {
                           </Tooltip>
                         </TooltipProvider>
                       ) : (
-                        <span className="text-gray-400 text-xs">None</span>
+                        <span className="text-muted-foreground text-xs">None</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -231,7 +231,7 @@ export default function LeaveRequestsPage() {
                         "bg-yellow-100 text-yellow-700"
                       }`}>{r.status}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
                     <td className="px-4 py-3">
                       {r.status === "pending" && (
                         <div className="flex gap-1">
@@ -276,7 +276,7 @@ export default function LeaveRequestsPage() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <input type="checkbox" checked={form.is_half_day} onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })} className="rounded border-gray-300" />
+              <input type="checkbox" checked={form.is_half_day} onChange={(e) => setForm({ ...form, is_half_day: e.target.checked })} className="rounded border-border" />
               <Label>Half Day Leave</Label>
             </div>
             {form.is_half_day && (

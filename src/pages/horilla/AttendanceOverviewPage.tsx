@@ -125,8 +125,8 @@ export default function AttendanceOverviewPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance Overview</h1>
-          <p className="text-sm text-gray-500">Track and manage daily attendance</p>
+          <h1 className="text-2xl font-bold text-foreground">Attendance Overview</h1>
+          <p className="text-sm text-muted-foreground">Track and manage daily attendance</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowUploader(true)}>
@@ -148,7 +148,7 @@ export default function AttendanceOverviewPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -157,7 +157,7 @@ export default function AttendanceOverviewPage() {
       <div className="flex gap-3 flex-wrap">
         <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -175,25 +175,25 @@ export default function AttendanceOverviewPage() {
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : queryError ? (
                 <tr><td colSpan={9} className="text-center py-8 text-red-500">Error loading data. Please refresh the page.</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-8 text-gray-400">No attendance records for this date</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No attendance records for this date</td></tr>
               ) : (
                 filtered.map((a: any) => (
-                  <tr key={a.id} className="border-b hover:bg-gray-50">
+                  <tr key={a.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.hr_employees?.badge_id}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.badge_id}</td>
                     <td className="px-4 py-3">{a.check_in || "—"}</td>
                     <td className="px-4 py-3">{a.check_out || "—"}</td>
                     <td className="px-4 py-3">
@@ -201,13 +201,13 @@ export default function AttendanceOverviewPage() {
                         a.attendance_status === "present" ? "bg-green-100 text-green-700" :
                         a.attendance_status === "absent" ? "bg-red-100 text-red-700" :
                         a.attendance_status === "late" ? "bg-yellow-100 text-yellow-700" :
-                        "bg-gray-100 text-gray-700"
+                        "bg-muted text-foreground"
                       }`}>{a.attendance_status}</span>
                     </td>
                     <td className="px-4 py-3">{a.late_minutes ? <span className="text-yellow-600 font-medium">{a.late_minutes}m</span> : "—"}</td>
                     <td className="px-4 py-3">{a.early_leave_minutes ? <span className="text-orange-600 font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
-                    <td className="px-4 py-3 text-gray-500 capitalize">{a.work_type || "—"}</td>
-                    <td className="px-4 py-3 text-gray-400 text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground capitalize">{a.work_type || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
                   </tr>
                 ))
               )}

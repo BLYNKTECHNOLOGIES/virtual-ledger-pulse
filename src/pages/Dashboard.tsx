@@ -455,7 +455,7 @@ export default function Dashboard() {
       case 'metric-total-sales':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -484,7 +484,7 @@ export default function Dashboard() {
       case 'metric-sales-orders':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -513,7 +513,7 @@ export default function Dashboard() {
       case 'metric-total-clients':
         return (
           <ClickableCard to="/clients">
-            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
@@ -536,7 +536,7 @@ export default function Dashboard() {
       case 'metric-total-cash':
         return (
           <ClickableCard to="/bams">
-            <Card className="bg-white border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
@@ -686,9 +686,9 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
+    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
         <div className="px-4 md:px-6 py-4 md:py-8">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
             <div className="space-y-2">
@@ -702,13 +702,13 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
-                <div className="bg-white border border-blue-200 text-slate-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                <div className="bg-card border border-blue-200 text-slate-700 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-blue-500" />
                     <span className="text-xs md:text-sm font-medium whitespace-nowrap">{format(new Date(), "MMM dd")}</span>
                   </div>
                 </div>
-                <div className="bg-white border border-green-200 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
+                <div className="bg-card border border-green-200 rounded-lg px-3 py-1.5 md:px-4 md:py-2 shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-green-500" />
                     <span className="text-xs md:text-sm font-medium text-slate-700 whitespace-nowrap">System Active</span>
@@ -736,7 +736,7 @@ export default function Dashboard() {
                   }}
                   className={`flex-shrink-0 ${isEditMode ? 
                     "bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 shadow-sm" : 
-                    "bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
+                    "bg-card border border-border text-slate-600 hover:bg-muted/50 shadow-sm"
                   }`}
                 >
                   <Settings className="h-4 w-4 mr-1 md:mr-2" />
@@ -753,7 +753,7 @@ export default function Dashboard() {
                       variant="outline"
                       size="sm"
                       onClick={handleResetDashboard}
-                      className="flex-shrink-0 bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm"
+                      className="flex-shrink-0 bg-card border border-border text-slate-600 hover:bg-muted/50 shadow-sm"
                     >
                       <RotateCcw className="h-4 w-4 mr-1" />
                       <span className="hidden sm:inline">Reset</span>
@@ -778,7 +778,7 @@ export default function Dashboard() {
                   size="sm"
                   onClick={handleRefreshDashboard}
                   disabled={isRefreshing}
-                  className="bg-white border border-gray-200 text-slate-600 hover:bg-gray-50 shadow-sm flex-shrink-0"
+                  className="bg-card border border-border text-slate-600 hover:bg-muted/50 shadow-sm flex-shrink-0"
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline ml-2">{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>

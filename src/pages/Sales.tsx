@@ -504,7 +504,7 @@ export default function Sales() {
       case "PARTIAL":
         return <Badge className="bg-yellow-100 text-yellow-800">Partial Payment</Badge>;
       case "PENDING":
-        return <Badge className="bg-gray-100 text-gray-800">Pending</Badge>;
+        return <Badge className="bg-muted text-foreground">Pending</Badge>;
       case "FAILED":
         return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
       case "ORDER_CANCELLED":
@@ -541,19 +541,19 @@ export default function Sales() {
         
         <div className="grid grid-cols-2 gap-2 text-sm mb-3">
           <div>
-            <span className="text-gray-500">Amount:</span>
+            <span className="text-muted-foreground">Amount:</span>
             <p className="font-medium">₹{Number(order.total_amount).toLocaleString('en-IN')}</p>
           </div>
           <div>
-            <span className="text-gray-500">Quantity:</span>
+            <span className="text-muted-foreground">Quantity:</span>
             <p className="font-medium">{order.quantity || 1}</p>
           </div>
           <div>
-            <span className="text-gray-500">Platform:</span>
+            <span className="text-muted-foreground">Platform:</span>
             <p className="font-medium">{order.wallet?.wallet_name || order.platform || 'Off Market'}</p>
           </div>
           <div>
-            <span className="text-gray-500">Date:</span>
+            <span className="text-muted-foreground">Date:</span>
             <p className="font-medium">
               {format(new Date(order.order_date), 'MMM dd')}{' '}
               <span className="text-xs text-muted-foreground">
@@ -562,7 +562,7 @@ export default function Sales() {
             </p>
           </div>
           <div className="col-span-2">
-            <span className="text-gray-500">Created By:</span>
+            <span className="text-muted-foreground">Created By:</span>
             <p className="font-medium">
               {order.created_by_user 
                 ? (order.created_by_user.first_name || order.created_by_user.username)
@@ -629,7 +629,7 @@ export default function Sales() {
       <div className="md:hidden space-y-3">
         {orders.map((order) => renderMobileOrderCard(order, isCompleted))}
         {orders.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             No orders found for this category.
           </div>
         )}
@@ -664,7 +664,7 @@ export default function Sales() {
                     {order.client_name}
                   </div>
                   {order.description && (
-                    <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                    <div className="text-sm text-muted-foreground max-w-[200px] truncate">
                       {order.description}
                     </div>
                   )}
@@ -676,11 +676,11 @@ export default function Sales() {
                 <TableCell>{getStatusBadge(order.payment_status)}</TableCell>
                 <TableCell>
                   {order.created_by_user ? (
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-foreground">
                       {order.created_by_user.first_name || order.created_by_user.username}
                     </span>
                   ) : (
-                    <span className="text-gray-400">N/A</span>
+                    <span className="text-muted-foreground">N/A</span>
                   )}
                 </TableCell>
                 <TableCell>
@@ -745,7 +745,7 @@ export default function Sales() {
           </TableBody>
         </Table>
         {orders.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             No orders found for this category.
           </div>
         )}
@@ -757,7 +757,7 @@ export default function Sales() {
     <PermissionGate
       permissions={["sales_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -777,9 +777,9 @@ export default function Sales() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
+    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
         <div className="px-4 md:px-6 py-4 md:py-8">
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center gap-3">

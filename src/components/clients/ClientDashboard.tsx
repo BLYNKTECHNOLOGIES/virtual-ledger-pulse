@@ -138,7 +138,7 @@ export function ClientDashboard() {
   const getClientPriority = (valueScore: number) => {
     if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-purple-100 text-purple-800' };
     if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-yellow-100 text-yellow-800' };
-    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-gray-100 text-gray-800' };
+    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-muted text-foreground' };
     return { tag: 'General', color: 'bg-blue-100 text-blue-800' };
   };
 
@@ -413,7 +413,7 @@ export function ClientDashboard() {
       'CAUTIOUS': 'Cautious',
       'HIGH_RISK': 'High Risk',
     };
-    return <Badge className={colors[risk as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{labels[risk] || risk}</Badge>;
+    return <Badge className={colors[risk as keyof typeof colors] || 'bg-muted text-foreground'}>{labels[risk] || risk}</Badge>;
   };
 
   const getKYCBadge = (status: string) => {
@@ -422,7 +422,7 @@ export function ClientDashboard() {
       'PENDING': 'bg-yellow-100 text-yellow-800',
       'REJECTED': 'bg-red-100 text-red-800'
     };
-    return <Badge className={colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{status}</Badge>;
+    return <Badge className={colors[status as keyof typeof colors] || 'bg-muted text-foreground'}>{status}</Badge>;
   };
 
   const getActivityStatusBadge = (daysSinceLastOrder: number | null | undefined, totalOrders: number) => {
@@ -558,17 +558,17 @@ export function ClientDashboard() {
                             />
                           </th>
                         )}
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Buyer Name</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Buyer ID</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Trend</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Buyer Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Buyer ID</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assigned RM</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Risk Level</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Orders</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Trend</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">KYC</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Priority</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -583,7 +583,7 @@ export function ClientDashboard() {
                         return (
                           <tr 
                             key={client.id} 
-                            className="border-b hover:bg-gray-50 cursor-pointer"
+                            className="border-b hover:bg-muted/50 cursor-pointer"
                             onClick={() => handleClientClick(client.id)}
                           >
                             {canAssignRA && (
@@ -624,7 +624,7 @@ export function ClientDashboard() {
                   </table>
                   
                   {filteredBuyers?.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       No buyers found matching your filters.
                     </div>
                   )}
@@ -715,17 +715,17 @@ export function ClientDashboard() {
                              />
                            </th>
                          )}
-                         <th className="text-left py-3 px-4 font-medium text-gray-600">Seller Name</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Seller ID</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Assigned RM</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Risk Level</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Total Orders</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Last Order</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Trend</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">COSMOS</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">KYC</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Priority</th>
+                         <th className="text-left py-3 px-4 font-medium text-muted-foreground">Seller Name</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Seller ID</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Assigned RM</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Risk Level</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Orders</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Last Order</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Trend</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">COSMOS</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">KYC</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Priority</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -740,7 +740,7 @@ export function ClientDashboard() {
                         return (
                           <tr 
                             key={client.id} 
-                            className="border-b hover:bg-gray-50 cursor-pointer"
+                            className="border-b hover:bg-muted/50 cursor-pointer"
                             onClick={() => handleClientClick(client.id)}
                           >
                             {canAssignRA && (
@@ -781,7 +781,7 @@ export function ClientDashboard() {
                   </table>
                   
                   {filteredSellers?.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       No sellers found matching your filters.
                     </div>
                   )}

@@ -201,7 +201,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-full justify-between bg-white hover:bg-emerald-50 border-emerald-200"
+              className="w-full justify-between bg-card hover:bg-emerald-50 border-emerald-200"
               size={compact ? "sm" : "default"}
             >
               <span className="flex items-center gap-2 text-sm">
@@ -299,13 +299,13 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                   <Badge
                     key={account.id}
                     variant="outline"
-                    className="text-[10px] bg-white border-emerald-200 text-emerald-700"
+                    className="text-[10px] bg-card border-emerald-200 text-emerald-700"
                   >
                     {account.bank_name}
                   </Badge>
                 ))}
               {selectedBankIds.length > 3 && (
-                <Badge variant="outline" className="text-[10px] bg-white border-emerald-200 text-emerald-700">
+                <Badge variant="outline" className="text-[10px] bg-card border-emerald-200 text-emerald-700">
                   +{selectedBankIds.length - 3} more
                 </Badge>
               )}

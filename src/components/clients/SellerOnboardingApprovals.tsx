@@ -607,7 +607,7 @@ export function SellerOnboardingApprovals() {
         <CardContent>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name or client ID..."
                 value={searchTerm}
@@ -716,7 +716,7 @@ export function SellerOnboardingApprovals() {
                             </Badge>
                           )}
                           {!isSameUser && !isSameUserByVName && identityState === 'new_client' && !noIdentitySignal && (
-                            <Badge className="mt-1 bg-gray-100 text-gray-700 text-xs">
+                            <Badge className="mt-1 bg-muted text-foreground text-xs">
                               New Client
                             </Badge>
                           )}
@@ -793,7 +793,7 @@ export function SellerOnboardingApprovals() {
                 </TableBody>
               </Table>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <UserCheck className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p>No pending seller approvals</p>
               <p className="text-sm mt-1">New sellers will appear here when created from purchase orders</p>

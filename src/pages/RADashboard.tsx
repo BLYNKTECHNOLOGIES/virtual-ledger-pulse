@@ -132,7 +132,7 @@ export default function RADashboard() {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge className={riskColors[client.risk_appetite] || "bg-gray-100 text-gray-800"}>
+                      <Badge className={riskColors[client.risk_appetite] || "bg-muted text-foreground"}>
                         {client.risk_appetite || "—"}
                       </Badge>
                     </td>

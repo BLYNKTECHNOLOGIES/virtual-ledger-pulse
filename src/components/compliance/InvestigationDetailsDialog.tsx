@@ -436,9 +436,9 @@ export function InvestigationDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card">
         <DialogHeader className="border-b pb-4">
-          <DialogTitle className="text-xl font-medium text-gray-900">
+          <DialogTitle className="text-xl font-medium text-foreground">
             Investigation Details - {investigation?.bank_accounts?.bank_name || 'UNION BANK OF INDIA'}
           </DialogTitle>
           {/* Status Indicator */}
@@ -457,16 +457,16 @@ export function InvestigationDetailsDialog({
 
         <div className="p-6 space-y-6">
           {/* Reason Section */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Reason</h3>
-            <p className="text-gray-700 text-sm leading-relaxed bg-white p-3 rounded border">
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <h3 className="text-lg font-semibold text-foreground mb-2">Reason</h3>
+            <p className="text-foreground text-sm leading-relaxed bg-card p-3 rounded border">
               {investigation?.reason || investigation?.error_message || investigation?.description || investigation?.title || 'Investigation reason not specified'}
             </p>
           </div>
 
           {/* Investigation Steps */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Investigation Steps</h3>
+            <h3 className="text-lg font-semibold text-foreground">Investigation Steps</h3>
             
             {steps && steps.length > 0 ? (
               <div className="space-y-3">
@@ -475,7 +475,7 @@ export function InvestigationDetailsDialog({
                   const isStepCompleted = step.status === 'COMPLETED';
                   
                   return (
-                    <div key={step.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+                    <div key={step.id} className="flex items-center justify-between p-4 border border-border rounded-lg bg-card hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-3 flex-1">
                         <div className="flex items-center justify-center">
                           {isStepCompleted ? (
@@ -489,9 +489,9 @@ export function InvestigationDetailsDialog({
                             <Badge variant={isStepCompleted ? 'default' : 'secondary'} className="text-xs font-medium">
                               {step.status}
                             </Badge>
-                            <span className="font-medium text-gray-900">{step.step_number}. {step.step_title}</span>
+                            <span className="font-medium text-foreground">{step.step_number}. {step.step_title}</span>
                           </div>
-                          <p className="text-sm text-gray-600">{step.step_description}</p>
+                          <p className="text-sm text-muted-foreground">{step.step_description}</p>
                           {isStepCompleted && step.completed_at && (
                             <p className="text-xs text-green-600 mt-1">
                               Completed on {new Date(step.completed_at).toLocaleDateString()} by {step.completed_by}
@@ -521,7 +521,7 @@ export function InvestigationDetailsDialog({
                               });
                             }
                           }}
-                          className={`ml-4 ${!stepCanBeCompleted ? 'opacity-50 cursor-not-allowed' : 'bg-white hover:bg-gray-50'}`}
+                          className={`ml-4 ${!stepCanBeCompleted ? 'opacity-50 cursor-not-allowed' : 'bg-card hover:bg-muted/50'}`}
                         >
                           Complete
                         </Button>
@@ -531,7 +531,7 @@ export function InvestigationDetailsDialog({
                 })}
               </div>
             ) : (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-4 text-muted-foreground">
                 Loading investigation steps...
               </div>
             )}
@@ -539,8 +539,8 @@ export function InvestigationDetailsDialog({
 
           {/* Add Investigation Update - Compact Version */}
           {investigation?.status !== 'PENDING_APPROVAL' && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-base font-medium text-gray-900 mb-3">Add Investigation Update</h3>
+          <div className="bg-muted/50 p-4 rounded-lg">
+            <h3 className="text-base font-medium text-foreground mb-3">Add Investigation Update</h3>
             
             <div className="space-y-3">
               <Textarea
@@ -578,7 +578,7 @@ export function InvestigationDetailsDialog({
                       accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
                     />
                   </div>
-                  <span className="text-xs text-gray-600">
+                  <span className="text-xs text-muted-foreground">
                     {selectedFiles.length > 0 ? (
                       <span className="text-blue-600">{selectedFiles.length} file(s) selected</span>
                     ) : (
@@ -627,12 +627,12 @@ export function InvestigationDetailsDialog({
           {/* Updates History */}
           {updates && updates.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Recent Updates</h3>
+              <h3 className="text-lg font-medium text-foreground">Recent Updates</h3>
               <div className="space-y-3 max-h-40 overflow-y-auto">
                 {updates.slice(0, 3).map((update) => (
-                  <div key={update.id} className="p-3 bg-gray-50 rounded-lg">
+                  <div key={update.id} className="p-3 bg-muted/50 rounded-lg">
                     {update.update_text && (
-                      <p className="text-sm text-gray-800 mb-2">{update.update_text}</p>
+                      <p className="text-sm text-foreground mb-2">{update.update_text}</p>
                     )}
                     
                     {/* Display file attachments */}
@@ -661,10 +661,10 @@ export function InvestigationDetailsDialog({
                     
                     {/* Show message if no text and no files */}
                     {!update.update_text && (!update.attachment_urls || update.attachment_urls.length === 0) && (
-                      <p className="text-sm text-gray-500 italic">No update text provided</p>
+                      <p className="text-sm text-muted-foreground italic">No update text provided</p>
                     )}
                     
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                       {new Date(update.created_at).toLocaleDateString()} by {update.created_by}
                     </p>
                   </div>
@@ -682,7 +682,7 @@ export function InvestigationDetailsDialog({
               className={`px-8 py-2 rounded-lg font-medium ${
                 canSubmitForApproval() 
                   ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-gray-300 text-muted-foreground cursor-not-allowed"
               }`}
             >
               Submit for Approval
@@ -720,7 +720,7 @@ export function InvestigationDetailsDialog({
             
             <div className="space-y-4 p-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                <label className="text-sm font-medium text-foreground mb-2 block">
                   Final Resolution Summary <span className="text-red-500">*</span>
                 </label>
                 <Textarea
@@ -733,7 +733,7 @@ export function InvestigationDetailsDialog({
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                <label className="text-sm font-medium text-foreground mb-2 block">
                   Supporting Documents <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-3">
@@ -759,7 +759,7 @@ export function InvestigationDetailsDialog({
                       className="hidden"
                       accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
                     />
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-muted-foreground">
                       {finalResolutionFiles.length > 0 ? (
                         <span className="text-green-600">{finalResolutionFiles.length} file(s) selected</span>
                       ) : (

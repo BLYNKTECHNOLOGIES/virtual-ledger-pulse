@@ -160,8 +160,8 @@ export default function LeaveAllocationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Allocations</h1>
-          <p className="text-sm text-gray-500">Quarterly leave allocation — all leaves carry forward infinitely</p>
+          <h1 className="text-2xl font-bold text-foreground">Leave Allocations</h1>
+          <p className="text-sm text-muted-foreground">Quarterly leave allocation — all leaves carry forward infinitely</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowBulk(true)}>
@@ -184,7 +184,7 @@ export default function LeaveAllocationsPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -205,19 +205,19 @@ export default function LeaveAllocationsPage() {
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
 
       {/* Employee-wise allocation cards */}
       {isLoading ? (
-        <p className="text-center text-gray-400 py-12">Loading...</p>
+        <p className="text-center text-muted-foreground py-12">Loading...</p>
       ) : groupedArr.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <CalendarDays className="h-10 w-10 mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500 text-sm">No leave allocations for {getQuarterLabel(quarter)} {year}</p>
+            <p className="text-muted-foreground text-sm">No leave allocations for {getQuarterLabel(quarter)} {year}</p>
             <button onClick={() => setShowBulk(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               Bulk allocate for all employees →
             </button>
@@ -236,8 +236,8 @@ export default function LeaveAllocationsPage() {
                       {g.employee?.first_name?.[0]}{g.employee?.last_name?.[0]}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900">{g.employee?.first_name} {g.employee?.last_name}</p>
-                      <p className="text-xs text-gray-500">{g.employee?.badge_id}</p>
+                      <p className="font-semibold text-foreground">{g.employee?.first_name} {g.employee?.last_name}</p>
+                      <p className="text-xs text-muted-foreground">{g.employee?.badge_id}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -247,19 +247,19 @@ export default function LeaveAllocationsPage() {
                       const cumulativeAvailable = cumBal ? cumBal.totalAllocated - cumBal.totalUsed : a.allocated_days - a.used_days;
                       const percent = cumBal && cumBal.totalAllocated > 0 ? (cumBal.totalUsed / cumBal.totalAllocated) * 100 : 0;
                       return (
-                        <div key={a.id} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div key={a.id} className="bg-muted/50 rounded-lg p-3 border border-border">
                           <div className="flex items-center gap-1.5 mb-2">
                             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: a.hr_leave_types?.color || "#E8604C" }} />
-                            <p className="text-xs font-medium text-gray-700 truncate">{a.hr_leave_types?.name}</p>
+                            <p className="text-xs font-medium text-foreground truncate">{a.hr_leave_types?.name}</p>
                           </div>
-                          <div className="w-full h-1.5 bg-gray-200 rounded-full mb-2">
+                          <div className="w-full h-1.5 bg-muted rounded-full mb-2">
                             <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(percent, 100)}%`, backgroundColor: a.hr_leave_types?.color || "#E8604C" }} />
                           </div>
-                          <div className="flex justify-between text-[10px] text-gray-500">
+                          <div className="flex justify-between text-[10px] text-muted-foreground">
                             <span>This Qtr: {a.allocated_days}d</span>
-                            <span className="font-medium text-gray-800">Bal: {cumulativeAvailable}</span>
+                            <span className="font-medium text-foreground">Bal: {cumulativeAvailable}</span>
                           </div>
-                          <p className="text-[10px] text-gray-400 mt-0.5">Used: {cumBal?.totalUsed || a.used_days} (all time)</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Used: {cumBal?.totalUsed || a.used_days} (all time)</p>
                         </div>
                       );
                     })}
@@ -297,7 +297,7 @@ export default function LeaveAllocationsPage() {
               <Label>Days to Allocate (this quarter)</Label>
               <Input type="number" value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: parseFloat(e.target.value) || 0 })} />
             </div>
-            <p className="text-xs text-gray-400">Quarter: {getQuarterLabel(quarter)} {year} • All unused days carry forward automatically</p>
+            <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • All unused days carry forward automatically</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
@@ -311,18 +311,18 @@ export default function LeaveAllocationsPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Bulk Leave Allocation — {getQuarterLabel(quarter)} {year}</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               This will allocate default leave days (from leave type settings) to <strong>all {employees.length} active employees</strong> for <strong>{getQuarterLabel(quarter)} {year}</strong>.
             </p>
-            <div className="bg-gray-50 rounded-lg p-3 space-y-1 text-sm">
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
               {leaveTypes.map((lt: any) => (
                 <div key={lt.id} className="flex justify-between">
-                  <span className="text-gray-600">{lt.name}</span>
+                  <span className="text-muted-foreground">{lt.name}</span>
                   <span className="font-medium">{lt.max_days_per_year} days/quarter</span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-gray-400">💡 Unused days from previous quarters automatically carry forward.</p>
+            <p className="text-xs text-muted-foreground">💡 Unused days from previous quarters automatically carry forward.</p>
             {leaveTypes.length === 0 && <p className="text-xs text-amber-600">⚠ Create leave types first before bulk allocating.</p>}
           </div>
           <DialogFooter>

@@ -875,7 +875,7 @@ export function StockTransactionsTab() {
         <CardContent>
           <div className="flex items-center space-x-4 mb-6">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by supplier or reference..."
                 value={searchTerm}
@@ -955,7 +955,7 @@ export function StockTransactionsTab() {
                     <tr
                       key={`${entry.type}-${entry.id}-${index}`}
                       id={txId ? `tx-row-${txId}` : undefined}
-                      className={`border-b hover:bg-gray-50${txType && txId ? ' cursor-pointer' : ''}`}
+                      className={`border-b hover:bg-muted/50${txType && txId ? ' cursor-pointer' : ''}`}
                       onClick={(e) => {
                         if (!txType || !txId) return;
                         const target = e.target as HTMLElement;
@@ -967,7 +967,7 @@ export function StockTransactionsTab() {
                       <td className="py-3 px-4">
                         <div>
                           <div className="font-medium">{entry.products?.name}</div>
-                          <div className="text-sm text-gray-500">{entry.products?.code}</div>
+                          <div className="text-sm text-muted-foreground">{entry.products?.code}</div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -1063,7 +1063,7 @@ export function StockTransactionsTab() {
               </table>
               
               {filteredEntries?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   No stock transactions found.
                 </div>
               )}

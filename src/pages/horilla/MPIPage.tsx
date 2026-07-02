@@ -100,8 +100,8 @@ export default function MPIPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">MPI — Performance Index</h1>
-          <p className="text-sm text-gray-500">Enterprise KPI / KRA / behavioral scoring for the entire organisation</p>
+          <h1 className="text-2xl font-bold text-foreground">MPI — Performance Index</h1>
+          <p className="text-sm text-muted-foreground">Enterprise KPI / KRA / behavioral scoring for the entire organisation</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">Period</span>
@@ -205,7 +205,7 @@ function StatCard({ icon: Icon, label, value, tone }: any) {
   return (
     <Card><CardContent className="p-4 flex items-center gap-3">
       <div className={`p-2.5 rounded-xl ${tone}`}><Icon className="h-5 w-5" /></div>
-      <div><p className="text-2xl font-bold text-gray-900">{value}</p><p className="text-xs text-gray-500">{label}</p></div>
+      <div><p className="text-2xl font-bold text-foreground">{value}</p><p className="text-xs text-muted-foreground">{label}</p></div>
     </CardContent></Card>
   );
 }

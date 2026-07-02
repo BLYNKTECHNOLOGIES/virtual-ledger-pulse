@@ -1,51 +1,46 @@
-# ERP Visual Refinement — Polish, Not Redesign
+# ERP Visual Refinement — Consistency Sweep (Pass 2)
 
-## Guiding Rule
-Every existing screen must remain instantly recognizable. We only refine the *visual layer*: spacing, typography, radius, shadows, badges, hover/focus, and color contrast. No changes to layouts, navigation, control positions, workflows, interactions, business logic, APIs, DB, calculations, or permissions.
+**Philosophy:** ~80–90% visual improvement, ~95–98% layout/navigation/interaction preserved. Every screen stays instantly recognizable; controls stay where they are. Comfortable density retained. Sidebar keeps its blue/white identity — subtle polish only.
 
-The current theme stays: light-blue primary (`231 81% 60%`), neutral gray surfaces, `--radius: 0.75rem`, Inter, and the fully isolated dark Terminal theme is **out of scope** (untouched).
+The foundation is already done (Pass 1): elevation-shadow tokens, refined button/input/card/dialog primitives, refined table heads, softer overlay, cleaner sidebar active state. This pass propagates that quality *evenly* across all main ERP surfaces by removing visual inconsistency — mainly stray hardcoded colors and uneven spacing — without touching structure, logic, APIs, data, or permissions.
 
-## Approach
-Work centrally through shared design tokens and shadcn primitives so improvements propagate to every screen automatically, without touching page structure. Some Phase 1 primitive work (badge soft variants + dot, table head micro-labels) is already in place and will be built upon — not reverted.
+## Core Technique
+1. **Tokenize stray colors** — replace ad-hoc `bg-white`, `text-gray-*`, `border-gray-*`, `bg-blue-*`, `text-red-*`, hex values in *page content* (not the sidebar brand chrome) with the existing semantic tokens (`bg-card`, `text-muted-foreground`, `border-border`, `text-primary`, `text-destructive`, `bg-success/warning/info`). This fixes contrast, dark-mode, and consistency in one move without changing perceived light-mode color.
+2. **Standardize status pills** — route status text/labels through the existing soft `Badge` variants (`success/warning/info/muted/destructive-soft` + `dot`) so every page shows status the same way.
+3. **Align spacing** — consistent card padding, section gaps, and header rhythm using the refined primitives; keep comfortable density (no row tightening).
+4. **Consistent headers** — page titles, section headers, and table micro-labels use the same type scale already defined in primitives.
 
-```text
-Tokens (index.css / tailwind.config)  →  Primitives (ui/*)  →  Shell (sidebar/header)  →  Verify high-traffic pages
-        refine values only                refine styling only        spacing/alignment only        no structural edits
-```
+No new fonts, no layout/grid restructuring, no moved controls.
 
-## Phase 1 — Foundation Tokens (theme-safe)
-In `src/index.css` `:root` and `.dark` (light + dark ERP only, never `.terminal`):
-- Keep primary hue; add subtle depth tokens: a soft elevation shadow scale (`--shadow-xs/sm/md`) built from low-opacity neutral, used minimally.
-- Slightly refine `--border` / `--muted` contrast for cleaner separation without changing perceived color.
-- Confirm `--success/--warning/--info/--destructive` are consistent and accessible; no hue identity change.
-- No new brand color, no palette swap.
+## Rollout (evenly, in traffic order)
+Because "everything evenly" was chosen, work proceeds surface-by-surface but each surface gets the *same* checklist so quality is uniform.
 
-## Phase 2 — Shared Primitives (`src/components/ui/*`)
-Refine styling only, preserving all sizes/APIs so nothing shifts position:
-- **button.tsx** — tighter focus ring, consistent subtle shadow, crisper hover; primary stays the same blue but reads as the clear primary action. Destructive stays clearly red.
-- **input.tsx / textarea / select** — consistent height, padding, focus ring, and border states.
-- **card.tsx** — consistent padding and a single restrained shadow/border treatment.
-- **table.tsx** — build on existing uppercase micro-label heads; refine row height, zebra/hover, cell padding, and alignment (tabular-nums for numeric columns).
-- **badge.tsx** — keep the already-added soft status variants (`success/warning/info/muted/destructive-soft`) and `dot` prop; ensure consistent sizing.
-- **dialog / dropdown / tabs / toast** — subtle fade/scale transitions (fast, ≤150ms), consistent padding and radius.
+- **Phase A — Daily-use ERP:** Dashboard, Sales, Client Onboarding Approvals, Seller Approvals, Financials, Stock.
+- **Phase B — CRM & Client detail:** Client directory, onboarding, order history, KYC/detail dialogs.
+- **Phase C — HR & Accounting:** Payroll, attendance, Tax Management, Statistics.
+- **Phase D — Shared shell & remaining screens:** subtle sidebar polish (spacing, hover, active — no color identity change), top header, any leftover modules for full consistency.
 
-## Phase 3 — Shell Polish
-`AppSidebar` and top header: refine spacing, active-item treatment, icon alignment, and section grouping only. Navigation structure, order, and positions unchanged.
-
-## Phase 4 — High-Traffic Surface Verification
-Spot-check that refinements propagate cleanly and fix only inconsistencies (ad-hoc hardcoded colors, uneven spacing) on: Sales, Client Onboarding Approvals, Seller Approvals, Financials, Stock, Accounting/Tax Management. No structural or logic edits — replace any stray hardcoded color utilities with the existing semantic tokens where found.
+## Per-Surface Checklist (applied identically everywhere)
+- Replace hardcoded color utilities with semantic tokens.
+- Normalize card/section padding and gaps.
+- Route status indicators through the soft Badge variants.
+- Consistent button variants (primary = clear main action, destructive = clearly red, secondary/outline for the rest).
+- Consistent input/select/focus states via refined primitives.
+- Consistent table styling (already tokenized heads, tabular-nums on numeric columns).
+- Verify hover/focus states and no layout shift.
 
 ## Animations
-Only fast micro-interactions: button hover/active, focus rings, dropdown/modal fade+scale, toast slide. Nothing that delays interaction.
+Only fast micro-interactions already in place (hover, focus ring, dropdown/modal fade+scale ≤200ms, toast). Nothing added that slows the ERP.
 
 ## Explicit Non-Goals
-- No layout, grid, or navigation restructuring.
-- No moving/removing buttons or controls.
-- No Terminal theme changes.
+- No layout, grid, or navigation restructuring; no moved/removed controls.
+- No sidebar color-identity change (subtle polish only).
+- No density change (comfortable retained).
 - No workflow, API, DB, calculation, or permission changes.
-- No new heavy animation libraries or route-level transitions.
+- No Terminal theme changes.
+- No new fonts or heavy animation libraries.
 
 ## Verification
 - Typecheck after each phase.
-- Playwright screenshots of login (public) + a couple of authenticated high-traffic pages before/after to confirm recognizability and polish.
-- Confirm no color-token identity drift in light and dark ERP modes.
+- Playwright before/after screenshots of representative pages per phase (Sales, a client detail, an HR page) to confirm recognizability + polish.
+- Confirm no token identity drift in light and dark ERP modes; confirm no shifted controls.

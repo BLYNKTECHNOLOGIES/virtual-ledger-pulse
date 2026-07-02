@@ -80,7 +80,7 @@ export default function PositionsPage() {
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
@@ -91,8 +91,8 @@ export default function PositionsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Positions</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{filteredPositions.length} position{filteredPositions.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-xl font-bold text-foreground">Positions</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{filteredPositions.length} position{filteredPositions.length !== 1 ? "s" : ""}</p>
         </div>
         <button
           onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
@@ -104,42 +104,42 @@ export default function PositionsPage() {
       </div>
 
       {/* Search bar */}
-      <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-2 w-full max-w-sm">
-        <Briefcase className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+      <div className="flex items-center bg-card rounded-lg border border-border px-3 py-2 w-full max-w-sm">
+        <Briefcase className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
         <input
           type="text"
           placeholder="Search positions..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full"
+          className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16 text-gray-400 text-sm">Loading...</div>
+        <div className="text-center py-16 text-muted-foreground text-sm">Loading...</div>
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Position</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Department</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Description</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Position</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Department</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Description</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredPositions.map((p) => (
-                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <tr key={p.id} className="border-b border-gray-50 hover:bg-muted/50 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
                       <Briefcase className="h-4 w-4 text-[#E8604C]" />
-                      <span className="font-medium text-gray-900">{p.title}</span>
+                      <span className="font-medium text-foreground">{p.title}</span>
                     </div>
                   </td>
-                  <td className="py-3 px-4 text-gray-500">{getDeptName(p.department_id)}</td>
-                  <td className="py-3 px-4 text-gray-500 truncate max-w-xs">{p.description || "—"}</td>
+                  <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
+                  <td className="py-3 px-4 text-muted-foreground truncate max-w-xs">{p.description || "—"}</td>
                   <td className="py-3 px-4">
                     <button
                       onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
@@ -151,15 +151,15 @@ export default function PositionsPage() {
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
-                        className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400"><Edit className="h-3.5 w-3.5" /></button>
+                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
                       <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
-                        className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
+                        className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {filteredPositions.length === 0 && (
-                <tr><td colSpan={5} className="py-12 text-center text-gray-400 text-sm">
+                <tr><td colSpan={5} className="py-12 text-center text-muted-foreground text-sm">
                   {searchTerm ? "No positions matching your search" : "No positions yet"}
                 </td></tr>
               )}
@@ -170,31 +170,31 @@ export default function PositionsPage() {
 
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">{editId ? "Edit" : "Add"} Position</h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">{editId ? "Edit" : "Add"} Position</h2>
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Title *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Title *</label>
                 <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={inputCls} />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Department</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Department</label>
                 <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })} className={inputCls}>
                   <option value="">Select</option>
                   {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                   className={`${inputCls} resize-none`} rows={2} />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => saveMutation.mutate()} disabled={!form.title || saveMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}

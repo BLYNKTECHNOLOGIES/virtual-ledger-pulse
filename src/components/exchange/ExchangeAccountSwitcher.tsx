@@ -33,9 +33,9 @@ export function ExchangeAccountSwitcher() {
   // User locked to a single account → static badge, no dropdown.
   if (!canSwitch && boundAccountId) {
     return (
-      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 border-gray-200 bg-gray-50">
+      <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 border-border bg-muted/50">
         <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: activeColor }} />
-        <span className="text-sm font-medium text-gray-700">{activeLabel}</span>
+        <span className="text-sm font-medium text-foreground">{activeLabel}</span>
       </div>
     );
   }
@@ -49,7 +49,7 @@ export function ExchangeAccountSwitcher() {
         <Button
           variant="ghost"
           size="sm"
-          className="flex items-center gap-2 border-2 border-gray-200 rounded-lg text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+          className="flex items-center gap-2 border-2 border-border rounded-lg text-foreground hover:bg-blue-50 hover:text-blue-700"
         >
           {activeAccountId === ALL_ACCOUNTS ? (
             <Layers className="h-4 w-4 text-slate-500" />

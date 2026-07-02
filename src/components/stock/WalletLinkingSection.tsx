@@ -221,7 +221,7 @@ export function WalletLinkingSection() {
                   <SelectTrigger className="w-[120px] h-7 text-xs">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border z-50">
+                  <SelectContent className="bg-card border z-50">
                     <SelectItem value="capitalize">Capitalize</SelectItem>
                     <SelectItem value="expense">Expense</SelectItem>
                   </SelectContent>
@@ -258,7 +258,7 @@ export function WalletLinkingSection() {
               <Label className="text-xs">Wallet</Label>
               <Select value={selectedWalletId} onValueChange={setSelectedWalletId}>
                 <SelectTrigger className="mt-1"><SelectValue placeholder="Select wallet" /></SelectTrigger>
-                <SelectContent className="bg-white border z-50">
+                <SelectContent className="bg-card border z-50">
                   {availableWallets.map((w: any) => (
                     <SelectItem key={w.id} value={w.id}>{w.wallet_name}</SelectItem>
                   ))}
@@ -280,7 +280,7 @@ export function WalletLinkingSection() {
               </p>
               <Select value={feeTreatment} onValueChange={setFeeTreatment}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-white border z-50">
+                <SelectContent className="bg-card border z-50">
                   <SelectItem value="capitalize">Capitalize (add to inventory cost)</SelectItem>
                   <SelectItem value="expense">Expense (book separately)</SelectItem>
                 </SelectContent>

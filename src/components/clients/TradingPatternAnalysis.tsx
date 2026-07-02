@@ -112,24 +112,24 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
   const renderAnalysisContent = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-        <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-blue-100 dark:border-blue-900">
+        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-blue-100 dark:border-blue-900">
           <div className="text-3xl font-bold text-blue-600">{totalOrders}</div>
           <div className="text-sm text-muted-foreground mt-1">
             Total {activeTab === 'buy' ? 'Buy' : 'Sell'} Orders
           </div>
         </div>
         
-        <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-green-100 dark:border-green-900">
+        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-green-100 dark:border-green-900">
           <div className="text-3xl font-bold text-green-600">{avgOrdersPerMonth}</div>
           <div className="text-sm text-muted-foreground mt-1">Avg Orders/Month</div>
         </div>
         
-        <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-purple-100 dark:border-purple-900">
+        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-purple-100 dark:border-purple-900">
           <div className="text-3xl font-bold text-purple-600">₹{averageOrderAmount.toLocaleString('en-IN')}</div>
           <div className="text-sm text-muted-foreground mt-1">Average Order Amount</div>
         </div>
         
-        <div className="text-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-green-100 dark:border-green-900">
+        <div className="text-center p-4 bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-green-100 dark:border-green-900">
           <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-900/20 px-3 py-1">
             {getPatternStatus()}
           </Badge>
@@ -138,7 +138,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900">
+        <div className="p-4 bg-card dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900">
           <label className="text-sm font-medium text-muted-foreground">Cosmos Alert (Pattern Change)</label>
           <div className="flex items-center gap-2 mt-2">
             <Badge variant="outline" className="text-red-600 border-red-300 bg-red-50 dark:bg-red-900/20 px-3 py-1">
@@ -147,7 +147,7 @@ export function TradingPatternAnalysis({ clientId }: TradingPatternAnalysisProps
           </div>
         </div>
         
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-green-100 dark:border-green-900">
+        <div className="p-4 bg-card dark:bg-gray-800 rounded-lg border border-green-100 dark:border-green-900">
           <label className="text-sm font-medium text-muted-foreground">250% Spike Detected?</label>
           <div className="flex items-center gap-2 mt-2">
             <Badge variant="outline" className="text-green-600 border-green-300 bg-green-50 dark:bg-green-900/20 px-3 py-1">

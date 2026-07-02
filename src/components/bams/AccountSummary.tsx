@@ -377,7 +377,7 @@ export function AccountSummary() {
       case 'BALANCE_DISCREPANCY': return 'bg-purple-100 text-purple-700';
       case 'WRONG_PAYMENT_INITIATED': return 'bg-orange-100 text-orange-700';
       case 'SETTLEMENT_NOT_RECEIVED': return 'bg-blue-100 text-blue-700';
-      default: return 'bg-gray-100 text-gray-700';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -410,8 +410,8 @@ export function AccountSummary() {
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Account Summary & Reports</h1>
-          <p className="text-gray-600 mt-1">Comprehensive banking system analysis and reporting</p>
+          <h1 className="text-3xl font-bold text-foreground">Account Summary & Reports</h1>
+          <p className="text-muted-foreground mt-1">Comprehensive banking system analysis and reporting</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <Button onClick={handleExportPDF} variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -438,8 +438,8 @@ export function AccountSummary() {
                 <div className="flex items-center">
                   <Building2 className="h-8 w-8 text-blue-600" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Accounts</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemTotals?.total_accounts || 0}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total Accounts</p>
+                    <p className="text-2xl font-bold text-foreground">{systemTotals?.total_accounts || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -450,8 +450,8 @@ export function AccountSummary() {
                 <div className="flex items-center">
                   <DollarSign className="h-8 w-8 text-green-600" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Balance</p>
-                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalComputedBalance)}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
+                    <p className="text-2xl font-bold text-foreground">{formatCurrency(totalComputedBalance)}</p>
                   </div>
                 </div>
               </CardContent>
@@ -462,8 +462,8 @@ export function AccountSummary() {
                 <div className="flex items-center">
                   <CheckCircle className="h-8 w-8 text-green-600" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Active Accounts</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemTotals?.active_accounts || 0}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Active Accounts</p>
+                    <p className="text-2xl font-bold text-foreground">{systemTotals?.active_accounts || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -474,8 +474,8 @@ export function AccountSummary() {
                 <div className="flex items-center">
                   <AlertTriangle className="h-8 w-8 text-orange-600" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Inactive Accounts</p>
-                    <p className="text-2xl font-bold text-gray-900">{systemTotals?.inactive_accounts || 0}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Inactive Accounts</p>
+                    <p className="text-2xl font-bold text-foreground">{systemTotals?.inactive_accounts || 0}</p>
                   </div>
                 </div>
               </CardContent>
@@ -568,7 +568,7 @@ export function AccountSummary() {
                   </thead>
                   <tbody>
                     {accountsData?.map((account, index) => (
-                      <tr key={index} className="border-b hover:bg-gray-50">
+                      <tr key={index} className="border-b hover:bg-muted/50">
                         <td className="p-2 font-medium">{account.account_name}</td>
                         <td className="p-2">{account.bank_name}</td>
                         <td className="p-2">
@@ -804,7 +804,7 @@ export function AccountSummary() {
                   </thead>
                   <tbody>
                     {casesData?.map((caseItem) => (
-                      <tr key={caseItem.case_number} className="border-b hover:bg-gray-50">
+                      <tr key={caseItem.case_number} className="border-b hover:bg-muted/50">
                         <td className="p-2 font-mono">{caseItem.case_number}</td>
                         <td className="p-2">
                           <Badge className={getCaseTypeColor(caseItem.case_type)}>
@@ -815,7 +815,7 @@ export function AccountSummary() {
                         <td className="p-2">
                           <div>
                             <div className="font-medium">{caseItem.account_name}</div>
-                            <div className="text-xs text-gray-500">{caseItem.bank_name}</div>
+                            <div className="text-xs text-muted-foreground">{caseItem.bank_name}</div>
                           </div>
                         </td>
                         <td className="p-2">
@@ -838,7 +838,7 @@ export function AccountSummary() {
       </Tabs>
 
       {/* Print Footer */}
-      <div className="hidden print:block text-center text-xs text-gray-500 mt-8 border-t pt-4">
+      <div className="hidden print:block text-center text-xs text-muted-foreground mt-8 border-t pt-4">
         Generated on {format(new Date(), 'PPpp')} | BAMS - Banking & Payment Management System
       </div>
     </div>

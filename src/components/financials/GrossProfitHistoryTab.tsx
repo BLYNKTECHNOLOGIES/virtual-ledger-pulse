@@ -236,7 +236,7 @@ export function GrossProfitHistoryTab() {
       </div>
 
       {/* Chart */}
-      <Card className="bg-white dark:bg-card border-2 border-gray-200 dark:border-border shadow-xl">
+      <Card className="bg-card dark:bg-card border-2 border-border dark:border-border shadow-xl">
         <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-3 text-xl text-white">
@@ -249,7 +249,7 @@ export function GrossProfitHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-white text-emerald-700" : "text-white hover:bg-emerald-500"}
+                className={viewMode === "day" ? "bg-card text-emerald-700" : "text-white hover:bg-emerald-500"}
                 onClick={() => setViewMode("day")}
               >
                 Day
@@ -257,7 +257,7 @@ export function GrossProfitHistoryTab() {
               <Button
                 size="sm"
                 variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-white text-emerald-700" : "text-white hover:bg-emerald-500"}
+                className={viewMode === "month" ? "bg-card text-emerald-700" : "text-white hover:bg-emerald-500"}
                 onClick={() => setViewMode("month")}
               >
                 Month

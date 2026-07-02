@@ -284,11 +284,11 @@ export default function CandidateProfilePage() {
   });
 
   if (isLoading || !candidate) {
-    return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Loading...</div>;
+    return <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">Loading...</div>;
   }
 
   const initials = candidate.name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const tabs: { key: Tab; label: string; count?: number }[] = [
     { key: "about", label: "About" },
@@ -309,7 +309,7 @@ export default function CandidateProfilePage() {
   };
 
   const OFFER_STYLES: Record<string, string> = {
-    draft: "bg-gray-100 text-gray-600",
+    draft: "bg-muted text-muted-foreground",
     sent: "bg-blue-100 text-blue-700",
     accepted: "bg-emerald-100 text-emerald-700",
     rejected: "bg-red-100 text-red-700",
@@ -320,7 +320,7 @@ export default function CandidateProfilePage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-start gap-4">
-        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 mt-1">
+        <button onClick={() => navigate(-1)} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground mt-1">
           <ArrowLeft className="h-4 w-4" />
         </button>
         <div className="flex-1">
@@ -332,7 +332,7 @@ export default function CandidateProfilePage() {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-gray-900">{candidate.name}</h1>
+                <h1 className="text-xl font-bold text-foreground">{candidate.name}</h1>
                 {candidate.hired ? (
                   <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700">Hired</span>
                 ) : candidate.canceled ? (
@@ -341,7 +341,7 @@ export default function CandidateProfilePage() {
                   <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">In Progress</span>
                 )}
               </div>
-              <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+              <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
                 {candidate.email && <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{candidate.email}</span>}
                 {candidate.mobile && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{candidate.mobile}</span>}
                 {recruitment && <span className="flex items-center gap-1"><Briefcase className="h-3 w-3" />{recruitment.title}</span>}
@@ -352,7 +352,7 @@ export default function CandidateProfilePage() {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star key={i} className={`h-4 w-4 ${i < (candidate.rating || 0) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
                 ))}
-                {candidate.rating ? <span className="text-xs text-gray-500 ml-1">({candidate.rating}/5)</span> : null}
+                {candidate.rating ? <span className="text-xs text-muted-foreground ml-1">({candidate.rating}/5)</span> : null}
               </div>
             </div>
             {/* Action buttons */}
@@ -370,7 +370,7 @@ export default function CandidateProfilePage() {
                 </>
               )}
               <button onClick={() => { setEditing(true); setEditForm({ name: candidate.name, email: candidate.email, mobile: candidate.mobile, source: candidate.source, address: candidate.address, city: candidate.city, state: candidate.state, gender: candidate.gender, dob: candidate.dob, portfolio_url: candidate.portfolio_url }); }}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-muted/50">
                 <Edit className="h-3.5 w-3.5" /> Edit
               </button>
             </div>
@@ -379,51 +379,51 @@ export default function CandidateProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-border">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === t.key ? "border-[#E8604C] text-[#E8604C]" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeTab === t.key ? "border-[#E8604C] text-[#E8604C]" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             {t.label}
             {t.count !== undefined && t.count > 0 && (
-              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">{t.count}</span>
+              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{t.count}</span>
             )}
           </button>
         ))}
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-card rounded-xl border border-border p-5">
         {activeTab === "about" && (
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Personal Information</h3>
+              <h3 className="text-sm font-semibold text-foreground">Personal Information</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-gray-400">Full Name</p><p className="text-gray-700 font-medium">{candidate.name}</p></div>
-                <div><p className="text-xs text-gray-400">Email</p><p className="text-gray-700">{candidate.email || "—"}</p></div>
-                <div><p className="text-xs text-gray-400">Phone</p><p className="text-gray-700">{candidate.mobile || "—"}</p></div>
-                <div><p className="text-xs text-gray-400">Gender</p><p className="text-gray-700">{candidate.gender || "—"}</p></div>
-                <div><p className="text-xs text-gray-400">Date of Birth</p><p className="text-gray-700">{candidate.dob || "—"}</p></div>
-                <div><p className="text-xs text-gray-400">Source</p><p className="text-gray-700">{candidate.source || "—"}</p></div>
-                <div className="col-span-2"><p className="text-xs text-gray-400">Address</p><p className="text-gray-700">{[candidate.address, candidate.city, candidate.state, candidate.country].filter(Boolean).join(", ") || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Full Name</p><p className="text-foreground font-medium">{candidate.name}</p></div>
+                <div><p className="text-xs text-muted-foreground">Email</p><p className="text-foreground">{candidate.email || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Phone</p><p className="text-foreground">{candidate.mobile || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Gender</p><p className="text-foreground">{candidate.gender || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Date of Birth</p><p className="text-foreground">{candidate.dob || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Source</p><p className="text-foreground">{candidate.source || "—"}</p></div>
+                <div className="col-span-2"><p className="text-xs text-muted-foreground">Address</p><p className="text-foreground">{[candidate.address, candidate.city, candidate.state, candidate.country].filter(Boolean).join(", ") || "—"}</p></div>
                 {candidate.portfolio_url && (
-                  <div className="col-span-2"><p className="text-xs text-gray-400">Portfolio</p><a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline flex items-center gap-1"><Globe className="h-3 w-3" />{candidate.portfolio_url}</a></div>
+                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Portfolio</p><a href={candidate.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline flex items-center gap-1"><Globe className="h-3 w-3" />{candidate.portfolio_url}</a></div>
                 )}
                 {candidate.resume_url && (
-                  <div className="col-span-2"><p className="text-xs text-gray-400">Resume</p><a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline flex items-center gap-1"><FileText className="h-3 w-3" />View Resume</a></div>
+                  <div className="col-span-2"><p className="text-xs text-muted-foreground">Resume</p><a href={candidate.resume_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 text-sm hover:underline flex items-center gap-1"><FileText className="h-3 w-3" />View Resume</a></div>
                 )}
               </div>
             </div>
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-gray-900">Recruitment Information</h3>
+              <h3 className="text-sm font-semibold text-foreground">Recruitment Information</h3>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-gray-400">Recruitment</p><p className="text-gray-700 font-medium">{recruitment?.title || "—"}</p></div>
-                <div><p className="text-xs text-gray-400">Current Stage</p><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{stage?.stage_name || "—"}</span></div>
-                <div><p className="text-xs text-gray-400">Schedule Date</p><p className="text-gray-700">{candidate.schedule_date || "—"}</p></div>
-                <div><p className="text-xs text-gray-400">Offer Status</p><p className="text-gray-700">{candidate.offer_letter_status || "None"}</p></div>
-                <div><p className="text-xs text-gray-400">Applied On</p><p className="text-gray-700">{new Date(candidate.created_at).toLocaleDateString()}</p></div>
-                {candidate.hired_date && <div><p className="text-xs text-gray-400">Hired Date</p><p className="text-gray-700">{candidate.hired_date}</p></div>}
-                {candidate.joining_date && <div><p className="text-xs text-gray-400">Joining Date</p><p className="text-gray-700">{candidate.joining_date}</p></div>}
-                {candidate.reject_reason && <div className="col-span-2"><p className="text-xs text-gray-400">Reject Reason</p><p className="text-red-600">{candidate.reject_reason}</p></div>}
+                <div><p className="text-xs text-muted-foreground">Recruitment</p><p className="text-foreground font-medium">{recruitment?.title || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Current Stage</p><span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{stage?.stage_name || "—"}</span></div>
+                <div><p className="text-xs text-muted-foreground">Schedule Date</p><p className="text-foreground">{candidate.schedule_date || "—"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Offer Status</p><p className="text-foreground">{candidate.offer_letter_status || "None"}</p></div>
+                <div><p className="text-xs text-muted-foreground">Applied On</p><p className="text-foreground">{new Date(candidate.created_at).toLocaleDateString()}</p></div>
+                {candidate.hired_date && <div><p className="text-xs text-muted-foreground">Hired Date</p><p className="text-foreground">{candidate.hired_date}</p></div>}
+                {candidate.joining_date && <div><p className="text-xs text-muted-foreground">Joining Date</p><p className="text-foreground">{candidate.joining_date}</p></div>}
+                {candidate.reject_reason && <div className="col-span-2"><p className="text-xs text-muted-foreground">Reject Reason</p><p className="text-red-600">{candidate.reject_reason}</p></div>}
               </div>
             </div>
           </div>
@@ -443,15 +443,15 @@ export default function CandidateProfilePage() {
             {notes.length === 0 ? (
               <div className="text-center py-8">
                 <MessageSquare className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No notes yet. Add remarks from interviews or evaluations.</p>
+                <p className="text-sm text-muted-foreground">No notes yet. Add remarks from interviews or evaluations.</p>
               </div>
             ) : notes.map((n: any) => (
-              <div key={n.id} className="border border-gray-100 rounded-lg p-3">
+              <div key={n.id} className="border border-border rounded-lg p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-medium text-gray-700">{n.note_by || "System"}</span>
-                  <span className="text-[10px] text-gray-400">{new Date(n.created_at).toLocaleString('en-IN')}</span>
+                  <span className="text-xs font-medium text-foreground">{n.note_by || "System"}</span>
+                  <span className="text-[10px] text-muted-foreground">{new Date(n.created_at).toLocaleString('en-IN')}</span>
                 </div>
-                <p className="text-sm text-gray-600">{n.note}</p>
+                <p className="text-sm text-muted-foreground">{n.note}</p>
               </div>
             ))}
           </div>
@@ -476,29 +476,29 @@ export default function CandidateProfilePage() {
             {ratings.length === 0 ? (
               <div className="text-center py-8">
                 <Star className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No ratings yet. Be the first to rate this candidate.</p>
+                <p className="text-sm text-muted-foreground">No ratings yet. Be the first to rate this candidate.</p>
               </div>
             ) : (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="text-2xl font-bold text-gray-900">
+                  <span className="text-2xl font-bold text-foreground">
                     {(ratings.reduce((sum: number, r: any) => sum + r.rating, 0) / ratings.length).toFixed(1)}
                   </span>
-                  <span className="text-sm text-gray-500">avg from {ratings.length} rating{ratings.length !== 1 ? "s" : ""}</span>
+                  <span className="text-sm text-muted-foreground">avg from {ratings.length} rating{ratings.length !== 1 ? "s" : ""}</span>
                 </div>
                 {ratings.map((r: any) => (
-                  <div key={r.id} className="border border-gray-100 rounded-lg p-3 flex items-center justify-between">
+                  <div key={r.id} className="border border-border rounded-lg p-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map(i => (
                           <Star key={i} className={`h-4 w-4 ${i <= r.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
                         ))}
                       </div>
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-muted-foreground">
                         {r.hr_employees ? `${r.hr_employees.first_name} ${r.hr_employees.last_name}` : "Unknown"}
                       </span>
                     </div>
-                    <span className="text-[10px] text-gray-400">{new Date(r.created_at).toLocaleString('en-IN')}</span>
+                    <span className="text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleString('en-IN')}</span>
                   </div>
                 ))}
               </div>
@@ -508,26 +508,26 @@ export default function CandidateProfilePage() {
 
         {activeTab === "stage_history" && (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">Stage Transition Log</h3>
+            <h3 className="text-sm font-semibold text-foreground">Stage Transition Log</h3>
             {stageNotes.length === 0 ? (
               <div className="text-center py-8">
                 <Clock className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No stage transitions recorded yet.</p>
+                <p className="text-sm text-muted-foreground">No stage transitions recorded yet.</p>
               </div>
             ) : (
               <div className="relative pl-6 space-y-3">
-                <div className="absolute left-2 top-1 bottom-1 w-px bg-gray-200" />
+                <div className="absolute left-2 top-1 bottom-1 w-px bg-muted" />
                 {stageNotes.map((sn: any) => (
                   <div key={sn.id} className="relative">
                     <div className="absolute -left-4 top-1.5 w-2.5 h-2.5 rounded-full bg-[#E8604C] ring-2 ring-white" />
-                    <div className="border border-gray-100 rounded-lg p-3">
+                    <div className="border border-border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-700 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
+                        <span className="text-xs font-medium text-foreground px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">
                           {sn.hr_stages?.stage_name || "Unknown Stage"}
                         </span>
-                        <span className="text-[10px] text-gray-400">{new Date(sn.created_at).toLocaleString('en-IN')}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(sn.created_at).toLocaleString('en-IN')}</span>
                       </div>
-                      <p className="text-sm text-gray-600">{sn.description}</p>
+                      <p className="text-sm text-muted-foreground">{sn.description}</p>
                     </div>
                   </div>
                 ))}
@@ -539,7 +539,7 @@ export default function CandidateProfilePage() {
         {activeTab === "interviews" && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-gray-900">Interview History</h3>
+              <h3 className="text-sm font-semibold text-foreground">Interview History</h3>
               <button onClick={() => setInterviewOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c]">
                 <Calendar className="h-3 w-3" /> Schedule Interview
@@ -548,19 +548,19 @@ export default function CandidateProfilePage() {
             {interviews.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No interviews scheduled</p>
+                <p className="text-sm text-muted-foreground">No interviews scheduled</p>
               </div>
             ) : interviews.map((iv: any) => (
-              <div key={iv.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={iv.id} className="border border-border rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">{iv.interviewer_name}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[iv.status] || "bg-gray-100 text-gray-600"}`}>
+                      <span className="text-sm font-medium text-foreground">{iv.interviewer_name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground"}`}>
                         {iv.status}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{new Date(iv.interview_date).toLocaleDateString()}</span>
                       {iv.interview_time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{iv.interview_time}</span>}
                       <span>{iv.duration_minutes}min</span>
@@ -572,7 +572,7 @@ export default function CandidateProfilePage() {
                   </div>
                 </div>
                 {iv.status === "completed" && iv.feedback && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="mt-3 pt-3 border-t border-border">
                     <div className="flex items-center gap-2 mb-1">
                       {iv.rating && (
                         <div className="flex gap-0.5">
@@ -587,7 +587,7 @@ export default function CandidateProfilePage() {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-600">{iv.feedback}</p>
+                    <p className="text-xs text-muted-foreground">{iv.feedback}</p>
                     {iv.strengths && <p className="text-[10px] text-emerald-600 mt-1">✓ {iv.strengths}</p>}
                     {iv.weaknesses && <p className="text-[10px] text-red-500 mt-0.5">✗ {iv.weaknesses}</p>}
                   </div>
@@ -600,7 +600,7 @@ export default function CandidateProfilePage() {
         {activeTab === "offers" && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-gray-900">Offer Letters</h3>
+              <h3 className="text-sm font-semibold text-foreground">Offer Letters</h3>
               <button onClick={() => setOfferOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c]">
                 <FileText className="h-3 w-3" /> Create Offer
@@ -609,22 +609,22 @@ export default function CandidateProfilePage() {
             {offers.length === 0 ? (
               <div className="text-center py-8">
                 <FileText className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                <p className="text-sm text-gray-500">No offers created</p>
+                <p className="text-sm text-muted-foreground">No offers created</p>
               </div>
             ) : offers.map((offer: any) => (
-              <div key={offer.id} className="border border-gray-200 rounded-lg p-4">
+              <div key={offer.id} className="border border-border rounded-lg p-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-gray-900">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${OFFER_STYLES[offer.status] || "bg-gray-100 text-gray-600"}`}>
+                  <span className="text-lg font-bold text-foreground">₹{Number(offer.offered_salary).toLocaleString('en-IN')}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${OFFER_STYLES[offer.status] || "bg-muted text-muted-foreground"}`}>
                     {offer.status}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                   {offer.offered_position && <span>{offer.offered_position}</span>}
                   <span>Offered: {new Date(offer.offer_date).toLocaleDateString()}</span>
                   {offer.joining_date && <span>Join: {new Date(offer.joining_date).toLocaleDateString()}</span>}
                 </div>
-                {offer.negotiation_notes && <p className="mt-2 text-xs text-gray-500 bg-gray-50 rounded-lg p-2">{offer.negotiation_notes}</p>}
+                {offer.negotiation_notes && <p className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">{offer.negotiation_notes}</p>}
               </div>
             ))}
           </div>
@@ -680,13 +680,13 @@ export default function CandidateProfilePage() {
                   const stageTasks = candidateTasks.filter((t: any) => t.candidate_stage_id === cs.id);
                   if (stageTasks.length === 0) return null;
                   return (
-                    <div key={cs.id} className="border border-gray-100 rounded-lg p-3">
-                      <p className="text-xs font-medium text-gray-500 mb-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 inline-block">
+                    <div key={cs.id} className="border border-border rounded-lg p-3">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 inline-block">
                         {cs.hr_stages?.stage_name || "Unknown Stage"}
                       </p>
                       <div className="space-y-1.5">
                         {stageTasks.map((task: any) => (
-                          <div key={task.id} className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-gray-50">
+                          <div key={task.id} className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-muted/50">
                             <button
                               onClick={() => toggleTaskMutation.mutate({
                                 taskId: task.id,
@@ -700,7 +700,7 @@ export default function CandidateProfilePage() {
                                 <Square className="h-4 w-4 text-gray-300" />
                               )}
                             </button>
-                            <span className={`text-sm ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                            <span className={`text-sm ${task.status === "completed" ? "text-muted-foreground line-through" : "text-foreground"}`}>
                               {task.title || task.hr_onboarding_tasks?.title || `Task ${task.id.slice(0,6)}`}
                             </span>
                             <span className={`text-[10px] ml-auto px-1.5 py-0.5 rounded-full font-medium ${
@@ -721,34 +721,34 @@ export default function CandidateProfilePage() {
 
         {activeTab === "history" && (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900">Candidate Timeline</h3>
+            <h3 className="text-sm font-semibold text-foreground">Candidate Timeline</h3>
             <div className="relative pl-6 space-y-4">
-              <div className="absolute left-2 top-1 bottom-1 w-px bg-gray-200" />
+              <div className="absolute left-2 top-1 bottom-1 w-px bg-muted" />
               {candidate.hired_date && (
                 <div className="relative">
                   <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                  <p className="text-sm text-gray-700 font-medium">Hired</p>
-                  <p className="text-xs text-gray-400">{candidate.hired_date}</p>
+                  <p className="text-sm text-foreground font-medium">Hired</p>
+                  <p className="text-xs text-muted-foreground">{candidate.hired_date}</p>
                 </div>
               )}
               {offers.filter((o: any) => o.status === "accepted").map((o: any) => (
                 <div key={o.id} className="relative">
                   <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-blue-500 ring-2 ring-white" />
-                  <p className="text-sm text-gray-700">Offer accepted — ₹{Number(o.offered_salary).toLocaleString('en-IN')}</p>
-                  <p className="text-xs text-gray-400">{o.accepted_at ? new Date(o.accepted_at).toLocaleDateString() : ""}</p>
+                  <p className="text-sm text-foreground">Offer accepted — ₹{Number(o.offered_salary).toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-muted-foreground">{o.accepted_at ? new Date(o.accepted_at).toLocaleDateString() : ""}</p>
                 </div>
               ))}
               {interviews.filter((iv: any) => iv.status === "completed").map((iv: any) => (
                 <div key={iv.id} className="relative">
                   <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-violet-500 ring-2 ring-white" />
-                  <p className="text-sm text-gray-700">Interview with {iv.interviewer_name} — {iv.recommendation || "pending"}</p>
-                  <p className="text-xs text-gray-400">{new Date(iv.interview_date).toLocaleDateString()}</p>
+                  <p className="text-sm text-foreground">Interview with {iv.interviewer_name} — {iv.recommendation || "pending"}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(iv.interview_date).toLocaleDateString()}</p>
                 </div>
               ))}
               <div className="relative">
                 <div className="absolute -left-4 top-1 w-2.5 h-2.5 rounded-full bg-gray-400 ring-2 ring-white" />
-                <p className="text-sm text-gray-700">Applied</p>
-                <p className="text-xs text-gray-400">{new Date(candidate.created_at).toLocaleDateString()}</p>
+                <p className="text-sm text-foreground">Applied</p>
+                <p className="text-xs text-muted-foreground">{new Date(candidate.created_at).toLocaleDateString()}</p>
               </div>
             </div>
           </div>
@@ -758,29 +758,29 @@ export default function CandidateProfilePage() {
       {/* Edit Dialog */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Edit Candidate</h2>
-              <button onClick={() => setEditing(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-lg shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Edit Candidate</h2>
+              <button onClick={() => setEditing(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-1 block">Name</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Name</label>
                 <input value={editForm.name || ""} onChange={e => setEditForm({ ...editForm, name: e.target.value })} className={inputCls} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">Email</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Email</label>
                   <input value={editForm.email || ""} onChange={e => setEditForm({ ...editForm, email: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">Phone</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Phone</label>
                   <input value={editForm.mobile || ""} onChange={e => setEditForm({ ...editForm, mobile: e.target.value })} className={inputCls} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">Gender</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">Gender</label>
                   <select value={editForm.gender || ""} onChange={e => setEditForm({ ...editForm, gender: e.target.value })} className={inputCls}>
                     <option value="">Select</option>
                     <option value="male">Male</option>
@@ -789,12 +789,12 @@ export default function CandidateProfilePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">DOB</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">DOB</label>
                   <input type="date" value={editForm.dob || ""} onChange={e => setEditForm({ ...editForm, dob: e.target.value })} className={inputCls} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-1 block">Source</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Source</label>
                 <select value={editForm.source || ""} onChange={e => setEditForm({ ...editForm, source: e.target.value })} className={inputCls}>
                   <option value="">Select</option>
                   <option value="LinkedIn">LinkedIn</option>
@@ -806,26 +806,26 @@ export default function CandidateProfilePage() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-1 block">Address</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Address</label>
                 <input value={editForm.address || ""} onChange={e => setEditForm({ ...editForm, address: e.target.value })} className={inputCls} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">City</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">City</label>
                   <input value={editForm.city || ""} onChange={e => setEditForm({ ...editForm, city: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-700 mb-1 block">State</label>
+                  <label className="text-xs font-medium text-foreground mb-1 block">State</label>
                   <input value={editForm.state || ""} onChange={e => setEditForm({ ...editForm, state: e.target.value })} className={inputCls} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-gray-700 mb-1 block">Portfolio URL</label>
+                <label className="text-xs font-medium text-foreground mb-1 block">Portfolio URL</label>
                 <input value={editForm.portfolio_url || ""} onChange={e => setEditForm({ ...editForm, portfolio_url: e.target.value })} className={inputCls} />
               </div>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-border">
+              <button onClick={() => setEditing(false)} className="px-4 py-2 text-sm text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}
                 className="px-4 py-2 text-sm text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50 flex items-center gap-1.5">
                 <Save className="h-3.5 w-3.5" /> {updateMutation.isPending ? "Saving..." : "Save"}

@@ -120,7 +120,7 @@ export function ActiveInvestigationsTab() {
       case 'LOW':
         return 'bg-emerald-50 text-emerald-500 border border-emerald-100';
       default:
-        return 'bg-gray-50 text-gray-500 border border-gray-100';
+        return 'bg-muted/50 text-muted-foreground border border-border';
     }
   };
 
@@ -226,30 +226,30 @@ export function ActiveInvestigationsTab() {
                             {investigation.priority}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-muted-foreground mb-1">
                           {investigation.bank_accounts?.account_name}
                         </p>
                         <p className="text-sm font-medium text-blue-600 mb-2">
                           {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
                         </p>
                         <div className="mb-2">
-                          <p className="font-medium text-gray-900">{investigation.title}</p>
+                          <p className="font-medium text-foreground">{investigation.title}</p>
                           {investigation.description && (
-                            <p className="text-sm text-gray-600 mt-1">{investigation.description}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{investigation.description}</p>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-600">Type:</span> {investigation.case_type?.replace('_', ' ')}
+                            <span className="text-muted-foreground">Type:</span> {investigation.case_type?.replace('_', ' ')}
                           </div>
                           <div>
-                            <span className="text-gray-600">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
+                            <span className="text-muted-foreground">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
                           </div>
                           <div>
-                            <span className="text-gray-600">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
+                            <span className="text-muted-foreground">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
                           </div>
                           <div>
-                            <span className="text-gray-600">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
+                            <span className="text-muted-foreground">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
                           </div>
                         </div>
                       </div>
@@ -305,30 +305,30 @@ export function ActiveInvestigationsTab() {
                             {investigation.priority}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-muted-foreground mb-1">
                           {investigation.bank_accounts?.account_name}
                         </p>
                         <p className="text-sm font-medium text-blue-600 mb-2">
                           {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
                         </p>
                         <div className="mb-2">
-                          <p className="font-medium text-gray-900">{investigation.title}</p>
+                          <p className="font-medium text-foreground">{investigation.title}</p>
                           {investigation.description && (
-                            <p className="text-sm text-gray-600 mt-1">{investigation.description}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{investigation.description}</p>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-600">Type:</span> {investigation.case_type?.replace('_', ' ')}
+                            <span className="text-muted-foreground">Type:</span> {investigation.case_type?.replace('_', ' ')}
                           </div>
                           <div>
-                            <span className="text-gray-600">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
+                            <span className="text-muted-foreground">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
                           </div>
                           <div>
-                            <span className="text-gray-600">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
+                            <span className="text-muted-foreground">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
                           </div>
                           <div>
-                            <span className="text-gray-600">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
+                            <span className="text-muted-foreground">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
                           </div>
                         </div>
                       </div>
@@ -384,30 +384,30 @@ export function ActiveInvestigationsTab() {
                             {investigation.priority}
                           </Badge>
                         </div>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-muted-foreground mb-1">
                           {investigation.bank_accounts?.account_name}
                         </p>
                         <p className="text-sm font-medium text-blue-600 mb-2">
                           {caseTypeLabels[investigation.case_type as keyof typeof caseTypeLabels] || investigation.case_type}
                         </p>
                         <div className="mb-2">
-                          <p className="font-medium text-gray-900">{investigation.title}</p>
+                          <p className="font-medium text-foreground">{investigation.title}</p>
                           {investigation.description && (
-                            <p className="text-sm text-gray-600 mt-1">{investigation.description}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{investigation.description}</p>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
-                            <span className="text-gray-600">Type:</span> {investigation.case_type?.replace('_', ' ')}
+                            <span className="text-muted-foreground">Type:</span> {investigation.case_type?.replace('_', ' ')}
                           </div>
                           <div>
-                            <span className="text-gray-600">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
+                            <span className="text-muted-foreground">Reason:</span> {investigation.bank_reason || investigation.description || 'N/A'}
                           </div>
                           <div>
-                            <span className="text-gray-600">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
+                            <span className="text-muted-foreground">Started:</span> {investigation.investigation_started_at ? new Date(investigation.investigation_started_at).toLocaleDateString() : 'N/A'}
                           </div>
                           <div>
-                            <span className="text-gray-600">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
+                            <span className="text-muted-foreground">Days Active:</span> {investigation.investigation_started_at ? getDaysSinceStarted(investigation.investigation_started_at) : 0} days
                           </div>
                         </div>
                       </div>
@@ -446,7 +446,7 @@ export function ActiveInvestigationsTab() {
           )}
           
           {(!investigations || investigations.length === 0) && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No active investigations found.
             </div>
           )}

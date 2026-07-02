@@ -32,7 +32,7 @@ export function OfferDocumentsTable() {
       case 'ACCEPTED': return 'bg-green-100 text-green-800';
       case 'REJECTED': return 'bg-red-100 text-red-800';
       case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -63,28 +63,28 @@ export function OfferDocumentsTable() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Candidate</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Position</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Document Type</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Sent Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Response Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Candidate</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Position</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Document Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Sent Date</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Response Date</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {offerDocuments.map((doc) => (
-                  <tr key={doc.id} className="border-b hover:bg-gray-50">
+                  <tr key={doc.id} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4">
                       <div>
                         <p className="font-medium">{doc.job_applicants?.name}</p>
-                        <p className="text-sm text-gray-500">{doc.job_applicants?.email}</p>
+                        <p className="text-sm text-muted-foreground">{doc.job_applicants?.email}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4">
                       <div>
                         <p className="font-medium">{doc.job_applicants?.job_postings?.title}</p>
-                        <p className="text-sm text-gray-500">{doc.job_applicants?.job_postings?.department}</p>
+                        <p className="text-sm text-muted-foreground">{doc.job_applicants?.job_postings?.department}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4">
@@ -122,7 +122,7 @@ export function OfferDocumentsTable() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             No offer documents found
           </div>
         )}

@@ -765,7 +765,7 @@ export function SalesOrderDialog({ open, onOpenChange }: SalesOrderDialogProps) 
                               <span>
                                 {method.type === 'UPI' ? method.upi_id : method.bank_accounts?.account_name}
                               </span>
-                              <span className="text-xs text-gray-500">
+                              <span className="text-xs text-muted-foreground">
                                 {method.risk_category}
                               </span>
                             </div>

@@ -1858,7 +1858,7 @@ export function ClientOnboardingApprovals() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openDocument(approval.aadhar_front_url!)}
+                            onClick={() => openDocument(approval.aadhar_front_url!, { approvalId: approval.id, field: 'aadhar_front_url', label: 'Aadhaar' })}
                           >
                             <FileText className="h-3 w-3" />
                           </Button>
@@ -1867,7 +1867,7 @@ export function ClientOnboardingApprovals() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openDocument(approval.binance_id_screenshot_url!)}
+                            onClick={() => openDocument(approval.binance_id_screenshot_url!, { approvalId: approval.id, field: 'binance_id_screenshot_url', label: 'Binance ID screenshot' })}
                           >
                             <ExternalLink className="h-3 w-3" />
                           </Button>

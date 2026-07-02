@@ -93,21 +93,22 @@ export const NAVIGATION_SHORTCUTS: ShortcutDef[] = [
 ];
 
 /**
- * Quick-create actions. Alt+Shift+N triggers the one matching the current route.
+ * Quick-create actions. Alt+Shift+Enter triggers the one matching the current route.
  * These navigate to the page with ?quickAction=new; the page's existing
  * (permission-gated) create dialog is what actually opens — no direct mutations.
  */
 export const QUICK_CREATE_SHORTCUTS: ShortcutDef[] = [
-  { id: "new-sales", category: "Actions", label: "New Sales Order", description: "Open the New Sales Order dialog", combo: A("KeyN"), icon: Plus, url: "/sales", quickAction: "new", permissions: ["sales_manage"] },
-  { id: "new-purchase", category: "Actions", label: "New Purchase Order", description: "Open the New Purchase Order dialog", combo: A("KeyN"), icon: Plus, url: "/purchase", quickAction: "new", permissions: ["purchase_manage"] },
-  { id: "new-client", category: "Actions", label: "Add Client", description: "Open the Add Client dialog", combo: A("KeyN"), icon: Plus, url: "/clients", quickAction: "new", permissions: ["clients_manage"] },
-  { id: "new-task", category: "Actions", label: "New Task", description: "Open the New Task dialog", combo: A("KeyN"), icon: Plus, url: "/tasks", quickAction: "new", permissions: ["tasks_manage"] },
+  { id: "new-sales", category: "Actions", label: "New Sales Order", description: "Open the New Sales Order dialog", combo: A("Enter"), icon: Plus, url: "/sales", quickAction: "new", permissions: ["sales_manage"] },
+  { id: "new-purchase", category: "Actions", label: "New Purchase Order", description: "Open the New Purchase Order dialog", combo: A("Enter"), icon: Plus, url: "/purchase", quickAction: "new", permissions: ["purchase_manage"] },
+  { id: "new-client", category: "Actions", label: "Add Client", description: "Open the Add Client dialog", combo: A("Enter"), icon: Plus, url: "/clients", quickAction: "new", permissions: ["clients_manage"] },
+  { id: "new-task", category: "Actions", label: "New Task", description: "Open the New Task dialog", combo: A("Enter"), icon: Plus, url: "/tasks", quickAction: "new", permissions: ["tasks_manage"] },
 ];
 
 /** Global shortcuts available to everyone. */
 export const GLOBAL_SHORTCUTS: ShortcutDef[] = [
   { id: "global-palette", category: "Global", label: "Command Palette", description: "Search and jump to any module or action you can access", combo: { ctrlOrCmd: true, code: "KeyK" }, icon: Command, permissions: [] },
-  { id: "global-new", category: "Global", label: "Create New (current module)", description: "Open the primary create dialog on the current page", combo: A("KeyN"), icon: Plus, permissions: [] },
+  { id: "global-page-search", category: "Global", label: "Search This Page", description: "Focus the search box of the page you're currently on", combo: { code: "Slash" }, icon: Search, permissions: [] },
+  { id: "global-new", category: "Global", label: "Create New (current module)", description: "Open the primary create dialog on the current page", combo: A("Enter"), icon: Plus, permissions: [] },
   { id: "global-help", category: "Global", label: "Shortcuts Help", description: "Open the keyboard shortcuts reference", combo: A("Slash"), icon: Keyboard, url: "/shortcuts", permissions: [] },
 ];
 

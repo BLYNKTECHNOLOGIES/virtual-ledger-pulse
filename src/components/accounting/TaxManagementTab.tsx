@@ -578,31 +578,49 @@ export function TaxManagementTab() {
               <div className="flex justify-between"><span className="text-muted-foreground">Selected entries:</span><span className="font-medium">{selectedIds.length}</span></div>
               <div className="flex justify-between text-lg"><span className="font-medium">Total Amount:</span><span className="font-bold text-destructive">{inr(selectedTotal)}</span></div>
             </div>
-            <div>
-              <Label>Deduct from {activeCompanyInfo?.firm_name || 'Company'} Bank Account *</Label>
-              <Select value={paymentBankAccountId} onValueChange={setPaymentBankAccountId}>
-                <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bank account" /></SelectTrigger>
-                <SelectContent>
-                  {companyBankAccounts.map(acc => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      {acc.account_name} - {acc.bank_name}
-                      <span className="text-muted-foreground ml-2">(₹{parseFloat(acc.balance.toString()).toLocaleString('en-IN')})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {companyBankAccounts.length === 0 && (
-                <p className="text-xs text-destructive mt-1">No active bank account found for this company.</p>
-              )}
-            </div>
+            <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40 transition-colors">
+              <Checkbox
+                checked={alreadyRecorded}
+                onCheckedChange={(v) => setAlreadyRecorded(v === true)}
+                className="mt-0.5"
+              />
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium">Entry already recorded (no bank deduction)</span>
+                <p className="text-xs text-muted-foreground">
+                  Use this if the TDS was already paid/recorded elsewhere. No expense is created on any bank, and the liability is cleared everywhere (Total Asset Value, pending TDS, reports).
+                </p>
+              </div>
+            </label>
+            {!alreadyRecorded && (
+              <div>
+                <Label>Deduct from {activeCompanyInfo?.firm_name || 'Company'} Bank Account *</Label>
+                <Select value={paymentBankAccountId} onValueChange={setPaymentBankAccountId}>
+                  <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bank account" /></SelectTrigger>
+                  <SelectContent>
+                    {companyBankAccounts.map(acc => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.account_name} - {acc.bank_name}
+                        <span className="text-muted-foreground ml-2">(₹{parseFloat(acc.balance.toString()).toLocaleString('en-IN')})</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {companyBankAccounts.length === 0 && (
+                  <p className="text-xs text-destructive mt-1">No active bank account found for this company.</p>
+                )}
+              </div>
+            )}
             <div className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <strong>Note:</strong> This creates a single expense entry on the selected company bank and marks the selected TDS entries as paid for {activeCompanyInfo?.firm_name || 'this company'}.
+              <strong>Note:</strong>{' '}
+              {alreadyRecorded
+                ? `No bank deduction will be made. The selected TDS entries are marked as paid and their liability is cleared for ${activeCompanyInfo?.firm_name || 'this company'} across all calculations.`
+                : `This creates a single expense entry on the selected company bank and marks the selected TDS entries as paid for ${activeCompanyInfo?.firm_name || 'this company'}.`}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
-            <Button onClick={() => bulkPaymentMutation.mutate()} disabled={!paymentBankAccountId || bulkPaymentMutation.isPending}>
-              {bulkPaymentMutation.isPending ? "Processing..." : "Confirm Payment"}
+            <Button onClick={() => bulkPaymentMutation.mutate()} disabled={(!alreadyRecorded && !paymentBankAccountId) || bulkPaymentMutation.isPending}>
+              {bulkPaymentMutation.isPending ? "Processing..." : (alreadyRecorded ? "Confirm (No Deduction)" : "Confirm Payment")}
             </Button>
           </DialogFooter>
         </DialogContent>

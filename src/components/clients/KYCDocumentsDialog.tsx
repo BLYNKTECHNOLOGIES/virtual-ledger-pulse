@@ -52,7 +52,8 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
   const [isDeleting, setIsDeleting] = useState(false);
 
   const currentUserName =
-    user?.full_name || user?.username || user?.email || "Unknown user";
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.username || user?.email || "Unknown user";
 
   const handleConfirmDelete = async () => {
     if (!docToDelete) return;

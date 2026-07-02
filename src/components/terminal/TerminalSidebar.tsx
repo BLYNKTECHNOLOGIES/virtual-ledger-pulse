@@ -63,6 +63,7 @@ const navItems: NavItem[] = [
   { title: 'Logs', url: '/terminal/logs', icon: ScrollText, requiredPermission: 'terminal_logs_view' },
   { title: 'Users & Roles', url: '/terminal/users', icon: Users, requiredPermission: 'terminal_users_view' },
   { title: 'Settings', url: '/terminal/settings', icon: Settings, requiredPermission: 'terminal_settings_view' },
+  { title: 'Shortcuts', url: '/terminal/shortcuts', icon: Keyboard },
 ];
 
 export function TerminalSidebar() {

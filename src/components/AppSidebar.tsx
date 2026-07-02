@@ -298,7 +298,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission]);
+  }, [isLoading, hasAnyPermission, hasReconAccess]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

@@ -409,6 +409,18 @@ const router = createBrowserRouter([
             </AuthCheck>
         </QueryProvider>
       ),
+     },
+    {
+      path: "/reconciliation",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <Layout>
+                <Reconciliation />
+              </Layout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
     },
     {
       path: "/risk-management",

@@ -251,17 +251,39 @@ export function TaxManagementTab() {
 
   const bulkPaymentMutation = useMutation({
     mutationFn: async () => {
-      if (!paymentBankAccountId) throw new Error("Please select a bank account");
       if (selectedIds.length === 0) throw new Error("No records selected");
+      if (!alreadyRecorded && !paymentBankAccountId) throw new Error("Please select a bank account");
 
-      const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
       const rateSuffix = activeRate === ALL_RATES ? '' : ` @ ${activeRate}%`;
       const firmLabel = `${activeCompanyInfo?.firm_name || 'TDS'}${rateSuffix}`;
+      const quarterLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
 
+      // "Already recorded" = the TDS was paid/recorded externally: mark the
+      // allocations settled WITHOUT any bank deduction (no expense entry).
+      if (alreadyRecorded) {
+        const batchId = `TDS-PRERECORDED-${selectedQuarter}-${Date.now()}`;
+        const { error: updateError } = await supabase
+          .from('tds_payment_allocations')
+          .update({
+            payment_status: 'PAID',
+            already_recorded: true,
+            paid_at: new Date().toISOString(),
+            paid_by: user?.id,
+            payment_bank_account_id: null,
+            payment_batch_id: batchId,
+          })
+          .in('id', selectedIds);
+        if (updateError) throw updateError;
+
+        return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel, preRecorded: true };
+      }
+
+      const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
       const { error: updateError } = await supabase
         .from('tds_payment_allocations')
         .update({
           payment_status: 'PAID',
+          already_recorded: false,
           paid_at: new Date().toISOString(),
           paid_by: user?.id,
           payment_bank_account_id: paymentBankAccountId,
@@ -270,7 +292,6 @@ export function TaxManagementTab() {
         .in('id', selectedIds);
       if (updateError) throw updateError;
 
-      const quarterLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
       const { error: expenseError } = await supabase
         .from('bank_transactions')
         .insert({
@@ -285,15 +306,18 @@ export function TaxManagementTab() {
         });
       if (expenseError) throw expenseError;
 
-      return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel };
+      return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel, preRecorded: false };
     },
     onSuccess: (result) => {
       toast({
-        title: "TDS Payment Recorded",
-        description: `${inr(result.amount)} paid for ${result.firm} (${result.count} entries)`,
+        title: result.preRecorded ? "Marked as Already Recorded" : "TDS Payment Recorded",
+        description: result.preRecorded
+          ? `${inr(result.amount)} cleared for ${result.firm} (${result.count} entries) — no bank deduction`
+          : `${inr(result.amount)} paid for ${result.firm} (${result.count} entries)`,
       });
       setSelectedIds([]);
       setPaymentBankAccountId("");
+      setAlreadyRecorded(false);
       setShowPaymentDialog(false);
       queryClient.invalidateQueries({ queryKey: ['tds_allocations_quarter'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });

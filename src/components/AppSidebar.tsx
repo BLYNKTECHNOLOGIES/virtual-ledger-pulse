@@ -12,6 +12,18 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+
+// Reconciliation cockpit item (gated by reconciliation function, not a permission string)
+const reconciliationItem: SidebarGroupItem = {
+  id: "reconciliation",
+  title: "Reconciliation",
+  url: "/reconciliation",
+  icon: ShieldCheck,
+  color: "text-rose-600",
+  bgColor: "bg-rose-100",
+  permissions: [],
+};
 
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [

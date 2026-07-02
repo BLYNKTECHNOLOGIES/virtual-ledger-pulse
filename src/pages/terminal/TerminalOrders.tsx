@@ -996,6 +996,44 @@ function TerminalOrdersContent() {
 
   useEffect(() => subscribeToChatReadState(() => setChatReadVersion(v => v + 1)), []);
 
+  // Step to the prev/next order within the CURRENT filtered list and open its chat.
+  const stepSelectedOrder = useCallback((direction: 1 | -1) => {
+    setSelectedOrder((current) => {
+      if (!current) return current;
+      const idx = visibleOrders.findIndex(
+        o => String(o.binance_order_number) === String(current.binance_order_number),
+      );
+      if (idx === -1) return current;
+      const nextIdx = idx + direction;
+      if (nextIdx < 0 || nextIdx >= visibleOrders.length) return current;
+      const next = visibleOrders[nextIdx];
+      markOrderChatRead(next.binance_order_number);
+      callBinanceAds('markOrderMessagesRead', { orderNo: next.binance_order_number }).catch(() => {});
+      return next;
+    });
+  }, [visibleOrders]);
+
+  // Shift + Arrow navigation while an order detail is open — walks the list you
+  // entered from (respecting all active filters), never leaving that group.
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const handler = (e: KeyboardEvent) => {
+      if (!e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+        e.preventDefault();
+        stepSelectedOrder(1);
+      } else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        stepSelectedOrder(-1);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [selectedOrder, stepSelectedOrder]);
+
+
   // ---- View routing ----
   if (activeChatConv) {
     return (

@@ -1,7 +1,7 @@
 import {
   Home, TrendingUp, ShoppingCart, Building2, Users, ListOrdered, Package,
   Inbox, BookOpen, Calculator, Shield, Settings, UserCheck, CheckSquare,
-  Scale, BarChart3, Keyboard, Command, Plus, type LucideIcon,
+  Scale, BarChart3, Keyboard, Command, Plus, Search, type LucideIcon,
 } from "lucide-react";
 
 export type ShortcutCategory = "Navigation" | "Actions" | "Global";

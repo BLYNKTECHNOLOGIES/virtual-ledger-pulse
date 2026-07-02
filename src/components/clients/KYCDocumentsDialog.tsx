@@ -134,6 +134,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
         .from('client_kyc_documents')
         .select('*')
         .eq('client_id', client.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];

@@ -127,7 +127,7 @@ interface LogActionParams {
  * @param params - The action parameters to log
  */
 export async function logAction(params: LogActionParams): Promise<void> {
-  const { userId, actionType, entityType, entityId, module, metadata } = params;
+  const { userId, actionType, entityType, entityId, module, metadata, userName } = params;
 
   // Validate required fields
   if (!userId || !actionType || !entityType || !entityId || !module) {
@@ -153,6 +153,7 @@ export async function logAction(params: LogActionParams): Promise<void> {
           module: module,
           recorded_at: new Date().toISOString(),
           metadata: metadata || {},
+          ...(userName ? { user_name: userName } : {}),
         },
         {
           onConflict: 'entity_id,action_type',

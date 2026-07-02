@@ -83,6 +83,7 @@ export function CreditSubLedgerDialog({
           )
           .eq("bank_account_id", bankAccountId)
           .eq("is_reversed", false)
+          .is("reverses_transaction_id", null)
           .order("transaction_date", { ascending: false })
       ),
   });

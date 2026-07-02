@@ -277,6 +277,17 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                               <Button size="sm" variant="ghost" onClick={() => downloadStorageDocumentUrl(doc.file_url, doc.file_name)}>
                                 <Download className="h-4 w-4" />
                               </Button>
+                              {canDeleteDocuments && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => { setDocToDelete(doc); setDeleteReason(""); }}
+                                  title="Delete document"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}

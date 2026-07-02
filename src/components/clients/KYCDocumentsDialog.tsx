@@ -2,10 +2,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Download, Eye, Upload, Calendar, CreditCard, Briefcase, Video, ExternalLink } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { FileText, Download, Eye, Upload, Calendar, CreditCard, Briefcase, Video, ExternalLink, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { downloadStorageDocumentUrl, openStorageDocumentUrl } from "@/lib/storage-multipart";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface KYCDocumentsDialogProps {
   open: boolean;
@@ -19,6 +35,8 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   trade_history_screenshot: 'Trade History Screenshot',
   vkyc_video: 'vKYC Video',
 };
+
+const DELETE_ALLOWED_ROLES = ['coo', 'admin', 'super admin'];
 
 export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsDialogProps) {
 

@@ -404,7 +404,7 @@ export function DirectoryTab() {
       case 'ADJUSTMENT':
         return transaction?.adjustment_direction === 'DEPOSIT' ? 'text-green-700' : 'text-red-700';
       default:
-        return 'text-gray-700';
+        return 'text-foreground';
     }
   };
 
@@ -607,7 +607,7 @@ export function DirectoryTab() {
     return (
       <Card className="shadow-sm">
         <CardContent className="p-6">
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             Loading transactions...
           </div>
         </CardContent>
@@ -652,7 +652,7 @@ export function DirectoryTab() {
                   <SelectTrigger>
                     <SelectValue placeholder="All accounts" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
+                  <SelectContent className="bg-card">
                     <SelectItem value="all">All accounts</SelectItem>
                     {bankAccounts?.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
@@ -670,7 +670,7 @@ export function DirectoryTab() {
                   <SelectTrigger>
                     <SelectValue placeholder="All types" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
+                  <SelectContent className="bg-card">
                     <SelectItem value="all">All types</SelectItem>
                     <SelectItem value="sales">Sales</SelectItem>
                     <SelectItem value="settlement">Settlement</SelectItem>
@@ -699,7 +699,7 @@ export function DirectoryTab() {
                       {dateFrom ? format(dateFrom, "PPP") : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <PopoverContent className="w-auto p-0 bg-card" align="start">
                     <Calendar
                       mode="single"
                       selected={dateFrom}
@@ -727,7 +727,7 @@ export function DirectoryTab() {
                       {dateTo ? format(dateTo, "PPP") : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white" align="start">
+                  <PopoverContent className="w-auto p-0 bg-card" align="start">
                     <Calendar
                       mode="single"
                       selected={dateTo}
@@ -792,7 +792,7 @@ export function DirectoryTab() {
         </CardHeader>
         <CardContent>
           {!filteredTransactions || filteredTransactions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               {hasActiveFilters ? "No transactions match the selected filters" : "No transactions found"}
             </div>
           ) : (
@@ -800,10 +800,10 @@ export function DirectoryTab() {
               {filteredTransactions.map((transaction) => (
                 <div
                   key={`${transaction.source}-${transaction.id}`}
-                  className="p-3 md:p-4 border rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  className="p-3 md:p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-start gap-2 md:gap-4">
-                    <div className="p-1.5 md:p-2 bg-gray-100 rounded-full shrink-0 mt-0.5">
+                    <div className="p-1.5 md:p-2 bg-muted rounded-full shrink-0 mt-0.5">
                       {getTransactionIcon(transaction.display_type)}
                     </div>
                     <div className="flex-1 min-w-0 space-y-1">

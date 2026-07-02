@@ -326,14 +326,14 @@ export function AddBuyerDialog({ open, onOpenChange }: AddBuyerDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             <span>Add New Buyer</span>
-            <span className="text-sm font-normal text-gray-500">
+            <span className="text-sm font-normal text-muted-foreground">
               Step {currentStep} of 4 - {getStepTitle()}
             </span>
           </DialogTitle>
         </DialogHeader>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+        <div className="w-full bg-muted rounded-full h-2 mb-6">
           <div 
             className="bg-blue-600 h-2 rounded-full transition-all duration-300"
             style={{ width: `${(currentStep / 4) * 100}%` }}

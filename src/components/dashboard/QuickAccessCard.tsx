@@ -32,7 +32,7 @@ export function QuickAccessCard({ title, description, href, icon }: QuickAccessC
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <p className="text-sm text-gray-600 mb-4">{description}</p>
+        <p className="text-sm text-muted-foreground mb-4">{description}</p>
         <Link to={href}>
           <Button className="w-full" size="sm">
             Get Started

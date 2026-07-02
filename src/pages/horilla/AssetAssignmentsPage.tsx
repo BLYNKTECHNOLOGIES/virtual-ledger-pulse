@@ -113,8 +113,8 @@ export default function AssetAssignmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Asset Assignments</h1>
-          <p className="text-sm text-gray-500">Track asset assignments and returns</p>
+          <h1 className="text-2xl font-bold text-foreground">Asset Assignments</h1>
+          <p className="text-sm text-muted-foreground">Track asset assignments and returns</p>
         </div>
         <Button onClick={() => setShowAssign(true)} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> Assign Asset
@@ -123,7 +123,7 @@ export default function AssetAssignmentsPage() {
 
       <div className="flex gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search by asset or employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -139,27 +139,27 @@ export default function AssetAssignmentsPage() {
       <Card>
         <CardContent className="p-0">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Asset", "Type", "Employee", "Assigned Date", "Return Date", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400">No assignments found</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No assignments found</td></tr>
               ) : filtered.map((a: any) => (
-                <tr key={a.id} className="border-b hover:bg-gray-50">
+                <tr key={a.id} className="border-b hover:bg-muted/50">
                   <td className="px-4 py-3 font-medium">{a.hr_assets?.name || "—"}</td>
-                  <td className="px-4 py-3 text-gray-500 capitalize">{a.hr_assets?.asset_type || "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{a.hr_employees?.employee_name || "—"}</td>
-                  <td className="px-4 py-3 text-gray-500">{a.assigned_date}</td>
-                  <td className="px-4 py-3 text-gray-500">{a.return_date || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground capitalize">{a.hr_assets?.asset_type || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.employee_name || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{a.assigned_date}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{a.return_date || "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-muted text-foreground"}`}>
                       {a.status}
                     </span>
                   </td>

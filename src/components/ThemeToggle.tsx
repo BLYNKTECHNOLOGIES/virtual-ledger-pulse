@@ -16,7 +16,7 @@ export function ThemeToggle() {
   const [selectedTheme, setSelectedTheme] = useState("light");
   
   const themes = [
-    { id: "light", name: "Frappe Light", preview: "bg-white border-gray-300" },
+    { id: "light", name: "Frappe Light", preview: "bg-card border-border" },
     { id: "dark", name: "Timeless Night", preview: "bg-gray-900 border-gray-700" },
     { id: "auto", name: "Automatic", preview: "bg-gradient-to-r from-white to-gray-900" }
   ];

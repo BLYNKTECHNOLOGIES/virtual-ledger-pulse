@@ -195,7 +195,7 @@ export function AddOfferDocumentDialog({ open, onOpenChange }: AddOfferDocumentD
                 disabled={uploading}
               />
               {uploading && (
-                <div className="mt-2 text-sm text-gray-500">Uploading...</div>
+                <div className="mt-2 text-sm text-muted-foreground">Uploading...</div>
               )}
               {formData.document_url && (
                 <div className="mt-2 text-sm text-green-600">Document uploaded successfully</div>

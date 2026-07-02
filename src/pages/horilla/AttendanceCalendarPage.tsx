@@ -125,8 +125,8 @@ export default function AttendanceCalendarPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Attendance Calendar</h1>
-          <p className="text-sm text-gray-500">Monthly attendance view per employee</p>
+          <h1 className="text-2xl font-bold text-foreground">Attendance Calendar</h1>
+          <p className="text-sm text-muted-foreground">Monthly attendance view per employee</p>
         </div>
         <Button onClick={() => { setShowBulk(true); setSelectedEmps(employees.map((e: any) => e.id)); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Users className="h-4 w-4 mr-2" /> Bulk Mark Attendance
@@ -142,13 +142,13 @@ export default function AttendanceCalendarPage() {
           { label: "Late", value: monthStats.late },
           { label: "Present Rate", value: `${monthStats.rate}%` },
         ].map(s => (
-          <Card key={s.label}><CardContent className="p-3 text-center"><p className="text-xl font-bold text-gray-900">{s.value}</p><p className="text-[10px] text-gray-500">{s.label}</p></CardContent></Card>
+          <Card key={s.label}><CardContent className="p-3 text-center"><p className="text-xl font-bold text-foreground">{s.value}</p><p className="text-[10px] text-muted-foreground">{s.label}</p></CardContent></Card>
         ))}
       </div>
 
       {/* Month Nav + Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-white border rounded-lg px-2">
+        <div className="flex items-center gap-2 bg-card border rounded-lg px-2">
           <Button variant="ghost" size="sm" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-semibold text-sm min-w-[140px] text-center">{format(currentMonth, "MMMM yyyy")}</span>
           <Button variant="ghost" size="sm" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
@@ -161,7 +161,7 @@ export default function AttendanceCalendarPage() {
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
@@ -171,7 +171,7 @@ export default function AttendanceCalendarPage() {
         {Object.entries(STATUS_COLORS).map(([status, color]) => (
           <div key={status} className="flex items-center gap-1.5">
             <div className={`w-2.5 h-2.5 rounded-full ${color}`} />
-            <span className="capitalize text-gray-600">{status.replace("_", " ")}</span>
+            <span className="capitalize text-muted-foreground">{status.replace("_", " ")}</span>
           </div>
         ))}
       </div>
@@ -179,7 +179,7 @@ export default function AttendanceCalendarPage() {
       {/* Employee Calendar Cards */}
       <div className="space-y-4">
         {filteredEmps.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-gray-400 text-sm">No employees found</CardContent></Card>
+          <Card><CardContent className="py-12 text-center text-muted-foreground text-sm">No employees found</CardContent></Card>
         ) : (
           filteredEmps.map((emp: any) => {
             const empAttendance = attendanceMap[emp.id] || {};
@@ -195,20 +195,20 @@ export default function AttendanceCalendarPage() {
                         {emp.first_name?.[0]}{emp.last_name?.[0]}
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-gray-900">{emp.first_name} {emp.last_name}</p>
-                        <p className="text-[10px] text-gray-400">{emp.badge_id}</p>
+                        <p className="text-sm font-semibold text-foreground">{emp.first_name} {emp.last_name}</p>
+                        <p className="text-[10px] text-muted-foreground">{emp.badge_id}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">{empPresent}/{empTotal}</p>
-                      <p className="text-[10px] text-gray-400">Present days</p>
+                      <p className="text-sm font-bold text-foreground">{empPresent}/{empTotal}</p>
+                      <p className="text-[10px] text-muted-foreground">Present days</p>
                     </div>
                   </div>
 
                   {/* Mini Calendar Grid */}
                   <div className="grid grid-cols-7 gap-1">
                     {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-                      <div key={i} className="text-center text-[10px] font-medium text-gray-400 py-1">{d}</div>
+                      <div key={i} className="text-center text-[10px] font-medium text-muted-foreground py-1">{d}</div>
                     ))}
                     {Array.from({ length: startDay }).map((_, i) => <div key={`pad-${i}`} />)}
                     {days.map(day => {
@@ -222,7 +222,7 @@ export default function AttendanceCalendarPage() {
                         <div
                           key={dateStr}
                           className={`text-center py-1 rounded text-[11px] relative ${today ? "ring-1 ring-[#E8604C] font-bold" : ""} ${
-                            status ? "font-medium" : "text-gray-400"
+                            status ? "font-medium" : "text-muted-foreground"
                           }`}
                           title={status ? `${format(day, "MMM d")} — ${status}` : format(day, "MMM d")}
                         >
@@ -275,7 +275,7 @@ export default function AttendanceCalendarPage() {
               </div>
               <div className="border rounded-lg max-h-[200px] overflow-y-auto divide-y">
                 {employees.map((e: any) => (
-                  <label key={e.id} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                  <label key={e.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer">
                     <Checkbox
                       checked={selectedEmps.includes(e.id)}
                       onCheckedChange={(checked) => {
@@ -283,7 +283,7 @@ export default function AttendanceCalendarPage() {
                       }}
                     />
                     <span className="text-sm">{e.first_name} {e.last_name}</span>
-                    <span className="text-xs text-gray-400 ml-auto">{e.badge_id}</span>
+                    <span className="text-xs text-muted-foreground ml-auto">{e.badge_id}</span>
                   </label>
                 ))}
               </div>

@@ -159,7 +159,7 @@ export function SettlementReviewDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl">
           <div className="text-center py-8">
-            <p className="text-gray-500">Settlement details not found</p>
+            <p className="text-muted-foreground">Settlement details not found</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -195,7 +195,7 @@ export function SettlementReviewDialog({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Gross Amount</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Gross Amount</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
@@ -209,7 +209,7 @@ export function SettlementReviewDialog({
             
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">MDR Charges</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">MDR Charges</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
@@ -218,7 +218,7 @@ export function SettlementReviewDialog({
                     ₹{settlement.mdr_amount.toLocaleString('en-IN')}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Rate: {settlement.mdr_rate}%
                 </p>
               </CardContent>
@@ -226,7 +226,7 @@ export function SettlementReviewDialog({
             
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Net Amount</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Net Amount</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
@@ -240,7 +240,7 @@ export function SettlementReviewDialog({
             
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-600">Settlement Date</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Settlement Date</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2">
@@ -249,7 +249,7 @@ export function SettlementReviewDialog({
                     {format(new Date(settlement.settlement_date), 'MMM dd, yyyy')}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {format(new Date(settlement.settlement_date), 'HH:mm')}
                 </p>
               </CardContent>

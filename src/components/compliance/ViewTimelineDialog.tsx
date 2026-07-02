@@ -125,28 +125,28 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
           {loading ? (
             <div className="text-center py-4">Loading...</div>
           ) : updates.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">No updates found</div>
+            <div className="text-center py-4 text-muted-foreground">No updates found</div>
           ) : (
             updates.map((update, index) => (
               <div key={update.id} className="border-l-2 border-blue-200 pl-4 pb-4 relative">
                 <div className="absolute -left-2 top-0 w-4 h-4 bg-blue-500 rounded-full"></div>
-                <div className="bg-gray-50 p-3 rounded-md">
-                  <div className="text-sm text-gray-600 mb-1">
+                <div className="bg-muted/50 p-3 rounded-md">
+                  <div className="text-sm text-muted-foreground mb-1">
                     {format(new Date(update.created_at), 'PPpp')} - {update.created_by}
                   </div>
-                  <div className="text-gray-900 mb-2">{update.update_text}</div>
+                  <div className="text-foreground mb-2">{update.update_text}</div>
                   
                   {/* Display attachments if any */}
                   {update.attachment_urls && update.attachment_urls.length > 0 && (
                     <div className="mt-3 space-y-2">
-                      <div className="text-sm font-medium text-gray-700">Attachments:</div>
+                      <div className="text-sm font-medium text-foreground">Attachments:</div>
                       <div className="space-y-1">
                         {update.attachment_urls.map((url, urlIndex) => {
                           const fileName = url.split('/').pop() || `Document ${urlIndex + 1}`;
                           const isPdf = fileName.toLowerCase().endsWith('.pdf');
                           
                           return (
-                            <div key={urlIndex} className="flex items-center gap-2 p-2 bg-white rounded border">
+                            <div key={urlIndex} className="flex items-center gap-2 p-2 bg-card rounded border">
                               <FileText className="h-4 w-4 text-red-500" />
                               <span className="text-sm flex-1 truncate">{fileName}</span>
                               <div className="flex gap-1">

@@ -142,7 +142,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             Select a client to view details
           </div>
         </CardContent>
@@ -175,34 +175,34 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">Client Name</label>
+            <label className="text-sm font-medium text-muted-foreground">Client Name</label>
             <p className="text-lg font-semibold">{client.name}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-600">Client ID</label>
+            <label className="text-sm font-medium text-muted-foreground">Client ID</label>
             <p className="text-lg font-semibold text-blue-600">{client.client_id}</p>
           </div>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Phone Number</label>
+          <label className="text-sm font-medium text-muted-foreground">Phone Number</label>
           <div className="flex items-center gap-2">
-            <Phone className="h-4 w-4 text-gray-400" />
+            <Phone className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">{client.phone || 'Not provided'}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">State</label>
+            <label className="text-sm font-medium text-muted-foreground">State</label>
             <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-gray-400" />
+              <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">{client.state || 'Not provided'}</span>
             </div>
           </div>
           {client.buying_purpose && (
             <div>
-              <label className="text-sm font-medium text-gray-600">Purpose of Buying</label>
+              <label className="text-sm font-medium text-muted-foreground">Purpose of Buying</label>
               <p className="text-sm font-medium">{client.buying_purpose}</p>
             </div>
           )}
@@ -211,40 +211,40 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         {client.operator_notes && (
           <div>
-            <label className="text-sm font-medium text-gray-600">Compliance Notes</label>
+            <label className="text-sm font-medium text-muted-foreground">Compliance Notes</label>
             <p className="text-sm bg-muted/50 p-2 rounded-md">{client.operator_notes}</p>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">Date of Onboarding</label>
+            <label className="text-sm font-medium text-muted-foreground">Date of Onboarding</label>
             <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gray-400" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm">{new Date(client.date_of_onboarding).toLocaleDateString()}</span>
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-600">Client Age</label>
+            <label className="text-sm font-medium text-muted-foreground">Client Age</label>
             <p className="text-sm text-green-600 font-medium">{clientAge} months</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">First Order Value</label>
+            <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
             <div className="flex items-center gap-2">
-              <IndianRupee className="h-4 w-4 text-gray-400" />
+              <IndianRupee className="h-4 w-4 text-muted-foreground" />
               <span className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString('en-IN')}</span>
             </div>
             {firstOrder && (
-              <p className="text-xs text-gray-500">Order #{firstOrder.order_number} on {new Date(firstOrder.order_date).toLocaleDateString()}</p>
+              <p className="text-xs text-muted-foreground">Order #{firstOrder.order_number} on {new Date(firstOrder.order_date).toLocaleDateString()}</p>
             )}
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-600">Total Orders</label>
+            <label className="text-sm font-medium text-muted-foreground">Total Orders</label>
             <p className="text-lg font-semibold text-blue-600">{totalOrders}</p>
-            <p className="text-xs text-gray-500">{completedOrders} completed</p>
+            <p className="text-xs text-muted-foreground">{completedOrders} completed</p>
           </div>
         </div>
 
@@ -316,11 +316,11 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         {!isSeller && (
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-600">Monthly Limit</label>
+              <label className="text-sm font-medium text-muted-foreground">Monthly Limit</label>
               <p className="text-sm font-medium">₹{client.monthly_limit?.toLocaleString('en-IN') || 'Not set'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600">Current Month Used</label>
+              <label className="text-sm font-medium text-muted-foreground">Current Month Used</label>
               <p className="text-sm font-medium">₹{client.current_month_used?.toLocaleString('en-IN') || '0'}</p>
             </div>
           </div>
@@ -328,11 +328,11 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-600">Total Trade Volume</label>
+            <label className="text-sm font-medium text-muted-foreground">Total Trade Volume</label>
             <p className="text-lg font-semibold text-purple-600">₹{totalTradeVolume.toLocaleString('en-IN')}</p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-600">KYC Status</label>
+            <label className="text-sm font-medium text-muted-foreground">KYC Status</label>
             <Badge variant={client.kyc_status === 'COMPLETED' ? 'default' : 'secondary'}>
               {client.kyc_status}
             </Badge>
@@ -378,7 +378,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         )}
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Assigned Operator</label>
+          <label className="text-sm font-medium text-muted-foreground">Assigned Operator</label>
           <p className="text-sm font-medium">{client.assigned_operator || 'Unassigned'}</p>
         </div>
 

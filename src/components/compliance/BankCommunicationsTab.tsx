@@ -171,7 +171,7 @@ export function BankCommunicationsTab() {
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h4 className="font-medium">{comm.bank_name}</h4>
-                  <p className="text-sm text-gray-600">Contact: {comm.contact_person}</p>
+                  <p className="text-sm text-muted-foreground">Contact: {comm.contact_person}</p>
                 </div>
                 <div className="flex items-center gap-1">
                   {comm.mode === 'Email' && <Mail className="h-4 w-4" />}
@@ -180,8 +180,8 @@ export function BankCommunicationsTab() {
                   <span className="text-sm">{comm.mode}</span>
                 </div>
               </div>
-              <p className="text-sm text-gray-700">{comm.notes}</p>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-sm text-foreground">{comm.notes}</p>
+              <p className="text-xs text-muted-foreground mt-2">
                 {new Date(comm.communication_date).toLocaleDateString()}
               </p>
             </div>

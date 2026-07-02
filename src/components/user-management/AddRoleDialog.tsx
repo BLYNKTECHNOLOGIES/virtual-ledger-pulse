@@ -158,7 +158,7 @@ export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
 
             <div>
               <Label className="text-base font-medium">System Permissions</Label>
-              <p className="text-sm text-gray-600 mb-4">Select which permissions users with this role should have</p>
+              <p className="text-sm text-muted-foreground mb-4">Select which permissions users with this role should have</p>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4">
                 {availablePermissions.map((permission) => (

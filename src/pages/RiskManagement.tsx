@@ -55,7 +55,7 @@ export default function RiskManagement() {
     <PermissionGate
       permissions={["risk_management_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">

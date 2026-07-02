@@ -131,23 +131,23 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
     const gross = (metrics?.totalRevenue || metrics?.totalSales || 0) - (metrics?.totalSpending || 0);
     return (
       <div className="text-center p-4">
-        <div className="text-3xl font-bold text-gray-900">₹{Math.round(Number(gross)).toLocaleString('en-IN')}</div>
-        <p className="text-sm text-gray-600 mt-1">Gross Profit</p>
+        <div className="text-3xl font-bold text-foreground">₹{Math.round(Number(gross)).toLocaleString('en-IN')}</div>
+        <p className="text-sm text-muted-foreground mt-1">Gross Profit</p>
       </div>
     );
   };
 
   const ComplianceAlertsWidgetContent = () => (
     <div className="text-center p-4">
-      <div className="text-3xl font-bold text-gray-900">{metrics?.pendingActions || 0}</div>
-      <p className="text-sm text-gray-600 mt-1">Compliance Alerts</p>
+      <div className="text-3xl font-bold text-foreground">{metrics?.pendingActions || 0}</div>
+      <p className="text-sm text-muted-foreground mt-1">Compliance Alerts</p>
     </div>
   );
 
   const PayrollSummaryWidgetContent = () => (
     <div className="text-center p-4">
-      <div className="text-3xl font-bold text-gray-900">{metrics?.employees || 0}</div>
-      <p className="text-sm text-gray-600 mt-1">Payroll Summary</p>
+      <div className="text-3xl font-bold text-foreground">{metrics?.employees || 0}</div>
+      <p className="text-sm text-muted-foreground mt-1">Payroll Summary</p>
     </div>
   );
 
@@ -229,8 +229,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <DollarSign className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalSpending || 0) / 100000).toFixed(1)}L</div>
-            <p className="text-sm text-gray-600 mt-1">Total Purchases</p>
+            <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalSpending || 0) / 100000).toFixed(1)}L</div>
+            <p className="text-sm text-muted-foreground mt-1">Total Purchases</p>
           </div>
         );
 
@@ -240,8 +240,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <FileText className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-900">{metrics?.totalPurchases || 0}</div>
-            <p className="text-sm text-gray-600 mt-1">Purchase Orders</p>
+            <div className="text-3xl font-bold text-foreground">{metrics?.totalPurchases || 0}</div>
+            <p className="text-sm text-muted-foreground mt-1">Purchase Orders</p>
             <Badge className="mt-3 bg-orange-100 text-orange-800 border-orange-200">Selected Period</Badge>
           </div>
         );
@@ -256,8 +256,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-yellow-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Package className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.stockValue || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-gray-600 mt-1">Stock Value (INR)</p>
+            <div className="text-3xl font-bold text-foreground">₹{((metrics?.stockValue || 0) / 100000).toFixed(2)}L</div>
+            <p className="text-sm text-muted-foreground mt-1">Stock Value (INR)</p>
           </div>
         );
 
@@ -267,8 +267,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <Building className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.bankBalance || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-gray-600 mt-1">Bank Balance</p>
+            <div className="text-3xl font-bold text-foreground">₹{((metrics?.bankBalance || 0) / 100000).toFixed(2)}L</div>
+            <p className="text-sm text-muted-foreground mt-1">Bank Balance</p>
             <Badge className="mt-3 bg-green-100 text-green-800 border-green-200">Active Accounts</Badge>
           </div>
         );
@@ -279,8 +279,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Wallet className="h-8 w-8 text-white" />
             </div>
-            <div className="text-3xl font-bold text-gray-900">₹{((metrics?.totalCash || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-gray-600 mt-1">Total Cash (Banks + Stock)</p>
+            <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalCash || 0) / 100000).toFixed(2)}L</div>
+            <p className="text-sm text-muted-foreground mt-1">Total Cash (Banks + Stock)</p>
           </div>
         );
 
@@ -310,8 +310,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
                 <BarChart3 className="h-8 w-8 text-white" />
               )}
             </div>
-            <h4 className="font-semibold text-gray-900 mb-2">{widget.name}</h4>
-            <p className="text-sm text-gray-600">{widget.description}</p>
+            <h4 className="font-semibold text-foreground mb-2">{widget.name}</h4>
+            <p className="text-sm text-muted-foreground">{widget.description}</p>
           </div>
         );
     }
@@ -319,7 +319,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className={`h-full ${getSizeClasses(widget.size)}`}>
-      <Card className={`h-full bg-white shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-gray-100 ${isDraggable ? 'ring-2 ring-blue-200 cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-xl' : ''}`}>
+      <Card className={`h-full bg-card shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-gray-100 ${isDraggable ? 'ring-2 ring-blue-200 cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-xl' : ''}`}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-gray-50 to-gray-100">
           <div className="flex items-center gap-2">
             {isDraggable && (
@@ -334,7 +334,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
                 <BarChart3 className="h-4 w-4 text-white" />
               )}
             </div>
-            <CardTitle className="text-sm font-semibold text-gray-900">{widget.name}</CardTitle>
+            <CardTitle className="text-sm font-semibold text-foreground">{widget.name}</CardTitle>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

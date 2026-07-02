@@ -103,14 +103,14 @@ export function ActiveJobPostings() {
           {[1, 2].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
-                <div className="h-6 w-48 bg-gray-200 rounded" />
+                <div className="h-6 w-48 bg-muted rounded" />
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="h-4 w-80 bg-gray-200 rounded" />
-                <div className="h-4 w-64 bg-gray-200 rounded" />
+                <div className="h-4 w-80 bg-muted rounded" />
+                <div className="h-4 w-64 bg-muted rounded" />
                 <div className="grid grid-cols-3 gap-3">
                   {[0, 1, 2].map((k) => (
-                    <div key={k} className="h-16 bg-gray-100 rounded" />
+                    <div key={k} className="h-16 bg-muted rounded" />
                   ))}
                 </div>
               </CardContent>
@@ -162,7 +162,7 @@ export function ActiveJobPostings() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <Button
                         variant="outline"
-                        className="rounded-lg border bg-white p-4 shadow-sm h-auto justify-start"
+                        className="rounded-lg border bg-card p-4 shadow-sm h-auto justify-start"
                         onClick={() => onSoon("View Responses")}
                       >
                         <div className="flex items-center justify-between w-full text-slate-700">
@@ -176,7 +176,7 @@ export function ActiveJobPostings() {
 
                       <Button
                         variant="outline"
-                        className="rounded-lg border bg-white p-4 shadow-sm h-auto justify-start"
+                        className="rounded-lg border bg-card p-4 shadow-sm h-auto justify-start"
                         onClick={() => onSoon("View Hot Leads")}
                       >
                         <div className="flex items-center justify-between w-full text-slate-700">
@@ -190,7 +190,7 @@ export function ActiveJobPostings() {
 
                       <Button
                         variant="outline"
-                        className="rounded-lg border bg-white p-4 shadow-sm h-auto justify-start"
+                        className="rounded-lg border bg-card p-4 shadow-sm h-auto justify-start"
                         onClick={() => onSoon("View Candidates")}
                       >
                         <div className="flex items-center justify-between w-full text-slate-700">

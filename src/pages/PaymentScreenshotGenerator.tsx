@@ -62,8 +62,8 @@ const PaymentScreenshotGenerator = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Payment Screenshot Generator</h1>
-            <p className="text-sm text-gray-500 mt-1">Generate payment receipt screenshots for transactions</p>
+            <h1 className="text-2xl font-bold text-foreground">Payment Screenshot Generator</h1>
+            <p className="text-sm text-muted-foreground mt-1">Generate payment receipt screenshots for transactions</p>
           </div>
         </div>
 
@@ -101,10 +101,10 @@ const PaymentScreenshotGenerator = () => {
                 </div>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1 border">
-                <p><span className="text-gray-500">From:</span> <span className="font-medium">{fromName}</span></p>
-                <p><span className="text-gray-500">UPI ID:</span> <span className="font-medium">{fromUpiId}</span></p>
-                <p><span className="text-gray-500">Total Debited:</span> <span className="font-medium">{formatCurrency(totalDebited)}</span></p>
+              <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1 border">
+                <p><span className="text-muted-foreground">From:</span> <span className="font-medium">{fromName}</span></p>
+                <p><span className="text-muted-foreground">UPI ID:</span> <span className="font-medium">{fromUpiId}</span></p>
+                <p><span className="text-muted-foreground">Total Debited:</span> <span className="font-medium">{formatCurrency(totalDebited)}</span></p>
               </div>
 
               <div className="flex gap-3">
@@ -141,7 +141,7 @@ const PaymentScreenshotGenerator = () => {
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-400">
+                <div className="text-center text-muted-foreground">
                   <Eye className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p className="text-sm">Fill in the details and click Preview to see the screenshot</p>
                 </div>

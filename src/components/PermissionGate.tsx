@@ -52,12 +52,12 @@ export function PermissionGate({
     }
     
     return (
-      <Card className="border-dashed border-gray-200">
+      <Card className="border-dashed border-border">
         <CardContent className="p-4 text-center">
           <div className="space-y-2">
-            <div className="text-gray-400">
+            <div className="text-muted-foreground">
               <Shield className="h-6 w-6 mx-auto mb-1 opacity-40" />
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 Insufficient permissions
               </p>
             </div>

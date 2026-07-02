@@ -210,7 +210,7 @@ export function PendingApprovalsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-gray-500">Loading pending approvals...</p>
+          <p className="text-muted-foreground">Loading pending approvals...</p>
         </CardContent>
       </Card>
     );
@@ -229,15 +229,15 @@ export function PendingApprovalsTab() {
           {!pendingApprovals || pendingApprovals.length === 0 ? (
             <div className="text-center py-8">
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">All Clear!</h3>
-              <p className="text-gray-500">No investigations pending officer approval.</p>
+              <h3 className="text-lg font-medium text-foreground mb-2">All Clear!</h3>
+              <p className="text-muted-foreground">No investigations pending officer approval.</p>
             </div>
           ) : (
             <div className="space-y-4">
               {pendingApprovals.map((approval) => (
                 <div
                   key={approval.id}
-                  className="p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+                  className="p-4 border border-border rounded-lg bg-card hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -248,36 +248,36 @@ export function PendingApprovalsTab() {
                         <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
                           PENDING APPROVAL
                         </Badge>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-muted-foreground">
                           {getDurationSinceSubmission(approval.submitted_at)}
                         </span>
                       </div>
                       
                       <div className="mb-3">
-                        <h4 className="font-medium text-gray-900 mb-1">
+                        <h4 className="font-medium text-foreground mb-1">
                           {approval.bank_cases.bank_accounts?.bank_name || 'Unknown Bank'}
                         </h4>
-                        <p className="text-sm text-gray-600 mb-1">
+                        <p className="text-sm text-muted-foreground mb-1">
                           Account: {approval.bank_cases.bank_accounts?.account_name || 'N/A'}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-muted-foreground">
                           Title: {approval.bank_cases.title}
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-muted-foreground">
                           Type: {approval.bank_cases.case_type?.replace(/_/g, ' ')}
                         </p>
                       </div>
 
                       <div className="mb-3">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Final Resolution Summary:</p>
-                        <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded border">
+                        <p className="text-sm font-medium text-foreground mb-1">Final Resolution Summary:</p>
+                        <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded border">
                           {approval.final_resolution.length > 200 
                             ? `${approval.final_resolution.substring(0, 200)}...` 
                             : approval.final_resolution}
                         </p>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Submitted by: {approval.submitted_by}</span>
                         {approval.supporting_documents_urls && approval.supporting_documents_urls.length > 0 && (
                           <>
@@ -320,19 +320,19 @@ export function PendingApprovalsTab() {
           {selectedApproval && (
             <div className="space-y-6 p-4">
               {/* Case Summary */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-3">Case Summary</h3>
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="font-medium text-foreground mb-3">Case Summary</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium text-gray-700">Bank:</span>
+                    <span className="font-medium text-foreground">Bank:</span>
                     <p>{selectedApproval.account_investigations.bank_accounts?.bank_name}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Account:</span>
+                    <span className="font-medium text-foreground">Account:</span>
                     <p>{selectedApproval.account_investigations.bank_accounts?.account_name}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Priority:</span>
+                    <span className="font-medium text-foreground">Priority:</span>
                     <p>
                       <Badge variant={getPriorityColor(selectedApproval.account_investigations.priority)}>
                         {selectedApproval.account_investigations.priority}
@@ -340,11 +340,11 @@ export function PendingApprovalsTab() {
                     </p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Type:</span>
+                    <span className="font-medium text-foreground">Type:</span>
                     <p>{selectedApproval.account_investigations.investigation_type}</p>
                   </div>
                   <div className="col-span-2">
-                    <span className="font-medium text-gray-700">Reason:</span>
+                    <span className="font-medium text-foreground">Reason:</span>
                     <p>{selectedApproval.account_investigations.reason}</p>
                   </div>
                 </div>
@@ -352,9 +352,9 @@ export function PendingApprovalsTab() {
 
               {/* Final Resolution */}
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-3">Final Resolution</h3>
-                <div className="bg-white p-3 rounded border">
-                  <p className="text-sm text-gray-800 leading-relaxed">
+                <h3 className="font-medium text-foreground mb-3">Final Resolution</h3>
+                <div className="bg-card p-3 rounded border">
+                  <p className="text-sm text-foreground leading-relaxed">
                     {selectedApproval.final_resolution}
                   </p>
                 </div>
@@ -363,14 +363,14 @@ export function PendingApprovalsTab() {
               {/* Supporting Documents */}
               {selectedApproval.supporting_documents_urls && selectedApproval.supporting_documents_urls.length > 0 && (
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-3">Supporting Documents</h3>
+                  <h3 className="font-medium text-foreground mb-3">Supporting Documents</h3>
                   <div className="space-y-2">
                     {selectedApproval.supporting_documents_urls.map((url: string, index: number) => {
                       const fileName = url.split('/').pop()?.split('-').slice(3).join('-') || `Document ${index + 1}`;
                       return (
-                        <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 rounded border">
+                        <div key={index} className="flex items-center gap-2 p-3 bg-muted/50 rounded border">
                           <FileText className="h-4 w-4 text-blue-600" />
-                          <span className="text-sm text-gray-800 flex-1">{fileName}</span>
+                          <span className="text-sm text-foreground flex-1">{fileName}</span>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -388,9 +388,9 @@ export function PendingApprovalsTab() {
               )}
 
               {/* Submission Details */}
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-3">Submission Details</h3>
-                <div className="text-sm text-gray-600 space-y-1">
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <h3 className="font-medium text-foreground mb-3">Submission Details</h3>
+                <div className="text-sm text-muted-foreground space-y-1">
                   <p><span className="font-medium">Submitted by:</span> {selectedApproval.submitted_by}</p>
                   <p><span className="font-medium">Submitted at:</span> {new Date(selectedApproval.submitted_at).toLocaleString('en-IN')}</p>
                   <p><span className="font-medium">Duration:</span> {getDurationSinceSubmission(selectedApproval.submitted_at)}</p>
@@ -436,7 +436,7 @@ export function PendingApprovalsTab() {
           
           <div className="space-y-4 p-4">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
+              <label className="text-sm font-medium text-foreground mb-2 block">
                 Rejection Reason <span className="text-red-500">*</span>
               </label>
               <Textarea

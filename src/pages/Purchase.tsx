@@ -412,7 +412,7 @@ export default function Purchase() {
     <PermissionGate
       permissions={["purchase_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -432,8 +432,8 @@ export default function Purchase() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
-      <div className="bg-white rounded-xl mb-4 md:mb-6 shadow-sm border border-gray-100">
+    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
+      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
         <div className="px-4 md:px-6 py-4 md:py-8">
           <div className="flex flex-col gap-4 md:gap-6">
             <div className="flex items-center gap-3">
@@ -470,7 +470,7 @@ export default function Purchase() {
           <div className="flex gap-2 md:gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-gray-400 hidden md:block" />
+                <Search className="h-4 w-4 text-muted-foreground hidden md:block" />
                 <Input 
                   placeholder="Search orders..." 
                   value={searchTerm}

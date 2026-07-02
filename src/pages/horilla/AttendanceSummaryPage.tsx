@@ -106,8 +106,8 @@ export default function AttendanceSummaryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Attendance Summary</h1>
-        <p className="text-sm text-gray-500">Monthly attendance analytics per employee</p>
+        <h1 className="text-2xl font-bold text-foreground">Attendance Summary</h1>
+        <p className="text-sm text-muted-foreground">Monthly attendance analytics per employee</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
@@ -121,7 +121,7 @@ export default function AttendanceSummaryPage() {
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-gray-500">{s.label}</p></div>
+              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
@@ -130,7 +130,7 @@ export default function AttendanceSummaryPage() {
       <div className="flex gap-3 flex-wrap">
         <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44" />
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
@@ -148,7 +148,7 @@ export default function AttendanceSummaryPage() {
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-            ) : <p className="text-center text-gray-400 py-8">No data</p>}
+            ) : <p className="text-center text-muted-foreground py-8">No data</p>}
           </CardContent>
         </Card>
 
@@ -165,7 +165,7 @@ export default function AttendanceSummaryPage() {
                   <Bar dataKey="mins" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Late Minutes" />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p className="text-center text-gray-400 py-8">No data</p>}
+            ) : <p className="text-center text-muted-foreground py-8">No data</p>}
           </CardContent>
         </Card>
       </div>
@@ -173,27 +173,27 @@ export default function AttendanceSummaryPage() {
       <Card>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Badge", "Present", "Absent", "Late", "Half Day", "OT Hours", "Late (min)", "Early Leave (min)", "Rate"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={10} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-8 text-gray-400">No records</td></tr>
+                <tr><td colSpan={10} className="text-center py-8 text-muted-foreground">No records</td></tr>
               ) : (
                 (filtered as any[]).map((s: any) => {
                   // Rate: present + late = showed up
                   const showedUp = s.present + s.late + s.half_day * 0.5;
                   const rate = s.total > 0 ? ((showedUp / s.total) * 100).toFixed(0) : "0";
                   return (
-                    <tr key={s.employee?.id} className="border-b hover:bg-gray-50">
+                    <tr key={s.employee?.id} className="border-b hover:bg-muted/50">
                       <td className="px-4 py-3 font-medium whitespace-nowrap">{s.employee?.first_name} {s.employee?.last_name}</td>
-                      <td className="px-4 py-3 text-gray-500">{s.employee?.badge_id}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{s.employee?.badge_id}</td>
                       <td className="px-4 py-3 text-green-600 font-medium">{s.present}</td>
                       <td className="px-4 py-3 text-red-600 font-medium">{s.absent}</td>
                       <td className="px-4 py-3 text-yellow-600 font-medium">{s.late}</td>

@@ -143,7 +143,7 @@ export default function Financials() {
     <PermissionGate
       permissions={["accounting_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -163,9 +163,9 @@ export default function Financials() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-muted/50 p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
+      <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
@@ -197,7 +197,7 @@ export default function Financials() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-white border-2 border-emerald-400 text-emerald-600 hover:bg-emerald-50 shadow-md"
+                  className="bg-card border-2 border-emerald-400 text-emerald-600 hover:bg-emerald-50 shadow-md"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -205,7 +205,7 @@ export default function Financials() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-white border-2 border-emerald-400 text-emerald-600 hover:bg-emerald-50 shadow-md"
+                  className="bg-card border-2 border-emerald-400 text-emerald-600 hover:bg-emerald-50 shadow-md"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   New Transaction
@@ -328,7 +328,7 @@ export default function Financials() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Cash Flow Chart */}
-            <Card className="bg-white border-2 border-gray-200 shadow-xl">
+            <Card className="bg-card border-2 border-border shadow-xl">
               <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-3 text-xl">
                   <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
@@ -356,7 +356,7 @@ export default function Financials() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="bg-white border-2 border-gray-200 shadow-xl">
+            <Card className="bg-card border-2 border-border shadow-xl">
               <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-3 text-xl">
                   <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
@@ -390,7 +390,7 @@ export default function Financials() {
         <TabsContent value="accounts" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {financialData?.bankAccounts.map((account, index) => (
-              <Card key={index} className="bg-white border-2 border-gray-200 shadow-xl hover:shadow-2xl transition-all duration-300">
+              <Card key={index} className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300">
                 <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Building className="h-5 w-5" />
@@ -400,11 +400,11 @@ export default function Financials() {
                 <CardContent className="p-6">
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Bank</span>
+                      <span className="text-sm text-muted-foreground">Bank</span>
                       <span className="font-semibold">{account.bank_name}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Balance</span>
+                      <span className="text-sm text-muted-foreground">Balance</span>
                       <span className="text-xl font-bold text-emerald-600">
                         {formatCurrency(Number(account.balance))}
                       </span>
@@ -419,7 +419,7 @@ export default function Financials() {
                 </CardContent>
               </Card>
             )) || (
-              <div className="col-span-full text-center py-12 text-gray-500">
+              <div className="col-span-full text-center py-12 text-muted-foreground">
                 <Building className="h-16 w-16 mx-auto mb-4 opacity-50" />
                 <p className="font-medium">No bank accounts found</p>
                 <p className="text-sm">Add bank accounts to track balances</p>
@@ -429,7 +429,7 @@ export default function Financials() {
         </TabsContent>
 
         <TabsContent value="transactions" className="space-y-6">
-          <Card className="bg-white border-2 border-gray-200 shadow-xl">
+          <Card className="bg-card border-2 border-border shadow-xl">
             <CardHeader className="bg-emerald-600 text-white rounded-t-lg">
               <CardTitle className="flex items-center gap-3 text-xl">
                 <div className="p-2 bg-emerald-700 rounded-lg shadow-md">
@@ -441,7 +441,7 @@ export default function Financials() {
             <CardContent className="p-6">
               <div className="space-y-4">
                 {financialData?.recentTransactions.map((transaction, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
                         transaction.transaction_type === 'INCOME' ? 'bg-emerald-100' : 'bg-red-100'
@@ -453,10 +453,10 @@ export default function Financials() {
                         )}
                       </div>
                       <div>
-                        <p className="font-semibold text-sm text-gray-900">
+                        <p className="font-semibold text-sm text-foreground">
                           {transaction.description || 'Transaction'}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-muted-foreground">
                           {format(new Date(transaction.transaction_date), "MMM dd, yyyy")}
                         </p>
                       </div>
@@ -471,7 +471,7 @@ export default function Financials() {
                     </div>
                   </div>
                 )) || (
-                  <div className="text-center py-12 text-gray-500">
+                  <div className="text-center py-12 text-muted-foreground">
                     <CreditCard className="h-16 w-16 mx-auto mb-4 opacity-50" />
                     <p className="font-medium">No transactions found</p>
                     <p className="text-sm">Transactions will appear here</p>
@@ -484,39 +484,39 @@ export default function Financials() {
 
         <TabsContent value="reports" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <Card className="bg-white border-2 border-gray-200 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
+            <Card className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
                 <div className="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <FileText className="h-8 w-8 text-emerald-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Profit & Loss</h3>
-                <p className="text-sm text-gray-600 mb-4">Comprehensive P&L statement</p>
+                <h3 className="font-semibold text-foreground mb-2">Profit & Loss</h3>
+                <p className="text-sm text-muted-foreground mb-4">Comprehensive P&L statement</p>
                 <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
                   Generate Report
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-2 border-gray-200 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
+            <Card className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
                 <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <BarChart3 className="h-8 w-8 text-blue-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Cash Flow</h3>
-                <p className="text-sm text-gray-600 mb-4">Detailed cash flow analysis</p>
+                <h3 className="font-semibold text-foreground mb-2">Cash Flow</h3>
+                <p className="text-sm text-muted-foreground mb-4">Detailed cash flow analysis</p>
                 <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
                   Generate Report
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="bg-white border-2 border-gray-200 shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
+            <Card className="bg-card border-2 border-border shadow-xl hover:shadow-2xl transition-all duration-300 cursor-pointer">
               <CardContent className="p-6 text-center">
                 <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                   <PieChart className="h-8 w-8 text-purple-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-2">Balance Sheet</h3>
-                <p className="text-sm text-gray-600 mb-4">Assets, liabilities & equity</p>
+                <h3 className="font-semibold text-foreground mb-2">Balance Sheet</h3>
+                <p className="text-sm text-muted-foreground mb-4">Assets, liabilities & equity</p>
                 <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
                   Generate Report
                 </Button>

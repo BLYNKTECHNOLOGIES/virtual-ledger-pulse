@@ -55,39 +55,39 @@ export function PendingInterviewsTable() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Candidate</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Position</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Interview Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Interviewer</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Candidate</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Position</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Interview Date</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Type</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Interviewer</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {interviews.map((interview) => (
-                  <tr key={interview.id} className="border-b hover:bg-gray-50">
+                  <tr key={interview.id} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-gray-400" />
+                        <User className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <p className="font-medium">{interview.job_applicants?.name}</p>
-                          <p className="text-sm text-gray-500">{interview.job_applicants?.email}</p>
+                          <p className="text-sm text-muted-foreground">{interview.job_applicants?.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="py-3 px-4">
                       <div>
                         <p className="font-medium">{interview.job_applicants?.job_postings?.title}</p>
-                        <p className="text-sm text-gray-500">{interview.job_applicants?.job_postings?.department}</p>
+                        <p className="text-sm text-muted-foreground">{interview.job_applicants?.job_postings?.department}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
+                        <Clock className="h-4 w-4 text-muted-foreground" />
                         <div>
                           <p className="text-sm">{new Date(interview.interview_date).toLocaleDateString()}</p>
-                          <p className="text-xs text-gray-500">{new Date(interview.interview_date).toLocaleTimeString()}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(interview.interview_date).toLocaleTimeString()}</p>
                         </div>
                       </div>
                     </td>
@@ -110,7 +110,7 @@ export function PendingInterviewsTable() {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             No pending interviews scheduled
           </div>
         )}

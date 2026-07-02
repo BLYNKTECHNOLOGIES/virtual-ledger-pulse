@@ -13,7 +13,7 @@ export default function Statistics() {
     <PermissionGate
       permissions={["statistics_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -41,8 +41,8 @@ export default function Statistics() {
               <BarChart3 className="h-8 w-8 text-slate-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Statistics & Analytics</h1>
-              <p className="text-gray-600 mt-1">Comprehensive business insights and analytics</p>
+              <h1 className="text-3xl font-bold text-foreground">Statistics & Analytics</h1>
+              <p className="text-muted-foreground mt-1">Comprehensive business insights and analytics</p>
             </div>
           </div>
         </div>

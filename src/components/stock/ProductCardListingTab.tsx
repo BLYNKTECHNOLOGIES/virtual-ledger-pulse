@@ -128,8 +128,8 @@ export function ProductCardListingTab() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Asset Inventory</h2>
-          <p className="text-gray-600 mt-1">Manage your asset holdings and inventory levels</p>
+          <h2 className="text-2xl font-bold text-foreground">Asset Inventory</h2>
+          <p className="text-muted-foreground mt-1">Manage your asset holdings and inventory levels</p>
         </div>
         <Button onClick={() => setIsAddDialogOpen(true)} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -138,7 +138,7 @@ export function ProductCardListingTab() {
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         <Input
           placeholder="Search assets by name or code..."
           value={searchQuery}
@@ -150,9 +150,9 @@ export function ProductCardListingTab() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.length === 0 ? (
           <div className="col-span-full text-center py-12">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No assets found</h3>
-            <p className="text-gray-500 mb-4">
+            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No assets found</h3>
+            <p className="text-muted-foreground mb-4">
               {searchQuery ? 'Try adjusting your search terms' : 'Start by adding your first asset'}
             </p>
             {!searchQuery && (
@@ -168,7 +168,7 @@ export function ProductCardListingTab() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-lg font-semibold text-gray-900">
+                    <CardTitle className="text-lg font-semibold text-foreground">
                       {product.name}
                     </CardTitle>
                   </div>
@@ -181,7 +181,7 @@ export function ProductCardListingTab() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-500 flex items-center gap-1">
+                    <span className="text-muted-foreground flex items-center gap-1">
                       <Package className="h-3 w-3" />
                       In Stock
                     </span>
@@ -190,7 +190,7 @@ export function ProductCardListingTab() {
                     </p>
                   </div>
                   <div>
-                    <span className="text-gray-500 flex items-center gap-1">
+                    <span className="text-muted-foreground flex items-center gap-1">
                       <DollarSign className="h-3 w-3" />
                       Avg Cost
                     </span>
@@ -202,7 +202,7 @@ export function ProductCardListingTab() {
 
                 <div className="border-t pt-3">
                   <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Holdings Value:</span>
+                    <span className="text-muted-foreground">Holdings Value:</span>
                     <span className="font-bold text-purple-600">₹{product.total_value.toFixed(2)}</span>
                   </div>
                 </div>
@@ -230,8 +230,8 @@ export function ProductCardListingTab() {
                   return (
                     <div className="border-t pt-3">
                       <div className="flex items-center gap-2 mb-2">
-                        <Building className="h-4 w-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">Wallet Distribution</span>
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">Wallet Distribution</span>
                       </div>
                       <div className="space-y-1">
                         {walletStocks
@@ -240,7 +240,7 @@ export function ProductCardListingTab() {
                           <div key={wallet.wallet_id} className="flex justify-between items-center text-xs">
                             <div className="flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                              <span className="text-gray-600">{wallet.wallet_name}</span>
+                              <span className="text-muted-foreground">{wallet.wallet_name}</span>
                             </div>
                             <div className="text-right flex items-center gap-1.5">
                               <span className="font-medium">{wallet.balance.toFixed(2)}</span>
@@ -265,7 +265,7 @@ export function ProductCardListingTab() {
                                   </Tooltip>
                                 );
                               })()}
-                              <span className="text-gray-500 ml-1">₹{wallet.value.toFixed(2)}</span>
+                              <span className="text-muted-foreground ml-1">₹{wallet.value.toFixed(2)}</span>
                             </div>
                           </div>
                         ))}

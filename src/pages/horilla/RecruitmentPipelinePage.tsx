@@ -83,9 +83,9 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
 
   return (
     <div ref={setNodeRef} style={style}
-      className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-sm hover:border-gray-300 transition-all group">
+      className="bg-card rounded-lg border border-border p-3 hover:shadow-sm hover:border-border transition-all group">
       <div className="flex items-start gap-2.5">
-        <div {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing">
+        <div {...attributes} {...listeners} className="mt-1 text-gray-300 hover:text-muted-foreground cursor-grab active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </div>
         {candidate.profile_image_url ? (
@@ -96,8 +96,8 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-[#E8604C]" onClick={() => navigate(`/hrms/recruitment/candidates/${candidate.id}`)}>{candidate.name}</p>
-          {candidate.email && <p className="text-[11px] text-gray-400 truncate">{candidate.email}</p>}
+          <p className="text-sm font-medium text-foreground truncate cursor-pointer hover:text-[#E8604C]" onClick={() => navigate(`/hrms/recruitment/candidates/${candidate.id}`)}>{candidate.name}</p>
+          {candidate.email && <p className="text-[11px] text-muted-foreground truncate">{candidate.email}</p>}
         </div>
       </div>
 
@@ -135,14 +135,14 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
           </div>
         )}
         {candidate.source && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{candidate.source}</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{candidate.source}</span>
         )}
         {candidate.offer_letter_status && candidate.offer_letter_status !== "none" && (
           <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
             candidate.offer_letter_status === "accepted" ? "bg-emerald-100 text-emerald-700" :
             candidate.offer_letter_status === "rejected" ? "bg-red-100 text-red-700" :
             candidate.offer_letter_status === "sent" ? "bg-blue-100 text-blue-700" :
-            "bg-gray-100 text-gray-600"
+            "bg-muted text-muted-foreground"
           }`}>
             Offer: {candidate.offer_letter_status}
           </span>
@@ -421,12 +421,12 @@ export default function RecruitmentPipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/hrms/recruitment")} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+          <button onClick={() => navigate("/hrms/recruitment")} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">{activeRec?.title || "Pipeline"}</h1>
-            <p className="text-xs text-gray-500">
+            <h1 className="text-xl font-bold text-foreground">{activeRec?.title || "Pipeline"}</h1>
+            <p className="text-xs text-muted-foreground">
               {activeRec ? `${activeRec.vacancy || 0} vacancies · ${(candidates || []).length} candidates · Drag to move between stages` : "Select a recruitment"}
             </p>
           </div>
@@ -435,14 +435,14 @@ export default function RecruitmentPipelinePage() {
           {recruitments && recruitments.length > 1 && (
             <select value={activeRec?.id || ""}
               onChange={e => navigate(`/hrms/recruitment/pipeline?id=${e.target.value}`)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white">
+              className="text-sm border border-border rounded-lg px-3 py-1.5 text-foreground bg-card">
               {recruitments.map(r => (
                 <option key={r.id} value={r.id}>{r.title}</option>
               ))}
             </select>
           )}
           <button onClick={() => setAddStageOpen(true)}
-            className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white hover:bg-gray-50">
+            className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground bg-card hover:bg-muted/50">
             <Plus className="h-3.5 w-3.5" /> Add Stage
           </button>
         </div>
@@ -451,19 +451,19 @@ export default function RecruitmentPipelinePage() {
       {/* Search & Filter Bar */}
       {activeRec && (
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-1.5 w-64">
-            <Search className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+          <div className="flex items-center bg-card rounded-lg border border-border px-3 py-1.5 w-64">
+            <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
             <input type="text" placeholder="Search candidates..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full" />
+              className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full" />
           </div>
           {uniqueSources.length > 0 && (
             <select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 bg-white">
+              className="text-sm border border-border rounded-lg px-3 py-1.5 text-foreground bg-card">
               <option value="all">All Sources</option>
               {uniqueSources.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           )}
-          <span className="text-xs text-gray-400 ml-auto">
+          <span className="text-xs text-muted-foreground ml-auto">
             {filteredCandidates.length} candidate{filteredCandidates.length !== 1 ? "s" : ""}
           </span>
         </div>
@@ -473,11 +473,11 @@ export default function RecruitmentPipelinePage() {
       {!activeRec ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-              <Plus className="h-8 w-8 text-gray-400" />
+            <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+              <Plus className="h-8 w-8 text-muted-foreground" />
             </div>
-            <p className="text-gray-500 text-sm font-medium">No active recruitment found</p>
-            <p className="text-gray-400 text-xs mt-1">Create a recruitment to start building your pipeline</p>
+            <p className="text-muted-foreground text-sm font-medium">No active recruitment found</p>
+            <p className="text-muted-foreground text-xs mt-1">Create a recruitment to start building your pipeline</p>
             <button
               onClick={() => navigate("/hrms/recruitment")}
               className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-[#E8604C] text-white text-sm font-medium rounded-lg hover:bg-[#d04e3c] transition-colors shadow-sm"
@@ -489,7 +489,7 @@ export default function RecruitmentPipelinePage() {
       ) : !stages?.length ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-gray-500 text-sm">No stages defined for this recruitment</p>
+            <p className="text-muted-foreground text-sm">No stages defined for this recruitment</p>
             <button onClick={() => setAddStageOpen(true)} className="mt-2 text-[#E8604C] text-sm font-medium hover:underline">
               + Add first stage
             </button>
@@ -509,19 +509,19 @@ export default function RecruitmentPipelinePage() {
                 const stageCandidates = getCandidatesForStage(stage.id);
                 return (
                   <div key={stage.id}
-                    className={`w-72 shrink-0 bg-gray-50 rounded-xl border border-gray-200 border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}>
+                    className={`w-72 shrink-0 bg-muted/50 rounded-xl border border-border border-t-4 ${stageColor(stage.stage_type)} flex flex-col`}>
                     {/* Stage header */}
                     <div className="px-3 py-3 flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-gray-900">{stage.stage_name}</h3>
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                        <h3 className="text-sm font-semibold text-foreground">{stage.stage_name}</h3>
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
                           {stageCandidates.length}
                         </span>
                       </div>
                       <div className="flex items-center gap-0.5">
                         <button
                           onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
-                          className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-[#E8604C] transition-colors"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-[#E8604C] transition-colors"
                           title="Add candidate">
                           <Plus className="h-3.5 w-3.5" />
                         </button>
@@ -530,7 +530,7 @@ export default function RecruitmentPipelinePage() {
                             if (stageCandidates.length > 0) { toast.error("Remove all candidates first"); return; }
                             setDeleteStageTarget({ id: stage.id, name: stage.stage_name });
                           }}
-                          className="p-1 rounded-md hover:bg-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors"
                           title="Delete stage">
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -554,7 +554,7 @@ export default function RecruitmentPipelinePage() {
                       ))}
                       {stageCandidates.length === 0 && (
                         <div className="text-center py-6">
-                          <p className="text-xs text-gray-400">No candidates</p>
+                          <p className="text-xs text-muted-foreground">No candidates</p>
                           <button
                             onClick={() => { setAddCandidateStageId(stage.id); setAddCandidateOpen(true); }}
                             className="text-xs text-[#E8604C] mt-1 hover:underline">
@@ -572,14 +572,14 @@ export default function RecruitmentPipelinePage() {
           {/* Drag Overlay */}
           <DragOverlay dropAnimation={{ duration: 200, easing: "ease" }}>
             {draggedCandidate && (
-              <div className="bg-white rounded-lg border-2 border-[#E8604C] p-3 shadow-xl w-64 opacity-95 rotate-2">
+              <div className="bg-card rounded-lg border-2 border-[#E8604C] p-3 shadow-xl w-64 opacity-95 rotate-2">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center text-white font-medium text-xs">
                     {draggedCandidate.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{draggedCandidate.name}</p>
-                    {draggedCandidate.email && <p className="text-[11px] text-gray-400">{draggedCandidate.email}</p>}
+                    <p className="text-sm font-medium text-foreground">{draggedCandidate.name}</p>
+                    {draggedCandidate.email && <p className="text-[11px] text-muted-foreground">{draggedCandidate.email}</p>}
                   </div>
                 </div>
               </div>
@@ -591,40 +591,40 @@ export default function RecruitmentPipelinePage() {
       {/* Add Candidate Dialog */}
       {addCandidateOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Add Candidate</h2>
-              <button onClick={() => setAddCandidateOpen(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Add Candidate</h2>
+              <button onClick={() => setAddCandidateOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Name *</label>
                 <input value={candidateForm.name}
                   onChange={e => setCandidateForm({ ...candidateForm, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
                   placeholder="Full name" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Email</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Email</label>
                   <input type="email" value={candidateForm.email}
                     onChange={e => setCandidateForm({ ...candidateForm, email: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]" />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Mobile</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Mobile</label>
                   <input value={candidateForm.mobile}
                     onChange={e => setCandidateForm({ ...candidateForm, mobile: e.target.value })}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]" />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Source</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Source</label>
                 <select value={candidateForm.source}
                   onChange={e => setCandidateForm({ ...candidateForm, source: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
                   <option value="">Select</option>
                   <option value="LinkedIn">LinkedIn</option>
                   <option value="Indeed">Indeed</option>
@@ -635,22 +635,22 @@ export default function RecruitmentPipelinePage() {
                 </select>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Resume URL</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Resume URL</label>
                 <input value={candidateForm.resume_url}
                   onChange={e => setCandidateForm({ ...candidateForm, resume_url: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
                   placeholder="https://drive.google.com/..." />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Skills</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Skills</label>
                 <input value={candidateForm.skills}
                   onChange={e => setCandidateForm({ ...candidateForm, skills: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
                   placeholder="React, Node.js, Python (comma separated)" />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={() => setAddCandidateOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button onClick={() => setAddCandidateOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => addCandidateMutation.mutate()}
                 disabled={!candidateForm.name || addCandidateMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
@@ -664,26 +664,26 @@ export default function RecruitmentPipelinePage() {
       {/* Add Stage Dialog */}
       {addStageOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-sm shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Add Stage</h2>
-              <button onClick={() => setAddStageOpen(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+          <div className="bg-card rounded-xl w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Add Stage</h2>
+              <button onClick={() => setAddStageOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Stage Name *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Stage Name *</label>
                 <input value={stageForm.stage_name}
                   onChange={e => setStageForm({ ...stageForm, stage_name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
                   placeholder="e.g. Technical Interview" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Type</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Type</label>
                 <select value={stageForm.stage_type}
                   onChange={e => setStageForm({ ...stageForm, stage_type: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]">
                   <option value="initial">Initial Screening</option>
                   <option value="test">Test / Assessment</option>
                   <option value="interview">Interview</option>
@@ -693,8 +693,8 @@ export default function RecruitmentPipelinePage() {
                 </select>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={() => setAddStageOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button onClick={() => setAddStageOpen(false)} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => addStageMutation.mutate()}
                 disabled={!stageForm.stage_name || addStageMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">

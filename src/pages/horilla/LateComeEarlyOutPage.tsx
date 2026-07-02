@@ -79,8 +79,8 @@ export default function LateComeEarlyOutPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Late Come & Early Out</h1>
-        <p className="text-sm text-gray-500">Track and report late arrivals and early departures with penalty linkage</p>
+        <h1 className="text-2xl font-bold text-foreground">Late Come & Early Out</h1>
+        <p className="text-sm text-muted-foreground">Track and report late arrivals and early departures with penalty linkage</p>
       </div>
 
       {/* Filters */}
@@ -102,7 +102,7 @@ export default function LateComeEarlyOutPage() {
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
       </div>
@@ -113,7 +113,7 @@ export default function LateComeEarlyOutPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-orange-50 rounded-lg"><Clock className="h-5 w-5 text-orange-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">Late Comes</p>
+              <p className="text-sm text-muted-foreground">Late Comes</p>
               <p className="text-xl font-bold text-orange-700">{totalLateRecords}</p>
             </div>
           </CardContent>
@@ -122,7 +122,7 @@ export default function LateComeEarlyOutPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-red-50 rounded-lg"><TrendingDown className="h-5 w-5 text-red-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">Early Outs</p>
+              <p className="text-sm text-muted-foreground">Early Outs</p>
               <p className="text-xl font-bold text-red-700">{totalEarlyRecords}</p>
             </div>
           </CardContent>
@@ -131,7 +131,7 @@ export default function LateComeEarlyOutPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-yellow-50 rounded-lg"><AlertTriangle className="h-5 w-5 text-yellow-600" /></div>
             <div>
-              <p className="text-sm text-gray-500">Employees Affected</p>
+              <p className="text-sm text-muted-foreground">Employees Affected</p>
               <p className="text-xl font-bold text-yellow-700">{summaryList.length}</p>
             </div>
           </CardContent>
@@ -151,31 +151,31 @@ export default function LateComeEarlyOutPage() {
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm min-w-[600px]">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-muted/50 border-b">
                   <tr>
                     {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {summaryList.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center py-8 text-gray-400">No records for this month</td></tr>
+                    <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">No records for this month</td></tr>
                   ) : (
                     summaryList.map((s) => (
-                      <tr key={s.id} className="border-b hover:bg-gray-50">
+                      <tr key={s.id} className="border-b hover:bg-muted/50">
                         <td className="px-4 py-3 font-medium">{s.name}</td>
-                        <td className="px-4 py-3 text-gray-500">{s.badge}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
                         <td className="px-4 py-3">
                           {s.lateCount > 0 ? (
                             <Badge variant="destructive" className="bg-orange-100 text-orange-700 hover:bg-orange-100">{s.lateCount}</Badge>
-                          ) : <span className="text-gray-400">0</span>}
+                          ) : <span className="text-muted-foreground">0</span>}
                         </td>
                         <td className="px-4 py-3 text-orange-600 font-medium">{s.totalLateMins || "—"}</td>
                         <td className="px-4 py-3">
                           {s.earlyCount > 0 ? (
                             <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100">{s.earlyCount}</Badge>
-                          ) : <span className="text-gray-400">0</span>}
+                          ) : <span className="text-muted-foreground">0</span>}
                         </td>
                         <td className="px-4 py-3 text-red-600 font-medium">{s.totalEarlyMins || "—"}</td>
                         <td className="px-4 py-3 font-bold">{s.lateCount + s.earlyCount}</td>
@@ -195,24 +195,24 @@ export default function LateComeEarlyOutPage() {
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm min-w-[600px]">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-muted/50 border-b">
                   <tr>
                     {["Date", "Employee", "Badge ID", "Type", "Minutes"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 font-medium text-gray-600 whitespace-nowrap">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={5} className="text-center py-8 text-gray-400">No records</td></tr>
+                    <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No records</td></tr>
                   ) : (
                     filtered.map((r: any) => (
-                      <tr key={r.id} className="border-b hover:bg-gray-50">
+                      <tr key={r.id} className="border-b hover:bg-muted/50">
                         <td className="px-4 py-3">{r.attendance_date}</td>
                         <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
-                        <td className="px-4 py-3 text-gray-500">{r.hr_employees?.badge_id}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
                         <td className="px-4 py-3">
                           <Badge variant={r.type === "late_come" ? "secondary" : "destructive"}
                             className={r.type === "late_come" ? "bg-orange-100 text-orange-700" : "bg-red-100 text-red-700"}>

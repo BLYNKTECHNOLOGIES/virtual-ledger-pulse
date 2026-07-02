@@ -31,8 +31,8 @@ const outcomeColor: Record<string, string> = {
   "No Answer": "bg-yellow-100 text-yellow-800",
   "Callback Requested": "bg-blue-100 text-blue-800",
   "Not Interested": "bg-red-100 text-red-800",
-  "Wrong Number": "bg-gray-100 text-gray-800",
-  Other: "bg-gray-100 text-gray-800",
+  "Wrong Number": "bg-muted text-foreground",
+  Other: "bg-muted text-foreground",
 };
 
 export function RARemarkDialog({
@@ -160,7 +160,7 @@ export function RARemarkDialog({
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{r.ra_name || "RA"}</span>
                   {r.contact_outcome && (
-                    <Badge className={outcomeColor[r.contact_outcome] || "bg-gray-100 text-gray-800"}>
+                    <Badge className={outcomeColor[r.contact_outcome] || "bg-muted text-foreground"}>
                       {r.contact_outcome}
                     </Badge>
                   )}

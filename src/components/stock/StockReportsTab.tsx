@@ -410,14 +410,14 @@ export function StockReportsTab() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Total Value</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Wallet</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Reference</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Type</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Unit Price</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Value</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Wallet</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Reference</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,7 +426,7 @@ export function StockReportsTab() {
                     return (
                     <tr
                       key={row.id}
-                      className={cn("border-b hover:bg-gray-50", clickable && "cursor-pointer")}
+                      className={cn("border-b hover:bg-muted/50", clickable && "cursor-pointer")}
                       onClick={() => clickable && openTransaction({ type: row._txType, id: row._txId })}
                       title={clickable ? "Click to view full details" : undefined}
                     >
@@ -434,7 +434,7 @@ export function StockReportsTab() {
                       <td className="py-3 px-4">
                         <div>
                           <div className="font-medium">{row.products?.name}</div>
-                          <div className="text-sm text-gray-500">{row.products?.code}</div>
+                          <div className="text-sm text-muted-foreground">{row.products?.code}</div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -454,7 +454,7 @@ export function StockReportsTab() {
               </table>
               
               {filteredMovements?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   No stock movements found for the selected period.
                 </div>
               )}
@@ -483,17 +483,17 @@ export function StockReportsTab() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product Code</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product Name</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Current Stock</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Unit</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Reorder Level</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product Code</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product Name</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Current Stock</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Unit</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Reorder Level</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {lowStockProducts?.map((product) => (
-                  <tr key={product.id} className="border-b hover:bg-gray-50">
+                  <tr key={product.id} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4 font-medium">{product.code}</td>
                     <td className="py-3 px-4">{product.name}</td>
                     <td className="py-3 px-4 font-medium text-red-600">{product.current_stock_quantity}</td>
@@ -508,7 +508,7 @@ export function StockReportsTab() {
             </table>
             
             {lowStockProducts?.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No low stock items found.
               </div>
             )}
@@ -536,23 +536,23 @@ export function StockReportsTab() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Date</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Supplier</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Product</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Quantity</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Unit Price</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-600">Total Price</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Date</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Supplier</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Product</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Quantity</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Unit Price</th>
+                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Total Price</th>
                 </tr>
               </thead>
               <tbody>
                 {purchaseReport?.map((item) => (
-                  <tr key={item.id} className="border-b hover:bg-gray-50">
+                  <tr key={item.id} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4">{format(new Date(item.purchase_orders?.order_date), 'dd/MM/yyyy')}</td>
                     <td className="py-3 px-4">{item.purchase_orders?.supplier_name}</td>
                     <td className="py-3 px-4">
                       <div>
                         <div className="font-medium">{item.products?.name}</div>
-                        <div className="text-sm text-gray-500">{item.products?.code}</div>
+                        <div className="text-sm text-muted-foreground">{item.products?.code}</div>
                       </div>
                     </td>
                     <td className="py-3 px-4">{item.quantity} {item.products?.unit_of_measurement}</td>
@@ -564,7 +564,7 @@ export function StockReportsTab() {
             </table>
             
             {purchaseReport?.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No purchase data found for the selected period.
               </div>
             )}

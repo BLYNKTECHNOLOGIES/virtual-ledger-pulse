@@ -147,7 +147,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             Select a client to view communication details
           </div>
         </CardContent>
@@ -169,7 +169,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <label className="text-sm font-medium text-gray-600">Purpose of Buying</label>
+          <label className="text-sm font-medium text-muted-foreground">Purpose of Buying</label>
           <div className="mt-1">
             {client.buying_purpose ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -184,7 +184,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-600">Compliance Notes</label>
+          <label className="text-sm font-medium text-muted-foreground">Compliance Notes</label>
           <div className="mt-1">
             {client.operator_notes ? (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -197,14 +197,14 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-600">Contact Details</label>
+          <label className="text-sm font-medium text-muted-foreground">Contact Details</label>
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-sm">
-              <Phone className="h-4 w-4 text-gray-400" />
+              <Phone className="h-4 w-4 text-muted-foreground" />
               <span>{client.phone || 'Not provided'}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-gray-400" />
+              <Mail className="h-4 w-4 text-muted-foreground" />
               <span>{client.email || 'Not provided'}</span>
             </div>
           </div>
@@ -212,7 +212,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
 
         <div>
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-600">Operator Notes</label>
+            <label className="text-sm font-medium text-muted-foreground">Operator Notes</label>
             <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
               {!isEditingNotes && (
                 <Button size="sm" variant="ghost" onClick={handleNotesEdit}>
@@ -241,7 +241,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-3 rounded-lg mt-1">
+            <div className="bg-muted/50 p-3 rounded-lg mt-1">
               <p className="text-sm">
                 {client.operator_notes || 'No notes added yet. Click edit to add notes.'}
               </p>
@@ -251,7 +251,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
 
         <div>
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-600">Next Follow-up</label>
+            <label className="text-sm font-medium text-muted-foreground">Next Follow-up</label>
             <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
               {!isEditingFollowup && (
                 <Button size="sm" variant="ghost" onClick={handleFollowupEdit}>
@@ -280,16 +280,16 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
             </div>
           ) : (
             <div className="flex items-center gap-2 mt-1">
-              <Calendar className="h-4 w-4 text-gray-400" />
+              <Calendar className="h-4 w-4 text-muted-foreground" />
               {followupDate ? (
                 <>
                   <span className="text-sm">{new Date(followupDate).toLocaleDateString()}</span>
-                  <Badge variant="outline" className={`${hasFollowup ? 'text-orange-600 border-orange-200 bg-orange-50' : 'text-gray-500 border-gray-200 bg-gray-50'}`}>
+                  <Badge variant="outline" className={`${hasFollowup ? 'text-orange-600 border-orange-200 bg-orange-50' : 'text-muted-foreground border-border bg-muted/50'}`}>
                     {hasFollowup ? 'Alert Set' : 'Past Due'}
                   </Badge>
                 </>
               ) : (
-                <span className="text-sm text-gray-500">No follow-up scheduled</span>
+                <span className="text-sm text-muted-foreground">No follow-up scheduled</span>
               )}
             </div>
           )}

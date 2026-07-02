@@ -296,10 +296,10 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
             <div>
               <Label htmlFor="documents">Upload Documents (Optional)</Label>
               <div className="mt-2">
-                <label {...docsDropzone} className={cn("flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50", docsDragActive && "border-primary bg-primary/10")}>
+                <label {...docsDropzone} className={cn("flex items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50", docsDragActive && "border-primary bg-primary/10")}>
                   <div className="flex flex-col items-center">
-                    <Upload className="w-8 h-8 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500">Click to upload files</p>
+                    <Upload className="w-8 h-8 text-muted-foreground" />
+                    <p className="mt-2 text-sm text-muted-foreground">Click to upload files</p>
                   </div>
                   <input
                     id="documents"
@@ -315,7 +315,7 @@ export const CloseAccountDialog: React.FC<CloseAccountDialogProps> = ({
               {documents.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {documents.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                    <div key={index} className="flex items-center justify-between bg-muted/50 p-2 rounded">
                       <span className="text-sm truncate">{file.name}</span>
                       <Button
                         type="button"

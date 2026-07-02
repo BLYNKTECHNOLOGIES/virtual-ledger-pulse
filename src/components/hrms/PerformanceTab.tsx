@@ -33,8 +33,8 @@ export function PerformanceTab() {
     switch (status) {
       case 'COMPLETED': return 'bg-green-100 text-green-800';
       case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800';
-      case 'DRAFT': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'DRAFT': return 'bg-muted text-foreground';
+      default: return 'bg-muted text-foreground';
     }
   };
 
@@ -70,23 +70,23 @@ export function PerformanceTab() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Employee</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Review Period</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Review Date</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Score</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Supervisor</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Employee</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Review Period</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Review Date</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Score</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Supervisor</th>
+                        <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {performanceReviews.map((review) => (
-                        <tr key={review.id} className="border-b hover:bg-gray-50">
+                        <tr key={review.id} className="border-b hover:bg-muted/50">
                           <td className="py-3 px-4">
                             <div>
                               <p className="font-medium">{review.employees?.name}</p>
                               <p className="text-sm text-blue-600">{review.employees?.employee_id}</p>
-                              <p className="text-sm text-gray-500">{review.employees?.department}</p>
+                              <p className="text-sm text-muted-foreground">{review.employees?.department}</p>
                             </div>
                           </td>
                           <td className="py-3 px-4">{review.review_period}</td>
@@ -116,8 +116,8 @@ export function PerformanceTab() {
                       <h3 className="font-semibold">Q2 2025 Performance Review</h3>
                       <Badge variant="secondary">Ready to Start</Badge>
                     </div>
-                    <p className="text-sm text-gray-600">Review period: April - June 2025</p>
-                    <p className="text-sm text-gray-500">Click "Start Review Cycle" to begin</p>
+                    <p className="text-sm text-muted-foreground">Review period: April - June 2025</p>
+                    <p className="text-sm text-muted-foreground">Click "Start Review Cycle" to begin</p>
                   </div>
                 </div>
               )}
@@ -135,8 +135,8 @@ export function PerformanceTab() {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <Target className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No goals set for current period</p>
+                <Target className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No goals set for current period</p>
                 <Button className="mt-4">Set Employee Goals</Button>
               </div>
             </CardContent>
@@ -153,8 +153,8 @@ export function PerformanceTab() {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No feedback submissions</p>
+                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No feedback submissions</p>
                 <Button className="mt-4" onClick={() => setShowFeedbackDialog(true)}>
                   Submit Feedback
                 </Button>
@@ -173,8 +173,8 @@ export function PerformanceTab() {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <TrendingUp className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No pending appraisals</p>
+                <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No pending appraisals</p>
                 <Button className="mt-4">Process Appraisals</Button>
               </div>
             </CardContent>

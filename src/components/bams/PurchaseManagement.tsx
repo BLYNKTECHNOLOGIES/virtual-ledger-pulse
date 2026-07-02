@@ -374,8 +374,8 @@ export function PurchaseManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Purchase Management</h2>
-          <p className="text-gray-600">Manage payment methods for company purchases</p>
+          <h2 className="text-2xl font-bold text-foreground">Purchase Management</h2>
+          <p className="text-muted-foreground">Manage payment methods for company purchases</p>
         </div>
         <PermissionGate permissions={["bams_manage"]} showFallback={false}>
           <div className="flex gap-2">
@@ -410,7 +410,7 @@ export function PurchaseManagement() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 {editingMethod ? "Edit Purchase Method" : "Add New Purchase Method"}
-                <span className="text-sm text-gray-500">Step {step} of 3</span>
+                <span className="text-sm text-muted-foreground">Step {step} of 3</span>
               </DialogTitle>
             </DialogHeader>
             
@@ -420,11 +420,11 @@ export function PurchaseManagement() {
                   <div key={stepNum} className="flex items-center">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                       stepNum <= step ? 'bg-blue-600 text-white' : 
-                      'bg-gray-200 text-gray-500'
+                      'bg-muted text-muted-foreground'
                     } ${stepNum === step ? 'ring-2 ring-blue-300' : ''}`}>
                       {stepNum < step ? '✓' : stepNum}
                     </div>
-                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-gray-200'}`} />}
+                    {stepNum < 3 && <div className={`w-12 h-0.5 ${stepNum <= step ? 'bg-blue-600' : 'bg-muted'}`} />}
                   </div>
                 ))}
               </div>
@@ -600,7 +600,7 @@ export function PurchaseManagement() {
                         <SelectItem value="Custom">Custom</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       24 hours: Limit resets 24 hours after each transaction | Daily: Resets at midnight
                     </p>
                   </div>
@@ -631,7 +631,7 @@ export function PurchaseManagement() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           Set how many hours after which the payment limit will reset
                         </p>
                       </div>
@@ -650,7 +650,7 @@ export function PurchaseManagement() {
                         onChange={(e) => setFormData(prev => ({ ...prev, beneficiariesPer24h: e.target.value }))}
                         required
                       />
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Maximum number of unique beneficiaries allowed per 24 hours
                       </p>
                     </div>
@@ -663,7 +663,7 @@ export function PurchaseManagement() {
                       onCheckedChange={(checked) => setFormData(prev => ({ ...prev, safeFund: checked === true }))}
                     />
                     <Label htmlFor="safeFund">Safe Fund</Label>
-                    <div className="text-xs text-gray-500 ml-2">
+                    <div className="text-xs text-muted-foreground ml-2">
                       Mark as safe funds for secure transactions
                     </div>
                   </div>
@@ -718,7 +718,7 @@ export function PurchaseManagement() {
             <div className="text-2xl font-bold text-blue-600">
               ₹{getTotalAvailableUPI().toLocaleString('en-IN')}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {purchaseMethods.filter(m => m.type === "UPI" && m.isActive).length} active UPI methods
             </p>
           </CardContent>
@@ -735,7 +735,7 @@ export function PurchaseManagement() {
             <div className="text-2xl font-bold text-green-600">
               ₹{getTotalAvailableBankTransfer().toLocaleString('en-IN')}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               {purchaseMethods.filter(m => m.type === "Bank Transfer" && m.isActive).length} active bank accounts
             </p>
           </CardContent>
@@ -752,7 +752,7 @@ export function PurchaseManagement() {
             <div className="text-2xl font-bold text-purple-600">
               ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString('en-IN')}
             </div>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Combined purchasing power
             </p>
           </CardContent>
@@ -800,9 +800,9 @@ export function PurchaseManagement() {
                     </TableCell>
                     <TableCell>
                       {method.bankAccountName ? (
-                        <span className="text-sm text-gray-600">{method.bankAccountName}</span>
+                        <span className="text-sm text-muted-foreground">{method.bankAccountName}</span>
                       ) : (
-                        <span className="text-sm text-gray-400">Not linked</span>
+                        <span className="text-sm text-muted-foreground">Not linked</span>
                       )}
                     </TableCell>
                     <TableCell>₹{method.paymentLimit.toLocaleString('en-IN')}</TableCell>

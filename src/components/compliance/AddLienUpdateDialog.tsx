@@ -153,7 +153,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
             <Label>Attachments</Label>
             <div
               className={cn(
-                "border-2 border-dashed border-gray-300 rounded-lg p-4 transition-colors",
+                "border-2 border-dashed border-border rounded-lg p-4 transition-colors",
                 isDragActive && "border-primary bg-primary/10"
               )}
               {...dropzoneProps}
@@ -168,7 +168,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
               />
               <Label
                 htmlFor="file-upload"
-                className="cursor-pointer flex items-center justify-center space-x-2 text-gray-600"
+                className="cursor-pointer flex items-center justify-center space-x-2 text-muted-foreground"
               >
                 <Upload className="h-4 w-4" />
                 <span>Click to upload or drag & drop files</span>
@@ -177,7 +177,7 @@ export function AddLienUpdateDialog({ lienCaseId, onUpdateAdded }: AddLienUpdate
             {attachments.length > 0 && (
               <div className="space-y-2">
                 {attachments.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                  <div key={index} className="flex items-center justify-between bg-muted/50 p-2 rounded">
                     <span className="text-sm">{file.name}</span>
                     <Button
                       type="button"

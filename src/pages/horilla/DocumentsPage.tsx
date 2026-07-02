@@ -51,21 +51,21 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">Documents</h1><p className="text-sm text-gray-500">Company documents and policies</p></div>
+        <div><h1 className="text-2xl font-bold text-foreground">Documents</h1><p className="text-sm text-muted-foreground">Company documents and policies</p></div>
         <Button onClick={() => setShowDialog(true)} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> Add Document</Button>
       </div>
-      <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" /><Input placeholder="Search documents..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+      <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input placeholder="Search documents..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {isLoading ? <p className="col-span-3 text-center text-gray-400 py-12">Loading...</p> : filtered.length === 0 ? <p className="col-span-3 text-center text-gray-400 py-12">No documents</p> : filtered.map((d: any) => (
+        {isLoading ? <p className="col-span-3 text-center text-muted-foreground py-12">Loading...</p> : filtered.length === 0 ? <p className="col-span-3 text-center text-muted-foreground py-12">No documents</p> : filtered.map((d: any) => (
           <Card key={d.id}>
             <CardContent className="p-5">
               <div className="flex items-start gap-3">
                 <div className="p-2 bg-[#E8604C]/10 rounded-lg shrink-0"><FileText className="h-5 w-5 text-[#E8604C]" /></div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">{d.title}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{d.category} • {d.file_type?.toUpperCase()}</p>
-                  {d.description && <p className="text-xs text-gray-400 mt-2 line-clamp-2">{d.description}</p>}
-                  <p className="text-[10px] text-gray-400 mt-2">{new Date(d.created_at).toLocaleDateString()}</p>
+                  <h3 className="font-semibold text-foreground truncate">{d.title}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{d.category} • {d.file_type?.toUpperCase()}</p>
+                  {d.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{d.description}</p>}
+                  <p className="text-[10px] text-muted-foreground mt-2">{new Date(d.created_at).toLocaleDateString()}</p>
                 </div>
                 <Button size="sm" variant="ghost" className="text-red-600 shrink-0" onClick={() => deleteMutation.mutate(d.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
               </div>

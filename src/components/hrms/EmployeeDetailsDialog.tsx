@@ -127,8 +127,8 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
             <DialogTitle>User Profile</DialogTitle>
           </DialogHeader>
           <div className="py-6 text-center">
-            <p className="text-gray-600 mb-4">No employee record found for this user.</p>
-            <p className="text-sm text-gray-500">Please contact your administrator to set up your employee profile.</p>
+            <p className="text-muted-foreground mb-4">No employee record found for this user.</p>
+            <p className="text-sm text-muted-foreground">Please contact your administrator to set up your employee profile.</p>
           </div>
           <div className="flex justify-end pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -155,7 +155,7 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
                 id="employee_id"
                 value={employee.employee_id}
                 disabled
-                className="bg-gray-100"
+                className="bg-muted"
               />
             </div>
             <div>
@@ -267,7 +267,7 @@ export function EmployeeDetailsDialog({ open, onOpenChange, employee, isEditMode
 
           <div>
             <Label>Joining Date</Label>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               {new Date(employee.date_of_joining).toLocaleDateString()}
             </p>
           </div>

@@ -523,8 +523,8 @@ export function BankAccountManagement() {
     <div className="space-y-6 px-[15px]">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div className="min-w-0">
-          <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Bank Account Management</h2>
-          <p className="text-xs sm:text-sm text-gray-600">Manage centralized bank accounts for receiving sales and purchase payments</p>
+          <h2 className="text-lg sm:text-2xl font-bold text-foreground">Bank Account Management</h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage centralized bank accounts for receiving sales and purchase payments</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <ViewOnlyWrapper isViewOnly={isViewOnly}>
@@ -623,7 +623,7 @@ export function BankAccountManagement() {
                     onChange={(e) => setFormData(prev => ({ ...prev, balance: e.target.value }))} 
                     required 
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Total Balance = Lien Amount + Available Balance
                     {formData.account_type === "CREDIT" ? " (negative allowed for CREDIT accounts)" : ""}
                   </p>
@@ -639,7 +639,7 @@ export function BankAccountManagement() {
                     onChange={(e) => setFormData(prev => ({ ...prev, lien_amount: e.target.value }))}
                     placeholder="0.00"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Amount under lien/hold. Available Balance = Total Balance - Lien Amount
                   </p>
                 </div>
@@ -699,7 +699,7 @@ export function BankAccountManagement() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Select which company this bank account belongs to
                   </p>
                 </div>
@@ -736,12 +736,12 @@ export function BankAccountManagement() {
                 <CardTitle>Active Bank Accounts</CardTitle>
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <div className="relative flex-1 sm:w-80">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
                       placeholder="Search by account name, bank name, account number, holder name, IFSC..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-white border border-gray-300 shadow-sm"
+                      className="pl-10 bg-card border border-border shadow-sm"
                     />
                   </div>
                   <div className="flex items-center space-x-2">
@@ -780,7 +780,7 @@ export function BankAccountManagement() {
                     </TableHeader>
                     <TableBody>
                       {filteredAndSortedAccounts?.map((account) => (
-                        <TableRow key={account.id} className={account.status === "INACTIVE" ? "bg-gray-50" : ""}>
+                        <TableRow key={account.id} className={account.status === "INACTIVE" ? "bg-muted/50" : ""}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span>{account.account_name}</span>
@@ -859,14 +859,14 @@ export function BankAccountManagement() {
                       ))}
                       {filteredAndSortedAccounts?.length === 0 && bankAccounts?.length > 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                             No bank accounts match your search criteria. Try adjusting your search terms or filters.
                           </TableCell>
                         </TableRow>
                       )}
                       {bankAccounts?.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                             No active bank accounts found. Add your first bank account to get started.
                           </TableCell>
                         </TableRow>
@@ -936,7 +936,7 @@ export function BankAccountManagement() {
                               size="sm" 
                               onClick={() => reactivateMutation.mutate(account.id)}
                               disabled={reactivateMutation.isPending}
-                              className="flex items-center gap-1 bg-white hover:bg-green-50 text-green-700 border-green-300"
+                              className="flex items-center gap-1 bg-card hover:bg-green-50 text-green-700 border-green-300"
                             >
                               <RefreshCw className="h-3 w-3" />
                               Reactivate
@@ -1004,7 +1004,7 @@ export function BankAccountManagement() {
                     ))}
                     {closedAccounts?.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                           No closed accounts found.
                         </TableCell>
                       </TableRow>
@@ -1074,7 +1074,7 @@ export function BankAccountManagement() {
                     ))}
                      {pendingAccounts?.length === 0 && (
                        <TableRow>
-                         <TableCell colSpan={10} className="text-center py-8 text-gray-500">
+                         <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                            No accounts pending approval.
                          </TableCell>
                        </TableRow>

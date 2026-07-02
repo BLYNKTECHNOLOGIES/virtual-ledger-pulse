@@ -170,7 +170,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             Loading completed orders...
           </div>
         </CardContent>
@@ -242,19 +242,19 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
         
         <div className="grid grid-cols-2 gap-2 text-sm mb-3">
           <div>
-            <span className="text-gray-500">Amount:</span>
+            <span className="text-muted-foreground">Amount:</span>
             <p className="font-medium">₹{order.total_amount?.toLocaleString('en-IN')}</p>
           </div>
           <div>
-            <span className="text-gray-500">Quantity:</span>
+            <span className="text-muted-foreground">Quantity:</span>
             <p className="font-medium">{order.purchase_order_items?.reduce((total: number, item: any) => total + item.quantity, 0) || 0}</p>
           </div>
           <div>
-            <span className="text-gray-500">Platform:</span>
+            <span className="text-muted-foreground">Platform:</span>
             <p className="font-medium">{getWalletName(order)}</p>
           </div>
           <div>
-            <span className="text-gray-500">Date:</span>
+            <span className="text-muted-foreground">Date:</span>
             <p className="font-medium">
               {format(new Date(order.order_date), 'MMM dd')}{' '}
               <span className="text-xs text-muted-foreground">
@@ -263,7 +263,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
             </p>
           </div>
           <div className="col-span-2">
-            <span className="text-gray-500">Created By:</span>
+            <span className="text-muted-foreground">Created By:</span>
             <p className="font-medium">
               {(order as any).created_by_user 
                 ? ((order as any).created_by_user.first_name || (order as any).created_by_user.username)
@@ -318,7 +318,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
         </CardHeader>
         <CardContent className="p-3 md:p-6 pt-0">
           {!filteredOrders || filteredOrders.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               No completed orders found.
             </div>
           ) : (
@@ -357,7 +357,7 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                             {order.supplier_name}
                           </div>
                           {order.description && (
-                            <div className="text-sm text-gray-500 max-w-[200px] truncate">
+                            <div className="text-sm text-muted-foreground max-w-[200px] truncate">
                               {order.description}
                             </div>
                           )}
@@ -375,10 +375,10 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
                         </TableCell>
                         <TableCell>
                           {(order as any).created_by_user ? (
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-foreground">
                               {(order as any).created_by_user.first_name || (order as any).created_by_user.username}
                             </span>
-                          ) : <span className="text-gray-400">N/A</span>}
+                          ) : <span className="text-muted-foreground">N/A</span>}
                         </TableCell>
                         <TableCell>
                           <div className="flex flex-col">

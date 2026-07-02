@@ -107,13 +107,13 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">KYC Documents</h3>
-        <p className="text-gray-600">Please upload the required documents for verification</p>
+        <h3 className="text-lg font-semibold text-foreground mb-2">KYC Documents</h3>
+        <p className="text-muted-foreground">Please upload the required documents for verification</p>
       </div>
 
       {/* Required Documents */}
       <div className="space-y-4">
-        <h4 className="font-medium text-gray-900">Required Documents</h4>
+        <h4 className="font-medium text-foreground">Required Documents</h4>
         
         <div className="grid grid-cols-2 gap-4">
           <div>
@@ -196,7 +196,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
       {/* Additional Documents */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h4 className="font-medium text-gray-900">Additional Documents</h4>
+          <h4 className="font-medium text-foreground">Additional Documents</h4>
           <Button 
             type="button" 
             variant="outline" 
@@ -240,7 +240,7 @@ export function Step2KYCDocuments({ formData, setFormData }: Step2KYCDocumentsPr
         ))}
 
         {additionalDocs.length === 0 && (
-          <p className="text-gray-500 text-sm italic">No additional documents added. Click "Add Document" to include more KYC documents.</p>
+          <p className="text-muted-foreground text-sm italic">No additional documents added. Click "Add Document" to include more KYC documents.</p>
         )}
       </div>
     </div>

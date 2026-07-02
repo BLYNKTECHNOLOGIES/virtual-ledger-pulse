@@ -49,22 +49,22 @@ export default function AnnouncementsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">Announcements</h1><p className="text-sm text-gray-500">Company-wide announcements and notices</p></div>
+        <div><h1 className="text-2xl font-bold text-foreground">Announcements</h1><p className="text-sm text-muted-foreground">Company-wide announcements and notices</p></div>
         <Button onClick={() => { setEditId(null); setForm({ title: "", content: "", category: "general", is_pinned: false }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-2" /> New Announcement</Button>
       </div>
       <div className="space-y-4">
-        {isLoading ? <p className="text-center text-gray-400 py-12">Loading...</p> : announcements.length === 0 ? <p className="text-center text-gray-400 py-12">No announcements</p> : announcements.map((a: any) => (
+        {isLoading ? <p className="text-center text-muted-foreground py-12">Loading...</p> : announcements.length === 0 ? <p className="text-center text-muted-foreground py-12">No announcements</p> : announcements.map((a: any) => (
           <Card key={a.id} className={a.is_pinned ? "border-[#E8604C]/30 bg-[#E8604C]/5" : ""}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     {a.is_pinned && <Pin className="h-3.5 w-3.5 text-[#E8604C]" />}
-                    <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{a.category}</span>
+                    <h3 className="font-semibold text-foreground">{a.title}</h3>
+                    <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{a.category}</span>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{a.content}</p>
-                  <p className="text-xs text-gray-400 mt-3">{new Date(a.created_at).toLocaleDateString()}</p>
+                  <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap">{a.content}</p>
+                  <p className="text-xs text-muted-foreground mt-3">{new Date(a.created_at).toLocaleDateString()}</p>
                 </div>
                 <div className="flex gap-1 shrink-0 ml-4">
                   <Button size="sm" variant="ghost" onClick={() => { setEditId(a.id); setForm({ title: a.title, content: a.content || "", category: a.category || "general", is_pinned: a.is_pinned }); setShowDialog(true); }}><Pencil className="h-3.5 w-3.5" /></Button>

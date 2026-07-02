@@ -50,15 +50,15 @@ export default function AssetDashboardPage() {
     { label: "Available", value: statusCounts.available, icon: CheckCircle, color: "text-green-600" },
     { label: "Assigned", value: statusCounts.assigned, icon: Users, color: "text-blue-600" },
     { label: "Maintenance", value: statusCounts.maintenance, icon: Wrench, color: "text-yellow-600" },
-    { label: "Retired", value: statusCounts.retired, icon: Archive, color: "text-gray-500" },
+    { label: "Retired", value: statusCounts.retired, icon: Archive, color: "text-muted-foreground" },
     { label: "Total Value", value: `₹${totalValue.toLocaleString('en-IN')}`, icon: TrendingUp, color: "text-purple-600" },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Asset Dashboard</h1>
-        <p className="text-sm text-gray-500">Overview of company assets and equipment</p>
+        <h1 className="text-2xl font-bold text-foreground">Asset Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Overview of company assets and equipment</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -67,7 +67,7 @@ export default function AssetDashboardPage() {
             <CardContent className="p-4 text-center">
               <s.icon className={`h-6 w-6 mx-auto mb-2 ${s.color}`} />
               <p className="text-2xl font-bold">{s.value}</p>
-              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </CardContent>
           </Card>
         ))}
@@ -107,24 +107,24 @@ export default function AssetDashboardPage() {
         <CardHeader><CardTitle className="text-sm">Recent Assignments</CardTitle></CardHeader>
         <CardContent className="p-0">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Asset", "Employee", "Date", "Status"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {recentAssignments.length === 0 ? (
-                <tr><td colSpan={4} className="text-center py-6 text-gray-400">No assignments yet</td></tr>
+                <tr><td colSpan={4} className="text-center py-6 text-muted-foreground">No assignments yet</td></tr>
               ) : (
                 recentAssignments.map((a: any) => (
-                  <tr key={a.id} className="border-b hover:bg-gray-50">
+                  <tr key={a.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium">{a.hr_assets?.name || "—"}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.hr_employees?.employee_name || "—"}</td>
-                    <td className="px-4 py-3 text-gray-500">{a.assigned_date}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.employee_name || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{a.assigned_date}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${a.status === "active" ? "bg-green-100 text-green-700" : "bg-muted text-foreground"}`}>
                         {a.status}
                       </span>
                     </td>

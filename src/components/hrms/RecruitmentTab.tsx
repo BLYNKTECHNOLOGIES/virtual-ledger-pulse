@@ -141,15 +141,15 @@ export function RecruitmentTab() {
   const getStatusBadge = (status: string) => {
     const colors = {
       'OPEN': 'bg-green-100 text-green-800',
-      'CLOSED': 'bg-gray-100 text-gray-800',
+      'CLOSED': 'bg-muted text-foreground',
       'APPLIED': 'bg-blue-100 text-blue-800',
       'INTERVIEW': 'bg-yellow-100 text-yellow-800',
       'SELECTED': 'bg-green-100 text-green-800',
       'REJECTED': 'bg-red-100 text-red-800',
-      'NOT_INTERESTED': 'bg-gray-100 text-gray-800',
+      'NOT_INTERESTED': 'bg-muted text-foreground',
       'ONBOARDED': 'bg-purple-100 text-purple-800'
     };
-    return <Badge className={colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'}>{status}</Badge>;
+    return <Badge className={colors[status as keyof typeof colors] || 'bg-muted text-foreground'}>{status}</Badge>;
   };
 
   return (
@@ -189,7 +189,7 @@ export function RecruitmentTab() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <CardTitle className="text-base md:text-lg">Job Postings</CardTitle>
             <div className="flex items-center space-x-2 w-full sm:w-auto">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search..."
                 value={searchTerm}
@@ -207,17 +207,17 @@ export function RecruitmentTab() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Job Title</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Department</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Job Type</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Salary Range</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Job Title</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Department</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Job Type</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Salary Range</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {jobPostings?.map((job) => (
-                    <tr key={job.id} className="border-b hover:bg-gray-50">
+                    <tr key={job.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-4 font-medium">{job.title}</td>
                       <td className="py-3 px-4">{job.department}</td>
                       <td className="py-3 px-4">{job.job_type}</td>
@@ -253,7 +253,7 @@ export function RecruitmentTab() {
               </table>
               
               {jobPostings?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   No job postings found. Create your first job posting to get started.
                 </div>
               )}
@@ -275,17 +275,17 @@ export function RecruitmentTab() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Name</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Email</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Position Applied</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Stage</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-600">Actions</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Name</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Email</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Position Applied</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Stage</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {applicants?.map((applicant) => (
-                    <tr key={applicant.id} className="border-b hover:bg-gray-50">
+                    <tr key={applicant.id} className="border-b hover:bg-muted/50">
                       <td className="py-3 px-4 font-medium">{applicant.name}</td>
                       <td className="py-3 px-4">{applicant.email}</td>
                       <td className="py-3 px-4">
@@ -309,7 +309,7 @@ export function RecruitmentTab() {
               </table>
               
               {applicants?.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted-foreground">
                   No applicants found. Add your first applicant to get started.
                 </div>
               )}

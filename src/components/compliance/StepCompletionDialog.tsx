@@ -133,10 +133,10 @@ export function StepCompletionDialog({
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium">Step Details</Label>
-            <div className="bg-gray-50 p-3 rounded-lg mt-1">
+            <div className="bg-muted/50 p-3 rounded-lg mt-1">
               <h4 className="font-medium text-sm">{step?.step_title}</h4>
               {step?.step_description && (
-                <p className="text-xs text-gray-600 mt-1">{step.step_description}</p>
+                <p className="text-xs text-muted-foreground mt-1">{step.step_description}</p>
               )}
             </div>
           </div>

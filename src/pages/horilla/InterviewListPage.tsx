@@ -141,7 +141,7 @@ export default function InterviewListPage() {
     cancelled: interviews.filter((i: any) => i.status === "cancelled").length,
   };
 
-  const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
+  const inputCls = "w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20";
 
   const filteredCandidates = scheduleForm.recruitment_id
     ? candidates.filter(c => c.recruitment_id === scheduleForm.recruitment_id)
@@ -151,8 +151,8 @@ export default function InterviewListPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Interviews</h1>
-          <p className="text-xs text-gray-500 mt-0.5">Manage all scheduled interviews across recruitments</p>
+          <h1 className="text-xl font-bold text-foreground">Interviews</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage all scheduled interviews across recruitments</p>
         </div>
         <button
           onClick={() => setScheduleOpen(true)}
@@ -170,13 +170,13 @@ export default function InterviewListPage() {
           { label: "Completed", value: stats.completed, icon: CheckCircle, color: "bg-emerald-100 text-emerald-600" },
           { label: "Cancelled", value: stats.cancelled, icon: XCircle, color: "bg-red-100 text-red-600" },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">
+          <div key={s.label} className="bg-card rounded-xl border border-border p-4 flex items-center gap-3">
             <div className={`w-10 h-10 rounded-xl ${s.color} flex items-center justify-center shrink-0`}>
               <s.icon className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs text-gray-500">{s.label}</p>
+              <p className="text-2xl font-bold text-foreground">{s.value}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           </div>
         ))}
@@ -185,18 +185,18 @@ export default function InterviewListPage() {
       {/* Filters */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search interviews..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20"
+            className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20"
           />
         </div>
         <select
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
+          className="border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C]"
         >
           <option value="all">All Status</option>
           <option value="scheduled">Scheduled</option>
@@ -207,13 +207,13 @@ export default function InterviewListPage() {
       </div>
 
       {/* Interview List */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Loading...</div>
+          <div className="p-8 text-center text-muted-foreground text-sm">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <Calendar className="h-10 w-10 mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-500 text-sm">No interviews found</p>
+            <p className="text-muted-foreground text-sm">No interviews found</p>
             <button onClick={() => setScheduleOpen(true)} className="mt-2 text-sm text-[#E8604C] font-medium hover:underline">
               + Schedule your first interview
             </button>
@@ -221,39 +221,39 @@ export default function InterviewListPage() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Candidate</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Recruitment</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Interviewer</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Date & Time</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Rating</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Candidate</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Recruitment</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Interviewer</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Date & Time</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Type</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Rating</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Status</th>
+                <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((iv: any) => {
                 const TypeIcon = TYPE_ICONS[iv.interview_type] || Calendar;
                 return (
-                  <tr key={iv.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <tr key={iv.id} className="border-b border-gray-50 hover:bg-muted/50 transition-colors">
                     <td className="py-3 px-4">
                       <button
                         onClick={() => navigate(`/hrms/recruitment/candidates/${iv.candidate_id}`)}
-                        className="font-medium text-gray-900 hover:text-[#E8604C] transition-colors"
+                        className="font-medium text-foreground hover:text-[#E8604C] transition-colors"
                       >
                         {iv.hr_candidates?.name || "Unknown"}
                       </button>
-                      <p className="text-[10px] text-gray-400">{iv.hr_candidates?.email}</p>
+                      <p className="text-[10px] text-muted-foreground">{iv.hr_candidates?.email}</p>
                     </td>
-                    <td className="py-3 px-4 text-gray-600 text-xs">{iv.hr_recruitments?.title || "—"}</td>
-                    <td className="py-3 px-4 text-gray-600">{iv.interviewer_name}</td>
+                    <td className="py-3 px-4 text-muted-foreground text-xs">{iv.hr_recruitments?.title || "—"}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{iv.interviewer_name}</td>
                     <td className="py-3 px-4">
-                      <p className="text-gray-900 text-xs font-medium">{iv.interview_date}</p>
-                      {iv.interview_time && <p className="text-[10px] text-gray-400">{iv.interview_time} ({iv.duration_minutes || 30}min)</p>}
+                      <p className="text-foreground text-xs font-medium">{iv.interview_date}</p>
+                      {iv.interview_time && <p className="text-[10px] text-muted-foreground">{iv.interview_time} ({iv.duration_minutes || 30}min)</p>}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="flex items-center gap-1 text-xs text-gray-600">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <TypeIcon className="h-3.5 w-3.5" />
                         {iv.interview_type?.replace("_", " ") || "—"}
                       </span>
@@ -270,7 +270,7 @@ export default function InterviewListPage() {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[iv.status] || "bg-gray-100 text-gray-600"}`}>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${STATUS_COLORS[iv.status] || "bg-muted text-muted-foreground"}`}>
                         {iv.status || "pending"}
                       </span>
                     </td>
@@ -293,7 +293,7 @@ export default function InterviewListPage() {
                           </>
                         )}
                         {iv.status === "completed" && iv.feedback && (
-                          <span className="text-[10px] text-gray-400 truncate max-w-[100px]" title={iv.feedback}>
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[100px]" title={iv.feedback}>
                             "{iv.feedback}"
                           </span>
                         )}
@@ -310,14 +310,14 @@ export default function InterviewListPage() {
       {/* Feedback Modal */}
       {feedbackForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">Interview Feedback</h2>
-              <button onClick={() => setFeedbackForm(null)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">Interview Feedback</h2>
+              <button onClick={() => setFeedbackForm(null)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Rating</label>
+                <label className="text-sm font-medium text-foreground mb-2 block">Rating</label>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map(r => (
                     <button key={r} onClick={() => setFeedbackForm({ ...feedbackForm, rating: r })}>
@@ -327,7 +327,7 @@ export default function InterviewListPage() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Feedback</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Feedback</label>
                 <textarea
                   value={feedbackForm.feedback}
                   onChange={e => setFeedbackForm({ ...feedbackForm, feedback: e.target.value })}
@@ -337,8 +337,8 @@ export default function InterviewListPage() {
                 />
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
-              <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
+              <button onClick={() => setFeedbackForm(null)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
               <button onClick={() => feedbackMutation.mutate()} className="px-4 py-2 text-sm bg-[#E8604C] text-white rounded-lg hover:bg-[#d04e3c]">Save Feedback</button>
             </div>
           </div>
@@ -348,15 +348,15 @@ export default function InterviewListPage() {
       {/* Schedule Interview Modal */}
       {scheduleOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
-              <h2 className="text-lg font-semibold text-gray-900">Schedule Interview</h2>
-              <button onClick={() => setScheduleOpen(false)} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+              <h2 className="text-lg font-semibold text-foreground">Schedule Interview</h2>
+              <button onClick={() => setScheduleOpen(false)} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
               {/* Recruitment filter */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Recruitment</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Recruitment</label>
                 <select value={scheduleForm.recruitment_id} onChange={e => setScheduleForm({ ...scheduleForm, recruitment_id: e.target.value, candidate_id: "" })} className={inputCls}>
                   <option value="">All Recruitments</option>
                   {recruitments.map((r: any) => <option key={r.id} value={r.id}>{r.title}</option>)}
@@ -364,7 +364,7 @@ export default function InterviewListPage() {
               </div>
               {/* Candidate */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Candidate *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Candidate *</label>
                 <select value={scheduleForm.candidate_id} onChange={e => setScheduleForm({ ...scheduleForm, candidate_id: e.target.value })} className={inputCls}>
                   <option value="">Select Candidate</option>
                   {filteredCandidates.map((c: any) => <option key={c.id} value={c.id}>{c.name} {c.email ? `(${c.email})` : ""}</option>)}
@@ -372,28 +372,28 @@ export default function InterviewListPage() {
               </div>
               {/* Interviewer */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Interviewer Name *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Interviewer Name *</label>
                 <input value={scheduleForm.interviewer_name} onChange={e => setScheduleForm({ ...scheduleForm, interviewer_name: e.target.value })} className={inputCls} placeholder="Interviewer name" />
               </div>
               {/* Date, Time, Duration */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Date *</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Date *</label>
                   <input type="date" value={scheduleForm.interview_date} onChange={e => setScheduleForm({ ...scheduleForm, interview_date: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Time</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Time</label>
                   <input type="time" value={scheduleForm.interview_time} onChange={e => setScheduleForm({ ...scheduleForm, interview_time: e.target.value })} className={inputCls} />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Duration</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Duration</label>
                   <input type="number" min={15} step={15} value={scheduleForm.duration_minutes} onChange={e => setScheduleForm({ ...scheduleForm, duration_minutes: parseInt(e.target.value) || 30 })} className={inputCls} />
                 </div>
               </div>
               {/* Type + Location */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">Type</label>
+                  <label className="text-sm font-medium text-foreground mb-1 block">Type</label>
                   <select value={scheduleForm.interview_type} onChange={e => setScheduleForm({ ...scheduleForm, interview_type: e.target.value })} className={inputCls}>
                     <option value="in_person">In Person</option>
                     <option value="video">Video Call</option>
@@ -401,7 +401,7 @@ export default function InterviewListPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  <label className="text-sm font-medium text-foreground mb-1 block">
                     {scheduleForm.interview_type === "video" ? "Meeting Link" : "Location"}
                   </label>
                   {scheduleForm.interview_type === "video" ? (
@@ -413,12 +413,12 @@ export default function InterviewListPage() {
               </div>
               {/* Notes */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Notes</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Notes</label>
                 <textarea value={scheduleForm.notes} onChange={e => setScheduleForm({ ...scheduleForm, notes: e.target.value })} className={`${inputCls} resize-none`} rows={2} placeholder="Any special instructions..." />
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2 shrink-0">
-              <button onClick={() => setScheduleOpen(false)} className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
+            <div className="px-5 py-3 border-t border-border flex justify-end gap-2 shrink-0">
+              <button onClick={() => setScheduleOpen(false)} className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
               <button
                 onClick={() => scheduleMutation.mutate()}
                 disabled={!scheduleForm.candidate_id || !scheduleForm.interviewer_name || !scheduleForm.interview_date || scheduleMutation.isPending}

@@ -157,7 +157,7 @@ export function CompanyComplianceTab() {
                     </div>
 
                     {subsidiary.compliance_notes && (
-                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                      <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Notes:</p>
                         <p className="text-sm mt-1">{subsidiary.compliance_notes}</p>
                       </div>

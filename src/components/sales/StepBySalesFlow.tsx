@@ -732,7 +732,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     System fetches a searchable dropdown of all existing clients (by name, ID, or platform)
                   </p>
                 </CardContent>
@@ -761,7 +761,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                       <SelectItem key={client.id} value={client.id}>
                         <div className="flex flex-col items-start">
                           <div className="font-medium">{client.name}</div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-muted-foreground">
                             ID: {client.client_id} | Risk: {client.risk_appetite}
                           </div>
                         </div>
@@ -827,7 +827,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
             </div>
 
             {selectedClient && parseFloat(orderAmount) > 0 && (
-              <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="p-4 bg-muted/50 rounded-lg">
                 <h4 className="font-medium mb-2">COSMOS Limit Verification</h4>
                 <div className="text-sm space-y-1">
                   <div>Monthly Limit: ₹{selectedClient.monthly_limit?.toLocaleString('en-IN')}</div>
@@ -907,7 +907,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 
                 {selectedPaymentMethod.type === 'UPI' ? (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                    <div className="flex items-center justify-between p-3 bg-card rounded border">
                       <div>
                         <div className="font-medium">UPI ID</div>
                         <div className="text-lg font-mono">{selectedPaymentMethod.upi_id}</div>
@@ -924,7 +924,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                    <div className="flex items-center justify-between p-3 bg-card rounded border">
                       <div>
                         <div className="font-medium">Account Holder Name</div>
                         <div className="text-lg">{selectedPaymentMethod.bank_accounts?.bank_account_holder_name}</div>
@@ -938,7 +938,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                         Copy
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                    <div className="flex items-center justify-between p-3 bg-card rounded border">
                       <div>
                         <div className="font-medium">Account Number</div>
                         <div className="text-lg font-mono">{selectedPaymentMethod.bank_accounts?.account_number}</div>
@@ -952,7 +952,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                         Copy
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                    <div className="flex items-center justify-between p-3 bg-card rounded border">
                       <div>
                         <div className="font-medium">IFSC Code</div>
                         <div className="text-lg font-mono">{selectedPaymentMethod.bank_accounts?.IFSC}</div>
@@ -966,7 +966,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                         Copy
                       </Button>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-white rounded border">
+                    <div className="flex items-center justify-between p-3 bg-card rounded border">
                       <div>
                         <div className="font-medium">Bank Name</div>
                         <div className="text-lg">{selectedPaymentMethod.bank_accounts?.bank_name}</div>
@@ -983,7 +983,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   </div>
                 )}
 
-                <div className="mt-3 text-sm text-gray-600">
+                <div className="mt-3 text-sm text-muted-foreground">
                   <div><strong>Risk Category:</strong> {selectedPaymentMethod.risk_category}</div>
                   <div><strong>Available Limit:</strong> ₹{(selectedPaymentMethod.payment_limit - selectedPaymentMethod.current_usage)?.toLocaleString('en-IN')}</div>
                   {selectedPaymentMethod.current_usage >= selectedPaymentMethod.payment_limit && (
@@ -1059,7 +1059,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <X className="h-4 w-4" />
                 🔴 Order Cancelled
               </Button>
-              <p className="text-xs text-gray-600 px-2">
+              <p className="text-xs text-muted-foreground px-2">
                 Moves the record into the Leads Tab for future follow-up. Auto-attaches metadata: reason, date/time, who cancelled.
               </p>
 
@@ -1071,7 +1071,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <RotateCcw className="h-4 w-4" />
                 🟡 Alternative Payment Method
               </Button>
-              <p className="text-xs text-gray-600 px-2">
+              <p className="text-xs text-muted-foreground px-2">
                 Allows you to change payment method type or get an alternative method of the same type.
               </p>
 
@@ -1082,7 +1082,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <Clock className="h-4 w-4" />
                 🔵 User Paying
               </Button>
-              <p className="text-xs text-gray-600 px-2">
+              <p className="text-xs text-muted-foreground px-2">
                 Creates order in USER_PAYING status, allowing you to track payment progress and take new orders.
               </p>
 
@@ -1093,7 +1093,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <CheckCircle className="h-4 w-4" />
                 🟢 Payment Received
               </Button>
-              <p className="text-xs text-gray-600 px-2">
+              <p className="text-xs text-muted-foreground px-2">
                 Directly mark as paid and opens form to capture the full sales data with auto pre-filled information.
               </p>
             </div>
@@ -1111,7 +1111,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <Input 
                   value={selectedClient?.name || newClientData.name}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
 
@@ -1120,7 +1120,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <Input 
                   value={selectedClient?.phone || newClientData.phone}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
 
@@ -1129,7 +1129,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                  <Input 
                    value={selectedClient?.walletId || newClientData.walletId || ''}
                    disabled
-                   className="bg-gray-100"
+                   className="bg-muted"
                  />
                </div>
 
@@ -1196,7 +1196,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                   type="number"
                   value={orderAmount}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
 
@@ -1238,7 +1238,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                    step="0.01"
                    value={finalOrderData.quantity}
                    disabled
-                   className="bg-gray-100"
+                   className="bg-muted"
                    placeholder="Auto-calculated"
                  />
                  {finalOrderData.platform_fees > 0 && (
@@ -1253,7 +1253,7 @@ export function StepBySalesFlow({ open, onOpenChange, queryClient: passedQueryCl
                 <Input 
                   value={selectedPaymentMethod?.bank_accounts?.account_name || 'N/A'}
                   disabled
-                  className="bg-gray-100"
+                  className="bg-muted"
                 />
               </div>
             </div>

@@ -396,7 +396,7 @@ export function LegalActionsTab() {
               <div className="flex gap-4 mb-6">
                 <div className="flex-1">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
                       placeholder="Search active legal actions..."
                       value={searchTerm}
@@ -411,7 +411,7 @@ export function LegalActionsTab() {
                 {isLoading ? (
                   <div className="text-center py-8">Loading legal actions...</div>
                 ) : (legalActions?.filter(action => ['ACTIVE', 'ON_HOLD'].includes(action.status)).length || 0) === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     No active legal actions found.
                   </div>
                 ) : (
@@ -427,9 +427,9 @@ export function LegalActionsTab() {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="font-medium">{action.title}</h4>
-                          <p className="text-sm text-gray-600">{action.action_type}</p>
+                          <p className="text-sm text-muted-foreground">{action.action_type}</p>
                           {action.case_number && (
-                            <p className="text-sm text-gray-600">Case: {action.case_number}</p>
+                            <p className="text-sm text-muted-foreground">Case: {action.case_number}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -459,10 +459,10 @@ export function LegalActionsTab() {
                       </div>
                       
                       {action.description && (
-                        <p className="text-sm text-gray-700 mb-3">{action.description}</p>
+                        <p className="text-sm text-foreground mb-3">{action.description}</p>
                       )}
                       
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-3">
                         {action.opposing_party && (
                           <div>
                             <span className="font-medium">Opposing Party:</span> {action.opposing_party}
@@ -498,7 +498,7 @@ export function LegalActionsTab() {
                       </div>
                       
                       {action.notes && (
-                        <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                           <span className="font-medium">Notes:</span> {action.notes}
                         </div>
                       )}
@@ -512,7 +512,7 @@ export function LegalActionsTab() {
               <div className="flex gap-4 mb-6">
                 <div className="flex-1">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
                       placeholder="Search closed legal actions..."
                       value={searchTerm}
@@ -527,7 +527,7 @@ export function LegalActionsTab() {
                 {isLoading ? (
                   <div className="text-center py-8">Loading legal actions...</div>
                 ) : (legalActions?.filter(action => ['RESOLVED', 'DISMISSED'].includes(action.status)).length || 0) === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-muted-foreground">
                     No closed legal actions found.
                   </div>
                 ) : (
@@ -539,13 +539,13 @@ export function LegalActionsTab() {
                       action.opposing_party?.toLowerCase().includes(searchTerm.toLowerCase())
                     )
                     .map((action) => (
-                    <div key={action.id} className="border rounded-lg p-4 bg-gray-50">
+                    <div key={action.id} className="border rounded-lg p-4 bg-muted/50">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="font-medium">{action.title}</h4>
-                          <p className="text-sm text-gray-600">{action.action_type}</p>
+                          <p className="text-sm text-muted-foreground">{action.action_type}</p>
                           {action.case_number && (
-                            <p className="text-sm text-gray-600">Case: {action.case_number}</p>
+                            <p className="text-sm text-muted-foreground">Case: {action.case_number}</p>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -567,10 +567,10 @@ export function LegalActionsTab() {
                       </div>
                       
                       {action.description && (
-                        <p className="text-sm text-gray-700 mb-3">{action.description}</p>
+                        <p className="text-sm text-foreground mb-3">{action.description}</p>
                       )}
                       
-                      <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                      <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-3">
                         <div className="space-y-1">
                           {action.opposing_party && (
                             <div>
@@ -610,7 +610,7 @@ export function LegalActionsTab() {
                       </div>
                       
                       {action.notes && (
-                        <div className="text-sm text-gray-600 bg-white p-2 rounded border">
+                        <div className="text-sm text-muted-foreground bg-card p-2 rounded border">
                           <span className="font-medium">Case Summary:</span> {action.notes}
                         </div>
                       )}
@@ -826,7 +826,7 @@ export function LegalActionsTab() {
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Basic Information</h4>
+                  <h4 className="font-medium text-foreground mb-2">Basic Information</h4>
                   <div className="space-y-2 text-sm">
                     <div><span className="font-medium">Title:</span> {selectedAction.title}</div>
                     <div><span className="font-medium">Action Type:</span> {selectedAction.action_type}</div>
@@ -845,7 +845,7 @@ export function LegalActionsTab() {
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Parties & Court</h4>
+                  <h4 className="font-medium text-foreground mb-2">Parties & Court</h4>
                   <div className="space-y-2 text-sm">
                     {selectedAction.court_name && (
                       <div><span className="font-medium">Court:</span> {selectedAction.court_name}</div>
@@ -865,8 +865,8 @@ export function LegalActionsTab() {
 
               {selectedAction.description && (
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
+                  <h4 className="font-medium text-foreground mb-2">Description</h4>
+                  <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
                     {selectedAction.description}
                   </p>
                 </div>
@@ -874,17 +874,17 @@ export function LegalActionsTab() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Important Dates</h4>
+                  <h4 className="font-medium text-foreground mb-2">Important Dates</h4>
                   <div className="space-y-2 text-sm">
                     {selectedAction.date_filed && (
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Filed:</span> {new Date(selectedAction.date_filed).toLocaleDateString()}
                       </div>
                     )}
                     {selectedAction.next_hearing_date && (
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Next Hearing:</span> {new Date(selectedAction.next_hearing_date).toLocaleDateString()}
                       </div>
                     )}
@@ -892,17 +892,17 @@ export function LegalActionsTab() {
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Financial Details</h4>
+                  <h4 className="font-medium text-foreground mb-2">Financial Details</h4>
                   <div className="space-y-2 text-sm">
                     {selectedAction.estimated_cost > 0 && (
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-gray-400" />
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Estimated Cost:</span> ₹{Number(selectedAction.estimated_cost).toLocaleString('en-IN')}
                       </div>
                     )}
                     {selectedAction.actual_cost > 0 && (
                       <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-gray-400" />
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
                         <span className="font-medium">Actual Cost:</span> ₹{Number(selectedAction.actual_cost).toLocaleString('en-IN')}
                       </div>
                     )}
@@ -912,16 +912,16 @@ export function LegalActionsTab() {
 
               {selectedAction.notes && (
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">
+                  <h4 className="font-medium text-foreground mb-2">
                     {selectedAction.status === 'RESOLVED' || selectedAction.status === 'DISMISSED' ? 'Case Summary & Notes' : 'Notes'}
                   </h4>
-                  <div className="text-sm text-gray-600 bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                  <div className="text-sm text-muted-foreground bg-blue-50 border border-blue-200 p-3 rounded-lg">
                     {selectedAction.notes}
                   </div>
                 </div>
               )}
 
-              <div className="text-xs text-gray-400 border-t pt-4">
+              <div className="text-xs text-muted-foreground border-t pt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>Created: {new Date(selectedAction.created_at).toLocaleString('en-IN')}</div>
                   <div>Last Updated: {new Date(selectedAction.updated_at).toLocaleString('en-IN')}</div>

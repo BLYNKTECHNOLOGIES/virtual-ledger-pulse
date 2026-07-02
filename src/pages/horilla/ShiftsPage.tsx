@@ -78,8 +78,8 @@ export default function ShiftsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Work Shifts</h1>
-          <p className="text-sm text-gray-500">Manage employee work shifts and schedules</p>
+          <h1 className="text-2xl font-bold text-foreground">Work Shifts</h1>
+          <p className="text-sm text-muted-foreground">Manage employee work shifts and schedules</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm(defaultForm); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> Add Shift
@@ -88,21 +88,21 @@ export default function ShiftsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading ? (
-          <p className="text-gray-400 col-span-3 text-center py-12">Loading...</p>
+          <p className="text-muted-foreground col-span-3 text-center py-12">Loading...</p>
         ) : shifts.length === 0 ? (
-          <p className="text-gray-400 col-span-3 text-center py-12">No shifts configured</p>
+          <p className="text-muted-foreground col-span-3 text-center py-12">No shifts configured</p>
         ) : (
           shifts.map((s: any) => (
             <Card key={s.id} className={`${!s.is_active ? "opacity-50" : ""}`}>
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-gray-900">{s.name}</h3>
+                    <h3 className="font-semibold text-foreground">{s.name}</h3>
                     {s.is_night_shift && <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Night Shift</span>}
                   </div>
                   <Switch checked={s.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: s.id, is_active: v })} />
                 </div>
-                <div className="space-y-1 text-sm text-gray-600">
+                <div className="space-y-1 text-sm text-muted-foreground">
                   <p>🕐 {s.start_time?.slice(0, 5)} — {s.end_time?.slice(0, 5)}</p>
                   <p>☕ Break: {s.break_duration_minutes} min</p>
                   <p>⏱ Grace: {s.grace_period_minutes} min</p>

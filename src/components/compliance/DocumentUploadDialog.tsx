@@ -134,7 +134,7 @@ export function DocumentUploadDialog({ open, onOpenChange }: DocumentUploadDialo
               />
             </div>
             {formData.file && (
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Selected: {formData.file.name}
               </p>
             )}

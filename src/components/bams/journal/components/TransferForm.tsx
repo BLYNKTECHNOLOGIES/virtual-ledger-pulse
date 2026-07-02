@@ -142,7 +142,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                 {bankAccounts?.filter(account => !account.dormant_at).map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
-                    <span className="text-sm text-gray-500 ml-2">
+                    <span className="text-sm text-muted-foreground ml-2">
                       (₹{parseFloat(String(account.balance ?? 0)).toLocaleString('en-IN')})
                     </span>
                   </SelectItem>
@@ -161,7 +161,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                 {bankAccounts?.filter(account => !account.dormant_at).map((account) => (
                   <SelectItem key={account.id} value={account.id}>
                     {account.account_name} - {account.bank_name}
-                    <span className="text-sm text-gray-500 ml-2">
+                    <span className="text-sm text-muted-foreground ml-2">
                       (₹{parseFloat(String(account.balance ?? 0)).toLocaleString('en-IN')})
                     </span>
                   </SelectItem>

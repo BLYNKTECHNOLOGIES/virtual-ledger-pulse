@@ -35,7 +35,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
             )}>
               ₹{(totalIncomes - totalExpenses).toLocaleString('en-IN')}
             </div>
-            <p className="text-sm text-gray-600 mt-1">Net Balance</p>
+            <p className="text-sm text-muted-foreground mt-1">Net Balance</p>
           </div>
         </CardContent>
       </Card>

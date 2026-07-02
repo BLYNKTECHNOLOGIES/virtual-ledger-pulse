@@ -100,8 +100,8 @@ export default function DepartmentsPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Departments</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{filteredDepts.length} department{filteredDepts.length !== 1 ? "s" : ""}</p>
+          <h1 className="text-xl font-bold text-foreground">Departments</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{filteredDepts.length} department{filteredDepts.length !== 1 ? "s" : ""}</p>
         </div>
         <button
           onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
@@ -113,31 +113,31 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Search bar */}
-      <div className="flex items-center bg-white rounded-lg border border-gray-200 px-3 py-2 w-full max-w-sm">
-        <Building2 className="h-4 w-4 text-gray-400 mr-2 shrink-0" />
+      <div className="flex items-center bg-card rounded-lg border border-border px-3 py-2 w-full max-w-sm">
+        <Building2 className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
         <input
           type="text"
           placeholder="Search departments..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none w-full"
+          className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full"
         />
       </div>
 
       {isLoading ? (
-        <div className="text-center py-16 text-gray-400 text-sm">Loading...</div>
+        <div className="text-center py-16 text-muted-foreground text-sm">Loading...</div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredDepts.map((d) => (
-            <div key={d.id} className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-shadow">
+            <div key={d.id} className="bg-card rounded-xl border border-border p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-[#E8604C]/10 flex items-center justify-center text-lg">
                     {d.icon || "📁"}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{d.name}</p>
-                    <p className="text-xs text-gray-400">{d.code}</p>
+                    <p className="font-semibold text-foreground">{d.name}</p>
+                    <p className="text-xs text-muted-foreground">{d.code}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -149,23 +149,23 @@ export default function DepartmentsPage() {
                   >
                     {d.is_active ? "Active" : "Inactive"}
                   </button>
-                  <button onClick={() => openEdit(d)} className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400">
+                  <button onClick={() => openEdit(d)} className="p-1.5 rounded-md hover:bg-muted text-muted-foreground">
                     <Edit className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500">
+                  <button onClick={() => setDeleteTarget({ id: d.id, name: d.name })} className="p-1.5 rounded-md hover:bg-red-50 text-muted-foreground hover:text-red-500">
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
-              {d.description && <p className="text-sm text-gray-500 mt-3">{d.description}</p>}
-              <div className="flex items-center gap-2 mt-3 text-xs text-gray-400">
+              {d.description && <p className="text-sm text-muted-foreground mt-3">{d.description}</p>}
+              <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                 <Building2 className="h-3.5 w-3.5" />
                 {empCounts?.[d.id] || 0} employees
               </div>
             </div>
           ))}
           {filteredDepts.length === 0 && (
-            <div className="col-span-full text-center py-12 text-gray-400 text-sm">
+            <div className="col-span-full text-center py-12 text-muted-foreground text-sm">
               {searchTerm ? "No departments matching your search" : "No departments yet"}
             </div>
           )}
@@ -175,30 +175,30 @@ export default function DepartmentsPage() {
       {/* Dialog */}
       {addOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">{editId ? "Edit" : "Add"} Department</h2>
-              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-gray-100 text-gray-400"><X className="h-5 w-5" /></button>
+          <div className="bg-card rounded-xl w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">{editId ? "Edit" : "Add"} Department</h2>
+              <button onClick={closeDialog} className="p-1 rounded-lg hover:bg-muted text-muted-foreground"><X className="h-5 w-5" /></button>
             </div>
             <div className="px-5 py-4 space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Name *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Name *</label>
                 <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Code *</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Code *</label>
                 <input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20" placeholder="e.g. ENG" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20" placeholder="e.g. ENG" />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-1 block">Description</label>
+                <label className="text-sm font-medium text-foreground mb-1 block">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none" rows={2} />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-[#E8604C] focus:ring-1 focus:ring-[#E8604C]/20 resize-none" rows={2} />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-100">Cancel</button>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button onClick={closeDialog} className="px-4 py-2 text-sm font-medium text-muted-foreground rounded-lg hover:bg-muted">Cancel</button>
               <button onClick={() => saveMutation.mutate()} disabled={!form.name || !form.code || saveMutation.isPending}
                 className="px-4 py-2 text-sm font-medium text-white bg-[#E8604C] rounded-lg hover:bg-[#d04e3c] disabled:opacity-50">
                 {saveMutation.isPending ? "Saving..." : editId ? "Update" : "Create"}

@@ -10,10 +10,10 @@ const exchangeData = [
 
 export function ExchangeChart() {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-card p-6 rounded-lg shadow-sm border border-border">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">Exchange Asset Breakdown</h3>
-        <span className="text-sm text-gray-500">Last synced 2 min ago</span>
+        <h3 className="text-lg font-semibold text-foreground">Exchange Asset Breakdown</h3>
+        <span className="text-sm text-muted-foreground">Last synced 2 min ago</span>
       </div>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">

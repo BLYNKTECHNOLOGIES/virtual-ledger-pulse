@@ -9,20 +9,20 @@ export function PaymentGatewayManagement() {
   return (
     <div className="w-full h-full space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Payment Gateway Management</h2>
+        <h2 className="text-2xl font-bold text-foreground">Payment Gateway Management</h2>
       </div>
 
       <Tabs defaultValue="available-gateways" className="h-full flex flex-col">
-        <TabsList className="grid grid-cols-3 w-full max-w-2xl bg-gray-100 p-1 rounded-md mb-6">
-          <TabsTrigger value="available-gateways" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+        <TabsList className="grid grid-cols-3 w-full max-w-2xl bg-muted p-1 rounded-md mb-6">
+          <TabsTrigger value="available-gateways" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
             <CreditCard className="h-4 w-4" />
             Available Gateways
           </TabsTrigger>
-          <TabsTrigger value="pending-settlements" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="pending-settlements" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
             <Clock className="h-4 w-4" />
             Pending Settlements
           </TabsTrigger>
-          <TabsTrigger value="settlement-summary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="settlement-summary" className="flex items-center gap-2 text-sm p-3 rounded-md data-[state=active]:bg-card data-[state=active]:shadow-sm">
             <BarChart3 className="h-4 w-4" />
             Settlement Summary
           </TabsTrigger>

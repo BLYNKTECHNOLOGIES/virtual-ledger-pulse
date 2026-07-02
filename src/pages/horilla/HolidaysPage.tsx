@@ -61,8 +61,8 @@ export default function HolidaysPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Holidays</h1>
-          <p className="text-sm text-gray-500">Manage company holidays and observances</p>
+          <h1 className="text-2xl font-bold text-foreground">Holidays</h1>
+          <p className="text-sm text-muted-foreground">Manage company holidays and observances</p>
         </div>
         <Button onClick={() => { setEditId(null); setForm({ name: "", date: "", recurring: false }); setShowDialog(true); }} className="bg-[#E8604C] hover:bg-[#d4553f]">
           <Plus className="h-4 w-4 mr-2" /> Add Holiday
@@ -75,9 +75,9 @@ export default function HolidaysPage() {
             <h3 className="font-semibold text-sm text-[#E8604C] mb-2">🎉 Upcoming Holidays</h3>
             <div className="flex gap-3 flex-wrap">
               {upcoming.slice(0, 5).map((h: any) => (
-                <div key={h.id} className="bg-white rounded-lg px-3 py-2 text-sm border">
+                <div key={h.id} className="bg-card rounded-lg px-3 py-2 text-sm border">
                   <p className="font-medium">{h.name}</p>
-                  <p className="text-xs text-gray-500">{format(new Date(h.date), "MMM dd, yyyy")}</p>
+                  <p className="text-xs text-muted-foreground">{format(new Date(h.date), "MMM dd, yyyy")}</p>
                 </div>
               ))}
             </div>
@@ -88,30 +88,30 @@ export default function HolidaysPage() {
       <Card>
         <CardContent className="p-0">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-muted/50 border-b">
               <tr>
                 {["Holiday", "Date", "Day", "Recurring", "Status", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-gray-600">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={6} className="text-center py-8 text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : holidays.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-gray-400">No holidays configured</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">No holidays configured</td></tr>
               ) : (
                 holidays.map((h: any) => (
-                  <tr key={h.id} className={`border-b hover:bg-gray-50 ${!h.is_active ? "opacity-50" : ""}`}>
+                  <tr key={h.id} className={`border-b hover:bg-muted/50 ${!h.is_active ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3 font-medium flex items-center gap-2">
                       <CalendarDays className="h-4 w-4 text-[#E8604C]" />
                       {h.name}
                     </td>
                     <td className="px-4 py-3">{format(new Date(h.date), "MMM dd, yyyy")}</td>
-                    <td className="px-4 py-3 text-gray-500">{format(new Date(h.date), "EEEE")}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{format(new Date(h.date), "EEEE")}</td>
                     <td className="px-4 py-3">{h.recurring ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Yearly</span> : "—"}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${h.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${h.is_active ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
                         {h.is_active ? "Active" : "Inactive"}
                       </span>
                     </td>

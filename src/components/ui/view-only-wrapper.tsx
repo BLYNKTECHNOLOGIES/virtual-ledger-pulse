@@ -24,7 +24,7 @@ export const ViewOnlyWrapper: React.FC<ViewOnlyWrapperProps> = ({
       )}
     >
       {/* Overlay to prevent interaction */}
-      <div className="absolute inset-0 bg-gray-100/50 backdrop-blur-[0.5px] z-10 rounded-md" />
+      <div className="absolute inset-0 bg-muted/50 backdrop-blur-[0.5px] z-10 rounded-md" />
       
       {/* Grayed out content */}
       <div className={cn(

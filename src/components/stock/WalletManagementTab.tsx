@@ -452,7 +452,7 @@ export function WalletManagementTab() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select chain" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-gray-200 shadow-lg z-50">
+                <SelectContent className="bg-card border border-border shadow-lg z-50">
                   <SelectItem value="Ethereum">Ethereum (ETH)</SelectItem>
                   <SelectItem value="Binance Smart Chain">Binance Smart Chain (BSC)</SelectItem>
                   <SelectItem value="Polygon">Polygon (MATIC)</SelectItem>

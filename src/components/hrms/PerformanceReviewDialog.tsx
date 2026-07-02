@@ -203,7 +203,7 @@ export function PerformanceReviewDialog({ open, onOpenChange }: PerformanceRevie
                 <div key={index} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded gap-2">
                   <div className="flex-1">
                     <p className="font-medium">{criterion.category}</p>
-                    <p className="text-sm text-gray-600">{criterion.criteria}</p>
+                    <p className="text-sm text-muted-foreground">{criterion.criteria}</p>
                   </div>
                   <Select onValueChange={(value) => updateCriteriaScore(index, parseInt(value))}>
                     <SelectTrigger className="w-20">

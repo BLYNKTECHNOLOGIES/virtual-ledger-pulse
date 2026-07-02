@@ -19,8 +19,8 @@ export default function SalaryStructurePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Salary Structure</h1>
-        <p className="text-sm text-gray-500">Create salary structure templates and assign them to employees</p>
+        <h1 className="text-2xl font-bold text-foreground">Salary Structure</h1>
+        <p className="text-sm text-muted-foreground">Create salary structure templates and assign them to employees</p>
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>

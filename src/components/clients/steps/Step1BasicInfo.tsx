@@ -55,7 +55,7 @@ export function Step1BasicInfo({ formData, setFormData }: Step1BasicInfoProps) {
             id="client_id"
             value={formData.client_id}
             disabled
-            className="bg-gray-50"
+            className="bg-muted/50"
             placeholder="Auto-generated"
           />
         </div>

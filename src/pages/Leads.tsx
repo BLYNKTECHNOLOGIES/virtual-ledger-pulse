@@ -237,7 +237,7 @@ export default function Leads() {
     <PermissionGate
       permissions={["leads_view"]}
       fallback={
-        <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6">
               <div className="flex flex-col items-center text-center space-y-4">
@@ -257,9 +257,9 @@ export default function Leads() {
         </div>
       }
     >
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-muted/50 p-6">
       {/* Header */}
-      <div className="bg-white rounded-xl mb-6 shadow-sm border border-gray-100">
+      <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
         <div className="px-6 py-8">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="space-y-2">
@@ -326,7 +326,7 @@ export default function Leads() {
         <CardContent>
           <div className="flex items-center justify-between gap-4 mb-4">
             <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-gray-400" />
+              <Search className="h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search leads..."
                 value={searchTerm}
@@ -392,7 +392,7 @@ export default function Leads() {
                     <div className="text-sm">
                       <div>{new Date(lead.follow_up_date).toLocaleDateString()}</div>
                       {lead.follow_up_time && (
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-muted-foreground">
                           {new Date(`2000-01-01T${lead.follow_up_time}`).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </div>
                       )}
@@ -442,7 +442,7 @@ export default function Leads() {
       {filteredLeads.length === 0 && (
         <Card>
           <CardContent className="py-8">
-            <div className="text-center text-gray-500">
+            <div className="text-center text-muted-foreground">
               No leads found matching your search criteria.
             </div>
           </CardContent>
@@ -581,7 +581,7 @@ export default function Leads() {
                 id="edit-status"
                 value={editFormData.status}
                 onChange={(e) => setEditFormData(prev => ({ ...prev, status: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="NEW">New</option>
                 <option value="CONTACTED">Contacted</option>

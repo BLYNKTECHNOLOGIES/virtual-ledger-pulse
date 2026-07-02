@@ -205,7 +205,7 @@ export function DocumentManagementTab() {
                       />
                     </div>
                     {newDocument.file && (
-                      <p className="text-sm text-gray-600">Selected: {newDocument.file.name}</p>
+                      <p className="text-sm text-muted-foreground">Selected: {newDocument.file.name}</p>
                     )}
                   </div>
 
@@ -227,7 +227,7 @@ export function DocumentManagementTab() {
           <div className="flex gap-4 mb-6">
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search documents..."
                   value={searchTerm}
@@ -255,7 +255,7 @@ export function DocumentManagementTab() {
             {isLoading ? (
               <div className="text-center py-8">Loading documents...</div>
             ) : filteredDocuments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-muted-foreground">
                 No documents found. Upload your first document to get started.
               </div>
             ) : (
@@ -264,14 +264,14 @@ export function DocumentManagementTab() {
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h4 className="font-medium">{document.name}</h4>
-                      <p className="text-sm text-gray-600">{document.category}</p>
+                      <p className="text-sm text-muted-foreground">{document.category}</p>
                     </div>
                     <Badge variant={getStatusVariant(document.status)}>
                       {document.status}
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-3">
                     <div>
                       <span className="font-medium">File Type:</span> {document.file_type}
                     </div>

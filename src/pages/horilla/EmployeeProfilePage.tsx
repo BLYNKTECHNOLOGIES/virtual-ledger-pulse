@@ -1016,7 +1016,7 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                             aa.status === "Assigned" ? "bg-green-100 text-green-700" :
-                            aa.status === "Returned" ? "bg-gray-100 text-gray-700" : "bg-yellow-100 text-yellow-700"
+                            aa.status === "Returned" ? "bg-muted text-foreground" : "bg-yellow-100 text-yellow-700"
                           }`}>
                             {aa.status}
                           </span>
@@ -1059,7 +1059,7 @@ export default function EmployeeProfilePage() {
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                             att.attendance_status === "Present" ? "bg-green-100 text-green-700" :
                             att.attendance_status === "Absent" ? "bg-red-100 text-red-700" :
-                            att.attendance_status === "Half Day" ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-700"
+                            att.attendance_status === "Half Day" ? "bg-yellow-100 text-yellow-700" : "bg-muted text-foreground"
                           }`}>
                             {att.attendance_status || "None"}
                           </span>
@@ -1117,7 +1117,7 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                             ps.status === "Paid" ? "bg-green-100 text-green-700" :
-                            ps.status === "Draft" ? "bg-gray-100 text-gray-700" : "bg-yellow-100 text-yellow-700"
+                            ps.status === "Draft" ? "bg-muted text-foreground" : "bg-yellow-100 text-yellow-700"
                           }`}>
                             {ps.status || "Draft"}
                           </span>

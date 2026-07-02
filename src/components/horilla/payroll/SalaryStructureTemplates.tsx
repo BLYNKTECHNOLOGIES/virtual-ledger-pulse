@@ -210,9 +210,9 @@ export default function SalaryStructureTemplates() {
       </div>
 
       {isLoading ? (
-        <p className="text-center text-gray-400 py-12">Loading...</p>
+        <p className="text-center text-muted-foreground py-12">Loading...</p>
       ) : templates.length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-gray-400">No salary structure templates yet. Create one to get started.</CardContent></Card>
+        <Card><CardContent className="py-12 text-center text-muted-foreground">No salary structure templates yet. Create one to get started.</CardContent></Card>
       ) : (
         <div className="space-y-3">
           {templates.map((t: any) => {
@@ -225,7 +225,7 @@ export default function SalaryStructureTemplates() {
               <Card key={t.id} className="overflow-hidden">
                 <CardContent className="p-0">
                   <div
-                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+                    className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50"
                     onClick={() => setExpandedId(isExpanded ? null : t.id)}
                   >
                     <div className="flex items-center gap-3">
@@ -233,8 +233,8 @@ export default function SalaryStructureTemplates() {
                         SS
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{t.name}</p>
-                        <p className="text-xs text-gray-500">{t.description || "No description"} • {tItems.length} components</p>
+                        <p className="font-semibold text-foreground">{t.name}</p>
+                        <p className="text-xs text-muted-foreground">{t.description || "No description"} • {tItems.length} components</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -244,7 +244,7 @@ export default function SalaryStructureTemplates() {
                       <Button size="sm" variant="ghost" className="text-red-600" onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(t.id); }}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                      {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
+                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                     </div>
                   </div>
 
@@ -254,16 +254,16 @@ export default function SalaryStructureTemplates() {
                         <div>
                           <p className="text-xs font-semibold text-green-700 mb-2">EARNINGS / ALLOWANCES</p>
                           <div className="space-y-1">
-                            {earningItems.length === 0 && <p className="text-xs text-gray-400">None</p>}
+                            {earningItems.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                             {earningItems.map((i: any) => (
                               <div key={i.id} className="flex justify-between text-sm bg-green-50 px-3 py-1.5 rounded">
                                 <span>
-                                  {i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span>
+                                  {i.hr_salary_components?.name} <span className="text-xs text-muted-foreground">({i.hr_salary_components?.code})</span>
                                   {i.is_variable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
                                 </span>
                                 <span className="font-medium">
                                   {i.calculation_type === "formula"
-                                    ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
+                                    ? <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{i.formula}</code>
                                     : i.calculation_type === "percentage"
                                     ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic Pay" : "Total Salary"}`
                                     : `₹${Number(i.value).toLocaleString('en-IN')} (Fixed)`}
@@ -275,16 +275,16 @@ export default function SalaryStructureTemplates() {
                         <div>
                           <p className="text-xs font-semibold text-red-600 mb-2">DEDUCTIONS</p>
                           <div className="space-y-1">
-                            {deductionItems.length === 0 && <p className="text-xs text-gray-400">None</p>}
+                            {deductionItems.length === 0 && <p className="text-xs text-muted-foreground">None</p>}
                             {deductionItems.map((i: any) => (
                               <div key={i.id} className="flex justify-between text-sm bg-red-50 px-3 py-1.5 rounded">
                                 <span>
-                                  {i.hr_salary_components?.name} <span className="text-xs text-gray-400">({i.hr_salary_components?.code})</span>
+                                  {i.hr_salary_components?.name} <span className="text-xs text-muted-foreground">({i.hr_salary_components?.code})</span>
                                   {i.is_variable && <span className="ml-1.5 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Variable</span>}
                                 </span>
                                 <span className="font-medium">
                                   {i.calculation_type === "formula"
-                                    ? <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{i.formula}</code>
+                                    ? <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{i.formula}</code>
                                     : i.calculation_type === "percentage"
                                     ? `${Number(i.value)}% of ${i.percentage_of === "basic_pay" ? "Basic Pay" : "Total Salary"}`
                                     : `₹${Number(i.value).toLocaleString('en-IN')} (Fixed)`}
@@ -330,7 +330,7 @@ export default function SalaryStructureTemplates() {
               </div>
 
               {items.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">No components added. Click "Add Component" to start building the structure.</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No components added. Click "Add Component" to start building the structure.</p>
               )}
 
               <div className="space-y-3">
@@ -342,7 +342,7 @@ export default function SalaryStructureTemplates() {
                         <div className="col-span-4">
                           <Label className="text-xs">Component</Label>
                           <Select value={item.component_id} onValueChange={(v) => updateItem(idx, "component_id", v)}>
-                            <SelectTrigger className="bg-white"><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectTrigger className="bg-card"><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>
                               {allowances.length > 0 && (
                                 <>
@@ -366,7 +366,7 @@ export default function SalaryStructureTemplates() {
                         <div className="col-span-2">
                           <Label className="text-xs">Type</Label>
                           <Select value={item.calculation_type} onValueChange={(v) => updateItem(idx, "calculation_type", v)}>
-                            <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="percentage">Percentage</SelectItem>
                               <SelectItem value="fixed">Fixed Amount</SelectItem>
@@ -378,12 +378,12 @@ export default function SalaryStructureTemplates() {
                           <div className="col-span-5">
                             <Label className="text-xs">Formula</Label>
                             <Input 
-                              className="bg-white font-mono text-xs" 
+                              className="bg-card font-mono text-xs" 
                               value={item.formula} 
                               onChange={(e) => updateItem(idx, "formula", e.target.value)} 
                               placeholder="e.g. total_salary - total_deductions" 
                             />
-                            <p className="text-[10px] text-gray-400 mt-1">
+                            <p className="text-[10px] text-muted-foreground mt-1">
                               Variables: {FORMULA_VARIABLES.map(v => v.value).join(", ")}, + component name as snake_case (e.g. epf_employee, esi_employee, hra).
                               Operators: + - * /
                             </p>
@@ -392,13 +392,13 @@ export default function SalaryStructureTemplates() {
                           <>
                             <div className="col-span-2">
                               <Label className="text-xs">{item.calculation_type === "percentage" ? "%" : "₹ Amount"}</Label>
-                              <Input type="number" className="bg-white" value={item.value} onChange={(e) => updateItem(idx, "value", parseFloat(e.target.value) || 0)} />
+                              <Input type="number" className="bg-card" value={item.value} onChange={(e) => updateItem(idx, "value", parseFloat(e.target.value) || 0)} />
                             </div>
                             {item.calculation_type === "percentage" && (
                               <div className="col-span-3">
                                 <Label className="text-xs">% Of</Label>
                                 <Select value={item.percentage_of} onValueChange={(v) => updateItem(idx, "percentage_of", v)}>
-                                  <SelectTrigger className="bg-white"><SelectValue /></SelectTrigger>
+                                  <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="total_salary">Total Salary</SelectItem>
                                     <SelectItem value="basic_pay">Basic Pay</SelectItem>
@@ -422,7 +422,7 @@ export default function SalaryStructureTemplates() {
                           checked={item.is_variable}
                           onChange={(e) => updateItem(idx, "is_variable", e.target.checked)}
                           id={`variable-${idx}`}
-                          className="rounded border-gray-300"
+                          className="rounded border-border"
                         />
                         <label htmlFor={`variable-${idx}`} className="text-xs text-amber-700">
                           Variable / Occasional (e.g. Incentives, Penalty — defaults to ₹0 unless applied)

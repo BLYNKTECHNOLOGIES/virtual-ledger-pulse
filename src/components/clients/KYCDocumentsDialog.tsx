@@ -39,6 +39,74 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 const DELETE_ALLOWED_ROLES = ['coo', 'admin', 'super admin'];
 
 export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsDialogProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const canDeleteDocuments = !!user?.roles?.some((r) =>
+    DELETE_ALLOWED_ROLES.includes(r.toLowerCase())
+  );
+
+  const [docToDelete, setDocToDelete] = useState<any | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const currentUserName =
+    user?.full_name || user?.username || user?.email || "Unknown user";
+
+  const handleConfirmDelete = async () => {
+    if (!docToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("client_kyc_documents")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id ?? null,
+          deleted_by_name: currentUserName,
+          deletion_reason: deleteReason.trim() || null,
+        })
+        .eq("id", docToDelete.id)
+        .is("deleted_at", null);
+
+      if (error) throw error;
+
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.CLIENT_KYC_DOCUMENT_DELETED,
+        entityType: EntityTypes.CLIENT_KYC_DOCUMENT,
+        entityId: docToDelete.id,
+        module: Modules.CLIENTS,
+        userName: currentUserName,
+        metadata: {
+          client_id: client?.id,
+          client_name: client?.name,
+          document_type: docToDelete.document_type,
+          file_name: docToDelete.file_name,
+          deleted_by_name: currentUserName,
+          reason: deleteReason.trim() || null,
+        },
+      });
+
+      toast({
+        title: "Document deleted",
+        description: `"${docToDelete.file_name}" has been removed. The action was logged.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["client_kyc_documents_dialog", client?.id] });
+      setDocToDelete(null);
+      setDeleteReason("");
+    } catch (err: any) {
+      console.error("Failed to delete KYC document:", err);
+      toast({
+        title: "Delete failed",
+        description: err?.message || "Could not delete the document. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   // Fetch client onboarding approvals
   const { data: onboardingData } = useQuery({

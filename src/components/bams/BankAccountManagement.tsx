@@ -1125,6 +1125,14 @@ export function BankAccountManagement() {
         onOpenChange={setShowAdjustmentDialog} 
       />
 
+      {/* Credit Sub-Ledger Dialog */}
+      <CreditSubLedgerDialog
+        open={!!subLedgerAccount}
+        onOpenChange={(o) => { if (!o) setSubLedgerAccount(null); }}
+        bankAccountId={subLedgerAccount?.id ?? ""}
+        accountName={subLedgerAccount?.account_name ?? ""}
+      />
+
       {/* Dormant Confirmation Dialog */}
       <Dialog open={showDormantConfirmDialog} onOpenChange={setShowDormantConfirmDialog}>
         <DialogContent>

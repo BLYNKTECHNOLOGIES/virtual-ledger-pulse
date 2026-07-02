@@ -1,74 +1,64 @@
-# Terminal Shortcuts + Arrow-Key Order Navigation
+# Reconciliation & Exception Cockpit
 
-Bring the ERP's permission-aware shortcut system into the P2P Terminal, plus a new "hold-and-move" arrow navigation that walks through the exact order list you entered from (Active Orders, Appeals, KYC/Bio-flagged, etc.), opening each order's chat as you move.
+## Goal
+One dedicated page that surfaces **only anomalies** across the ERP's financial truth sources, so ops catch integrity issues before they compound. Nothing is invented — this consolidates signals that already exist in the database plus a few cheap derived checks. Read-first, with a lightweight acknowledge/resolve workflow. No changes to existing ledger logic.
 
-## Part A — Terminal Shortcut Library
-
-**New file `src/config/terminal-shortcuts.ts`** — a registry mirroring `src/config/shortcuts.ts`, but:
-- Routes point to `/terminal/*`.
-- Each entry is gated by a `TerminalPermission` (from `useTerminalAuth`), not ERP permissions.
-- Uses the same Chrome-safe `Alt+Shift+<key>` scheme, reusing the `matchesCombo` / `comboToDisplay` helpers already in `shortcuts.ts` (exported and shared).
-
-Navigation shortcuts (gated by the same permission as each sidebar item):
-
+## Where the data already lives
 ```text
-Alt+Shift+D  Dashboard        terminal_dashboard_view
-Alt+Shift+A  Ads Manager      terminal_ads_view
-Alt+Shift+O  Orders           terminal_orders_view
-Alt+Shift+U  Automation       terminal_pricing_view
-Alt+Shift+W  Assets           terminal_assets_view
-Alt+Shift+Y  Analytics        terminal_analytics_view
-Alt+Shift+M  MPI              terminal_mpi_view_own
-Alt+Shift+P  Payer            terminal_payer_view
-Alt+Shift+J  Appeals          terminal_appeals_view
-Alt+Shift+K  Small Payments   terminal_small_payments_view
-Alt+Shift+G  Logs             terminal_logs_view
-Alt+Shift+R  Users & Roles    terminal_users_view
-Alt+Shift+S  Settings         terminal_settings_view
+erp_drift_alerts        → tracked vs calculated balance drift (severity, acknowledged, resolved)
+erp_balance_snapshots   → snapshot headers (fed by erp-balance-snapshot edge fn)
+ledger_tamper_log       → blocked wallet-ledger tamper attempts
+bank_ledger_tamper_log  → blocked bank-ledger tamper attempts
+adjustment_posting_audit→ every posting into an adjustment/contra bucket
+shift_reconciliations   → shift mismatches (has_mismatches, mismatch_count)
+wallet_asset_balances   → per-asset balances (negatives on non-CREDIT = anomaly)
+purchase/sales_order_payment_splits → split totals vs order total (0.01 epsilon)
+erp_action_queue + terminal/small sync tables → pending entries (aging)
 ```
 
-Global:
-```text
-Ctrl/Cmd+K   Command palette (terminal-scoped, permission filtered)
-/            Focus current page's search box
-Alt+Shift+/  Open this Shortcuts help page
-```
-(All chosen letters are outside Chrome's reserved `Alt+Shift` combos: I, T, A-with-dialogs, N — already documented in `shortcuts.ts`.)
+## The Cockpit — six exception lanes
+A single route `/reconciliation` rendering one card per lane. Each lane shows a count badge, severity color, and an expandable list. Empty lanes collapse to a green "clear" state so a healthy system reads as mostly green.
 
-**New file `src/contexts/TerminalShortcutsProvider.tsx`** — global key listener, mounted inside `TerminalLayout` (so it only runs in the terminal and has `useTerminalAuth` in scope). It:
-- Ignores keystrokes while typing in inputs/textareas/contenteditable.
-- Only fires a navigation shortcut when the user passes its `TerminalPermission` check — a user without permission gets nothing, exactly like the sidebar.
-- Handles `/` → focus `[data-page-search]` (reusing `src/lib/focus-page-search.ts`), and `Ctrl/Cmd+K` → terminal command palette.
+1. **Balance Drift** — unresolved `erp_drift_alerts` (tracked ≠ calculated), grouped by entity, sorted by severity then absolute drift. Row shows entity, asset, tracked vs calculated, drift delta.
+2. **Payment-Split Mismatches** — purchase/sales orders where the sum of `*_payment_splits` differs from the order total beyond the 0.01 epsilon. Derived via a read-only DB function (below).
+3. **Negative Non-CREDIT Balances** — `wallet_asset_balances` with `balance < 0` where the account is not a CREDIT/Balance-Adjustment account (honors the existing exclusion rules from memory).
+4. **Stale Pending Approvals** — entries from the ERP Entry Manager sources aging past thresholds (e.g. >4h warning, >24h critical), reusing the existing feed logic so counts stay consistent.
+5. **Tamper Attempts** — recent `blocked = true` rows from `ledger_tamper_log` + `bank_ledger_tamper_log` (security signal, last 7 days).
+6. **Shift Mismatches** — `shift_reconciliations` where `has_mismatches` and `status` not yet reviewed.
 
-**New file `src/components/terminal/TerminalCommandPalette.tsx`** — same pattern as the ERP `CommandPalette`, filtered by terminal permissions.
+## Workflow
+- Each drift/mismatch row gets **Acknowledge** (writes `acknowledged_by`/`acknowledged_at` on `erp_drift_alerts`; equivalent state table for derived lanes) and, where applicable, a **Resolve** action with a mandatory reason, logged via the existing `system-action-logger`.
+- A top-bar **"Run Snapshot Now"** button invokes the existing `erp-balance-snapshot` edge function and refetches, so users can force a fresh drift calculation on demand.
+- Realtime subscription on `erp_drift_alerts` (+ periodic 60s refetch of derived lanes) so the cockpit stays live without a global refetch storm.
 
-## Part B — Terminal Shortcuts Info Page (permission-aware)
+## Permissions
+- Gate the page and its actions behind the existing `erp_reconciliation` system function + Admin/Super Admin (reuse `useErpReconciliationAccess`). Acknowledge is allowed for anyone with access; **Resolve** requires `erp_destructive`-style manage rights (align with existing granular pattern — confirm exact key during build).
+- Adjustment/contra buckets and the "Manual Baseline Reset" category stay excluded from all lanes per existing accounting rules.
 
-**New file `src/pages/terminal/TerminalShortcuts.tsx`** — mirrors `src/pages/Shortcuts.tsx`: sections for Global / Navigation / Arrow Navigation, rendering each combo as `<kbd>`. Shortcuts the user lacks permission for are shown greyed-out with a "No access" badge (`useTerminalAuth().hasPermission`).
+## Technical work
 
-- Add route `/terminal/shortcuts` in `src/App.tsx` (wrapped in `TerminalLayout`).
-- Add a **Shortcuts** item to `src/components/terminal/TerminalSidebar.tsx` with **no** `requiredPermission` so it's visible to every terminal user (as requested).
+### Database (migration)
+- Read-only SQL function `get_payment_split_mismatches()` returning order id, type, order total, split total, delta — for lane 2. No data mutation.
+- Optional tiny state table `reconciliation_exception_state` (exception_type, exception_ref, acknowledged_by/at, resolved_by/at, resolution_reason) for lanes that lack their own ack columns (2, 3, 4). Full GRANT + RLS block gated to `authenticated` with the reconciliation function; `service_role` full. `erp_drift_alerts` already has its own ack/resolve columns and needs no schema change.
 
-## Part C — Shift + Arrow "Hold & Move Through the List"
+### Hooks (`src/hooks`)
+- `useReconciliationCockpit.ts` — one query per lane via `Promise.all`, normalized into a shared `ExceptionRow` shape (mirrors the `ErpEntryRow` pattern already used). 60s refetch + realtime channel on `erp_drift_alerts` with proper `removeChannel` cleanup.
+- `useAcknowledgeException.ts` / `useResolveException.ts` — mutations writing to `erp_drift_alerts` or the state table, invalidating the cockpit query.
 
-The key rule: navigation always follows the **currently displayed/filtered list you entered from**, so it inherently stays inside that group (Active Orders, a status/trade filter, Appeals, KYC/Bio-flagged) and never leaks across groups or past your permissions (you can only step onto rows already visible to you).
+### UI (`src/components/reconciliation` + `src/pages/Reconciliation.tsx`)
+- `Reconciliation.tsx` page shell (access gate + skeletons, matching `ErpEntryManager` structure).
+- `ExceptionLane.tsx` (collapsible card, count badge, severity color, clear-state), `ExceptionRow.tsx` (details + ack/resolve buttons using `AlertDialog`, never `confirm()`), `SnapshotNowButton.tsx`.
+- Reuse existing severity/soft-badge styling and `tabular-nums` for numeric columns; no new brand colors.
 
-**`src/pages/terminal/TerminalOrders.tsx`**
-- When an order detail is open (`selectedOrder` set), add a keydown listener for `Shift+ArrowRight`/`Shift+ArrowDown` → next, `Shift+ArrowLeft`/`Shift+ArrowUp` → previous.
-- Compute the current index inside `visibleOrders` (the already-filtered list reflecting the active trade/status/assignment tabs + search). Move ±1, clamp at ends, then `setSelectedOrder(nextOrder)` and mark its chat read (same path as `openChatForOrder`), so the chat opens automatically.
-- Because `visibleOrders` already encodes the "group through which we entered," stepping stays within Active vs Completed vs a KYC-filtered subset, etc.
+### Routing & nav
+- Add `/reconciliation` route in `src/App.tsx` inside the main `Layout`.
+- Add a permission-aware "Reconciliation" item to `AppSidebar` (hidden without access).
 
-**`src/pages/terminal/TerminalAppeals.tsx`**
-- When a case chat is open (`chatOrder` set), the same `Shift+Arrow` handler walks `visibleCases` (the current appeals filter) and opens the prev/next case's chat via the existing `openChatForCase` flow.
-
-**Optional small enhancement (non-breaking):** show subtle `‹ ›` prev/next buttons in the `OrderDetailWorkspace` header when a handler is provided, so the same movement is available by click. This only adds optional props (`onPrev?`, `onNext?`) and changes nothing when they're absent.
-
-## Permissions & Safety
-- Every navigation shortcut and palette entry is filtered through `useTerminalAuth().hasPermission`, identical to sidebar gating — shortcuts never bypass rules.
-- Arrow navigation can only land on rows already rendered for that user, so it cannot expose orders they aren't allowed to see.
-- No database, edge-function, or Binance-API changes — this is purely front-end keyboard/routing wiring.
+## Explicitly out of scope
+- No changes to how balances, WAC, splits, or reversals are computed — the cockpit only reads and flags. It never auto-corrects or posts adjustments.
+- No Binance API additions (all data is internal). No terminal-side changes.
 
 ## Verification
-- Typecheck.
-- Playwright smoke on `/terminal/shortcuts` to confirm the page renders and greys out no-access rows.
-- Manual-style check that `Shift+Arrow` inside an open order advances selection within the filtered list only.
+- Seed/read real rows via `supabase--read_query` to confirm each lane's query returns the expected anomalies and that healthy entities are excluded.
+- Confirm the epsilon function matches the 0.01 tolerance used elsewhere.
+- Playwright pass: load `/reconciliation` as an authorized session, confirm lanes render, acknowledge a drift row, verify it drops out and the audit log records the actor.

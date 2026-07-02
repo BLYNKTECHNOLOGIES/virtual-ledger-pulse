@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,18 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+
+// Reconciliation cockpit item (gated by reconciliation function, not a permission string)
+const reconciliationItem: SidebarGroupItem = {
+  id: "reconciliation",
+  title: "Reconciliation",
+  url: "/reconciliation",
+  icon: ShieldCheck,
+  color: "text-rose-600",
+  bgColor: "bg-rose-100",
+  permissions: [],
+};
 
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [
@@ -240,6 +252,7 @@ export function AppSidebar() {
   const { applySidebarOrder, saveSidebarOrder, isSaving } = useSidebarPreferences();
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
+  const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
   const isCollapsed = state === "collapsed";
 
   // Configure drag sensors
@@ -264,6 +277,12 @@ export function AppSidebar() {
         entries.push({ type: 'item', data: item });
       }
     });
+
+    // Reconciliation cockpit — gated by the reconciliation function/role
+    if (!isLoading && hasReconAccess) {
+      entries.push({ type: 'item', data: reconciliationItem });
+    }
+
     
     // Add groups (filter children by permissions)
     sidebarGroups.forEach(group => {
@@ -279,7 +298,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission]);
+  }, [isLoading, hasAnyPermission, hasReconAccess]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

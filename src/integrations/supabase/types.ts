@@ -13355,6 +13355,7 @@ export type Database = {
       tds_payment_allocations: {
         Row: {
           allocated_tds_amount: number
+          already_recorded: boolean
           bank_account_id: string | null
           binance_order_number: string | null
           created_at: string
@@ -13379,6 +13380,7 @@ export type Database = {
         }
         Insert: {
           allocated_tds_amount?: number
+          already_recorded?: boolean
           bank_account_id?: string | null
           binance_order_number?: string | null
           created_at?: string
@@ -13403,6 +13405,7 @@ export type Database = {
         }
         Update: {
           allocated_tds_amount?: number
+          already_recorded?: boolean
           bank_account_id?: string | null
           binance_order_number?: string | null
           created_at?: string

@@ -1,64 +1,55 @@
-# Reconciliation & Exception Cockpit
+# TDS "Entry Already Recorded" (No Bank Deduction) + Liability Clearing
 
-## Goal
-One dedicated page that surfaces **only anomalies** across the ERP's financial truth sources, so ops catch integrity issues before they compound. Nothing is invented — this consolidates signals that already exist in the database plus a few cheap derived checks. Read-first, with a lightweight acknowledge/resolve workflow. No changes to existing ledger logic.
+## Problem
+In **Tax Management → Record TDS Payment**, the only way to settle selected TDS entries is to deduct the total from a company bank account (creates an expense on `bank_transactions`). Sometimes the TDS entry has already been paid/recorded externally, so **no bank deduction should happen** — but those entries must still be marked settled and, critically, must stop counting as pending TDS liability everywhere (Total Asset Value, daily snapshot, reports).
 
-## Where the data already lives
-```text
-erp_drift_alerts        → tracked vs calculated balance drift (severity, acknowledged, resolved)
-erp_balance_snapshots   → snapshot headers (fed by erp-balance-snapshot edge fn)
-ledger_tamper_log       → blocked wallet-ledger tamper attempts
-bank_ledger_tamper_log  → blocked bank-ledger tamper attempts
-adjustment_posting_audit→ every posting into an adjustment/contra bucket
-shift_reconciliations   → shift mismatches (has_mismatches, mismatch_count)
-wallet_asset_balances   → per-asset balances (negatives on non-CREDIT = anomaly)
-purchase/sales_order_payment_splits → split totals vs order total (0.01 epsilon)
-erp_action_queue + terminal/small sync tables → pending entries (aging)
-```
+## Root-cause finding (important)
+There is a pre-existing gap that must be fixed for this to actually work:
 
-## The Cockpit — six exception lanes
-A single route `/reconciliation` rendering one card per lane. Each lane shows a count badge, severity color, and an expandable list. Empty lanes collapse to a green "clear" state so a healthy system reads as mostly green.
+- Payment settlement writes to **`tds_payment_allocations.payment_status`** (via the Record TDS Payment dialog).
+- But every **liability calculation reads `tds_records.payment_status`**:
+  - `supabase/functions/snapshot-asset-value/index.ts` (Total Asset Value daily snapshot)
+  - `src/components/financials/TotalAssetValueWidget.tsx` (live TAV pending-TDS)
+  - `supabase/functions/daily-report-email/index.ts`
+- There is **no trigger or code** syncing `tds_payment_allocations` → `tds_records`. Confirmed: no such trigger exists, and one `tds_record` maps to one PO while a PO can have up to 3 allocations (split payments).
 
-1. **Balance Drift** — unresolved `erp_drift_alerts` (tracked ≠ calculated), grouped by entity, sorted by severity then absolute drift. Row shows entity, asset, tracked vs calculated, drift delta.
-2. **Payment-Split Mismatches** — purchase/sales orders where the sum of `*_payment_splits` differs from the order total beyond the 0.01 epsilon. Derived via a read-only DB function (below).
-3. **Negative Non-CREDIT Balances** — `wallet_asset_balances` with `balance < 0` where the account is not a CREDIT/Balance-Adjustment account (honors the existing exclusion rules from memory).
-4. **Stale Pending Approvals** — entries from the ERP Entry Manager sources aging past thresholds (e.g. >4h warning, >24h critical), reusing the existing feed logic so counts stay consistent.
-5. **Tamper Attempts** — recent `blocked = true` rows from `ledger_tamper_log` + `bank_ledger_tamper_log` (security signal, last 7 days).
-6. **Shift Mismatches** — `shift_reconciliations` where `has_mismatches` and `status` not yet reviewed.
+So today even a *normal* TDS payment does not clear the liability in TAV. The fix below closes this for both the normal and the new "already recorded" path.
 
-## Workflow
-- Each drift/mismatch row gets **Acknowledge** (writes `acknowledged_by`/`acknowledged_at` on `erp_drift_alerts`; equivalent state table for derived lanes) and, where applicable, a **Resolve** action with a mandatory reason, logged via the existing `system-action-logger`.
-- A top-bar **"Run Snapshot Now"** button invokes the existing `erp-balance-snapshot` edge function and refetches, so users can force a fresh drift calculation on demand.
-- Realtime subscription on `erp_drift_alerts` (+ periodic 60s refetch of derived lanes) so the cockpit stays live without a global refetch storm.
+## Solution Overview
+1. Add an **"Entry already recorded (no bank deduction)"** toggle to the Record TDS Payment dialog.
+2. When enabled: skip bank-account requirement, create **no** `bank_transactions` expense, and mark the selected allocations PAID but flagged as pre-recorded.
+3. Add a DB trigger so that whenever a PO's allocations become fully PAID, the matching `tds_records.payment_status` is set to `PAID` (and back to `UNPAID` otherwise). This makes the liability clear consistently everywhere, for both normal and already-recorded payments.
 
-## Permissions
-- Gate the page and its actions behind the existing `erp_reconciliation` system function + Admin/Super Admin (reuse `useErpReconciliationAccess`). Acknowledge is allowed for anyone with access; **Resolve** requires `erp_destructive`-style manage rights (align with existing granular pattern — confirm exact key during build).
-- Adjustment/contra buckets and the "Manual Baseline Reset" category stay excluded from all lanes per existing accounting rules.
+## Changes
 
-## Technical work
+### 1. Database migration
+- Add nullable column `already_recorded boolean DEFAULT false` to `tds_payment_allocations` (marks entries settled without a bank deduction, for audit/export).
+- Add a `SECURITY DEFINER` trigger function on `tds_payment_allocations` (AFTER INSERT/UPDATE/DELETE, per affected `purchase_order_id`):
+  - Compute whether the PO has ≥1 allocation and **all** its allocations are `PAID`.
+  - Set the PO's `tds_records.payment_status` to `PAID` when fully paid, else `UNPAID`.
+  - Idempotent, so it is safe with `rebuild_tds_allocations` (which deletes/re-inserts allocations preserving prior status).
+- One-time backfill: reconcile existing `tds_records.payment_status` from current allocation state (all currently UNPAID, so effectively a no-op, but keeps them consistent).
 
-### Database (migration)
-- Read-only SQL function `get_payment_split_mismatches()` returning order id, type, order total, split total, delta — for lane 2. No data mutation.
-- Optional tiny state table `reconciliation_exception_state` (exception_type, exception_ref, acknowledged_by/at, resolved_by/at, resolution_reason) for lanes that lack their own ack columns (2, 3, 4). Full GRANT + RLS block gated to `authenticated` with the reconciliation function; `service_role` full. `erp_drift_alerts` already has its own ack/resolve columns and needs no schema change.
+### 2. `src/components/accounting/TaxManagementTab.tsx`
+- Add `alreadyRecorded` state (checkbox) inside the Record TDS Payment dialog.
+- When `alreadyRecorded` is true:
+  - Hide/relax the "Deduct from … Bank Account *" requirement (bank selection not required).
+  - `bulkPaymentMutation`: update allocations with `payment_status='PAID'`, `already_recorded=true`, `paid_at`, `paid_by`, `payment_batch_id` (prefix e.g. `TDS-PRERECORDED-…`), `payment_bank_account_id=null`; **do not** insert into `bank_transactions`.
+  - Success toast reads "Marked as already recorded (no bank deduction)".
+- When `alreadyRecorded` is false: existing behavior unchanged (bank required, expense created).
+- Update the amber note text to reflect the chosen mode.
+- Reset `alreadyRecorded` on dialog close/success.
+- Optional: in the table status cell / export, show a distinct label such as "Paid (Pre-recorded)" when `already_recorded` is true (Export gets an extra hint in the Status column). No layout changes.
 
-### Hooks (`src/hooks`)
-- `useReconciliationCockpit.ts` — one query per lane via `Promise.all`, normalized into a shared `ExceptionRow` shape (mirrors the `ErpEntryRow` pattern already used). 60s refetch + realtime channel on `erp_drift_alerts` with proper `removeChannel` cleanup.
-- `useAcknowledgeException.ts` / `useResolveException.ts` — mutations writing to `erp_drift_alerts` or the state table, invalidating the cockpit query.
+### 3. No changes needed to liability readers
+`snapshot-asset-value`, `TotalAssetValueWidget`, and `daily-report-email` already filter on `tds_records.payment_status != 'PAID'`; the new trigger makes them reflect settlements automatically.
 
-### UI (`src/components/reconciliation` + `src/pages/Reconciliation.tsx`)
-- `Reconciliation.tsx` page shell (access gate + skeletons, matching `ErpEntryManager` structure).
-- `ExceptionLane.tsx` (collapsible card, count badge, severity color, clear-state), `ExceptionRow.tsx` (details + ack/resolve buttons using `AlertDialog`, never `confirm()`), `SnapshotNowButton.tsx`.
-- Reuse existing severity/soft-badge styling and `tabular-nums` for numeric columns; no new brand colors.
-
-### Routing & nav
-- Add `/reconciliation` route in `src/App.tsx` inside the main `Layout`.
-- Add a permission-aware "Reconciliation" item to `AppSidebar` (hidden without access).
-
-## Explicitly out of scope
-- No changes to how balances, WAC, splits, or reversals are computed — the cockpit only reads and flags. It never auto-corrects or posts adjustments.
-- No Binance API additions (all data is internal). No terminal-side changes.
+## What stays unchanged
+- All TDS amounts, rates, quarter/company/rate grouping, and existing normal-payment behavior.
+- Permissions, workflows, and the bank-deduction expense path for normal payments.
+- The `tds_payment_allocations` rebuild logic (trigger is additive and idempotent).
 
 ## Verification
-- Seed/read real rows via `supabase--read_query` to confirm each lane's query returns the expected anomalies and that healthy entities are excluded.
-- Confirm the epsilon function matches the 0.01 tolerance used elsewhere.
-- Playwright pass: load `/reconciliation` as an authorized session, confirm lanes render, acknowledge a drift row, verify it drops out and the audit log records the actor.
+- Typecheck clean.
+- Manual: select entries → toggle "already recorded" → confirm → no `bank_transactions` row created, allocations marked PAID/`already_recorded`, `tds_records` for those POs flip to PAID, and TAV pending-TDS drops by the settled amount.
+- Confirm normal payment path still creates the expense and now also clears the matching `tds_records`.

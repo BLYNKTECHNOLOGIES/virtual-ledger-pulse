@@ -833,8 +833,21 @@ export function BankAccountManagement() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <PermissionGate permissions={["bams_manage"]} showFallback={false}>
-                              <div className="flex gap-2 flex-wrap">
+                            <div className="flex gap-2 flex-wrap">
+                              {account.account_type === "CREDIT" && (
+                                <PermissionGate permissions={["bams_view"]} showFallback={false}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSubLedgerAccount(account)}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Layers className="h-3 w-3" />
+                                    Sub-Ledger
+                                  </Button>
+                                </PermissionGate>
+                              )}
+                              <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
@@ -855,8 +868,8 @@ export function BankAccountManagement() {
                                     Close
                                   </Button>
                                 </PermissionGate>
-                              </div>
-                            </PermissionGate>
+                              </PermissionGate>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

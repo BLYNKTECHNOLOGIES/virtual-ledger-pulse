@@ -29,6 +29,7 @@ import {
   ReceiptText,
   FileWarning,
   Clock,
+  Keyboard,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';

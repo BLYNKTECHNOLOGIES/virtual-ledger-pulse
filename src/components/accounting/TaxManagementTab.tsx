@@ -117,7 +117,7 @@ export function TaxManagementTab() {
   const dateRange = useMemo(() => getQuarterDateRange(selectedQuarter), [selectedQuarter]);
 
   // Reset selection when switching tabs / quarters
-  useEffect(() => { setSelectedIds([]); }, [activeCompany, selectedQuarter]);
+  useEffect(() => { setSelectedIds([]); }, [activeCompany, activeRate, selectedQuarter]);
 
   // Fetch per-transaction TDS allocations for the quarter
   const { data: allocations, isLoading } = useQuery({

@@ -2787,6 +2787,93 @@ export function ClientOnboardingApprovals() {
         onOpenChange={(open) => { if (!open) { setViewOrderOpen(false); setViewOrderData(null); } }}
         order={viewOrderData}
       />
+
+      <ReuploadDocumentDialog
+        target={reuploadTarget}
+        onClose={() => setReuploadTarget(null)}
+        onUploaded={() => {
+          queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+          setReuploadTarget(null);
+        }}
+      />
     </div>
   );
 }
+
+function ReuploadDocumentDialog({
+  target,
+  onClose,
+  onUploaded,
+}: {
+  target: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string } | null;
+  onClose: () => void;
+  onUploaded: () => void;
+}) {
+  const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (!target) setFile(null);
+  }, [target]);
+
+  const { isDragging, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) setFile(files[0]); },
+    disabled: uploading,
+    multiple: false,
+  });
+
+  const handleUpload = async () => {
+    if (!file || !target) return;
+    setUploading(true);
+    try {
+      const result = await resolveKycUpload(file);
+      if (!result.url) throw new Error('Upload did not return a URL.');
+      const { error } = await supabase
+        .from('client_onboarding_approvals')
+        .update({ [target.field]: result.url })
+        .eq('id', target.approvalId);
+      if (error) throw error;
+      toast({ title: 'Document re-uploaded', description: `${target.label} was replaced successfully.` });
+      onUploaded();
+    } catch (err: any) {
+      toast({ title: 'Re-upload failed', description: err?.message || 'Could not upload the file.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!target} onOpenChange={(open) => { if (!open && !uploading) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Re-upload {target?.label}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This document is missing (returned a 404). Upload the file again to restore it.
+          </p>
+          <div
+            {...dropzoneProps}
+            className={cn(
+              'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center text-sm transition-colors',
+              isDragging ? 'border-primary bg-primary/5' : 'border-muted',
+            )}
+          >
+            <Download className="h-5 w-5 text-muted-foreground" />
+            <span className="text-muted-foreground">Drag & drop the file here, or choose below</span>
+            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={uploading} />
+            {file && <span className="text-xs text-foreground">Selected: {file.name}</span>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={uploading}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={!file || uploading}>
+              {uploading ? 'Uploading…' : 'Re-upload'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

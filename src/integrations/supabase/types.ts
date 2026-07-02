@@ -11699,6 +11699,51 @@ export type Database = {
           },
         ]
       }
+      reconciliation_exception_state: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledged_by_name: string | null
+          created_at: string
+          exception_ref: string
+          exception_type: string
+          id: string
+          resolution_reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_by_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_by_name?: string | null
+          created_at?: string
+          exception_ref: string
+          exception_type: string
+          id?: string
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_by_name?: string | null
+          created_at?: string
+          exception_ref?: string
+          exception_type?: string
+          id?: string
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_by_name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rekyc_requests: {
         Row: {
           aadhar_back_url: string | null
@@ -16856,6 +16901,19 @@ export type Database = {
           related_user_id: string
           title: string
           updated_at: string
+        }[]
+      }
+      get_payment_split_mismatches: {
+        Args: never
+        Returns: {
+          delta: number
+          order_date: string
+          order_id: string
+          order_number: string
+          order_total: number
+          order_type: string
+          party_name: string
+          split_total: number
         }[]
       }
       get_super_admin_ids: {

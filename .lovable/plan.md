@@ -1,70 +1,47 @@
-# ERP Keyboard Shortcuts + Shortcuts Tab
+## Goal
 
-Add a permission-aware keyboard shortcut system to the ERP: modifier-combo shortcuts that avoid browser/OS conflicts, a searchable command palette (Ctrl/Cmd+K), context-aware "open dialog" actions, and a **Shortcuts** help tab visible to every user.
+Make the ERP keyboard shortcuts (1) fully non-conflicting with Chrome, (2) a bit more usable, and (3) add a new "focus this page's search" action available both as a shortcut and as a header button that works relative to whatever page the user is on.
 
-## Design decisions (from your answers)
-- **Combo style:** `Alt+Shift+<Key>` for all navigation and actions. This range is not bound by Chrome, Edge, or Windows, so nothing clashes with browser chrome. Palette uses the near-universal `Ctrl/Cmd+K` (with `preventDefault` so it never triggers the browser's address-bar search).
-- **Actions:** Shortcuts both navigate to a module AND can open that module's primary "create" dialog.
-- **Palette:** included, fuzzy-search over every destination/action the current user is allowed to see.
+## 1. Chrome conflict audit (against Google's official shortcut list)
 
-## Permission safety (core requirement)
-Nothing bypasses rules or RLS:
-- Every shortcut and palette entry is filtered through the existing `usePermissions().hasAnyPermission(...)` using the exact same permission arrays already defined for each sidebar item. If a user can't see a module in the sidebar, its shortcut and palette entry simply don't exist for them.
-- "Open dialog" shortcuts never call the database directly. They navigate to the target route and set a `?quickAction=new` flag; the page's existing (already permission-gated) create button/dialog is what opens. If the user lacks manage rights, the button/dialog isn't rendered and nothing happens.
-- Shortcuts are ignored while typing in inputs, textareas, selects, or contenteditable fields, so they never interfere with data entry.
+I checked every existing combo against Chrome for Windows/Linux and Mac. Only three genuinely collide with a Chrome browser shortcut:
 
-## Proposed shortcut library
-Navigation (`Alt+Shift+…`), each gated by that module's view permission:
+| Current combo | Action | Chrome collision |
+|---|---|---|
+| `Alt+Shift+A` | Tax Management | Chrome "Focus on inactive dialogs" |
+| `Alt+Shift+N` | Create New (contextual) | Chrome "Open split view in active tab" |
+| `Ctrl+K` | Command Palette | Chrome "Search from address bar" |
 
-```text
-Alt+Shift+D   Dashboard          Alt+Shift+A   Tax Management (Accounting)
-Alt+Shift+S   Sales              Alt+Shift+F   Financials
-Alt+Shift+P   Purchase           Alt+Shift+R   Risk Management
-Alt+Shift+B   BAMS               Alt+Shift+U   User Management
-Alt+Shift+C   Clients            Alt+Shift+H   HRMS
-Alt+Shift+O   Terminal Orders    Alt+Shift+G   Tasks
-Alt+Shift+K   Stock Management   Alt+Shift+L   Compliance
-Alt+Shift+E   ERP Entry          Alt+Shift+M   Statistics
-```
+Also **reserved by Chrome and therefore must stay unused**: `Alt+Shift+I` (feedback), `Alt+Shift+T` (focus toolbar). All other nav combos (`Alt+Shift+D/S/P/B/C/O/K/E/F/R/U/H/G/L/M`) are clear — Chrome only uses those letters with `Ctrl`/`Ctrl+Shift`, not `Alt+Shift`, so there is no collision.
 
-Global / actions:
+### Fixes
+- **Tax Management:** `Alt+Shift+A` → `Alt+Shift+X` (mnemonic: ta**X**).
+- **Create New:** `Alt+Shift+N` → `Alt+Shift+Enter`.
+- **Command Palette:** keep `Ctrl/Cmd+K`. Cmd+K on macOS has no Chrome binding at all. On Windows, `Ctrl+K` opens the omnibox only if the page doesn't handle it — our provider already calls `preventDefault()`, which fully and reliably suppresses Chrome's behaviour (the same mechanism Slack/Notion/Linear use). This is the one universally expected palette combo and the header already advertises it, so we keep it but I'll add an inline note in the Shortcuts page explaining the interception. If you'd rather move it off Ctrl+K entirely, say so and I'll switch it to `Alt+Shift+Space`.
 
-```text
-Ctrl/Cmd + K        Open command palette (search any module/action you can access)
-Alt+Shift+N         Create new in the current module (opens its primary dialog)
-Alt+Shift+/  ( ? )  Open the Shortcuts help
-Esc                 Close palette / dialogs (native)
-```
+## 2. New feature — contextual page search
 
-Context-aware `Alt+Shift+N` is wired for the highest-traffic create flows: Sales order, Purchase order, BAMS journal entry, Client add, ERP entry, Task. Other pages can be added later using the same pattern.
+A single action that focuses/opens the search box of whatever page the user is currently on.
 
-## What gets built
+- **Shortcut:** `/` (plain slash, when not already typing in a field) — the familiar GitHub/Slack "focus search" key, with zero Chrome conflict.
+- **Header button:** a Search-icon button in `TopHeader` that fires the same action, so mouse users get it too.
+- **How it resolves the right box:** a `focusPageSearch()` helper looks for `[data-page-search]` on the current page first, then falls back to the first visible `input[type="search"]` / `input[placeholder*="search" i]`. It focuses, selects existing text, and scrolls it into view.
+- I'll tag the primary search inputs on the highest-traffic pages with `data-page-search` (Sales, Purchase, BAMS, Clients, Terminal Orders, Stock); the heuristic fallback covers every other page automatically with no per-page edit.
 
-1. **Central shortcut registry** — `src/config/shortcuts.ts`
-   - Single source of truth: array of `{ id, keys, label, description, category, url?, quickAction?, permissions[] }`.
-   - Reused by the provider, the palette, and the Shortcuts help page so definitions never drift.
+## 3. A few more usable shortcuts
 
-2. **Global shortcut provider** — `src/contexts/ShortcutsProvider.tsx`, mounted inside `Layout`.
-   - Attaches one `keydown` listener; matches combos, checks `hasAnyPermission`, ignores typing contexts, calls `navigate()` (with optional `?quickAction=new`), toggles palette/help.
+- `Alt+Shift+Enter` — contextual "Create new" (moved off the conflicting N).
+- `/` — focus current page's search (new).
+- Keep `Alt+Shift+/` for the Shortcuts help page (distinct from plain `/`).
+- Everything remains permission-gated exactly as today; nothing bypasses `usePermissions`.
 
-3. **Command palette** — `src/components/shortcuts/CommandPalette.tsx`
-   - Built on the existing `cmdk` (`components/ui/command.tsx`) in a dialog. Lists only permitted entries, grouped by category, shows each combo as a `kbd` badge, runs the action on select.
+## Technical changes
 
-4. **Quick-action hook** — `src/hooks/useQuickAction.ts`
-   - Reads `?quickAction=new` from the URL, fires once, and clears the param. Added to the 6 target pages to auto-open their existing create dialog (each still permission-gated).
+- **`src/config/shortcuts.ts`** — remap Tax to `Alt+Shift+X`, Create New to `Alt+Shift+Enter`; add a `global-page-search` entry (`/`). Add a comment block listing Chrome-reserved combos so future additions avoid them.
+- **`src/contexts/ShortcutsProvider.tsx`** — handle the new `/` page-search key (ignored while typing); expose `focusPageSearch` via context so the header button can call it.
+- **`src/lib/focus-page-search.ts`** (new) — the resolver helper described above.
+- **`src/components/TopHeader.tsx`** — add the Search-icon "page search" button wired to `focusPageSearch()`; update the placeholder/hint text.
+- **Page search inputs** — add `data-page-search` to the main filter input on Sales, Purchase, BAMS, Clients, Terminal Orders, Stock.
+- **`src/components/shortcuts/CommandPalette.tsx`** and **`src/pages/Shortcuts.tsx`** — reflect the remapped combos, add the new page-search shortcut, and add the "Chrome-safe / reserved keys" note.
 
-5. **Shortcuts help page** — `src/pages/Shortcuts.tsx` + route `/shortcuts`
-   - Visible to all authenticated users (no permission gate). Renders the full library grouped by category; shortcuts the user can't use are shown greyed/labelled "no access" so the page is a complete reference without being misleading. Includes OS-aware key rendering (⌘ on Mac, Ctrl on Windows).
-
-6. **Sidebar + nav entry**
-   - Add a **Shortcuts** item (Keyboard icon) to `AppSidebar` standalone items with empty `permissions` so it shows for everyone, plus the route in `App.tsx`. Optional small "Shortcuts (Alt+Shift+/)" link in the top header.
-
-## Technical notes
-- Key matching normalizes `event.altKey && event.shiftKey && event.code`; uses `code` (physical key) so it's layout-independent.
-- Typing guard: skip when `document.activeElement` is INPUT/TEXTAREA/SELECT or `isContentEditable`, and when a modal text field has focus.
-- Palette and help both read from the same registry; adding a shortcut later means editing only `shortcuts.ts` (+ a `useQuickAction` line if it opens a dialog).
-- No schema changes, no edge functions, no new dependencies (`cmdk` already present).
-
-## Out of scope
-- Per-user customizable/remappable shortcuts (can be a later enhancement backed by a `user_shortcut_prefs` table).
-- Deep in-page actions beyond opening the primary create dialog for the 6 listed modules.
+No schema, edge-function, or dependency changes.

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { prefetchKycUpload, resolveKycUpload } from '@/lib/kyc-background-upload';
-import { openStorageDocumentUrl } from '@/lib/storage-multipart';
+import { openStorageDocumentUrl, isMultipartManifestUrl, resolveMultipartManifestUrl } from '@/lib/storage-multipart';
 import { fetchAllPaginated } from '@/lib/fetchAllRows';
 import { format } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
@@ -1537,16 +1537,48 @@ export function ClientOnboardingApprovals() {
     return <Badge className={variants[status as keyof typeof variants]}>{status}</Badge>;
   };
 
-  const openDocument = async (url: string) => {
+  const [reuploadTarget, setReuploadTarget] = useState<
+    { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string } | null
+  >(null);
+
+  // Returns true if the stored document is reachable, false if it 404s / is missing.
+  const documentIsReachable = async (url: string): Promise<boolean> => {
+    try {
+      if (isMultipartManifestUrl(url)) {
+        // resolveMultipartManifestUrl throws if the manifest or any chunk is missing.
+        await resolveMultipartManifestUrl(url, 'kyc-documents');
+        return true;
+      }
+      const res = await fetch(url, { method: 'HEAD' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const openDocument = async (
+    url: string,
+    meta?: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string },
+  ) => {
     // Large vKYC videos are stored as multipart chunks + a manifest JSON.
     // Opening the raw manifest URL shows JSON instead of the video, so resolve
     // and reconstruct the original file before opening.
+    const reachable = await documentIsReachable(url);
+    if (!reachable) {
+      if (meta) {
+        setReuploadTarget(meta);
+      } else {
+        toast({ title: 'Document unavailable', description: 'This file is missing (404) and needs to be re-uploaded.', variant: 'destructive' });
+      }
+      return;
+    }
     try {
       await openStorageDocumentUrl(url, 'kyc-documents');
     } catch (err: any) {
       toast({ title: 'Could not open document', description: err?.message || 'Failed to load the file.', variant: 'destructive' });
     }
   };
+
 
   // Deduplicate pending approvals by client_name — show each client once with aggregated order info
   const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
@@ -1826,7 +1858,7 @@ export function ClientOnboardingApprovals() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openDocument(approval.aadhar_front_url!)}
+                            onClick={() => openDocument(approval.aadhar_front_url!, { approvalId: approval.id, field: 'aadhar_front_url', label: 'Aadhaar' })}
                           >
                             <FileText className="h-3 w-3" />
                           </Button>
@@ -1835,7 +1867,7 @@ export function ClientOnboardingApprovals() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => openDocument(approval.binance_id_screenshot_url!)}
+                            onClick={() => openDocument(approval.binance_id_screenshot_url!, { approvalId: approval.id, field: 'binance_id_screenshot_url', label: 'Binance ID screenshot' })}
                           >
                             <ExternalLink className="h-3 w-3" />
                           </Button>
@@ -1847,7 +1879,7 @@ export function ClientOnboardingApprovals() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openDocument(approval.vkyc_recording_url!)}
+                          onClick={() => openDocument(approval.vkyc_recording_url!, { approvalId: approval.id, field: 'vkyc_recording_url', label: 'vKYC recording' })}
                         >
                           <Video className="h-3 w-3 mr-1" />
                           View
@@ -2755,6 +2787,93 @@ export function ClientOnboardingApprovals() {
         onOpenChange={(open) => { if (!open) { setViewOrderOpen(false); setViewOrderData(null); } }}
         order={viewOrderData}
       />
+
+      <ReuploadDocumentDialog
+        target={reuploadTarget}
+        onClose={() => setReuploadTarget(null)}
+        onUploaded={() => {
+          queryClient.invalidateQueries({ queryKey: ['client_onboarding_approvals'] });
+          setReuploadTarget(null);
+        }}
+      />
     </div>
   );
 }
+
+function ReuploadDocumentDialog({
+  target,
+  onClose,
+  onUploaded,
+}: {
+  target: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string } | null;
+  onClose: () => void;
+  onUploaded: () => void;
+}) {
+  const { toast } = useToast();
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (!target) setFile(null);
+  }, [target]);
+
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: (files) => { if (files[0]) setFile(files[0]); },
+    disabled: uploading,
+    multiple: false,
+  });
+
+  const handleUpload = async () => {
+    if (!file || !target) return;
+    setUploading(true);
+    try {
+      const result = await resolveKycUpload(file);
+      if (!result.url) throw new Error('Upload did not return a URL.');
+      const { error } = await supabase
+        .from('client_onboarding_approvals')
+        .update({ [target.field]: result.url })
+        .eq('id', target.approvalId);
+      if (error) throw error;
+      toast({ title: 'Document re-uploaded', description: `${target.label} was replaced successfully.` });
+      onUploaded();
+    } catch (err: any) {
+      toast({ title: 'Re-upload failed', description: err?.message || 'Could not upload the file.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Dialog open={!!target} onOpenChange={(open) => { if (!open && !uploading) onClose(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Re-upload {target?.label}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This document is missing (returned a 404). Upload the file again to restore it.
+          </p>
+          <div
+            {...dropzoneProps}
+            className={cn(
+              'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center text-sm transition-colors',
+              isDragActive ? 'border-primary bg-primary/5' : 'border-muted',
+            )}
+          >
+            <Download className="h-5 w-5 text-muted-foreground" />
+            <span className="text-muted-foreground">Drag & drop the file here, or choose below</span>
+            <Input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={uploading} />
+            {file && <span className="text-xs text-foreground">Selected: {file.name}</span>}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={uploading}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={!file || uploading}>
+              {uploading ? 'Uploading…' : 'Re-upload'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

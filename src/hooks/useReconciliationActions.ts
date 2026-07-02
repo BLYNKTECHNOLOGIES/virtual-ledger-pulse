@@ -72,8 +72,8 @@ export function useReconciliationActions() {
           patch.resolved_by_name = null;
           patch.resolution_reason = null;
         }
-        const { error } = await supabase
-          .from("reconciliation_exception_state")
+        const { error } = await (supabase
+          .from("reconciliation_exception_state") as any)
           .upsert(patch, { onConflict: "exception_type,exception_ref" });
         if (error) throw error;
       }

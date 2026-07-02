@@ -302,7 +302,9 @@ export function TaxManagementTab() {
   });
 
   const handleExport = (fmt: 'csv' | 'xlsx') => {
-    const source = activeCompany === ALL_TAB ? (allocations || []) : visibleRows;
+    // Export follows the current company AND rate sub-group selection, so each
+    // 1% / 20% group can be exported separately.
+    const source = visibleRows;
     const dataRows = includePaidInExport ? source : source.filter(r => r.payment_status !== 'PAID');
     if (dataRows.length === 0) {
       toast({ title: "No Data", description: "No TDS records to export", variant: "destructive" });
@@ -315,6 +317,7 @@ export function TaxManagementTab() {
       'Company': r.firm_name || 'Unassigned',
       'Client / Supplier': r.supplier_name || '',
       'PAN': r.pan_number || '',
+      'TDS Rate': r.tds_rate != null ? `${r.tds_rate}%` : '',
       'Order Number': r.order_number || '',
       'Binance Order Number': r.binance_order_number || '',
       'Paid From Bank': r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '',
@@ -327,7 +330,9 @@ export function TaxManagementTab() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'TDS Allocations');
-    const fileName = `TDS_${selectedQuarter}_${includePaidInExport ? 'All' : 'Unpaid'}.${fmt}`;
+    const rateTag = activeRate === ALL_RATES ? 'AllRates' : `${activeRate}pct`;
+    const companyTag = activeCompany === ALL_TAB ? 'AllCompanies' : (activeCompanyInfo?.firm_name || 'Company').replace(/[^a-zA-Z0-9]+/g, '');
+    const fileName = `TDS_${selectedQuarter}_${companyTag}_${rateTag}_${includePaidInExport ? 'All' : 'Unpaid'}.${fmt}`;
     XLSX.writeFile(wb, fileName, { bookType: fmt });
     toast({ title: "Export Complete", description: `Exported ${exportData.length} rows to ${fileName}` });
   };

@@ -43,6 +43,8 @@ export function comboToDisplay(combo: ShortcutCombo, isMac: boolean): string[] {
   // Convert "KeyS" -> "S", "Slash" -> "/"
   let key = combo.code.replace(/^Key/, "").replace(/^Digit/, "");
   if (combo.code === "Slash") key = "/";
+  if (combo.code === "Enter") key = "Enter";
+  if (combo.code === "Space") key = "Space";
   parts.push(key);
   return parts;
 }

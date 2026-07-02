@@ -253,7 +253,8 @@ export function TaxManagementTab() {
       if (selectedIds.length === 0) throw new Error("No records selected");
 
       const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
-      const firmLabel = activeCompanyInfo?.firm_name || 'TDS';
+      const rateSuffix = activeRate === ALL_RATES ? '' : ` @ ${activeRate}%`;
+      const firmLabel = `${activeCompanyInfo?.firm_name || 'TDS'}${rateSuffix}`;
 
       const { error: updateError } = await supabase
         .from('tds_payment_allocations')

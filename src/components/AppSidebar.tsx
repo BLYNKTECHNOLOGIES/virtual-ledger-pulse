@@ -252,6 +252,7 @@ export function AppSidebar() {
   const { applySidebarOrder, saveSidebarOrder, isSaving } = useSidebarPreferences();
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
+  const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
   const isCollapsed = state === "collapsed";
 
   // Configure drag sensors

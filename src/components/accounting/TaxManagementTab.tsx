@@ -182,12 +182,39 @@ export function TaxManagementTab() {
       .sort((a, b) => a.firm_name.localeCompare(b.firm_name));
   }, [subsidiaries, allocations]);
 
-  // Rows for the active tab
-  const visibleRows = useMemo(() => {
+  // Rows for the active company tab (before rate sub-grouping)
+  const companyRows = useMemo(() => {
     if (!allocations) return [];
     if (activeCompany === ALL_TAB) return allocations;
     return allocations.filter(a => (a.subsidiary_id || `name:${a.firm_name || 'Unassigned'}`) === activeCompany);
   }, [allocations, activeCompany]);
+
+  // Rate sub-groups present for the active company, with per-group TDS totals.
+  const rateGroups = useMemo(() => {
+    const order = ['1', '20', 'other'];
+    const map = new Map<string, { count: number; total: number }>();
+    companyRows.forEach(r => {
+      const k = rateKey(r.tds_rate);
+      const cur = map.get(k) || { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(r.allocated_tds_amount || 0);
+      map.set(k, cur);
+    });
+    return order.filter(k => map.has(k)).map(k => ({ key: k, ...map.get(k)! }));
+  }, [companyRows]);
+
+  // If the current rate sub-tab has no rows for this company, fall back to All.
+  useEffect(() => {
+    if (activeRate !== ALL_RATES && !rateGroups.some(g => g.key === activeRate)) {
+      setActiveRate(ALL_RATES);
+    }
+  }, [rateGroups, activeRate]);
+
+  // Rows for the active company AND active rate sub-group
+  const visibleRows = useMemo(() => {
+    if (activeRate === ALL_RATES) return companyRows;
+    return companyRows.filter(r => rateKey(r.tds_rate) === activeRate);
+  }, [companyRows, activeRate]);
 
   const totals = useMemo(() => {
     const rows = allocations || [];

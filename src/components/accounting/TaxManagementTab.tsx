@@ -41,6 +41,21 @@ interface AllocationRow {
 }
 
 const ALL_TAB = "__all__";
+const ALL_RATES = "__all_rates__";
+
+// Normalize a TDS rate to a stable group key ("1", "20", or "other").
+function rateKey(rate: number | null): string {
+  const n = Number(rate || 0);
+  if (n === 1) return "1";
+  if (n === 20) return "20";
+  return "other";
+}
+function rateLabel(key: string): string {
+  if (key === "1") return "1% (PAN available)";
+  if (key === "20") return "20% (PAN missing)";
+  if (key === ALL_RATES) return "All Rates";
+  return "Other";
+}
 
 function generateQuarterOptions() {
   const options: { value: string; label: string }[] = [];

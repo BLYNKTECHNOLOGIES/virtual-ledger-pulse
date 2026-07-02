@@ -362,6 +362,7 @@ export function TaxManagementTab() {
             <TableHead>Company</TableHead>
             <TableHead>Supplier</TableHead>
             <TableHead>PAN</TableHead>
+            <TableHead>TDS Rate</TableHead>
             <TableHead>Order #</TableHead>
             <TableHead>Binance Order #</TableHead>
             <TableHead>Paid From Bank</TableHead>

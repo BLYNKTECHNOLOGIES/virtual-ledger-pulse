@@ -40,6 +40,7 @@ export const ActionTypes = {
   CLIENT_SELLER_REJECTED: 'client.seller_rejected',
   CLIENT_BUYER_APPROVED: 'client.buyer_approved',
   CLIENT_BUYER_REJECTED: 'client.buyer_rejected',
+  CLIENT_KYC_DOCUMENT_DELETED: 'client.kyc_document_deleted',
   
   // Banking (BAMS) Module
   BANK_TRANSACTION_CREATED: 'bank.transaction_created',

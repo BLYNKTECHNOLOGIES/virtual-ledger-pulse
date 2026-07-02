@@ -26,11 +26,27 @@ export interface HistoricalChatMessage {
 
 const PAGE_SIZE = 3; // Load 3 past orders at a time
 
-function isUsableNickname(nickname?: string | null) {
-  const text = (nickname || '').trim();
-  // Binance history masks many nicknames as values like "Use***". Those are
-  // not identities; using them groups unrelated counterparties together.
-  return !!text && !text.includes('*');
+/**
+ * Resolve the stable Binance counterparty user id for an order.
+ *
+ * IMPORTANT (data-integrity): The counterparty is the taker on our (merchant/maker)
+ * ads, so `takerUserNo` inside `order_detail_raw` is the ONLY globally-unique
+ * identifier for a person. We deliberately do NOT group history by `verified_name`
+ * or by the masked Binance nickname: those are shared by many unrelated clients
+ * (e.g. dozens of different people are named "DEEPAK KUMAR"), which previously
+ * caused "Load More Chats" to leak completely unrelated orders and KYC documents.
+ */
+function takerUserNoFromRow(row: any): string | null {
+  const detail = row?.order_detail_raw || {};
+  const raw = row?.raw_data || {};
+  const value =
+    detail.takerUserNo ??
+    detail.takerUserId ??
+    raw.takerUserNo ??
+    raw.takerUserId ??
+    null;
+  const text = value === null || value === undefined ? '' : String(value).trim();
+  return text || null;
 }
 
 export function useCounterpartyChatHistory(
@@ -65,42 +81,34 @@ export function useCounterpartyChatHistory(
     try {
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
-        // Resolve the verified name: prefer the prop, otherwise look it up from the
-        // current order's stored history (live order detail is often empty for
-        // completed/older orders, which previously left this query unable to run).
-        let resolvedName = counterpartyVerifiedName;
-        if (!resolvedName) {
-          const { data: current } = await supabase
-            .from('binance_order_history')
-            .select('verified_name')
-            .eq('order_number', currentOrderNumber)
-            .maybeSingle();
-          resolvedName = current?.verified_name || undefined;
-        }
-        // Match by verified name when available. Do NOT OR it with the Binance
-        // nickname because history commonly stores masked nicknames (Use***),
-        // which are shared by many unrelated clients and leak wrong KYC chats.
-        const canFallbackToNickname = !resolvedName && isUsableNickname(counterpartyNickname);
+        // Resolve the CURRENT order's counterparty user id. This is the only safe
+        // key to group history by. Live order detail is often empty for older
+        // orders, so read the stored detail for the current order number.
+        const { data: currentRow } = await supabase
+          .from('binance_order_history')
+          .select('order_detail_raw, raw_data')
+          .eq('order_number', currentOrderNumber)
+          .maybeSingle();
 
-        if (!resolvedName && !canFallbackToNickname) {
+        const counterpartyUserNo = takerUserNoFromRow(currentRow);
+
+        if (!counterpartyUserNo) {
+          // No reliable identity -> do NOT fall back to name/nickname (would leak
+          // unrelated clients). Show no history rather than wrong history.
           allPastOrdersRef.current = [];
         } else {
           let query = supabase
             .from('binance_order_history')
             .select('order_number, trade_type, asset, total_price, fiat_unit, create_time, exchange_account_id')
             .neq('order_number', currentOrderNumber)
+            .eq('order_detail_raw->>takerUserNo', counterpartyUserNo)
             .order('create_time', { ascending: false });
 
           if (exchangeAccountId) {
             query = query.eq('exchange_account_id', exchangeAccountId);
           }
 
-          query = resolvedName
-            ? query.eq('verified_name', resolvedName)
-            : query.eq('counter_part_nick_name', counterpartyNickname);
-
           const { data, error } = await query;
-
           if (error) throw error;
           allPastOrdersRef.current = data || [];
         }

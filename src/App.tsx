@@ -52,6 +52,7 @@ import TerminalAnalytics from './pages/terminal/TerminalAnalytics';
 import TerminalSettings from './pages/terminal/TerminalSettings';
 import TerminalAssets from './pages/terminal/TerminalAssets';
 import TerminalLogs from './pages/terminal/TerminalLogs';
+import TerminalShortcuts from './pages/terminal/TerminalShortcuts';
 
 import NotFound from './pages/NotFound';
 import ResetPassword from './pages/ResetPassword';
@@ -624,6 +625,18 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAuditLogs />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/shortcuts",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalShortcuts />
               </TerminalLayout>
             </AuthCheck>
         </QueryProvider>

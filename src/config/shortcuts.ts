@@ -45,6 +45,10 @@ export function comboToDisplay(combo: ShortcutCombo, isMac: boolean): string[] {
   if (combo.code === "Slash") key = "/";
   if (combo.code === "Enter") key = "Enter";
   if (combo.code === "Space") key = "Space";
+  if (combo.code === "ArrowRight") key = "→";
+  if (combo.code === "ArrowLeft") key = "←";
+  if (combo.code === "ArrowUp") key = "↑";
+  if (combo.code === "ArrowDown") key = "↓";
   parts.push(key);
   return parts;
 }

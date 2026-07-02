@@ -266,9 +266,6 @@
   transition: background-color 0.1s ease;
 }
 .terminal tbody tr:hover {
-  background: hsla(0 0% 100% / 0.03);
-}
-.terminal tbody tr:hover {
   background: hsla(0 0% 100% / 0.045);
 }
 .terminal tbody tr[data-state="selected"] {

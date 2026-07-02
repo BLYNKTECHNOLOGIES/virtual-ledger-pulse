@@ -23,6 +23,8 @@ import { ImportBankAccountsDialog } from "./ImportBankAccountsDialog";
 import { ManualBalanceAdjustmentDialog } from "./ManualBalanceAdjustmentDialog";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
+import { CreditSubLedgerDialog } from "./subledger/CreditSubLedgerDialog";
+import { Layers } from "lucide-react";
 
 interface BankAccount {
   id: string;
@@ -68,6 +70,7 @@ export function BankAccountManagement() {
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [closeAccountDialogOpen, setCloseAccountDialogOpen] = useState(false);
   const [accountToClose, setAccountToClose] = useState<BankAccount | null>(null);
+  const [subLedgerAccount, setSubLedgerAccount] = useState<BankAccount | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -830,8 +833,21 @@ export function BankAccountManagement() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <PermissionGate permissions={["bams_manage"]} showFallback={false}>
-                              <div className="flex gap-2 flex-wrap">
+                            <div className="flex gap-2 flex-wrap">
+                              {account.account_type === "CREDIT" && (
+                                <PermissionGate permissions={["bams_view"]} showFallback={false}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setSubLedgerAccount(account)}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <Layers className="h-3 w-3" />
+                                    Sub-Ledger
+                                  </Button>
+                                </PermissionGate>
+                              )}
+                              <PermissionGate permissions={["bams_manage"]} showFallback={false}>
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
@@ -852,8 +868,8 @@ export function BankAccountManagement() {
                                     Close
                                   </Button>
                                 </PermissionGate>
-                              </div>
-                            </PermissionGate>
+                              </PermissionGate>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1107,6 +1123,14 @@ export function BankAccountManagement() {
       <ManualBalanceAdjustmentDialog 
         open={showAdjustmentDialog} 
         onOpenChange={setShowAdjustmentDialog} 
+      />
+
+      {/* Credit Sub-Ledger Dialog */}
+      <CreditSubLedgerDialog
+        open={!!subLedgerAccount}
+        onOpenChange={(o) => { if (!o) setSubLedgerAccount(null); }}
+        bankAccountId={subLedgerAccount?.id ?? ""}
+        accountName={subLedgerAccount?.account_name ?? ""}
       />
 
       {/* Dormant Confirmation Dialog */}

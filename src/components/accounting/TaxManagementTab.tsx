@@ -37,6 +37,7 @@ interface AllocationRow {
   financial_year: string | null;
   payment_status: string;
   payment_batch_id: string | null;
+  already_recorded?: boolean | null;
   bank?: { account_name: string | null; bank_name: string | null } | null;
 }
 
@@ -111,6 +112,7 @@ export function TaxManagementTab() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBankAccountId, setPaymentBankAccountId] = useState("");
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const [includePaidInExport, setIncludePaidInExport] = useState(false);
 
   const quarterOptions = useMemo(() => generateQuarterOptions(), []);

@@ -68,6 +68,8 @@ export function CreditSubLedgerDialog({
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const { data: subLedgers = [] } = useCreditSubLedgers(true);
+  const { hasPermission } = usePermissions();
+  const canReassign = hasPermission("bams_manage");
 
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ["credit_subledger_txns", bankAccountId],

@@ -20,7 +20,8 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
  import { useToast } from "@/hooks/use-toast";
  import { useMutation, useQueryClient } from "@tanstack/react-query";
  import { supabase } from "@/integrations/supabase/client";
- import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getSubCategories, getFullCategoryLabel } from "@/data/expenseCategories";
+  import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getSubCategories, getFullCategoryLabel } from "@/data/expenseCategories";
+ import { SubLedgerSelect } from "@/components/bams/subledger/SubLedgerSelect";
  
  interface EditExpenseDialogProps {
    open: boolean;
@@ -42,7 +43,11 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
     description: "",
     date: undefined as Date | undefined,
     referenceNumber: "",
+    subLedgerId: null as string | null,
   });
+
+  const selectedAccount = bankAccounts?.find((a) => a.id === formData.bankAccountId);
+  const isCreditAccount = selectedAccount?.account_type === 'CREDIT';
   const [existingBillUrl, setExistingBillUrl] = useState<string | null>(null);
   const [billFile, setBillFile] = useState<File | null>(null);
   const [removeBill, setRemoveBill] = useState(false);
@@ -89,6 +94,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
         description: transaction.description || "",
         date: transaction.transaction_date ? new Date(transaction.transaction_date) : undefined,
         referenceNumber: transaction.reference_number || "",
+        subLedgerId: transaction.sub_ledger_id || null,
       });
       setExistingBillUrl(transaction.bill_url || null);
       setBillFile(null);
@@ -156,6 +162,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
           reference_number: formData.referenceNumber || null,
           related_account_name: transaction.related_account_name ?? null,
           bill_url: billUrl,
+          sub_ledger_id: formData.subLedgerId || null,
         });
 
       if (insErr) throw insErr;
@@ -221,6 +228,15 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
       }
     }
 
+    if (isCreditAccount && !formData.subLedgerId) {
+      toast({
+        title: "Sub-ledger required",
+        description: "Please select or create a sub-ledger (person) for this credit account transaction.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     updateTransactionMutation.mutate();
   };
  
@@ -245,7 +261,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
            <div>
              <Label htmlFor="bankAccount">Bank Account *</Label>
-             <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value})}>
+             <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value, subLedgerId: null})}>
                <SelectTrigger>
                  <SelectValue placeholder="Select bank account" />
                </SelectTrigger>
@@ -257,7 +273,14 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
                  ))}
                </SelectContent>
              </Select>
+             <SubLedgerSelect
+               className="mt-2"
+               value={formData.subLedgerId}
+               onChange={(id) => setFormData({ ...formData, subLedgerId: id })}
+               isCreditAccount={isCreditAccount}
+             />
            </div>
+
  
            <div>
              <Label htmlFor="transactionType">Transaction Type *</Label>

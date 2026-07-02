@@ -22,11 +22,15 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
-  Filter
+  Filter,
+  Users
+
 } from "lucide-react";
 import { toast } from "sonner";
+import { CreditSubLedgerDialog } from "@/components/bams/subledger/CreditSubLedgerDialog";
 
 interface AccountSummaryData {
+  id: string;
   account_name: string;
   bank_name: string;
   account_number: string;
@@ -101,6 +105,7 @@ export function AccountSummary() {
   const [transactionPage, setTransactionPage] = useState(0);
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
+  const [subLedgerAccount, setSubLedgerAccount] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch account summary data directly from bank_accounts table (not computed view)
   const { data: accountsData, isLoading: accountsLoading } = useQuery({
@@ -162,6 +167,7 @@ export function AccountSummary() {
           const ledgerHeadBalance = headRow?.balance_after != null ? Number(headRow.balance_after) : account.balance;
 
           return {
+            id: account.id,
             account_name: account.account_name,
             bank_name: account.bank_name,
             account_number: account.account_number,
@@ -564,6 +570,7 @@ export function AccountSummary() {
                       <th className="text-left p-2">Status</th>
                       <th className="text-left p-2">Transactions</th>
                       <th className="text-left p-2">Created</th>
+                      <th className="text-left p-2">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -582,9 +589,23 @@ export function AccountSummary() {
                         </td>
                         <td className="p-2">{account.total_transactions}</td>
                         <td className="p-2">{format(new Date(account.account_created), 'dd MMM yyyy')}</td>
+                        <td className="p-2">
+                          {account.account_type === 'CREDIT' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setSubLedgerAccount({ id: account.id, name: account.account_name })
+                              }
+                            >
+                              <Users className="h-4 w-4 mr-1" /> Sub-Ledgers
+                            </Button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
+
                 </table>
               </div>
             </CardContent>
@@ -841,6 +862,15 @@ export function AccountSummary() {
       <div className="hidden print:block text-center text-xs text-muted-foreground mt-8 border-t pt-4">
         Generated on {format(new Date(), 'PPpp')} | BAMS - Banking & Payment Management System
       </div>
+
+      {subLedgerAccount && (
+        <CreditSubLedgerDialog
+          open={!!subLedgerAccount}
+          onOpenChange={(o) => !o && setSubLedgerAccount(null)}
+          bankAccountId={subLedgerAccount.id}
+          accountName={subLedgerAccount.name}
+        />
+      )}
     </div>
   );
 }

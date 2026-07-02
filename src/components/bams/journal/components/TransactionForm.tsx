@@ -17,7 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
  import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, getSubCategories, getFullCategoryLabel } from "@/data/expenseCategories";
- import { isUuid } from "@/utils/isUuid";
+  import { isUuid } from "@/utils/isUuid";
+import { SubLedgerSelect } from "@/components/bams/subledger/SubLedgerSelect";
 
 interface TransactionFormProps {
   bankAccounts: any[];
@@ -53,7 +54,11 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
     description: "",
     date: undefined as Date | undefined,
     referenceNumber: "",
+    subLedgerId: null as string | null,
   });
+
+  const selectedAccount = bankAccounts?.find((a) => a.id === formData.bankAccountId);
+  const isCreditAccount = selectedAccount?.account_type === 'CREDIT';
 
    // Get main categories based on transaction type
    const mainCategories = formData.transactionType === 'INCOME' 
@@ -127,6 +132,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
           reference_number: transactionData.referenceNumber || null,
            created_by: createdBy,
            bill_url: billUrl,
+           sub_ledger_id: transactionData.subLedgerId || null,
         })
         .select()
         .single();
@@ -152,6 +158,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         description: "",
         date: undefined,
         referenceNumber: "",
+        subLedgerId: null,
       });
       setBillFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -196,6 +203,17 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       });
       return;
     }
+
+    // Sub-ledger is mandatory when a CREDIT account is selected
+    if (isCreditAccount && !formData.subLedgerId) {
+      toast({
+        title: "Sub-ledger required",
+        description: "Please select or create a sub-ledger (person) for this credit account transaction.",
+        variant: "destructive"
+      });
+      return;
+    }
+
 
     const amount = parseFloat(formData.amount);
     if (amount <= 0) {
@@ -246,7 +264,7 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <Label htmlFor="bankAccount">Bank Account *</Label>
-            <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value})}>
+            <Select value={formData.bankAccountId} onValueChange={(value) => setFormData({...formData, bankAccountId: value, subLedgerId: null})}>
               <SelectTrigger>
                 <SelectValue placeholder="Select bank account" />
               </SelectTrigger>
@@ -262,6 +280,13 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
               </SelectContent>
             </Select>
           </div>
+
+          <SubLedgerSelect
+            value={formData.subLedgerId}
+            onChange={(id) => setFormData({ ...formData, subLedgerId: id })}
+            isCreditAccount={isCreditAccount}
+          />
+
 
           <div>
             <Label htmlFor="transactionType">Transaction Type *</Label>

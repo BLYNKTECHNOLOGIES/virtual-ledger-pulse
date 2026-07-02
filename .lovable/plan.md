@@ -1,51 +1,61 @@
-# Terminal Polish — Refined Dark Exchange Theme
+# Credit Account Sub-Ledger System (BAMS)
 
-**Philosophy:** Same as the ERP pass — ~80–90% visual lift, layout/navigation/workflows kept intact. The theme stays **dark**; the existing `.terminal` token palette (deep `#0F1115` bg, `#171A23` cards, finance-blue `#3B82F6`, green/red trade semantics) is the identity and is preserved. We refine depth, contrast, rhythm, and consistency — nothing moves.
+## Goal
+Track person-wise credit balances *inside* an existing CREDIT bank account, without creating multiple accounts. The credit account keeps working exactly as today for every balance, statistic, and report. Sub-ledgers only add a breakdown layer: the account balance stays the accumulated net, and equals the sum of all its sub-ledger balances.
 
-The terminal already has a solid foundation (isolated dark tokens, dense exchange tables, tabular-nums, custom scrollbars). This pass elevates it from "functional dark UI" to "premium trading terminal."
+Sign convention (unchanged, mirrored at sub-ledger level):
+- Positive = credit given by us to that person (they owe us)
+- Negative = credit taken by us from that person (we owe them)
 
-## What Gets Better
+## Confirmed decisions
+- Sub-ledgers are a **shared master list** of persons, reusable across all credit accounts.
+- Selecting a sub-ledger is **mandatory** whenever a CREDIT account is chosen on any form.
+- Applies to journal, contra, expense/income **and** sales/purchase flows that land on a credit account.
+- Legacy balance goes to an **"Unidentified"** sub-ledger and stays **re-assignable** later.
 
-### 1. Depth & elevation (currently flat)
-- Add a terminal-scoped elevation shadow scale (deep, low-opacity black) so cards, popovers, dialogs, and dropdowns read as layered surfaces instead of flat blocks.
-- Subtle top highlight / crisper 1px borders on panels for that "glass over dark" exchange feel.
-- Keep it restrained — depth, not glow.
+## Data model (migration)
 
-### 2. Trading semantics & numbers
-- Enforce tabular-nums everywhere prices/quantities/amounts render, so columns align and don't jitter on live updates.
-- Consistent buy=green / sell=red / pending=amber usage via the existing `--trade-*` tokens; make directional values (P&L, spread) color-coded consistently.
-- Slightly stronger contrast on primary figures vs muted labels for scan-ability.
+New table `public.credit_sub_ledgers` (shared master list):
+- `name` (unique, case-insensitive), `notes`, `is_active`, standard id/timestamps/created_by.
+- Seed one row `Unidentified` (system row, cannot be deleted/renamed).
+- Full GRANTs (authenticated + service_role) and RLS (authenticated read/write, block delete of system row via trigger).
 
-### 3. Status pills consistency
-- Route order/appeal/automation statuses through soft dark-tuned badge treatments (translucent color bg + solid text + optional dot), so every terminal surface shows status the same way instead of ad-hoc colored text.
+Alter `public.bank_transactions`:
+- Add `sub_ledger_id uuid NULL` referencing `credit_sub_ledgers(id)`.
+- Nullable so non-credit transactions are unaffected; a credit-account transaction with `NULL` is treated as **Unidentified** at read time (no forced backfill; balances still reconcile).
 
-### 4. Micro-interactions (fast, exchange-appropriate)
-- Refine row hover (already present) + add clear focus rings for keyboard/scanning.
-- Polish sidebar active/hover state and header spacing.
-- Consistent ≤150ms transitions on dropdowns, dialogs, tabs — nothing that delays a trader.
+No triggers/aggregation changes: the account balance trigger stays untouched. Sub-ledger balances are **derived** (sum of signed amounts of that account's transactions grouped by `sub_ledger_id`), so total always equals the account balance.
 
-### 5. Consistency cleanup
-- Replace the ~15 stray hardcoded colors (`gray-700/800/900`, `slate-400/500`, `#26A17B`) with the terminal tokens (`text-muted-foreground`, `border-border`, `bg-card`, USDT/asset accent) so dark mode is uniform.
-- Normalize card padding and section spacing to match the dense-but-breathable exchange rhythm.
+## Reusable UI component
+`SubLedgerSelect` (searchable combobox):
+- Renders **only** when the resolved bank account's `account_type === 'CREDIT'`.
+- Lists active sub-ledgers, supports type-to-search, and an inline **"+ Create new sub-ledger"** action that inserts a new person and auto-selects it — all without leaving the form.
+- Marks the field required; parent forms block submit if a credit account is selected but no sub-ledger chosen.
 
-### 6. Table & density refinement
-- Keep the dense exchange rows; refine cell padding, header micro-labels, zebra/hover contrast, and sticky headers for long order lists.
-- Ensure numeric columns right-align with tnum.
+## Form integrations (attach `sub_ledger_id` on insert + mandatory validation)
+Detect credit account wherever a bank account is resolved and show the selector:
+- `journal/components/TransactionForm.tsx` (expense/income)
+- `journal/components/TransferForm.tsx` (contra — only the credit side leg)
+- `journal/ContraEntriesTab.tsx`
+- `journal/components/EditExpenseDialog.tsx` (edit path)
+- `ManualBalanceAdjustmentDialog.tsx`
+- Sales: `SalesEntryDialog.tsx`, `StepBySalesFlow.tsx`, `EditSalesOrderDialog.tsx`, `OrderCompletionForm.tsx`, `TerminalSalesApprovalDialog.tsx`, `SmallSalesApprovalDialog.tsx`
+- Purchase: `CompletedPurchaseOrders.tsx`, `EditPurchaseOrderDialog.tsx`, `SmallBuysApprovalDialog.tsx`
 
-## Explicit Non-Goals
-- No switch away from dark; no palette identity change; no new accent color.
-- No layout, navigation, or control repositioning.
-- No workflow, API, Binance-integration, calculation, or data changes.
-- No heavy/flashy animations (no blob/parallax added to data views).
-- Main ERP (white) theme untouched — this is `.terminal`-scoped only.
+In sales/purchase the account is picked via a payment method → `bank_account_id`; when that resolves to a CREDIT account, the sub-ledger prompt appears before the entry is written to `bank_transactions`.
 
-## Rollout
-1. **Foundation:** terminal elevation tokens + scrollbar/table refinements in `.terminal` CSS block.
-2. **Shell:** `TerminalSidebar`, `TerminalHeader` spacing/active/hover polish.
-3. **High-traffic surfaces:** Dashboard, Orders, Ad Manager, Payer, Small Payments — apply badge/number/spacing consistency + remove stray hardcoded colors.
-4. **Remaining surfaces:** Analytics, MPI, Assets, Appeals, Automation, Settings, Users, Audit/Logs.
+## Credit account view (BAMS)
+In `AccountSummary.tsx`, for CREDIT accounts add a **"View Sub-Ledgers"** action opening a dialog that shows:
+- Each sub-ledger with its net balance, colored green (given / positive) vs red (taken / negative), plus a header total that matches the account balance.
+- Drill into a sub-ledger to see its transactions.
+- **Re-assign** action to move a transaction (e.g. from Unidentified) to another sub-ledger — updates only `sub_ledger_id`, never amounts, so balances shift between sub-ledgers while the account total is unchanged.
 
-## Verification
-- Typecheck after each phase.
-- Playwright dark-mode screenshots of Dashboard + Orders before/after to confirm recognizability and polish (terminal routes may need auth; capture what's reachable).
-- Confirm no ERP (light) theme drift and no shifted controls.
+## Guarantees / non-goals
+- No change to account balance math, tamper log, statistics, P&L, or any report — those keep reading the main account balance.
+- Sub-ledgers are additive metadata only; removing them would leave all existing calculations intact.
+- No new BAMS accounts are created; everything stays within the single credit account.
+
+## Technical notes
+- Balance sign per transaction uses the existing rule already in `AccountSummary` (`INCOME`/`CREDIT`/`TRANSFER_IN` positive, else negative) so sub-ledger sums reconcile to the account balance exactly.
+- Reversed transactions (`is_reversed`) are excluded from sub-ledger sums the same way the account balance handles them.
+- Verify with a typecheck and a Playwright pass on the BAMS journal + credit account dialog.

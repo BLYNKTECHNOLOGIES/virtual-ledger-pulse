@@ -1019,6 +1019,7 @@ export type Database = {
           reverses_transaction_id: string | null
           row_hash: string | null
           sequence_no: number | null
+          sub_ledger_id: string | null
           transaction_date: string
           transaction_type: string
           updated_at: string
@@ -1044,6 +1045,7 @@ export type Database = {
           reverses_transaction_id?: string | null
           row_hash?: string | null
           sequence_no?: number | null
+          sub_ledger_id?: string | null
           transaction_date: string
           transaction_type: string
           updated_at?: string
@@ -1069,6 +1071,7 @@ export type Database = {
           reverses_transaction_id?: string | null
           row_hash?: string | null
           sequence_no?: number | null
+          sub_ledger_id?: string | null
           transaction_date?: string
           transaction_type?: string
           updated_at?: string
@@ -1114,6 +1117,13 @@ export type Database = {
             columns: ["reverses_transaction_id"]
             isOneToOne: false
             referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_sub_ledger_id_fkey"
+            columns: ["sub_ledger_id"]
+            isOneToOne: false
+            referencedRelation: "credit_sub_ledgers"
             referencedColumns: ["id"]
           },
         ]
@@ -2497,6 +2507,39 @@ export type Database = {
           created_at?: string
           id?: string
           pan_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      credit_sub_ledgers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          notes?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -16213,17 +16256,31 @@ export type Database = {
         Returns: number
       }
       compute_leave_clashes: { Args: { p_request_id: string }; Returns: number }
-      create_bank_transfer: {
-        Args: {
-          p_amount: number
-          p_created_by?: string
-          p_date: string
-          p_description?: string
-          p_from_account_id: string
-          p_to_account_id: string
-        }
-        Returns: Json
-      }
+      create_bank_transfer:
+        | {
+            Args: {
+              p_amount: number
+              p_created_by?: string
+              p_date: string
+              p_description?: string
+              p_from_account_id: string
+              p_to_account_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_created_by?: string
+              p_date: string
+              p_description?: string
+              p_from_account_id: string
+              p_from_sub_ledger_id?: string
+              p_to_account_id: string
+              p_to_sub_ledger_id?: string
+            }
+            Returns: Json
+          }
       create_buyer_client_with_evidence: {
         Args: {
           p_client_id: string

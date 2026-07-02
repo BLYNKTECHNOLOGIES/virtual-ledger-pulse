@@ -11,6 +11,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { SubLedgerSelect } from "@/components/bams/subledger/SubLedgerSelect";
 
 interface ManualBalanceAdjustmentDialogProps {
   open: boolean;
@@ -26,7 +27,8 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
     bank_account_id: "",
     adjustment_type: "CREDIT",
     amount: "",
-    reason: ""
+    reason: "",
+    sub_ledger_id: null as string | null,
   });
 
   // Fetch bank accounts (excluding dormant)
@@ -84,6 +86,9 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
 
       const selectedAccount = bankAccounts?.find(a => a.id === formData.bank_account_id);
       if (!selectedAccount) throw new Error("Please select a bank account");
+      if (selectedAccount.account_type === 'CREDIT' && !formData.sub_ledger_id) {
+        throw new Error("Please select a sub-ledger (person) for this credit account adjustment");
+      }
 
       // Ensure adjustment account exists
       const adjustmentAccountId = await ensureAdjustmentAccount();
@@ -105,6 +110,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
           category: "ADJUSTMENT",
           related_account_name: ADJUSTMENT_ACCOUNT_NAME,
           created_by: currentUserId || null, // Persist user ID for audit trail
+          sub_ledger_id: formData.sub_ledger_id || null,
         },
         {
           bank_account_id: adjustmentAccountId,
@@ -146,7 +152,8 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
         bank_account_id: "",
         adjustment_type: "CREDIT",
         amount: "",
-        reason: ""
+        reason: "",
+        sub_ledger_id: null,
       });
     },
     onError: (error: any) => {
@@ -185,7 +192,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
             <Label>Select Bank Account</Label>
             <Select 
               value={formData.bank_account_id} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value, sub_ledger_id: null }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Choose account to adjust" />
@@ -198,7 +205,14 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
                 ))}
               </SelectContent>
             </Select>
+            <SubLedgerSelect
+              className="mt-2"
+              value={formData.sub_ledger_id}
+              onChange={(id) => setFormData(prev => ({ ...prev, sub_ledger_id: id }))}
+              isCreditAccount={selectedAccount?.account_type === 'CREDIT'}
+            />
           </div>
+
 
           {selectedAccount && (
             <div className="bg-muted p-3 rounded-md text-sm">

@@ -37,6 +37,7 @@ interface AllocationRow {
   financial_year: string | null;
   payment_status: string;
   payment_batch_id: string | null;
+  already_recorded?: boolean | null;
   bank?: { account_name: string | null; bank_name: string | null } | null;
 }
 
@@ -111,6 +112,7 @@ export function TaxManagementTab() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBankAccountId, setPaymentBankAccountId] = useState("");
+  const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const [includePaidInExport, setIncludePaidInExport] = useState(false);
 
   const quarterOptions = useMemo(() => generateQuarterOptions(), []);
@@ -249,17 +251,39 @@ export function TaxManagementTab() {
 
   const bulkPaymentMutation = useMutation({
     mutationFn: async () => {
-      if (!paymentBankAccountId) throw new Error("Please select a bank account");
       if (selectedIds.length === 0) throw new Error("No records selected");
+      if (!alreadyRecorded && !paymentBankAccountId) throw new Error("Please select a bank account");
 
-      const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
       const rateSuffix = activeRate === ALL_RATES ? '' : ` @ ${activeRate}%`;
       const firmLabel = `${activeCompanyInfo?.firm_name || 'TDS'}${rateSuffix}`;
+      const quarterLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
 
+      // "Already recorded" = the TDS was paid/recorded externally: mark the
+      // allocations settled WITHOUT any bank deduction (no expense entry).
+      if (alreadyRecorded) {
+        const batchId = `TDS-PRERECORDED-${selectedQuarter}-${Date.now()}`;
+        const { error: updateError } = await supabase
+          .from('tds_payment_allocations')
+          .update({
+            payment_status: 'PAID',
+            already_recorded: true,
+            paid_at: new Date().toISOString(),
+            paid_by: user?.id,
+            payment_bank_account_id: null,
+            payment_batch_id: batchId,
+          })
+          .in('id', selectedIds);
+        if (updateError) throw updateError;
+
+        return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel, preRecorded: true };
+      }
+
+      const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
       const { error: updateError } = await supabase
         .from('tds_payment_allocations')
         .update({
           payment_status: 'PAID',
+          already_recorded: false,
           paid_at: new Date().toISOString(),
           paid_by: user?.id,
           payment_bank_account_id: paymentBankAccountId,
@@ -268,7 +292,6 @@ export function TaxManagementTab() {
         .in('id', selectedIds);
       if (updateError) throw updateError;
 
-      const quarterLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
       const { error: expenseError } = await supabase
         .from('bank_transactions')
         .insert({
@@ -283,15 +306,18 @@ export function TaxManagementTab() {
         });
       if (expenseError) throw expenseError;
 
-      return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel };
+      return { batchId, amount: selectedTotal, count: selectedIds.length, firm: firmLabel, preRecorded: false };
     },
     onSuccess: (result) => {
       toast({
-        title: "TDS Payment Recorded",
-        description: `${inr(result.amount)} paid for ${result.firm} (${result.count} entries)`,
+        title: result.preRecorded ? "Marked as Already Recorded" : "TDS Payment Recorded",
+        description: result.preRecorded
+          ? `${inr(result.amount)} cleared for ${result.firm} (${result.count} entries) — no bank deduction`
+          : `${inr(result.amount)} paid for ${result.firm} (${result.count} entries)`,
       });
       setSelectedIds([]);
       setPaymentBankAccountId("");
+      setAlreadyRecorded(false);
       setShowPaymentDialog(false);
       queryClient.invalidateQueries({ queryKey: ['tds_allocations_quarter'] });
       queryClient.invalidateQueries({ queryKey: ['bank_accounts'] });
@@ -325,7 +351,7 @@ export function TaxManagementTab() {
       'Payment Amount': Number(r.paid_amount || 0),
       'TDS Amount': Number(r.allocated_tds_amount || 0),
       'Quarter': `${quarter} (${fyLabel})`,
-      'Status': r.payment_status === 'PAID' ? 'Paid' : 'Unpaid',
+      'Status': r.payment_status === 'PAID' ? (r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid') : 'Unpaid',
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -417,7 +443,9 @@ export function TaxManagementTab() {
               </TableCell>
               <TableCell>
                 {r.payment_status === 'PAID' ? (
-                  <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>
+                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                    {r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid'}
+                  </Badge>
                 ) : (
                   <Badge variant="destructive">Unpaid</Badge>
                 )}
@@ -550,31 +578,49 @@ export function TaxManagementTab() {
               <div className="flex justify-between"><span className="text-muted-foreground">Selected entries:</span><span className="font-medium">{selectedIds.length}</span></div>
               <div className="flex justify-between text-lg"><span className="font-medium">Total Amount:</span><span className="font-bold text-destructive">{inr(selectedTotal)}</span></div>
             </div>
-            <div>
-              <Label>Deduct from {activeCompanyInfo?.firm_name || 'Company'} Bank Account *</Label>
-              <Select value={paymentBankAccountId} onValueChange={setPaymentBankAccountId}>
-                <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bank account" /></SelectTrigger>
-                <SelectContent>
-                  {companyBankAccounts.map(acc => (
-                    <SelectItem key={acc.id} value={acc.id}>
-                      {acc.account_name} - {acc.bank_name}
-                      <span className="text-muted-foreground ml-2">(₹{parseFloat(acc.balance.toString()).toLocaleString('en-IN')})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {companyBankAccounts.length === 0 && (
-                <p className="text-xs text-destructive mt-1">No active bank account found for this company.</p>
-              )}
-            </div>
+            <label className="flex items-start gap-3 rounded-lg border p-3 cursor-pointer hover:bg-muted/40 transition-colors">
+              <Checkbox
+                checked={alreadyRecorded}
+                onCheckedChange={(v) => setAlreadyRecorded(v === true)}
+                className="mt-0.5"
+              />
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium">Entry already recorded (no bank deduction)</span>
+                <p className="text-xs text-muted-foreground">
+                  Use this if the TDS was already paid/recorded elsewhere. No expense is created on any bank, and the liability is cleared everywhere (Total Asset Value, pending TDS, reports).
+                </p>
+              </div>
+            </label>
+            {!alreadyRecorded && (
+              <div>
+                <Label>Deduct from {activeCompanyInfo?.firm_name || 'Company'} Bank Account *</Label>
+                <Select value={paymentBankAccountId} onValueChange={setPaymentBankAccountId}>
+                  <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bank account" /></SelectTrigger>
+                  <SelectContent>
+                    {companyBankAccounts.map(acc => (
+                      <SelectItem key={acc.id} value={acc.id}>
+                        {acc.account_name} - {acc.bank_name}
+                        <span className="text-muted-foreground ml-2">(₹{parseFloat(acc.balance.toString()).toLocaleString('en-IN')})</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {companyBankAccounts.length === 0 && (
+                  <p className="text-xs text-destructive mt-1">No active bank account found for this company.</p>
+                )}
+              </div>
+            )}
             <div className="text-sm text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <strong>Note:</strong> This creates a single expense entry on the selected company bank and marks the selected TDS entries as paid for {activeCompanyInfo?.firm_name || 'this company'}.
+              <strong>Note:</strong>{' '}
+              {alreadyRecorded
+                ? `No bank deduction will be made. The selected TDS entries are marked as paid and their liability is cleared for ${activeCompanyInfo?.firm_name || 'this company'} across all calculations.`
+                : `This creates a single expense entry on the selected company bank and marks the selected TDS entries as paid for ${activeCompanyInfo?.firm_name || 'this company'}.`}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
-            <Button onClick={() => bulkPaymentMutation.mutate()} disabled={!paymentBankAccountId || bulkPaymentMutation.isPending}>
-              {bulkPaymentMutation.isPending ? "Processing..." : "Confirm Payment"}
+            <Button onClick={() => bulkPaymentMutation.mutate()} disabled={(!alreadyRecorded && !paymentBankAccountId) || bulkPaymentMutation.isPending}>
+              {bulkPaymentMutation.isPending ? "Processing..." : (alreadyRecorded ? "Confirm (No Deduction)" : "Confirm Payment")}
             </Button>
           </DialogFooter>
         </DialogContent>

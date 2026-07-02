@@ -192,7 +192,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
             <Label>Select Bank Account</Label>
             <Select 
               value={formData.bank_account_id} 
-              onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value }))}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, bank_account_id: value, sub_ledger_id: null }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Choose account to adjust" />
@@ -205,7 +205,14 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
                 ))}
               </SelectContent>
             </Select>
+            <SubLedgerSelect
+              className="mt-2"
+              value={formData.sub_ledger_id}
+              onChange={(id) => setFormData(prev => ({ ...prev, sub_ledger_id: id }))}
+              isCreditAccount={selectedAccount?.account_type === 'CREDIT'}
+            />
           </div>
+
 
           {selectedAccount && (
             <div className="bg-muted p-3 rounded-md text-sm">

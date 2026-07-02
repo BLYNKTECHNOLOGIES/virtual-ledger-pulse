@@ -23,6 +23,8 @@ import { ImportBankAccountsDialog } from "./ImportBankAccountsDialog";
 import { ManualBalanceAdjustmentDialog } from "./ManualBalanceAdjustmentDialog";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
+import { CreditSubLedgerDialog } from "./subledger/CreditSubLedgerDialog";
+import { Layers } from "lucide-react";
 
 interface BankAccount {
   id: string;
@@ -68,6 +70,7 @@ export function BankAccountManagement() {
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const [closeAccountDialogOpen, setCloseAccountDialogOpen] = useState(false);
   const [accountToClose, setAccountToClose] = useState<BankAccount | null>(null);
+  const [subLedgerAccount, setSubLedgerAccount] = useState<BankAccount | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);

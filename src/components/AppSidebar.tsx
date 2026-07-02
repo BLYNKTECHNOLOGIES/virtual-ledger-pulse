@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -149,6 +149,15 @@ const standaloneItems: SidebarGroupItem[] = [
     color: "text-fuchsia-600",
     bgColor: "bg-fuchsia-100",
     permissions: ["help_assistant_view", "help_assistant_manage"]
+  },
+  {
+    id: "shortcuts",
+    title: "Shortcuts",
+    url: "/shortcuts",
+    icon: Keyboard,
+    color: "text-slate-600",
+    bgColor: "bg-slate-100",
+    permissions: [] // visible to all users
   }
 ];
 
@@ -251,7 +260,7 @@ export function AppSidebar() {
     
     // Add standalone items that user has permission for
     standaloneItems.forEach(item => {
-      if (!isLoading && hasAnyPermission(item.permissions)) {
+      if (!isLoading && (item.permissions.length === 0 || hasAnyPermission(item.permissions))) {
         entries.push({ type: 'item', data: item });
       }
     });

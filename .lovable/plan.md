@@ -1,78 +1,70 @@
-# Credit Sub-Ledger — Logical Gap Analysis & Fixes
+# ERP Keyboard Shortcuts + Shortcuts Tab
 
-I audited the whole sub-ledger path: entry forms, the reassign flow, the append-only hash-chain triggers on `bank_transactions`, the transfer RPC, and the reversal RPC. The core promise of the feature is: **the sum of all sub-ledgers must always equal the credit account balance**. Several gaps break that promise. Ordered by severity.
+Add a permission-aware keyboard shortcut system to the ERP: modifier-combo shortcuts that avoid browser/OS conflicts, a searchable command palette (Ctrl/Cmd+K), context-aware "open dialog" actions, and a **Shortcuts** help tab visible to every user.
 
-## Gap 1 — Reversals corrupt the sub-ledger total (CRITICAL)
+## Design decisions (from your answers)
+- **Combo style:** `Alt+Shift+<Key>` for all navigation and actions. This range is not bound by Chrome, Edge, or Windows, so nothing clashes with browser chrome. Palette uses the near-universal `Ctrl/Cmd+K` (with `preventDefault` so it never triggers the browser's address-bar search).
+- **Actions:** Shortcuts both navigate to a module AND can open that module's primary "create" dialog.
+- **Palette:** included, fuzzy-search over every destination/action the current user is allowed to see.
 
-`reverse_bank_transaction()` posts a counter-row with the **opposite** transaction type, `is_reversed = false`, and **`sub_ledger_id = NULL`** (it never copies it). The original is flagged `is_reversed = true`.
+## Permission safety (core requirement)
+Nothing bypasses rules or RLS:
+- Every shortcut and palette entry is filtered through the existing `usePermissions().hasAnyPermission(...)` using the exact same permission arrays already defined for each sidebar item. If a user can't see a module in the sidebar, its shortcut and palette entry simply don't exist for them.
+- "Open dialog" shortcuts never call the database directly. They navigate to the target route and set a `?quickAction=new` flag; the page's existing (already permission-gated) create button/dialog is what opens. If the user lacks manage rights, the button/dialog isn't rendered and nothing happens.
+- Shortcuts are ignored while typing in inputs, textareas, selects, or contenteditable fields, so they never interfere with data entry.
 
-`CreditSubLedgerDialog` filters **only** `is_reversed = false`. So on a reversed credit-account transaction:
-- The original (correctly) drops out.
-- The counter-row (opposite sign, no sub-ledger) is **still counted**, landing in "Unidentified".
-
-Result: after any reversal on a credit account, a phantom balance appears under "Unidentified" and the **sub-ledger total no longer equals the account balance**. `AccountSummary` avoids this by excluding both reversed originals *and* counter-rows (`reverses_transaction_id IS NULL`); the dialog does not.
-
-**Fix**
-- In the dialog query, add `.is('reverses_transaction_id', null)` so reversed pairs net to zero — matching `AccountSummary`'s exact live-entry rule. This alone restores reconciliation.
-- Additionally, make `reverse_bank_transaction()` copy `sub_ledger_id` onto the counter-row, so drill-downs stay person-correct if reversals are ever displayed.
-
-## Gap 2 — Sign convention doesn't match the balance engine
-
-The dialog signs with `POSITIVE_TYPES = [INCOME, CREDIT, TRANSFER_IN]`. But the actual balance trigger `update_bank_account_balance()` only recognizes `INCOME`/`TRANSFER_IN` (+) and `EXPENSE`/`TRANSFER_OUT` (−); a `CREDIT`/`DEBIT` type is **skipped with a warning** (no balance effect). So if any credit-account row ever uses type `CREDIT`/`DEBIT`, the dialog counts it while the account balance does not → mismatch.
-
-**Fix**
-- Change `signedAmount()` to mirror the trigger exactly: `INCOME`/`TRANSFER_IN` → `+amount`, `EXPENSE`/`TRANSFER_OUT` → `−amount`, anything else → `0`. This guarantees the sub-ledger math can never diverge from the balance engine.
-
-## Gap 3 — Sales / Purchase / sync postings bypass the mandatory rule
-
-Mandatory sub-ledger selection is enforced only in the manual journal, transfer, expense-edit, and balance-adjustment forms. Credit postings from sales, purchase, and Binance sync write `sub_ledger_id = NULL` → everything lands in "Unidentified". This contradicts the "every form where a credit account is selected" requirement.
-
-**Fix**
-- Add `SubLedgerSelect` to the manual sales and purchase entry dialogs, shown only when the chosen payment method resolves to a `CREDIT` `bank_account_id`, and thread `sub_ledger_id` through their insert paths (mandatory before save).
-- Automated sync postings have no operator; leave them in "Unidentified" and surface a badge/count so they can be reassigned from the credit-account view. (No entry-time prompt in the sync money path — too risky.)
-
-## Gap 4 — Reassign safety: permission + no-op balance re-check
-
-`reassign` does a raw `UPDATE` on `bank_transactions`. It passes the append-only trigger (changing only `sub_ledger_id` counts as an allowed metadata update), but:
-- It has **no `bams_manage` permission gate** — any authenticated user can move balances between people.
-- The `UPDATE` also fires `check_bank_balance_before_transaction` and `update_bank_account_balance`; since type/amount/account are unchanged these must be verified to be true no-ops (the balance trigger reverses-then-reapplies to net zero) and not spuriously block an `EXPENSE` row when the account is low.
-
-**Fix**
-- Gate the reassign control behind the same `bams_manage` permission used elsewhere.
-- Confirm the balance-check trigger short-circuits when `amount`/`type`/`account` are unchanged; if not, add that guard.
-
-## Gap 5 — Deleting a sub-ledger that still holds transactions
-
-`bank_transactions.sub_ledger_id` FK has no `ON DELETE` behavior, but the UI offers delete for any non-system sub-ledger. Deleting one that is still referenced throws a raw FK error; if it ever succeeded it would orphan rows.
-
-**Fix**
-- Block deletion when the sub-ledger is referenced (friendly message), or require reassigning its transactions to "Unidentified" first. Prefer surfacing **deactivate** (`is_active = false`, already supported) as the primary action, keeping historical rows intact.
-
-## Gap 6 — Minor: sub-ledger creator audit
-
-`useCreateSubLedger` falls back to `created_by = NULL` when `user.id` isn't a UUID, silently dropping the creator. Low impact; note only.
-
----
-
-## Technical summary of changes
+## Proposed shortcut library
+Navigation (`Alt+Shift+…`), each gated by that module's view permission:
 
 ```text
-DB (migration):
-  - reverse_bank_transaction(): copy sub_ledger_id onto counter-row
-  - (verify) check_bank_balance_before_transaction: no-op on unchanged amount/type/account
-
-Frontend:
-  - CreditSubLedgerDialog.tsx
-      * query: add .is('reverses_transaction_id', null)   (Gap 1)
-      * signedAmount(): mirror balance trigger exactly      (Gap 2)
-      * reassign: gate behind bams_manage permission        (Gap 4)
-      * delete: guard/deactivate when referenced            (Gap 5)
-  - Manual Sales & Purchase entry dialogs                    (Gap 3)
-      * SubLedgerSelect when payment method → CREDIT account
-      * thread sub_ledger_id into inserts, mandatory
-  - useCreditSubLedgers.ts: keep creator when UUID present   (Gap 6, optional)
+Alt+Shift+D   Dashboard          Alt+Shift+A   Tax Management (Accounting)
+Alt+Shift+S   Sales              Alt+Shift+F   Financials
+Alt+Shift+P   Purchase           Alt+Shift+R   Risk Management
+Alt+Shift+B   BAMS               Alt+Shift+U   User Management
+Alt+Shift+C   Clients            Alt+Shift+H   HRMS
+Alt+Shift+O   Terminal Orders    Alt+Shift+G   Tasks
+Alt+Shift+K   Stock Management   Alt+Shift+L   Compliance
+Alt+Shift+E   ERP Entry          Alt+Shift+M   Statistics
 ```
 
-Guarantees preserved: no change to account balance math, the append-only hash chain, tamper log, statistics, or reporting. The only behavioral change is that the sub-ledger breakdown now reconciles exactly to the account balance in every case, and credit postings from more entry points carry a person.
+Global / actions:
 
-I recommend implementing **Gaps 1 and 2 first** (pure reconciliation correctness, low risk), then 3–5. Want me to proceed with all of them, or just the critical reconciliation fixes first?
+```text
+Ctrl/Cmd + K        Open command palette (search any module/action you can access)
+Alt+Shift+N         Create new in the current module (opens its primary dialog)
+Alt+Shift+/  ( ? )  Open the Shortcuts help
+Esc                 Close palette / dialogs (native)
+```
+
+Context-aware `Alt+Shift+N` is wired for the highest-traffic create flows: Sales order, Purchase order, BAMS journal entry, Client add, ERP entry, Task. Other pages can be added later using the same pattern.
+
+## What gets built
+
+1. **Central shortcut registry** — `src/config/shortcuts.ts`
+   - Single source of truth: array of `{ id, keys, label, description, category, url?, quickAction?, permissions[] }`.
+   - Reused by the provider, the palette, and the Shortcuts help page so definitions never drift.
+
+2. **Global shortcut provider** — `src/contexts/ShortcutsProvider.tsx`, mounted inside `Layout`.
+   - Attaches one `keydown` listener; matches combos, checks `hasAnyPermission`, ignores typing contexts, calls `navigate()` (with optional `?quickAction=new`), toggles palette/help.
+
+3. **Command palette** — `src/components/shortcuts/CommandPalette.tsx`
+   - Built on the existing `cmdk` (`components/ui/command.tsx`) in a dialog. Lists only permitted entries, grouped by category, shows each combo as a `kbd` badge, runs the action on select.
+
+4. **Quick-action hook** — `src/hooks/useQuickAction.ts`
+   - Reads `?quickAction=new` from the URL, fires once, and clears the param. Added to the 6 target pages to auto-open their existing create dialog (each still permission-gated).
+
+5. **Shortcuts help page** — `src/pages/Shortcuts.tsx` + route `/shortcuts`
+   - Visible to all authenticated users (no permission gate). Renders the full library grouped by category; shortcuts the user can't use are shown greyed/labelled "no access" so the page is a complete reference without being misleading. Includes OS-aware key rendering (⌘ on Mac, Ctrl on Windows).
+
+6. **Sidebar + nav entry**
+   - Add a **Shortcuts** item (Keyboard icon) to `AppSidebar` standalone items with empty `permissions` so it shows for everyone, plus the route in `App.tsx`. Optional small "Shortcuts (Alt+Shift+/)" link in the top header.
+
+## Technical notes
+- Key matching normalizes `event.altKey && event.shiftKey && event.code`; uses `code` (physical key) so it's layout-independent.
+- Typing guard: skip when `document.activeElement` is INPUT/TEXTAREA/SELECT or `isContentEditable`, and when a modal text field has focus.
+- Palette and help both read from the same registry; adding a shortcut later means editing only `shortcuts.ts` (+ a `useQuickAction` line if it opens a dialog).
+- No schema changes, no edge functions, no new dependencies (`cmdk` already present).
+
+## Out of scope
+- Per-user customizable/remappable shortcuts (can be a later enhancement backed by a `user_shortcut_prefs` table).
+- Deep in-page actions beyond opening the primary create dialog for the 6 listed modules.

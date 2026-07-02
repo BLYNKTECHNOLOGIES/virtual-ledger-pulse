@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuickAction } from "@/hooks/useQuickAction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,10 @@ export function ClientDashboard() {
   const [activeApprovalTab, setActiveApprovalTab] = useState(() => readStoredTab(CLIENT_APPROVAL_TAB_KEY, 'buyer-approvals'));
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
   const [showAddBuyerDialog, setShowAddBuyerDialog] = useState(false);
+
+  // Alt+Shift+N opens the Add Client dialog (page already gated by clients_view;
+  // the dialog/save path enforces clients_manage).
+  useQuickAction("new", () => setShowAddClientDialog(true));
   const [buyerFilters, setBuyerFilters] = useState<ClientFilters>(defaultFilters);
   const [sellerFilters, setSellerFilters] = useState<ClientFilters>(defaultFilters);
   const [buyerFiltersOpen, setBuyerFiltersOpen] = useState(false);

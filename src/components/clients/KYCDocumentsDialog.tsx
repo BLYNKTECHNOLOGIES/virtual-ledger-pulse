@@ -442,6 +442,39 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={!!docToDelete} onOpenChange={(o) => { if (!o) { setDocToDelete(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete KYC document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to remove <strong>{docToDelete?.file_name}</strong> from{" "}
+              <strong>{client?.name}</strong>'s KYC records. This action is logged with your name
+              and cannot be undone by the KYC team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="kyc-delete-reason" className="text-sm">Reason (optional)</Label>
+            <Textarea
+              id="kyc-delete-reason"
+              placeholder="e.g. Incorrect document uploaded by mistake"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleConfirmDelete(); }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Document"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -82,6 +82,7 @@ export const EntityTypes = {
   ERP_CONVERSION: 'erp_conversion',
   CLIENT: 'client',
   CLIENT_ONBOARDING: 'client_onboarding',
+  CLIENT_KYC_DOCUMENT: 'client_kyc_document',
   BANK_ACCOUNT: 'bank_account',
   BANK_TRANSACTION: 'bank_transaction',
   USER: 'user',

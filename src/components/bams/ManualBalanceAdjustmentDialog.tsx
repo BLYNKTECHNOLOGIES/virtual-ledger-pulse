@@ -86,6 +86,9 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
 
       const selectedAccount = bankAccounts?.find(a => a.id === formData.bank_account_id);
       if (!selectedAccount) throw new Error("Please select a bank account");
+      if (selectedAccount.account_type === 'CREDIT' && !formData.sub_ledger_id) {
+        throw new Error("Please select a sub-ledger (person) for this credit account adjustment");
+      }
 
       // Ensure adjustment account exists
       const adjustmentAccountId = await ensureAdjustmentAccount();

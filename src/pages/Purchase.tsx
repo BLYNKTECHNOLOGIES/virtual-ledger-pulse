@@ -473,6 +473,7 @@ export default function Purchase() {
                 <Search className="h-4 w-4 text-muted-foreground hidden md:block" />
                 <Input 
                   placeholder="Search orders..." 
+                  data-page-search
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="text-sm"

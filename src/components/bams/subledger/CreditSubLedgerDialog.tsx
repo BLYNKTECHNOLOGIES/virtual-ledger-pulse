@@ -23,6 +23,7 @@ import { ChevronDown, ChevronRight, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useCreditSubLedgers } from "@/hooks/useCreditSubLedgers";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface CreditSubLedgerDialogProps {
   open: boolean;
@@ -43,12 +44,16 @@ interface Txn {
   is_reversed: boolean;
 }
 
-const POSITIVE_TYPES = ["INCOME", "CREDIT", "TRANSFER_IN"];
-
+// Sign convention must mirror update_bank_account_balance() exactly so the
+// sub-ledger total can never diverge from the account balance.
 function signedAmount(t: Txn): number {
   const amt = Number(t.amount) || 0;
-  return POSITIVE_TYPES.includes(t.transaction_type) ? amt : -amt;
+  if (t.transaction_type === "INCOME" || t.transaction_type === "TRANSFER_IN") return amt;
+  if (t.transaction_type === "EXPENSE" || t.transaction_type === "TRANSFER_OUT") return -amt;
+  return 0;
 }
+
+const POSITIVE_TYPES = ["INCOME", "TRANSFER_IN"];
 
 const UNIDENTIFIED_KEY = "__unidentified__";
 
@@ -63,6 +68,8 @@ export function CreditSubLedgerDialog({
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const { data: subLedgers = [] } = useCreditSubLedgers(true);
+  const { hasPermission } = usePermissions();
+  const canReassign = hasPermission("bams_manage");
 
   const { data: txns = [], isLoading } = useQuery({
     queryKey: ["credit_subledger_txns", bankAccountId],
@@ -76,6 +83,7 @@ export function CreditSubLedgerDialog({
           )
           .eq("bank_account_id", bankAccountId)
           .eq("is_reversed", false)
+          .is("reverses_transaction_id", null)
           .order("transaction_date", { ascending: false })
       ),
   });
@@ -212,7 +220,7 @@ export function CreditSubLedgerDialog({
                             <th className="p-2">Type</th>
                             <th className="p-2">Description</th>
                             <th className="p-2 text-right">Amount</th>
-                            <th className="p-2">Reassign to</th>
+                            <th className="p-2">{canReassign ? "Reassign to" : "Sub-ledger"}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -242,26 +250,32 @@ export function CreditSubLedgerDialog({
                                 {fmt(signedAmount(t))}
                               </td>
                               <td className="p-2">
-                                <Select
-                                  value={t.sub_ledger_id ?? UNIDENTIFIED_KEY}
-                                  onValueChange={(val) =>
-                                    reassign.mutate({
-                                      txnId: t.id,
-                                      subLedgerId: val === UNIDENTIFIED_KEY ? null : val,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-8 w-[160px] text-foreground">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {subLedgers.map((s) => (
-                                      <SelectItem key={s.id} value={s.id}>
-                                        {s.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                {canReassign ? (
+                                  <Select
+                                    value={t.sub_ledger_id ?? UNIDENTIFIED_KEY}
+                                    onValueChange={(val) =>
+                                      reassign.mutate({
+                                        txnId: t.id,
+                                        subLedgerId: val === UNIDENTIFIED_KEY ? null : val,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 w-[160px] text-foreground">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {subLedgers.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    {subLedgerName(t.sub_ledger_id)}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           ))}

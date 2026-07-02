@@ -1,61 +1,78 @@
-# Credit Account Sub-Ledger System (BAMS)
+# Credit Sub-Ledger — Logical Gap Analysis & Fixes
 
-## Goal
-Track person-wise credit balances *inside* an existing CREDIT bank account, without creating multiple accounts. The credit account keeps working exactly as today for every balance, statistic, and report. Sub-ledgers only add a breakdown layer: the account balance stays the accumulated net, and equals the sum of all its sub-ledger balances.
+I audited the whole sub-ledger path: entry forms, the reassign flow, the append-only hash-chain triggers on `bank_transactions`, the transfer RPC, and the reversal RPC. The core promise of the feature is: **the sum of all sub-ledgers must always equal the credit account balance**. Several gaps break that promise. Ordered by severity.
 
-Sign convention (unchanged, mirrored at sub-ledger level):
-- Positive = credit given by us to that person (they owe us)
-- Negative = credit taken by us from that person (we owe them)
+## Gap 1 — Reversals corrupt the sub-ledger total (CRITICAL)
 
-## Confirmed decisions
-- Sub-ledgers are a **shared master list** of persons, reusable across all credit accounts.
-- Selecting a sub-ledger is **mandatory** whenever a CREDIT account is chosen on any form.
-- Applies to journal, contra, expense/income **and** sales/purchase flows that land on a credit account.
-- Legacy balance goes to an **"Unidentified"** sub-ledger and stays **re-assignable** later.
+`reverse_bank_transaction()` posts a counter-row with the **opposite** transaction type, `is_reversed = false`, and **`sub_ledger_id = NULL`** (it never copies it). The original is flagged `is_reversed = true`.
 
-## Data model (migration)
+`CreditSubLedgerDialog` filters **only** `is_reversed = false`. So on a reversed credit-account transaction:
+- The original (correctly) drops out.
+- The counter-row (opposite sign, no sub-ledger) is **still counted**, landing in "Unidentified".
 
-New table `public.credit_sub_ledgers` (shared master list):
-- `name` (unique, case-insensitive), `notes`, `is_active`, standard id/timestamps/created_by.
-- Seed one row `Unidentified` (system row, cannot be deleted/renamed).
-- Full GRANTs (authenticated + service_role) and RLS (authenticated read/write, block delete of system row via trigger).
+Result: after any reversal on a credit account, a phantom balance appears under "Unidentified" and the **sub-ledger total no longer equals the account balance**. `AccountSummary` avoids this by excluding both reversed originals *and* counter-rows (`reverses_transaction_id IS NULL`); the dialog does not.
 
-Alter `public.bank_transactions`:
-- Add `sub_ledger_id uuid NULL` referencing `credit_sub_ledgers(id)`.
-- Nullable so non-credit transactions are unaffected; a credit-account transaction with `NULL` is treated as **Unidentified** at read time (no forced backfill; balances still reconcile).
+**Fix**
+- In the dialog query, add `.is('reverses_transaction_id', null)` so reversed pairs net to zero — matching `AccountSummary`'s exact live-entry rule. This alone restores reconciliation.
+- Additionally, make `reverse_bank_transaction()` copy `sub_ledger_id` onto the counter-row, so drill-downs stay person-correct if reversals are ever displayed.
 
-No triggers/aggregation changes: the account balance trigger stays untouched. Sub-ledger balances are **derived** (sum of signed amounts of that account's transactions grouped by `sub_ledger_id`), so total always equals the account balance.
+## Gap 2 — Sign convention doesn't match the balance engine
 
-## Reusable UI component
-`SubLedgerSelect` (searchable combobox):
-- Renders **only** when the resolved bank account's `account_type === 'CREDIT'`.
-- Lists active sub-ledgers, supports type-to-search, and an inline **"+ Create new sub-ledger"** action that inserts a new person and auto-selects it — all without leaving the form.
-- Marks the field required; parent forms block submit if a credit account is selected but no sub-ledger chosen.
+The dialog signs with `POSITIVE_TYPES = [INCOME, CREDIT, TRANSFER_IN]`. But the actual balance trigger `update_bank_account_balance()` only recognizes `INCOME`/`TRANSFER_IN` (+) and `EXPENSE`/`TRANSFER_OUT` (−); a `CREDIT`/`DEBIT` type is **skipped with a warning** (no balance effect). So if any credit-account row ever uses type `CREDIT`/`DEBIT`, the dialog counts it while the account balance does not → mismatch.
 
-## Form integrations (attach `sub_ledger_id` on insert + mandatory validation)
-Detect credit account wherever a bank account is resolved and show the selector:
-- `journal/components/TransactionForm.tsx` (expense/income)
-- `journal/components/TransferForm.tsx` (contra — only the credit side leg)
-- `journal/ContraEntriesTab.tsx`
-- `journal/components/EditExpenseDialog.tsx` (edit path)
-- `ManualBalanceAdjustmentDialog.tsx`
-- Sales: `SalesEntryDialog.tsx`, `StepBySalesFlow.tsx`, `EditSalesOrderDialog.tsx`, `OrderCompletionForm.tsx`, `TerminalSalesApprovalDialog.tsx`, `SmallSalesApprovalDialog.tsx`
-- Purchase: `CompletedPurchaseOrders.tsx`, `EditPurchaseOrderDialog.tsx`, `SmallBuysApprovalDialog.tsx`
+**Fix**
+- Change `signedAmount()` to mirror the trigger exactly: `INCOME`/`TRANSFER_IN` → `+amount`, `EXPENSE`/`TRANSFER_OUT` → `−amount`, anything else → `0`. This guarantees the sub-ledger math can never diverge from the balance engine.
 
-In sales/purchase the account is picked via a payment method → `bank_account_id`; when that resolves to a CREDIT account, the sub-ledger prompt appears before the entry is written to `bank_transactions`.
+## Gap 3 — Sales / Purchase / sync postings bypass the mandatory rule
 
-## Credit account view (BAMS)
-In `AccountSummary.tsx`, for CREDIT accounts add a **"View Sub-Ledgers"** action opening a dialog that shows:
-- Each sub-ledger with its net balance, colored green (given / positive) vs red (taken / negative), plus a header total that matches the account balance.
-- Drill into a sub-ledger to see its transactions.
-- **Re-assign** action to move a transaction (e.g. from Unidentified) to another sub-ledger — updates only `sub_ledger_id`, never amounts, so balances shift between sub-ledgers while the account total is unchanged.
+Mandatory sub-ledger selection is enforced only in the manual journal, transfer, expense-edit, and balance-adjustment forms. Credit postings from sales, purchase, and Binance sync write `sub_ledger_id = NULL` → everything lands in "Unidentified". This contradicts the "every form where a credit account is selected" requirement.
 
-## Guarantees / non-goals
-- No change to account balance math, tamper log, statistics, P&L, or any report — those keep reading the main account balance.
-- Sub-ledgers are additive metadata only; removing them would leave all existing calculations intact.
-- No new BAMS accounts are created; everything stays within the single credit account.
+**Fix**
+- Add `SubLedgerSelect` to the manual sales and purchase entry dialogs, shown only when the chosen payment method resolves to a `CREDIT` `bank_account_id`, and thread `sub_ledger_id` through their insert paths (mandatory before save).
+- Automated sync postings have no operator; leave them in "Unidentified" and surface a badge/count so they can be reassigned from the credit-account view. (No entry-time prompt in the sync money path — too risky.)
 
-## Technical notes
-- Balance sign per transaction uses the existing rule already in `AccountSummary` (`INCOME`/`CREDIT`/`TRANSFER_IN` positive, else negative) so sub-ledger sums reconcile to the account balance exactly.
-- Reversed transactions (`is_reversed`) are excluded from sub-ledger sums the same way the account balance handles them.
-- Verify with a typecheck and a Playwright pass on the BAMS journal + credit account dialog.
+## Gap 4 — Reassign safety: permission + no-op balance re-check
+
+`reassign` does a raw `UPDATE` on `bank_transactions`. It passes the append-only trigger (changing only `sub_ledger_id` counts as an allowed metadata update), but:
+- It has **no `bams_manage` permission gate** — any authenticated user can move balances between people.
+- The `UPDATE` also fires `check_bank_balance_before_transaction` and `update_bank_account_balance`; since type/amount/account are unchanged these must be verified to be true no-ops (the balance trigger reverses-then-reapplies to net zero) and not spuriously block an `EXPENSE` row when the account is low.
+
+**Fix**
+- Gate the reassign control behind the same `bams_manage` permission used elsewhere.
+- Confirm the balance-check trigger short-circuits when `amount`/`type`/`account` are unchanged; if not, add that guard.
+
+## Gap 5 — Deleting a sub-ledger that still holds transactions
+
+`bank_transactions.sub_ledger_id` FK has no `ON DELETE` behavior, but the UI offers delete for any non-system sub-ledger. Deleting one that is still referenced throws a raw FK error; if it ever succeeded it would orphan rows.
+
+**Fix**
+- Block deletion when the sub-ledger is referenced (friendly message), or require reassigning its transactions to "Unidentified" first. Prefer surfacing **deactivate** (`is_active = false`, already supported) as the primary action, keeping historical rows intact.
+
+## Gap 6 — Minor: sub-ledger creator audit
+
+`useCreateSubLedger` falls back to `created_by = NULL` when `user.id` isn't a UUID, silently dropping the creator. Low impact; note only.
+
+---
+
+## Technical summary of changes
+
+```text
+DB (migration):
+  - reverse_bank_transaction(): copy sub_ledger_id onto counter-row
+  - (verify) check_bank_balance_before_transaction: no-op on unchanged amount/type/account
+
+Frontend:
+  - CreditSubLedgerDialog.tsx
+      * query: add .is('reverses_transaction_id', null)   (Gap 1)
+      * signedAmount(): mirror balance trigger exactly      (Gap 2)
+      * reassign: gate behind bams_manage permission        (Gap 4)
+      * delete: guard/deactivate when referenced            (Gap 5)
+  - Manual Sales & Purchase entry dialogs                    (Gap 3)
+      * SubLedgerSelect when payment method → CREDIT account
+      * thread sub_ledger_id into inserts, mandatory
+  - useCreditSubLedgers.ts: keep creator when UUID present   (Gap 6, optional)
+```
+
+Guarantees preserved: no change to account balance math, the append-only hash chain, tamper log, statistics, or reporting. The only behavioral change is that the sub-ledger breakdown now reconciles exactly to the account balance in every case, and credit postings from more entry points carry a person.
+
+I recommend implementing **Gaps 1 and 2 first** (pure reconciliation correctness, low risk), then 3–5. Want me to proceed with all of them, or just the critical reconciliation fixes first?

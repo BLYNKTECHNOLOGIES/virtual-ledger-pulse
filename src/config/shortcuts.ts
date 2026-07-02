@@ -61,6 +61,17 @@ export function matchesCombo(e: KeyboardEvent, combo: ShortcutCombo): boolean {
 
 const A = (code: string): ShortcutCombo => ({ alt: true, shift: true, code });
 
+/**
+ * Chrome-reserved combos — NEVER assign these to ERP shortcuts:
+ *  - Ctrl+K / Ctrl+E ...... omnibox search (we use Ctrl/Cmd+K for the palette and
+ *                           preventDefault() to fully suppress Chrome's behaviour)
+ *  - Alt+Shift+I .......... Chrome feedback form
+ *  - Alt+Shift+T .......... focus first toolbar item
+ *  - Alt+Shift+A .......... focus inactive dialogs  (avoided — Tax uses Alt+Shift+X)
+ *  - Alt+Shift+N .......... open split view          (avoided — Create uses Alt+Shift+Enter)
+ * All other Alt+Shift+<letter> combos are free (Chrome only binds those letters with Ctrl).
+ */
+
 /** Navigation shortcuts — each gated by the same permissions as its sidebar item. */
 export const NAVIGATION_SHORTCUTS: ShortcutDef[] = [
   { id: "nav-dashboard", category: "Navigation", label: "Dashboard", description: "Go to the main dashboard", combo: A("KeyD"), icon: Home, url: "/dashboard", permissions: ["dashboard_view"] },

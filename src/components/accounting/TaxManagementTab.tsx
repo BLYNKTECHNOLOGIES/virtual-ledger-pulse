@@ -398,6 +398,13 @@ export function TaxManagementTab() {
               <TableCell className="text-xs">{r.firm_name || 'Unassigned'}</TableCell>
               <TableCell className="font-medium">{r.supplier_name || '-'}</TableCell>
               <TableCell className="font-mono text-xs">{r.pan_number || '-'}</TableCell>
+              <TableCell>
+                {r.tds_rate != null ? (
+                  <Badge variant="outline" className={rateKey(r.tds_rate) === '20' ? 'border-red-300 text-red-700' : 'border-blue-300 text-blue-700'}>
+                    {r.tds_rate}%
+                  </Badge>
+                ) : '-'}
+              </TableCell>
               <TableCell className="font-mono text-xs">{r.order_number || '-'}</TableCell>
               <TableCell className="font-mono text-xs">{r.binance_order_number || '-'}</TableCell>
               <TableCell className="text-xs">

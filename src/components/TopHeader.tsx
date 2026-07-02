@@ -27,8 +27,7 @@ export function TopHeader() {
   const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { focusPageSearch } = useShortcuts();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { focusPageSearch, openPalette } = useShortcuts();
 
   const handlePageSearch = () => {
     if (!focusPageSearch()) {

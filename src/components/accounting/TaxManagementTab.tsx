@@ -443,7 +443,9 @@ export function TaxManagementTab() {
               </TableCell>
               <TableCell>
                 {r.payment_status === 'PAID' ? (
-                  <Badge className="bg-green-100 text-green-800 border-green-200">Paid</Badge>
+                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                    {r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid'}
+                  </Badge>
                 ) : (
                   <Badge variant="destructive">Unpaid</Badge>
                 )}

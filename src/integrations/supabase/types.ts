@@ -2224,6 +2224,36 @@ export type Database = {
           },
         ]
       }
+      client_operator_notes: {
+        Row: {
+          client_id: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          note: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_verified_names: {
         Row: {
           client_id: string

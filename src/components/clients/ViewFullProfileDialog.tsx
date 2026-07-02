@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { checkPhoneUniqueness } from "@/utils/clientDuplicateCheck";
+import { OperatorNotesThread } from "@/components/clients/OperatorNotesThread";
 
 interface ViewFullProfileDialogProps {
   open: boolean;
@@ -346,17 +347,9 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] 
             </Card>
           )}
 
-          {/* Operator Notes */}
-          {client.operator_notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Operator Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">{client.operator_notes}</p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Operator Notes (threaded) */}
+          <OperatorNotesThread clientId={client.id} legacyNote={client.operator_notes} />
+
 
           {/* Delete Client */}
           <PermissionGate permissions={["clients_destructive"]} showFallback={false}>

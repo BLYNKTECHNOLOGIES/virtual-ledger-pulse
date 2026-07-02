@@ -1,7 +1,7 @@
 import {
   Home, TrendingUp, ShoppingCart, Building2, Users, ListOrdered, Package,
   Inbox, BookOpen, Calculator, Shield, Settings, UserCheck, CheckSquare,
-  Scale, BarChart3, Keyboard, Command, Plus, type LucideIcon,
+  Scale, BarChart3, Keyboard, Command, Plus, Search, type LucideIcon,
 } from "lucide-react";
 
 export type ShortcutCategory = "Navigation" | "Actions" | "Global";
@@ -43,6 +43,8 @@ export function comboToDisplay(combo: ShortcutCombo, isMac: boolean): string[] {
   // Convert "KeyS" -> "S", "Slash" -> "/"
   let key = combo.code.replace(/^Key/, "").replace(/^Digit/, "");
   if (combo.code === "Slash") key = "/";
+  if (combo.code === "Enter") key = "Enter";
+  if (combo.code === "Space") key = "Space";
   parts.push(key);
   return parts;
 }
@@ -59,6 +61,17 @@ export function matchesCombo(e: KeyboardEvent, combo: ShortcutCombo): boolean {
 
 const A = (code: string): ShortcutCombo => ({ alt: true, shift: true, code });
 
+/**
+ * Chrome-reserved combos — NEVER assign these to ERP shortcuts:
+ *  - Ctrl+K / Ctrl+E ...... omnibox search (we use Ctrl/Cmd+K for the palette and
+ *                           preventDefault() to fully suppress Chrome's behaviour)
+ *  - Alt+Shift+I .......... Chrome feedback form
+ *  - Alt+Shift+T .......... focus first toolbar item
+ *  - Alt+Shift+A .......... focus inactive dialogs  (avoided — Tax uses Alt+Shift+X)
+ *  - Alt+Shift+N .......... open split view          (avoided — Create uses Alt+Shift+Enter)
+ * All other Alt+Shift+<letter> combos are free (Chrome only binds those letters with Ctrl).
+ */
+
 /** Navigation shortcuts — each gated by the same permissions as its sidebar item. */
 export const NAVIGATION_SHORTCUTS: ShortcutDef[] = [
   { id: "nav-dashboard", category: "Navigation", label: "Dashboard", description: "Go to the main dashboard", combo: A("KeyD"), icon: Home, url: "/dashboard", permissions: ["dashboard_view"] },
@@ -69,7 +82,7 @@ export const NAVIGATION_SHORTCUTS: ShortcutDef[] = [
   { id: "nav-terminal-orders", category: "Navigation", label: "Terminal Orders", description: "Go to Terminal orders", combo: A("KeyO"), icon: ListOrdered, url: "/terminal/orders", permissions: ["terminal_view", "terminal_manage"] },
   { id: "nav-stock", category: "Navigation", label: "Stock Management", description: "Go to Stock management", combo: A("KeyK"), icon: Package, url: "/stock", permissions: ["stock_view", "stock_manage"] },
   { id: "nav-erp-entry", category: "Navigation", label: "ERP Entry", description: "Go to the ERP entry queue", combo: A("KeyE"), icon: Inbox, url: "/erp-entry", permissions: ["erp_entry_view", "erp_entry_manage"] },
-  { id: "nav-accounting", category: "Navigation", label: "Tax Management", description: "Go to Tax / Accounting", combo: A("KeyA"), icon: BookOpen, url: "/accounting", permissions: ["accounting_view", "accounting_manage"] },
+  { id: "nav-accounting", category: "Navigation", label: "Tax Management", description: "Go to Tax / Accounting", combo: A("KeyX"), icon: BookOpen, url: "/accounting", permissions: ["accounting_view", "accounting_manage"] },
   { id: "nav-financials", category: "Navigation", label: "Financials", description: "Go to Financials", combo: A("KeyF"), icon: Calculator, url: "/financials", permissions: ["accounting_view", "accounting_manage"] },
   { id: "nav-risk", category: "Navigation", label: "Risk Management", description: "Go to Risk management", combo: A("KeyR"), icon: Shield, url: "/risk-management", permissions: ["risk_management_view", "risk_management_manage"] },
   { id: "nav-user-management", category: "Navigation", label: "User Management", description: "Go to User management", combo: A("KeyU"), icon: Settings, url: "/user-management", permissions: ["user_management_view", "user_management_manage"] },
@@ -80,21 +93,22 @@ export const NAVIGATION_SHORTCUTS: ShortcutDef[] = [
 ];
 
 /**
- * Quick-create actions. Alt+Shift+N triggers the one matching the current route.
+ * Quick-create actions. Alt+Shift+Enter triggers the one matching the current route.
  * These navigate to the page with ?quickAction=new; the page's existing
  * (permission-gated) create dialog is what actually opens — no direct mutations.
  */
 export const QUICK_CREATE_SHORTCUTS: ShortcutDef[] = [
-  { id: "new-sales", category: "Actions", label: "New Sales Order", description: "Open the New Sales Order dialog", combo: A("KeyN"), icon: Plus, url: "/sales", quickAction: "new", permissions: ["sales_manage"] },
-  { id: "new-purchase", category: "Actions", label: "New Purchase Order", description: "Open the New Purchase Order dialog", combo: A("KeyN"), icon: Plus, url: "/purchase", quickAction: "new", permissions: ["purchase_manage"] },
-  { id: "new-client", category: "Actions", label: "Add Client", description: "Open the Add Client dialog", combo: A("KeyN"), icon: Plus, url: "/clients", quickAction: "new", permissions: ["clients_manage"] },
-  { id: "new-task", category: "Actions", label: "New Task", description: "Open the New Task dialog", combo: A("KeyN"), icon: Plus, url: "/tasks", quickAction: "new", permissions: ["tasks_manage"] },
+  { id: "new-sales", category: "Actions", label: "New Sales Order", description: "Open the New Sales Order dialog", combo: A("Enter"), icon: Plus, url: "/sales", quickAction: "new", permissions: ["sales_manage"] },
+  { id: "new-purchase", category: "Actions", label: "New Purchase Order", description: "Open the New Purchase Order dialog", combo: A("Enter"), icon: Plus, url: "/purchase", quickAction: "new", permissions: ["purchase_manage"] },
+  { id: "new-client", category: "Actions", label: "Add Client", description: "Open the Add Client dialog", combo: A("Enter"), icon: Plus, url: "/clients", quickAction: "new", permissions: ["clients_manage"] },
+  { id: "new-task", category: "Actions", label: "New Task", description: "Open the New Task dialog", combo: A("Enter"), icon: Plus, url: "/tasks", quickAction: "new", permissions: ["tasks_manage"] },
 ];
 
 /** Global shortcuts available to everyone. */
 export const GLOBAL_SHORTCUTS: ShortcutDef[] = [
   { id: "global-palette", category: "Global", label: "Command Palette", description: "Search and jump to any module or action you can access", combo: { ctrlOrCmd: true, code: "KeyK" }, icon: Command, permissions: [] },
-  { id: "global-new", category: "Global", label: "Create New (current module)", description: "Open the primary create dialog on the current page", combo: A("KeyN"), icon: Plus, permissions: [] },
+  { id: "global-page-search", category: "Global", label: "Search This Page", description: "Focus the search box of the page you're currently on", combo: { code: "Slash" }, icon: Search, permissions: [] },
+  { id: "global-new", category: "Global", label: "Create New (current module)", description: "Open the primary create dialog on the current page", combo: A("Enter"), icon: Plus, permissions: [] },
   { id: "global-help", category: "Global", label: "Shortcuts Help", description: "Open the keyboard shortcuts reference", combo: A("Slash"), icon: Keyboard, url: "/shortcuts", permissions: [] },
 ];
 

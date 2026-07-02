@@ -17,6 +17,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NotificationDropdown } from "@/components/NotificationDropdown";
+import { useShortcuts } from "@/contexts/ShortcutsProvider";
 
 
 export function TopHeader() {
@@ -26,7 +27,16 @@ export function TopHeader() {
   const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
+  const { focusPageSearch, openPalette } = useShortcuts();
+
+  const handlePageSearch = () => {
+    if (!focusPageSearch()) {
+      toast({
+        title: "No search on this page",
+        description: "This page doesn't have a search box.",
+      });
+    }
+  };
 
   const handleViewWebsite = () => {
     navigate('/website/vasp-home');
@@ -74,17 +84,6 @@ export function TopHeader() {
     setIsDashboardRearrangeMode(!isDashboardRearrangeMode);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      toast({
-        title: "Search",
-        description: `Searching for: ${searchQuery}`,
-      });
-      // Here you can implement actual search functionality
-      // For now, just showing a toast
-    }
-  };
 
   return (
     <header className="h-14 md:h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-3 md:px-6 shadow-sm">
@@ -117,17 +116,32 @@ export function TopHeader() {
       </div>
       
       <div className="flex items-center gap-2 md:gap-4">
-        {/* Search - hidden on mobile, visible on tablet+ */}
-        <form onSubmit={handleSearch} className="relative hidden lg:block">
+        {/* Search this page — focuses the current page's search box ("/") */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handlePageSearch}
+          className="p-2 border-2 rounded-lg text-gray-600 hover:bg-blue-50 hover:text-blue-700 border-gray-200"
+          aria-label="Search this page"
+          title="Search this page ( / )"
+        >
+          <Search className="h-5 w-5" />
+        </Button>
+
+        {/* Command palette omnibox - hidden on mobile, visible on tablet+ */}
+        <button
+          type="button"
+          onClick={openPalette}
+          className="relative hidden lg:flex items-center"
+        >
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <input
-            type="text"
-            placeholder="Search or type a command (⌘ + K)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-64 xl:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white"
-          />
-        </form>
+          <span
+            className="w-64 xl:w-96 pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-500 text-left focus:outline-none"
+          >
+            Search or type a command (⌘ + K)
+          </span>
+        </button>
+
         
         <div className="flex items-center gap-2">
           {isAdmin && (

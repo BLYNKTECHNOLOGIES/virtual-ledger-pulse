@@ -742,6 +742,7 @@ export function BankAccountManagement() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                     <Input
                       placeholder="Search by account name, bank name, account number, holder name, IFSC..."
+                      data-page-search
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 bg-card border border-border shadow-sm"

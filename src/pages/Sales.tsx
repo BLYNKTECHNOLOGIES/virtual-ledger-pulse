@@ -833,6 +833,7 @@ export default function Sales() {
             <div className="flex-1">
               <Input 
                 placeholder="Search orders..." 
+                data-page-search
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="text-sm"

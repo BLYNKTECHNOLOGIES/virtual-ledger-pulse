@@ -496,6 +496,7 @@ export function ClientDashboard() {
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search buyers by name or ID..."
+                        data-page-search
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />

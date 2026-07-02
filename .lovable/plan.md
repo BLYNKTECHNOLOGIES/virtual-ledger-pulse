@@ -1,47 +1,74 @@
-## Goal
+# Terminal Shortcuts + Arrow-Key Order Navigation
 
-Make the ERP keyboard shortcuts (1) fully non-conflicting with Chrome, (2) a bit more usable, and (3) add a new "focus this page's search" action available both as a shortcut and as a header button that works relative to whatever page the user is on.
+Bring the ERP's permission-aware shortcut system into the P2P Terminal, plus a new "hold-and-move" arrow navigation that walks through the exact order list you entered from (Active Orders, Appeals, KYC/Bio-flagged, etc.), opening each order's chat as you move.
 
-## 1. Chrome conflict audit (against Google's official shortcut list)
+## Part A — Terminal Shortcut Library
 
-I checked every existing combo against Chrome for Windows/Linux and Mac. Only three genuinely collide with a Chrome browser shortcut:
+**New file `src/config/terminal-shortcuts.ts`** — a registry mirroring `src/config/shortcuts.ts`, but:
+- Routes point to `/terminal/*`.
+- Each entry is gated by a `TerminalPermission` (from `useTerminalAuth`), not ERP permissions.
+- Uses the same Chrome-safe `Alt+Shift+<key>` scheme, reusing the `matchesCombo` / `comboToDisplay` helpers already in `shortcuts.ts` (exported and shared).
 
-| Current combo | Action | Chrome collision |
-|---|---|---|
-| `Alt+Shift+A` | Tax Management | Chrome "Focus on inactive dialogs" |
-| `Alt+Shift+N` | Create New (contextual) | Chrome "Open split view in active tab" |
-| `Ctrl+K` | Command Palette | Chrome "Search from address bar" |
+Navigation shortcuts (gated by the same permission as each sidebar item):
 
-Also **reserved by Chrome and therefore must stay unused**: `Alt+Shift+I` (feedback), `Alt+Shift+T` (focus toolbar). All other nav combos (`Alt+Shift+D/S/P/B/C/O/K/E/F/R/U/H/G/L/M`) are clear — Chrome only uses those letters with `Ctrl`/`Ctrl+Shift`, not `Alt+Shift`, so there is no collision.
+```text
+Alt+Shift+D  Dashboard        terminal_dashboard_view
+Alt+Shift+A  Ads Manager      terminal_ads_view
+Alt+Shift+O  Orders           terminal_orders_view
+Alt+Shift+U  Automation       terminal_pricing_view
+Alt+Shift+W  Assets           terminal_assets_view
+Alt+Shift+Y  Analytics        terminal_analytics_view
+Alt+Shift+M  MPI              terminal_mpi_view_own
+Alt+Shift+P  Payer            terminal_payer_view
+Alt+Shift+J  Appeals          terminal_appeals_view
+Alt+Shift+K  Small Payments   terminal_small_payments_view
+Alt+Shift+G  Logs             terminal_logs_view
+Alt+Shift+R  Users & Roles    terminal_users_view
+Alt+Shift+S  Settings         terminal_settings_view
+```
 
-### Fixes
-- **Tax Management:** `Alt+Shift+A` → `Alt+Shift+X` (mnemonic: ta**X**).
-- **Create New:** `Alt+Shift+N` → `Alt+Shift+Enter`.
-- **Command Palette:** keep `Ctrl/Cmd+K`. Cmd+K on macOS has no Chrome binding at all. On Windows, `Ctrl+K` opens the omnibox only if the page doesn't handle it — our provider already calls `preventDefault()`, which fully and reliably suppresses Chrome's behaviour (the same mechanism Slack/Notion/Linear use). This is the one universally expected palette combo and the header already advertises it, so we keep it but I'll add an inline note in the Shortcuts page explaining the interception. If you'd rather move it off Ctrl+K entirely, say so and I'll switch it to `Alt+Shift+Space`.
+Global:
+```text
+Ctrl/Cmd+K   Command palette (terminal-scoped, permission filtered)
+/            Focus current page's search box
+Alt+Shift+/  Open this Shortcuts help page
+```
+(All chosen letters are outside Chrome's reserved `Alt+Shift` combos: I, T, A-with-dialogs, N — already documented in `shortcuts.ts`.)
 
-## 2. New feature — contextual page search
+**New file `src/contexts/TerminalShortcutsProvider.tsx`** — global key listener, mounted inside `TerminalLayout` (so it only runs in the terminal and has `useTerminalAuth` in scope). It:
+- Ignores keystrokes while typing in inputs/textareas/contenteditable.
+- Only fires a navigation shortcut when the user passes its `TerminalPermission` check — a user without permission gets nothing, exactly like the sidebar.
+- Handles `/` → focus `[data-page-search]` (reusing `src/lib/focus-page-search.ts`), and `Ctrl/Cmd+K` → terminal command palette.
 
-A single action that focuses/opens the search box of whatever page the user is currently on.
+**New file `src/components/terminal/TerminalCommandPalette.tsx`** — same pattern as the ERP `CommandPalette`, filtered by terminal permissions.
 
-- **Shortcut:** `/` (plain slash, when not already typing in a field) — the familiar GitHub/Slack "focus search" key, with zero Chrome conflict.
-- **Header button:** a Search-icon button in `TopHeader` that fires the same action, so mouse users get it too.
-- **How it resolves the right box:** a `focusPageSearch()` helper looks for `[data-page-search]` on the current page first, then falls back to the first visible `input[type="search"]` / `input[placeholder*="search" i]`. It focuses, selects existing text, and scrolls it into view.
-- I'll tag the primary search inputs on the highest-traffic pages with `data-page-search` (Sales, Purchase, BAMS, Clients, Terminal Orders, Stock); the heuristic fallback covers every other page automatically with no per-page edit.
+## Part B — Terminal Shortcuts Info Page (permission-aware)
 
-## 3. A few more usable shortcuts
+**New file `src/pages/terminal/TerminalShortcuts.tsx`** — mirrors `src/pages/Shortcuts.tsx`: sections for Global / Navigation / Arrow Navigation, rendering each combo as `<kbd>`. Shortcuts the user lacks permission for are shown greyed-out with a "No access" badge (`useTerminalAuth().hasPermission`).
 
-- `Alt+Shift+Enter` — contextual "Create new" (moved off the conflicting N).
-- `/` — focus current page's search (new).
-- Keep `Alt+Shift+/` for the Shortcuts help page (distinct from plain `/`).
-- Everything remains permission-gated exactly as today; nothing bypasses `usePermissions`.
+- Add route `/terminal/shortcuts` in `src/App.tsx` (wrapped in `TerminalLayout`).
+- Add a **Shortcuts** item to `src/components/terminal/TerminalSidebar.tsx` with **no** `requiredPermission` so it's visible to every terminal user (as requested).
 
-## Technical changes
+## Part C — Shift + Arrow "Hold & Move Through the List"
 
-- **`src/config/shortcuts.ts`** — remap Tax to `Alt+Shift+X`, Create New to `Alt+Shift+Enter`; add a `global-page-search` entry (`/`). Add a comment block listing Chrome-reserved combos so future additions avoid them.
-- **`src/contexts/ShortcutsProvider.tsx`** — handle the new `/` page-search key (ignored while typing); expose `focusPageSearch` via context so the header button can call it.
-- **`src/lib/focus-page-search.ts`** (new) — the resolver helper described above.
-- **`src/components/TopHeader.tsx`** — add the Search-icon "page search" button wired to `focusPageSearch()`; update the placeholder/hint text.
-- **Page search inputs** — add `data-page-search` to the main filter input on Sales, Purchase, BAMS, Clients, Terminal Orders, Stock.
-- **`src/components/shortcuts/CommandPalette.tsx`** and **`src/pages/Shortcuts.tsx`** — reflect the remapped combos, add the new page-search shortcut, and add the "Chrome-safe / reserved keys" note.
+The key rule: navigation always follows the **currently displayed/filtered list you entered from**, so it inherently stays inside that group (Active Orders, a status/trade filter, Appeals, KYC/Bio-flagged) and never leaks across groups or past your permissions (you can only step onto rows already visible to you).
 
-No schema, edge-function, or dependency changes.
+**`src/pages/terminal/TerminalOrders.tsx`**
+- When an order detail is open (`selectedOrder` set), add a keydown listener for `Shift+ArrowRight`/`Shift+ArrowDown` → next, `Shift+ArrowLeft`/`Shift+ArrowUp` → previous.
+- Compute the current index inside `visibleOrders` (the already-filtered list reflecting the active trade/status/assignment tabs + search). Move ±1, clamp at ends, then `setSelectedOrder(nextOrder)` and mark its chat read (same path as `openChatForOrder`), so the chat opens automatically.
+- Because `visibleOrders` already encodes the "group through which we entered," stepping stays within Active vs Completed vs a KYC-filtered subset, etc.
+
+**`src/pages/terminal/TerminalAppeals.tsx`**
+- When a case chat is open (`chatOrder` set), the same `Shift+Arrow` handler walks `visibleCases` (the current appeals filter) and opens the prev/next case's chat via the existing `openChatForCase` flow.
+
+**Optional small enhancement (non-breaking):** show subtle `‹ ›` prev/next buttons in the `OrderDetailWorkspace` header when a handler is provided, so the same movement is available by click. This only adds optional props (`onPrev?`, `onNext?`) and changes nothing when they're absent.
+
+## Permissions & Safety
+- Every navigation shortcut and palette entry is filtered through `useTerminalAuth().hasPermission`, identical to sidebar gating — shortcuts never bypass rules.
+- Arrow navigation can only land on rows already rendered for that user, so it cannot expose orders they aren't allowed to see.
+- No database, edge-function, or Binance-API changes — this is purely front-end keyboard/routing wiring.
+
+## Verification
+- Typecheck.
+- Playwright smoke on `/terminal/shortcuts` to confirm the page renders and greys out no-access rows.
+- Manual-style check that `Shift+Arrow` inside an open order advances selection within the filtered list only.

@@ -40,6 +40,7 @@ export const ActionTypes = {
   CLIENT_SELLER_REJECTED: 'client.seller_rejected',
   CLIENT_BUYER_APPROVED: 'client.buyer_approved',
   CLIENT_BUYER_REJECTED: 'client.buyer_rejected',
+  CLIENT_KYC_DOCUMENT_DELETED: 'client.kyc_document_deleted',
   
   // Banking (BAMS) Module
   BANK_TRANSACTION_CREATED: 'bank.transaction_created',
@@ -81,6 +82,7 @@ export const EntityTypes = {
   ERP_CONVERSION: 'erp_conversion',
   CLIENT: 'client',
   CLIENT_ONBOARDING: 'client_onboarding',
+  CLIENT_KYC_DOCUMENT: 'client_kyc_document',
   BANK_ACCOUNT: 'bank_account',
   BANK_TRANSACTION: 'bank_transaction',
   USER: 'user',
@@ -111,6 +113,7 @@ interface LogActionParams {
   entityId: string;
   module: Module | string;
   metadata?: Record<string, any>;
+  userName?: string;
 }
 
 /**
@@ -124,7 +127,7 @@ interface LogActionParams {
  * @param params - The action parameters to log
  */
 export async function logAction(params: LogActionParams): Promise<void> {
-  const { userId, actionType, entityType, entityId, module, metadata } = params;
+  const { userId, actionType, entityType, entityId, module, metadata, userName } = params;
 
   // Validate required fields
   if (!userId || !actionType || !entityType || !entityId || !module) {
@@ -150,6 +153,7 @@ export async function logAction(params: LogActionParams): Promise<void> {
           module: module,
           recorded_at: new Date().toISOString(),
           metadata: metadata || {},
+          ...(userName ? { user_name: userName } : {}),
         },
         {
           onConflict: 'entity_id,action_type',

@@ -2008,6 +2008,10 @@ export type Database = {
         Row: {
           client_id: string
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deleted_by_name: string | null
+          deletion_reason: string | null
           document_type: string
           file_name: string
           file_size: number | null
@@ -2018,6 +2022,10 @@ export type Database = {
         Insert: {
           client_id: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_by_name?: string | null
+          deletion_reason?: string | null
           document_type: string
           file_name: string
           file_size?: number | null
@@ -2028,6 +2036,10 @@ export type Database = {
         Update: {
           client_id?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deleted_by_name?: string | null
+          deletion_reason?: string | null
           document_type?: string
           file_name?: string
           file_size?: number | null

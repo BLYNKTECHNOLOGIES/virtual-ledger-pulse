@@ -2,10 +2,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Download, Eye, Upload, Calendar, CreditCard, Briefcase, Video, ExternalLink } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { FileText, Download, Eye, Upload, Calendar, CreditCard, Briefcase, Video, ExternalLink, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { downloadStorageDocumentUrl, openStorageDocumentUrl } from "@/lib/storage-multipart";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 
 interface KYCDocumentsDialogProps {
   open: boolean;
@@ -20,7 +36,78 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   vkyc_video: 'vKYC Video',
 };
 
+const DELETE_ALLOWED_ROLES = ['coo', 'admin', 'super admin'];
+
 export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsDialogProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const canDeleteDocuments = !!user?.roles?.some((r) =>
+    DELETE_ALLOWED_ROLES.includes(r.toLowerCase())
+  );
+
+  const [docToDelete, setDocToDelete] = useState<any | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const currentUserName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    user?.username || user?.email || "Unknown user";
+
+  const handleConfirmDelete = async () => {
+    if (!docToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("client_kyc_documents")
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id ?? null,
+          deleted_by_name: currentUserName,
+          deletion_reason: deleteReason.trim() || null,
+        })
+        .eq("id", docToDelete.id)
+        .is("deleted_at", null);
+
+      if (error) throw error;
+
+      await logActionWithCurrentUser({
+        actionType: ActionTypes.CLIENT_KYC_DOCUMENT_DELETED,
+        entityType: EntityTypes.CLIENT_KYC_DOCUMENT,
+        entityId: docToDelete.id,
+        module: Modules.CLIENTS,
+        userName: currentUserName,
+        metadata: {
+          client_id: client?.id,
+          client_name: client?.name,
+          document_type: docToDelete.document_type,
+          file_name: docToDelete.file_name,
+          deleted_by_name: currentUserName,
+          reason: deleteReason.trim() || null,
+        },
+      });
+
+      toast({
+        title: "Document deleted",
+        description: `"${docToDelete.file_name}" has been removed. The action was logged.`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["client_kyc_documents_dialog", client?.id] });
+      setDocToDelete(null);
+      setDeleteReason("");
+    } catch (err: any) {
+      console.error("Failed to delete KYC document:", err);
+      toast({
+        title: "Delete failed",
+        description: err?.message || "Could not delete the document. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
 
   // Fetch client onboarding approvals
   const { data: onboardingData } = useQuery({
@@ -47,6 +134,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
         .from('client_kyc_documents')
         .select('*')
         .eq('client_id', client.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true });
       if (error) throw error;
       return data || [];
@@ -189,6 +277,17 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                               <Button size="sm" variant="ghost" onClick={() => downloadStorageDocumentUrl(doc.file_url, doc.file_name)}>
                                 <Download className="h-4 w-4" />
                               </Button>
+                              {canDeleteDocuments && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => { setDocToDelete(doc); setDeleteReason(""); }}
+                                  title="Delete document"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -343,6 +442,39 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
           </div>
         </div>
       </DialogContent>
+
+      <AlertDialog open={!!docToDelete} onOpenChange={(o) => { if (!o) { setDocToDelete(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete KYC document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to remove <strong>{docToDelete?.file_name}</strong> from{" "}
+              <strong>{client?.name}</strong>'s KYC records. This action is logged with your name
+              and cannot be undone by the KYC team.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="kyc-delete-reason" className="text-sm">Reason (optional)</Label>
+            <Textarea
+              id="kyc-delete-reason"
+              placeholder="e.g. Incorrect document uploaded by mistake"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleConfirmDelete(); }}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Document"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

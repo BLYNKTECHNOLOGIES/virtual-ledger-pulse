@@ -630,6 +630,18 @@ const router = createBrowserRouter([
       ),
     },
     {
+      path: "/terminal/shortcuts",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalShortcuts />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
       path: "/reset-password",
       element: <ResetPassword />,
     },

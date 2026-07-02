@@ -1117,6 +1117,7 @@ function TerminalOrdersContent() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or order ID..."
+            data-page-search
             className="h-8 pl-8 text-xs bg-secondary border-border"
           />
         </div>

@@ -130,7 +130,10 @@ export function useCounterpartyChatHistory(
             sort: 'asc',
           }, order.exchange_account_id || exchangeAccountId || undefined);
           const list = result?.data?.data || result?.data || result?.list || [];
-          const messages: HistoricalChatMessage[] = Array.isArray(list) ? list : [];
+          const messages: HistoricalChatMessage[] = (Array.isArray(list) ? list : []).filter((msg: any) => {
+            const msgOrderNo = msg?.orderNo || msg?.topicId || msg?.order?.orderNo || null;
+            return !msgOrderNo || String(msgOrderNo) === String(order.order_number);
+          });
 
           chatResults.push({
             orderNumber: order.order_number,

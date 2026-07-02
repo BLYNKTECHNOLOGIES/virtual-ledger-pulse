@@ -152,7 +152,8 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
         bank_account_id: "",
         adjustment_type: "CREDIT",
         amount: "",
-        reason: ""
+        reason: "",
+        sub_ledger_id: null,
       });
     },
     onError: (error: any) => {

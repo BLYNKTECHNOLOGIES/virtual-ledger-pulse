@@ -23,6 +23,7 @@ import { ChevronDown, ChevronRight, Loader2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useCreditSubLedgers } from "@/hooks/useCreditSubLedgers";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface CreditSubLedgerDialogProps {
   open: boolean;

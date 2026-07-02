@@ -544,15 +544,20 @@ export function useBinanceChatMessages(orderNo: string | null, accountId?: strin
   });
 }
 
-export function useArchivedBinanceChatMessages(orderNo: string | null) {
+export function useArchivedBinanceChatMessages(orderNo: string | null, accountId?: string | null) {
   return useQuery({
-    queryKey: ['archived-binance-chat-messages', orderNo],
+    queryKey: ['archived-binance-chat-messages', orderNo, accountId ?? null],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('binance_order_chat_messages' as any)
         .select('id, order_number, dedupe_key, binance_message_id, binance_uuid, message_type, chat_message_type, content_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant')
-        .eq('order_number', orderNo!)
-        .order('binance_create_time', { ascending: true });
+        .eq('order_number', orderNo!);
+
+      if (accountId) {
+        query = query.eq('exchange_account_id', accountId);
+      }
+
+      const { data, error } = await query.order('binance_create_time', { ascending: true });
       if (error) throw error;
       return data as unknown as ArchivedBinanceChatMessage[];
     },

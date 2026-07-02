@@ -464,7 +464,7 @@ function extractChatMessages(result: any): any[] {
   return [];
 }
 
-function normalizeChatMessage(orderNo: string, msg: any) {
+function normalizeChatMessage(orderNo: string, msg: any, accountId?: string | null) {
   const contentType = msg?.contentType == null ? null : String(msg.contentType).toLowerCase();
   const rawType = String(msg?.type || msg?.chatMessageType || msg?.messageType || contentType || "unknown").toLowerCase();
   const knownTypes = new Set(["text", "image", "system", "recall", "mark", "card", "video", "translate", "error"]);
@@ -478,7 +478,7 @@ function normalizeChatMessage(orderNo: string, msg: any) {
   const binanceUuid = msg?.uuid == null ? null : String(msg.uuid);
   const fallbackKey = `${orderNo}-${createTime || "no-time"}-${messageType}-${String(content || JSON.stringify(msg || {})).slice(0, 160)}`;
 
-  return {
+  const row: Record<string, any> = {
     order_number: orderNo,
     dedupe_key: binanceMessageId || binanceUuid || fallbackKey,
     binance_message_id: binanceMessageId,
@@ -500,9 +500,12 @@ function normalizeChatMessage(orderNo: string, msg: any) {
     is_compliance_relevant: isComplianceRelevant,
     updated_at: new Date().toISOString(),
   };
+
+  if (accountId) row.exchange_account_id = accountId;
+  return row;
 }
 
-async function persistChatMessages(supabase: any, orderNo: string, messages: any[]) {
+async function persistChatMessages(supabase: any, orderNo: string, messages: any[], accountId?: string | null) {
   let inserted = 0;
   let updated = 0;
   let systemMessages = 0;
@@ -510,7 +513,7 @@ async function persistChatMessages(supabase: any, orderNo: string, messages: any
   let errors = 0;
 
   for (const msg of messages) {
-    const row = normalizeChatMessage(orderNo, msg);
+    const row = normalizeChatMessage(orderNo, msg, accountId);
     if (row.is_system_message) systemMessages++;
     if (row.is_recall) recalls++;
     if (row.message_type === "error") errors++;
@@ -1383,7 +1386,7 @@ serve(async (req) => {
         if (payload.orderNo && messages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            const archive = await persistChatMessages(supabase, String(payload.orderNo), messages);
+            const archive = await persistChatMessages(supabase, String(payload.orderNo), messages, EXCHANGE_ACCOUNT_ID);
             result._archive = archive;
           } catch (persistErr) {
             console.warn("getChatMessages archive persist failed:", persistErr);
@@ -1425,7 +1428,7 @@ serve(async (req) => {
           seen.add(key);
           return true;
         });
-        const archive = await persistChatMessages(supabase, orderNo, deduped);
+        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID);
         result = { code: "000000", message: "success", data: archive };
         break;
       }

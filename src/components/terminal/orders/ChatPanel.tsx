@@ -30,8 +30,8 @@ interface Props {
 
 export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId }: Props) {
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
-  const { data: archivedMessages = [] } = useArchivedBinanceChatMessages(orderNumber);
-  const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName);
+  const { data: archivedMessages = [] } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
+  const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
   const { userId, username } = useTerminalAuth();
   const [text, setText] = useState('');
@@ -55,7 +55,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         console.warn('Failed to mark Binance chat read:', err);
       });
     }
-  }, [orderNumber]);
+  }, [orderNumber, exchangeAccountId]);
 
   useEffect(() => {
     if (!orderNumber) return;
@@ -67,7 +67,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     return () => {
       cancelled = true;
     };
-  }, [orderNumber]);
+  }, [orderNumber, exchangeAccountId]);
 
   useEffect(() => {
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));

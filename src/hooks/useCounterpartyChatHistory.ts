@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from './useBinanceActions';
 
@@ -26,30 +26,37 @@ export interface HistoricalChatMessage {
 
 const PAGE_SIZE = 3; // Load 3 past orders at a time
 
+function isUsableNickname(nickname?: string | null) {
+  const text = (nickname || '').trim();
+  // Binance history masks many nicknames as values like "Use***". Those are
+  // not identities; using them groups unrelated counterparties together.
+  return !!text && !text.includes('*');
+}
+
 export function useCounterpartyChatHistory(
   counterpartyNickname: string,
   currentOrderNumber: string,
-  counterpartyVerifiedName?: string
+  counterpartyVerifiedName?: string,
+  exchangeAccountId?: string | null
 ) {
   const [historicalChats, setHistoricalChats] = useState<HistoricalOrderChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loadedOrdersRef = useRef<Set<string>>(new Set());
-  const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number }[] | null>(null);
+  const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null }[] | null>(null);
   const offsetRef = useRef(0);
-  // Track which verified name was used for the cached query
-  const cachedVerifiedNameRef = useRef<string | undefined>(undefined);
+  const scopeRef = useRef('');
 
-  // Reset cache if verified name changes (e.g. arrives after initial load)
-  if (counterpartyVerifiedName && cachedVerifiedNameRef.current !== counterpartyVerifiedName && allPastOrdersRef.current !== null) {
+  useEffect(() => {
+    const scope = [currentOrderNumber, counterpartyVerifiedName || '', counterpartyNickname || '', exchangeAccountId || ''].join('|');
+    if (scopeRef.current === scope) return;
+    scopeRef.current = scope;
     allPastOrdersRef.current = null;
     offsetRef.current = 0;
     loadedOrdersRef.current = new Set();
-    cachedVerifiedNameRef.current = counterpartyVerifiedName;
-    // Re-enable loading
     setHasMore(true);
     setHistoricalChats([]);
-  }
+  }, [currentOrderNumber, counterpartyVerifiedName, counterpartyNickname, exchangeAccountId]);
 
   const fetchPastOrders = useCallback(async () => {
     if (!hasMore || isLoading) return;
@@ -70,24 +77,29 @@ export function useCounterpartyChatHistory(
             .maybeSingle();
           resolvedName = current?.verified_name || undefined;
         }
-        cachedVerifiedNameRef.current = resolvedName;
+        // Match by verified name when available. Do NOT OR it with the Binance
+        // nickname because history commonly stores masked nicknames (Use***),
+        // which are shared by many unrelated clients and leak wrong KYC chats.
+        const canFallbackToNickname = !resolvedName && isUsableNickname(counterpartyNickname);
 
-        // Match by verified name when available, otherwise fall back to the
-        // (masked) counterparty nickname so the lookup still resolves.
-        const matchClauses: string[] = [];
-        if (resolvedName) matchClauses.push(`verified_name.eq.${resolvedName}`);
-        if (counterpartyNickname) matchClauses.push(`counter_part_nick_name.eq.${counterpartyNickname}`);
-
-        if (matchClauses.length === 0) {
-          // Nothing to match on — no past orders can be resolved.
+        if (!resolvedName && !canFallbackToNickname) {
           allPastOrdersRef.current = [];
         } else {
-          const { data, error } = await supabase
+          let query = supabase
             .from('binance_order_history')
-            .select('order_number, trade_type, asset, total_price, fiat_unit, create_time')
-            .or(matchClauses.join(','))
+            .select('order_number, trade_type, asset, total_price, fiat_unit, create_time, exchange_account_id')
             .neq('order_number', currentOrderNumber)
             .order('create_time', { ascending: false });
+
+          if (exchangeAccountId) {
+            query = query.eq('exchange_account_id', exchangeAccountId);
+          }
+
+          query = resolvedName
+            ? query.eq('verified_name', resolvedName)
+            : query.eq('counter_part_nick_name', counterpartyNickname);
+
+          const { data, error } = await query;
 
           if (error) throw error;
           allPastOrdersRef.current = data || [];
@@ -116,7 +128,7 @@ export function useCounterpartyChatHistory(
             page: 1,
             rows: 50,
             sort: 'asc',
-          });
+          }, order.exchange_account_id || exchangeAccountId || undefined);
           const list = result?.data?.data || result?.data || result?.list || [];
           const messages: HistoricalChatMessage[] = Array.isArray(list) ? list : [];
 
@@ -160,7 +172,7 @@ export function useCounterpartyChatHistory(
     } finally {
       setIsLoading(false);
     }
-  }, [counterpartyNickname, counterpartyVerifiedName, currentOrderNumber, hasMore, isLoading]);
+  }, [counterpartyNickname, counterpartyVerifiedName, currentOrderNumber, exchangeAccountId, hasMore, isLoading]);
 
   return { historicalChats, isLoading, hasMore, loadMore: fetchPastOrders };
 }

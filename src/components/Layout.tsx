@@ -10,6 +10,7 @@ import { ExchangeAccountProvider } from "@/contexts/ExchangeAccountContext";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";
+import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,6 +32,7 @@ export function Layout({ children }: LayoutProps) {
         <NotificationProvider>
           <ExchangeAccountProvider>
             <SidebarProvider defaultOpen={defaultSidebarOpen}>
+              <ShortcutsProvider>
               <div className="flex w-full min-h-screen bg-slate-50">
                 {/* Desktop sidebar - hidden on mobile */}
                 <div className="hidden md:block">
@@ -51,6 +53,7 @@ export function Layout({ children }: LayoutProps) {
                   <TransactionDetailDialog />
                 </SidebarInset>
               </div>
+              </ShortcutsProvider>
             </SidebarProvider>
           </ExchangeAccountProvider>
           </NotificationProvider>

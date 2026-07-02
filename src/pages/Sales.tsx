@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useNavigateToClient } from "@/hooks/useNavigateToClient";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useQuickAction } from "@/hooks/useQuickAction";
 import { DEFAULT_ASSET_CODES } from "@/hooks/useAssetCodes";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
@@ -46,6 +47,10 @@ export default function Sales() {
   const { hasPermission } = usePermissions();
   const [showStepByStepFlow, setShowStepByStepFlow] = useState(false);
   const [showManualSalesEntry, setShowManualSalesEntry] = useState(false);
+
+  // Alt+Shift+N opens the New Order dialog. Only fires for users who can reach
+  // this page; the entry dialog itself enforces sales_manage.
+  useQuickAction("new", () => setShowManualSalesEntry(true));
   
   const [showFilterDialog, setShowFilterDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");

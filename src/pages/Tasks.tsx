@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
+import { useQuickAction } from '@/hooks/useQuickAction';
 
 type SortField = 'due_date' | 'priority' | null;
 type SortDir = 'asc' | 'desc';
@@ -38,6 +39,10 @@ export default function Tasks() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const { data: tasks, isLoading } = useTasks({ search, status, priority, showCompleted, overdue });
+
+  // Keyboard shortcut (Alt+Shift+N) opens the create dialog. Still gated by the
+  // page's own tasks_manage permission on the New Task button/flow.
+  useQuickAction('new', () => setCreateOpen(true));
   const togglePin = useTogglePin();
   const updateTask = useUpdateTask();
   const { toast } = useToast();

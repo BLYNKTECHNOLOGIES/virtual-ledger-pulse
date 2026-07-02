@@ -39,6 +39,7 @@ import ProfitLoss from './pages/ProfitLoss';
 import Financials from './pages/Financials';
 
 import UserProfile from './pages/UserProfile';
+import Shortcuts from './pages/Shortcuts';
 
 import RiskManagement from './pages/RiskManagement';
 import AdManager from './pages/AdManager';
@@ -368,7 +369,19 @@ const router = createBrowserRouter([
            </AuthCheck>
        </QueryProvider>
      ),
-   },
+    },
+    {
+      path: "/shortcuts",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <Layout>
+                <Shortcuts />
+              </Layout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
    {
      path: "/tasks",
      element: (

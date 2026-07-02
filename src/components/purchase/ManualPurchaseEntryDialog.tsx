@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTriFieldCalc } from "@/hooks/useTriFieldCalc";
+import { useQuickAction } from "@/hooks/useQuickAction";
 import { fetchAndLockMarketRate, linkSnapshotToReference } from "@/lib/effectiveUsdtEngine";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,9 @@ interface ManualPurchaseEntryDialogProps {
 
 export const ManualPurchaseEntryDialog: React.FC<ManualPurchaseEntryDialogProps> = ({ onSuccess }) => {
   const [open, setOpen] = useState(false);
+  // Alt+Shift+N opens this dialog. The trigger button is already permission-gated
+  // on the Purchase page, so this only opens the same dialog the user can open.
+  useQuickAction('new', () => setOpen(true));
   const [loading, setLoading] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [isNewClient, setIsNewClient] = useState(false);

@@ -1537,16 +1537,48 @@ export function ClientOnboardingApprovals() {
     return <Badge className={variants[status as keyof typeof variants]}>{status}</Badge>;
   };
 
-  const openDocument = async (url: string) => {
+  const [reuploadTarget, setReuploadTarget] = useState<
+    { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string } | null
+  >(null);
+
+  // Returns true if the stored document is reachable, false if it 404s / is missing.
+  const documentIsReachable = async (url: string): Promise<boolean> => {
+    try {
+      if (isMultipartManifestUrl(url)) {
+        // resolveMultipartManifestUrl throws if the manifest or any chunk is missing.
+        await resolveMultipartManifestUrl(url, 'kyc-documents');
+        return true;
+      }
+      const res = await fetch(url, { method: 'HEAD' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const openDocument = async (
+    url: string,
+    meta?: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string },
+  ) => {
     // Large vKYC videos are stored as multipart chunks + a manifest JSON.
     // Opening the raw manifest URL shows JSON instead of the video, so resolve
     // and reconstruct the original file before opening.
+    const reachable = await documentIsReachable(url);
+    if (!reachable) {
+      if (meta) {
+        setReuploadTarget(meta);
+      } else {
+        toast({ title: 'Document unavailable', description: 'This file is missing (404) and needs to be re-uploaded.', variant: 'destructive' });
+      }
+      return;
+    }
     try {
       await openStorageDocumentUrl(url, 'kyc-documents');
     } catch (err: any) {
       toast({ title: 'Could not open document', description: err?.message || 'Failed to load the file.', variant: 'destructive' });
     }
   };
+
 
   // Deduplicate pending approvals by client_name — show each client once with aggregated order info
   const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];

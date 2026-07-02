@@ -27,7 +27,17 @@ export function TopHeader() {
   const location = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { focusPageSearch } = useShortcuts();
   const [searchQuery, setSearchQuery] = useState("");
+
+  const handlePageSearch = () => {
+    if (!focusPageSearch()) {
+      toast({
+        title: "No search on this page",
+        description: "This page doesn't have a search box.",
+      });
+    }
+  };
 
   const handleViewWebsite = () => {
     navigate('/website/vasp-home');

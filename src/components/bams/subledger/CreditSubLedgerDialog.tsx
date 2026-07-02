@@ -44,12 +44,16 @@ interface Txn {
   is_reversed: boolean;
 }
 
-const POSITIVE_TYPES = ["INCOME", "CREDIT", "TRANSFER_IN"];
-
+// Sign convention must mirror update_bank_account_balance() exactly so the
+// sub-ledger total can never diverge from the account balance.
 function signedAmount(t: Txn): number {
   const amt = Number(t.amount) || 0;
-  return POSITIVE_TYPES.includes(t.transaction_type) ? amt : -amt;
+  if (t.transaction_type === "INCOME" || t.transaction_type === "TRANSFER_IN") return amt;
+  if (t.transaction_type === "EXPENSE" || t.transaction_type === "TRANSFER_OUT") return -amt;
+  return 0;
 }
+
+const POSITIVE_TYPES = ["INCOME", "TRANSFER_IN"];
 
 const UNIDENTIFIED_KEY = "__unidentified__";
 

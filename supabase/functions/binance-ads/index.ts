@@ -19,6 +19,22 @@ function unwrapOrderDetail(result: any) {
   return result?.data?.data || result?.data || result;
 }
 
+function explicitOrderNumberFromPayload(payload: any): string | null {
+  const value = payload?.orderNumber ?? payload?.orderNo ?? payload?.adOrderNo ?? payload?.order_number ?? null;
+  return value === null || value === undefined || value === "" ? null : String(value);
+}
+
+function explicitOrderNumberFromObject(value: any): string | null {
+  if (!value || typeof value !== "object") return null;
+  const direct = value.orderNumber ?? value.orderNo ?? value.adOrderNo ?? value.order_number ?? value.topicId ?? value.order?.orderNo ?? null;
+  return direct === null || direct === undefined || direct === "" ? null : String(direct);
+}
+
+function payloadMatchesOrder(value: any, expectedOrderNo: string): boolean {
+  const explicitOrderNo = explicitOrderNumberFromObject(value);
+  return !explicitOrderNo || explicitOrderNo === expectedOrderNo;
+}
+
 function extractSellerNameFromDetail(detail: any): string | null {
   const direct = detail?.sellerRealName || detail?.sellerName || detail?.sellerNickName || null;
   if (direct) return String(direct).trim();
@@ -464,7 +480,7 @@ function extractChatMessages(result: any): any[] {
   return [];
 }
 
-function normalizeChatMessage(orderNo: string, msg: any) {
+function normalizeChatMessage(orderNo: string, msg: any, accountId?: string | null) {
   const contentType = msg?.contentType == null ? null : String(msg.contentType).toLowerCase();
   const rawType = String(msg?.type || msg?.chatMessageType || msg?.messageType || contentType || "unknown").toLowerCase();
   const knownTypes = new Set(["text", "image", "system", "recall", "mark", "card", "video", "translate", "error"]);
@@ -478,7 +494,7 @@ function normalizeChatMessage(orderNo: string, msg: any) {
   const binanceUuid = msg?.uuid == null ? null : String(msg.uuid);
   const fallbackKey = `${orderNo}-${createTime || "no-time"}-${messageType}-${String(content || JSON.stringify(msg || {})).slice(0, 160)}`;
 
-  return {
+  const row: Record<string, any> = {
     order_number: orderNo,
     dedupe_key: binanceMessageId || binanceUuid || fallbackKey,
     binance_message_id: binanceMessageId,
@@ -500,9 +516,12 @@ function normalizeChatMessage(orderNo: string, msg: any) {
     is_compliance_relevant: isComplianceRelevant,
     updated_at: new Date().toISOString(),
   };
+
+  if (accountId) row.exchange_account_id = accountId;
+  return row;
 }
 
-async function persistChatMessages(supabase: any, orderNo: string, messages: any[]) {
+async function persistChatMessages(supabase: any, orderNo: string, messages: any[], accountId?: string | null) {
   let inserted = 0;
   let updated = 0;
   let systemMessages = 0;
@@ -510,7 +529,7 @@ async function persistChatMessages(supabase: any, orderNo: string, messages: any
   let errors = 0;
 
   for (const msg of messages) {
-    const row = normalizeChatMessage(orderNo, msg);
+    const row = normalizeChatMessage(orderNo, msg, accountId);
     if (row.is_system_message) systemMessages++;
     if (row.is_recall) recalls++;
     if (row.message_type === "error") errors++;
@@ -520,6 +539,7 @@ async function persistChatMessages(supabase: any, orderNo: string, messages: any
       .select("id")
       .eq("order_number", orderNo)
       .eq("dedupe_key", row.dedupe_key)
+      .eq("exchange_account_id", accountId || "00000000-0000-0000-0000-000000000001")
       .maybeSingle();
     if (readErr) throw readErr;
 
@@ -1039,6 +1059,17 @@ serve(async (req) => {
         let detail = unwrapOrderDetail(result);
         let detailAccountId = EXCHANGE_ACCOUNT_ID;
 
+        const requestedOrderNo = explicitOrderNumberFromPayload(payload);
+        const returnedOrderNo = explicitOrderNumberFromObject(detail);
+        if (requestedOrderNo && returnedOrderNo && returnedOrderNo !== requestedOrderNo) {
+          result = {
+            code: "ORDER_DETAIL_MISMATCH",
+            message: `Binance returned order ${returnedOrderNo} while ${requestedOrderNo} was requested. Refusing to use mismatched order detail.`,
+            _diagnostics: { requestedOrderNo, returnedOrderNo, endpoint: "/sapi/v1/c2c/orderMatch/getUserOrderDetail" },
+          };
+          detail = null;
+        }
+
         // If historical rows are mapped to the wrong Binance account, Binance returns
         // 83998 "operation is illegal". Try the other configured accounts and persist
         // the account that can actually read the order.
@@ -1058,9 +1089,15 @@ serve(async (req) => {
               console.log("getOrderDetail fallback response:", candidate.account_name, altResponse.status, altText.substring(0, 5000));
               let altResult: any;
               try { altResult = JSON.parse(altText); } catch { altResult = { raw: altText, status: altResponse.status }; }
+              const altDetail = unwrapOrderDetail(altResult);
+              const altReturnedOrderNo = explicitOrderNumberFromObject(altDetail);
+              if (requestedOrderNo && altReturnedOrderNo && altReturnedOrderNo !== requestedOrderNo) {
+                console.warn("getOrderDetail fallback order mismatch:", candidate.account_name, requestedOrderNo, altReturnedOrderNo);
+                continue;
+              }
               if (altResponse.ok && altResult?.code === "000000") {
                 result = { ...altResult, _resolvedExchangeAccountId: alt.id, _resolvedExchangeAccountName: alt.accountName };
-                detail = unwrapOrderDetail(altResult);
+                detail = altDetail;
                 detailAccountId = alt.id;
                 break;
               }
@@ -1380,10 +1417,14 @@ serve(async (req) => {
         console.log("getChatMessages response:", response.status, text.substring(0, 800));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
         const messages = extractChatMessages(result);
-        if (payload.orderNo && messages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+        const filteredMessages = payload.orderNo ? messages.filter((msg) => payloadMatchesOrder(msg, String(payload.orderNo))) : messages;
+        if (payload.orderNo && filteredMessages.length !== messages.length) {
+          console.warn("getChatMessages dropped mismatched messages", { orderNo: String(payload.orderNo), fetched: messages.length, kept: filteredMessages.length });
+        }
+        if (payload.orderNo && filteredMessages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            const archive = await persistChatMessages(supabase, String(payload.orderNo), messages);
+            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID);
             result._archive = archive;
           } catch (persistErr) {
             console.warn("getChatMessages archive persist failed:", persistErr);
@@ -1412,7 +1453,7 @@ serve(async (req) => {
           const text = await response.text();
           let pageResult: any;
           try { pageResult = JSON.parse(text); } catch { pageResult = { raw: text, status: response.status }; }
-          const pageMessages = extractChatMessages(pageResult);
+          const pageMessages = extractChatMessages(pageResult).filter((msg) => payloadMatchesOrder(msg, orderNo));
           allMessages.push(...pageMessages);
           if (pageMessages.length < rows) break;
           page++;
@@ -1425,7 +1466,7 @@ serve(async (req) => {
           seen.add(key);
           return true;
         });
-        const archive = await persistChatMessages(supabase, orderNo, deduped);
+        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID);
         result = { code: "000000", message: "success", data: archive };
         break;
       }

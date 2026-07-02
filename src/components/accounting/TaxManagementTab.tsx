@@ -510,6 +510,25 @@ export function TaxManagementTab() {
                     Select a company tab to record a TDS payment for that company.
                   </p>
                 )}
+
+                {/* Rate sub-groups (1% / 20%) */}
+                <Tabs value={activeRate} onValueChange={setActiveRate} className="mb-4">
+                  <TabsList className="flex flex-wrap h-auto">
+                    <TabsTrigger value={ALL_RATES}>
+                      All Rates
+                      <span className="ml-1.5 text-[10px] text-muted-foreground">({companyRows.length})</span>
+                    </TabsTrigger>
+                    {rateGroups.map(g => (
+                      <TabsTrigger key={g.key} value={g.key}>
+                        {rateLabel(g.key)}
+                        <span className="ml-1.5 text-[10px] text-muted-foreground">
+                          ({g.count} · {inr(g.total)})
+                        </span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+
                 {renderTable()}
               </TabsContent>
             </Tabs>

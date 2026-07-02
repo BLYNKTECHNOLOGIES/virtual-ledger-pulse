@@ -52,8 +52,8 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
       <SidebarMenuButton
         tooltip={isCollapsed ? item.title : undefined}
         className={`
-          hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-200 rounded-xl group border-2 border-transparent hover:border-gray-200 shadow-sm hover:shadow-md
-          ${isActive ? 'bg-blue-50 text-blue-700 font-semibold shadow-md border-blue-200 transform translate-x-1' : ''}
+          hover:bg-gray-50 text-gray-700 hover:text-gray-900 transition-all duration-150 rounded-xl group border border-transparent hover:border-gray-200 hover:shadow-sm
+          ${isActive ? 'bg-blue-50 text-blue-700 font-semibold border-blue-200 shadow-sm' : ''}
           ${isDragging ? 'opacity-50 z-50' : ''}
           ${isCollapsed ? 'justify-center' : ''}
         `}

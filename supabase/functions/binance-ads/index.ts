@@ -523,6 +523,7 @@ async function persistChatMessages(supabase: any, orderNo: string, messages: any
       .select("id")
       .eq("order_number", orderNo)
       .eq("dedupe_key", row.dedupe_key)
+      .eq("exchange_account_id", accountId || "00000000-0000-0000-0000-000000000001")
       .maybeSingle();
     if (readErr) throw readErr;
 

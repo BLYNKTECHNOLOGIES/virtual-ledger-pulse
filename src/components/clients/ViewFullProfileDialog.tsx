@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { PermissionGate } from "@/components/PermissionGate";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { checkPhoneUniqueness } from "@/utils/clientDuplicateCheck";
+import { OperatorNotesThread } from "@/components/clients/OperatorNotesThread";
 
 interface ViewFullProfileDialogProps {
   open: boolean;

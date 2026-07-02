@@ -113,6 +113,7 @@ interface LogActionParams {
   entityId: string;
   module: Module | string;
   metadata?: Record<string, any>;
+  userName?: string;
 }
 
 /**

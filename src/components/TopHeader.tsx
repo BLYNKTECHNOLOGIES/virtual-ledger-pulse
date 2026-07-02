@@ -84,17 +84,6 @@ export function TopHeader() {
     setIsDashboardRearrangeMode(!isDashboardRearrangeMode);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      toast({
-        title: "Search",
-        description: `Searching for: ${searchQuery}`,
-      });
-      // Here you can implement actual search functionality
-      // For now, just showing a toast
-    }
-  };
 
   return (
     <header className="h-14 md:h-16 bg-white border-b-2 border-blue-100 flex items-center justify-between px-3 md:px-6 shadow-sm">

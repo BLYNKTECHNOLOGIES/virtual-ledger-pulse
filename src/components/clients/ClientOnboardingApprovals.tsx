@@ -1879,7 +1879,7 @@ export function ClientOnboardingApprovals() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openDocument(approval.vkyc_recording_url!)}
+                          onClick={() => openDocument(approval.vkyc_recording_url!, { approvalId: approval.id, field: 'vkyc_recording_url', label: 'vKYC recording' })}
                         >
                           <Video className="h-3 w-3 mr-1" />
                           View

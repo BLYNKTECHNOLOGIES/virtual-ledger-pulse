@@ -6,6 +6,7 @@ import { BiometricAuthGate } from './BiometricAuthGate';
 import { ShieldOff, Loader2 } from 'lucide-react';
 import { TerminalPresenceAndAlerts } from './TerminalPresenceAndAlerts';
 import { ExchangeAccountProvider } from '@/contexts/ExchangeAccountContext';
+import { TerminalShortcutsProvider } from '@/contexts/TerminalShortcutsProvider';
 
 interface TerminalLayoutProps {
   children: React.ReactNode;

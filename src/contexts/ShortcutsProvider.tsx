@@ -49,6 +49,13 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
       // Everything else is ignored while typing so it never disrupts data entry.
       if (isTypingTarget(e.target)) return;
 
+      // Focus the current page's search box ("/")
+      const pageSearch = GLOBAL_SHORTCUTS.find((s) => s.id === "global-page-search")!;
+      if (matchesCombo(e, pageSearch.combo)) {
+        if (focusPageSearch()) e.preventDefault();
+        return;
+      }
+
       // Help
       const help = GLOBAL_SHORTCUTS.find((s) => s.id === "global-help")!;
       if (matchesCombo(e, help.combo)) {

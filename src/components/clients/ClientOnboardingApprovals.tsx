@@ -2817,7 +2817,7 @@ function ReuploadDocumentDialog({
     if (!target) setFile(null);
   }, [target]);
 
-  const { isDragging, dropzoneProps } = useFileDropzone({
+  const { isDragActive, dropzoneProps } = useFileDropzone({
     onFiles: (files) => { if (files[0]) setFile(files[0]); },
     disabled: uploading,
     multiple: false,
@@ -2857,7 +2857,7 @@ function ReuploadDocumentDialog({
             {...dropzoneProps}
             className={cn(
               'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 text-center text-sm transition-colors',
-              isDragging ? 'border-primary bg-primary/5' : 'border-muted',
+              isDragActive ? 'border-primary bg-primary/5' : 'border-muted',
             )}
           >
             <Download className="h-5 w-5 text-muted-foreground" />

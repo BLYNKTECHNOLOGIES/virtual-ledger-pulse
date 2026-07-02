@@ -277,6 +277,12 @@ export function AppSidebar() {
         entries.push({ type: 'item', data: item });
       }
     });
+
+    // Reconciliation cockpit — gated by the reconciliation function/role
+    if (!isLoading && hasReconAccess) {
+      entries.push({ type: 'item', data: reconciliationItem });
+    }
+
     
     // Add groups (filter children by permissions)
     sidebarGroups.forEach(group => {

@@ -402,6 +402,30 @@ export default function TerminalAppeals() {
     setChatOrder(appealCaseToOrderRecord(caseItem, authoritativeStatusMap));
   };
 
+  // Shift + Arrow navigation while an appeal chat is open — walks the current
+  // appeals list (respecting active filters), opening each case's chat.
+  useEffect(() => {
+    if (!chatOrder) return;
+    const handler = (e: KeyboardEvent) => {
+      if (!e.shiftKey) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      let direction: 1 | -1 | 0 = 0;
+      if (e.code === 'ArrowRight' || e.code === 'ArrowDown') direction = 1;
+      else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') direction = -1;
+      if (direction === 0) return;
+      const idx = visibleCases.findIndex((c) => String(c.order_number) === String(chatOrder.binance_order_number));
+      if (idx === -1) return;
+      const nextIdx = idx + direction;
+      if (nextIdx < 0 || nextIdx >= visibleCases.length) return;
+      e.preventDefault();
+      openChatForCase(visibleCases[nextIdx]);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [chatOrder, visibleCases]);
+
+
   if (chatOrder) {
     return (
       <div className="h-[calc(100vh-48px)]">

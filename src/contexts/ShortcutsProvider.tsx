@@ -92,7 +92,7 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
   }, [navigate, location.pathname, hasAnyPermission]);
 
   return (
-    <ShortcutsContext.Provider value={{ openPalette }}>
+    <ShortcutsContext.Provider value={{ openPalette, focusPageSearch }}>
       {children}
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </ShortcutsContext.Provider>

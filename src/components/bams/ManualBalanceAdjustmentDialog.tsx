@@ -11,6 +11,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules, getCurrentUserId } from "@/lib/system-action-logger";
+import { SubLedgerSelect } from "@/components/bams/subledger/SubLedgerSelect";
 
 interface ManualBalanceAdjustmentDialogProps {
   open: boolean;
@@ -26,7 +27,8 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
     bank_account_id: "",
     adjustment_type: "CREDIT",
     amount: "",
-    reason: ""
+    reason: "",
+    sub_ledger_id: null as string | null,
   });
 
   // Fetch bank accounts (excluding dormant)
@@ -105,6 +107,7 @@ export function ManualBalanceAdjustmentDialog({ open, onOpenChange }: ManualBala
           category: "ADJUSTMENT",
           related_account_name: ADJUSTMENT_ACCOUNT_NAME,
           created_by: currentUserId || null, // Persist user ID for audit trail
+          sub_ledger_id: formData.sub_ledger_id || null,
         },
         {
           bank_account_id: adjustmentAccountId,

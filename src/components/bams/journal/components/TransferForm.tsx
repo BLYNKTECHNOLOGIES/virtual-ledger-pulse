@@ -15,7 +15,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { validateBankAccountBalance, ValidationError } from "@/utils/validations";
 import { useAuth } from "@/hooks/useAuth";
- import { isUuid } from "@/utils/isUuid";
+  import { isUuid } from "@/utils/isUuid";
+import { SubLedgerSelect } from "@/components/bams/subledger/SubLedgerSelect";
 
 interface TransferFormProps {
   bankAccounts: any[];
@@ -30,8 +31,15 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
     toAccountId: "",
     amount: "",
     date: undefined as Date | undefined,
-    description: ""
+    description: "",
+    fromSubLedgerId: null as string | null,
+    toSubLedgerId: null as string | null,
   });
+
+  const fromAccount = bankAccounts?.find((a) => a.id === formData.fromAccountId);
+  const toAccount = bankAccounts?.find((a) => a.id === formData.toAccountId);
+  const isFromCredit = fromAccount?.account_type === 'CREDIT';
+  const isToCredit = toAccount?.account_type === 'CREDIT';
 
   const createTransferMutation = useMutation({
     mutationFn: async (transferData: typeof formData) => {
@@ -58,6 +66,8 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         p_date: transferData.date ? format(transferData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         p_description: transferData.description || null,
         p_created_by: createdBy,
+        p_from_sub_ledger_id: transferData.fromSubLedgerId || null,
+        p_to_sub_ledger_id: transferData.toSubLedgerId || null,
       });
 
       if (error) throw error;
@@ -77,7 +87,9 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         toAccountId: "",
         amount: "",
         date: undefined,
-        description: ""
+        description: "",
+        fromSubLedgerId: null,
+        toSubLedgerId: null,
       });
     },
     onError: (error: any) => {
@@ -119,6 +131,15 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
       return;
     }
 
+    if ((isFromCredit && !formData.fromSubLedgerId) || (isToCredit && !formData.toSubLedgerId)) {
+      toast({
+        title: "Sub-ledger required",
+        description: "Please select a sub-ledger (person) for the credit account leg of this transfer.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     createTransferMutation.mutate(formData);
   };
 
@@ -134,7 +155,7 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="fromAccount">From Bank Account *</Label>
-            <Select value={formData.fromAccountId} onValueChange={(value) => setFormData({...formData, fromAccountId: value})}>
+            <Select value={formData.fromAccountId} onValueChange={(value) => setFormData({...formData, fromAccountId: value, fromSubLedgerId: null})}>
               <SelectTrigger>
                 <SelectValue placeholder="Select source account" />
               </SelectTrigger>
@@ -149,11 +170,18 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            <SubLedgerSelect
+              className="mt-2"
+              value={formData.fromSubLedgerId}
+              onChange={(id) => setFormData({ ...formData, fromSubLedgerId: id })}
+              isCreditAccount={isFromCredit}
+              label="From Sub-Ledger (Person)"
+            />
           </div>
 
           <div>
             <Label htmlFor="toAccount">To Bank Account *</Label>
-            <Select value={formData.toAccountId} onValueChange={(value) => setFormData({...formData, toAccountId: value})}>
+            <Select value={formData.toAccountId} onValueChange={(value) => setFormData({...formData, toAccountId: value, toSubLedgerId: null})}>
               <SelectTrigger>
                 <SelectValue placeholder="Select destination account" />
               </SelectTrigger>
@@ -168,7 +196,15 @@ export function TransferForm({ bankAccounts }: TransferFormProps) {
                 ))}
               </SelectContent>
             </Select>
+            <SubLedgerSelect
+              className="mt-2"
+              value={formData.toSubLedgerId}
+              onChange={(id) => setFormData({ ...formData, toSubLedgerId: id })}
+              isCreditAccount={isToCredit}
+              label="To Sub-Ledger (Person)"
+            />
           </div>
+
 
           <div>
             <Label htmlFor="amount">Transfer Amount (₹) *</Label>

@@ -250,26 +250,32 @@ export function CreditSubLedgerDialog({
                                 {fmt(signedAmount(t))}
                               </td>
                               <td className="p-2">
-                                <Select
-                                  value={t.sub_ledger_id ?? UNIDENTIFIED_KEY}
-                                  onValueChange={(val) =>
-                                    reassign.mutate({
-                                      txnId: t.id,
-                                      subLedgerId: val === UNIDENTIFIED_KEY ? null : val,
-                                    })
-                                  }
-                                >
-                                  <SelectTrigger className="h-8 w-[160px] text-foreground">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {subLedgers.map((s) => (
-                                      <SelectItem key={s.id} value={s.id}>
-                                        {s.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                {canReassign ? (
+                                  <Select
+                                    value={t.sub_ledger_id ?? UNIDENTIFIED_KEY}
+                                    onValueChange={(val) =>
+                                      reassign.mutate({
+                                        txnId: t.id,
+                                        subLedgerId: val === UNIDENTIFIED_KEY ? null : val,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="h-8 w-[160px] text-foreground">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {subLedgers.map((s) => (
+                                        <SelectItem key={s.id} value={s.id}>
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    {subLedgerName(t.sub_ledger_id)}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           ))}

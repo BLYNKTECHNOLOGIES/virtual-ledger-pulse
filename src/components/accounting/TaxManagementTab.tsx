@@ -107,6 +107,7 @@ export function TaxManagementTab() {
 
   const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter());
   const [activeCompany, setActiveCompany] = useState<string>(ALL_TAB);
+  const [activeRate, setActiveRate] = useState<string>(ALL_RATES);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBankAccountId, setPaymentBankAccountId] = useState("");

@@ -2,15 +2,20 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { useNavigate, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { CommandPalette } from "@/components/shortcuts/CommandPalette";
+import { focusPageSearch } from "@/lib/focus-page-search";
 import {
   NAVIGATION_SHORTCUTS, QUICK_CREATE_SHORTCUTS, GLOBAL_SHORTCUTS, matchesCombo,
 } from "@/config/shortcuts";
 
 interface ShortcutsContextValue {
   openPalette: () => void;
+  focusPageSearch: () => boolean;
 }
 
-const ShortcutsContext = createContext<ShortcutsContextValue>({ openPalette: () => {} });
+const ShortcutsContext = createContext<ShortcutsContextValue>({
+  openPalette: () => {},
+  focusPageSearch: () => false,
+});
 
 export const useShortcuts = () => useContext(ShortcutsContext);
 

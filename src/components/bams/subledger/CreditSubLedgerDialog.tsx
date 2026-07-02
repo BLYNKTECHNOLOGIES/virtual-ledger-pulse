@@ -220,7 +220,7 @@ export function CreditSubLedgerDialog({
                             <th className="p-2">Type</th>
                             <th className="p-2">Description</th>
                             <th className="p-2 text-right">Amount</th>
-                            <th className="p-2">Reassign to</th>
+                            <th className="p-2">{canReassign ? "Reassign to" : "Sub-ledger"}</th>
                           </tr>
                         </thead>
                         <tbody>

@@ -1,59 +1,36 @@
-## Goal
+# Enterprise UI Polish — keep existing theme, refine only
 
-Make the ERP feel finished and polished instead of "raw Excel sheet" by adding subtle, fast micro-animations — without changing any tab positions, page layouts, data, or business logic. All changes happen in shared UI primitives and one global CSS/config file, so every page benefits at once.
+Make the ERP feel like a premium SaaS product instead of a raw spreadsheet — **without changing the theme, colors, or any business logic, APIs, database, calculations, permissions, workflows, or data**. This is pure presentation polish: spacing, alignment, typography hierarchy, consistency, component states, tables, forms, badges, and empty/loading states.
 
-## Guardrails (hard constraints)
+Scope: **light main ERP only** (dark P2P Terminal untouched).
 
-- No placement changes to tabs or any UI element. Only motion/transition styling is added.
-- No business-logic, data, query, or backend changes.
-- Performance-first: only GPU-friendly properties (`transform`, `opacity`), durations capped at 150–250ms, and respect `prefers-reduced-motion` so heavy data tables never feel laggy.
-- Everything stays in the existing design-token system (no hardcoded colors).
+## Hard constraints
+- **No theme/color changes.** Keep the current HSL tokens in `src/index.css` and `tailwind.config.ts` exactly as-is (primary indigo, neutrals, radius, fonts). Do NOT retune the palette.
+- No changes to queries, mutations, hooks, edge functions, RPCs, permissions, routing, or column/data definitions.
+- No moved tabs/nav items; no workflow redesign; no new heavy dependencies.
+- Components use existing semantic tokens only (no hardcoded colors).
 
-## What gets polished
+## Phase 1 — Shared primitives (propagate everywhere, same colors)
+Refine spacing, sizing, states, and consistency only — no new colors:
+- `button.tsx` — clearer size/padding rhythm, consistent hover/disabled/focus states (variants & colors unchanged).
+- `table.tsx` — comfortable row height, refined header weight/spacing, quiet hover, hairline dividers; keep existing sticky-header/density support and current colors.
+- `badge.tsx` — standardize status usage (Active/Pending/Completed/Paid/Overdue/Cancelled/Draft/Approved) using the **existing** success/warning/info/destructive/muted tokens; optional leading dot for scannability. No new palette.
+- `card.tsx` — consistent padding, radius, existing `shadow-sm`, gentle hover elevation.
+- `input.tsx`, `select.tsx`, `textarea.tsx`, `label.tsx`, `checkbox.tsx`, `radio-group.tsx` — consistent height, spacing, focus ring, placeholder, required/validation affordances (using current ring/border tokens).
+- `dialog.tsx`, `sheet.tsx`, `alert-dialog.tsx`, `dropdown-menu.tsx`, `popover.tsx`, `tooltip.tsx`, `tabs.tsx` — standardize width/spacing/header-footer and button placement (reuse existing motion polish).
+- `skeleton.tsx` + reusable empty-state — lightweight loading/empty treatments in current colors.
 
-### 1. Dialogs & modals (the biggest "raw" feeling)
-`src/components/ui/dialog.tsx`, `alert-dialog.tsx`, `sheet.tsx`, `drawer.tsx`
-- Add a smooth zoom+fade entrance on mobile too (currently only desktop zooms; mobile just fades).
-- Soften overlay fade and add a gentle backdrop blur on open.
-- Slightly longer, eased close so dialogs don't "snap" shut.
+## Phase 2 — Shell polish (same theme)
+Files: `AppSidebar.tsx`, `TopHeader.tsx`, `Layout.tsx`
+- Refine sidebar spacing, active-state clarity, icon alignment; polish header search/account spacing. Keep all nav positions, collapse/resize behavior, and colors unchanged.
 
-### 2. Tab switching
-`src/components/ui/tabs.tsx`
-- Add a quick fade/slide-up on `TabsContent` when a tab becomes active (content animates, tabs stay exactly where they are).
-- Smooth the active-pill transition on `TabsTrigger` (color/shadow already transitions; refine easing).
-
-### 3. Tables (kills the "spreadsheet" feel)
-`src/components/ui/table.tsx`
-- Subtle row hover lift/tint refinement and smoother `transition-colors`.
-- Optional staggered fade-in for newly rendered rows (CSS-only, no JS per-row cost).
-
-### 4. Cards, dropdowns, popovers, tooltips, accordions
-`card.tsx`, `dropdown-menu.tsx`, `select.tsx`, `popover.tsx`, `hover-card.tsx`, `tooltip.tsx`, `accordion.tsx`
-- Ensure consistent enter/exit zoom+fade (most already have it via radix; standardize duration/easing).
-- Cards: gentle hover elevation using existing shadow tokens.
-
-### 5. Buttons & interactive controls
-`src/components/ui/button.tsx`
-- Add subtle active-press scale (`active:scale-[0.98]`) and consistent transition for a tactile feel.
-
-### 6. Global motion foundation
-`tailwind.config.ts` + `src/index.css`
-- Add a small set of reusable keyframes/utilities (e.g. `fade-in-up`, `content-show`) with standardized easing curve.
-- Add a global `@media (prefers-reduced-motion: reduce)` block that disables/reduces animations for accessibility and low-power devices.
-- Add a route/page-content mount fade so navigating between modules feels intentional.
-
-## Approach
-
-Because all interactive UI is built on these shared primitives, editing them propagates the polish across every module (Sales, Terminal, BAMS, Accounting, Approvals, etc.) with zero per-page edits and zero placement changes.
+## Phase 3 — High-traffic surfaces (verify propagation)
+Spot-check the busiest pages and align page-header pattern (title + subtitle + action), spacing, and status badges without changing data/columns:
+- Sales, Clients/CRM, Stock/Inventory, Accounting/Tax, Statistics, User Management, and the bespoke `invoice/OrdersTable.tsx`.
 
 ## Verification
+- Build/typecheck passes; no console/runtime errors.
+- Drive Playwright on the live preview to confirm polish renders and nothing breaks; confirm colors are visually unchanged vs. before.
+- Reduced-motion still disables animations.
 
-- Build passes.
-- Drive Playwright on the live preview to open a dialog, switch tabs, and hover table rows; capture before/after screenshots and confirm motion is subtle and tabs/layout are unchanged.
-- Confirm reduced-motion media query disables animations.
-
-## Technical notes
-
-- Durations: 150ms (hover/press), 200ms (dropdowns/tabs), 250ms (dialogs). Easing: `cubic-bezier(0.16,1,0.3,1)` for entrances.
-- Only animate `transform`/`opacity`/`filter`(blur on overlay only) to avoid layout reflow and keep 60fps on large tables.
-- No changes to any `*Tab.tsx` page files, sidebar, or routing structure beyond an opt-in mount-fade wrapper.
+I'll implement in phase order and check in after Phase 1 so you can confirm on real screens before rolling wider.

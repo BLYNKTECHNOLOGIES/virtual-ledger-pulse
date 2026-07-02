@@ -112,8 +112,8 @@ const TableHead = React.forwardRef<
     <th
       ref={ref}
       className={cn(
-        "px-4 text-left align-middle font-semibold text-muted-foreground [&:has([role=checkbox])]:pr-0",
-        density === "compact" ? "h-9" : "h-12",
+        "px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0 [&:has([role=checkbox])]:normal-case",
+        density === "compact" ? "h-9" : "h-11",
         numeric && "text-right tabular-nums",
         className
       )}

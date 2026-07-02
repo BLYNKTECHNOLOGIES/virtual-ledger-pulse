@@ -41,6 +41,21 @@ interface AllocationRow {
 }
 
 const ALL_TAB = "__all__";
+const ALL_RATES = "__all_rates__";
+
+// Normalize a TDS rate to a stable group key ("1", "20", or "other").
+function rateKey(rate: number | null): string {
+  const n = Number(rate || 0);
+  if (n === 1) return "1";
+  if (n === 20) return "20";
+  return "other";
+}
+function rateLabel(key: string): string {
+  if (key === "1") return "1% (PAN available)";
+  if (key === "20") return "20% (PAN missing)";
+  if (key === ALL_RATES) return "All Rates";
+  return "Other";
+}
 
 function generateQuarterOptions() {
   const options: { value: string; label: string }[] = [];
@@ -92,6 +107,7 @@ export function TaxManagementTab() {
 
   const [selectedQuarter, setSelectedQuarter] = useState(getCurrentQuarter());
   const [activeCompany, setActiveCompany] = useState<string>(ALL_TAB);
+  const [activeRate, setActiveRate] = useState<string>(ALL_RATES);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentBankAccountId, setPaymentBankAccountId] = useState("");
@@ -101,7 +117,7 @@ export function TaxManagementTab() {
   const dateRange = useMemo(() => getQuarterDateRange(selectedQuarter), [selectedQuarter]);
 
   // Reset selection when switching tabs / quarters
-  useEffect(() => { setSelectedIds([]); }, [activeCompany, selectedQuarter]);
+  useEffect(() => { setSelectedIds([]); }, [activeCompany, activeRate, selectedQuarter]);
 
   // Fetch per-transaction TDS allocations for the quarter
   const { data: allocations, isLoading } = useQuery({
@@ -166,12 +182,39 @@ export function TaxManagementTab() {
       .sort((a, b) => a.firm_name.localeCompare(b.firm_name));
   }, [subsidiaries, allocations]);
 
-  // Rows for the active tab
-  const visibleRows = useMemo(() => {
+  // Rows for the active company tab (before rate sub-grouping)
+  const companyRows = useMemo(() => {
     if (!allocations) return [];
     if (activeCompany === ALL_TAB) return allocations;
     return allocations.filter(a => (a.subsidiary_id || `name:${a.firm_name || 'Unassigned'}`) === activeCompany);
   }, [allocations, activeCompany]);
+
+  // Rate sub-groups present for the active company, with per-group TDS totals.
+  const rateGroups = useMemo(() => {
+    const order = ['1', '20', 'other'];
+    const map = new Map<string, { count: number; total: number }>();
+    companyRows.forEach(r => {
+      const k = rateKey(r.tds_rate);
+      const cur = map.get(k) || { count: 0, total: 0 };
+      cur.count += 1;
+      cur.total += Number(r.allocated_tds_amount || 0);
+      map.set(k, cur);
+    });
+    return order.filter(k => map.has(k)).map(k => ({ key: k, ...map.get(k)! }));
+  }, [companyRows]);
+
+  // If the current rate sub-tab has no rows for this company, fall back to All.
+  useEffect(() => {
+    if (activeRate !== ALL_RATES && !rateGroups.some(g => g.key === activeRate)) {
+      setActiveRate(ALL_RATES);
+    }
+  }, [rateGroups, activeRate]);
+
+  // Rows for the active company AND active rate sub-group
+  const visibleRows = useMemo(() => {
+    if (activeRate === ALL_RATES) return companyRows;
+    return companyRows.filter(r => rateKey(r.tds_rate) === activeRate);
+  }, [companyRows, activeRate]);
 
   const totals = useMemo(() => {
     const rows = allocations || [];
@@ -210,7 +253,8 @@ export function TaxManagementTab() {
       if (selectedIds.length === 0) throw new Error("No records selected");
 
       const batchId = `TDS-${selectedQuarter}-${Date.now()}`;
-      const firmLabel = activeCompanyInfo?.firm_name || 'TDS';
+      const rateSuffix = activeRate === ALL_RATES ? '' : ` @ ${activeRate}%`;
+      const firmLabel = `${activeCompanyInfo?.firm_name || 'TDS'}${rateSuffix}`;
 
       const { error: updateError } = await supabase
         .from('tds_payment_allocations')
@@ -259,7 +303,9 @@ export function TaxManagementTab() {
   });
 
   const handleExport = (fmt: 'csv' | 'xlsx') => {
-    const source = activeCompany === ALL_TAB ? (allocations || []) : visibleRows;
+    // Export follows the current company AND rate sub-group selection, so each
+    // 1% / 20% group can be exported separately.
+    const source = visibleRows;
     const dataRows = includePaidInExport ? source : source.filter(r => r.payment_status !== 'PAID');
     if (dataRows.length === 0) {
       toast({ title: "No Data", description: "No TDS records to export", variant: "destructive" });
@@ -272,6 +318,7 @@ export function TaxManagementTab() {
       'Company': r.firm_name || 'Unassigned',
       'Client / Supplier': r.supplier_name || '',
       'PAN': r.pan_number || '',
+      'TDS Rate': r.tds_rate != null ? `${r.tds_rate}%` : '',
       'Order Number': r.order_number || '',
       'Binance Order Number': r.binance_order_number || '',
       'Paid From Bank': r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '',
@@ -284,7 +331,9 @@ export function TaxManagementTab() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'TDS Allocations');
-    const fileName = `TDS_${selectedQuarter}_${includePaidInExport ? 'All' : 'Unpaid'}.${fmt}`;
+    const rateTag = activeRate === ALL_RATES ? 'AllRates' : `${activeRate}pct`;
+    const companyTag = activeCompany === ALL_TAB ? 'AllCompanies' : (activeCompanyInfo?.firm_name || 'Company').replace(/[^a-zA-Z0-9]+/g, '');
+    const fileName = `TDS_${selectedQuarter}_${companyTag}_${rateTag}_${includePaidInExport ? 'All' : 'Unpaid'}.${fmt}`;
     XLSX.writeFile(wb, fileName, { bookType: fmt });
     toast({ title: "Export Complete", description: `Exported ${exportData.length} rows to ${fileName}` });
   };
@@ -314,6 +363,7 @@ export function TaxManagementTab() {
             <TableHead>Company</TableHead>
             <TableHead>Supplier</TableHead>
             <TableHead>PAN</TableHead>
+            <TableHead>TDS Rate</TableHead>
             <TableHead>Order #</TableHead>
             <TableHead>Binance Order #</TableHead>
             <TableHead>Paid From Bank</TableHead>
@@ -325,7 +375,7 @@ export function TaxManagementTab() {
         <TableBody>
           {visibleRows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                 No TDS records for this selection
               </TableCell>
             </TableRow>
@@ -349,6 +399,13 @@ export function TaxManagementTab() {
               <TableCell className="text-xs">{r.firm_name || 'Unassigned'}</TableCell>
               <TableCell className="font-medium">{r.supplier_name || '-'}</TableCell>
               <TableCell className="font-mono text-xs">{r.pan_number || '-'}</TableCell>
+              <TableCell>
+                {r.tds_rate != null ? (
+                  <Badge variant="outline" className={rateKey(r.tds_rate) === '20' ? 'border-red-300 text-red-700' : 'border-blue-300 text-blue-700'}>
+                    {r.tds_rate}%
+                  </Badge>
+                ) : '-'}
+              </TableCell>
               <TableCell className="font-mono text-xs">{r.order_number || '-'}</TableCell>
               <TableCell className="font-mono text-xs">{r.binance_order_number || '-'}</TableCell>
               <TableCell className="text-xs">
@@ -454,6 +511,25 @@ export function TaxManagementTab() {
                     Select a company tab to record a TDS payment for that company.
                   </p>
                 )}
+
+                {/* Rate sub-groups (1% / 20%) */}
+                <Tabs value={activeRate} onValueChange={setActiveRate} className="mb-4">
+                  <TabsList className="flex flex-wrap h-auto">
+                    <TabsTrigger value={ALL_RATES}>
+                      All Rates
+                      <span className="ml-1.5 text-[10px] text-muted-foreground">({companyRows.length})</span>
+                    </TabsTrigger>
+                    {rateGroups.map(g => (
+                      <TabsTrigger key={g.key} value={g.key}>
+                        {rateLabel(g.key)}
+                        <span className="ml-1.5 text-[10px] text-muted-foreground">
+                          ({g.count} · {inr(g.total)})
+                        </span>
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+
                 {renderTable()}
               </TabsContent>
             </Tabs>

@@ -374,7 +374,7 @@ export function PurchaseManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Purchase Management</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Purchase Management</h2>
           <p className="text-muted-foreground">Manage payment methods for company purchases</p>
         </div>
         <PermissionGate permissions={["bams_manage"]} showFallback={false}>

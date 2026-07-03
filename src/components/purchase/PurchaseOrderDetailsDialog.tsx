@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +26,32 @@ interface PurchaseOrderDetailsDialogProps {
 
 export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: PurchaseOrderDetailsDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canViewClient = hasPermission('clients_view') || hasPermission('clients_manage');
+
+  // Resolve the client from the supplier phone (dedup is phone-based) so the
+  // name can deep-link to the client page when the operator has permission.
+  const supplierPhone = (order?.contact_number || '').toString().trim();
+  const { data: linkedClient } = useQuery({
+    queryKey: ['po_client_by_phone', supplierPhone],
+    queryFn: async () => {
+      if (!supplierPhone) return null;
+      const { data } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('phone', supplierPhone)
+        .maybeSingle();
+      return data;
+    },
+    enabled: open && canViewClient && !!supplierPhone,
+  });
+
+  const openClientPage = () => {
+    if (!canViewClient || !linkedClient?.id) return;
+    onOpenChange(false);
+    navigate(`/clients/${linkedClient.id}`);
+  };
 
   // Fetch creator's username if created_by exists
   const { data: creatorUser } = useQuery({
@@ -199,7 +227,18 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Supplier</label>
-              <p className="text-sm">{order.supplier_name}</p>
+              {canViewClient && linkedClient?.id ? (
+                <button
+                  type="button"
+                  onClick={openClientPage}
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors duration-120"
+                >
+                  {order.supplier_name}
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              ) : (
+                <p className="text-sm">{order.supplier_name}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Phone</label>

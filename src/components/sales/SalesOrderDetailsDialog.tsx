@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, User, Coins } from "lucide-react";
+import { Download, Printer, User, Coins, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 
@@ -19,6 +21,15 @@ interface SalesOrderDetailsDialogProps {
 
 export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrderDetailsDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canViewClient = hasPermission('clients_view') || hasPermission('clients_manage');
+
+  const openClientPage = () => {
+    if (!canViewClient || !order?.client_id) return;
+    onOpenChange(false);
+    navigate(`/clients/${order.client_id}`);
+  };
 
   // Fetch wallet details if wallet_id exists
   const { data: walletData } = useQuery({
@@ -164,7 +175,18 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Customer</label>
-              <p className="text-sm">{order.client_name}</p>
+              {canViewClient && order.client_id ? (
+                <button
+                  type="button"
+                  onClick={openClientPage}
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors duration-120"
+                >
+                  {order.client_name}
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              ) : (
+                <p className="text-sm">{order.client_name}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Phone</label>

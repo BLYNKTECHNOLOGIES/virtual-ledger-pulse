@@ -202,59 +202,67 @@ export function SettlementSummary() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Settled</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-green-600" />
-              <span className="text-2xl font-bold text-green-600">
-                ₹{stats.totalSettled.toLocaleString('en-IN')}
-              </span>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 stagger-children">
+        <Card className="h-full hover:-translate-y-px">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Settled</p>
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-green-600">
+                  ₹{stats.totalSettled.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
-              <span className="text-2xl font-bold text-blue-600">
-                {stats.totalTransactions}
-              </span>
+
+        <Card className="h-full hover:-translate-y-px">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Transactions</p>
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-blue-600">
+                  {stats.totalTransactions}
+                </span>
+              </div>
+              <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <FileText className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total MDR Deducted</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-red-600" />
-              <span className="text-2xl font-bold text-red-600">
-                ₹{stats.totalMdrDeducted.toLocaleString('en-IN')}
-              </span>
+
+        <Card className="h-full hover:-translate-y-px">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total MDR Deducted</p>
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-red-600">
+                  ₹{stats.totalMdrDeducted.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="bg-red-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <TrendingUp className="h-6 w-6 text-red-600" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Average Settlement</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-purple-600" />
-              <span className="text-2xl font-bold text-purple-600">
-                ₹{stats.averageSettlementAmount.toLocaleString('en-IN')}
-              </span>
+
+        <Card className="h-full hover:-translate-y-px">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Average Settlement</p>
+                <span className="mt-2 block text-2xl font-semibold tabular-nums text-purple-600">
+                  ₹{stats.averageSettlementAmount.toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                <Calendar className="h-6 w-6 text-purple-600" />
+              </div>
             </div>
           </CardContent>
         </Card>

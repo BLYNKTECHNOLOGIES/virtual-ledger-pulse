@@ -341,8 +341,8 @@ export function TaxManagementTab() {
       toast({ title: "No Data", description: "No TDS records to export", variant: "destructive" });
       return;
     }
-    const [quarter, fyStart] = selectedQuarter.split('-');
-    const fyLabel = `FY${fyStart}-${(parseInt(fyStart) + 1).toString().slice(-2)}`;
+    const monthLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
+
 
     const exportData = dataRows.map(r => ({
       'Company': r.firm_name || 'Unassigned',

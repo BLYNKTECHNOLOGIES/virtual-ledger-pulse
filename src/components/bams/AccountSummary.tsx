@@ -255,18 +255,20 @@ export function AccountSummary() {
 
   // Fetch transactions with closing balance using RPC
   const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions-with-balance', selectedBankFilter, selectedTypeFilter, transactionPage],
+    queryKey: ['transactions-with-balance', selectedBankFilter, selectedTypeFilter, transactionPage, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const bankAccountId = selectedBankFilter === 'all' ? null : selectedBankFilter;
       const transactionType = selectedTypeFilter === 'all' ? null : selectedTypeFilter;
-      
+
       const { data, error } = await supabase.rpc('get_transactions_with_closing_balance', {
         p_bank_account_id: bankAccountId,
         p_transaction_type: transactionType,
         p_limit: TRANSACTIONS_PER_PAGE,
-        p_offset: transactionPage * TRANSACTIONS_PER_PAGE
+        p_offset: transactionPage * TRANSACTIONS_PER_PAGE,
+        p_start_date: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null,
+        p_end_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null,
       });
-      
+
       if (error) throw error;
       return data as TransactionWithBalance[];
     },

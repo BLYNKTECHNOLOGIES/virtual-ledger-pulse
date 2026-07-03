@@ -16986,34 +16986,65 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string[]
       }
-      get_transactions_with_closing_balance: {
-        Args: {
-          p_bank_account_id?: string
-          p_limit?: number
-          p_offset?: number
-          p_transaction_type?: string
-        }
-        Returns: {
-          account_name: string
-          amount: number
-          balance_before: number
-          bank_account_id: string
-          bank_name: string
-          category: string
-          closing_balance: number
-          created_at: string
-          description: string
-          id: string
-          is_reversed: boolean
-          reference_number: string
-          related_account_name: string
-          reverses_transaction_id: string
-          sequence_no: number
-          total_count: number
-          transaction_date: string
-          transaction_type: string
-        }[]
-      }
+      get_transactions_with_closing_balance:
+        | {
+            Args: {
+              p_bank_account_id?: string
+              p_limit?: number
+              p_offset?: number
+              p_transaction_type?: string
+            }
+            Returns: {
+              account_name: string
+              amount: number
+              balance_before: number
+              bank_account_id: string
+              bank_name: string
+              category: string
+              closing_balance: number
+              created_at: string
+              description: string
+              id: string
+              is_reversed: boolean
+              reference_number: string
+              related_account_name: string
+              reverses_transaction_id: string
+              sequence_no: number
+              total_count: number
+              transaction_date: string
+              transaction_type: string
+            }[]
+          }
+        | {
+            Args: {
+              p_bank_account_id?: string
+              p_end_date?: string
+              p_limit?: number
+              p_offset?: number
+              p_start_date?: string
+              p_transaction_type?: string
+            }
+            Returns: {
+              account_name: string
+              amount: number
+              balance_before: number
+              bank_account_id: string
+              bank_name: string
+              category: string
+              closing_balance: number
+              created_at: string
+              description: string
+              id: string
+              is_reversed: boolean
+              reference_number: string
+              related_account_name: string
+              reverses_transaction_id: string
+              sequence_no: number
+              total_count: number
+              transaction_date: string
+              transaction_type: string
+            }[]
+          }
       get_user_min_hierarchy_level: {
         Args: { p_user_id: string }
         Returns: number

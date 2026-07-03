@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { DateRangePicker, getDateRangeFromPreset, type DateRangePreset } from "@/components/ui/date-range-picker";
+import type { DateRange } from "react-day-picker";
 import { 
   FileText, 
   Download, 
@@ -103,6 +105,8 @@ export function AccountSummary() {
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
   const [transactionPage, setTransactionPage] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("allTime");
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
   const [subLedgerAccount, setSubLedgerAccount] = useState<{ id: string; name: string } | null>(null);
@@ -251,18 +255,20 @@ export function AccountSummary() {
 
   // Fetch transactions with closing balance using RPC
   const { data: transactionsData, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions-with-balance', selectedBankFilter, selectedTypeFilter, transactionPage],
+    queryKey: ['transactions-with-balance', selectedBankFilter, selectedTypeFilter, transactionPage, dateRange?.from, dateRange?.to],
     queryFn: async () => {
       const bankAccountId = selectedBankFilter === 'all' ? null : selectedBankFilter;
       const transactionType = selectedTypeFilter === 'all' ? null : selectedTypeFilter;
-      
+
       const { data, error } = await supabase.rpc('get_transactions_with_closing_balance', {
         p_bank_account_id: bankAccountId,
         p_transaction_type: transactionType,
         p_limit: TRANSACTIONS_PER_PAGE,
-        p_offset: transactionPage * TRANSACTIONS_PER_PAGE
+        p_offset: transactionPage * TRANSACTIONS_PER_PAGE,
+        p_start_date: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null,
+        p_end_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null,
       });
-      
+
       if (error) throw error;
       return data as TransactionWithBalance[];
     },
@@ -630,6 +636,16 @@ export function AccountSummary() {
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Filter className="h-4 w-4 text-muted-foreground" />
+                  <DateRangePicker
+                    dateRange={dateRange}
+                    preset={datePreset}
+                    onDateRangeChange={(range) => {
+                      setDateRange(range);
+                      setTransactionPage(0);
+                    }}
+                    onPresetChange={setDatePreset}
+                    align="end"
+                  />
                   <Select 
                     value={selectedBankFilter} 
                     onValueChange={(value) => {

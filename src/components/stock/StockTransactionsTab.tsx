@@ -842,6 +842,16 @@ export function StockTransactionsTab() {
         : true
     );
 
+  // Reset the visible window whenever the filtered result set changes.
+  useEffect(() => {
+    setVisibleCount(ROWS_PER_PAGE);
+  }, [searchTerm, filterType, filterWallet, filterProduct, hideReversalNoise]);
+
+  const visibleEntries = filteredEntries.slice(0, visibleCount);
+  const hasMoreEntries = filteredEntries.length > visibleCount;
+
+
+
   // Collect unique wallet names and product codes for filter dropdowns
   const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
   const uniqueProducts = Array.from(new Set([

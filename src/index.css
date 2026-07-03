@@ -552,6 +552,18 @@ html {
   animation: fade-in-up 0.3s var(--ease-out-soft);
 }
 
+/* Staggered entrance for grids (KPI cards etc.) — max 6 steps, 40ms each.
+   Children fade/slide in once on mount; transform/opacity only. */
+.stagger-children > * {
+  animation: fade-in-up 0.3s var(--ease-out-soft) both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 40ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 80ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 120ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 160ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 200ms; }
+
 /* Accessibility + low-power: respect user/device preference */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -281,13 +281,15 @@ export default function ProfitLoss() {
         });
       }
 
-      // Fetch operating expenses (excluding core trading operations like Purchase/Sales) — paginated
+      // Fetch operating expenses (excluding core trading operations like Purchase/Sales,
+      // and settlement-related entries — settlements/settlement reversals are part of the
+      // sales cycle and are excluded from income, so they must be excluded from expenses too) — paginated
       const expenseData = await fetchAllPaginated<any>(
         () => supabase
           .from('bank_transactions')
           .select('id, amount, category, description, transaction_date')
           .eq('transaction_type', 'EXPENSE')
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT")')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Payment Gateway Settlement","Settlement")')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr)
       );

@@ -1541,18 +1541,21 @@ export function ClientOnboardingApprovals() {
     { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string } | null
   >(null);
 
-  // Returns true if the stored document is reachable, false if it 404s / is missing.
+  // Returns true if the stored (non-multipart) document is reachable, false if it 404s / is missing.
   const documentIsReachable = async (url: string): Promise<boolean> => {
     try {
-      if (isMultipartManifestUrl(url)) {
-        // resolveMultipartManifestUrl throws if the manifest or any chunk is missing.
-        await resolveMultipartManifestUrl(url, 'kyc-documents');
-        return true;
-      }
       const res = await fetch(url, { method: 'HEAD' });
       return res.ok;
     } catch {
       return false;
+    }
+  };
+
+  const handleUnavailable = (meta?: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string }) => {
+    if (meta) {
+      setReuploadTarget(meta);
+    } else {
+      toast({ title: 'Document unavailable', description: 'This file is missing (404) and needs to be re-uploaded.', variant: 'destructive' });
     }
   };
 
@@ -1562,14 +1565,30 @@ export function ClientOnboardingApprovals() {
   ) => {
     // Large vKYC videos are stored as multipart chunks + a manifest JSON.
     // Opening the raw manifest URL shows JSON instead of the video, so resolve
-    // and reconstruct the original file before opening.
+    // and reconstruct the original file before opening. Resolve exactly ONCE —
+    // the resolve step both validates reachability (it throws if chunks are
+    // missing) and produces the blob URL used by the popup.
+    if (isMultipartManifestUrl(url)) {
+      const popup = window.open('', '_blank');
+      if (popup) {
+        popup.document.write("<p style='font-family: sans-serif; padding: 16px;'>Preparing large video...</p>");
+      }
+      try {
+        const resolvedUrl = await resolveMultipartManifestUrl(url, 'kyc-documents');
+        if (popup) popup.location.href = resolvedUrl;
+        else window.open(resolvedUrl, '_blank');
+      } catch (err: any) {
+        if (popup) popup.close();
+        // A resolve failure here means the manifest or a chunk is missing (404).
+        handleUnavailable(meta);
+      }
+      return;
+    }
+
+    // Plain single-file documents: cheap HEAD check, then open directly.
     const reachable = await documentIsReachable(url);
     if (!reachable) {
-      if (meta) {
-        setReuploadTarget(meta);
-      } else {
-        toast({ title: 'Document unavailable', description: 'This file is missing (404) and needs to be re-uploaded.', variant: 'destructive' });
-      }
+      handleUnavailable(meta);
       return;
     }
     try {

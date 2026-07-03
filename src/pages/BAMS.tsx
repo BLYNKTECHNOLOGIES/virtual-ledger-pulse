@@ -59,10 +59,10 @@ export default function BAMS() {
                     <CreditCard className="h-8 w-8 text-rose-600" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-800">
+                    <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
                       BAMS - Banking & Payment Management
                     </h1>
-                    <p className="text-slate-600 text-lg">
+                    <p className="text-muted-foreground text-sm">
                       Comprehensive banking and payment system management
                     </p>
                   </div>

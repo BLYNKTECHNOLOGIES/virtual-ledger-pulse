@@ -95,7 +95,7 @@ export default function Financials() {
           .from('bank_transactions')
           .select('amount, transaction_date, category')
           .eq('transaction_type', 'EXPENSE')
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading")')
+          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Payment Gateway Settlement","Settlement")')
           .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
           .lte('transaction_date', format(endDate, 'yyyy-MM-dd')));
 

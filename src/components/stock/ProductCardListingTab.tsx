@@ -267,7 +267,9 @@ export function ProductCardListingTab() {
                                 const bBal = getWalletApiBalance(wallet.wallet_id, product.code);
                                 if (bBal === undefined) return null;
                                 const diff = bBal - wallet.balance;
-                                if (Math.abs(diff) <= 0.00001) return null;
+                                // For USDT, ignore small discrepancies below 10; other assets use a tiny epsilon.
+                                const minDiff = product.code.toUpperCase() === 'USDT' ? 10 : 0.00001;
+                                if (Math.abs(diff) < minDiff) return null;
                                 return (
                                   <Tooltip>
                                     <TooltipTrigger>

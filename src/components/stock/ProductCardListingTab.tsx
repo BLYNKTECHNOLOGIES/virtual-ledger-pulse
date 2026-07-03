@@ -204,21 +204,23 @@ export function ProductCardListingTab() {
                 {/* Portfolio Distribution */}
                 {(() => {
                   const walletStocks = [...(product.wallet_stocks || [])];
-                  
-                  // If API-linked wallet has a Binance balance for this asset but isn't in the list,
-                  // inject it with balance 0 so the diff logic shows correctly (same as USDT)
-                  const binanceBalance = binanceBalanceMap.get(product.code);
-                  const hasApiWalletInList = walletStocks.some(w => w.wallet_id === apiLinkedWalletId);
-                  
-                  if (apiLinkedWalletId && binanceBalance && binanceBalance > 0.00001 && !hasApiWalletInList) {
-                    walletStocks.push({
-                      wallet_id: apiLinkedWalletId,
-                      wallet_name: 'BINANCE BLYNK',
-                      balance: 0,
-                      value: 0,
-                    });
-                  }
-                  
+
+                  // For each API-linked wallet that holds this asset on Binance but
+                  // isn't present in the ERP wallet list yet, inject it with balance
+                  // 0 so the diff badge still surfaces the discrepancy.
+                  apiLinkedWalletIds.forEach((linkedId) => {
+                    const apiBal = getWalletApiBalance(linkedId, product.code);
+                    const inList = walletStocks.some((w) => w.wallet_id === linkedId);
+                    if (apiBal && apiBal > 0.00001 && !inList) {
+                      walletStocks.push({
+                        wallet_id: linkedId,
+                        wallet_name: linkedWalletNames[linkedId] || 'API WALLET',
+                        balance: 0,
+                        value: 0,
+                      });
+                    }
+                  });
+
                   if (walletStocks.length === 0) return null;
                   
                   return (
@@ -239,8 +241,7 @@ export function ProductCardListingTab() {
                             <div className="text-right flex items-center gap-1.5">
                               <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                               {(() => {
-                                if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
-                                const bBal = binanceBalanceMap.get(product.code);
+                                const bBal = getWalletApiBalance(wallet.wallet_id, product.code);
                                 if (bBal === undefined) return null;
                                 const diff = bBal - wallet.balance;
                                 if (Math.abs(diff) <= 0.00001) return null;
@@ -254,7 +255,7 @@ export function ProductCardListingTab() {
                                     <TooltipContent>
                                       <p className="text-xs">Binance Balance: {bBal.toFixed(8)}</p>
                                       <p className="text-xs">ERP Balance: {(Number(wallet.balance) || 0).toFixed(4)}</p>
-                                      <p className="text-xs text-orange-400">Difference from Binance API</p>
+                                      <p className="text-xs text-orange-400">Difference from Binance API (funding + spot)</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 );
@@ -263,6 +264,7 @@ export function ProductCardListingTab() {
                             </div>
                           </div>
                         ))}
+
                       </div>
                     </div>
                   );

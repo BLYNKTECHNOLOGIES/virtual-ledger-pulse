@@ -958,7 +958,7 @@ export function StockTransactionsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEntries?.map((entry, index) => {
+                  {visibleEntries?.map((entry, index) => {
                     const txType: TransactionType | null = entry.type === 'purchase'
                       ? 'purchase_order'
                       : (entry.type === 'transaction' || entry.type === 'wallet')

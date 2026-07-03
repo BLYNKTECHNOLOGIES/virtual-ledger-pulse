@@ -46,17 +46,25 @@ export function ProductCardListingTab() {
   const { data: linkedWalletLinks } = useQuery({
     queryKey: ['terminal-wallet-links-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: links, error } = await supabase
         .from('terminal_wallet_links')
-        .select('wallet_id, wallets:wallet_id(wallet_name)')
+        .select('wallet_id')
         .eq('status', 'active');
       if (error) throw error;
-      return data;
+      const ids = (links || []).map((l) => l.wallet_id).filter(Boolean) as string[];
+      if (ids.length === 0) return [] as { wallet_id: string; wallet_name: string }[];
+      const { data: wallets, error: wErr } = await supabase
+        .from('wallets')
+        .select('id, wallet_name')
+        .in('id', ids);
+      if (wErr) throw wErr;
+      const nameById = new Map((wallets || []).map((w) => [w.id, w.wallet_name]));
+      return ids.map((id) => ({ wallet_id: id, wallet_name: nameById.get(id) || 'API WALLET' }));
     },
   });
   const linkedWalletNames: Record<string, string> = {};
-  (linkedWalletLinks || []).forEach((l: any) => {
-    if (l.wallet_id) linkedWalletNames[l.wallet_id] = l.wallets?.wallet_name || 'API WALLET';
+  (linkedWalletLinks || []).forEach((l) => {
+    if (l.wallet_id) linkedWalletNames[l.wallet_id] = l.wallet_name || 'API WALLET';
   });
 
   // All API-linked wallet ids (each maps to a Binance exchange account, e.g.

@@ -578,7 +578,7 @@ export function TaxManagementTab() {
           <div className="space-y-4 py-4">
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between"><span className="text-muted-foreground">Company:</span><span className="font-medium">{activeCompanyInfo?.firm_name || '-'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Quarter:</span><span className="font-medium">{quarterOptions.find(q => q.value === selectedQuarter)?.label}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Month:</span><span className="font-medium">{quarterOptions.find(q => q.value === selectedQuarter)?.label}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Selected entries:</span><span className="font-medium">{selectedIds.length}</span></div>
               <div className="flex justify-between text-lg"><span className="font-medium">Total Amount:</span><span className="font-bold text-destructive">{inr(selectedTotal)}</span></div>
             </div>

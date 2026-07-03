@@ -427,8 +427,8 @@ export function AccountSummary() {
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Account Summary & Reports</h1>
-          <p className="text-muted-foreground mt-1">Comprehensive banking system analysis and reporting</p>
+          <h1 className="text-2xl font-semibold text-foreground">Account Summary & Reports</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Comprehensive banking system analysis and reporting</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <Button onClick={handleExportPDF} variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">

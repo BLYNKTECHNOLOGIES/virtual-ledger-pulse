@@ -263,7 +263,6 @@ export function ProductCardListingTab() {
                               <span className="text-muted-foreground">{wallet.wallet_name}</span>
                             </div>
                             <div className="text-right flex items-center gap-1.5">
-                              <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                               {(() => {
                                 const bBal = getWalletApiBalance(wallet.wallet_id, product.code);
                                 if (bBal === undefined) return null;
@@ -273,19 +272,21 @@ export function ProductCardListingTab() {
                                   <Tooltip>
                                     <TooltipTrigger>
                                       <span className={`text-[10px] font-bold ${diff > 0 ? 'text-orange-500' : 'text-red-500'}`}>
-                                        {diff > 0 ? `+${diff.toFixed(4)}` : diff.toFixed(4)}
+                                        {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
                                       </span>
                                     </TooltipTrigger>
                                     <TooltipContent>
-                                      <p className="text-xs">Binance Balance: {bBal.toFixed(8)}</p>
-                                      <p className="text-xs">ERP Balance: {(Number(wallet.balance) || 0).toFixed(4)}</p>
+                                      <p className="text-xs">Binance Balance: {bBal.toFixed(2)}</p>
+                                      <p className="text-xs">ERP Balance: {(Number(wallet.balance) || 0).toFixed(2)}</p>
                                       <p className="text-xs text-orange-400">Difference from Binance API (funding + spot)</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 );
                               })()}
+                              <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                               <span className="text-muted-foreground ml-1">₹{wallet.value.toFixed(2)}</span>
                             </div>
+
                           </div>
                         ))}
 

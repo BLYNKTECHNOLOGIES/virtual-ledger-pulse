@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,6 +54,12 @@ export function StockTransactionsTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
+  // Cap the number of table rows rendered at once. Rendering every entry
+  // (thousands of rows) builds a huge DOM that exhausts mobile browser memory
+  // and crashes the tab (black screen) on any re-render — e.g. opening the
+  // adjustment dialog and selecting a wallet.
+  const ROWS_PER_PAGE = 100;
+  const [visibleCount, setVisibleCount] = useState(ROWS_PER_PAGE);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -836,6 +842,16 @@ export function StockTransactionsTab() {
         : true
     );
 
+  // Reset the visible window whenever the filtered result set changes.
+  useEffect(() => {
+    setVisibleCount(ROWS_PER_PAGE);
+  }, [searchTerm, filterType, filterWallet, filterProduct, hideReversalNoise]);
+
+  const visibleEntries = filteredEntries.slice(0, visibleCount);
+  const hasMoreEntries = filteredEntries.length > visibleCount;
+
+
+
   // Collect unique wallet names and product codes for filter dropdowns
   const uniqueWallets = Array.from(new Set(allEntries.map(e => e.wallet_name).filter(Boolean))).sort();
   const uniqueProducts = Array.from(new Set([
@@ -942,7 +958,7 @@ export function StockTransactionsTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredEntries?.map((entry, index) => {
+                  {visibleEntries?.map((entry, index) => {
                     const txType: TransactionType | null = entry.type === 'purchase'
                       ? 'purchase_order'
                       : (entry.type === 'transaction' || entry.type === 'wallet')
@@ -1061,7 +1077,21 @@ export function StockTransactionsTab() {
                   })}
                 </tbody>
               </table>
-              
+
+              {hasMoreEntries && (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {visibleEntries.length} of {filteredEntries.length} entries
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount((c) => c + ROWS_PER_PAGE)}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
+
               {filteredEntries?.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No stock transactions found.

@@ -27,45 +27,89 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+const PURCHASE_ORDER_SELECT = `
+  *,
+  wallet:wallets!wallet_id(id, wallet_name),
+  purchase_order_items (
+    id,
+    product_id,
+    quantity,
+    unit_price,
+    total_price,
+    warehouse_id,
+    products (name, code)
+  ),
+  purchase_payment_method:purchase_payment_method_id(
+    id,
+    type,
+    bank_account_name,
+    upi_id,
+    bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name)
+  ),
+  bank_account:bank_account_id(
+    account_name,
+    bank_name
+  ),
+  created_by_user:users!created_by(username, first_name, last_name)
+`;
+
+const normalizeSearch = (value?: string) => (value || '').trim();
+
+const escapePostgrestOrValue = (value: string) =>
+  value
+    .replace(/[%_]/g, "\\$&")
+    .replace(/[(),]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
 
 export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetType }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date; assetType?: string }) {
+  const normalizedSearch = normalizeSearch(searchTerm);
+
   // Fetch completed purchase orders
-  const { data: completedOrders, isLoading } = useQuery({
+  const { data: completedOrders, isLoading, isError: isCompletedError, error: completedError } = useQuery({
     queryKey: ['purchase_orders', 'COMPLETED'],
+    enabled: !normalizedSearch,
     queryFn: async () => {
       // Paginate: there are >1000 completed orders and PostgREST caps a single
       // request at 1000 rows, which silently hid older orders from search.
       return await fetchAllPaginated<any>(() =>
         supabase
           .from('purchase_orders')
-          .select(`
-            *,
-            wallet:wallets!wallet_id(id, wallet_name),
-            purchase_order_items (
-              id,
-              product_id,
-              quantity,
-              unit_price,
-              total_price,
-              warehouse_id,
-              products (name, code)
-            ),
-            purchase_payment_method:purchase_payment_method_id(
-              id,
-              type,
-              bank_account_name,
-              upi_id,
-              bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name)
-            ),
-            bank_account:bank_account_id(
-              account_name,
-              bank_name
-            ),
-            created_by_user:users!created_by(username, first_name, last_name)
-          `)
+          .select(PURCHASE_ORDER_SELECT)
           .eq('status', 'COMPLETED')
           .order('created_at', { ascending: false })
       );
+    },
+  });
+
+  const { data: searchedOrders, isLoading: isSearchLoading, isError: isSearchError, error: searchError } = useQuery({
+    queryKey: [
+      'purchase_orders',
+      'COMPLETED',
+      'server_search',
+      normalizedSearch,
+      dateFrom ? format(dateFrom, 'yyyy-MM-dd') : null,
+      dateTo ? format(dateTo, 'yyyy-MM-dd') : null,
+    ],
+    enabled: !!normalizedSearch,
+    queryFn: async () => {
+      const term = escapePostgrestOrValue(normalizedSearch);
+      if (!term) return [];
+
+      return await fetchAllPaginated<any>(() => {
+        let query = supabase
+          .from('purchase_orders')
+          .select(PURCHASE_ORDER_SELECT)
+          .eq('status', 'COMPLETED')
+          .or(`order_number.ilike.%${term}%,supplier_name.ilike.%${term}%,contact_number.ilike.%${term}%,description.ilike.%${term}%`)
+          .order('created_at', { ascending: false });
+
+        if (dateFrom) query = query.gte('order_date', format(dateFrom, 'yyyy-MM-dd'));
+        if (dateTo) query = query.lte('order_date', format(dateTo, 'yyyy-MM-dd'));
+
+        return query;
+      });
     },
   });
 
@@ -168,25 +212,42 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
     }
   });
 
-  if (isLoading) {
+  const sourceOrders = normalizedSearch ? (searchedOrders || []) : (completedOrders || []);
+  const displayIsLoading = normalizedSearch ? isSearchLoading : isLoading;
+  const displayError = normalizedSearch ? searchError : completedError;
+  const displayIsError = normalizedSearch ? isSearchError : isCompletedError;
+
+  if (displayIsLoading) {
     return (
       <Card>
         <CardContent className="p-6">
           <div className="text-center py-8 text-muted-foreground">
-            Loading completed orders...
+            {normalizedSearch ? 'Searching completed orders...' : 'Loading completed orders...'}
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  const filteredOrders = (completedOrders || []).filter((order: any) => {
-    const term = (searchTerm || '').toLowerCase();
+  if (displayIsError) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center py-8 text-destructive">
+            {(displayError as Error)?.message || 'Unable to load completed purchase orders.'}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const filteredOrders = sourceOrders.filter((order: any) => {
+    const term = normalizedSearch.toLowerCase();
     const selectedAsset = (assetType || '').toUpperCase();
     const orderAsset = String(
       order.purchase_order_items?.[0]?.products?.code || order.product_category || order.product_name || 'USDT'
     ).trim().toUpperCase();
-    const matchesSearch = !searchTerm || (
+    const matchesSearch = !normalizedSearch || (
       order.order_number?.toLowerCase().includes(term) ||
       order.supplier_name?.toLowerCase().includes(term) ||
       (order.contact_number && String(order.contact_number).toLowerCase().includes(term)) ||
@@ -198,8 +259,8 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
     const matchesAsset = !selectedAsset || orderAsset === selectedAsset;
     return matchesSearch && inFrom && inTo && matchesAsset;
   }).sort((a: any, b: any) => {
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    if (normalizedSearch) {
+      const term = normalizedSearch.toLowerCase();
       const aPrimary = a.order_number?.toLowerCase().includes(term) || a.supplier_name?.toLowerCase().includes(term);
       const bPrimary = b.order_number?.toLowerCase().includes(term) || b.supplier_name?.toLowerCase().includes(term);
       if (aPrimary && !bPrimary) return -1;

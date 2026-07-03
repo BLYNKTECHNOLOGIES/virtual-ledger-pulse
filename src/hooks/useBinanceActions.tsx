@@ -455,32 +455,56 @@ export function useCounterpartyBinanceStats(
   });
 }
 
-// Count completed orders with a specific counterparty from synced history
-// Uses verified_name for matching since counter_part_nick_name is masked in history
+// Count completed orders with a specific counterparty from synced history.
+//
+// DATA-INTEGRITY: We match strictly on the stable Binance counterparty user id
+// (`takerUserNo` in order_detail_raw), scoped by exchange_account_id. We MUST NOT
+// match on `verified_name` or the masked nickname: those are shared by many
+// unrelated clients (e.g. dozens of different people named "KHUSHBOO KUMARI"),
+// which caused brand-new counterparties to show inflated "completed with us"
+// counts belonging to other people.
 export function useCounterpartyCompletedOrderCount(
-  verifiedName: string | null | undefined,
-  currentOrderNumber?: string
+  currentOrderNumber?: string,
+  exchangeAccountId?: string | null
 ) {
   return useQuery({
-    queryKey: ['counterparty-completed-count', verifiedName, currentOrderNumber],
+    queryKey: ['counterparty-completed-count', currentOrderNumber, exchangeAccountId],
     queryFn: async () => {
       const { supabase } = await import('@/integrations/supabase/client');
+
+      // Resolve the current order's stable counterparty user id.
+      const { data: currentRow } = await supabase
+        .from('binance_order_history')
+        .select('order_detail_raw, raw_data')
+        .eq('order_number', currentOrderNumber!)
+        .maybeSingle();
+
+      const detail: any = currentRow?.order_detail_raw || {};
+      const raw: any = currentRow?.raw_data || {};
+      const userNoValue =
+        detail.takerUserNo ?? detail.takerUserId ?? raw.takerUserNo ?? raw.takerUserId ?? null;
+      const counterpartyUserNo =
+        userNoValue === null || userNoValue === undefined ? '' : String(userNoValue).trim();
+
+      // No reliable identity -> report 0 rather than leak unrelated orders.
+      if (!counterpartyUserNo) return 0;
+
       let query = supabase
         .from('binance_order_history')
         .select('*', { count: 'exact', head: true })
-        .eq('verified_name', verifiedName!)
-        .eq('order_status', 'COMPLETED');
-      
-      // Exclude current order so count reflects only past trades
-      if (currentOrderNumber) {
-        query = query.neq('order_number', currentOrderNumber);
+        .eq('order_detail_raw->>takerUserNo', counterpartyUserNo)
+        .eq('order_status', 'COMPLETED')
+        .neq('order_number', currentOrderNumber!);
+
+      if (exchangeAccountId) {
+        query = query.eq('exchange_account_id', exchangeAccountId);
       }
 
       const { count, error } = await query;
       if (error) throw error;
       return count ?? 0;
     },
-    enabled: !!verifiedName && verifiedName.length > 0,
+    enabled: !!currentOrderNumber,
     staleTime: 5 * 60 * 1000,
   });
 }

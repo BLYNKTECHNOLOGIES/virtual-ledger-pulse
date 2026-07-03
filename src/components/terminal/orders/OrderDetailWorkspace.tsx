@@ -267,7 +267,7 @@ function formatBinanceAccountAge(registerDays: any) {
 
 function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNickname, counterpartyVerifiedName, liveDetail, storedRiskSnapshot, commissionSnapshots }: { counterparty: any; order: P2POrderRecord; binanceStats: any; counterpartyNickname: string; counterpartyVerifiedName?: string; liveDetail?: any; storedRiskSnapshot?: any; commissionSnapshots?: any[] }) {
   const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
-  const { data: completedWithUs } = useCounterpartyCompletedOrderCount(counterpartyVerifiedName, order.binance_order_number);
+  const { data: completedWithUs } = useCounterpartyCompletedOrderCount(order.binance_order_number, order.exchange_account_id);
   const { data: linkedClient } = useCounterpartyLinkedClient(
     counterpartyNickname,
     counterpartyVerifiedName,

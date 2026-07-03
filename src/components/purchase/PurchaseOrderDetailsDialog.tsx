@@ -241,14 +241,14 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             <div>
               <label className="text-sm font-medium text-muted-foreground">Supplier</label>
               {canViewClient && linkedClient?.id ? (
-                <button
-                  type="button"
+                <p
+                  className="text-sm cursor-pointer"
                   onClick={openClientPage}
-                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors duration-120"
+                  role="link"
+                  title="Open client page"
                 >
                   {order.supplier_name}
-                  <ExternalLink className="h-3 w-3" />
-                </button>
+                </p>
               ) : (
                 <p className="text-sm">{order.supplier_name}</p>
               )}

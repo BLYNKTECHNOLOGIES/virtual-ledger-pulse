@@ -383,6 +383,9 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
       if (tdsOption === '1%' && !panNumber.trim()) {
         throw new Error("PAN is required for 1% TDS");
       }
+      if (panNumber.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panNumber.trim().toUpperCase())) {
+        throw new Error("Invalid PAN format. Expected format: AAAAA9999A (e.g. ABCDE1234F)");
+      }
 
 
       if (isMultiplePayments) {

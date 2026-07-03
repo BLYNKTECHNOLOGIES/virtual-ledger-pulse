@@ -95,6 +95,17 @@ export function AddClientDialog({ open, onOpenChange }: AddClientDialogProps) {
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
+    // PAN format guard (optional field, but if provided it must be valid)
+    const panTrimmed = formData.pan_card_number.trim().toUpperCase();
+    if (panTrimmed && !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panTrimmed)) {
+      toast({
+        title: "Invalid PAN Format",
+        description: "PAN must be in format AAAAA9999A (e.g. ABCDE1234F)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     // Hard-block on duplicate phone number (not dismissable)

@@ -30,21 +30,34 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
   const { hasPermission } = usePermissions();
   const canViewClient = hasPermission('clients_view') || hasPermission('clients_manage');
 
-  // Resolve the client from the supplier phone (dedup is phone-based) so the
-  // name can deep-link to the client page when the operator has permission.
+  // Resolve the client to deep-link the supplier name to the client page.
+  // Dedup is phone-based, so prefer the phone match; fall back to a unique
+  // name match when the order carries no phone number.
   const supplierPhone = (order?.contact_number || '').toString().trim();
+  const supplierName = (order?.supplier_name || '').toString().trim();
   const { data: linkedClient } = useQuery({
-    queryKey: ['po_client_by_phone', supplierPhone],
+    queryKey: ['po_client_link', supplierPhone, supplierName],
     queryFn: async () => {
-      if (!supplierPhone) return null;
-      const { data } = await supabase
-        .from('clients')
-        .select('id')
-        .eq('phone', supplierPhone)
-        .maybeSingle();
-      return data;
+      if (supplierPhone) {
+        const { data } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('phone', supplierPhone)
+          .maybeSingle();
+        if (data?.id) return data;
+      }
+      if (supplierName) {
+        const { data } = await supabase
+          .from('clients')
+          .select('id')
+          .ilike('name', supplierName)
+          .limit(2);
+        // Only link when the name resolves to exactly one client.
+        if (data && data.length === 1) return data[0];
+      }
+      return null;
     },
-    enabled: open && canViewClient && !!supplierPhone,
+    enabled: open && canViewClient && (!!supplierPhone || !!supplierName),
   });
 
   const openClientPage = () => {

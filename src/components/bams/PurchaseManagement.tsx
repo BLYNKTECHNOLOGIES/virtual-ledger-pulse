@@ -706,8 +706,8 @@ export function PurchaseManagement() {
       </PermissionGate>
 
       {/* Available Limits Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+        <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Smartphone className="h-4 w-4 text-blue-600" />

@@ -13,7 +13,7 @@ export function BankJournalEntries() {
       <div className="flex items-center">
         <div className="flex items-center gap-3">
           <BookOpen className="h-6 w-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-foreground">Bank Journal Entries</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Bank Journal Entries</h2>
         </div>
       </div>
 

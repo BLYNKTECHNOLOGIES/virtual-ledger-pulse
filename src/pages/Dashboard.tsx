@@ -536,18 +536,18 @@ export default function Dashboard() {
       case 'metric-total-cash':
         return (
           <ClickableCard to="/bams">
-            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
-                    <p className="text-slate-600 text-sm font-medium">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Cash</p>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-amber-500" />
                       <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
                     </div>
                   </div>
-                  <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
+                  <div className="bg-amber-50 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
                     <Wallet className="h-8 w-8 text-metric-cash-icon" />
                   </div>
                 </div>

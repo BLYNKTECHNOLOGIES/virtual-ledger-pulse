@@ -42,6 +42,23 @@ export function ProductCardListingTab() {
     return avgCost; // fallback when market/INR rate unavailable
   };
 
+  // Names of API-linked wallets (wallet_id → wallet_name) for injected rows.
+  const { data: linkedWalletLinks } = useQuery({
+    queryKey: ['terminal-wallet-links-active'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('terminal_wallet_links')
+        .select('wallet_id, wallets:wallet_id(wallet_name)')
+        .eq('status', 'active');
+      if (error) throw error;
+      return data;
+    },
+  });
+  const linkedWalletNames: Record<string, string> = {};
+  (linkedWalletLinks || []).forEach((l: any) => {
+    if (l.wallet_id) linkedWalletNames[l.wallet_id] = l.wallets?.wallet_name || 'API WALLET';
+  });
+
   // All API-linked wallet ids (each maps to a Binance exchange account, e.g.
   // BINANCE BLYNK and BINANCE ASEC). Used to know which wallets get a diff badge.
   const apiLinkedWalletIds = Object.keys(walletApiBalances || {});

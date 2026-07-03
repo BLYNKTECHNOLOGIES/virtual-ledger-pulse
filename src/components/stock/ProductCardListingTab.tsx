@@ -24,7 +24,6 @@ export function ProductCardListingTab() {
   const [, setSearchParams] = useSearchParams();
   
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
-  const { data: binanceBalances } = useBinanceBalances();
   // Live per-wallet Binance balances (funding + spot) for API-linked wallets,
   // keyed by wallet_id. Refreshed every ~15 min (reference-only, never patches).
   const { data: walletApiBalances } = useBinanceBalancesByWallet();

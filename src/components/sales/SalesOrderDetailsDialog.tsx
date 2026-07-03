@@ -175,7 +175,18 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Customer</label>
-              <p className="text-sm">{order.client_name}</p>
+              {canViewClient && order.client_id ? (
+                <button
+                  type="button"
+                  onClick={openClientPage}
+                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors duration-120"
+                >
+                  {order.client_name}
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              ) : (
+                <p className="text-sm">{order.client_name}</p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Phone</label>

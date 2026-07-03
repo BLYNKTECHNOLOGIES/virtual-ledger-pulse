@@ -54,6 +54,7 @@ const PURCHASE_ORDER_SELECT = `
 `;
 
 const normalizeSearch = (value?: string) => (value || '').trim();
+const DEFAULT_COMPLETED_LIMIT = 100;
 
 const escapePostgrestOrValue = (value: string) =>
   value
@@ -65,22 +66,27 @@ const escapePostgrestOrValue = (value: string) =>
 
 export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetType }: { searchTerm?: string; dateFrom?: Date; dateTo?: Date; assetType?: string }) {
   const normalizedSearch = normalizeSearch(searchTerm);
+  const hasServerFilter = !!normalizedSearch || !!dateFrom || !!dateTo;
 
   // Fetch completed purchase orders
   const { data: completedOrders, isLoading, isError: isCompletedError, error: completedError } = useQuery({
-    queryKey: ['purchase_orders', 'COMPLETED'],
-    enabled: !normalizedSearch,
+    queryKey: ['purchase_orders', 'COMPLETED', 'recent'],
+    enabled: !hasServerFilter,
     queryFn: async () => {
-      // Paginate: there are >1000 completed orders and PostgREST caps a single
-      // request at 1000 rows, which silently hid older orders from search.
-      return await fetchAllPaginated<any>(() =>
-        supabase
-          .from('purchase_orders')
-          .select(PURCHASE_ORDER_SELECT)
-          .eq('status', 'COMPLETED')
-          .order('created_at', { ascending: false })
-      );
+      // Default tab must stay fast: only load the latest visible orders.
+      // Search/date filters use a separate server-side paginated query below
+      // so older orders remain reachable without downloading all 4,516 rows.
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select(PURCHASE_ORDER_SELECT)
+        .eq('status', 'COMPLETED')
+        .order('created_at', { ascending: false })
+        .limit(DEFAULT_COMPLETED_LIMIT);
+
+      if (error) throw error;
+      return data || [];
     },
+    staleTime: 1000 * 60,
   });
 
   const { data: searchedOrders, isLoading: isSearchLoading, isError: isSearchError, error: searchError } = useQuery({
@@ -92,18 +98,20 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
       dateFrom ? format(dateFrom, 'yyyy-MM-dd') : null,
       dateTo ? format(dateTo, 'yyyy-MM-dd') : null,
     ],
-    enabled: !!normalizedSearch,
+    enabled: hasServerFilter,
     queryFn: async () => {
       const term = escapePostgrestOrValue(normalizedSearch);
-      if (!term) return [];
 
       return await fetchAllPaginated<any>(() => {
         let query = supabase
           .from('purchase_orders')
           .select(PURCHASE_ORDER_SELECT)
           .eq('status', 'COMPLETED')
-          .or(`order_number.ilike.%${term}%,supplier_name.ilike.%${term}%,contact_number.ilike.%${term}%,description.ilike.%${term}%`)
           .order('created_at', { ascending: false });
+
+        if (term) {
+          query = query.or(`order_number.ilike.%${term}%,supplier_name.ilike.%${term}%,contact_number.ilike.%${term}%,description.ilike.%${term}%`);
+        }
 
         if (dateFrom) query = query.gte('order_date', format(dateFrom, 'yyyy-MM-dd'));
         if (dateTo) query = query.lte('order_date', format(dateTo, 'yyyy-MM-dd'));
@@ -212,17 +220,17 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
     }
   });
 
-  const sourceOrders = normalizedSearch ? (searchedOrders || []) : (completedOrders || []);
-  const displayIsLoading = normalizedSearch ? isSearchLoading : isLoading;
-  const displayError = normalizedSearch ? searchError : completedError;
-  const displayIsError = normalizedSearch ? isSearchError : isCompletedError;
+  const sourceOrders = hasServerFilter ? (searchedOrders || []) : (completedOrders || []);
+  const displayIsLoading = hasServerFilter ? isSearchLoading : isLoading;
+  const displayError = hasServerFilter ? searchError : completedError;
+  const displayIsError = hasServerFilter ? isSearchError : isCompletedError;
 
   if (displayIsLoading) {
     return (
       <Card>
         <CardContent className="p-6">
           <div className="text-center py-8 text-muted-foreground">
-            {normalizedSearch ? 'Searching completed orders...' : 'Loading completed orders...'}
+            {hasServerFilter ? 'Searching completed orders...' : 'Loading recent completed orders...'}
           </div>
         </CardContent>
       </Card>

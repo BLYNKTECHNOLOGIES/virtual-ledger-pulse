@@ -9,7 +9,7 @@ export function PaymentGatewayManagement() {
   return (
     <div className="w-full h-full space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">Payment Gateway Management</h2>
+        <h2 className="text-2xl font-semibold text-foreground">Payment Gateway Management</h2>
       </div>
 
       <Tabs defaultValue="available-gateways" className="h-full flex flex-col">

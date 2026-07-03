@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, User, Coins, ExternalLink } from "lucide-react";
+import { Download, Printer, User, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
@@ -176,14 +176,14 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
             <div>
               <label className="text-sm font-medium text-muted-foreground">Customer</label>
               {canViewClient && order.client_id ? (
-                <button
-                  type="button"
+                <p
+                  className="text-sm cursor-pointer"
                   onClick={openClientPage}
-                  className="text-sm text-primary hover:underline inline-flex items-center gap-1 transition-colors duration-120"
+                  role="link"
+                  title="Open client page"
                 >
                   {order.client_name}
-                  <ExternalLink className="h-3 w-3" />
-                </button>
+                </p>
               ) : (
                 <p className="text-sm">{order.client_name}</p>
               )}

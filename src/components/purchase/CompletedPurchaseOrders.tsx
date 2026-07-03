@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -32,38 +33,39 @@ export function CompletedPurchaseOrders({ searchTerm, dateFrom, dateTo, assetTyp
   const { data: completedOrders, isLoading } = useQuery({
     queryKey: ['purchase_orders', 'COMPLETED'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          wallet:wallets!wallet_id(id, wallet_name),
-          purchase_order_items (
-            id,
-            product_id,
-            quantity,
-            unit_price,
-            total_price,
-            warehouse_id,
-            products (name, code)
-          ),
-          purchase_payment_method:purchase_payment_method_id(
-            id,
-            type,
-            bank_account_name,
-            upi_id,
-            bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name)
-          ),
-          bank_account:bank_account_id(
-            account_name,
-            bank_name
-          ),
-          created_by_user:users!created_by(username, first_name, last_name)
-        `)
-        .eq('status', 'COMPLETED')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data;
+      // Paginate: there are >1000 completed orders and PostgREST caps a single
+      // request at 1000 rows, which silently hid older orders from search.
+      return await fetchAllPaginated<any>(() =>
+        supabase
+          .from('purchase_orders')
+          .select(`
+            *,
+            wallet:wallets!wallet_id(id, wallet_name),
+            purchase_order_items (
+              id,
+              product_id,
+              quantity,
+              unit_price,
+              total_price,
+              warehouse_id,
+              products (name, code)
+            ),
+            purchase_payment_method:purchase_payment_method_id(
+              id,
+              type,
+              bank_account_name,
+              upi_id,
+              bank_accounts!purchase_payment_methods_bank_account_name_fkey(account_name)
+            ),
+            bank_account:bank_account_id(
+              account_name,
+              bank_name
+            ),
+            created_by_user:users!created_by(username, first_name, last_name)
+          `)
+          .eq('status', 'COMPLETED')
+          .order('created_at', { ascending: false })
+      );
     },
   });
 

@@ -354,7 +354,7 @@ export function TaxManagementTab() {
       'Paid From Bank': r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '',
       'Payment Amount': Number(r.paid_amount || 0),
       'TDS Amount': Number(r.allocated_tds_amount || 0),
-      'Quarter': `${quarter} (${fyLabel})`,
+      'Month': monthLabel,
       'Status': r.payment_status === 'PAID' ? (r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid') : 'Unpaid',
     }));
 

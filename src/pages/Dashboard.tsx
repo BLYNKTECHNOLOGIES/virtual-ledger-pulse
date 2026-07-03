@@ -455,12 +455,12 @@ export default function Dashboard() {
       case 'metric-total-sales':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-600 text-sm font-medium">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Sales</p>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       {(metrics?.salesGrowth ?? 0) >= 0 ? (
                         <ArrowUpIcon className="h-4 w-4 text-green-500" />
@@ -472,7 +472,7 @@ export default function Dashboard() {
                       </span>
                     </div>
                   </div>
-                  <div className="bg-green-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <DollarSign className="h-8 w-8 text-metric-sales-icon" />
                   </div>
                 </div>
@@ -484,12 +484,12 @@ export default function Dashboard() {
       case 'metric-sales-orders':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-600 text-sm font-medium">Sales Orders</p>
-                    <p className="text-2xl xl:text-3xl font-bold mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sales Orders</p>
+                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-slate-800">{metrics?.totalSalesOrders || 0}</p>
                     <div className="flex items-center gap-1 mt-2">
                       {(metrics?.ordersGrowth ?? 0) >= 0 ? (
                         <ArrowUpIcon className="h-4 w-4 text-green-500" />
@@ -501,7 +501,7 @@ export default function Dashboard() {
                       </span>
                     </div>
                   </div>
-                  <div className="bg-purple-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <div className="bg-purple-50 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
                   </div>
                 </div>
@@ -513,18 +513,18 @@ export default function Dashboard() {
       case 'metric-total-clients':
         return (
           <ClickableCard to="/clients">
-            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-600 text-sm font-medium">Total Clients</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">{metrics?.totalClients || 0}</div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Clients</p>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">{metrics?.totalClients || 0}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-blue-500" />
                       <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
                     </div>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <Users className="h-8 w-8 text-metric-clients-icon" />
                   </div>
                 </div>
@@ -536,18 +536,18 @@ export default function Dashboard() {
       case 'metric-total-cash':
         return (
           <ClickableCard to="/bams">
-            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0 relative z-10">
-                    <p className="text-slate-600 text-sm font-medium">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Cash</p>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-amber-500" />
                       <span className="text-sm font-medium text-slate-500">Banks + Stock</span>
                     </div>
                   </div>
-                  <div className="bg-amber-50 p-3 rounded-xl shadow-sm flex-shrink-0 relative z-0">
+                  <div className="bg-amber-50 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
                     <Wallet className="h-8 w-8 text-metric-cash-icon" />
                   </div>
                 </div>
@@ -697,8 +697,8 @@ export default function Dashboard() {
                   <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">Welcome to Dashboard</h1>
-                  <p className="text-slate-600 text-sm md:text-lg truncate">Monitor your business performance</p>
+                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-slate-800 truncate">Welcome to Dashboard</h1>
+                  <p className="text-muted-foreground text-sm md:text-base truncate">Monitor your business performance</p>
                 </div>
               </div>
               <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">
@@ -825,7 +825,7 @@ export default function Dashboard() {
       {/* Widget Grid */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className={`grid grid-cols-12 gap-3 md:gap-6 auto-rows-auto items-stretch ${canDrag ? 'pl-4' : ''}`}>
+          <div className={`grid grid-cols-12 gap-3 md:gap-6 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>

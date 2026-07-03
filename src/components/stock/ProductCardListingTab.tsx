@@ -12,7 +12,7 @@ import { Package, Search, Plus, TrendingUp, Building, DollarSign, AlertTriangle 
 import { AddProductDialog } from "./AddProductDialog";
 import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
-import { useBinanceBalances, useBinanceBalancesByWallet } from "@/hooks/useBinanceAssets";
+import { useBinanceBalancesByWallet } from "@/hooks/useBinanceAssets";
 import { useCoinMarketRates, isStableCoin } from "@/hooks/useCoinMarketRates";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
 

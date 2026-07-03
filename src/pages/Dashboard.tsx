@@ -697,8 +697,8 @@ export default function Dashboard() {
                   <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-blue-600" />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-xl md:text-3xl font-bold tracking-tight text-slate-800 truncate">Welcome to Dashboard</h1>
-                  <p className="text-slate-600 text-sm md:text-lg truncate">Monitor your business performance</p>
+                  <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-slate-800 truncate">Welcome to Dashboard</h1>
+                  <p className="text-muted-foreground text-sm md:text-base truncate">Monitor your business performance</p>
                 </div>
               </div>
               <div className="flex gap-2 md:gap-4 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap mt-2">

@@ -26,6 +26,32 @@ interface PurchaseOrderDetailsDialogProps {
 
 export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: PurchaseOrderDetailsDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canViewClient = hasPermission('clients_view') || hasPermission('clients_manage');
+
+  // Resolve the client from the supplier phone (dedup is phone-based) so the
+  // name can deep-link to the client page when the operator has permission.
+  const supplierPhone = (order?.contact_number || '').toString().trim();
+  const { data: linkedClient } = useQuery({
+    queryKey: ['po_client_by_phone', supplierPhone],
+    queryFn: async () => {
+      if (!supplierPhone) return null;
+      const { data } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('phone', supplierPhone)
+        .maybeSingle();
+      return data;
+    },
+    enabled: open && canViewClient && !!supplierPhone,
+  });
+
+  const openClientPage = () => {
+    if (!canViewClient || !linkedClient?.id) return;
+    onOpenChange(false);
+    navigate(`/clients/${linkedClient.id}`);
+  };
 
   // Fetch creator's username if created_by exists
   const { data: creatorUser } = useQuery({

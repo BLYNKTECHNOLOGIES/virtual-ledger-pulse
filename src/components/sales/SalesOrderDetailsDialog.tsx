@@ -21,6 +21,15 @@ interface SalesOrderDetailsDialogProps {
 
 export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrderDetailsDialogProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canViewClient = hasPermission('clients_view') || hasPermission('clients_manage');
+
+  const openClientPage = () => {
+    if (!canViewClient || !order?.client_id) return;
+    onOpenChange(false);
+    navigate(`/clients/${order.client_id}`);
+  };
 
   // Fetch wallet details if wallet_id exists
   const { data: walletData } = useQuery({

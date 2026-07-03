@@ -539,9 +539,9 @@ export function TaxManagementTab() {
               </TabsList>
               <TabsContent value={activeCompany} className="mt-4">
                 {activeCompany === ALL_TAB && (
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Select a company tab to record a TDS payment for that company.
-                  </p>
+                  <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    <span className="font-medium">To mark TDS as paid,</span> open a specific company tab above (e.g. ASEC or BLYNK), tick the transactions, then use the <span className="font-medium">Pay</span> button to choose the bank account it was deducted from (or mark it already settled). Payment isn&apos;t available on the <span className="font-medium">All</span> tab because a company bank account is required.
+                  </div>
                 )}
 
                 {/* Rate sub-groups (1% / 20%) */}

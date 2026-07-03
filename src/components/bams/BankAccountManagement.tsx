@@ -526,7 +526,7 @@ export function BankAccountManagement() {
     <div className="space-y-6 px-[15px]">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
         <div className="min-w-0">
-          <h2 className="text-lg sm:text-2xl font-bold text-foreground">Bank Account Management</h2>
+          <h2 className="text-lg sm:text-2xl font-semibold text-foreground">Bank Account Management</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">Manage centralized bank accounts for receiving sales and purchase payments</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -876,15 +876,21 @@ export function BankAccountManagement() {
                       ))}
                       {filteredAndSortedAccounts?.length === 0 && bankAccounts?.length > 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                            No bank accounts match your search criteria. Try adjusting your search terms or filters.
+                          <TableCell colSpan={10} className="py-12">
+                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                              <Search className="h-10 w-10 mb-3 opacity-40" />
+                              <p className="text-sm">No bank accounts match your search criteria. Try adjusting your search terms or filters.</p>
+                            </div>
                           </TableCell>
                         </TableRow>
                       )}
                       {bankAccounts?.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                            No active bank accounts found. Add your first bank account to get started.
+                          <TableCell colSpan={10} className="py-12">
+                            <div className="flex flex-col items-center justify-center text-center text-muted-foreground">
+                              <Layers className="h-10 w-10 mb-3 opacity-40" />
+                              <p className="text-sm">No active bank accounts found. Add your first bank account to get started.</p>
+                            </div>
                           </TableCell>
                         </TableRow>
                       )}

@@ -404,10 +404,15 @@ export function AccountSummary() {
 
   if (accountsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <Activity className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading account summary...</p>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-28 rounded-xl border border-border skeleton-shimmer" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="h-48 rounded-xl border border-border skeleton-shimmer" />
+          <div className="h-48 rounded-xl border border-border skeleton-shimmer" />
         </div>
       </div>
     );
@@ -422,8 +427,8 @@ export function AccountSummary() {
       {/* Header with Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Account Summary & Reports</h1>
-          <p className="text-muted-foreground mt-1">Comprehensive banking system analysis and reporting</p>
+          <h1 className="text-2xl font-semibold text-foreground">Account Summary & Reports</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Comprehensive banking system analysis and reporting</p>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <Button onClick={handleExportPDF} variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -444,50 +449,58 @@ export function AccountSummary() {
         {/* System Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+            <Card className="h-full hover:-translate-y-px">
               <CardContent className="p-6">
-                <div className="flex items-center">
-                  <Building2 className="h-8 w-8 text-blue-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Total Accounts</p>
-                    <p className="text-2xl font-bold text-foreground">{systemTotals?.total_accounts || 0}</p>
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Accounts</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{systemTotals?.total_accounts || 0}</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <Building2 className="h-6 w-6 text-blue-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-full hover:-translate-y-px">
               <CardContent className="p-6">
-                <div className="flex items-center">
-                  <DollarSign className="h-8 w-8 text-green-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Total Balance</p>
-                    <p className="text-2xl font-bold text-foreground">{formatCurrency(totalComputedBalance)}</p>
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Balance</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{formatCurrency(totalComputedBalance)}</p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <DollarSign className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-full hover:-translate-y-px">
               <CardContent className="p-6">
-                <div className="flex items-center">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Active Accounts</p>
-                    <p className="text-2xl font-bold text-foreground">{systemTotals?.active_accounts || 0}</p>
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Active Accounts</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{systemTotals?.active_accounts || 0}</p>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <CheckCircle className="h-6 w-6 text-green-600" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="h-full hover:-translate-y-px">
               <CardContent className="p-6">
-                <div className="flex items-center">
-                  <AlertTriangle className="h-8 w-8 text-orange-600" />
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-muted-foreground">Inactive Accounts</p>
-                    <p className="text-2xl font-bold text-foreground">{systemTotals?.inactive_accounts || 0}</p>
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Inactive Accounts</p>
+                    <p className="text-2xl font-semibold tabular-nums text-foreground mt-2">{systemTotals?.inactive_accounts || 0}</p>
+                  </div>
+                  <div className="bg-orange-50 p-3 rounded-lg shadow-sm flex-shrink-0">
+                    <AlertTriangle className="h-6 w-6 text-orange-600" />
                   </div>
                 </div>
               </CardContent>

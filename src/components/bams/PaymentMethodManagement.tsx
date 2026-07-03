@@ -461,7 +461,7 @@ export function PaymentMethodManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Sales Payment Methods</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Sales Payment Methods</h2>
           <p className="text-muted-foreground">Manage UPI and bank account payment methods with risk categories for sales. All methods must be linked to a bank account.</p>
         </div>
         <ViewOnlyWrapper isViewOnly={isViewOnly}>

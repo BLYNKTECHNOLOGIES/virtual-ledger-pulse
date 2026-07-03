@@ -374,7 +374,7 @@ export function PurchaseManagement() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Purchase Management</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Purchase Management</h2>
           <p className="text-muted-foreground">Manage payment methods for company purchases</p>
         </div>
         <PermissionGate permissions={["bams_manage"]} showFallback={false}>
@@ -706,8 +706,8 @@ export function PurchaseManagement() {
       </PermissionGate>
 
       {/* Available Limits Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 stagger-children">
+        <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Smartphone className="h-4 w-4 text-blue-600" />
@@ -715,7 +715,7 @@ export function PurchaseManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-semibold tabular-nums text-blue-600">
               ₹{getTotalAvailableUPI().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -724,7 +724,7 @@ export function PurchaseManagement() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Building className="h-4 w-4 text-green-600" />
@@ -732,7 +732,7 @@ export function PurchaseManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-semibold tabular-nums text-green-600">
               ₹{getTotalAvailableBankTransfer().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -741,7 +741,7 @@ export function PurchaseManagement() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingDown className="h-4 w-4 text-purple-600" />
@@ -749,7 +749,7 @@ export function PurchaseManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+            <div className="text-2xl font-semibold tabular-nums text-purple-600">
               ₹{(getTotalAvailableUPI() + getTotalAvailableBankTransfer()).toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">

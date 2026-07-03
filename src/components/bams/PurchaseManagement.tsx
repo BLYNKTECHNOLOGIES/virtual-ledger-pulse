@@ -724,7 +724,7 @@ export function PurchaseManagement() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full hover:-translate-y-px">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Building className="h-4 w-4 text-green-600" />

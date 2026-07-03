@@ -513,18 +513,18 @@ export default function Dashboard() {
       case 'metric-total-clients':
         return (
           <ClickableCard to="/clients">
-            <Card className="bg-card border-2 border-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-600 text-sm font-medium">Total Clients</p>
-                    <div className="text-xl xl:text-2xl font-bold mt-2 leading-tight break-words text-slate-800">{metrics?.totalClients || 0}</div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Clients</p>
+                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-slate-800">{metrics?.totalClients || 0}</div>
                     <div className="flex items-center gap-1 mt-2">
                       <ArrowUpIcon className="h-4 w-4 text-blue-500" />
                       <span className="text-sm font-medium text-slate-500">Verified: {metrics?.verifiedClients || 0}</span>
                     </div>
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-xl shadow-sm flex-shrink-0">
+                  <div className="bg-blue-50 p-3 rounded-lg shadow-sm flex-shrink-0">
                     <Users className="h-8 w-8 text-metric-clients-icon" />
                   </div>
                 </div>

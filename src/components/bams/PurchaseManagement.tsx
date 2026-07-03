@@ -715,7 +715,7 @@ export function PurchaseManagement() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-2xl font-semibold tabular-nums text-blue-600">
               ₹{getTotalAvailableUPI().toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">

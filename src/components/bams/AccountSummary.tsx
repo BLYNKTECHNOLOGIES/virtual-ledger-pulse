@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { DateRangePicker, getDateRangeFromPreset, type DateRangePreset } from "@/components/ui/date-range-picker";
+import type { DateRange } from "react-day-picker";
 import { 
   FileText, 
   Download, 

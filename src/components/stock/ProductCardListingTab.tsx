@@ -42,27 +42,18 @@ export function ProductCardListingTab() {
     return avgCost; // fallback when market/INR rate unavailable
   };
 
-  // Get the active terminal wallet link to know which wallet is API-mapped
-  const { data: activeWalletLink } = useQuery({
-    queryKey: ['terminal-wallet-link-active'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('terminal_wallet_links')
-        .select('wallet_id')
-        .eq('status', 'active')
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
+  // All API-linked wallet ids (each maps to a Binance exchange account, e.g.
+  // BINANCE BLYNK and BINANCE ASEC). Used to know which wallets get a diff badge.
+  const apiLinkedWalletIds = Object.keys(walletApiBalances || {});
 
-  const apiLinkedWalletId = activeWalletLink?.wallet_id;
+  // Live Binance balance for a specific wallet + asset (funding + spot combined).
+  const getWalletApiBalance = (walletId: string | undefined, code: string): number | undefined => {
+    if (!walletId || !walletApiBalances) return undefined;
+    const byAsset = walletApiBalances[walletId];
+    if (!byAsset) return undefined;
+    return byAsset[code.toUpperCase()] ?? byAsset[code];
+  };
 
-  // Build a map of Binance total balances by asset for reference comparison
-  const binanceBalanceMap = new Map<string, number>();
-  binanceBalances?.forEach(b => {
-    binanceBalanceMap.set(b.asset, b.total_balance);
-  });
 
   // Also fetch products that might not have stock yet  
   const { data: allProducts } = useQuery({

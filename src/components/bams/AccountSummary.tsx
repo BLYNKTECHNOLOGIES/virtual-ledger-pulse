@@ -105,6 +105,8 @@ export function AccountSummary() {
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>("all");
   const [transactionPage, setTransactionPage] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePreset, setDatePreset] = useState<DateRangePreset>("allTime");
   const TRANSACTIONS_PER_PAGE = 25;
   const printRef = useRef<HTMLDivElement>(null);
   const [subLedgerAccount, setSubLedgerAccount] = useState<{ id: string; name: string } | null>(null);

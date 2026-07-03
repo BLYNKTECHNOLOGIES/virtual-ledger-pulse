@@ -4,10 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { generateInvoicePDF } from "@/utils/invoicePdfGenerator";
-import { Download, Printer, User, Coins } from "lucide-react";
+import { Download, Printer, User, Coins, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 

@@ -58,45 +58,49 @@ function rateLabel(key: string): string {
   return "Other";
 }
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// Financial year label for a given calendar year/month (India FY starts April)
+function fyLabelForMonth(year: number, month: number): string {
+  const fyStart = month >= 4 ? year : year - 1;
+  return `FY ${fyStart}-${(fyStart + 1).toString().slice(-2)}`;
+}
+
+// Generate last 24 months as options (value = "YYYY-MM")
 function generateQuarterOptions() {
   const options: { value: string; label: string }[] = [];
   const currentDate = new Date();
-  const currentMonth = currentDate.getMonth() + 1;
-  const currentYear = currentDate.getFullYear();
-  const currentFYStart = currentMonth >= 4 ? currentYear : currentYear - 1;
+  let year = currentDate.getFullYear();
+  let month = currentDate.getMonth() + 1;
 
-  for (let fyStart = currentFYStart; fyStart >= currentFYStart - 1; fyStart--) {
-    const fyEnd = fyStart + 1;
-    const fyLabel = `FY ${fyStart}-${fyEnd.toString().slice(-2)}`;
-    options.push({ value: `Q4-${fyStart}`, label: `Q4 ${fyLabel} (Jan-Mar ${fyEnd})` });
-    options.push({ value: `Q3-${fyStart}`, label: `Q3 ${fyLabel} (Oct-Dec ${fyStart})` });
-    options.push({ value: `Q2-${fyStart}`, label: `Q2 ${fyLabel} (Jul-Sep ${fyStart})` });
-    options.push({ value: `Q1-${fyStart}`, label: `Q1 ${fyLabel} (Apr-Jun ${fyStart})` });
+  for (let i = 0; i < 24; i++) {
+    const value = `${year}-${month.toString().padStart(2, '0')}`;
+    const label = `${MONTH_NAMES[month - 1]} ${year} (${fyLabelForMonth(year, month)})`;
+    options.push({ value, label });
+    month--;
+    if (month < 1) { month = 12; year--; }
   }
   return options;
 }
 
-function getQuarterDateRange(quarterKey: string): { start: string; end: string } {
-  const [quarter, fyStartStr] = quarterKey.split('-');
-  const fyStart = parseInt(fyStartStr);
-  switch (quarter) {
-    case 'Q1': return { start: `${fyStart}-04-01`, end: `${fyStart}-06-30` };
-    case 'Q2': return { start: `${fyStart}-07-01`, end: `${fyStart}-09-30` };
-    case 'Q3': return { start: `${fyStart}-10-01`, end: `${fyStart}-12-31` };
-    case 'Q4': return { start: `${fyStart + 1}-01-01`, end: `${fyStart + 1}-03-31` };
-    default: return { start: '', end: '' };
-  }
+function getQuarterDateRange(monthKey: string): { start: string; end: string } {
+  const [yearStr, monthStr] = monthKey.split('-');
+  const year = parseInt(yearStr);
+  const month = parseInt(monthStr);
+  const lastDay = new Date(year, month, 0).getDate();
+  return {
+    start: `${year}-${monthStr}-01`,
+    end: `${year}-${monthStr}-${lastDay.toString().padStart(2, '0')}`,
+  };
 }
 
 function getCurrentQuarter(): string {
   const currentDate = new Date();
-  const month = currentDate.getMonth() + 1;
   const year = currentDate.getFullYear();
-  if (month >= 4 && month <= 6) return `Q1-${year}`;
-  if (month >= 7 && month <= 9) return `Q2-${year}`;
-  if (month >= 10 && month <= 12) return `Q3-${year}`;
-  return `Q4-${year - 1}`;
+  const month = currentDate.getMonth() + 1;
+  return `${year}-${month.toString().padStart(2, '0')}`;
 }
+
 
 const inr = (n: number) => `₹${(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -337,8 +341,8 @@ export function TaxManagementTab() {
       toast({ title: "No Data", description: "No TDS records to export", variant: "destructive" });
       return;
     }
-    const [quarter, fyStart] = selectedQuarter.split('-');
-    const fyLabel = `FY${fyStart}-${(parseInt(fyStart) + 1).toString().slice(-2)}`;
+    const monthLabel = quarterOptions.find(q => q.value === selectedQuarter)?.label || selectedQuarter;
+
 
     const exportData = dataRows.map(r => ({
       'Company': r.firm_name || 'Unassigned',
@@ -350,7 +354,7 @@ export function TaxManagementTab() {
       'Paid From Bank': r.bank ? `${r.bank.account_name || ''} - ${r.bank.bank_name || ''}` : '',
       'Payment Amount': Number(r.paid_amount || 0),
       'TDS Amount': Number(r.allocated_tds_amount || 0),
-      'Quarter': `${quarter} (${fyLabel})`,
+      'Month': monthLabel,
       'Status': r.payment_status === 'PAID' ? (r.already_recorded ? 'Paid (Pre-recorded)' : 'Paid') : 'Unpaid',
     }));
 
@@ -464,7 +468,7 @@ export function TaxManagementTab() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <Label className="text-sm text-muted-foreground">Select Quarter</Label>
+          <Label className="text-sm text-muted-foreground">Select Month</Label>
           <Select value={selectedQuarter} onValueChange={setSelectedQuarter}>
             <SelectTrigger className="w-[280px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -574,7 +578,7 @@ export function TaxManagementTab() {
           <div className="space-y-4 py-4">
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <div className="flex justify-between"><span className="text-muted-foreground">Company:</span><span className="font-medium">{activeCompanyInfo?.firm_name || '-'}</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Quarter:</span><span className="font-medium">{quarterOptions.find(q => q.value === selectedQuarter)?.label}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Month:</span><span className="font-medium">{quarterOptions.find(q => q.value === selectedQuarter)?.label}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Selected entries:</span><span className="font-medium">{selectedIds.length}</span></div>
               <div className="flex justify-between text-lg"><span className="font-medium">Total Amount:</span><span className="font-bold text-destructive">{inr(selectedTotal)}</span></div>
             </div>

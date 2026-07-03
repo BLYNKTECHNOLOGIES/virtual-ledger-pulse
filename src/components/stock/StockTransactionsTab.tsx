@@ -1077,7 +1077,21 @@ export function StockTransactionsTab() {
                   })}
                 </tbody>
               </table>
-              
+
+              {hasMoreEntries && (
+                <div className="flex flex-col items-center gap-2 py-4">
+                  <span className="text-sm text-muted-foreground">
+                    Showing {visibleEntries.length} of {filteredEntries.length} entries
+                  </span>
+                  <Button
+                    variant="outline"
+                    onClick={() => setVisibleCount((c) => c + ROWS_PER_PAGE)}
+                  >
+                    Load more
+                  </Button>
+                </div>
+              )}
+
               {filteredEntries?.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No stock transactions found.

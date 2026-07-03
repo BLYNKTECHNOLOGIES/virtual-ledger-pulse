@@ -12,7 +12,7 @@ import { Package, Search, Plus, TrendingUp, Building, DollarSign, AlertTriangle 
 import { AddProductDialog } from "./AddProductDialog";
 import { StockStatusBadge } from "./StockStatusBadge";
 import { useProductStockWithCost } from "@/hooks/useWalletStockWithCost";
-import { useBinanceBalances } from "@/hooks/useBinanceAssets";
+import { useBinanceBalancesByWallet } from "@/hooks/useBinanceAssets";
 import { useCoinMarketRates, isStableCoin } from "@/hooks/useCoinMarketRates";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
 
@@ -24,7 +24,9 @@ export function ProductCardListingTab() {
   const [, setSearchParams] = useSearchParams();
   
   const { data: productsWithStock, isLoading } = useProductStockWithCost();
-  const { data: binanceBalances } = useBinanceBalances();
+  // Live per-wallet Binance balances (funding + spot) for API-linked wallets,
+  // keyed by wallet_id. Refreshed every ~15 min (reference-only, never patches).
+  const { data: walletApiBalances } = useBinanceBalancesByWallet();
   const { data: marketRates } = useCoinMarketRates();
   const { data: usdtRate } = useUSDTRate();
 
@@ -39,27 +41,43 @@ export function ProductCardListingTab() {
     return avgCost; // fallback when market/INR rate unavailable
   };
 
-  // Get the active terminal wallet link to know which wallet is API-mapped
-  const { data: activeWalletLink } = useQuery({
-    queryKey: ['terminal-wallet-link-active'],
+  // Names of API-linked wallets (wallet_id → wallet_name) for injected rows.
+  const { data: linkedWalletLinks } = useQuery({
+    queryKey: ['terminal-wallet-links-active'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: links, error } = await supabase
         .from('terminal_wallet_links')
         .select('wallet_id')
-        .eq('status', 'active')
-        .maybeSingle();
+        .eq('status', 'active');
       if (error) throw error;
-      return data;
+      const ids = (links || []).map((l) => l.wallet_id).filter(Boolean) as string[];
+      if (ids.length === 0) return [] as { wallet_id: string; wallet_name: string }[];
+      const { data: wallets, error: wErr } = await supabase
+        .from('wallets')
+        .select('id, wallet_name')
+        .in('id', ids);
+      if (wErr) throw wErr;
+      const nameById = new Map((wallets || []).map((w) => [w.id, w.wallet_name]));
+      return ids.map((id) => ({ wallet_id: id, wallet_name: nameById.get(id) || 'API WALLET' }));
     },
   });
-
-  const apiLinkedWalletId = activeWalletLink?.wallet_id;
-
-  // Build a map of Binance total balances by asset for reference comparison
-  const binanceBalanceMap = new Map<string, number>();
-  binanceBalances?.forEach(b => {
-    binanceBalanceMap.set(b.asset, b.total_balance);
+  const linkedWalletNames: Record<string, string> = {};
+  (linkedWalletLinks || []).forEach((l) => {
+    if (l.wallet_id) linkedWalletNames[l.wallet_id] = l.wallet_name || 'API WALLET';
   });
+
+  // All API-linked wallet ids (each maps to a Binance exchange account, e.g.
+  // BINANCE BLYNK and BINANCE ASEC). Used to know which wallets get a diff badge.
+  const apiLinkedWalletIds = Object.keys(walletApiBalances || {});
+
+  // Live Binance balance for a specific wallet + asset (funding + spot combined).
+  const getWalletApiBalance = (walletId: string | undefined, code: string): number | undefined => {
+    if (!walletId || !walletApiBalances) return undefined;
+    const byAsset = walletApiBalances[walletId];
+    if (!byAsset) return undefined;
+    return byAsset[code.toUpperCase()] ?? byAsset[code];
+  };
+
 
   // Also fetch products that might not have stock yet  
   const { data: allProducts } = useQuery({
@@ -210,21 +228,23 @@ export function ProductCardListingTab() {
                 {/* Portfolio Distribution */}
                 {(() => {
                   const walletStocks = [...(product.wallet_stocks || [])];
-                  
-                  // If API-linked wallet has a Binance balance for this asset but isn't in the list,
-                  // inject it with balance 0 so the diff logic shows correctly (same as USDT)
-                  const binanceBalance = binanceBalanceMap.get(product.code);
-                  const hasApiWalletInList = walletStocks.some(w => w.wallet_id === apiLinkedWalletId);
-                  
-                  if (apiLinkedWalletId && binanceBalance && binanceBalance > 0.00001 && !hasApiWalletInList) {
-                    walletStocks.push({
-                      wallet_id: apiLinkedWalletId,
-                      wallet_name: 'BINANCE BLYNK',
-                      balance: 0,
-                      value: 0,
-                    });
-                  }
-                  
+
+                  // For each API-linked wallet that holds this asset on Binance but
+                  // isn't present in the ERP wallet list yet, inject it with balance
+                  // 0 so the diff badge still surfaces the discrepancy.
+                  apiLinkedWalletIds.forEach((linkedId) => {
+                    const apiBal = getWalletApiBalance(linkedId, product.code);
+                    const inList = walletStocks.some((w) => w.wallet_id === linkedId);
+                    if (apiBal && apiBal > 0.00001 && !inList) {
+                      walletStocks.push({
+                        wallet_id: linkedId,
+                        wallet_name: linkedWalletNames[linkedId] || 'API WALLET',
+                        balance: 0,
+                        value: 0,
+                      });
+                    }
+                  });
+
                   if (walletStocks.length === 0) return null;
                   
                   return (
@@ -245,8 +265,7 @@ export function ProductCardListingTab() {
                             <div className="text-right flex items-center gap-1.5">
                               <span className="font-medium">{wallet.balance.toFixed(2)}</span>
                               {(() => {
-                                if (!apiLinkedWalletId || wallet.wallet_id !== apiLinkedWalletId) return null;
-                                const bBal = binanceBalanceMap.get(product.code);
+                                const bBal = getWalletApiBalance(wallet.wallet_id, product.code);
                                 if (bBal === undefined) return null;
                                 const diff = bBal - wallet.balance;
                                 if (Math.abs(diff) <= 0.00001) return null;
@@ -260,7 +279,7 @@ export function ProductCardListingTab() {
                                     <TooltipContent>
                                       <p className="text-xs">Binance Balance: {bBal.toFixed(8)}</p>
                                       <p className="text-xs">ERP Balance: {(Number(wallet.balance) || 0).toFixed(4)}</p>
-                                      <p className="text-xs text-orange-400">Difference from Binance API</p>
+                                      <p className="text-xs text-orange-400">Difference from Binance API (funding + spot)</p>
                                     </TooltipContent>
                                   </Tooltip>
                                 );
@@ -269,6 +288,7 @@ export function ProductCardListingTab() {
                             </div>
                           </div>
                         ))}
+
                       </div>
                     </div>
                   );

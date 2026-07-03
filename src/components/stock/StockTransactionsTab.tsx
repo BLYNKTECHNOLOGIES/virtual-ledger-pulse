@@ -54,6 +54,12 @@ export function StockTransactionsTab() {
   const [transactionToDelete, setTransactionToDelete] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [reversalReason, setReversalReason] = useState("");
+  // Cap the number of table rows rendered at once. Rendering every entry
+  // (thousands of rows) builds a huge DOM that exhausts mobile browser memory
+  // and crashes the tab (black screen) on any re-render — e.g. opening the
+  // adjustment dialog and selecting a wallet.
+  const ROWS_PER_PAGE = 100;
+  const [visibleCount, setVisibleCount] = useState(ROWS_PER_PAGE);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();

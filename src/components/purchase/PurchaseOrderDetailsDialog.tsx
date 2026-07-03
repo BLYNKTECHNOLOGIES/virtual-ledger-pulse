@@ -223,12 +223,19 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Product</label>
-              <p className="text-sm">
-                {order.product_name || order.purchase_order_items?.[0]?.products?.name || 'N/A'}
-              </p>
-              {(order.product_category || order.purchase_order_items?.[0]?.products?.code) && (
-                <p className="text-xs text-muted-foreground">{order.product_category || order.purchase_order_items?.[0]?.products?.code}</p>
-              )}
+              {(() => {
+                const productName = order.product_name || order.purchase_order_items?.[0]?.products?.name || 'N/A';
+                const productCodeLabel = order.product_category || order.purchase_order_items?.[0]?.products?.code;
+                const showCode = productCodeLabel && productCodeLabel !== productName;
+                return (
+                  <>
+                    <p className="text-sm">{productName}</p>
+                    {showCode && (
+                      <p className="text-xs text-muted-foreground">{productCodeLabel}</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">Status</label>

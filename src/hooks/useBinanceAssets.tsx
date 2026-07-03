@@ -105,6 +105,62 @@ export function useBinanceBalances() {
   });
 }
 
+/**
+ * Fetches live Binance balances (funding + spot combined) for every wallet that
+ * is API-linked via an active `terminal_wallet_links` row, keyed by wallet_id.
+ *
+ * Used by the Asset Inventory view to show the subtle difference between the
+ * real exchange balance and the ERP ledger balance per wallet. This is a
+ * reference-only read — it does NOT patch/mutate ERP balances. Refreshes every
+ * 15 minutes rather than constantly to keep API usage low.
+ */
+export function useBinanceBalancesByWallet() {
+  const EXCLUDED_ASSETS = ["HOME"];
+
+  const fetchForAccount = async (accountId: string): Promise<AssetBalance[]> => {
+    const { data, error } = await supabase.functions.invoke("binance-assets", {
+      body: { action: "getBalances", exchange_account_id: accountId },
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || "Failed to fetch balances");
+    return (data.data.balances as AssetBalance[]).filter((b) => !EXCLUDED_ASSETS.includes(b.asset));
+  };
+
+  return useQuery({
+    queryKey: ["binance_balances_by_wallet"],
+    queryFn: async () => {
+      // Active wallet↔account links (e.g. BINANCE BLYNK, BINANCE ASEC).
+      const { data: links, error } = await supabase
+        .from("terminal_wallet_links")
+        .select("wallet_id, exchange_account_id")
+        .eq("status", "active");
+      if (error) throw error;
+
+      const result: Record<string, Record<string, number>> = {};
+      await Promise.all(
+        (links || [])
+          .filter((l) => l.wallet_id && l.exchange_account_id)
+          .map(async (l) => {
+            try {
+              const rows = await fetchForAccount(l.exchange_account_id as string);
+              const byAsset: Record<string, number> = {};
+              for (const b of rows) byAsset[b.asset] = b.total_balance;
+              result[l.wallet_id as string] = byAsset;
+            } catch {
+              /* skip accounts that fail; keep others usable */
+            }
+          }),
+      );
+      return result;
+    },
+    // Reference data — refresh every 15 minutes, no aggressive polling.
+    refetchInterval: 15 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+
 export function useBinanceTickerPrices() {
   return useQuery({
     queryKey: ["binance_ticker_prices"],

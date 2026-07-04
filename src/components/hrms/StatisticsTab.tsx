@@ -667,15 +667,15 @@ export function StatisticsTab() {
         </ClickableCard>
 
         <ClickableCard to="/leads">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-teal-500 to-teal-600 text-primary-foreground h-full">
+          <Card className="shadow-md border-0 bg-gradient-to-br from-info to-info text-primary-foreground h-full">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-teal-100 text-xs font-medium">Conversion Rate</p>
+                  <p className="text-primary-foreground/80 text-xs font-medium">Conversion Rate</p>
                   <p className="text-xl font-bold">{leadStats.conversionRate.toFixed(1)}%</p>
-                  <p className="text-xs text-teal-200 mt-1">{leadStats.converted} converted</p>
+                  <p className="text-xs text-primary-foreground/70 mt-1">{leadStats.converted} converted</p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-teal-200" />
+                <CheckCircle className="h-8 w-8 text-primary-foreground/70" />
               </div>
             </CardContent>
           </Card>

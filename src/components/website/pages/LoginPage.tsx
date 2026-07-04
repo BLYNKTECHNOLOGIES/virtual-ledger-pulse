@@ -11,7 +11,6 @@ import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import blynkIcon from '@/assets/brand/blynk-icon.svg';
 import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
-import blynkLogoDark from '@/assets/brand/blynk-logo-dark.svg';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');

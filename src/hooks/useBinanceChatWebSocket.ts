@@ -97,6 +97,13 @@ function invalidateChatCredential(accountId: string | null) {
   credentialCache.delete(accountId ?? '__default__');
 }
 
+// ---- Module-level per-order message cache ----
+// Survives component unmount so reopening a chat paints the last-loaded
+// messages instantly while the WS/REST refresh happens in the background.
+const messageCache = new Map<string, TrackedMessage[]>();
+const messageCacheKey = (orderNo: string, accountId: string | null) =>
+  `${accountId ?? '__default__'}::${orderNo}`;
+
 export function useBinanceChatWebSocket(
   activeOrderNo: string | null,
   accountId?: string | null
@@ -106,7 +113,9 @@ export function useBinanceChatWebSocket(
   // the proxy fall back to the primary account and stream a DIFFERENT order's chat.
   const accountIdRef = useRef<string | null>(accountId ?? null);
   accountIdRef.current = accountId ?? null;
-  const [messages, setMessages] = useState<TrackedMessage[]>([]);
+  const [messages, setMessages] = useState<TrackedMessage[]>(
+    () => (activeOrderNo ? messageCache.get(messageCacheKey(activeOrderNo, accountId ?? null)) ?? [] : [])
+  );
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -244,6 +253,7 @@ export function useBinanceChatWebSocket(
 
         if (activeOrderRef.current === orderNo) {
           setMessages(() => deduped);
+          messageCache.set(messageCacheKey(orderNo, accountIdRef.current ?? null), deduped);
 
           // Check if any queued messages now appear in server response (delivered)
           const serverContents = new Set(deduped.filter(m => m.self).map(m => (m.content || m.message || '').trim()));
@@ -264,9 +274,14 @@ export function useBinanceChatWebSocket(
 
   // ---- Clear messages and restart polling when order changes ----
   useEffect(() => {
-    setMessages([]);
+    // Restore instantly from the module cache (survives unmount) instead of
+    // blanking the panel and waiting for the WS/REST refresh to arrive.
+    setMessages(
+      activeOrderNo ? messageCache.get(messageCacheKey(activeOrderNo, accountIdRef.current ?? null)) ?? [] : []
+    );
 
     if (!activeOrderNo) return;
+
 
     // Let the fast cached/archived DB read (used by ChatPanel) win the browser's
     // limited connection pool and paint first. The slow Binance REST/credential

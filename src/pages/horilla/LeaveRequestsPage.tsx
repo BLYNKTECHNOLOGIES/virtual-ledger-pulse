@@ -235,16 +235,16 @@ export default function LeaveRequestsPage() {
                     <td className="px-4 py-3">
                       {r.status === "pending" && (
                         <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="text-green-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
+                          <Button size="sm" variant="ghost" className="text-success h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "approved", request: r })}>
                             <CheckCircle className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="text-red-600 h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}>
+                          <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={() => statusMutation.mutate({ id: r.id, status: "rejected" })}>
                             <XCircle className="h-4 w-4" />
                           </Button>
                         </div>
                       )}
                       {r.status === "approved" && (
-                        <Button size="sm" variant="ghost" className="text-orange-600 h-7 text-xs" onClick={() => statusMutation.mutate({ id: r.id, status: "cancelled", request: r })}>
+                        <Button size="sm" variant="ghost" className="text-warning h-7 text-xs" onClick={() => statusMutation.mutate({ id: r.id, status: "cancelled", request: r })}>
                           Cancel
                         </Button>
                       )}

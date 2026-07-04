@@ -231,7 +231,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">Client Age</label>
-            <p className="text-sm text-green-600 font-medium">{clientAge} months</p>
+            <p className="text-sm text-success font-medium tabular-nums">{clientAge} months</p>
           </div>
         </div>
 

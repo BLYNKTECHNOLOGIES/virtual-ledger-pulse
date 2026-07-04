@@ -1,5 +1,7 @@
 
 import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard } from "lucide-react";
+import blynkLogoWhite from "@/assets/brand/blynk-logo-white.svg";
+import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -380,16 +382,18 @@ export function AppSidebar() {
     <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm" collapsible="icon">
       <SidebarHeader className={`border-b border-sidebar-border bg-primary ${isCollapsed ? 'p-2' : 'p-4'}`}>
         <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
-          <img 
-            src="/lovable-uploads/421c0134-ad3f-4de9-889f-972a88a59561.png" 
-            alt="BLYNK Virtual Technologies Logo" 
-            className={`w-auto flex-shrink-0 bg-primary-foreground/10 p-2 rounded-lg shadow-sm ${isCollapsed ? 'h-8 w-8' : 'h-12'}`}
-          />
-          {!isCollapsed && (
-            <div className="flex flex-col min-w-0 ml-3">
-              <h2 className="text-sm font-bold text-primary-foreground tracking-tight leading-tight truncate">BLYNK VIRTUAL</h2>
-              <p className="text-sm text-primary-foreground/80 font-bold -mt-0.5 truncate">TECHNOLOGIES</p>
-            </div>
+          {isCollapsed ? (
+            <img
+              src={blynkIcon}
+              alt="BLYNK Virtual Technologies"
+              className="h-8 w-8 flex-shrink-0"
+            />
+          ) : (
+            <img
+              src={blynkLogoWhite}
+              alt="BLYNK Virtual Technologies"
+              className="h-10 w-auto flex-shrink-0"
+            />
           )}
         </div>
       </SidebarHeader>

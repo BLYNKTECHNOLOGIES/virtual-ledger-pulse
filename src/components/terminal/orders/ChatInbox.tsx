@@ -134,13 +134,13 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <MessageSquare className="h-4 w-4 text-primary" />
-        <span className="text-sm font-semibold text-foreground">Chat</span>
+        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">Inbox</span>
         {totalUnread > 0 && (
-          <Badge className="bg-destructive text-destructive-foreground text-[9px] h-4 px-1.5 ml-1">
+          <Badge className="bg-destructive text-destructive-foreground text-[9px] t-mono h-4 px-1.5 ml-1">
             {totalUnread}
           </Badge>
         )}
@@ -154,10 +154,11 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by nickname/group name"
-            className="h-8 pl-8 text-xs bg-secondary border-border"
+            className="h-8 pl-8 text-xs bg-input border-border"
           />
         </div>
       </div>
+
 
       {/* Tabs */}
       <div className="px-4 py-2 border-b border-border">

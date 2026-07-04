@@ -132,6 +132,7 @@ import { AuthProvider } from './components/AuthProvider';
 import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
 import ExchangeAccountsSettings from './pages/ExchangeAccountsSettings';
+import OAuthConsent from './pages/OAuthConsent';
 
 const router = createBrowserRouter([
   // Login — the only public route
@@ -142,6 +143,11 @@ const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  // MCP OAuth consent — public route (handles its own auth redirect)
+  {
+    path: "/.lovable/oauth/consent",
+    element: <OAuthConsent />,
   },
   // ERP System Routes - All protected with authentication
   {

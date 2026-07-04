@@ -122,10 +122,10 @@ export default function AttendanceOverviewPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 page-mount">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Attendance Overview</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Attendance Overview</h1>
           <p className="text-sm text-muted-foreground">Track and manage daily attendance</p>
         </div>
         <div className="flex items-center gap-2">
@@ -138,30 +138,30 @@ export default function AttendanceOverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger-children">
         {[
-          { label: "Total", value: stats.total, icon: Clock, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Present", value: stats.present, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
-          { label: "Absent", value: stats.absent, icon: XCircle, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Late", value: stats.late, icon: AlertTriangle, color: "text-yellow-600", bg: "bg-yellow-50" },
+          { label: "Total", value: stats.total, icon: Clock, color: "text-info", bg: "bg-info/10" },
+          { label: "Present", value: stats.present, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+          { label: "Absent", value: stats.absent, icon: XCircle, color: "text-destructive", bg: "bg-destructive/10" },
+          { label: "Late", value: stats.late, icon: AlertTriangle, color: "text-warning", bg: "bg-warning/10" },
         ].map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className="h-full transition-shadow hover:shadow-md">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div><p className="text-2xl font-semibold tabular-nums">{s.value}</p><p className="text-xs uppercase tracking-wide text-muted-foreground">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
       <div className="flex gap-3 flex-wrap">
-        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44" />
+        <Input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="w-44 h-9" />
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="present">Present</SelectItem>
@@ -178,7 +178,7 @@ export default function AttendanceOverviewPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 {["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => (
-                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -186,26 +186,26 @@ export default function AttendanceOverviewPage() {
               {isLoading ? (
                 <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</td></tr>
               ) : queryError ? (
-                <tr><td colSpan={9} className="text-center py-8 text-red-500">Error loading data. Please refresh the page.</td></tr>
+                <tr><td colSpan={9} className="text-center py-8 text-destructive">Error loading data. Please refresh the page.</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} className="text-center py-8 text-muted-foreground">No attendance records for this date</td></tr>
               ) : (
                 filtered.map((a: any) => (
                   <tr key={a.id} className="border-b hover:bg-muted/50">
                     <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.badge_id}</td>
-                    <td className="px-4 py-3">{a.check_in || "—"}</td>
-                    <td className="px-4 py-3">{a.check_out || "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.hr_employees?.badge_id}</td>
+                    <td className="px-4 py-3 tabular-nums">{a.check_in || "—"}</td>
+                    <td className="px-4 py-3 tabular-nums">{a.check_out || "—"}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        a.attendance_status === "present" ? "bg-green-100 text-green-700" :
-                        a.attendance_status === "absent" ? "bg-red-100 text-red-700" :
-                        a.attendance_status === "late" ? "bg-yellow-100 text-yellow-700" :
+                        a.attendance_status === "present" ? "bg-success/10 text-success" :
+                        a.attendance_status === "absent" ? "bg-destructive/10 text-destructive" :
+                        a.attendance_status === "late" ? "bg-warning/10 text-warning" :
                         "bg-muted text-foreground"
                       }`}>{a.attendance_status}</span>
                     </td>
-                    <td className="px-4 py-3">{a.late_minutes ? <span className="text-yellow-600 font-medium">{a.late_minutes}m</span> : "—"}</td>
-                    <td className="px-4 py-3">{a.early_leave_minutes ? <span className="text-orange-600 font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
+                    <td className="px-4 py-3 tabular-nums">{a.late_minutes ? <span className="text-warning font-medium">{a.late_minutes}m</span> : "—"}</td>
+                    <td className="px-4 py-3 tabular-nums">{a.early_leave_minutes ? <span className="text-warning font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground capitalize">{a.work_type || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
                   </tr>
@@ -215,6 +215,7 @@ export default function AttendanceOverviewPage() {
           </table>
         </CardContent>
       </Card>
+
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent>

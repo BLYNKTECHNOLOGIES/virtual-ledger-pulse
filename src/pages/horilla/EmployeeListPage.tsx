@@ -547,7 +547,7 @@ export default function EmployeeListPage() {
             {actionsOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
-                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg py-1 min-w-[160px] z-50">
+                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-md py-1 min-w-[160px] z-50">
                   <button
                     onClick={() => { handleExport(); setActionsOpen(false); }}
                     className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
@@ -693,7 +693,7 @@ export default function EmployeeListPage() {
             {colPickerOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setColPickerOpen(false)} />
-                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-lg py-2 min-w-[180px] z-50">
+                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-md py-2 min-w-[180px] z-50">
                   <p className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Show Columns</p>
                   {ALL_TABLE_COLS.filter(c => !c.alwaysVisible).map(col => (
                     <label key={col.key} className="flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-muted cursor-pointer">

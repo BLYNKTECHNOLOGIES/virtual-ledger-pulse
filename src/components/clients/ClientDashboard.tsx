@@ -604,7 +604,7 @@ export function ClientDashboard() {
                             <td className="py-3 px-4 font-mono text-sm">{client.client_id}</td>
                             <td className="py-3 px-4">{client.assigned_operator || 'Unassigned'}</td>
                             <td className="py-3 px-4">{getRiskBadge(client.risk_appetite)}</td>
-                            <td className="py-3 px-4">{totalOrders}</td>
+                            <td className="py-3 px-4 text-right tabular-nums">{totalOrders}</td>
                             <td className="py-3 px-4">{formatLastOrderDate(orderInfo?.lastSalesOrderDate)}</td>
                             <td className="py-3 px-4">
                               <VolumeTrendBadge trend={trend} changePercent={changePercent} />

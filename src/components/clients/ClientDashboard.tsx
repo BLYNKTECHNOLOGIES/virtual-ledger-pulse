@@ -141,10 +141,10 @@ export function ClientDashboard() {
   };
 
   const getClientPriority = (valueScore: number) => {
-    if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-purple-100 text-purple-800' };
-    if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-yellow-100 text-yellow-800' };
-    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-muted text-foreground' };
-    return { tag: 'General', color: 'bg-blue-100 text-blue-800' };
+    if (valueScore >= 10000) return { tag: 'Platinum', color: 'bg-primary/10 text-primary border-primary/20' };
+    if (valueScore >= 5000) return { tag: 'Gold', color: 'bg-warning/10 text-warning border-warning/20' };
+    if (valueScore >= 1000) return { tag: 'Silver', color: 'bg-muted text-muted-foreground border-border' };
+    return { tag: 'General', color: 'bg-info/10 text-info border-info/20' };
   };
 
   // Get volume trend and change based on period and client type

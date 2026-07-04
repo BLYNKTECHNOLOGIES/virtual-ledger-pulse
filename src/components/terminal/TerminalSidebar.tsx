@@ -171,8 +171,8 @@ export function TerminalSidebar() {
       <SidebarFooter className="px-3 py-3 border-t border-sidebar-border">
         <Link to="/dashboard">
           <Button
-            variant="ghost"
-            className="w-full h-8 bg-gradient-to-r from-muted via-muted to-muted text-warning hover:from-muted hover:via-muted hover:to-muted hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm hover:shadow-warning/10 transition-all duration-300 font-semibold tracking-wide text-xs"
+            variant="outline"
+            className="w-full h-8 bg-transparent text-warning border-warning/30 hover:border-warning/50 hover:bg-warning/5 hover:text-warning hover:t-glow transition-all duration-200 font-semibold tracking-wide text-xs"
           >
             <Building2 className="h-3.5 w-3.5 mr-2" />
             ERP Dashboard

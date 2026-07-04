@@ -568,9 +568,9 @@ export default function Dashboard() {
       case 'recent-activity':
         return (
           <Card className="bg-card border border-border shadow-sm h-full">
-            <CardHeader className="bg-teal-600 text-primary-foreground rounded-t-lg">
+            <CardHeader className="bg-info text-primary-foreground rounded-t-lg">
               <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="p-2 bg-teal-700 rounded-lg shadow-md"><Activity className="h-5 w-5" /></div>
+                <div className="p-2 bg-info/80 rounded-lg shadow-md"><Activity className="h-5 w-5" /></div>
                 Recent Activity
               </CardTitle>
             </CardHeader>

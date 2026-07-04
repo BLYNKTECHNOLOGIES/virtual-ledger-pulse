@@ -394,8 +394,8 @@ export default function PayslipsPage() {
                         </div>
                       )}
                       {holidayWorked > 0 && (
-                        <div className="bg-teal-50 rounded-lg px-3 py-2 text-center">
-                          <p className="text-lg font-bold text-teal-700">{holidayWorked}</p>
+                        <div className="bg-info/10 rounded-lg px-3 py-2 text-center">
+                          <p className="text-lg font-bold text-info">{holidayWorked}</p>
                           <p className="text-[10px] text-muted-foreground">Holiday Worked (Extra Pay)</p>
                         </div>
                       )}

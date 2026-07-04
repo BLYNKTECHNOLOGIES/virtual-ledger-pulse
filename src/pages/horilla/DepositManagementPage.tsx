@@ -245,7 +245,7 @@ export default function DepositManagementPage() {
       case "modified": return "bg-warning/10 text-warning";
       case "completed": return "bg-success/10 text-success";
       case "paused": return "bg-warning/10 text-warning";
-      case "resumed": return "bg-teal-100 text-teal-700";
+      case "resumed": return "bg-info/10 text-info";
       default: return "bg-muted text-foreground";
     }
   };
@@ -411,7 +411,7 @@ export default function DepositManagementPage() {
                               </Button>
                               {!d.is_fully_collected && (
                                 d.is_paused ? (
-                                  <Button size="sm" variant="ghost" className="h-7 text-teal-600" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'resume' })} title="Resume Deductions">
+                                  <Button size="sm" variant="ghost" className="h-7 text-info" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'resume' })} title="Resume Deductions">
                                     <Play className="h-3 w-3" />
                                   </Button>
                                 ) : (

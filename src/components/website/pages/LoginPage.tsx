@@ -158,6 +158,11 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
+          <div className="flex justify-center mb-2">
+            <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center">
+              <img src={blynkIcon} alt="BLYNK" className="h-9 w-9" />
+            </div>
+          </div>
           <CardTitle className="text-2xl font-bold text-center">Staff Login</CardTitle>
           <CardDescription className="text-center">
             Blynk Technologies Private Limited

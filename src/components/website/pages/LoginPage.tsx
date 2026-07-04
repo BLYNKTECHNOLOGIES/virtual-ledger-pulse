@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordResetDialog';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import blynkIcon from '@/assets/brand/blynk-icon.svg';
+import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
+import blynkLogoDark from '@/assets/brand/blynk-logo-dark.svg';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -155,50 +156,115 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-2">
-            <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center">
-              <img src={blynkIcon} alt="BLYNK" className="h-9 w-9" />
-            </div>
+    <div className="min-h-screen w-full lg:grid lg:grid-cols-2 bg-background">
+      {/* Brand panel */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-primary via-[hsl(231_81%_48%)] to-[hsl(231_70%_28%)] p-12 text-primary-foreground">
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute -top-24 -right-24 h-96 w-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-black/20 blur-3xl" />
+        {/* Grid texture */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.12]"
+          style={{
+            backgroundImage:
+              'linear-gradient(hsl(0 0% 100% / 0.6) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.6) 1px, transparent 1px)',
+            backgroundSize: '48px 48px',
+          }}
+        />
+
+        <div className="relative z-10">
+          <img src={blynkLogoWhite} alt="Blynk" className="h-10 w-auto" />
+        </div>
+
+        <div className="relative z-10 space-y-8">
+          <div className="space-y-4">
+            <h1 className="text-4xl font-bold leading-tight tracking-tight">
+              The intelligent<br />enterprise platform.
+            </h1>
+            <p className="max-w-md text-base text-primary-foreground/75">
+              Unified operations, real-time trading and finance — engineered for
+              speed, precision and control.
+            </p>
           </div>
-          <CardTitle className="text-2xl font-bold text-center">Staff Login</CardTitle>
-          <CardDescription className="text-center">
-            Blynk Technologies Private Limited
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+
+          <div className="grid gap-4">
+            {[
+              { icon: Zap, title: 'Real-time sync', desc: 'Live data across every module' },
+              { icon: BarChart3, title: 'Actionable insight', desc: 'Analytics built into the flow' },
+              { icon: ShieldCheck, title: 'Enterprise security', desc: 'Role-based access & audit trails' },
+            ].map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="flex items-center gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm ring-1 ring-white/15">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{title}</p>
+                  <p className="text-xs text-primary-foreground/70">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="relative z-10 text-xs text-primary-foreground/60">
+          © {new Date().getFullYear()} Blynk Technologies Private Limited
+        </div>
+      </div>
+
+      {/* Form panel */}
+      <div className="flex min-h-screen items-center justify-center p-6 sm:p-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-8 flex flex-col items-center lg:items-start">
+            <div className="lg:hidden mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
+              <img src={blynkIcon} alt="Blynk" className="h-9 w-9" />
+            </div>
+            <img src={blynkLogoDark} alt="Blynk" className="hidden lg:block dark:lg:hidden h-8 w-auto mb-8" />
+            <img src={blynkLogoWhite} alt="Blynk" className="hidden dark:lg:block h-8 w-auto mb-8" />
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Sign in to your Blynk workspace to continue.
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm">
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
             {success && (
-              <div className="bg-success/10 border border-success/20 text-success px-4 py-3 rounded-md text-sm">
+              <div className="bg-success/10 border border-success/20 text-success px-4 py-3 rounded-lg text-sm">
                 {success}
               </div>
             )}
-            
+
             <div className="space-y-2">
-              <Label htmlFor="email">Email or Username</Label>
+              <Label htmlFor="email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="email"
                   type="text"
-                  placeholder="Enter your email or username"
+                  placeholder="you@blynkex.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11"
                   required
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-xs font-medium text-primary hover:text-primary/80 hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -207,7 +273,7 @@ export function LoginPage() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 h-11"
                   required
                 />
                 <Button
@@ -225,10 +291,10 @@ export function LoginPage() {
                 </Button>
               </div>
             </div>
-            
-            <Button 
-              type="submit" 
-              className="w-full bg-primary hover:bg-primary/90"
+
+            <Button
+              type="submit"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-base font-semibold"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -240,19 +306,9 @@ export function LoginPage() {
                 'Sign In'
               )}
             </Button>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="text-sm text-primary hover:text-primary/80 hover:underline"
-              >
-                Forgot password?
-              </button>
-            </div>
           </form>
 
-          <div className="mt-4 pt-4 border-t text-center text-sm text-muted-foreground">
+          <div className="mt-6 pt-6 border-t text-center text-sm text-muted-foreground">
             New here?{' '}
             <button
               type="button"
@@ -262,8 +318,8 @@ export function LoginPage() {
               Register
             </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <RegisterUserDialog open={showRegister} onOpenChange={setShowRegister} />
 

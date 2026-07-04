@@ -218,8 +218,8 @@ export function LoginPage() {
             <div className="lg:hidden mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
               <img src={blynkIcon} alt="Blynk" className="h-9 w-9" />
             </div>
-            <img src={blynkLogoDark} alt="Blynk" className="hidden lg:block h-8 w-auto mb-8 dark:hidden" />
-            <img src={blynkLogoWhite} alt="Blynk" className="hidden lg:dark:block h-8 w-auto mb-8" />
+            <img src={blynkLogoDark} alt="Blynk" className="hidden lg:block dark:lg:hidden h-8 w-auto mb-8" />
+            <img src={blynkLogoWhite} alt="Blynk" className="hidden dark:lg:block h-8 w-auto mb-8" />
             <h2 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Sign in to your Blynk workspace to continue.

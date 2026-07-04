@@ -385,7 +385,7 @@ export function LedgerIntegrityTab() {
                     <TableCell className="text-right">{r.out_total_rows}</TableCell>
                     <TableCell>
                       {r.out_is_intact ? (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        <Badge className="bg-success/10 text-success hover:bg-success/10">
                           <ShieldCheck className="h-3 w-3 mr-1" />
                           Intact
                         </Badge>
@@ -452,7 +452,7 @@ export function LedgerIntegrityTab() {
                     <TableCell className="text-right">{r.rows_checked}</TableCell>
                     <TableCell>
                       {r.intact ? (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        <Badge className="bg-success/10 text-success hover:bg-success/10">
                           <ShieldCheck className="h-3 w-3 mr-1" />
                           Intact
                         </Badge>
@@ -533,7 +533,7 @@ export function LedgerIntegrityTab() {
                     <TableCell className="text-right">{r.out_total_rows}</TableCell>
                     <TableCell>
                       {r.out_is_intact ? (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        <Badge className="bg-success/10 text-success hover:bg-success/10">
                           <ShieldCheck className="h-3 w-3 mr-1" />
                           Intact
                         </Badge>
@@ -578,7 +578,7 @@ export function LedgerIntegrityTab() {
                     <TableCell className="text-right">{r.rows_checked}</TableCell>
                     <TableCell>
                       {r.intact ? (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+                        <Badge className="bg-success/10 text-success hover:bg-success/10">
                           <ShieldCheck className="h-3 w-3 mr-1" />
                           Intact
                         </Badge>
@@ -658,7 +658,7 @@ export function LedgerIntegrityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
             Tamper Log
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -709,7 +709,7 @@ export function LedgerIntegrityTab() {
                       {t.blocked ? (
                         <Badge variant="destructive">Blocked</Badge>
                       ) : (
-                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                        <Badge className="bg-info/10 text-info hover:bg-info/10">
                           Allowed
                         </Badge>
                       )}
@@ -728,7 +728,7 @@ export function LedgerIntegrityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
             Bank Ledger Tamper Log
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -774,7 +774,7 @@ export function LedgerIntegrityTab() {
                       {t.blocked ? (
                         <Badge variant="destructive">Blocked</Badge>
                       ) : (
-                        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                        <Badge className="bg-info/10 text-info hover:bg-info/10">
                           Allowed
                         </Badge>
                       )}

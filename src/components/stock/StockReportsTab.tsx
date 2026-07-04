@@ -266,7 +266,7 @@ export function StockReportsTab() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{lowStockProducts?.length || 0}</div>
+            <div className="text-2xl font-bold text-destructive">{lowStockProducts?.length || 0}</div>
             <p className="text-xs text-muted-foreground">Items with stock ≤ 10</p>
           </CardContent>
         </Card>
@@ -496,7 +496,7 @@ export function StockReportsTab() {
                   <tr key={product.id} className="border-b hover:bg-muted/50">
                     <td className="py-3 px-4 font-medium">{product.code}</td>
                     <td className="py-3 px-4">{product.name}</td>
-                    <td className="py-3 px-4 font-medium text-red-600">{product.current_stock_quantity}</td>
+                    <td className="py-3 px-4 font-medium text-destructive">{product.current_stock_quantity}</td>
                     <td className="py-3 px-4">{product.unit_of_measurement}</td>
                     <td className="py-3 px-4">10</td>
                     <td className="py-3 px-4">

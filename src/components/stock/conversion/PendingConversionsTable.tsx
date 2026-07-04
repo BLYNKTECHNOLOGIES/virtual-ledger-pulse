@@ -136,7 +136,7 @@ export function PendingConversionsTable() {
                         </TableCell>
                         <TableCell>
                           {isFromSpotSync ? (
-                            <Badge variant="outline" className="text-[10px] text-blue-600 border-blue-300">
+                            <Badge variant="outline" className="text-[10px] text-info border-info/20">
                               Terminal
                             </Badge>
                           ) : (

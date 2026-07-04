@@ -452,7 +452,7 @@ export function WalletManagementTab() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select chain" />
                 </SelectTrigger>
-                <SelectContent className="bg-card border border-border shadow-lg z-50">
+                <SelectContent className="bg-card border border-border shadow-sm z-50">
                   <SelectItem value="Ethereum">Ethereum (ETH)</SelectItem>
                   <SelectItem value="Binance Smart Chain">Binance Smart Chain (BSC)</SelectItem>
                   <SelectItem value="Polygon">Polygon (MATIC)</SelectItem>
@@ -778,13 +778,13 @@ export function WalletManagementTab() {
                           return (
                             <Tooltip>
                               <TooltipTrigger>
-                                <span className="text-[10px] font-bold text-red-500">
+                                <span className="text-[10px] font-bold text-destructive">
                                   {diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2)}
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p className="text-xs">API Balance: {binanceUsdtBalance.toFixed(2)}</p>
-                                <p className="text-xs text-red-400">Difference from Binance API</p>
+                                <p className="text-xs text-destructive">Difference from Binance API</p>
                               </TooltipContent>
                             </Tooltip>
                           );
@@ -793,7 +793,7 @@ export function WalletManagementTab() {
                     </TableCell>
                     <TableCell>
                       {wallet.is_fee_enabled && (wallet.fee_percentage || 0) > 0 ? (
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                        <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
                           <Percent className="h-3 w-3 mr-1" />
                           {(wallet.fee_percentage || 0).toFixed(2)}%
                         </Badge>

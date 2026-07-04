@@ -285,7 +285,7 @@ export function CreateConversionForm() {
       <div className="space-y-4">
         {/* WAC Position */}
         {walletId && assetCode && (
-          <Card className="border-blue-200 bg-blue-50/30">
+          <Card className="border-info/20 bg-info/10">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Current Position: {assetCode}</CardTitle>
             </CardHeader>
@@ -361,7 +361,7 @@ export function CreateConversionForm() {
                 </div>
                 <div className="flex justify-between font-semibold">
                   <span>Est. Realized P&L</span>
-                  <span className={`font-mono ${calc.estPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <span className={`font-mono ${calc.estPnl >= 0 ? 'text-success' : 'text-destructive'}`}>
                     {calc.estPnl >= 0 ? '+' : ''}${formatSmartDecimal(calc.estPnl, 4)}
                   </span>
                 </div>

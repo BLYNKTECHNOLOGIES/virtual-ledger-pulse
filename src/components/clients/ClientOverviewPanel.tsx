@@ -240,7 +240,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
             <label className="text-sm font-medium text-muted-foreground">First Order Value</label>
             <div className="flex items-center gap-2">
               <IndianRupee className="h-4 w-4 text-muted-foreground" />
-              <span className="text-lg font-semibold text-green-600">₹{firstOrderValue.toLocaleString('en-IN')}</span>
+              <span className="text-lg font-semibold text-success tabular-nums">₹{firstOrderValue.toLocaleString('en-IN')}</span>
             </div>
             {firstOrder && (
               <p className="text-xs text-muted-foreground">Order #{firstOrder.order_number} on {new Date(firstOrder.order_date).toLocaleDateString()}</p>

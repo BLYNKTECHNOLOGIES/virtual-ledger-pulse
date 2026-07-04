@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, AlertTriangle, Activity, IdCard } from 'lucide-react';
+import { MessageSquare, Users, User, BarChart3, ArrowLeft, Calendar, Shield, FileText, ChevronDown, ChevronLeft, ChevronRight, AlertTriangle, Activity, IdCard } from 'lucide-react';
 import { InternalChatPanel } from './InternalChatPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { CounterpartyPanInput } from './CounterpartyPanInput';

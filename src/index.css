@@ -238,14 +238,14 @@
   height: 6px;
 }
 .terminal ::-webkit-scrollbar-track {
-  background: hsl(225 22% 7%);
+  background: hsl(var(--background));
 }
 .terminal ::-webkit-scrollbar-thumb {
-  background: hsl(225 14% 17%);
+  background: hsl(var(--border));
   border-radius: 3px;
 }
 .terminal ::-webkit-scrollbar-thumb:hover {
-  background: hsl(225 14% 24%);
+  background: hsl(240 8% 22%);
 }
 
 /* Dense table rows for exchange-style data */
@@ -254,7 +254,7 @@
   border-spacing: 0;
 }
 .terminal thead tr {
-  background: hsl(225 18% 10%);
+  background: hsl(var(--card));
 }
 .terminal thead th {
   font-size: 10px;
@@ -263,8 +263,8 @@
   letter-spacing: 0.05em;
   padding-top: 8px;
   padding-bottom: 8px;
-  color: hsl(225 12% 48%);
-  border-bottom: 1px solid hsl(225 14% 17%);
+  color: hsl(var(--muted-foreground));
+  border-bottom: 1px solid hsl(var(--border));
 }
 .terminal tbody tr {
   transition: background-color 0.1s ease;
@@ -273,20 +273,126 @@
   background: hsla(0 0% 100% / 0.045);
 }
 .terminal tbody tr[data-state="selected"] {
-  background: hsla(217 91% 60% / 0.08);
+  background: hsl(var(--primary) / 0.08);
 }
 .terminal tbody td {
   padding-top: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid hsl(225 14% 13%);
+  border-bottom: 1px solid hsl(240 8% 10%);
   font-size: 12px;
 }
 
-/* Tabular nums for financial data */
-.terminal .tabular-nums {
+/* Tabular nums for financial data — numeric cells default to tabular figures */
+.terminal .tabular-nums,
+.terminal td .t-mono,
+.terminal .t-mono {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
 }
+
+/* ═══════════════════════════════════════════════════════
+   TERMINAL SCOPED UTILITY + MOTION KIT (Phase 1 foundation)
+   Presentation only — transform/opacity motion, reduced-motion safe.
+   ═══════════════════════════════════════════════════════ */
+
+/* Monospaced numerals — system stack, no imports */
+.terminal .t-mono {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+/* Panel primitive */
+.terminal .t-panel {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius, 0.5rem);
+}
+
+/* Signature glow — small elements only (hover/focus emphasis) */
+.terminal .t-glow {
+  box-shadow: var(--glow-primary);
+}
+
+/* Ultra-subtle static grid texture for the main canvas (cheap, no animation) */
+.terminal .t-grid-bg {
+  background-image:
+    linear-gradient(to right, hsla(0 0% 100% / 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, hsla(0 0% 100% / 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Dark shimmer skeleton */
+.terminal .t-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(240 8% 16%) 37%,
+    hsl(var(--muted)) 63%
+  );
+  background-size: 400% 100%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .terminal .t-mount {
+    animation: t-mount 200ms ease-out both;
+  }
+  .terminal .t-stagger > * {
+    animation: t-mount 200ms ease-out both;
+  }
+  .terminal .t-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .terminal .t-stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .terminal .t-stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .terminal .t-stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .terminal .t-stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .terminal .t-stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .terminal .t-stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .terminal .t-stagger > *:nth-child(8) { animation-delay: 280ms; }
+  .terminal .t-stagger > *:nth-child(9) { animation-delay: 320ms; }
+  .terminal .t-stagger > *:nth-child(10) { animation-delay: 360ms; }
+  .terminal .t-stagger > *:nth-child(11) { animation-delay: 400ms; }
+  .terminal .t-stagger > *:nth-child(n+12) { animation-delay: 440ms; }
+
+  .terminal .t-scale-in {
+    animation: t-scale-in 150ms ease-out both;
+  }
+  .terminal .t-pulse {
+    animation: t-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .terminal .t-flash-up {
+    animation: t-flash-up 600ms ease-out;
+  }
+  .terminal .t-flash-down {
+    animation: t-flash-down 600ms ease-out;
+  }
+  .terminal .t-shimmer {
+    animation: t-shimmer 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes t-mount {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes t-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes t-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+@keyframes t-flash-up {
+  0%   { background-color: hsl(var(--trade-buy) / 0.25); }
+  100% { background-color: transparent; }
+}
+@keyframes t-flash-down {
+  0%   { background-color: hsl(var(--trade-sell) / 0.25); }
+  100% { background-color: transparent; }
+}
+@keyframes t-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 
 .modern-card {
   @apply bg-card rounded-xl border border-border shadow-sm;

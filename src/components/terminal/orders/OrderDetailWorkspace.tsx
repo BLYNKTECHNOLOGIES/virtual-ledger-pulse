@@ -296,7 +296,8 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
 
   // Desktop layout (unchanged 3-panel)
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex flex-col h-full">
+      {stepArrows}
       {topBar}
       <div className="flex flex-1 overflow-hidden">
         <div className="w-[280px] border-r border-border overflow-y-auto bg-card shrink-0">

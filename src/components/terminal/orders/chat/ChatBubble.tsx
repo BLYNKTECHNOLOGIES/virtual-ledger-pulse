@@ -76,12 +76,13 @@ export function ChatBubble({ message }: { message: UnifiedMessage }) {
     <>
       <div className={`flex ${isOperator ? 'justify-end' : 'justify-start'}`}>
         <div
-          className={`max-w-[80%] min-w-0 rounded-lg px-3 py-2 overflow-hidden ${
+          className={`max-w-[75%] min-w-0 px-3 py-2 overflow-hidden ${
             isOperator
-              ? 'bg-primary/15 border border-primary/20 text-foreground'
-              : 'bg-secondary border border-border text-foreground'
+              ? 'bg-primary/12 border border-primary/25 text-foreground rounded-lg rounded-tr-sm'
+              : 'bg-secondary border border-border text-foreground rounded-lg rounded-tl-sm'
           }`}
         >
+
           <p className={`text-[9px] font-semibold mb-0.5 ${
             isOperator ? 'text-primary' : 'text-trade-pending'
           }`}>

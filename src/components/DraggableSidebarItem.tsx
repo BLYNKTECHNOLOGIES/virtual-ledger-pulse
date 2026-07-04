@@ -73,8 +73,8 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
             onClick={(e) => isDragMode && e.preventDefault()}
             className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}
           >
-            <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-100' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
-              <item.icon className={`h-4 w-4 ${isActive ? 'text-blue-700' : item.color} transition-colors duration-200`} />
+            <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/10' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
+              <item.icon className={`h-4 w-4 ${isActive ? 'text-primary' : item.color} transition-colors duration-200`} />
             </div>
             {!isCollapsed && (
               <span className="font-medium text-sm truncate transition-all duration-200 flex-1">

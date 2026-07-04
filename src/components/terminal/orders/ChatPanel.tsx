@@ -47,25 +47,29 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   const shouldAutoScrollRef = useRef(true);
   const prevScrollHeightRef = useRef(0);
 
-  // Mark this order's chat as read locally so ChatInbox clears the unread badge
+  // Mark this order's chat as read locally so ChatInbox clears the unread badge.
+  // The local mark is instant; the Binance write and archive sync are deferred
+  // ~500ms after paint so they don't compete with the initial message fetch for
+  // the browser's connection pool.
   useEffect(() => {
-    if (orderNumber) {
-      markOrderChatRead(orderNumber);
+    if (!orderNumber) return;
+    markOrderChatRead(orderNumber);
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      if (cancelled) return;
       callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch((err) => {
         console.warn('Failed to mark Binance chat read:', err);
       });
-    }
-  }, [orderNumber, exchangeAccountId]);
+      callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' }, exchangeAccountId ?? undefined)
+        .catch((err) => {
+          if (!cancelled) console.warn('Binance chat archive sync failed:', err);
+        });
+    }, 500);
 
-  useEffect(() => {
-    if (!orderNumber) return;
-    let cancelled = false;
-    callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' }, exchangeAccountId ?? undefined)
-      .catch((err) => {
-        if (!cancelled) console.warn('Binance chat archive sync failed:', err);
-      });
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [orderNumber, exchangeAccountId]);
 

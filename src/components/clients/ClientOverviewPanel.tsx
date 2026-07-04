@@ -280,19 +280,19 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="PREMIUM">
-                  <span className="text-emerald-600 font-medium">Premium</span>
+                  <span className="text-success font-medium">Premium</span>
                 </SelectItem>
                 <SelectItem value="ESTABLISHED">
-                  <span className="text-blue-600 font-medium">Established</span>
+                  <span className="text-info font-medium">Established</span>
                 </SelectItem>
                 <SelectItem value="STANDARD">
-                  <span className="text-yellow-600 font-medium">Standard</span>
+                  <span className="text-warning font-medium">Standard</span>
                 </SelectItem>
                 <SelectItem value="CAUTIOUS">
-                  <span className="text-orange-600 font-medium">Cautious</span>
+                  <span className="text-warning font-medium">Cautious</span>
                 </SelectItem>
                 <SelectItem value="HIGH_RISK">
-                  <span className="text-red-600 font-medium">High Risk</span>
+                  <span className="text-destructive font-medium">High Risk</span>
                 </SelectItem>
               </SelectContent>
             </Select>

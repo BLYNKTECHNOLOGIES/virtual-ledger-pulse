@@ -94,11 +94,11 @@ export function SalesPurchasesTab() {
                           <TableCell className="font-mono text-xs">{o.order_number}</TableCell>
                           <TableCell className="text-xs">{o.order_date ? format(new Date(o.order_date), 'dd MMM yyyy') : '—'}</TableCell>
                           <TableCell>{o.client_name || '—'}</TableCell>
-                          <TableCell className="text-right">{o.quantity ?? '—'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.price_per_unit)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.total_amount)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(o.fee_amount)}</TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(o.net_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{o.quantity ?? '—'}</TableCell>
+                          <TableCell className="text-right tabular-nums">{formatCurrency(o.price_per_unit)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums">{formatCurrency(o.total_amount)}</TableCell>
+                          <TableCell className="text-right tabular-nums text-destructive">{formatCurrency(o.fee_amount)}</TableCell>
+                          <TableCell className="text-right font-medium tabular-nums text-success">{formatCurrency(o.net_amount)}</TableCell>
                           <TableCell>{statusBadge(o.status)}</TableCell>
                           <TableCell>{statusBadge(o.payment_status)}</TableCell>
                         </ClickableRow>

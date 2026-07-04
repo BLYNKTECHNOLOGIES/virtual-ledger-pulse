@@ -126,19 +126,19 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium text-muted-foreground">Monthly Purchase Value</label>
-          <p className="text-2xl font-bold text-success">₹{monthlyPurchaseValue.toLocaleString('en-IN')}</p>
+          <p className="text-2xl font-bold text-success tabular-nums">₹{monthlyPurchaseValue.toLocaleString('en-IN')}</p>
           <p className="text-xs text-muted-foreground">{currentMonthOrders.length} orders this month</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Client Value (3%)</label>
-          <p className="text-xl font-semibold text-primary">₹{clientValue.toLocaleString('en-IN')}</p>
+          <p className="text-xl font-semibold text-primary tabular-nums">₹{clientValue.toLocaleString('en-IN')}</p>
           <p className="text-sm text-muted-foreground">Indicates priority level</p>
         </div>
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Total Lifetime Value</label>
-          <p className="text-lg font-semibold text-primary">₹{totalLifetimeValue.toLocaleString('en-IN')}</p>
+          <p className="text-lg font-semibold text-primary tabular-nums">₹{totalLifetimeValue.toLocaleString('en-IN')}</p>
           <p className="text-xs text-muted-foreground">{orders?.length || 0} total orders</p>
         </div>
 
@@ -152,7 +152,7 @@ export function ClientValueScore({ clientId }: ClientValueScoreProps) {
 
         <div>
           <label className="text-sm font-medium text-muted-foreground">Client Value Score</label>
-          <p className="text-lg font-semibold text-primary">{client.client_value_score || 0}/100</p>
+          <p className="text-lg font-semibold text-primary tabular-nums">{client.client_value_score || 0}/100</p>
         </div>
       </CardContent>
     </Card>

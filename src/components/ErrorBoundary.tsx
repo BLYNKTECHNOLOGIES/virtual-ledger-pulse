@@ -47,7 +47,7 @@ function DefaultErrorFallback({ error, resetError }: { error?: Error; resetError
   return (
     <Card className="m-4">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-red-600">
+        <CardTitle className="flex items-center gap-2 text-destructive">
           <AlertTriangle className="h-5 w-5" />
           Something went wrong
         </CardTitle>

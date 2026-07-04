@@ -33,14 +33,14 @@ export function Layout({ children }: LayoutProps) {
           <ExchangeAccountProvider>
             <SidebarProvider defaultOpen={defaultSidebarOpen}>
               <ShortcutsProvider>
-              <div className="flex w-full min-h-screen bg-slate-50">
+              <div className="flex w-full min-h-screen bg-background">
                 {/* Desktop sidebar - hidden on mobile */}
                 <div className="hidden md:block">
                   <AppSidebar />
                 </div>
                 <SidebarInset className="flex flex-col flex-1 min-w-0">
                   <TopHeader />
-                  <main className="flex-1 overflow-auto bg-slate-50 pb-16 md:pb-0">
+                  <main className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
                     <div key={location.pathname} className="page-mount">
                       {children}
                     </div>
